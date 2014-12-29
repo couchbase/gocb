@@ -816,10 +816,10 @@ func (c *BaseConnection) Remove(key []byte, cas uint64) (uint64, error) {
 	return resp.Cas, nil
 }
 
-func (c *BaseConnection) store(opcode commandCode, key, value []byte, flags uint32, cas uint64) (uint64, error) {
-	extraBuf := make([]byte, 4)
+func (c *BaseConnection) store(opcode commandCode, key, value []byte, flags uint32, cas uint64, expiry uint32) (uint64, error) {
+	extraBuf := make([]byte, 8)
 	binary.BigEndian.PutUint32(extraBuf, flags)
-
+	binary.BigEndian.PutUint32(extraBuf, expiry)
 	req := &memdRequest{
 		Magic:      reqMagic,
 		Opcode:     opcode,
@@ -841,16 +841,16 @@ func (c *BaseConnection) store(opcode commandCode, key, value []byte, flags uint
 	return resp.Cas, nil
 }
 
-func (c *BaseConnection) Add(key, value []byte, flags uint32) (uint64, error) {
-	return c.store(cmdAdd, key, value, flags, 0)
+func (c *BaseConnection) Add(key, value []byte, flags uint32, expiry uint32) (uint64, error) {
+	return c.store(cmdAdd, key, value, flags, 0, expiry)
 }
 
-func (c *BaseConnection) Set(key, value []byte, flags uint32) (uint64, error) {
-	return c.store(cmdSet, key, value, flags, 0)
+func (c *BaseConnection) Set(key, value []byte, flags uint32, expiry uint32) (uint64, error) {
+	return c.store(cmdSet, key, value, flags, 0, expiry)
 }
 
-func (c *BaseConnection) Replace(key, value []byte, flags uint32, cas uint64) (uint64, error) {
-	return c.store(cmdReplace, key, value, flags, cas)
+func (c *BaseConnection) Replace(key, value []byte, flags uint32, cas uint64, expiry uint32) (uint64, error) {
+	return c.store(cmdReplace, key, value, flags, cas, expiry)
 }
 
 func (c *BaseConnection) adjoin(opcode commandCode, key, value []byte) (uint64, error) {

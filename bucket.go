@@ -173,33 +173,33 @@ func (b *Bucket) Remove(key string, cas uint64) (uint64, error) {
 }
 
 // Inserts or replaces a document in the bucket.
-func (b *Bucket) Upsert(key string, value interface{}) (uint64, error) {
+func (b *Bucket) Upsert(key string, value interface{}, expiry uint32) (uint64, error) {
 	bytes, flags, err := b.encodeValue(value)
 	if err != nil {
 		return 0, err
 	}
 
-	return b.Client.Set([]byte(key), bytes, flags)
+	return b.Client.Set([]byte(key), bytes, flags, expiry)
 }
 
 // Inserts a new document to the bucket.
-func (b *Bucket) Insert(key string, value interface{}) (uint64, error) {
+func (b *Bucket) Insert(key string, value interface{}, expiry uint32) (uint64, error) {
 	bytes, flags, err := b.encodeValue(value)
 	if err != nil {
 		return 0, err
 	}
 
-	return b.Client.Add([]byte(key), bytes, flags)
+	return b.Client.Add([]byte(key), bytes, flags, expiry)
 }
 
 // Replaces a document in the bucket.
-func (b *Bucket) Replace(key string, value interface{}, cas uint64) (uint64, error) {
+func (b *Bucket) Replace(key string, value interface{}, cas uint64, expiry uint32) (uint64, error) {
 	bytes, flags, err := b.encodeValue(value)
 	if err != nil {
 		return 0, err
 	}
 
-	return b.Client.Replace([]byte(key), bytes, flags, cas)
+	return b.Client.Replace([]byte(key), bytes, flags, cas, expiry)
 }
 
 // Appends a string value to a document.
