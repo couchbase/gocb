@@ -201,8 +201,8 @@ func makePlainAuthRequest(bucket, password string) *memdRequest {
 	authMech := []byte("PLAIN")
 
 	return &memdRequest{
-		Magic:    REQ_MAGIC,
-		Opcode:   SASL_AUTH,
+		Magic:    reqMagic,
+		Opcode:   cmdSASLAuth,
 		Datatype: 0,
 		VBucket:  0,
 		Cas:      0,
@@ -215,8 +215,8 @@ func makePlainAuthRequest(bucket, password string) *memdRequest {
 // Creates a new memdRequest object to perform a configuration request.
 func makeCccpRequest() *memdRequest {
 	return &memdRequest{
-		Magic:    REQ_MAGIC,
-		Opcode:   GET_CLUSTER_CONFIG,
+		Magic:    reqMagic,
+		Opcode:   cmdGetClusterConfig,
 		Datatype: 0,
 		VBucket:  0,
 		Cas:      0,
@@ -458,7 +458,7 @@ func (c *BaseConnection) globalHandler() {
 			if req != nil {
 				delete(c.opMap, resp.Opaque)
 
-				if resp.Status == NOT_MY_VBUCKET {
+				if resp.Status == notMyVBucket {
 					// Maybe update config?
 					atomic.AddUint64(&c.Stats.NumOpRelocated, 1)
 					c.requestCh <- req
@@ -490,7 +490,7 @@ func (c *BaseConnection) Observe(key string) {
 	keyHash := cbCrc(keyBuf)
 
 	req := &memdRequest{
-		Magic:    REQ_MAGIC,
+		Magic:    reqMagic,
 		Opcode:   OBSERVE,
 		Datatype: 0,
 		Cas:      0,
@@ -670,8 +670,8 @@ func CreateBaseConnection(connSpecStr string, bucket, password string) (*BaseCon
 
 func (c *BaseConnection) Get(key []byte) ([]byte, uint32, uint64, error) {
 	req := &memdRequest{
-		Magic:      REQ_MAGIC,
-		Opcode:     GET,
+		Magic:      reqMagic,
+		Opcode:     cmdGet,
 		Datatype:   0,
 		Cas:        0,
 		Extras:     nil,
@@ -696,8 +696,8 @@ func (c *BaseConnection) GetAndTouch(key []byte, expiry uint32) ([]byte, uint32,
 	binary.BigEndian.PutUint32(extraBuf, expiry)
 
 	req := &memdRequest{
-		Magic:      REQ_MAGIC,
-		Opcode:     GAT,
+		Magic:      reqMagic,
+		Opcode:     cmdGAT,
 		Datatype:   0,
 		Cas:        0,
 		Extras:     extraBuf,
@@ -722,8 +722,8 @@ func (c *BaseConnection) GetAndLock(key []byte, lockTime uint32) ([]byte, uint32
 	binary.BigEndian.PutUint32(extraBuf, lockTime)
 
 	req := &memdRequest{
-		Magic:      REQ_MAGIC,
-		Opcode:     GET_LOCKED,
+		Magic:      reqMagic,
+		Opcode:     cmdGetLocked,
 		Datatype:   0,
 		Cas:        0,
 		Extras:     extraBuf,
@@ -745,8 +745,8 @@ func (c *BaseConnection) GetAndLock(key []byte, lockTime uint32) ([]byte, uint32
 
 func (c *BaseConnection) Unlock(key []byte, cas uint64) (uint64, error) {
 	req := &memdRequest{
-		Magic:      REQ_MAGIC,
-		Opcode:     UNLOCK_KEY,
+		Magic:      reqMagic,
+		Opcode:     cmdUnlockKey,
 		Datatype:   0,
 		Cas:        0,
 		Extras:     nil,
@@ -767,8 +767,8 @@ func (c *BaseConnection) Unlock(key []byte, cas uint64) (uint64, error) {
 
 func (c *BaseConnection) GetReplica(key []byte, replicaIdx int) ([]byte, uint32, uint64, error) {
 	req := &memdRequest{
-		Magic:      REQ_MAGIC,
-		Opcode:     GET_REPLICA,
+		Magic:      reqMagic,
+		Opcode:     cmdGetReplica,
 		Datatype:   0,
 		Cas:        0,
 		Extras:     nil,
@@ -796,8 +796,8 @@ func (c *BaseConnection) Touch(key []byte, expiry uint32) (uint64, error) {
 
 func (c *BaseConnection) Remove(key []byte, cas uint64) (uint64, error) {
 	req := &memdRequest{
-		Magic:      REQ_MAGIC,
-		Opcode:     DELETE,
+		Magic:      reqMagic,
+		Opcode:     cmdDelete,
 		Datatype:   0,
 		Cas:        cas,
 		Extras:     nil,
@@ -821,7 +821,7 @@ func (c *BaseConnection) store(opcode commandCode, key, value []byte, flags uint
 	binary.BigEndian.PutUint32(extraBuf, flags)
 
 	req := &memdRequest{
-		Magic:      REQ_MAGIC,
+		Magic:      reqMagic,
 		Opcode:     opcode,
 		Datatype:   0,
 		Cas:        cas,
@@ -842,20 +842,20 @@ func (c *BaseConnection) store(opcode commandCode, key, value []byte, flags uint
 }
 
 func (c *BaseConnection) Add(key, value []byte, flags uint32) (uint64, error) {
-	return c.store(ADD, key, value, flags, 0)
+	return c.store(cmdAdd, key, value, flags, 0)
 }
 
 func (c *BaseConnection) Set(key, value []byte, flags uint32) (uint64, error) {
-	return c.store(SET, key, value, flags, 0)
+	return c.store(cmdSet, key, value, flags, 0)
 }
 
 func (c *BaseConnection) Replace(key, value []byte, flags uint32, cas uint64) (uint64, error) {
-	return c.store(REPLACE, key, value, flags, cas)
+	return c.store(cmdReplace, key, value, flags, cas)
 }
 
 func (c *BaseConnection) adjoin(opcode commandCode, key, value []byte) (uint64, error) {
 	req := &memdRequest{
-		Magic:      REQ_MAGIC,
+		Magic:      reqMagic,
 		Opcode:     opcode,
 		Datatype:   0,
 		Cas:        0,
@@ -876,11 +876,11 @@ func (c *BaseConnection) adjoin(opcode commandCode, key, value []byte) (uint64, 
 }
 
 func (c *BaseConnection) Append(key, value []byte) (uint64, error) {
-	return c.adjoin(APPEND, key, value)
+	return c.adjoin(cmdAppend, key, value)
 }
 
 func (c *BaseConnection) Prepend(key, value []byte) (uint64, error) {
-	return c.adjoin(PREPEND, key, value)
+	return c.adjoin(cmdPrepend, key, value)
 }
 
 func (c *BaseConnection) counter(opcode commandCode, key []byte, delta, initial uint64, expiry uint32) (uint64, uint64, error) {
@@ -890,7 +890,7 @@ func (c *BaseConnection) counter(opcode commandCode, key []byte, delta, initial 
 	binary.BigEndian.PutUint32(extraBuf[16:], expiry)
 
 	req := &memdRequest{
-		Magic:      REQ_MAGIC,
+		Magic:      reqMagic,
 		Opcode:     opcode,
 		Datatype:   0,
 		Cas:        0,
@@ -916,11 +916,11 @@ func (c *BaseConnection) counter(opcode commandCode, key []byte, delta, initial 
 }
 
 func (c *BaseConnection) Increment(key []byte, delta, initial uint64, expiry uint32) (uint64, uint64, error) {
-	return c.counter(INCREMENT, key, delta, initial, expiry)
+	return c.counter(cmdIncrement, key, delta, initial, expiry)
 }
 
 func (c *BaseConnection) Decrement(key []byte, delta, initial uint64, expiry uint32) (uint64, uint64, error) {
-	return c.counter(DECREMENT, key, delta, initial, expiry)
+	return c.counter(cmdDecrement, key, delta, initial, expiry)
 }
 
 func (c *BaseConnection) GetCapiEp() string {

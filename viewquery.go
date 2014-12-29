@@ -108,11 +108,45 @@ func (vq *ViewQuery) Keys(keys []string) *ViewQuery {
 	return vq
 }
 
-//func (vq *ViewQuery) Range(start, end ??, inclusive_end bool) *ViewQuery {
-//}
+func (vq *ViewQuery) Range(start, end interface{}, inclusive_end bool) *ViewQuery {
+	// TODO(brett19): Not currently handling errors due to no way to return the error
+	if start != nil {
+		jsonStartKey, _ := json.Marshal(start)
+		vq.options["startkey"] = string(jsonStartKey)
+	} else {
+		delete(vq.options, "startkey")
+	}
+	if end != nil {
+		jsonEndKey, _ := json.Marshal(end)
+		vq.options["endkey"] = string(jsonEndKey)
+	} else {
+		delete(vq.options, "endkey")
+	}
+	if start != nil || end != nil {
+		if inclusive_end {
+			vq.options["inclusive_end"] = "true"
+		} else {
+			vq.options["inclusive_end"] = "false"
+		}
+	} else {
+		delete(vq.options, "inclusive_end")
+	}
+	return vq
+}
 
-//func (vq *ViewQuery) IdRange(start, end ??) *ViewQuery {
-//}
+func (vq *ViewQuery) IdRange(start, end string) *ViewQuery {
+	if start != "" {
+		vq.options["startkey_docid"] = start
+	} else {
+		delete(vq.options, "startkey_docid")
+	}
+	if end != "" {
+		vq.options["endkey_docid"] = end
+	} else {
+		delete(vq.options, "endkey_docid")
+	}
+	return vq
+}
 
 func (vq *ViewQuery) Custom(name, value string) *ViewQuery {
 	vq.options[name] = value
