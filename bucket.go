@@ -3,7 +3,6 @@ package couchbase
 import "encoding/json"
 import "time"
 import "fmt"
-import "errors"
 
 // An interface representing a single bucket within a cluster.
 type Bucket struct {
@@ -21,7 +20,7 @@ func (b *Bucket) GetOperationTimeout() time.Duration {
 	return b.Client.GetOperationTimeout()
 }
 
-func (b *Bucket) decodeValue(bytes []byte, flags uint32, out interface{}) (interface{}, error) {
+func (b *Bucket) decodeValue(bytes []byte, flags uint32, out interface{}) (interface{}, Error) {
 	fmt.Printf("Early Flags: %08x\n", flags)
 
 	// Check for legacy flags
@@ -31,7 +30,7 @@ func (b *Bucket) decodeValue(bytes []byte, flags uint32, out interface{}) (inter
 			// Legacy JSON
 			flags = cfFmtJson
 		} else {
-			return nil, errors.New("Unexpected legacy flags value")
+			return nil, ClientError{"Unexpected legacy flags value"}
 		}
 	}
 
@@ -39,7 +38,7 @@ func (b *Bucket) decodeValue(bytes []byte, flags uint32, out interface{}) (inter
 
 	// Make sure compression is disabled
 	if flags&cfCmprMask != cfCmprNone {
-		return nil, errors.New("Unexpected value compression")
+		return nil, ClientError{"Unexpected value compression"}
 	}
 
 	// If an output object was passed, try to json Unmarshal to it
@@ -47,11 +46,11 @@ func (b *Bucket) decodeValue(bytes []byte, flags uint32, out interface{}) (inter
 		if flags&cfFmtJson != 0 {
 			err := json.Unmarshal(bytes, out)
 			if err != nil {
-				return nil, err
+				return nil, ClientError{err.Error()}
 			}
 			return out, nil
 		} else {
-			return nil, errors.New("Unmarshal target passed, but type does not match.")
+			return nil, ClientError{"Unmarshal target passed, but type does not match."}
 		}
 	}
 
@@ -64,15 +63,15 @@ func (b *Bucket) decodeValue(bytes []byte, flags uint32, out interface{}) (inter
 		var outVal interface{}
 		err := json.Unmarshal(bytes, &outVal)
 		if err != nil {
-			return nil, err
+			return nil, ClientError{err.Error()}
 		}
 		return outVal, nil
 	} else {
-		return nil, errors.New("Unexpected flags value")
+		return nil, ClientError{"Unexpected flags value"}
 	}
 }
 
-func (b *Bucket) encodeValue(value interface{}) ([]byte, uint32, error) {
+func (b *Bucket) encodeValue(value interface{}) ([]byte, uint32, Error) {
 	var bytes []byte
 	var flags uint32
 	var err error
@@ -87,7 +86,7 @@ func (b *Bucket) encodeValue(value interface{}) ([]byte, uint32, error) {
 	default:
 		bytes, err = json.Marshal(value)
 		if err != nil {
-			return nil, 0, err
+			return nil, 0, ClientError{err.Error()}
 		}
 		flags = cfFmtJson
 	}
@@ -98,7 +97,7 @@ func (b *Bucket) encodeValue(value interface{}) ([]byte, uint32, error) {
 }
 
 // Retrieves a document from the bucket
-func (b *Bucket) Get(key string, valuePtr interface{}) (interface{}, uint64, error) {
+func (b *Bucket) Get(key string, valuePtr interface{}) (interface{}, uint64, Error) {
 	bytes, flags, cas, err := b.Client.Get([]byte(key))
 	if err != nil {
 		return nil, 0, err
@@ -113,7 +112,7 @@ func (b *Bucket) Get(key string, valuePtr interface{}) (interface{}, uint64, err
 }
 
 // Retrieves a document and simultaneously updates its expiry time.
-func (b *Bucket) GetAndTouch(key string, valuePtr interface{}, expiry uint32) (interface{}, uint64, error) {
+func (b *Bucket) GetAndTouch(key string, valuePtr interface{}, expiry uint32) (interface{}, uint64, Error) {
 	bytes, flags, cas, err := b.Client.GetAndTouch([]byte(key), expiry)
 	if err != nil {
 		return nil, 0, err
@@ -128,7 +127,7 @@ func (b *Bucket) GetAndTouch(key string, valuePtr interface{}, expiry uint32) (i
 }
 
 // Locks a document for a period of time, providing exclusive RW access to it.
-func (b *Bucket) GetAndLock(key string, valuePtr interface{}, lockTime uint32) (interface{}, uint64, error) {
+func (b *Bucket) GetAndLock(key string, valuePtr interface{}, lockTime uint32) (interface{}, uint64, Error) {
 	bytes, flags, cas, err := b.Client.GetAndLock([]byte(key), lockTime)
 	if err != nil {
 		return nil, 0, err
@@ -143,12 +142,12 @@ func (b *Bucket) GetAndLock(key string, valuePtr interface{}, lockTime uint32) (
 }
 
 // Unlocks a document which was locked with GetAndLock.
-func (b *Bucket) Unlock(key string, cas uint64) (uint64, error) {
+func (b *Bucket) Unlock(key string, cas uint64) (uint64, Error) {
 	return b.Client.Unlock([]byte(key), cas)
 }
 
 // Returns the value of a particular document from a replica server.
-func (b *Bucket) GetReplica(key string, valuePtr interface{}, replicaIdx int) (interface{}, uint64, error) {
+func (b *Bucket) GetReplica(key string, valuePtr interface{}, replicaIdx int) (interface{}, uint64, Error) {
 	bytes, flags, cas, err := b.Client.GetReplica([]byte(key), replicaIdx)
 	if err != nil {
 		return nil, 0, err
@@ -163,17 +162,17 @@ func (b *Bucket) GetReplica(key string, valuePtr interface{}, replicaIdx int) (i
 }
 
 // Touches a document, specifying a new expiry time for it.
-func (b *Bucket) Touch(key string, expiry uint32) (uint64, error) {
+func (b *Bucket) Touch(key string, expiry uint32) (uint64, Error) {
 	return b.Client.Touch([]byte(key), expiry)
 }
 
 // Removes a document from the bucket.
-func (b *Bucket) Remove(key string, cas uint64) (uint64, error) {
+func (b *Bucket) Remove(key string, cas uint64) (uint64, Error) {
 	return b.Client.Remove([]byte(key), cas)
 }
 
 // Inserts or replaces a document in the bucket.
-func (b *Bucket) Upsert(key string, value interface{}, expiry uint32) (uint64, error) {
+func (b *Bucket) Upsert(key string, value interface{}, expiry uint32) (uint64, Error) {
 	bytes, flags, err := b.encodeValue(value)
 	if err != nil {
 		return 0, err
@@ -183,7 +182,7 @@ func (b *Bucket) Upsert(key string, value interface{}, expiry uint32) (uint64, e
 }
 
 // Inserts a new document to the bucket.
-func (b *Bucket) Insert(key string, value interface{}, expiry uint32) (uint64, error) {
+func (b *Bucket) Insert(key string, value interface{}, expiry uint32) (uint64, Error) {
 	bytes, flags, err := b.encodeValue(value)
 	if err != nil {
 		return 0, err
@@ -193,7 +192,7 @@ func (b *Bucket) Insert(key string, value interface{}, expiry uint32) (uint64, e
 }
 
 // Replaces a document in the bucket.
-func (b *Bucket) Replace(key string, value interface{}, cas uint64, expiry uint32) (uint64, error) {
+func (b *Bucket) Replace(key string, value interface{}, cas uint64, expiry uint32) (uint64, Error) {
 	bytes, flags, err := b.encodeValue(value)
 	if err != nil {
 		return 0, err
@@ -203,17 +202,17 @@ func (b *Bucket) Replace(key string, value interface{}, cas uint64, expiry uint3
 }
 
 // Appends a string value to a document.
-func (b *Bucket) Append(key, value string) (uint64, error) {
+func (b *Bucket) Append(key, value string) (uint64, Error) {
 	return b.Client.Append([]byte(key), []byte(value))
 }
 
 // Prepends a string value to a document.
-func (b *Bucket) Prepend(key, value string) (uint64, error) {
+func (b *Bucket) Prepend(key, value string) (uint64, Error) {
 	return b.Client.Prepend([]byte(key), []byte(value))
 }
 
 // Performs an atomic addition or subtraction for an integer document.
-func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint64, uint64, error) {
+func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint64, uint64, Error) {
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
 	if initial > 0 {
 		realInitial = uint64(initial)
@@ -229,7 +228,7 @@ func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint6
 }
 
 // Performs a view query and returns a list of rows or an error.
-func (b *Bucket) PerformViewQuery(queryObj ViewQuery) ([]interface{}, error) {
+func (b *Bucket) PerformViewQuery(queryObj ViewQuery) ([]interface{}, Error) {
 	return nil, nil
 }
 

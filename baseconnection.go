@@ -4,7 +4,6 @@ import "fmt"
 import "regexp"
 import "strconv"
 import "io"
-import "errors"
 import "encoding/binary"
 import "encoding/hex"
 import "log"
@@ -517,7 +516,7 @@ func (c *BaseConnection) Observe(key string) {
 }
 */
 
-func (c *BaseConnection) dispatchSimpleReq(req *memdRequest) (*memdResponse, error) {
+func (c *BaseConnection) dispatchSimpleReq(req *memdRequest) (*memdResponse, Error) {
 	atomic.AddUint64(&c.Stats.NumOp, 1)
 	c.requestCh <- req
 
@@ -528,7 +527,7 @@ func (c *BaseConnection) dispatchSimpleReq(req *memdRequest) (*memdResponse, err
 	case <-time.After(c.operationTimeout):
 		atomic.AddUint64(&c.Stats.NumOpTimeout, 1)
 		c.timeedoutCh <- req
-		return nil, errors.New("Timeout")
+		return nil, TimeoutError{}
 	}
 }
 
@@ -588,7 +587,7 @@ func (c *BaseConnection) updateConfig(bk *cfgBucket) {
 	atomic.StorePointer(&c.mgmtEps, unsafe.Pointer(&mgmtEps))
 }
 
-func CreateBaseConnection(connSpecStr string, bucket, password string) (*BaseConnection, error) {
+func CreateBaseConnection(connSpecStr string, bucket, password string) (*BaseConnection, Error) {
 	spec := parseConnSpec(connSpecStr)
 
 	memdAddrs := spec.Hosts
@@ -668,7 +667,7 @@ func CreateBaseConnection(connSpecStr string, bucket, password string) (*BaseCon
 	return c, nil
 }
 
-func (c *BaseConnection) Get(key []byte) ([]byte, uint32, uint64, error) {
+func (c *BaseConnection) Get(key []byte) ([]byte, uint32, uint64, Error) {
 	req := &memdRequest{
 		Magic:      reqMagic,
 		Opcode:     cmdGet,
@@ -691,7 +690,7 @@ func (c *BaseConnection) Get(key []byte) ([]byte, uint32, uint64, error) {
 	return resp.Value, flags, resp.Cas, nil
 }
 
-func (c *BaseConnection) GetAndTouch(key []byte, expiry uint32) ([]byte, uint32, uint64, error) {
+func (c *BaseConnection) GetAndTouch(key []byte, expiry uint32) ([]byte, uint32, uint64, Error) {
 	extraBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(extraBuf, expiry)
 
@@ -717,7 +716,7 @@ func (c *BaseConnection) GetAndTouch(key []byte, expiry uint32) ([]byte, uint32,
 	return resp.Value, flags, resp.Cas, nil
 }
 
-func (c *BaseConnection) GetAndLock(key []byte, lockTime uint32) ([]byte, uint32, uint64, error) {
+func (c *BaseConnection) GetAndLock(key []byte, lockTime uint32) ([]byte, uint32, uint64, Error) {
 	extraBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(extraBuf, lockTime)
 
@@ -743,7 +742,7 @@ func (c *BaseConnection) GetAndLock(key []byte, lockTime uint32) ([]byte, uint32
 	return resp.Value, flags, resp.Cas, nil
 }
 
-func (c *BaseConnection) Unlock(key []byte, cas uint64) (uint64, error) {
+func (c *BaseConnection) Unlock(key []byte, cas uint64) (uint64, Error) {
 	req := &memdRequest{
 		Magic:      reqMagic,
 		Opcode:     cmdUnlockKey,
@@ -765,7 +764,7 @@ func (c *BaseConnection) Unlock(key []byte, cas uint64) (uint64, error) {
 	return resp.Cas, nil
 }
 
-func (c *BaseConnection) GetReplica(key []byte, replicaIdx int) ([]byte, uint32, uint64, error) {
+func (c *BaseConnection) GetReplica(key []byte, replicaIdx int) ([]byte, uint32, uint64, Error) {
 	req := &memdRequest{
 		Magic:      reqMagic,
 		Opcode:     cmdGetReplica,
@@ -788,13 +787,13 @@ func (c *BaseConnection) GetReplica(key []byte, replicaIdx int) ([]byte, uint32,
 	return resp.Value, flags, resp.Cas, nil
 }
 
-func (c *BaseConnection) Touch(key []byte, expiry uint32) (uint64, error) {
+func (c *BaseConnection) Touch(key []byte, expiry uint32) (uint64, Error) {
 	// This seems odd, but this is how it's done in Node.js
 	_, _, cas, err := c.GetAndTouch(key, expiry)
 	return cas, err
 }
 
-func (c *BaseConnection) Remove(key []byte, cas uint64) (uint64, error) {
+func (c *BaseConnection) Remove(key []byte, cas uint64) (uint64, Error) {
 	req := &memdRequest{
 		Magic:      reqMagic,
 		Opcode:     cmdDelete,
@@ -816,7 +815,7 @@ func (c *BaseConnection) Remove(key []byte, cas uint64) (uint64, error) {
 	return resp.Cas, nil
 }
 
-func (c *BaseConnection) store(opcode commandCode, key, value []byte, flags uint32, cas uint64, expiry uint32) (uint64, error) {
+func (c *BaseConnection) store(opcode commandCode, key, value []byte, flags uint32, cas uint64, expiry uint32) (uint64, Error) {
 	extraBuf := make([]byte, 8)
 	binary.BigEndian.PutUint32(extraBuf, flags)
 	binary.BigEndian.PutUint32(extraBuf, expiry)
@@ -841,19 +840,19 @@ func (c *BaseConnection) store(opcode commandCode, key, value []byte, flags uint
 	return resp.Cas, nil
 }
 
-func (c *BaseConnection) Add(key, value []byte, flags uint32, expiry uint32) (uint64, error) {
+func (c *BaseConnection) Add(key, value []byte, flags uint32, expiry uint32) (uint64, Error) {
 	return c.store(cmdAdd, key, value, flags, 0, expiry)
 }
 
-func (c *BaseConnection) Set(key, value []byte, flags uint32, expiry uint32) (uint64, error) {
+func (c *BaseConnection) Set(key, value []byte, flags uint32, expiry uint32) (uint64, Error) {
 	return c.store(cmdSet, key, value, flags, 0, expiry)
 }
 
-func (c *BaseConnection) Replace(key, value []byte, flags uint32, cas uint64, expiry uint32) (uint64, error) {
+func (c *BaseConnection) Replace(key, value []byte, flags uint32, cas uint64, expiry uint32) (uint64, Error) {
 	return c.store(cmdReplace, key, value, flags, cas, expiry)
 }
 
-func (c *BaseConnection) adjoin(opcode commandCode, key, value []byte) (uint64, error) {
+func (c *BaseConnection) adjoin(opcode commandCode, key, value []byte) (uint64, Error) {
 	req := &memdRequest{
 		Magic:      reqMagic,
 		Opcode:     opcode,
@@ -875,15 +874,15 @@ func (c *BaseConnection) adjoin(opcode commandCode, key, value []byte) (uint64, 
 	return resp.Cas, nil
 }
 
-func (c *BaseConnection) Append(key, value []byte) (uint64, error) {
+func (c *BaseConnection) Append(key, value []byte) (uint64, Error) {
 	return c.adjoin(cmdAppend, key, value)
 }
 
-func (c *BaseConnection) Prepend(key, value []byte) (uint64, error) {
+func (c *BaseConnection) Prepend(key, value []byte) (uint64, Error) {
 	return c.adjoin(cmdPrepend, key, value)
 }
 
-func (c *BaseConnection) counter(opcode commandCode, key []byte, delta, initial uint64, expiry uint32) (uint64, uint64, error) {
+func (c *BaseConnection) counter(opcode commandCode, key []byte, delta, initial uint64, expiry uint32) (uint64, uint64, Error) {
 	extraBuf := make([]byte, 20)
 	binary.BigEndian.PutUint64(extraBuf[0:], delta)
 	binary.BigEndian.PutUint64(extraBuf[8:], initial)
@@ -907,19 +906,19 @@ func (c *BaseConnection) counter(opcode commandCode, key []byte, delta, initial 
 		return 0, 0, err
 	}
 
-	intVal, err := strconv.ParseUint(string(resp.Value), 10, 64)
-	if err != nil {
-		return 0, 0, errors.New("Failed to parse returned value")
+	intVal, perr := strconv.ParseUint(string(resp.Value), 10, 64)
+	if perr != nil {
+		return 0, 0, ClientError{"Failed to parse returned value"}
 	}
 
 	return intVal, resp.Cas, nil
 }
 
-func (c *BaseConnection) Increment(key []byte, delta, initial uint64, expiry uint32) (uint64, uint64, error) {
+func (c *BaseConnection) Increment(key []byte, delta, initial uint64, expiry uint32) (uint64, uint64, Error) {
 	return c.counter(cmdIncrement, key, delta, initial, expiry)
 }
 
-func (c *BaseConnection) Decrement(key []byte, delta, initial uint64, expiry uint32) (uint64, uint64, error) {
+func (c *BaseConnection) Decrement(key []byte, delta, initial uint64, expiry uint32) (uint64, uint64, Error) {
 	return c.counter(cmdDecrement, key, delta, initial, expiry)
 }
 

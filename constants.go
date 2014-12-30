@@ -38,14 +38,13 @@ type statusCode uint16
 
 const (
 	success        = statusCode(0x00)
-	keyMissing     = statusCode(0x01)
+	keyNotFound    = statusCode(0x01)
 	keyExists      = statusCode(0x02)
 	tooBig         = statusCode(0x03)
 	invalidArgs    = statusCode(0x04)
 	notStored      = statusCode(0x05)
 	badDelta       = statusCode(0x06)
 	notMyVBucket   = statusCode(0x07)
-	badRange       = statusCode(0x22)
 	unknownCommand = statusCode(0x81)
 	outOfMemory    = statusCode(0x82)
 	tmpFail        = statusCode(0x86)
