@@ -467,7 +467,7 @@ func (c *CbIoRouter) Observe(key string) {
 // Performs a simple dispatch of a request which receives a single reply.  A timeout error will
 //  occur if the operation takes longer than configured operation timeout.  This method can be
 //  invoked from any goroutine.
-func (c *CbIoRouter) dispatchSimpleReq(req *memdRequest) (*memdResponse, Error) {
+func (c *CbIoRouter) dispatchSimpleReq(req *memdRequest) (*memdResponse, error) {
 	atomic.AddUint64(&c.Stats.NumOp, 1)
 	c.requestCh <- req
 
@@ -545,7 +545,7 @@ func (c *CbIoRouter) updateConfig(bk *cfgBucket) {
 	atomic.StorePointer(&c.mgmtEps, unsafe.Pointer(&mgmtEps))
 }
 
-func CreateCbIoRouter(connSpecStr string, bucket, password string) (*CbIoRouter, Error) {
+func CreateCbIoRouter(connSpecStr string, bucket, password string) (*CbIoRouter, error) {
 	spec := parseConnSpec(connSpecStr)
 
 	memdAddrs := spec.Hosts
@@ -625,7 +625,7 @@ func CreateCbIoRouter(connSpecStr string, bucket, password string) (*CbIoRouter,
 	return c, nil
 }
 
-func (c *CbIoRouter) Get(key []byte) ([]byte, uint32, uint64, Error) {
+func (c *CbIoRouter) Get(key []byte) ([]byte, uint32, uint64, error) {
 	req := &memdRequest{
 		Magic:      reqMagic,
 		Opcode:     cmdGet,
@@ -648,7 +648,7 @@ func (c *CbIoRouter) Get(key []byte) ([]byte, uint32, uint64, Error) {
 	return resp.Value, flags, resp.Cas, nil
 }
 
-func (c *CbIoRouter) GetAndTouch(key []byte, expiry uint32) ([]byte, uint32, uint64, Error) {
+func (c *CbIoRouter) GetAndTouch(key []byte, expiry uint32) ([]byte, uint32, uint64, error) {
 	extraBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(extraBuf, expiry)
 
@@ -674,7 +674,7 @@ func (c *CbIoRouter) GetAndTouch(key []byte, expiry uint32) ([]byte, uint32, uin
 	return resp.Value, flags, resp.Cas, nil
 }
 
-func (c *CbIoRouter) GetAndLock(key []byte, lockTime uint32) ([]byte, uint32, uint64, Error) {
+func (c *CbIoRouter) GetAndLock(key []byte, lockTime uint32) ([]byte, uint32, uint64, error) {
 	extraBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(extraBuf, lockTime)
 
@@ -700,7 +700,7 @@ func (c *CbIoRouter) GetAndLock(key []byte, lockTime uint32) ([]byte, uint32, ui
 	return resp.Value, flags, resp.Cas, nil
 }
 
-func (c *CbIoRouter) Unlock(key []byte, cas uint64) (uint64, Error) {
+func (c *CbIoRouter) Unlock(key []byte, cas uint64) (uint64, error) {
 	req := &memdRequest{
 		Magic:      reqMagic,
 		Opcode:     cmdUnlockKey,
@@ -722,7 +722,7 @@ func (c *CbIoRouter) Unlock(key []byte, cas uint64) (uint64, Error) {
 	return resp.Cas, nil
 }
 
-func (c *CbIoRouter) GetReplica(key []byte, replicaIdx int) ([]byte, uint32, uint64, Error) {
+func (c *CbIoRouter) GetReplica(key []byte, replicaIdx int) ([]byte, uint32, uint64, error) {
 	req := &memdRequest{
 		Magic:      reqMagic,
 		Opcode:     cmdGetReplica,
@@ -745,13 +745,13 @@ func (c *CbIoRouter) GetReplica(key []byte, replicaIdx int) ([]byte, uint32, uin
 	return resp.Value, flags, resp.Cas, nil
 }
 
-func (c *CbIoRouter) Touch(key []byte, expiry uint32) (uint64, Error) {
+func (c *CbIoRouter) Touch(key []byte, expiry uint32) (uint64, error) {
 	// This seems odd, but this is how it's done in Node.js
 	_, _, cas, err := c.GetAndTouch(key, expiry)
 	return cas, err
 }
 
-func (c *CbIoRouter) Remove(key []byte, cas uint64) (uint64, Error) {
+func (c *CbIoRouter) Remove(key []byte, cas uint64) (uint64, error) {
 	req := &memdRequest{
 		Magic:      reqMagic,
 		Opcode:     cmdDelete,
@@ -773,7 +773,7 @@ func (c *CbIoRouter) Remove(key []byte, cas uint64) (uint64, Error) {
 	return resp.Cas, nil
 }
 
-func (c *CbIoRouter) store(opcode commandCode, key, value []byte, flags uint32, cas uint64, expiry uint32) (uint64, Error) {
+func (c *CbIoRouter) store(opcode commandCode, key, value []byte, flags uint32, cas uint64, expiry uint32) (uint64, error) {
 	extraBuf := make([]byte, 8)
 	binary.BigEndian.PutUint32(extraBuf, flags)
 	binary.BigEndian.PutUint32(extraBuf, expiry)
@@ -798,19 +798,19 @@ func (c *CbIoRouter) store(opcode commandCode, key, value []byte, flags uint32, 
 	return resp.Cas, nil
 }
 
-func (c *CbIoRouter) Add(key, value []byte, flags uint32, expiry uint32) (uint64, Error) {
+func (c *CbIoRouter) Add(key, value []byte, flags uint32, expiry uint32) (uint64, error) {
 	return c.store(cmdAdd, key, value, flags, 0, expiry)
 }
 
-func (c *CbIoRouter) Set(key, value []byte, flags uint32, expiry uint32) (uint64, Error) {
+func (c *CbIoRouter) Set(key, value []byte, flags uint32, expiry uint32) (uint64, error) {
 	return c.store(cmdSet, key, value, flags, 0, expiry)
 }
 
-func (c *CbIoRouter) Replace(key, value []byte, flags uint32, cas uint64, expiry uint32) (uint64, Error) {
+func (c *CbIoRouter) Replace(key, value []byte, flags uint32, cas uint64, expiry uint32) (uint64, error) {
 	return c.store(cmdReplace, key, value, flags, cas, expiry)
 }
 
-func (c *CbIoRouter) adjoin(opcode commandCode, key, value []byte) (uint64, Error) {
+func (c *CbIoRouter) adjoin(opcode commandCode, key, value []byte) (uint64, error) {
 	req := &memdRequest{
 		Magic:      reqMagic,
 		Opcode:     opcode,
@@ -832,15 +832,15 @@ func (c *CbIoRouter) adjoin(opcode commandCode, key, value []byte) (uint64, Erro
 	return resp.Cas, nil
 }
 
-func (c *CbIoRouter) Append(key, value []byte) (uint64, Error) {
+func (c *CbIoRouter) Append(key, value []byte) (uint64, error) {
 	return c.adjoin(cmdAppend, key, value)
 }
 
-func (c *CbIoRouter) Prepend(key, value []byte) (uint64, Error) {
+func (c *CbIoRouter) Prepend(key, value []byte) (uint64, error) {
 	return c.adjoin(cmdPrepend, key, value)
 }
 
-func (c *CbIoRouter) counter(opcode commandCode, key []byte, delta, initial uint64, expiry uint32) (uint64, uint64, Error) {
+func (c *CbIoRouter) counter(opcode commandCode, key []byte, delta, initial uint64, expiry uint32) (uint64, uint64, error) {
 	extraBuf := make([]byte, 20)
 	binary.BigEndian.PutUint64(extraBuf[0:], delta)
 	binary.BigEndian.PutUint64(extraBuf[8:], initial)
@@ -872,11 +872,11 @@ func (c *CbIoRouter) counter(opcode commandCode, key []byte, delta, initial uint
 	return intVal, resp.Cas, nil
 }
 
-func (c *CbIoRouter) Increment(key []byte, delta, initial uint64, expiry uint32) (uint64, uint64, Error) {
+func (c *CbIoRouter) Increment(key []byte, delta, initial uint64, expiry uint32) (uint64, uint64, error) {
 	return c.counter(cmdIncrement, key, delta, initial, expiry)
 }
 
-func (c *CbIoRouter) Decrement(key []byte, delta, initial uint64, expiry uint32) (uint64, uint64, Error) {
+func (c *CbIoRouter) Decrement(key []byte, delta, initial uint64, expiry uint32) (uint64, uint64, error) {
 	return c.counter(cmdDecrement, key, delta, initial, expiry)
 }
 

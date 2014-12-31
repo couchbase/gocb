@@ -9,7 +9,7 @@ type Cluster struct {
 	connectionTimeout time.Duration
 }
 
-func OpenCluster(connSpecStr string) (*Cluster, Error) {
+func OpenCluster(connSpecStr string) (*Cluster, error) {
 	cluster := &Cluster{
 		connSpecStr:       connSpecStr,
 		connectionTimeout: 10000 * time.Millisecond,
@@ -17,7 +17,7 @@ func OpenCluster(connSpecStr string) (*Cluster, Error) {
 	return cluster, nil
 }
 
-func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, Error) {
+func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 	cli, err := CreateCbIoRouter(c.connSpecStr, bucket, password)
 	if err != nil {
 		return nil, err
