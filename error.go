@@ -2,13 +2,6 @@ package couchbase
 
 import "fmt"
 
-type Error interface {
-	KeyNotFound() bool
-	KeyExists() bool
-	Timeout() bool
-	Temporary() bool
-}
-
 type clientError struct {
 	message string
 }
