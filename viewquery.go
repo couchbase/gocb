@@ -6,16 +6,16 @@ import "encoding/json"
 type StaleMode int
 
 const (
-	BEFORE = StaleMode(1)
-	NONE   = StaleMode(2)
-	AFTER  = StaleMode(3)
+	Before = StaleMode(1)
+	None   = StaleMode(2)
+	After  = StaleMode(3)
 )
 
 type SortOrder int
 
 const (
-	ASCENDING  = SortOrder(1)
-	DESCENDING = SortOrder(2)
+	Ascending  = SortOrder(1)
+	Descending = SortOrder(2)
 )
 
 type ViewQuery struct {
@@ -31,27 +31,15 @@ func (vq *ViewQuery) from(ddoc, name string) *ViewQuery {
 }
 
 func (vq *ViewQuery) Stale(stale StaleMode) *ViewQuery {
-	if stale == BEFORE {
+	if stale == Before {
 		vq.options["stale"] = "false"
-	} else if stale == NONE {
+	} else if stale == None {
 		vq.options["stale"] = "ok"
-	} else if stale == AFTER {
+	} else if stale == After {
 		vq.options["stale"] = "update_after"
 	} else {
 		panic("Unexpected stale option")
 	}
-	return vq
-}
-func (vq *ViewQuery) UpdateBefore() *ViewQuery {
-	vq.Stale(BEFORE)
-	return vq
-}
-func (vq *ViewQuery) UpdateNone() *ViewQuery {
-	vq.Stale(NONE)
-	return vq
-}
-func (vq *ViewQuery) UpdateAfter() *ViewQuery {
-	vq.Stale(AFTER)
 	return vq
 }
 
@@ -66,9 +54,9 @@ func (vq *ViewQuery) Limit(num uint) *ViewQuery {
 }
 
 func (vq *ViewQuery) Order(order SortOrder) *ViewQuery {
-	if order == ASCENDING {
+	if order == Ascending {
 		vq.options["descending"] = "false"
-	} else if order == DESCENDING {
+	} else if order == Descending {
 		vq.options["descending"] = "true"
 	} else {
 		panic("Unexpected order option")
