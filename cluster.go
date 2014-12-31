@@ -18,13 +18,13 @@ func OpenCluster(connSpecStr string) (*Cluster, Error) {
 }
 
 func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, Error) {
-	cli, err := CreateBaseConnection(c.connSpecStr, bucket, password)
+	cli, err := CreateCbIoRouter(c.connSpecStr, bucket, password)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Bucket{
-		Client: cli,
+		client: cli,
 	}, nil
 }
 

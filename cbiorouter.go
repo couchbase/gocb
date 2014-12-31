@@ -60,7 +60,7 @@ type bucketServer struct {
 // This class represents the base client handling connections to a Couchbase Server.
 // This is used internally by the higher level classes for communicating with the cluster,
 // it can also be used to perform more advanced operations with a cluster.
-type BaseConnection struct {
+type CbIoRouter struct {
 	connSpec connSpec
 
 	httpCli *http.Client
@@ -94,14 +94,14 @@ type BaseConnection struct {
 	}
 }
 
-func (c *BaseConnection) KillTest() {
+func (c *CbIoRouter) KillTest() {
 	for _, srv := range c.servers {
 		srv.conn.Close()
 	}
 }
 
 // Creates a new bucketServer object for the specified address.
-func (c *BaseConnection) createServer(addr string) *bucketServer {
+func (c *CbIoRouter) createServer(addr string) *bucketServer {
 	return &bucketServer{
 		addr:       addr,
 		reqsCh:     make(chan *memdRequest),
@@ -245,7 +245,7 @@ func (s *bucketServer) writeRequest(req *memdRequest) error {
 	return err
 }
 
-func (c *BaseConnection) serverReader(s *bucketServer) {
+func (c *CbIoRouter) serverReader(s *bucketServer) {
 	for {
 		resp, err := s.readResponse()
 		fmt.Printf("Got a response %v\n", resp)
@@ -259,7 +259,7 @@ func (c *BaseConnection) serverReader(s *bucketServer) {
 	}
 }
 
-func (c *BaseConnection) serverWriter(s *bucketServer) {
+func (c *CbIoRouter) serverWriter(s *bucketServer) {
 	for {
 		req := <-s.reqsCh
 		fmt.Printf("writing request %v\n", s, req)
@@ -267,7 +267,7 @@ func (c *BaseConnection) serverWriter(s *bucketServer) {
 	}
 }
 
-func (c *BaseConnection) serverConnectRun(s *bucketServer, bucket, password string) {
+func (c *CbIoRouter) serverConnectRun(s *bucketServer, bucket, password string) {
 	atomic.AddUint64(&c.Stats.NumServerConnect, 1)
 	err := s.connect(bucket, password)
 	if err != nil {
@@ -278,12 +278,12 @@ func (c *BaseConnection) serverConnectRun(s *bucketServer, bucket, password stri
 	c.serverRun(s)
 }
 
-func (c *BaseConnection) serverRun(s *bucketServer) {
+func (c *CbIoRouter) serverRun(s *bucketServer) {
 	go c.serverReader(s)
 	go c.serverWriter(s)
 }
 
-func (c *BaseConnection) configRunner() {
+func (c *CbIoRouter) configRunner() {
 	// HTTP Polling
 	//  - run http polling
 	// CCCP Polling
@@ -295,7 +295,7 @@ func (c *BaseConnection) configRunner() {
 // Routes a request to the specific server it is destined for.  It also assigns an Opaque
 //  value for the request and adds it to the operation map.
 // This method must only be invoked by the 'primary goroutine'.
-func (c *BaseConnection) routeRequest(req *memdRequest, rerouted bool) {
+func (c *CbIoRouter) routeRequest(req *memdRequest, rerouted bool) {
 	fmt.Printf("Got request %v\n", req)
 
 	vbId := uint16(req.VBHash % uint32(len(c.vbMap.VBucketMap)))
@@ -372,7 +372,7 @@ func (c *BaseConnection) routeRequest(req *memdRequest, rerouted bool) {
 	// How does the connection
 }
 
-func (c *BaseConnection) globalHandler() {
+func (c *CbIoRouter) globalHandler() {
 	fmt.Printf("Global Handler Running\n")
 	for {
 		fmt.Printf("Global Handler Loop\n")
@@ -432,7 +432,7 @@ func (c *BaseConnection) globalHandler() {
 }
 
 /*
-func (c *BaseConnection) Observe(key string) {
+func (c *CbIoRouter) Observe(key string) {
 	keyBuf := []byte(key)
 	keyHash := cbCrc(keyBuf)
 
@@ -467,7 +467,7 @@ func (c *BaseConnection) Observe(key string) {
 // Performs a simple dispatch of a request which receives a single reply.  A timeout error will
 //  occur if the operation takes longer than configured operation timeout.  This method can be
 //  invoked from any goroutine.
-func (c *BaseConnection) dispatchSimpleReq(req *memdRequest) (*memdResponse, Error) {
+func (c *CbIoRouter) dispatchSimpleReq(req *memdRequest) (*memdResponse, Error) {
 	atomic.AddUint64(&c.Stats.NumOp, 1)
 	c.requestCh <- req
 
@@ -485,7 +485,7 @@ func (c *BaseConnection) dispatchSimpleReq(req *memdRequest) (*memdResponse, Err
 // Accepts a cfgBucket object representing a cluster configuration and rebuilds the server list
 //  along with any routing information for the Client.  This method must only be invoked from
 //  the 'primary goroutine'.
-func (c *BaseConnection) updateConfig(bk *cfgBucket) {
+func (c *CbIoRouter) updateConfig(bk *cfgBucket) {
 	atomic.AddUint64(&c.Stats.NumConfigUpdate, 1)
 
 	c.config = bk
@@ -545,7 +545,7 @@ func (c *BaseConnection) updateConfig(bk *cfgBucket) {
 	atomic.StorePointer(&c.mgmtEps, unsafe.Pointer(&mgmtEps))
 }
 
-func CreateBaseConnection(connSpecStr string, bucket, password string) (*BaseConnection, Error) {
+func CreateCbIoRouter(connSpecStr string, bucket, password string) (*CbIoRouter, Error) {
 	spec := parseConnSpec(connSpecStr)
 
 	memdAddrs := spec.Hosts
@@ -555,7 +555,7 @@ func CreateBaseConnection(connSpecStr string, bucket, password string) (*BaseCon
 
 	fmt.Printf("ADDRs: %v\n", memdAddrs)
 
-	c := &BaseConnection{
+	c := &CbIoRouter{
 		httpCli:          &http.Client{},
 		opMap:            map[uint32]*memdRequest{},
 		configCh:         make(chan *cfgBucket, 0),
@@ -625,7 +625,7 @@ func CreateBaseConnection(connSpecStr string, bucket, password string) (*BaseCon
 	return c, nil
 }
 
-func (c *BaseConnection) Get(key []byte) ([]byte, uint32, uint64, Error) {
+func (c *CbIoRouter) Get(key []byte) ([]byte, uint32, uint64, Error) {
 	req := &memdRequest{
 		Magic:      reqMagic,
 		Opcode:     cmdGet,
@@ -648,7 +648,7 @@ func (c *BaseConnection) Get(key []byte) ([]byte, uint32, uint64, Error) {
 	return resp.Value, flags, resp.Cas, nil
 }
 
-func (c *BaseConnection) GetAndTouch(key []byte, expiry uint32) ([]byte, uint32, uint64, Error) {
+func (c *CbIoRouter) GetAndTouch(key []byte, expiry uint32) ([]byte, uint32, uint64, Error) {
 	extraBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(extraBuf, expiry)
 
@@ -674,7 +674,7 @@ func (c *BaseConnection) GetAndTouch(key []byte, expiry uint32) ([]byte, uint32,
 	return resp.Value, flags, resp.Cas, nil
 }
 
-func (c *BaseConnection) GetAndLock(key []byte, lockTime uint32) ([]byte, uint32, uint64, Error) {
+func (c *CbIoRouter) GetAndLock(key []byte, lockTime uint32) ([]byte, uint32, uint64, Error) {
 	extraBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(extraBuf, lockTime)
 
@@ -700,7 +700,7 @@ func (c *BaseConnection) GetAndLock(key []byte, lockTime uint32) ([]byte, uint32
 	return resp.Value, flags, resp.Cas, nil
 }
 
-func (c *BaseConnection) Unlock(key []byte, cas uint64) (uint64, Error) {
+func (c *CbIoRouter) Unlock(key []byte, cas uint64) (uint64, Error) {
 	req := &memdRequest{
 		Magic:      reqMagic,
 		Opcode:     cmdUnlockKey,
@@ -722,7 +722,7 @@ func (c *BaseConnection) Unlock(key []byte, cas uint64) (uint64, Error) {
 	return resp.Cas, nil
 }
 
-func (c *BaseConnection) GetReplica(key []byte, replicaIdx int) ([]byte, uint32, uint64, Error) {
+func (c *CbIoRouter) GetReplica(key []byte, replicaIdx int) ([]byte, uint32, uint64, Error) {
 	req := &memdRequest{
 		Magic:      reqMagic,
 		Opcode:     cmdGetReplica,
@@ -745,13 +745,13 @@ func (c *BaseConnection) GetReplica(key []byte, replicaIdx int) ([]byte, uint32,
 	return resp.Value, flags, resp.Cas, nil
 }
 
-func (c *BaseConnection) Touch(key []byte, expiry uint32) (uint64, Error) {
+func (c *CbIoRouter) Touch(key []byte, expiry uint32) (uint64, Error) {
 	// This seems odd, but this is how it's done in Node.js
 	_, _, cas, err := c.GetAndTouch(key, expiry)
 	return cas, err
 }
 
-func (c *BaseConnection) Remove(key []byte, cas uint64) (uint64, Error) {
+func (c *CbIoRouter) Remove(key []byte, cas uint64) (uint64, Error) {
 	req := &memdRequest{
 		Magic:      reqMagic,
 		Opcode:     cmdDelete,
@@ -773,7 +773,7 @@ func (c *BaseConnection) Remove(key []byte, cas uint64) (uint64, Error) {
 	return resp.Cas, nil
 }
 
-func (c *BaseConnection) store(opcode commandCode, key, value []byte, flags uint32, cas uint64, expiry uint32) (uint64, Error) {
+func (c *CbIoRouter) store(opcode commandCode, key, value []byte, flags uint32, cas uint64, expiry uint32) (uint64, Error) {
 	extraBuf := make([]byte, 8)
 	binary.BigEndian.PutUint32(extraBuf, flags)
 	binary.BigEndian.PutUint32(extraBuf, expiry)
@@ -798,19 +798,19 @@ func (c *BaseConnection) store(opcode commandCode, key, value []byte, flags uint
 	return resp.Cas, nil
 }
 
-func (c *BaseConnection) Add(key, value []byte, flags uint32, expiry uint32) (uint64, Error) {
+func (c *CbIoRouter) Add(key, value []byte, flags uint32, expiry uint32) (uint64, Error) {
 	return c.store(cmdAdd, key, value, flags, 0, expiry)
 }
 
-func (c *BaseConnection) Set(key, value []byte, flags uint32, expiry uint32) (uint64, Error) {
+func (c *CbIoRouter) Set(key, value []byte, flags uint32, expiry uint32) (uint64, Error) {
 	return c.store(cmdSet, key, value, flags, 0, expiry)
 }
 
-func (c *BaseConnection) Replace(key, value []byte, flags uint32, cas uint64, expiry uint32) (uint64, Error) {
+func (c *CbIoRouter) Replace(key, value []byte, flags uint32, cas uint64, expiry uint32) (uint64, Error) {
 	return c.store(cmdReplace, key, value, flags, cas, expiry)
 }
 
-func (c *BaseConnection) adjoin(opcode commandCode, key, value []byte) (uint64, Error) {
+func (c *CbIoRouter) adjoin(opcode commandCode, key, value []byte) (uint64, Error) {
 	req := &memdRequest{
 		Magic:      reqMagic,
 		Opcode:     opcode,
@@ -832,15 +832,15 @@ func (c *BaseConnection) adjoin(opcode commandCode, key, value []byte) (uint64, 
 	return resp.Cas, nil
 }
 
-func (c *BaseConnection) Append(key, value []byte) (uint64, Error) {
+func (c *CbIoRouter) Append(key, value []byte) (uint64, Error) {
 	return c.adjoin(cmdAppend, key, value)
 }
 
-func (c *BaseConnection) Prepend(key, value []byte) (uint64, Error) {
+func (c *CbIoRouter) Prepend(key, value []byte) (uint64, Error) {
 	return c.adjoin(cmdPrepend, key, value)
 }
 
-func (c *BaseConnection) counter(opcode commandCode, key []byte, delta, initial uint64, expiry uint32) (uint64, uint64, Error) {
+func (c *CbIoRouter) counter(opcode commandCode, key []byte, delta, initial uint64, expiry uint32) (uint64, uint64, Error) {
 	extraBuf := make([]byte, 20)
 	binary.BigEndian.PutUint64(extraBuf[0:], delta)
 	binary.BigEndian.PutUint64(extraBuf[8:], initial)
@@ -872,29 +872,29 @@ func (c *BaseConnection) counter(opcode commandCode, key []byte, delta, initial 
 	return intVal, resp.Cas, nil
 }
 
-func (c *BaseConnection) Increment(key []byte, delta, initial uint64, expiry uint32) (uint64, uint64, Error) {
+func (c *CbIoRouter) Increment(key []byte, delta, initial uint64, expiry uint32) (uint64, uint64, Error) {
 	return c.counter(cmdIncrement, key, delta, initial, expiry)
 }
 
-func (c *BaseConnection) Decrement(key []byte, delta, initial uint64, expiry uint32) (uint64, uint64, Error) {
+func (c *CbIoRouter) Decrement(key []byte, delta, initial uint64, expiry uint32) (uint64, uint64, Error) {
 	return c.counter(cmdDecrement, key, delta, initial, expiry)
 }
 
-func (c *BaseConnection) GetCapiEp() string {
+func (c *CbIoRouter) GetCapiEp() string {
 	usCapiEps := atomic.LoadPointer(&c.capiEps)
 	capiEps := *(*[]string)(usCapiEps)
 	return capiEps[rand.Intn(len(capiEps))]
 }
 
-func (c *BaseConnection) GetMgmtEp() string {
+func (c *CbIoRouter) GetMgmtEp() string {
 	usMgmtEps := atomic.LoadPointer(&c.mgmtEps)
 	mgmtEps := *(*[]string)(usMgmtEps)
 	return mgmtEps[rand.Intn(len(mgmtEps))]
 }
 
-func (c *BaseConnection) SetOperationTimeout(val time.Duration) {
+func (c *CbIoRouter) SetOperationTimeout(val time.Duration) {
 	c.operationTimeout = val
 }
-func (c *BaseConnection) GetOperationTimeout() time.Duration {
+func (c *CbIoRouter) GetOperationTimeout() time.Duration {
 	return c.operationTimeout
 }

@@ -7,17 +7,17 @@ import "fmt"
 // An interface representing a single bucket within a cluster.
 type Bucket struct {
 	manager *BucketManager
-	Client  *BaseConnection
+	client  *CbIoRouter
 }
 
 // Sets the timeout period for any CRUD operations
 func (b *Bucket) SetOperationTimeout(val time.Duration) {
-	b.Client.SetOperationTimeout(val)
+	b.client.SetOperationTimeout(val)
 }
 
 // Retrieves the timeout period for any CRUD operations.
 func (b *Bucket) GetOperationTimeout() time.Duration {
-	return b.Client.GetOperationTimeout()
+	return b.client.GetOperationTimeout()
 }
 
 func (b *Bucket) decodeValue(bytes []byte, flags uint32, out interface{}) (interface{}, Error) {
@@ -98,7 +98,7 @@ func (b *Bucket) encodeValue(value interface{}) ([]byte, uint32, Error) {
 
 // Retrieves a document from the bucket
 func (b *Bucket) Get(key string, valuePtr interface{}) (interface{}, uint64, Error) {
-	bytes, flags, cas, err := b.Client.Get([]byte(key))
+	bytes, flags, cas, err := b.client.Get([]byte(key))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -113,7 +113,7 @@ func (b *Bucket) Get(key string, valuePtr interface{}) (interface{}, uint64, Err
 
 // Retrieves a document and simultaneously updates its expiry time.
 func (b *Bucket) GetAndTouch(key string, valuePtr interface{}, expiry uint32) (interface{}, uint64, Error) {
-	bytes, flags, cas, err := b.Client.GetAndTouch([]byte(key), expiry)
+	bytes, flags, cas, err := b.client.GetAndTouch([]byte(key), expiry)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -128,7 +128,7 @@ func (b *Bucket) GetAndTouch(key string, valuePtr interface{}, expiry uint32) (i
 
 // Locks a document for a period of time, providing exclusive RW access to it.
 func (b *Bucket) GetAndLock(key string, valuePtr interface{}, lockTime uint32) (interface{}, uint64, Error) {
-	bytes, flags, cas, err := b.Client.GetAndLock([]byte(key), lockTime)
+	bytes, flags, cas, err := b.client.GetAndLock([]byte(key), lockTime)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -143,12 +143,12 @@ func (b *Bucket) GetAndLock(key string, valuePtr interface{}, lockTime uint32) (
 
 // Unlocks a document which was locked with GetAndLock.
 func (b *Bucket) Unlock(key string, cas uint64) (uint64, Error) {
-	return b.Client.Unlock([]byte(key), cas)
+	return b.client.Unlock([]byte(key), cas)
 }
 
 // Returns the value of a particular document from a replica server.
 func (b *Bucket) GetReplica(key string, valuePtr interface{}, replicaIdx int) (interface{}, uint64, Error) {
-	bytes, flags, cas, err := b.Client.GetReplica([]byte(key), replicaIdx)
+	bytes, flags, cas, err := b.client.GetReplica([]byte(key), replicaIdx)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -163,12 +163,12 @@ func (b *Bucket) GetReplica(key string, valuePtr interface{}, replicaIdx int) (i
 
 // Touches a document, specifying a new expiry time for it.
 func (b *Bucket) Touch(key string, expiry uint32) (uint64, Error) {
-	return b.Client.Touch([]byte(key), expiry)
+	return b.client.Touch([]byte(key), expiry)
 }
 
 // Removes a document from the bucket.
 func (b *Bucket) Remove(key string, cas uint64) (uint64, Error) {
-	return b.Client.Remove([]byte(key), cas)
+	return b.client.Remove([]byte(key), cas)
 }
 
 // Inserts or replaces a document in the bucket.
@@ -178,7 +178,7 @@ func (b *Bucket) Upsert(key string, value interface{}, expiry uint32) (uint64, E
 		return 0, err
 	}
 
-	return b.Client.Set([]byte(key), bytes, flags, expiry)
+	return b.client.Set([]byte(key), bytes, flags, expiry)
 }
 
 // Inserts a new document to the bucket.
@@ -188,7 +188,7 @@ func (b *Bucket) Insert(key string, value interface{}, expiry uint32) (uint64, E
 		return 0, err
 	}
 
-	return b.Client.Add([]byte(key), bytes, flags, expiry)
+	return b.client.Add([]byte(key), bytes, flags, expiry)
 }
 
 // Replaces a document in the bucket.
@@ -198,17 +198,17 @@ func (b *Bucket) Replace(key string, value interface{}, cas uint64, expiry uint3
 		return 0, err
 	}
 
-	return b.Client.Replace([]byte(key), bytes, flags, cas, expiry)
+	return b.client.Replace([]byte(key), bytes, flags, cas, expiry)
 }
 
 // Appends a string value to a document.
 func (b *Bucket) Append(key, value string) (uint64, Error) {
-	return b.Client.Append([]byte(key), []byte(value))
+	return b.client.Append([]byte(key), []byte(value))
 }
 
 // Prepends a string value to a document.
 func (b *Bucket) Prepend(key, value string) (uint64, Error) {
-	return b.Client.Prepend([]byte(key), []byte(value))
+	return b.client.Prepend([]byte(key), []byte(value))
 }
 
 // Performs an atomic addition or subtraction for an integer document.
@@ -219,9 +219,9 @@ func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint6
 	}
 
 	if delta > 0 {
-		return b.Client.Increment([]byte(key), uint64(delta), realInitial, expiry)
+		return b.client.Increment([]byte(key), uint64(delta), realInitial, expiry)
 	} else if delta < 0 {
-		return b.Client.Decrement([]byte(key), uint64(-delta), realInitial, expiry)
+		return b.client.Decrement([]byte(key), uint64(-delta), realInitial, expiry)
 	} else {
 		panic("Delta must be non-zero")
 	}
@@ -238,4 +238,8 @@ func (b *Bucket) Manager() *BucketManager {
 		b.manager = &BucketManager{}
 	}
 	return b.manager
+}
+
+func (b *Bucket) GetIoRouter() *CbIoRouter {
+	return b.client
 }
