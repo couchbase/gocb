@@ -1,7 +1,6 @@
 package couchbase
 
 import "fmt"
-import "regexp"
 import "strconv"
 import "io"
 import "encoding/binary"
@@ -15,89 +14,6 @@ import "encoding/json"
 import "math/rand"
 import "time"
 import "unsafe"
-
-// A single address stored within a connection string
-type connSpecAddr struct {
-	Host string
-	Port int
-}
-
-// A parsed connection string
-type connSpec struct {
-	Scheme  string
-	Hosts   []connSpecAddr
-	Bucket  string
-	Options map[string]string
-}
-
-// Parses a connection string into a structure more easily consumed by the library.
-func parseConnSpec(connStr string) connSpec {
-	var out connSpec
-	out.Options = map[string]string{}
-
-	partMatcher := regexp.MustCompile(`((.*):\/\/)?([^\/?]*)(\/([^\?]*))?(\?(.*))?`)
-	hostMatcher := regexp.MustCompile(`([^;\,\:]+)(:([0-9]*))?(;\,)?`)
-	kvMatcher := regexp.MustCompile(`([^=]*)=([^&?]*)[&?]?`)
-	parts := partMatcher.FindStringSubmatch(connStr)
-
-	if parts[2] != "" {
-		out.Scheme = parts[2]
-	}
-
-	if parts[3] != "" {
-		hosts := hostMatcher.FindAllStringSubmatch(parts[3], -1)
-		for _, hostInfo := range hosts {
-			port := 0
-			if hostInfo[3] != "" {
-				port, _ = strconv.Atoi(hostInfo[3])
-			}
-
-			out.Hosts = append(out.Hosts, connSpecAddr{
-				Host: hostInfo[1],
-				Port: port,
-			})
-		}
-	}
-
-	if parts[5] != "" {
-		out.Bucket = parts[5]
-	}
-
-	if parts[7] != "" {
-		kvs := kvMatcher.FindAllStringSubmatch(parts[7], -1)
-		for _, kvInfo := range kvs {
-			out.Options[kvInfo[1]] = kvInfo[2]
-		}
-	}
-
-	return out
-}
-
-// Guesses a list of memcached hosts based on a connection string specification structure.
-func guessMemdHosts(spec connSpec) []connSpecAddr {
-	if spec.Scheme != "http" {
-		panic("Should not be guessing memcached ports for non-http scheme")
-	}
-
-	var out []connSpecAddr
-	for _, host := range spec.Hosts {
-		memdHost := connSpecAddr{
-			Host: host.Host,
-			Port: 0,
-		}
-
-		if host.Port == 0 {
-			memdHost.Port = 11210
-		} else if host.Port == 8091 {
-			memdHost.Port = 11210
-		}
-
-		if memdHost.Port != 0 {
-			out = append(out, memdHost)
-		}
-	}
-	return out
-}
 
 // The response to a memcached request
 type memdResponse struct {
@@ -135,7 +51,7 @@ type memdRequest struct {
 // Represents a single server in a Couchbase cluster.
 type bucketServer struct {
 	addr       string
-	conn       io.ReadWriteCloser
+	conn       *net.TCPConn
 	isDead     bool
 	reqsCh     chan *memdRequest
 	recvHdrBuf []byte
@@ -148,6 +64,7 @@ type BaseConnection struct {
 	connSpec connSpec
 
 	httpCli *http.Client
+	config  *cfgBucket
 	vbMap   *cfgVBucketServerMap
 	servers []*bucketServer
 	capiEps unsafe.Pointer
@@ -174,6 +91,12 @@ type BaseConnection struct {
 		NumOp            uint64
 		NumOpResp        uint64
 		NumOpTimeout     uint64
+	}
+}
+
+func (c *BaseConnection) KillTest() {
+	for _, srv := range c.servers {
+		srv.conn.Close()
 	}
 }
 
@@ -243,7 +166,10 @@ func (s *bucketServer) connect(bucket, password string) error {
 
 	s.conn = conn
 
-	//authResp, err := s.doRequest(makePlainAuthRequest(bucket, password))
+	authResp, err := s.doRequest(makePlainAuthRequest(bucket, password))
+	if authResp.Status != success {
+		return clientError{"Authentication failure."}
+	}
 
 	return nil
 }
@@ -262,7 +188,7 @@ func (s *bucketServer) readResponse() (*memdResponse, error) {
 
 	_, err := io.ReadFull(s.conn, hdrBuf)
 	if err != nil {
-		log.Fatalf("Error reading: %v", err)
+		log.Printf("Error reading: %v", err)
 		return nil, err
 	}
 	fmt.Println("Received Header")
@@ -273,7 +199,7 @@ func (s *bucketServer) readResponse() (*memdResponse, error) {
 	bodyBuf := make([]byte, bodyLen)
 	_, err = io.ReadFull(s.conn, bodyBuf)
 	if err != nil {
-		log.Fatalf("Error reading: %v", err)
+		log.Printf("Error reading: %v", err)
 		return nil, err
 	}
 	fmt.Println("Received Body")
@@ -366,6 +292,86 @@ func (c *BaseConnection) configRunner() {
 	//  }
 }
 
+// Routes a request to the specific server it is destined for.  It also assigns an Opaque
+//  value for the request and adds it to the operation map.
+// This method must only be invoked by the 'primary goroutine'.
+func (c *BaseConnection) routeRequest(req *memdRequest, rerouted bool) {
+	fmt.Printf("Got request %v\n", req)
+
+	vbId := uint16(req.VBHash % uint32(len(c.vbMap.VBucketMap)))
+	repIdx := req.ReplicaIdx
+
+	if repIdx >= c.vbMap.NumReplicas {
+		panic("Invalid replica index specified")
+	}
+
+	if req.ReplicaIdx >= 0 {
+		req.VBucket = vbId
+
+		// Find the server index for this
+		srvIdx := c.vbMap.VBucketMap[vbId][repIdx]
+		// Randomly miss-locate a server
+		if rand.Uint32() < 0x7fffffff {
+			fmt.Printf("Relocating for no reason\n")
+			srvIdx = rand.Int() % len(c.servers)
+		}
+
+		// Grab the appropriate server
+		myServer := c.servers[srvIdx]
+
+		fmt.Printf("Found Server %v\n", myServer)
+
+		opIdx := c.opCounter
+		c.opMap[opIdx] = req
+		c.opCounter++
+		fmt.Printf("Assigned op index %d\n", opIdx)
+
+		req.Opaque = opIdx
+		req.ResponseCount = 1
+
+		myServer.reqsCh <- req
+	}
+
+	// myServer := c.servers[...]
+	// if (there is no server to send to) {
+	//   configWaitCh <- req
+	//   return
+	// }
+
+	// Assign an Opaque
+	// opIdx := opCounter
+	// opCounter++
+	// opMap[opIdx] = req
+	// req.Opaque = opIdx
+
+	// Server specific commands
+	//  - Stats - Write to all
+	//  for (serverList as server) {
+	//    server.reqsCh <- req
+	//  }
+	//  - CCCP Config Get
+	//  - Observe
+	//
+
+	//if req.ReplicaIdx == -1 {
+	// req.ResponseCount = serverList.count
+	// req.VBucket = req.VBHash % c.VBucketCount
+	// foreach{ServerList as Server) {
+	//   myServer.reqsCh <- req
+	// }
+	//} else {
+	//	if req.Opcode == GET_CLUSTER_CONFIG {
+	//
+	//	} else if req.Opcode == STAT {
+
+	//	}
+	//}
+
+	// Route to correct Vbucket
+
+	// How does the connection
+}
+
 func (c *BaseConnection) globalHandler() {
 	fmt.Printf("Global Handler Running\n")
 	for {
@@ -373,80 +379,7 @@ func (c *BaseConnection) globalHandler() {
 
 		select {
 		case req := <-c.requestCh:
-			fmt.Printf("Got request %v\n", req)
-
-			vbId := uint16(req.VBHash % uint32(len(c.vbMap.VBucketMap)))
-			repIdx := req.ReplicaIdx
-
-			if repIdx >= c.vbMap.NumReplicas {
-				panic("Invalid replica index specified")
-			}
-
-			if req.ReplicaIdx >= 0 {
-				req.VBucket = vbId
-
-				// Find the server index for this
-				srvIdx := c.vbMap.VBucketMap[vbId][repIdx]
-				// Randomly miss-locate a server
-				if rand.Uint32() < 0x7fffffff {
-					fmt.Printf("Relocating for no reason\n")
-					srvIdx = rand.Int() % len(c.servers)
-				}
-
-				// Grab the appropriate server
-				myServer := c.servers[srvIdx]
-
-				fmt.Printf("Found Server %v\n", myServer)
-
-				opIdx := c.opCounter
-				c.opMap[opIdx] = req
-				c.opCounter++
-				fmt.Printf("Assigned op index %d\n", opIdx)
-
-				req.Opaque = opIdx
-				req.ResponseCount = 1
-
-				myServer.reqsCh <- req
-			}
-
-			// myServer := c.servers[...]
-			// if (there is no server to send to) {
-			//   configWaitCh <- req
-			//   return
-			// }
-
-			// Assign an Opaque
-			// opIdx := opCounter
-			// opCounter++
-			// opMap[opIdx] = req
-			// req.Opaque = opIdx
-
-			// Server specific commands
-			//  - Stats - Write to all
-			//  for (serverList as server) {
-			//    server.reqsCh <- req
-			//  }
-			//  - CCCP Config Get
-			//  - Observe
-			//
-
-			//if req.ReplicaIdx == -1 {
-			// req.ResponseCount = serverList.count
-			// req.VBucket = req.VBHash % c.VBucketCount
-			// foreach{ServerList as Server) {
-			//   myServer.reqsCh <- req
-			// }
-			//} else {
-			//	if req.Opcode == GET_CLUSTER_CONFIG {
-			//
-			//	} else if req.Opcode == STAT {
-
-			//	}
-			//}
-
-			// Route to correct Vbucket
-
-			// How does the connection
+			c.routeRequest(req, false)
 
 		case resp := <-c.responseCh:
 			fmt.Printf("Handling response %v\n", resp)
@@ -460,24 +393,39 @@ func (c *BaseConnection) globalHandler() {
 				if resp.Status == notMyVBucket {
 					// Maybe update config?
 					atomic.AddUint64(&c.Stats.NumOpRelocated, 1)
-					c.requestCh <- req
+
+					// Check if we can parse this NMV value as a config
+					bk := new(cfgBucket)
+					err := json.Unmarshal(resp.Value, bk)
+					if err == nil {
+						c.updateConfig(bk)
+					}
+
+					// Re-dispatch the operation for processing
+					// BUG(brett19): This will potentially cause operations to loop around, while
+					//  a server is consistently responding with NMV, but no new config exists yet.
+					go func() {
+						c.requestCh <- req
+					}()
 				} else {
 					req.RespChan <- resp
 				}
 			}
 
-			//case req := <-c.timeedoutCh:
+		case req := <-c.timeedoutCh:
 			// Maybe check the server for too many failures, and trigger config reget
-			// delete(opMap, req.Opaque)
+			delete(c.opMap, req.Opaque)
 
 		case deader := <-c.deadServerCh:
 			// Server died, do something about it
-
 			deader.isDead = true
-			// Request new config somehow
 
-			//case config := <-c.configCh:
-			//UpdateConfig(config)
+			// Currently we just forward the existing configuration back through the pipe...
+			// TODO(brett19): We need to actually request a new configuration when a server dies.
+			c.updateConfig(c.config)
+
+		case config := <-c.configCh:
+			c.updateConfig(config)
 
 		}
 	}
@@ -516,6 +464,9 @@ func (c *BaseConnection) Observe(key string) {
 }
 */
 
+// Performs a simple dispatch of a request which receives a single reply.  A timeout error will
+//  occur if the operation takes longer than configured operation timeout.  This method can be
+//  invoked from any goroutine.
 func (c *BaseConnection) dispatchSimpleReq(req *memdRequest) (*memdResponse, Error) {
 	atomic.AddUint64(&c.Stats.NumOp, 1)
 	c.requestCh <- req
@@ -527,19 +478,24 @@ func (c *BaseConnection) dispatchSimpleReq(req *memdRequest) (*memdResponse, Err
 	case <-time.After(c.operationTimeout):
 		atomic.AddUint64(&c.Stats.NumOpTimeout, 1)
 		c.timeedoutCh <- req
-		return nil, TimeoutError{}
+		return nil, timeoutError{}
 	}
 }
 
+// Accepts a cfgBucket object representing a cluster configuration and rebuilds the server list
+//  along with any routing information for the Client.  This method must only be invoked from
+//  the 'primary goroutine'.
 func (c *BaseConnection) updateConfig(bk *cfgBucket) {
 	atomic.AddUint64(&c.Stats.NumConfigUpdate, 1)
+
+	c.config = bk
 
 	var newServers []*bucketServer
 	for _, hostPort := range bk.VBSMJson.ServerList {
 		var newServer *bucketServer = nil
 
 		for _, oldServer := range c.servers {
-			if oldServer.addr == hostPort {
+			if !oldServer.isDead && oldServer.addr == hostPort {
 				newServer = oldServer
 				break
 			}
@@ -553,7 +509,10 @@ func (c *BaseConnection) updateConfig(bk *cfgBucket) {
 		newServers = append(newServers, newServer)
 	}
 
-	for _, oldServer := range c.servers {
+	oldServers := c.servers
+	c.servers = newServers
+
+	for _, oldServer := range oldServers {
 		found := false
 		for _, newServer := range newServers {
 			if newServer == oldServer {
@@ -566,7 +525,7 @@ func (c *BaseConnection) updateConfig(bk *cfgBucket) {
 			for !queueCleared {
 				select {
 				case req := <-oldServer.reqsCh:
-					c.requestCh <- req
+					c.routeRequest(req, false)
 				default:
 					queueCleared = true
 					break
@@ -581,7 +540,6 @@ func (c *BaseConnection) updateConfig(bk *cfgBucket) {
 	var mgmtEps []string
 	mgmtEps = append(mgmtEps, "http://test.com/")
 
-	c.servers = newServers
 	c.vbMap = &bk.VBSMJson
 	atomic.StorePointer(&c.capiEps, unsafe.Pointer(&capiEps))
 	atomic.StorePointer(&c.mgmtEps, unsafe.Pointer(&mgmtEps))
@@ -600,7 +558,7 @@ func CreateBaseConnection(connSpecStr string, bucket, password string) (*BaseCon
 	c := &BaseConnection{
 		httpCli:          &http.Client{},
 		opMap:            map[uint32]*memdRequest{},
-		configCh:         make(chan *cfgBucket, 1),
+		configCh:         make(chan *cfgBucket, 0),
 		configWaitCh:     make(chan *memdRequest, 1),
 		requestCh:        make(chan *memdRequest, 1),
 		responseCh:       make(chan *memdResponse, 1),
@@ -908,7 +866,7 @@ func (c *BaseConnection) counter(opcode commandCode, key []byte, delta, initial 
 
 	intVal, perr := strconv.ParseUint(string(resp.Value), 10, 64)
 	if perr != nil {
-		return 0, 0, ClientError{"Failed to parse returned value"}
+		return 0, 0, clientError{"Failed to parse returned value"}
 	}
 
 	return intVal, resp.Cas, nil

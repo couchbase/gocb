@@ -30,7 +30,7 @@ func (b *Bucket) decodeValue(bytes []byte, flags uint32, out interface{}) (inter
 			// Legacy JSON
 			flags = cfFmtJson
 		} else {
-			return nil, ClientError{"Unexpected legacy flags value"}
+			return nil, clientError{"Unexpected legacy flags value"}
 		}
 	}
 
@@ -38,7 +38,7 @@ func (b *Bucket) decodeValue(bytes []byte, flags uint32, out interface{}) (inter
 
 	// Make sure compression is disabled
 	if flags&cfCmprMask != cfCmprNone {
-		return nil, ClientError{"Unexpected value compression"}
+		return nil, clientError{"Unexpected value compression"}
 	}
 
 	// If an output object was passed, try to json Unmarshal to it
@@ -46,11 +46,11 @@ func (b *Bucket) decodeValue(bytes []byte, flags uint32, out interface{}) (inter
 		if flags&cfFmtJson != 0 {
 			err := json.Unmarshal(bytes, out)
 			if err != nil {
-				return nil, ClientError{err.Error()}
+				return nil, clientError{err.Error()}
 			}
 			return out, nil
 		} else {
-			return nil, ClientError{"Unmarshal target passed, but type does not match."}
+			return nil, clientError{"Unmarshal target passed, but type does not match."}
 		}
 	}
 
@@ -63,11 +63,11 @@ func (b *Bucket) decodeValue(bytes []byte, flags uint32, out interface{}) (inter
 		var outVal interface{}
 		err := json.Unmarshal(bytes, &outVal)
 		if err != nil {
-			return nil, ClientError{err.Error()}
+			return nil, clientError{err.Error()}
 		}
 		return outVal, nil
 	} else {
-		return nil, ClientError{"Unexpected flags value"}
+		return nil, clientError{"Unexpected flags value"}
 	}
 }
 
@@ -86,7 +86,7 @@ func (b *Bucket) encodeValue(value interface{}) ([]byte, uint32, Error) {
 	default:
 		bytes, err = json.Marshal(value)
 		if err != nil {
-			return nil, 0, ClientError{err.Error()}
+			return nil, 0, clientError{err.Error()}
 		}
 		flags = cfFmtJson
 	}

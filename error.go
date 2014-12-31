@@ -9,50 +9,50 @@ type Error interface {
 	Temporary() bool
 }
 
-type ClientError struct {
+type clientError struct {
 	message string
 }
 
-func (e ClientError) Error() string {
+func (e clientError) Error() string {
 	return e.message
 }
-func (e ClientError) KeyNotFound() bool {
+func (e clientError) KeyNotFound() bool {
 	return false
 }
-func (e ClientError) KeyExists() bool {
+func (e clientError) KeyExists() bool {
 	return false
 }
-func (e ClientError) Timeout() bool {
+func (e clientError) Timeout() bool {
 	return false
 }
-func (e ClientError) Temporary() bool {
+func (e clientError) Temporary() bool {
 	return false
 }
 
-type TimeoutError struct {
+type timeoutError struct {
 }
 
-func (e TimeoutError) Error() string {
+func (e timeoutError) Error() string {
 	return "The operation has timed out."
 }
-func (e TimeoutError) KeyNotFound() bool {
+func (e timeoutError) KeyNotFound() bool {
 	return false
 }
-func (e TimeoutError) KeyExists() bool {
+func (e timeoutError) KeyExists() bool {
 	return false
 }
-func (e TimeoutError) Timeout() bool {
+func (e timeoutError) Timeout() bool {
 	return true
 }
-func (e TimeoutError) Temporary() bool {
+func (e timeoutError) Temporary() bool {
 	return false
 }
 
-type MemdError struct {
+type memdError struct {
 	code statusCode
 }
 
-func (e MemdError) Error() string {
+func (e memdError) Error() string {
 	switch e.code {
 	case success:
 		return "Success."
@@ -78,15 +78,15 @@ func (e MemdError) Error() string {
 		return fmt.Sprintf("An unknown error occurred (%d).", e.code)
 	}
 }
-func (e MemdError) KeyNotFound() bool {
+func (e memdError) KeyNotFound() bool {
 	return e.code == keyNotFound
 }
-func (e MemdError) KeyExists() bool {
+func (e memdError) KeyExists() bool {
 	return e.code == keyExists
 }
-func (e MemdError) Timeout() bool {
+func (e memdError) Timeout() bool {
 	return false
 }
-func (e MemdError) Temporary() bool {
+func (e memdError) Temporary() bool {
 	return e.code == outOfMemory || e.code == tmpFail
 }
