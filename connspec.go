@@ -1,5 +1,6 @@
 package couchbase
 
+import "fmt"
 import "regexp"
 import "strconv"
 
@@ -61,11 +62,7 @@ func parseConnSpec(connStr string) connSpec {
 }
 
 // Guesses a list of memcached hosts based on a connection string specification structure.
-func guessMemdHosts(spec connSpec) []connSpecAddr {
-	if spec.Scheme != "http" {
-		panic("Should not be guessing memcached ports for non-http scheme")
-	}
-
+func csGetMemdHosts(spec connSpec) []connSpecAddr {
 	var out []connSpecAddr
 	for _, host := range spec.Hosts {
 		memdHost := connSpecAddr{
@@ -73,10 +70,18 @@ func guessMemdHosts(spec connSpec) []connSpecAddr {
 			Port: 0,
 		}
 
+		fmt.Printf("Host parse: %s:%d", host.Host, host.Port)
+
 		if host.Port == 0 {
-			memdHost.Port = 11210
+			if spec.Scheme != "couchbases" {
+				memdHost.Port = 11210
+			} else {
+				memdHost.Port = 11207
+			}
 		} else if host.Port == 8091 {
 			memdHost.Port = 11210
+		} else if host.Port == 18091 {
+			memdHost.Port = 11207
 		}
 
 		if memdHost.Port != 0 {

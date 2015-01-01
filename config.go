@@ -35,6 +35,18 @@ type cfgNode struct {
 	ThisNode             bool               `json:"thisNode,omitempty"`
 }
 
+type cfgNodeExt struct {
+	Services struct {
+		Kv      uint16 `json:"kv"`
+		Capi    uint16 `json:"capi"`
+		Mgmt    uint16 `json:"mgmt"`
+		KvSsl   uint16 `json:"kvSSL"`
+		CapiSsl uint16 `json:"capiSSL"`
+		MgmtSsl uint16 `json:"mgmtSSL"`
+	} `json:"services"`
+	Hostname string `json:"hostname"`
+}
+
 // A Pool of nodes and buckets.
 type cfgPool struct {
 	BucketMap map[string]cfgBucket
@@ -74,6 +86,7 @@ type cfgBucket struct {
 
 	// These are used for JSON IO, but isn't used for processing
 	// since it needs to be swapped out safely.
-	VBSMJson  cfgVBucketServerMap `json:"vBucketServerMap"`
-	NodesJSON []cfgNode           `json:"nodes"`
+	VBucketServerMap cfgVBucketServerMap `json:"vBucketServerMap"`
+	Nodes            []cfgNode           `json:"nodes"`
+	NodesExt         []cfgNodeExt        `json:"nodesExt,omitempty"`
 }

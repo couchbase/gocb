@@ -7,6 +7,7 @@ import "encoding/binary"
 import "encoding/hex"
 import "log"
 import "net"
+import "crypto/tls"
 import "strings"
 import "net/http"
 import "sync/atomic"
@@ -51,7 +52,8 @@ type memdRequest struct {
 // Represents a single server in a Couchbase cluster.
 type bucketServer struct {
 	addr       string
-	conn       *net.TCPConn
+	useSsl     bool
+	conn       io.ReadWriteCloser
 	isDead     bool
 	reqsCh     chan *memdRequest
 	recvHdrBuf []byte
@@ -61,7 +63,7 @@ type bucketServer struct {
 // This is used internally by the higher level classes for communicating with the cluster,
 // it can also be used to perform more advanced operations with a cluster.
 type CbIoRouter struct {
-	connSpec connSpec
+	useSsl bool
 
 	httpCli *http.Client
 	config  *cfgBucket
@@ -104,6 +106,7 @@ func (c *CbIoRouter) KillTest() {
 func (c *CbIoRouter) createServer(addr string) *bucketServer {
 	return &bucketServer{
 		addr:       addr,
+		useSsl:     c.useSsl,
 		reqsCh:     make(chan *memdRequest),
 		recvHdrBuf: make([]byte, 24),
 	}
@@ -150,23 +153,32 @@ func makeCccpRequest() *memdRequest {
 
 // Dials and Authenticates a bucketServer object to the cluster.
 func (s *bucketServer) connect(bucket, password string) error {
-	fmt.Printf("Resolvinggg %s\n", s.addr)
+	fmt.Printf("Dialing %s\n", s.addr)
 
-	tcpAddr, err := net.ResolveTCPAddr("tcp", s.addr)
-	if err != nil {
-		return err
+	if !s.useSsl {
+		conn, err := net.Dial("tcp", s.addr)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Dial Complete\n")
+
+		s.conn = conn
+	} else {
+		conn, err := tls.Dial("tcp", s.addr, &tls.Config{
+			InsecureSkipVerify: true,
+		})
+		if err != nil {
+			return err
+		}
+		fmt.Printf("SSL Dial Complete\n")
+
+		s.conn = conn
 	}
-	fmt.Printf("Resolution is %v\n", tcpAddr)
-
-	conn, err := net.DialTCP("tcp", nil, tcpAddr)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("Dial Complete\n")
-
-	s.conn = conn
 
 	authResp, err := s.doRequest(makePlainAuthRequest(bucket, password))
+	if err != nil {
+		return clientError{"Network failure during authentication."}
+	}
 	if authResp.Status != success {
 		return clientError{"Authentication failure."}
 	}
@@ -488,10 +500,34 @@ func (c *CbIoRouter) dispatchSimpleReq(req *memdRequest) (*memdResponse, error) 
 func (c *CbIoRouter) updateConfig(bk *cfgBucket) {
 	atomic.AddUint64(&c.Stats.NumConfigUpdate, 1)
 
-	c.config = bk
+	var serverList []string
+
+	if bk.NodesExt != nil {
+		var kvPort uint16
+		for _, node := range bk.NodesExt {
+			if !c.useSsl {
+				kvPort = node.Services.Kv
+			} else {
+				kvPort = node.Services.KvSsl
+			}
+			serverList = append(serverList, fmt.Sprintf("%s:%d", node.Hostname, kvPort))
+		}
+	}
+
+	fmt.Printf("Supa Server List: %v\n", serverList)
+
+	if serverList == nil {
+		if c.useSsl {
+			panic("Received config without nodesExt while SSL is enabled.")
+		}
+
+		serverList = bk.VBucketServerMap.ServerList
+	}
+
+	fmt.Printf("Gogo Server List: %v\n", serverList)
 
 	var newServers []*bucketServer
-	for _, hostPort := range bk.VBSMJson.ServerList {
+	for _, hostPort := range serverList {
 		var newServer *bucketServer = nil
 
 		for _, oldServer := range c.servers {
@@ -540,22 +576,22 @@ func (c *CbIoRouter) updateConfig(bk *cfgBucket) {
 	var mgmtEps []string
 	mgmtEps = append(mgmtEps, "http://test.com/")
 
-	c.vbMap = &bk.VBSMJson
+	c.vbMap = &bk.VBucketServerMap
 	atomic.StorePointer(&c.capiEps, unsafe.Pointer(&capiEps))
 	atomic.StorePointer(&c.mgmtEps, unsafe.Pointer(&mgmtEps))
+
+	c.config = bk
 }
 
 func CreateCbIoRouter(connSpecStr string, bucket, password string) (*CbIoRouter, error) {
 	spec := parseConnSpec(connSpecStr)
 
-	memdAddrs := spec.Hosts
-	if spec.Scheme == "http" {
-		memdAddrs = guessMemdHosts(spec)
-	}
+	memdAddrs := csGetMemdHosts(spec)
 
 	fmt.Printf("ADDRs: %v\n", memdAddrs)
 
 	c := &CbIoRouter{
+		useSsl:           spec.Scheme == "couchbases",
 		httpCli:          &http.Client{},
 		opMap:            map[uint32]*memdRequest{},
 		configCh:         make(chan *cfgBucket, 0),
@@ -574,7 +610,7 @@ func CreateCbIoRouter(connSpecStr string, bucket, password string) (*CbIoRouter,
 
 		srv := c.createServer(thisHostPort)
 
-		fmt.Printf("Time to connect new server\n")
+		fmt.Printf("Time to connect new server %s\n", thisHostPort)
 		atomic.AddUint64(&c.Stats.NumServerConnect, 1)
 		err := srv.connect(bucket, password)
 
