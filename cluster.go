@@ -11,7 +11,7 @@ type Cluster struct {
 	connectionTimeout time.Duration
 }
 
-func OpenCluster(connSpecStr string) (*Cluster, error) {
+func Connect(connSpecStr string) (*Cluster, error) {
 	spec := parseConnSpec(connSpecStr)
 	if spec.Scheme == "" {
 		spec.Scheme = "http"
