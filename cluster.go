@@ -47,8 +47,25 @@ func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 		memdHosts = append(memdHosts, fmt.Sprintf("%s:%d", specHost.Host, specHost.Port))
 	}
 
-	authFn := func(srv *gocouchbaseio.MemdServer) error {
+	authFn := func(srv gocouchbaseio.MemdAuthClient) error {
 		fmt.Printf("Want to auth for %s\n", srv.Address())
+
+		auths, err := srv.ListMechs()
+		fmt.Printf("ListMechs said %v, %s\n", err, auths)
+
+		// Build PLAIN auth data
+		userBuf := []byte(bucket)
+		passBuf := []byte(password)
+		authData := make([]byte, 1+len(userBuf)+1+len(passBuf))
+		authData[0] = 0
+		copy(authData[1:], userBuf)
+		authData[1+len(userBuf)] = 0
+		copy(authData[1+len(userBuf)+1:], passBuf)
+
+		// Execute PLAIN authentication
+		authR, err := srv.Auth([]byte("PLAIN"), authData)
+		fmt.Printf("SaslAuth said %v, %s\n", err, authR)
+
 		return nil
 	}
 	cli, err := gocouchbaseio.CreateAgent(memdHosts, httpHosts, isSslHosts, authFn)
