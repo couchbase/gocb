@@ -1,13 +1,14 @@
-package couchbase
+package gocouchbase
 
 import "encoding/json"
 import "time"
 import "fmt"
+import "github.com/couchbase/gocouchbaseio"
 
 // An interface representing a single bucket within a cluster.
 type Bucket struct {
 	manager *BucketManager
-	client  *CbIoRouter
+	client  *gocouchbaseio.Agent
 }
 
 // Sets the timeout period for any CRUD operations
@@ -95,6 +96,8 @@ func (b *Bucket) encodeValue(value interface{}) ([]byte, uint32, error) {
 
 	return bytes, flags, nil
 }
+
+/*
 
 // Retrieves a document from the bucket
 func (b *Bucket) Get(key string, valuePtr interface{}) (interface{}, uint64, error) {
@@ -232,6 +235,8 @@ func (b *Bucket) PerformViewQuery(queryObj ViewQuery) ([]interface{}, error) {
 	return nil, nil
 }
 
+*/
+
 // Returns an interface allowing management operations to be performed on the bucket.
 func (b *Bucket) Manager() *BucketManager {
 	if b.manager == nil {
@@ -240,6 +245,6 @@ func (b *Bucket) Manager() *BucketManager {
 	return b.manager
 }
 
-func (b *Bucket) GetIoRouter() *CbIoRouter {
+func (b *Bucket) GetIoRouter() *gocouchbaseio.Agent {
 	return b.client
 }

@@ -1,4 +1,4 @@
-package couchbase
+package gocouchbase
 
 type BucketManager struct {
 }

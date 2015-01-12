@@ -1,4 +1,4 @@
-package couchbase
+package gocouchbase
 
 import "strconv"
 import "encoding/json"

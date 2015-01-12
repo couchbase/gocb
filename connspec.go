@@ -1,4 +1,4 @@
-package couchbase
+package gocouchbase
 
 import "fmt"
 import "regexp"
