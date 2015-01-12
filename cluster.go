@@ -50,9 +50,6 @@ func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 	authFn := func(srv gocouchbaseio.MemdAuthClient) error {
 		fmt.Printf("Want to auth for %s\n", srv.Address())
 
-		auths, err := srv.ListMechs()
-		fmt.Printf("ListMechs said %v, %s\n", err, auths)
-
 		// Build PLAIN auth data
 		userBuf := []byte(bucket)
 		passBuf := []byte(password)
@@ -63,7 +60,7 @@ func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 		copy(authData[1+len(userBuf)+1:], passBuf)
 
 		// Execute PLAIN authentication
-		authR, err := srv.Auth([]byte("PLAIN"), authData)
+		authR, err := srv.SaslAuth([]byte("PLAIN"), authData)
 		fmt.Printf("SaslAuth said %v, %s\n", err, authR)
 
 		return nil
