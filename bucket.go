@@ -14,18 +14,9 @@ type Bucket struct {
 	client  *gocouchbaseio.Agent
 }
 
-type getResult struct {
-	bytes []byte
-	flags uint32
-	cas   uint64
-	err   error
-}
-
 func (b *Bucket) afterOpTimeout() <-chan time.Time {
 	return time.After(10 * time.Second)
 }
-
-type GetCallback func(interface{}, uint64, error)
 
 type PendingOp interface {
 	Cancel() bool
@@ -288,7 +279,7 @@ func (e *viewError) Error() string {
 }
 
 // Performs a view query and returns a list of rows or an error.
-func (b *Bucket) ExecuteViewQuery(q *ViewQuery, valsOut interface{}) (interface{}, error) {
+func (b *Bucket) ExecuteViewQuery(q *ViewQuery, valuesPtr interface{}) (interface{}, error) {
 	capiEp := b.getViewEp()
 
 	urlParams := url.Values{}
@@ -303,13 +294,13 @@ func (b *Bucket) ExecuteViewQuery(q *ViewQuery, valsOut interface{}) (interface{
 		return nil, err
 	}
 
-	if valsOut == nil {
+	if valuesPtr == nil {
 		var vals []interface{}
-		valsOut = &vals
+		valuesPtr = &vals
 	}
 	viewResp := viewResponse{
 		Rows: viewRowDecoder{
-			Target: valsOut,
+			Target: valuesPtr,
 		},
 	}
 
@@ -329,7 +320,7 @@ func (b *Bucket) ExecuteViewQuery(q *ViewQuery, valsOut interface{}) (interface{
 		}
 	}
 
-	return valsOut, nil
+	return valuesPtr, nil
 }
 
 func (b *Bucket) GetIoRouter() *gocouchbaseio.Agent {
