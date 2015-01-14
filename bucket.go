@@ -253,19 +253,21 @@ func (b *Bucket) getViewEp() string {
 	return capiEps[rand.Intn(len(capiEps))]
 }
 
-type viewRowDecoder struct {
-	Target interface{}
+type viewItem struct {
+	Bytes []byte
 }
 
-func (vrd *viewRowDecoder) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, vrd.Target)
+func (i *viewItem) UnmarshalJSON(data []byte) error {
+	i.Bytes = make([]byte, len(data))
+	copy(i.Bytes, data)
+	return nil
 }
 
 type viewResponse struct {
-	TotalRows int            `json:"total_rows,omitempty"`
-	Rows      viewRowDecoder `json:"rows,omitempty"`
-	Error     string         `json:"error,omitempty"`
-	Reason    string         `json:"reason,omitempty"`
+	TotalRows int        `json:"total_rows,omitempty"`
+	Rows      []viewItem `json:"rows,omitempty"`
+	Error     string     `json:"error,omitempty"`
+	Reason    string     `json:"reason,omitempty"`
 }
 
 type viewError struct {
@@ -277,44 +279,74 @@ func (e *viewError) Error() string {
 	return e.message + " - " + e.reason
 }
 
+type ViewResults interface {
+	Next(valuePtr interface{}) bool
+	Close() error
+}
+
+type viewResults struct {
+	index int
+	rows  []viewItem
+	err   error
+}
+
+func (r *viewResults) Next(valuePtr interface{}) bool {
+	if r.err != nil {
+		return false
+	}
+	if r.index+1 >= len(r.rows) {
+		return false
+	}
+	r.index++
+
+	row := r.rows[r.index]
+	r.err = json.Unmarshal(row.Bytes, valuePtr)
+	if r.err != nil {
+		return false
+	}
+
+	return true
+}
+func (r *viewResults) Close() error {
+	return r.err
+}
+
 // Performs a view query and returns a list of rows or an error.
-func (b *Bucket) ExecuteViewQuery(q *ViewQuery, valuesPtr interface{}) (interface{}, error) {
+func (b *Bucket) ExecuteViewQuery(q *ViewQuery) ViewResults {
 	capiEp := b.getViewEp()
 
 	reqUri := fmt.Sprintf("%s/_design/%s/_view/%s?%s", capiEp, q.ddoc, q.name, q.options.Encode())
 
 	resp, err := b.httpCli.Get(reqUri)
 	if err != nil {
-		return nil, err
+		return &viewResults{err: err}
 	}
 
-	if valuesPtr == nil {
-		var vals []interface{}
-		valuesPtr = &vals
-	}
-	viewResp := viewResponse{
-		Rows: viewRowDecoder{
-			Target: valuesPtr,
-		},
-	}
-
+	viewResp := viewResponse{}
 	jsonDec := json.NewDecoder(resp.Body)
 	jsonDec.Decode(&viewResp)
 
 	if resp.StatusCode != 200 {
 		if viewResp.Error != "" {
-			return nil, &viewError{
-				message: viewResp.Error,
-				reason:  viewResp.Reason,
+			return &viewResults{
+				err: &viewError{
+					message: viewResp.Error,
+					reason:  viewResp.Reason,
+				},
 			}
 		}
-		return nil, &viewError{
-			message: "HTTP Error",
-			reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
+		return &viewResults{
+			err: &viewError{
+				message: "HTTP Error",
+				reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
+			},
 		}
 	}
 
-	return valuesPtr, nil
+	return &viewResults{
+		index: -1,
+		rows:  viewResp.Rows,
+	}
 }
 
 func (b *Bucket) GetIoRouter() *gocouchbaseio.Agent {
