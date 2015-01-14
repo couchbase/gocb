@@ -2,7 +2,7 @@ package gocouchbase
 
 import "time"
 import "fmt"
-import "github.com/couchbase/gocouchbaseio"
+import "github.com/couchbaselabs/gocouchbaseio"
 import "net/http"
 import "crypto/tls"
 
