@@ -4,10 +4,13 @@ import "encoding/json"
 import "time"
 import "fmt"
 import "github.com/couchbase/gocouchbaseio"
+import "net/http"
+import "net/url"
+import "math/rand"
 
 // An interface representing a single bucket within a cluster.
 type Bucket struct {
-	manager *BucketManager
+	httpCli *http.Client
 	client  *gocouchbaseio.Agent
 }
 
@@ -340,17 +343,79 @@ func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint6
 	}
 }
 
-// Performs a view query and returns a list of rows or an error.
-func (b *Bucket) PerformViewQuery(queryObj ViewQuery) ([]interface{}, error) {
-	return nil, nil
+// Returns a CAPI endpoint.  Guarenteed to return something for now...
+func (b *Bucket) getViewEp() string {
+	capiEps := b.client.GetCapiEps()
+	return capiEps[rand.Intn(len(capiEps))]
 }
 
-// Returns an interface allowing management operations to be performed on the bucket.
-func (b *Bucket) Manager() *BucketManager {
-	if b.manager == nil {
-		b.manager = &BucketManager{}
+type viewRowDecoder struct {
+	Target interface{}
+}
+
+func (vrd *viewRowDecoder) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, vrd.Target)
+}
+
+type viewResponse struct {
+	TotalRows int            `json:"total_rows,omitempty"`
+	Rows      viewRowDecoder `json:"rows,omitempty"`
+	Error     string         `json:"error,omitempty"`
+	Reason    string         `json:"reason,omitempty"`
+}
+
+type viewError struct {
+	message string
+	reason  string
+}
+
+func (e *viewError) Error() string {
+	return e.message + " - " + e.reason
+}
+
+// Performs a view query and returns a list of rows or an error.
+func (b *Bucket) ExecuteViewQuery(q *ViewQuery, valsOut interface{}) (interface{}, error) {
+	capiEp := b.getViewEp()
+
+	urlParams := url.Values{}
+	for k, v := range q.options {
+		urlParams.Add(k, v)
 	}
-	return b.manager
+
+	reqUri := fmt.Sprintf("%s/_design/%s/_view/%s?%s", capiEp, q.ddoc, q.name, urlParams.Encode())
+
+	resp, err := b.httpCli.Get(reqUri)
+	if err != nil {
+		return nil, err
+	}
+
+	if valsOut == nil {
+		var vals []interface{}
+		valsOut = &vals
+	}
+	viewResp := viewResponse{
+		Rows: viewRowDecoder{
+			Target: valsOut,
+		},
+	}
+
+	jsonDec := json.NewDecoder(resp.Body)
+	jsonDec.Decode(&viewResp)
+
+	if resp.StatusCode != 200 {
+		if viewResp.Error != "" {
+			return nil, &viewError{
+				message: viewResp.Error,
+				reason:  viewResp.Reason,
+			}
+		}
+		return nil, &viewError{
+			message: "HTTP Error",
+			reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
+		}
+	}
+
+	return valsOut, nil
 }
 
 func (b *Bucket) GetIoRouter() *gocouchbaseio.Agent {

@@ -3,10 +3,10 @@ package gocouchbase
 import "time"
 import "fmt"
 import "github.com/couchbase/gocouchbaseio"
+import "net/http"
+import "crypto/tls"
 
 type Cluster struct {
-	manager *ClusterManager
-
 	spec              connSpec
 	connectionTimeout time.Duration
 }
@@ -72,12 +72,12 @@ func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 
 	return &Bucket{
 		client: cli,
+		httpCli: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+			},
+		},
 	}, nil
-}
-
-func (c *Cluster) Manager(username, password string) *ClusterManager {
-	if c.manager == nil {
-		c.manager = &ClusterManager{}
-	}
-	return c.manager
 }

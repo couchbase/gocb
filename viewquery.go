@@ -24,12 +24,6 @@ type ViewQuery struct {
 	options map[string]string
 }
 
-func (vq *ViewQuery) from(ddoc, name string) *ViewQuery {
-	vq.ddoc = ddoc
-	vq.name = name
-	return vq
-}
-
 func (vq *ViewQuery) Stale(stale StaleMode) *ViewQuery {
 	if stale == Before {
 		vq.options["stale"] = "false"
@@ -142,5 +136,9 @@ func (vq *ViewQuery) Custom(name, value string) *ViewQuery {
 }
 
 func NewViewQuery(ddoc, name string) *ViewQuery {
-	return new(ViewQuery).from(ddoc, name)
+	return &ViewQuery{
+		ddoc:    ddoc,
+		name:    name,
+		options: make(map[string]string),
+	}
 }
