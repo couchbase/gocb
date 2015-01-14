@@ -33,17 +33,16 @@ func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (valOut 
 		go func() {
 			if err != nil {
 				errOut = err
-				return
-			}
+			} else {
+				value, err := b.decodeValue(bytes, flags, valuePtr)
+				if err != nil {
+					errOut = err
+				} else {
+					valOut = value
+					casOut = cas
+				}
 
-			value, err := b.decodeValue(bytes, flags, valuePtr)
-			if err != nil {
-				errOut = err
-				return
 			}
-
-			valOut = value
-			casOut = cas
 			signal <- true
 		}()
 	})
@@ -68,10 +67,9 @@ func (b *Bucket) hlpCasExec(execFn hlpCasHandler) (casOut uint64, errOut error) 
 		go func() {
 			if err != nil {
 				errOut = err
-				return
+			} else {
+				casOut = cas
 			}
-
-			casOut = cas
 			signal <- true
 		}()
 	})
@@ -96,11 +94,10 @@ func (b *Bucket) hlpCtrExec(execFn hlpCtrHandler) (valOut uint64, casOut uint64,
 		go func() {
 			if err != nil {
 				errOut = err
-				return
+			} else {
+				valOut = value
+				casOut = cas
 			}
-
-			valOut = value
-			casOut = cas
 			signal <- true
 		}()
 	})
