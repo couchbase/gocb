@@ -18,15 +18,13 @@ func (b *Bucket) afterOpTimeout() <-chan time.Time {
 	return time.After(10 * time.Second)
 }
 
-type PendingOp interface {
-	Cancel() bool
-}
+type pendingOp gocouchbaseio.PendingOp
 
 type ioGetCallback func([]byte, uint32, uint64, error)
 type ioCasCallback func(uint64, error)
 type ioCtrCallback func(uint64, uint64, error)
 
-type hlpGetHandler func(ioGetCallback) (PendingOp, error)
+type hlpGetHandler func(ioGetCallback) (pendingOp, error)
 
 func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (valOut interface{}, casOut uint64, errOut error) {
 	signal := make(chan bool)
@@ -61,7 +59,7 @@ func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (valOut 
 	}
 }
 
-type hlpCasHandler func(ioCasCallback) (PendingOp, error)
+type hlpCasHandler func(ioCasCallback) (pendingOp, error)
 
 func (b *Bucket) hlpCasExec(execFn hlpCasHandler) (casOut uint64, errOut error) {
 	signal := make(chan bool)
@@ -89,7 +87,7 @@ func (b *Bucket) hlpCasExec(execFn hlpCasHandler) (casOut uint64, errOut error) 
 	}
 }
 
-type hlpCtrHandler func(ioCtrCallback) (PendingOp, error)
+type hlpCtrHandler func(ioCtrCallback) (pendingOp, error)
 
 func (b *Bucket) hlpCtrExec(execFn hlpCtrHandler) (valOut uint64, casOut uint64, errOut error) {
 	signal := make(chan bool)
@@ -120,7 +118,7 @@ func (b *Bucket) hlpCtrExec(execFn hlpCtrHandler) (valOut uint64, casOut uint64,
 
 // Retrieves a document from the bucket
 func (b *Bucket) Get(key string, valuePtr interface{}) (interface{}, uint64, error) {
-	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (PendingOp, error) {
+	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (pendingOp, error) {
 		op, err := b.client.Get([]byte(key), gocouchbaseio.GetCallback(cb))
 		return op, err
 	})
@@ -128,7 +126,7 @@ func (b *Bucket) Get(key string, valuePtr interface{}) (interface{}, uint64, err
 
 // Retrieves a document and simultaneously updates its expiry time.
 func (b *Bucket) GetAndTouch(key string, expiry uint32, valuePtr interface{}) (interface{}, uint64, error) {
-	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (PendingOp, error) {
+	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (pendingOp, error) {
 		op, err := b.client.GetAndTouch([]byte(key), expiry, gocouchbaseio.GetCallback(cb))
 		return op, err
 	})
@@ -136,7 +134,7 @@ func (b *Bucket) GetAndTouch(key string, expiry uint32, valuePtr interface{}) (i
 
 // Locks a document for a period of time, providing exclusive RW access to it.
 func (b *Bucket) GetAndLock(key string, lockTime uint32, valuePtr interface{}) (interface{}, uint64, error) {
-	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (PendingOp, error) {
+	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (pendingOp, error) {
 		op, err := b.client.GetAndLock([]byte(key), lockTime, gocouchbaseio.GetCallback(cb))
 		return op, err
 	})
@@ -144,7 +142,7 @@ func (b *Bucket) GetAndLock(key string, lockTime uint32, valuePtr interface{}) (
 
 // Unlocks a document which was locked with GetAndLock.
 func (b *Bucket) Unlock(key string, cas uint64) (casOut uint64, errOut error) {
-	return b.hlpCasExec(func(cb ioCasCallback) (PendingOp, error) {
+	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
 		op, err := b.client.Unlock([]byte(key), cas, gocouchbaseio.UnlockCallback(cb))
 		return op, err
 	})
@@ -157,7 +155,7 @@ func (b *Bucket) GetReplica(key string, valuePtr interface{}, replicaIdx int) (i
 
 // Touches a document, specifying a new expiry time for it.
 func (b *Bucket) Touch(key string, expiry uint32) (uint64, error) {
-	return b.hlpCasExec(func(cb ioCasCallback) (PendingOp, error) {
+	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
 		op, err := b.client.Touch([]byte(key), expiry, gocouchbaseio.TouchCallback(cb))
 		return op, err
 	})
@@ -165,7 +163,7 @@ func (b *Bucket) Touch(key string, expiry uint32) (uint64, error) {
 
 // Removes a document from the bucket.
 func (b *Bucket) Remove(key string, cas uint64) (casOut uint64, errOut error) {
-	return b.hlpCasExec(func(cb ioCasCallback) (PendingOp, error) {
+	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
 		op, err := b.client.Remove([]byte(key), cas, gocouchbaseio.RemoveCallback(cb))
 		return op, err
 	})
@@ -178,7 +176,7 @@ func (b *Bucket) Upsert(key string, value interface{}, expiry uint32) (casOut ui
 		return 0, err
 	}
 
-	return b.hlpCasExec(func(cb ioCasCallback) (PendingOp, error) {
+	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
 		op, err := b.client.Set([]byte(key), bytes, flags, expiry, gocouchbaseio.StoreCallback(cb))
 		return op, err
 	})
@@ -191,7 +189,7 @@ func (b *Bucket) Insert(key string, value interface{}, expiry uint32) (uint64, e
 		return 0, err
 	}
 
-	return b.hlpCasExec(func(cb ioCasCallback) (PendingOp, error) {
+	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
 		op, err := b.client.Add([]byte(key), bytes, flags, expiry, gocouchbaseio.StoreCallback(cb))
 		return op, err
 	})
@@ -204,7 +202,7 @@ func (b *Bucket) Replace(key string, value interface{}, cas uint64, expiry uint3
 		return 0, err
 	}
 
-	return b.hlpCasExec(func(cb ioCasCallback) (PendingOp, error) {
+	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
 		op, err := b.client.Replace([]byte(key), bytes, flags, cas, expiry, gocouchbaseio.StoreCallback(cb))
 		return op, err
 	})
@@ -212,7 +210,7 @@ func (b *Bucket) Replace(key string, value interface{}, cas uint64, expiry uint3
 
 // Appends a string value to a document.
 func (b *Bucket) Append(key, value string) (uint64, error) {
-	return b.hlpCasExec(func(cb ioCasCallback) (PendingOp, error) {
+	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
 		op, err := b.client.Append([]byte(key), []byte(value), gocouchbaseio.StoreCallback(cb))
 		return op, err
 	})
@@ -220,7 +218,7 @@ func (b *Bucket) Append(key, value string) (uint64, error) {
 
 // Prepends a string value to a document.
 func (b *Bucket) Prepend(key, value string) (uint64, error) {
-	return b.hlpCasExec(func(cb ioCasCallback) (PendingOp, error) {
+	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
 		op, err := b.client.Prepend([]byte(key), []byte(value), gocouchbaseio.StoreCallback(cb))
 		return op, err
 	})
@@ -234,12 +232,12 @@ func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint6
 	}
 
 	if delta > 0 {
-		return b.hlpCtrExec(func(cb ioCtrCallback) (PendingOp, error) {
+		return b.hlpCtrExec(func(cb ioCtrCallback) (pendingOp, error) {
 			op, err := b.client.Increment([]byte(key), uint64(delta), realInitial, expiry, gocouchbaseio.CounterCallback(cb))
 			return op, err
 		})
 	} else if delta < 0 {
-		return b.hlpCtrExec(func(cb ioCtrCallback) (PendingOp, error) {
+		return b.hlpCtrExec(func(cb ioCtrCallback) (pendingOp, error) {
 			op, err := b.client.Decrement([]byte(key), uint64(-delta), realInitial, expiry, gocouchbaseio.CounterCallback(cb))
 			return op, err
 		})
