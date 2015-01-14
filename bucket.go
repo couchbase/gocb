@@ -1,12 +1,13 @@
 package gocouchbase
 
-import "encoding/json"
-import "fmt"
-import "time"
-import "github.com/couchbaselabs/gocouchbaseio"
-import "net/http"
-import "net/url"
-import "math/rand"
+import (
+	"encoding/json"
+	"fmt"
+	"github.com/couchbaselabs/gocouchbaseio"
+	"math/rand"
+	"net/http"
+	"time"
+)
 
 // An interface representing a single bucket within a cluster.
 type Bucket struct {
@@ -280,12 +281,7 @@ func (e *viewError) Error() string {
 func (b *Bucket) ExecuteViewQuery(q *ViewQuery, valuesPtr interface{}) (interface{}, error) {
 	capiEp := b.getViewEp()
 
-	urlParams := url.Values{}
-	for k, v := range q.options {
-		urlParams.Add(k, v)
-	}
-
-	reqUri := fmt.Sprintf("%s/_design/%s/_view/%s?%s", capiEp, q.ddoc, q.name, urlParams.Encode())
+	reqUri := fmt.Sprintf("%s/_design/%s/_view/%s?%s", capiEp, q.ddoc, q.name, q.options.Encode())
 
 	resp, err := b.httpCli.Get(reqUri)
 	if err != nil {

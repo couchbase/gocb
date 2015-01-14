@@ -1,8 +1,10 @@
 package gocouchbase
 
-import "fmt"
-import "regexp"
-import "strconv"
+import (
+	"fmt"
+	"regexp"
+	"strconv"
+)
 
 // A single address stored within a connection string
 type connSpecAddr struct {

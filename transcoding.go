@@ -1,7 +1,9 @@
 package gocouchbase
 
-import "encoding/json"
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 func (b *Bucket) decodeValue(bytes []byte, flags uint32, out interface{}) (interface{}, error) {
 	fmt.Printf("Early Flags: %08x\n", flags)

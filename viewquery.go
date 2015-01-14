@@ -1,7 +1,10 @@
 package gocouchbase
 
-import "strconv"
-import "encoding/json"
+import (
+	"encoding/json"
+	"net/url"
+	"strconv"
+)
 
 type StaleMode int
 
@@ -21,16 +24,16 @@ const (
 type ViewQuery struct {
 	ddoc    string
 	name    string
-	options map[string]string
+	options url.Values
 }
 
 func (vq *ViewQuery) Stale(stale StaleMode) *ViewQuery {
 	if stale == Before {
-		vq.options["stale"] = "false"
+		vq.options.Set("stale", "false")
 	} else if stale == None {
-		vq.options["stale"] = "ok"
+		vq.options.Set("stale", "ok")
 	} else if stale == After {
-		vq.options["stale"] = "update_after"
+		vq.options.Set("stale", "update_after")
 	} else {
 		panic("Unexpected stale option")
 	}
@@ -38,20 +41,20 @@ func (vq *ViewQuery) Stale(stale StaleMode) *ViewQuery {
 }
 
 func (vq *ViewQuery) Skip(num uint) *ViewQuery {
-	vq.options["skip"] = strconv.FormatUint(uint64(num), 10)
+	vq.options.Set("skip", strconv.FormatUint(uint64(num), 10))
 	return vq
 }
 
 func (vq *ViewQuery) Limit(num uint) *ViewQuery {
-	vq.options["limit"] = strconv.FormatUint(uint64(num), 10)
+	vq.options.Set("limit", strconv.FormatUint(uint64(num), 10))
 	return vq
 }
 
 func (vq *ViewQuery) Order(order SortOrder) *ViewQuery {
 	if order == Ascending {
-		vq.options["descending"] = "false"
+		vq.options.Set("descending", "false")
 	} else if order == Descending {
-		vq.options["descending"] = "true"
+		vq.options.Set("descending", "true")
 	} else {
 		panic("Unexpected order option")
 	}
@@ -60,33 +63,36 @@ func (vq *ViewQuery) Order(order SortOrder) *ViewQuery {
 
 func (vq *ViewQuery) Reduce(reduce bool) *ViewQuery {
 	if reduce == true {
-		vq.options["reduce"] = "true"
+		vq.options.Set("reduce", "true")
 	} else {
-		vq.options["reduce"] = "false"
+		vq.options.Set("reduce", "false")
 	}
 	return vq
 }
 
-func (vq *ViewQuery) Group(level int) *ViewQuery {
-	if level >= 0 {
-		vq.options["group"] = "false"
-		vq.options["group_level"] = strconv.FormatInt(int64(level), 10)
+func (vq *ViewQuery) Group(useGrouping bool) *ViewQuery {
+	if useGrouping {
+		vq.options.Set("group", "true")
 	} else {
-		vq.options["group"] = "true"
-		vq.options["group_level"] = "0"
+		vq.options.Set("group", "false")
 	}
+	return vq
+}
+
+func (vq *ViewQuery) GroupLevel(groupLevel uint) *ViewQuery {
+	vq.options.Set("group_level", strconv.FormatUint(uint64(groupLevel), 10))
 	return vq
 }
 
 func (vq *ViewQuery) Key(key string) *ViewQuery {
 	jsonKey, _ := json.Marshal(key)
-	vq.options["key"] = string(jsonKey)
+	vq.options.Set("key", string(jsonKey))
 	return vq
 }
 
 func (vq *ViewQuery) Keys(keys []string) *ViewQuery {
 	jsonKeys, _ := json.Marshal(keys)
-	vq.options["keys"] = string(jsonKeys)
+	vq.options.Set("keys", string(jsonKeys))
 	return vq
 }
 
@@ -94,44 +100,44 @@ func (vq *ViewQuery) Range(start, end interface{}, inclusive_end bool) *ViewQuer
 	// TODO(brett19): Not currently handling errors due to no way to return the error
 	if start != nil {
 		jsonStartKey, _ := json.Marshal(start)
-		vq.options["startkey"] = string(jsonStartKey)
+		vq.options.Set("startkey", string(jsonStartKey))
 	} else {
-		delete(vq.options, "startkey")
+		vq.options.Del("startkey")
 	}
 	if end != nil {
 		jsonEndKey, _ := json.Marshal(end)
-		vq.options["endkey"] = string(jsonEndKey)
+		vq.options.Set("endkey", string(jsonEndKey))
 	} else {
-		delete(vq.options, "endkey")
+		vq.options.Del("endkey")
 	}
 	if start != nil || end != nil {
 		if inclusive_end {
-			vq.options["inclusive_end"] = "true"
+			vq.options.Set("inclusive_end", "true")
 		} else {
-			vq.options["inclusive_end"] = "false"
+			vq.options.Set("inclusive_end", "false")
 		}
 	} else {
-		delete(vq.options, "inclusive_end")
+		vq.options.Del("inclusive_end")
 	}
 	return vq
 }
 
 func (vq *ViewQuery) IdRange(start, end string) *ViewQuery {
 	if start != "" {
-		vq.options["startkey_docid"] = start
+		vq.options.Set("startkey_docid", start)
 	} else {
-		delete(vq.options, "startkey_docid")
+		vq.options.Del("startkey_docid")
 	}
 	if end != "" {
-		vq.options["endkey_docid"] = end
+		vq.options.Set("endkey_docid", end)
 	} else {
-		delete(vq.options, "endkey_docid")
+		vq.options.Del("endkey_docid")
 	}
 	return vq
 }
 
 func (vq *ViewQuery) Custom(name, value string) *ViewQuery {
-	vq.options[name] = value
+	vq.options.Set(name, value)
 	return vq
 }
 
@@ -139,6 +145,6 @@ func NewViewQuery(ddoc, name string) *ViewQuery {
 	return &ViewQuery{
 		ddoc:    ddoc,
 		name:    name,
-		options: make(map[string]string),
+		options: url.Values{},
 	}
 }

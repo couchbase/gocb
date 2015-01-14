@@ -1,10 +1,12 @@
 package gocouchbase
 
-import "time"
-import "fmt"
-import "github.com/couchbaselabs/gocouchbaseio"
-import "net/http"
-import "crypto/tls"
+import (
+	"crypto/tls"
+	"fmt"
+	"github.com/couchbaselabs/gocouchbaseio"
+	"net/http"
+	"time"
+)
 
 type Cluster struct {
 	spec              connSpec
