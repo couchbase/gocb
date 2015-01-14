@@ -14,16 +14,6 @@ type Bucket struct {
 	client  *gocouchbaseio.Agent
 }
 
-// Sets the timeout period for any CRUD operations
-func (b *Bucket) SetOperationTimeout(val time.Duration) {
-	b.client.SetOperationTimeout(val)
-}
-
-// Retrieves the timeout period for any CRUD operations.
-func (b *Bucket) GetOperationTimeout() time.Duration {
-	return b.client.GetOperationTimeout()
-}
-
 type getResult struct {
 	bytes []byte
 	flags uint32
