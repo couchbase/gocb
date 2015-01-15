@@ -2,12 +2,9 @@ package gocouchbase
 
 import (
 	"encoding/json"
-	"fmt"
 )
 
 func (b *Bucket) decodeValue(bytes []byte, flags uint32, out interface{}) (interface{}, error) {
-	fmt.Printf("Early Flags: %08x\n", flags)
-
 	// Check for legacy flags
 	if flags&cfMask == 0 {
 		// Legacy Flags
@@ -18,8 +15,6 @@ func (b *Bucket) decodeValue(bytes []byte, flags uint32, out interface{}) (inter
 			return nil, clientError{"Unexpected legacy flags value"}
 		}
 	}
-
-	fmt.Printf("Flags: %08x\n", flags)
 
 	// Make sure compression is disabled
 	if flags&cfCmprMask != cfCmprNone {
