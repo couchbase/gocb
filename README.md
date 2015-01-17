@@ -1,3 +1,5 @@
+[![GoDoc](https://godoc.org/github.com/couchbaselabs/gocouchbase?status.png)](https://godoc.org/github.com/couchbaselabs/gocouchbase) 
+
 # Couchbase Go Client
 
 The Go SDK library allows you to connect to a Couchbase cluster from
