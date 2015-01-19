@@ -49,7 +49,7 @@ func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 		memdHosts = append(memdHosts, fmt.Sprintf("%s:%d", specHost.Host, specHost.Port))
 	}
 
-	authFn := func(srv gocouchbaseio.MemdAuthClient) error {
+	authFn := func(srv gocouchbaseio.AuthClient) error {
 		// Build PLAIN auth data
 		userBuf := []byte(bucket)
 		passBuf := []byte(password)
@@ -64,7 +64,8 @@ func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 
 		return err
 	}
-	cli, err := gocouchbaseio.CreateAgent(memdHosts, httpHosts, isSslHosts, authFn)
+
+	cli, err := gocouchbaseio.CreateAgent(memdHosts, httpHosts, isSslHosts, nil, authFn)
 	if err != nil {
 		return nil, err
 	}

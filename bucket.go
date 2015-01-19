@@ -28,7 +28,7 @@ type ioCtrCallback func(uint64, uint64, error)
 type hlpGetHandler func(ioGetCallback) (pendingOp, error)
 
 func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (valOut interface{}, casOut uint64, errOut error) {
-	signal := make(chan bool)
+	signal := make(chan bool, 1)
 	op, err := execFn(func(bytes []byte, flags uint32, cas uint64, err error) {
 		go func() {
 			if err != nil {
@@ -62,7 +62,7 @@ func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (valOut 
 type hlpCasHandler func(ioCasCallback) (pendingOp, error)
 
 func (b *Bucket) hlpCasExec(execFn hlpCasHandler) (casOut uint64, errOut error) {
-	signal := make(chan bool)
+	signal := make(chan bool, 1)
 	op, err := execFn(func(cas uint64, err error) {
 		go func() {
 			if err != nil {
@@ -89,7 +89,7 @@ func (b *Bucket) hlpCasExec(execFn hlpCasHandler) (casOut uint64, errOut error) 
 type hlpCtrHandler func(ioCtrCallback) (pendingOp, error)
 
 func (b *Bucket) hlpCtrExec(execFn hlpCtrHandler) (valOut uint64, casOut uint64, errOut error) {
-	signal := make(chan bool)
+	signal := make(chan bool, 1)
 	op, err := execFn(func(value uint64, cas uint64, err error) {
 		go func() {
 			if err != nil {
