@@ -246,7 +246,7 @@ func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint6
 
 // Returns a CAPI endpoint.  Guarenteed to return something for now...
 func (b *Bucket) getViewEp() string {
-	capiEps := b.client.GetCapiEps()
+	capiEps := b.client.CapiEps()
 	return capiEps[rand.Intn(len(capiEps))]
 }
 
@@ -346,6 +346,6 @@ func (b *Bucket) ExecuteViewQuery(q *ViewQuery) ViewResults {
 	}
 }
 
-func (b *Bucket) GetIoRouter() *gocouchbaseio.Agent {
+func (b *Bucket) IoRouter() *gocouchbaseio.Agent {
 	return b.client
 }
