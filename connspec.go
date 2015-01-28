@@ -2,6 +2,7 @@ package gocouchbase
 
 import (
 	"fmt"
+	"net"
 	"regexp"
 	"strconv"
 )
@@ -9,7 +10,7 @@ import (
 // A single address stored within a connection string
 type connSpecAddr struct {
 	Host string
-	Port int
+	Port uint16
 }
 
 // A parsed connection string
@@ -44,7 +45,7 @@ func parseConnSpec(connStr string) connSpec {
 
 			out.Hosts = append(out.Hosts, connSpecAddr{
 				Host: hostInfo[1],
-				Port: port,
+				Port: uint16(port),
 			})
 		}
 	}
@@ -61,6 +62,26 @@ func parseConnSpec(connStr string) connSpec {
 	}
 
 	return out
+}
+
+func csResolveDnsSrv(spec *connSpec) bool {
+	if len(spec.Hosts) == 1 && spec.Hosts[0].Port == 0 && (spec.Scheme == "couchbase" || spec.Scheme == "couchbases") {
+		srvHostname := spec.Hosts[0].Host
+		_, addrs, err := net.LookupSRV(spec.Scheme, "tcp", srvHostname)
+		if err != nil {
+			return false
+		}
+
+		var hostList []connSpecAddr
+		for _, srvRecord := range addrs {
+			hostList = append(hostList, connSpecAddr{srvRecord.Target, srvRecord.Port})
+		}
+		spec.Hosts = hostList
+
+		return true
+	} else {
+		return false
+	}
 }
 
 // Guesses a list of memcached hosts based on a connection string specification structure.

@@ -21,6 +21,7 @@ func Connect(connSpecStr string) (*Cluster, error) {
 	if spec.Scheme != "couchbase" && spec.Scheme != "couchbases" && spec.Scheme != "http" {
 		panic("Unsupported Scheme!")
 	}
+	csResolveDnsSrv(&spec)
 	cluster := &Cluster{
 		spec:              spec,
 		connectionTimeout: 10000 * time.Millisecond,
@@ -28,26 +29,38 @@ func Connect(connSpecStr string) (*Cluster, error) {
 	return cluster, nil
 }
 
-func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
+func specToHosts(spec connSpec) ([]string, []string, bool) {
 	var memdHosts []string
 	var httpHosts []string
-	isHttpHosts := c.spec.Scheme == "http"
-	isSslHosts := c.spec.Scheme == "couchbases"
-	for _, specHost := range c.spec.Hosts {
-		if specHost.Port == 0 {
-			if !isHttpHosts {
-				if !isSslHosts {
-					specHost.Port = 11210
-				} else {
-					specHost.Port = 11207
-				}
+	isHttpHosts := spec.Scheme == "http"
+	isSslHosts := spec.Scheme == "couchbases"
+	for _, specHost := range spec.Hosts {
+		cccpPort := specHost.Port
+		httpPort := specHost.Port
+		if isHttpHosts || cccpPort == 0 {
+			if !isSslHosts {
+				cccpPort = 11210
 			} else {
-				panic("HTTP configuration not yet supported")
-				//specHost.Port = 8091
+				cccpPort = 11207
 			}
 		}
-		memdHosts = append(memdHosts, fmt.Sprintf("%s:%d", specHost.Host, specHost.Port))
+		if !isHttpHosts || httpPort == 0 {
+			if !isSslHosts {
+				httpPort = 8091
+			} else {
+				httpPort = 18091
+			}
+		}
+
+		memdHosts = append(memdHosts, fmt.Sprintf("%s:%d", specHost.Host, cccpPort))
+		httpHosts = append(httpHosts, fmt.Sprintf("%s:%d", specHost.Host, httpPort))
 	}
+
+	return memdHosts, httpHosts, isSslHosts
+}
+
+func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
+	memdHosts, httpHosts, isSslHosts := specToHosts(c.spec)
 
 	authFn := func(srv gocouchbaseio.AuthClient) error {
 		// Build PLAIN auth data
@@ -65,7 +78,7 @@ func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 		return err
 	}
 
-	cli, err := gocouchbaseio.CreateAgent(memdHosts, httpHosts, isSslHosts, nil, authFn)
+	cli, err := gocouchbaseio.CreateAgent(memdHosts, httpHosts, isSslHosts, nil, bucket, authFn)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +140,7 @@ func (c *Cluster) OpenStreamingBucket(streamName, bucket, password string) (*Str
 		return err
 	}
 
-	cli, err := gocouchbaseio.CreateDcpAgent(memdHosts, httpHosts, isSslHosts, nil, authFn, streamName)
+	cli, err := gocouchbaseio.CreateDcpAgent(memdHosts, httpHosts, isSslHosts, nil, bucket, authFn, streamName)
 	if err != nil {
 		return nil, err
 	}
