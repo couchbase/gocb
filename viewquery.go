@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 type StaleMode int
@@ -132,6 +133,17 @@ func (vq *ViewQuery) IdRange(start, end string) *ViewQuery {
 		vq.options.Set("endkey_docid", end)
 	} else {
 		vq.options.Del("endkey_docid")
+	}
+	return vq
+}
+
+func (vq *ViewQuery) Development(val bool) *ViewQuery {
+	if val {
+		if !strings.HasPrefix(vq.ddoc, "dev_") {
+			vq.ddoc = "dev_" + vq.ddoc
+		}
+	} else {
+		vq.ddoc = strings.TrimPrefix(vq.ddoc, "dev_")
 	}
 	return vq
 }
