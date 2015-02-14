@@ -78,7 +78,7 @@ func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 		return err
 	}
 
-	cli, err := gocouchbaseio.CreateAgent(memdHosts, httpHosts, isSslHosts, nil, bucket, authFn)
+	cli, err := gocouchbaseio.CreateAgent(memdHosts, httpHosts, isSslHosts, bucket, authFn)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +140,7 @@ func (c *Cluster) OpenStreamingBucket(streamName, bucket, password string) (*Str
 		return err
 	}
 
-	cli, err := gocouchbaseio.CreateDcpAgent(memdHosts, httpHosts, isSslHosts, nil, bucket, authFn, streamName)
+	cli, err := gocouchbaseio.CreateDcpAgent(memdHosts, httpHosts, isSslHosts, bucket, authFn, streamName)
 	if err != nil {
 		return nil, err
 	}
