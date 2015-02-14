@@ -304,8 +304,23 @@ func (r *viewResults) Next(valuePtr interface{}) bool {
 
 	return true
 }
+
 func (r *viewResults) Close() error {
 	return r.err
+}
+
+func (r *viewResults) One(valuePtr interface{}) error {
+	if !r.Next(valuePtr) {
+		err := r.Close()
+		if err != nil {
+			return err
+		}
+		return clientError{"No results returned"}
+	}
+	// Ignore any errors occuring after we already have our result
+	r.Close()
+	// Return no error as we got the one result already.
+	return nil
 }
 
 // Performs a view query and returns a list of rows or an error.
