@@ -84,7 +84,9 @@ func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 	}
 
 	return &Bucket{
-		client: cli,
+		name:     bucket,
+		password: password,
+		client:   cli,
 		httpCli: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{

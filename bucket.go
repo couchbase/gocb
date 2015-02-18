@@ -11,8 +11,10 @@ import (
 
 // An interface representing a single bucket within a cluster.
 type Bucket struct {
-	httpCli *http.Client
-	client  *gocouchbaseio.Agent
+	name     string
+	password string
+	httpCli  *http.Client
+	client   *gocouchbaseio.Agent
 }
 
 func (b *Bucket) afterOpTimeout() <-chan time.Time {
@@ -329,7 +331,13 @@ func (b *Bucket) ExecuteViewQuery(q *ViewQuery) ViewResults {
 
 	reqUri := fmt.Sprintf("%s/_design/%s/_view/%s?%s", capiEp, q.ddoc, q.name, q.options.Encode())
 
-	resp, err := b.httpCli.Get(reqUri)
+	req, err := http.NewRequest("GET", reqUri, nil)
+	if err != nil {
+		return &viewResults{err: err}
+	}
+	req.SetBasicAuth(b.name, b.password)
+
+	resp, err := b.httpCli.Do(req)
 	if err != nil {
 		return &viewResults{err: err}
 	}
