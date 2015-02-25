@@ -1,4 +1,4 @@
-package gocouchbase
+package gocb
 
 const (
 	// Legacy Flag Formats

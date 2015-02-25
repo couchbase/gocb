@@ -1,9 +1,9 @@
-package gocouchbase
+package gocb
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/couchbaselabs/gocouchbaseio"
+	"github.com/couchbaselabs/gocb/gocbcore"
 	"math/rand"
 	"net/http"
 	"time"
@@ -14,14 +14,14 @@ type Bucket struct {
 	name     string
 	password string
 	httpCli  *http.Client
-	client   *gocouchbaseio.Agent
+	client   *gocbcore.Agent
 }
 
 func (b *Bucket) afterOpTimeout() <-chan time.Time {
 	return time.After(10 * time.Second)
 }
 
-type pendingOp gocouchbaseio.PendingOp
+type pendingOp gocbcore.PendingOp
 
 type ioGetCallback func([]byte, uint32, uint64, error)
 type ioCasCallback func(uint64, error)
@@ -119,7 +119,7 @@ func (b *Bucket) hlpCtrExec(execFn hlpCtrHandler) (valOut uint64, casOut uint64,
 // Retrieves a document from the bucket
 func (b *Bucket) Get(key string, valuePtr interface{}) (interface{}, uint64, error) {
 	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (pendingOp, error) {
-		op, err := b.client.Get([]byte(key), gocouchbaseio.GetCallback(cb))
+		op, err := b.client.Get([]byte(key), gocbcore.GetCallback(cb))
 		return op, err
 	})
 }
@@ -127,7 +127,7 @@ func (b *Bucket) Get(key string, valuePtr interface{}) (interface{}, uint64, err
 // Retrieves a document and simultaneously updates its expiry time.
 func (b *Bucket) GetAndTouch(key string, expiry uint32, valuePtr interface{}) (interface{}, uint64, error) {
 	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (pendingOp, error) {
-		op, err := b.client.GetAndTouch([]byte(key), expiry, gocouchbaseio.GetCallback(cb))
+		op, err := b.client.GetAndTouch([]byte(key), expiry, gocbcore.GetCallback(cb))
 		return op, err
 	})
 }
@@ -135,7 +135,7 @@ func (b *Bucket) GetAndTouch(key string, expiry uint32, valuePtr interface{}) (i
 // Locks a document for a period of time, providing exclusive RW access to it.
 func (b *Bucket) GetAndLock(key string, lockTime uint32, valuePtr interface{}) (interface{}, uint64, error) {
 	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (pendingOp, error) {
-		op, err := b.client.GetAndLock([]byte(key), lockTime, gocouchbaseio.GetCallback(cb))
+		op, err := b.client.GetAndLock([]byte(key), lockTime, gocbcore.GetCallback(cb))
 		return op, err
 	})
 }
@@ -143,7 +143,7 @@ func (b *Bucket) GetAndLock(key string, lockTime uint32, valuePtr interface{}) (
 // Unlocks a document which was locked with GetAndLock.
 func (b *Bucket) Unlock(key string, cas uint64) (casOut uint64, errOut error) {
 	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
-		op, err := b.client.Unlock([]byte(key), cas, gocouchbaseio.UnlockCallback(cb))
+		op, err := b.client.Unlock([]byte(key), cas, gocbcore.UnlockCallback(cb))
 		return op, err
 	})
 }
@@ -156,7 +156,7 @@ func (b *Bucket) GetReplica(key string, valuePtr interface{}, replicaIdx int) (i
 // Touches a document, specifying a new expiry time for it.
 func (b *Bucket) Touch(key string, expiry uint32) (uint64, error) {
 	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
-		op, err := b.client.Touch([]byte(key), expiry, gocouchbaseio.TouchCallback(cb))
+		op, err := b.client.Touch([]byte(key), expiry, gocbcore.TouchCallback(cb))
 		return op, err
 	})
 }
@@ -164,7 +164,7 @@ func (b *Bucket) Touch(key string, expiry uint32) (uint64, error) {
 // Removes a document from the bucket.
 func (b *Bucket) Remove(key string, cas uint64) (casOut uint64, errOut error) {
 	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
-		op, err := b.client.Remove([]byte(key), cas, gocouchbaseio.RemoveCallback(cb))
+		op, err := b.client.Remove([]byte(key), cas, gocbcore.RemoveCallback(cb))
 		return op, err
 	})
 }
@@ -177,7 +177,7 @@ func (b *Bucket) Upsert(key string, value interface{}, expiry uint32) (casOut ui
 	}
 
 	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
-		op, err := b.client.Set([]byte(key), bytes, flags, expiry, gocouchbaseio.StoreCallback(cb))
+		op, err := b.client.Set([]byte(key), bytes, flags, expiry, gocbcore.StoreCallback(cb))
 		return op, err
 	})
 }
@@ -190,7 +190,7 @@ func (b *Bucket) Insert(key string, value interface{}, expiry uint32) (uint64, e
 	}
 
 	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
-		op, err := b.client.Add([]byte(key), bytes, flags, expiry, gocouchbaseio.StoreCallback(cb))
+		op, err := b.client.Add([]byte(key), bytes, flags, expiry, gocbcore.StoreCallback(cb))
 		return op, err
 	})
 }
@@ -203,7 +203,7 @@ func (b *Bucket) Replace(key string, value interface{}, cas uint64, expiry uint3
 	}
 
 	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
-		op, err := b.client.Replace([]byte(key), bytes, flags, cas, expiry, gocouchbaseio.StoreCallback(cb))
+		op, err := b.client.Replace([]byte(key), bytes, flags, cas, expiry, gocbcore.StoreCallback(cb))
 		return op, err
 	})
 }
@@ -211,7 +211,7 @@ func (b *Bucket) Replace(key string, value interface{}, cas uint64, expiry uint3
 // Appends a string value to a document.
 func (b *Bucket) Append(key, value string) (uint64, error) {
 	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
-		op, err := b.client.Append([]byte(key), []byte(value), gocouchbaseio.StoreCallback(cb))
+		op, err := b.client.Append([]byte(key), []byte(value), gocbcore.StoreCallback(cb))
 		return op, err
 	})
 }
@@ -219,7 +219,7 @@ func (b *Bucket) Append(key, value string) (uint64, error) {
 // Prepends a string value to a document.
 func (b *Bucket) Prepend(key, value string) (uint64, error) {
 	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
-		op, err := b.client.Prepend([]byte(key), []byte(value), gocouchbaseio.StoreCallback(cb))
+		op, err := b.client.Prepend([]byte(key), []byte(value), gocbcore.StoreCallback(cb))
 		return op, err
 	})
 }
@@ -233,12 +233,12 @@ func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint6
 
 	if delta > 0 {
 		return b.hlpCtrExec(func(cb ioCtrCallback) (pendingOp, error) {
-			op, err := b.client.Increment([]byte(key), uint64(delta), realInitial, expiry, gocouchbaseio.CounterCallback(cb))
+			op, err := b.client.Increment([]byte(key), uint64(delta), realInitial, expiry, gocbcore.CounterCallback(cb))
 			return op, err
 		})
 	} else if delta < 0 {
 		return b.hlpCtrExec(func(cb ioCtrCallback) (pendingOp, error) {
-			op, err := b.client.Decrement([]byte(key), uint64(-delta), realInitial, expiry, gocouchbaseio.CounterCallback(cb))
+			op, err := b.client.Decrement([]byte(key), uint64(-delta), realInitial, expiry, gocbcore.CounterCallback(cb))
 			return op, err
 		})
 	} else {
@@ -369,6 +369,6 @@ func (b *Bucket) ExecuteViewQuery(q *ViewQuery) ViewResults {
 	}
 }
 
-func (b *Bucket) IoRouter() *gocouchbaseio.Agent {
+func (b *Bucket) IoRouter() *gocbcore.Agent {
 	return b.client
 }

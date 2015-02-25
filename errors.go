@@ -1,4 +1,4 @@
-package gocouchbase
+package gocb
 
 type clientError struct {
 	message string

@@ -1,9 +1,9 @@
-package gocouchbase
+package gocb
 
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/couchbaselabs/gocouchbaseio"
+	"github.com/couchbaselabs/gocb/gocbcore"
 	"net/http"
 	"time"
 )
@@ -62,7 +62,7 @@ func specToHosts(spec connSpec) ([]string, []string, bool) {
 func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 	memdHosts, httpHosts, isSslHosts := specToHosts(c.spec)
 
-	authFn := func(srv gocouchbaseio.AuthClient) error {
+	authFn := func(srv gocbcore.AuthClient) error {
 		// Build PLAIN auth data
 		userBuf := []byte(bucket)
 		passBuf := []byte(password)
@@ -78,7 +78,7 @@ func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 		return err
 	}
 
-	cli, err := gocouchbaseio.CreateAgent(memdHosts, httpHosts, isSslHosts, bucket, password, authFn)
+	cli, err := gocbcore.CreateAgent(memdHosts, httpHosts, isSslHosts, bucket, password, authFn)
 	if err != nil {
 		return nil, err
 	}
@@ -98,10 +98,10 @@ func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 }
 
 type StreamingBucket struct {
-	client *gocouchbaseio.Agent
+	client *gocbcore.Agent
 }
 
-func (b *StreamingBucket) IoRouter() *gocouchbaseio.Agent {
+func (b *StreamingBucket) IoRouter() *gocbcore.Agent {
 	return b.client
 }
 
@@ -126,7 +126,7 @@ func (c *Cluster) OpenStreamingBucket(streamName, bucket, password string) (*Str
 		memdHosts = append(memdHosts, fmt.Sprintf("%s:%d", specHost.Host, specHost.Port))
 	}
 
-	authFn := func(srv gocouchbaseio.AuthClient) error {
+	authFn := func(srv gocbcore.AuthClient) error {
 		// Build PLAIN auth data
 		userBuf := []byte(bucket)
 		passBuf := []byte(password)
@@ -142,7 +142,7 @@ func (c *Cluster) OpenStreamingBucket(streamName, bucket, password string) (*Str
 		return err
 	}
 
-	cli, err := gocouchbaseio.CreateDcpAgent(memdHosts, httpHosts, isSslHosts, bucket, password, authFn, streamName)
+	cli, err := gocbcore.CreateDcpAgent(memdHosts, httpHosts, isSslHosts, bucket, password, authFn, streamName)
 	if err != nil {
 		return nil, err
 	}
