@@ -85,13 +85,13 @@ func (vq *ViewQuery) GroupLevel(groupLevel uint) *ViewQuery {
 	return vq
 }
 
-func (vq *ViewQuery) Key(key string) *ViewQuery {
+func (vq *ViewQuery) Key(key interface{}) *ViewQuery {
 	jsonKey, _ := json.Marshal(key)
 	vq.options.Set("key", string(jsonKey))
 	return vq
 }
 
-func (vq *ViewQuery) Keys(keys []string) *ViewQuery {
+func (vq *ViewQuery) Keys(keys []interface{}) *ViewQuery {
 	jsonKeys, _ := json.Marshal(keys)
 	vq.options.Set("keys", string(jsonKeys))
 	return vq
