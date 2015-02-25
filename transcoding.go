@@ -62,7 +62,7 @@ func (t DefaultTranscoder) Encode(value interface{}) ([]byte, uint32, error) {
 	default:
 		bytes, err = json.Marshal(value)
 		if err != nil {
-			return nil, 0, clientError{err.Error()}
+			return nil, 0, err
 		}
 		flags = cfFmtJson
 	}
