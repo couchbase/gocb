@@ -94,6 +94,7 @@ func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 				},
 			},
 		},
+		transcoder: &DefaultTranscoder{},
 	}, nil
 }
 

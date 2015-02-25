@@ -4,7 +4,15 @@ import (
 	"encoding/json"
 )
 
-func (b *Bucket) decodeValue(bytes []byte, flags uint32, out interface{}) (interface{}, error) {
+type Transcoder interface {
+	Decode([]byte, uint32, interface{}) error
+	Encode(interface{}) ([]byte, uint32, error)
+}
+
+type DefaultTranscoder struct {
+}
+
+func (t DefaultTranscoder) Decode(bytes []byte, flags uint32, out interface{}) error {
 	// Check for legacy flags
 	if flags&cfMask == 0 {
 		// Legacy Flags
@@ -12,46 +20,34 @@ func (b *Bucket) decodeValue(bytes []byte, flags uint32, out interface{}) (inter
 			// Legacy JSON
 			flags = cfFmtJson
 		} else {
-			return nil, clientError{"Unexpected legacy flags value"}
+			return clientError{"Unexpected legacy flags value"}
 		}
 	}
 
 	// Make sure compression is disabled
 	if flags&cfCmprMask != cfCmprNone {
-		return nil, clientError{"Unexpected value compression"}
-	}
-
-	// If an output object was passed, try to json Unmarshal to it
-	if out != nil {
-		if flags&cfFmtJson != 0 {
-			err := json.Unmarshal(bytes, out)
-			if err != nil {
-				return nil, clientError{err.Error()}
-			}
-			return out, nil
-		} else {
-			return nil, clientError{"Unmarshal target passed, but type does not match."}
-		}
+		return clientError{"Unexpected value compression"}
 	}
 
 	// Normal types of decoding
 	if flags&cfFmtMask == cfFmtBinary {
-		return bytes, nil
+		*(out.(*[]byte)) = bytes
+		return nil
 	} else if flags&cfFmtMask == cfFmtString {
-		return string(bytes[0:]), nil
+		*(out.(*string)) = string(bytes)
+		return nil
 	} else if flags&cfFmtMask == cfFmtJson {
-		var outVal interface{}
-		err := json.Unmarshal(bytes, &outVal)
+		err := json.Unmarshal(bytes, &out)
 		if err != nil {
-			return nil, clientError{err.Error()}
+			return err
 		}
-		return outVal, nil
+		return nil
 	} else {
-		return nil, clientError{"Unexpected flags value"}
+		return clientError{"Unexpected flags value"}
 	}
 }
 
-func (b *Bucket) encodeValue(value interface{}) ([]byte, uint32, error) {
+func (t DefaultTranscoder) Encode(value interface{}) ([]byte, uint32, error) {
 	var bytes []byte
 	var flags uint32
 	var err error
