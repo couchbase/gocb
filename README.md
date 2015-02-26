@@ -1,4 +1,4 @@
-[![GoDoc](https://godoc.org/github.com/couchbaselabs/gocouchbase?status.png)](https://godoc.org/github.com/couchbaselabs/gocouchbase) 
+[![GoDoc](https://godoc.org/github.com/couchbaselabs/gocb?status.png)](https://godoc.org/github.com/couchbaselabs/gocb)
 
 # Couchbase Go Client
 
@@ -17,7 +17,7 @@ Bug Tracker - [http://www.couchbase.com/issues/browse/GOCBC](http://www.couchbas
 
 To install the latest development version, run:
 ```bash
-go get github.com/couchbaselabs/gocouchbase
+go get gopkg.in/couchbaselabs/gocb.v0
 ```
 
 
