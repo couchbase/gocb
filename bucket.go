@@ -153,8 +153,11 @@ func (b *Bucket) Unlock(key string, cas uint64) (casOut uint64, errOut error) {
 }
 
 // Returns the value of a particular document from a replica server.
-func (b *Bucket) GetReplica(key string, valuePtr interface{}, replicaIdx int) (interface{}, uint64, error) {
-	panic("GetReplica not yet supported")
+func (b *Bucket) GetReplica(key string, valuePtr interface{}, replicaIdx int) (uint64, error) {
+	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (pendingOp, error) {
+		op, err := b.client.GetReplica([]byte(key), replicaIdx, gocbcore.GetCallback(cb))
+		return op, err
+	})
 }
 
 // Touches a document, specifying a new expiry time for it.
