@@ -44,7 +44,7 @@ type memdQueue struct {
 
 func createMemdQueue() *memdQueue {
 	return &memdQueue{
-		reqsCh: make(chan *memdQRequest, 100),
+		reqsCh: make(chan *memdQRequest, 5000),
 	}
 }
 
