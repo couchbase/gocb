@@ -56,8 +56,14 @@ func (t DefaultTranscoder) Encode(value interface{}) ([]byte, uint32, error) {
 	case []byte:
 		bytes = value.([]byte)
 		flags = cfFmtBinary
+	case *[]byte:
+		bytes = *value.(*[]byte)
+		flags = cfFmtBinary
 	case string:
 		bytes = []byte(value.(string))
+		flags = cfFmtString
+	case *string:
+		bytes = []byte(*value.(*string))
 		flags = cfFmtString
 	default:
 		bytes, err = json.Marshal(value)
