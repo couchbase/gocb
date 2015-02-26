@@ -58,7 +58,7 @@ func (c *Agent) GetAndTouch(key []byte, expiry uint32, cb GetCallback) (PendingO
 	}
 
 	extraBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(extraBuf, expiry)
+	binary.BigEndian.PutUint32(extraBuf[0:], expiry)
 
 	req := &memdQRequest{
 		memdRequest: memdRequest{
@@ -86,7 +86,7 @@ func (c *Agent) GetAndLock(key []byte, lockTime uint32, cb GetCallback) (Pending
 	}
 
 	extraBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(extraBuf, lockTime)
+	binary.BigEndian.PutUint32(extraBuf[0:], lockTime)
 
 	req := &memdQRequest{
 		memdRequest: memdRequest{
@@ -198,8 +198,8 @@ func (c *Agent) store(opcode CommandCode, key, value []byte, flags uint32, cas u
 	}
 
 	extraBuf := make([]byte, 8)
-	binary.BigEndian.PutUint32(extraBuf, flags)
-	binary.BigEndian.PutUint32(extraBuf, expiry)
+	binary.BigEndian.PutUint32(extraBuf[0:], flags)
+	binary.BigEndian.PutUint32(extraBuf[4:], expiry)
 	req := &memdQRequest{
 		memdRequest: memdRequest{
 			Magic:    ReqMagic,
