@@ -350,6 +350,8 @@ func (b *Bucket) ExecuteViewQuery(q *ViewQuery) ViewResults {
 	jsonDec := json.NewDecoder(resp.Body)
 	jsonDec.Decode(&viewResp)
 
+	resp.Body.Close()
+
 	if resp.StatusCode != 200 {
 		if viewResp.Error != "" {
 			return &viewResults{
