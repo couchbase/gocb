@@ -16,6 +16,7 @@ type routeData struct {
 	servers        []*memdPipeline
 	pendingServers []*memdPipeline
 	waitQueue      *memdQueue
+	deadQueue      *memdQueue
 
 	source *routeConfig
 }
@@ -73,6 +74,12 @@ func (d *routeData) logDebug() {
 		logDebugf("  Has WaitQueue? YES")
 	} else {
 		logDebugf("  Has WaitQueue? NO")
+	}
+
+	if d.deadQueue != nil {
+		logDebugf("  Has DeadQueue? YES")
+	} else {
+		logDebugf("  Has DeadQueue? NO")
 	}
 
 	logDebugf("  Capi Eps:")

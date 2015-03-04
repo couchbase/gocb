@@ -80,6 +80,7 @@ func (agent *Agent) activatePendingServer(server *memdPipeline) bool {
 			mgmtEpList: oldRouting.mgmtEpList,
 			vbMap:      oldRouting.vbMap,
 			source:     oldRouting.source,
+			deadQueue:  oldRouting.deadQueue,
 		}
 
 		// Copy the lists
@@ -151,6 +152,19 @@ func (agent *Agent) applyConfig(cfg *routeConfig) {
 		mgmtEpList: cfg.mgmtEpList,
 		vbMap:      cfg.vbMap,
 		source:     cfg,
+	}
+
+	var needsDeadQueue bool
+	for _, replicaList := range cfg.vbMap {
+		for _, srvIdx := range replicaList {
+			if srvIdx == -1 {
+				needsDeadQueue = true
+				break
+			}
+		}
+	}
+	if needsDeadQueue {
+		newRouting.deadQueue = createMemdQueue()
 	}
 
 	var createdServers []*memdPipeline
@@ -264,6 +278,13 @@ func (agent *Agent) applyConfig(cfg *routeConfig) {
 			agent.redispatchDirect(req)
 		}, nil)
 	}
+
+	oldDeadQueue := oldRouting.deadQueue
+	if oldDeadQueue != nil {
+		oldDeadQueue.Drain(func(req *memdQRequest) {
+			agent.redispatchDirect(req)
+		}, nil)
+	}
 }
 
 func (agent *Agent) updateConfig(bk *cfgBucket) {
@@ -284,17 +305,23 @@ func (agent *Agent) routeRequest(req *memdQRequest) *memdQueue {
 		return nil
 	}
 
+	var srvIdx int
+
 	repId := req.ReplicaIdx
 	if repId < 0 {
 		vbId := req.Vbucket
-		srvIdx := routingInfo.vbMap[vbId][0]
-		return routingInfo.queues[srvIdx]
+		srvIdx = routingInfo.vbMap[vbId][0]
 	} else {
 		vbId := cbCrc(req.Key) % uint32(len(routingInfo.vbMap))
 		req.Vbucket = uint16(vbId)
-		srvIdx := routingInfo.vbMap[vbId][repId]
-		return routingInfo.queues[srvIdx]
+		srvIdx = routingInfo.vbMap[vbId][repId]
 	}
+
+	if srvIdx == -1 {
+		return routingInfo.deadQueue
+	}
+
+	return routingInfo.queues[srvIdx]
 }
 
 // This immediately dispatches a request to the appropriate server based on the
