@@ -102,6 +102,11 @@ func (agent *Agent) activatePendingServer(server *memdPipeline) bool {
 			}
 		}
 
+		// Double-check the queue to make sure its still big enough.
+		if len(newRouting.queues) != len(oldRouting.queues) {
+			panic("Pending server swap corrupted the queue list.")
+		}
+
 		// Attempt to atomically update the routing data
 		if !agent.routingInfo.update(oldRouting, newRouting) {
 			// Someone preempted us, let's restart and try again...
@@ -203,6 +208,11 @@ func (agent *Agent) applyConfig(cfg *routeConfig) {
 
 			newRouting.pendingServers = append(newRouting.pendingServers, thisServer)
 			newRouting.queues = append(newRouting.queues, newRouting.waitQueue)
+		}
+
+		// Check everything is sane
+		if len(newRouting.queues) < len(cfg.kvServerList) {
+			panic("Failed to generate a queues list that matches the config server list.")
 		}
 
 		// Attempt to atomically update the routing data
