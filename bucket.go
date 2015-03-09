@@ -61,7 +61,7 @@ func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (casOut 
 		return
 	case <-b.afterOpTimeout():
 		op.Cancel()
-		return 0, timeoutError{}
+		return 0, ErrTimeout
 	}
 }
 
@@ -88,7 +88,7 @@ func (b *Bucket) hlpCasExec(execFn hlpCasHandler) (casOut uint64, errOut error) 
 		return
 	case <-b.afterOpTimeout():
 		op.Cancel()
-		return 0, timeoutError{}
+		return 0, ErrTimeout
 	}
 }
 
@@ -116,7 +116,7 @@ func (b *Bucket) hlpCtrExec(execFn hlpCtrHandler) (valOut uint64, casOut uint64,
 		return
 	case <-b.afterOpTimeout():
 		op.Cancel()
-		return 0, 0, timeoutError{}
+		return 0, 0, ErrTimeout
 	}
 }
 
@@ -249,7 +249,7 @@ func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint6
 			return op, err
 		})
 	} else {
-		return 0, 0, clientError{"Delta must be a non-zero value."}
+		return 0, 0, ErrInvalidDeltaValue
 	}
 }
 
@@ -329,7 +329,7 @@ func (r *viewResults) One(valuePtr interface{}) error {
 		if err != nil {
 			return err
 		}
-		return clientError{"No results returned"}
+		return ErrNoResultsReturned
 	}
 	// Ignore any errors occuring after we already have our result
 	r.Close()

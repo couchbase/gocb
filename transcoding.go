@@ -20,13 +20,13 @@ func (t DefaultTranscoder) Decode(bytes []byte, flags uint32, out interface{}) e
 			// Legacy JSON
 			flags = cfFmtJson
 		} else {
-			return clientError{"Unexpected legacy flags value"}
+			return ErrUnexpectedLegacyFlagsValue
 		}
 	}
 
 	// Make sure compression is disabled
 	if flags&cfCmprMask != cfCmprNone {
-		return clientError{"Unexpected value compression"}
+		return ErrUnexpectedValueCompression
 	}
 
 	// Normal types of decoding
@@ -43,7 +43,7 @@ func (t DefaultTranscoder) Decode(bytes []byte, flags uint32, out interface{}) e
 		}
 		return nil
 	} else {
-		return clientError{"Unexpected flags value"}
+		return ErrUnexpectedFlagsValue
 	}
 }
 

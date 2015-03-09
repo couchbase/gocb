@@ -267,7 +267,7 @@ func (c *Agent) counter(opcode CommandCode, key []byte, delta, initial uint64, e
 		}
 
 		if len(resp.Value) != 8 {
-			cb(0, 0, agentError{"Failed to parse returned value"})
+			cb(0, 0, ErrAuthInvalidReturn)
 			return
 		}
 		intVal := binary.BigEndian.Uint64(resp.Value)

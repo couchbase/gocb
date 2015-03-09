@@ -53,7 +53,7 @@ func (c *Agent) httpLooper(firstCfgFn func(*cfgBucket, error)) {
 			// All servers have been visited during this iteration
 			if isFirstTry {
 				logDebugf("Could not find any alive http hosts.")
-				firstCfgFn(nil, &agentError{"Failed to connect to all specified hosts."})
+				firstCfgFn(nil, ErrAuthFailAllSpecHosts)
 				return
 			} else {
 				if !iterSawConfig {
@@ -97,7 +97,7 @@ func (c *Agent) httpLooper(firstCfgFn func(*cfgBucket, error)) {
 		if resp.StatusCode != 200 {
 			if resp.StatusCode == 401 {
 				logDebugf("Failed to connect to host, bad auth.")
-				firstCfgFn(nil, &memdError{StatusAuthError})
+				firstCfgFn(nil, ErrAuthError)
 				return
 			}
 			logDebugf("Failed to connect to host, unexpected status code: %v.", resp.StatusCode)

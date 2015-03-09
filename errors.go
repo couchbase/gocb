@@ -1,19 +1,15 @@
 package gocb
 
-type clientError struct {
-	message string
-}
+import (
+	"errors"
+)
 
-func (e clientError) Error() string {
-	return e.message
-}
-
-type timeoutError struct {
-}
-
-func (e timeoutError) Error() string {
-	return "The operation has timed out."
-}
-func (e timeoutError) Timeout() bool {
-	return true
-}
+var (
+	ErrTimeout                     = errors.New("Operation timed out")
+	ErrUnexpectedLegacyFlagsValue  = errors.New("Unexpected legacy flags value")
+	ErrUnexpectedValueCompression  = errors.New("Unexpected value compression")
+	ErrUnexpectedFlagsValue        = errors.New("Unexpected flags value")
+	ErrInvalidDeltaValue           = errors.New("Delta must be a non-zero value")
+	ErrNoResultsReturned           = errors.New("No results returned")
+	ErrDesignDocumentAlreadyExists = errors.New("Design document already exists")
+)
