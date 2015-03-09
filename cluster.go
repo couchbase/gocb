@@ -98,6 +98,32 @@ func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 	}, nil
 }
 
+func (c *Cluster) Manager(username, password string) *ClusterManager {
+	_, httpHosts, isSslHosts := specToHosts(c.spec)
+	var mgmtHosts []string
+
+	for _, host := range httpHosts {
+		if isSslHosts {
+			mgmtHosts = append(mgmtHosts, "https://"+host)
+		} else {
+			mgmtHosts = append(mgmtHosts, "http://"+host)
+		}
+	}
+
+	return &ClusterManager{
+		hosts:    mgmtHosts,
+		username: username,
+		password: password,
+		httpCli: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+			},
+		},
+	}
+}
+
 type StreamingBucket struct {
 	client *gocbcore.Agent
 }

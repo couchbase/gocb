@@ -259,6 +259,11 @@ func (b *Bucket) getViewEp() string {
 	return capiEps[rand.Intn(len(capiEps))]
 }
 
+func (b *Bucket) getMgmtEp() string {
+	mgmtEps := b.client.MgmtEps()
+	return mgmtEps[rand.Intn(len(mgmtEps))]
+}
+
 type viewItem struct {
 	Bytes []byte
 }
@@ -380,4 +385,12 @@ func (b *Bucket) ExecuteViewQuery(q *ViewQuery) ViewResults {
 
 func (b *Bucket) IoRouter() *gocbcore.Agent {
 	return b.client
+}
+
+func (b *Bucket) Manager(username, password string) *BucketManager {
+	return &BucketManager{
+		bucket:   b,
+		username: username,
+		password: password,
+	}
 }
