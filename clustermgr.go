@@ -3,6 +3,7 @@ package gocb
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -107,7 +108,7 @@ func (cm *ClusterManager) GetBuckets() ([]*BucketSettings, error) {
 			return nil, err
 		}
 		resp.Body.Close()
-		return nil, clientError{string(data)}
+		return nil, errors.New(string(data))
 	}
 
 	var bucketsData []*bucketDataIn
@@ -158,7 +159,7 @@ func (cm *ClusterManager) InsertBucket(settings *BucketSettings) error {
 			return err
 		}
 		resp.Body.Close()
-		return clientError{string(data)}
+		return errors.New(string(data))
 	}
 
 	return nil
@@ -183,7 +184,7 @@ func (cm *ClusterManager) RemoveBucket(name string) error {
 			return err
 		}
 		resp.Body.Close()
-		return clientError{string(data)}
+		return errors.New(string(data))
 	}
 
 	return nil

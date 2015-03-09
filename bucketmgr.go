@@ -3,6 +3,7 @@ package gocb
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -79,7 +80,7 @@ func (bm *BucketManager) Flush() error {
 			return err
 		}
 		resp.Body.Close()
-		return clientError{string(data)}
+		return errors.New(string(data))
 	}
 	return nil
 }
@@ -98,7 +99,7 @@ func (bm *BucketManager) GetDesignDocument(name string) (*DesignDocument, error)
 			return nil, err
 		}
 		resp.Body.Close()
-		return nil, clientError{string(data)}
+		return nil, errors.New(string(data))
 	}
 
 	ddocObj := DesignDocument{}
@@ -126,7 +127,7 @@ func (bm *BucketManager) GetDesignDocuments() ([]*DesignDocument, error) {
 			return nil, err
 		}
 		resp.Body.Close()
-		return nil, clientError{string(data)}
+		return nil, errors.New(string(data))
 	}
 
 	var ddocsObj struct {
@@ -158,7 +159,7 @@ func (bm *BucketManager) GetDesignDocuments() ([]*DesignDocument, error) {
 func (bm *BucketManager) InsertDesignDocument(ddoc *DesignDocument) error {
 	oldDdoc, _ := bm.GetDesignDocument(ddoc.Name)
 	if oldDdoc != nil {
-		return clientError{"Design document already exists"}
+		return ErrDesignDocumentAlreadyExists
 	}
 	return bm.UpsertDesignDocument(ddoc)
 }
@@ -182,7 +183,7 @@ func (bm *BucketManager) UpsertDesignDocument(ddoc *DesignDocument) error {
 			return err
 		}
 		resp.Body.Close()
-		return clientError{string(data)}
+		return errors.New(string(data))
 	}
 
 	return nil
@@ -202,7 +203,7 @@ func (bm *BucketManager) RemoveDesignDocument(name string) error {
 			return err
 		}
 		resp.Body.Close()
-		return clientError{string(data)}
+		return errors.New(string(data))
 	}
 
 	return nil
