@@ -4,7 +4,7 @@
 
 This is the official Couchbase Go SDK.  If you are looking for our
 previous unofficial prototype Go client library, please see:
-[http://www.github.com/couchbaselabs/go-couchbase](go-couchbase).
+[go-couchbase](https://github.com/couchbase/go-couchbase).
 
 The Go SDK library allows you to connect to a Couchbase cluster from
 Go. It is written in pure Go, and uses the gocouchbaseio library to
