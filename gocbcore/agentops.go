@@ -2,10 +2,25 @@ package gocbcore
 
 import (
 	"encoding/binary"
+	"sync/atomic"
 )
 
 type PendingOp interface {
 	Cancel() bool
+}
+
+type multiPendingOp struct {
+	ops []PendingOp
+}
+
+func (mp *multiPendingOp) Cancel() bool {
+	allCancelled := true
+	for _, op := range mp.ops {
+		if !op.Cancel() {
+			allCancelled = false
+		}
+	}
+	return allCancelled
 }
 
 func (c *Agent) dispatchOp(req *memdQRequest) (PendingOp, error) {
@@ -103,7 +118,7 @@ func (c *Agent) GetAndLock(key []byte, lockTime uint32, cb GetCallback) (Pending
 	return c.dispatchOp(req)
 }
 
-func (c *Agent) GetReplica(key []byte, replicaIdx int, cb GetCallback) (PendingOp, error) {
+func (c *Agent) getOneReplica(key []byte, replicaIdx int, cb GetCallback) (PendingOp, error) {
 	if replicaIdx <= 0 {
 		panic("Replica number must be greater than 0")
 	}
@@ -131,6 +146,46 @@ func (c *Agent) GetReplica(key []byte, replicaIdx int, cb GetCallback) (PendingO
 		ReplicaIdx: replicaIdx,
 	}
 	return c.dispatchOp(req)
+}
+
+func (c *Agent) getAnyReplica(key []byte, cb GetCallback) (PendingOp, error) {
+	opRes := &multiPendingOp{}
+
+	var cbCalled uint32
+	handler := func(value []byte, flags uint32, cas uint64, err error) {
+		if atomic.CompareAndSwapUint32(&cbCalled, 0, 1) {
+			// Cancel all other commands if possible.
+			opRes.Cancel()
+			// Dispatch Callback
+			cb(value, flags, cas, err)
+		}
+	}
+
+	// Dispatch a getReplica for each replica server
+	numReplicas := c.NumReplicas()
+	for repIdx := 1; repIdx <= numReplicas; repIdx++ {
+		op, err := c.getOneReplica(key, repIdx, handler)
+		if err == nil {
+			opRes.ops = append(opRes.ops, op)
+		}
+	}
+
+	// If we have no pending ops, no requests were successful
+	if len(opRes.ops) == 0 {
+		return nil, &agentError{"No replicas available"}
+	}
+
+	return opRes, nil
+}
+
+func (c *Agent) GetReplica(key []byte, replicaIdx int, cb GetCallback) (PendingOp, error) {
+	if replicaIdx > 0 {
+		return c.getOneReplica(key, replicaIdx, cb)
+	} else if replicaIdx == 0 {
+		return c.getAnyReplica(key, cb)
+	} else {
+		panic("Replica number must not be less than 0.")
+	}
 }
 
 func (c *Agent) Touch(key []byte, expiry uint32, cb TouchCallback) (PendingOp, error) {

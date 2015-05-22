@@ -176,6 +176,10 @@ func (c *Agent) NumVbuckets() int {
 	return c.numVbuckets
 }
 
+func (c *Agent) NumReplicas() int {
+	return len(c.routingInfo.get().vbMap[0])
+}
+
 func (agent *Agent) CapiEps() []string {
 	return agent.routingInfo.get().capiEpList
 }
