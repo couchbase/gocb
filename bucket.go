@@ -383,6 +383,52 @@ func (b *Bucket) ExecuteViewQuery(q *ViewQuery) ViewResults {
 	}
 }
 
+// Performs a spatial query and returns a list of rows or an error.
+func (b *Bucket) ExecuteSpatialQuery(q *SpatialQuery) ViewResults {
+	capiEp := b.getViewEp()
+
+	reqUri := fmt.Sprintf("%s/_design/%s/_spatial/%s?%s", capiEp, q.ddoc, q.name, q.options.Encode())
+
+	req, err := http.NewRequest("GET", reqUri, nil)
+	if err != nil {
+		return &viewResults{err: err}
+	}
+	req.SetBasicAuth(b.name, b.password)
+
+	resp, err := b.httpCli.Do(req)
+	if err != nil {
+		return &viewResults{err: err}
+	}
+
+	viewResp := viewResponse{}
+	jsonDec := json.NewDecoder(resp.Body)
+	jsonDec.Decode(&viewResp)
+
+	resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		if viewResp.Error != "" {
+			return &viewResults{
+				err: &viewError{
+					message: viewResp.Error,
+					reason:  viewResp.Reason,
+				},
+			}
+		}
+		return &viewResults{
+			err: &viewError{
+				message: "HTTP Error",
+				reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
+			},
+		}
+	}
+
+	return &viewResults{
+		index: -1,
+		rows:  viewResp.Rows,
+	}
+}
+
 func (b *Bucket) IoRouter() *gocbcore.Agent {
 	return b.client
 }
