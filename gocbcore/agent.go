@@ -11,10 +11,10 @@ import (
 // This is used internally by the higher level classes for communicating with the cluster,
 // it can also be used to perform more advanced operations with a cluster.
 type Agent struct {
-	bucket   string
-	password string
-	useSsl   bool
-	initFn   memdInitFunc
+	bucket    string
+	password  string
+	tlsConfig *tls.Config
+	initFn    memdInitFunc
 
 	routingInfo routeDataPtr
 	numVbuckets int
@@ -24,7 +24,7 @@ type Agent struct {
 
 type AuthFunc func(AuthClient) error
 
-func CreateDcpAgent(memdAddrs, httpAddrs []string, useSsl bool, bucketName, password string, authFn AuthFunc, dcpStreamName string) (*Agent, error) {
+func CreateDcpAgent(memdAddrs, httpAddrs []string, tlsConfig *tls.Config, bucketName, password string, authFn AuthFunc, dcpStreamName string) (*Agent, error) {
 	// We wrap the authorization system to force DCP channel opening
 	//   as part of the "initialization" for any servers.
 	dcpInitFn := func(pipeline *memdPipeline) error {
@@ -33,26 +33,23 @@ func CreateDcpAgent(memdAddrs, httpAddrs []string, useSsl bool, bucketName, pass
 		}
 		return doOpenDcpChannel(pipeline, dcpStreamName)
 	}
-	return createAgent(memdAddrs, httpAddrs, useSsl, bucketName, password, dcpInitFn)
+	return createAgent(memdAddrs, httpAddrs, tlsConfig, bucketName, password, dcpInitFn)
 }
 
-func CreateAgent(memdAddrs, httpAddrs []string, useSsl bool, bucketName, password string, authFn AuthFunc) (*Agent, error) {
+func CreateAgent(memdAddrs, httpAddrs []string, tlsConfig *tls.Config, bucketName, password string, authFn AuthFunc) (*Agent, error) {
 	initFn := func(pipeline *memdPipeline) error {
 		return authFn(&authClient{pipeline})
 	}
-	return createAgent(memdAddrs, httpAddrs, useSsl, bucketName, password, initFn)
+	return createAgent(memdAddrs, httpAddrs, tlsConfig, bucketName, password, initFn)
 }
 
-func createAgent(memdAddrs, httpAddrs []string, useSsl bool, bucketName, password string, initFn memdInitFunc) (*Agent, error) {
-	tlsc := &tls.Config{
-		InsecureSkipVerify: true,
-	}
+func createAgent(memdAddrs, httpAddrs []string, tlsConfig *tls.Config, bucketName, password string, initFn memdInitFunc) (*Agent, error) {
 	c := &Agent{
-		bucket:   bucketName,
-		password: password,
-		useSsl:   useSsl,
-		initFn:   initFn,
-		httpCli:  &http.Client{Transport: &http.Transport{TLSClientConfig: tlsc}},
+		bucket:    bucketName,
+		password:  password,
+		tlsConfig: tlsConfig,
+		initFn:    initFn,
+		httpCli:   &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig}},
 	}
 	if err := c.connect(memdAddrs, httpAddrs); err != nil {
 		return nil, err
@@ -117,7 +114,7 @@ func (c *Agent) connect(memdAddrs, httpAddrs []string) error {
 			servers: []*memdPipeline{srv},
 		})
 
-		routeCfg := buildRouteConfig(bk, c.useSsl)
+		routeCfg := buildRouteConfig(bk, c.IsSecure())
 		c.numVbuckets = len(routeCfg.vbMap)
 		c.applyConfig(routeCfg)
 
@@ -130,7 +127,7 @@ func (c *Agent) connect(memdAddrs, httpAddrs []string) error {
 
 	var epList []string
 	for _, hostPort := range httpAddrs {
-		if !c.useSsl {
+		if !c.IsSecure() {
 			epList = append(epList, fmt.Sprintf("http://%s", hostPort))
 		} else {
 			epList = append(epList, fmt.Sprintf("https://%s", hostPort))
@@ -153,7 +150,7 @@ func (c *Agent) connect(memdAddrs, httpAddrs []string) error {
 		return err
 	}
 
-	routeCfg := buildRouteConfig(bk, c.useSsl)
+	routeCfg := buildRouteConfig(bk, c.IsSecure())
 	c.numVbuckets = len(routeCfg.vbMap)
 	c.applyConfig(routeCfg)
 
@@ -165,6 +162,10 @@ func (agent *Agent) CloseTest() {
 	for _, s := range routingInfo.servers {
 		s.Close()
 	}
+}
+
+func (c *Agent) IsSecure() bool {
+	return c.tlsConfig != nil
 }
 
 func (c *Agent) KeyToVbucket(key []byte) uint16 {

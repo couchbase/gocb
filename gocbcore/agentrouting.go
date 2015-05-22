@@ -294,7 +294,7 @@ func (agent *Agent) updateConfig(bk *cfgBucket) {
 		agent.applyConfig(oldRouting.source)
 	} else {
 		// Normalize the cfgBucket to a routeConfig and apply it.
-		routeCfg := buildRouteConfig(bk, agent.useSsl)
+		routeCfg := buildRouteConfig(bk, agent.IsSecure())
 		agent.applyConfig(routeCfg)
 	}
 }

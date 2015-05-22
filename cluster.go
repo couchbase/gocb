@@ -78,7 +78,14 @@ func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 		return err
 	}
 
-	cli, err := gocbcore.CreateAgent(memdHosts, httpHosts, isSslHosts, bucket, password, authFn)
+	var tlsConfig *tls.Config
+	if isSslHosts {
+		tlsConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+	}
+
+	cli, err := gocbcore.CreateAgent(memdHosts, httpHosts, tlsConfig, bucket, password, authFn)
 	if err != nil {
 		return nil, err
 	}
@@ -89,9 +96,7 @@ func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 		client:   cli,
 		httpCli: &http.Client{
 			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
+				TLSClientConfig: tlsConfig,
 			},
 		},
 		transcoder: &DefaultTranscoder{},
@@ -110,15 +115,20 @@ func (c *Cluster) Manager(username, password string) *ClusterManager {
 		}
 	}
 
+	var tlsConfig *tls.Config
+	if isSslHosts {
+		tlsConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+	}
+
 	return &ClusterManager{
 		hosts:    mgmtHosts,
 		username: username,
 		password: password,
 		httpCli: &http.Client{
 			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
+				TLSClientConfig: tlsConfig,
 			},
 		},
 	}
@@ -169,7 +179,14 @@ func (c *Cluster) OpenStreamingBucket(streamName, bucket, password string) (*Str
 		return err
 	}
 
-	cli, err := gocbcore.CreateDcpAgent(memdHosts, httpHosts, isSslHosts, bucket, password, authFn, streamName)
+	var tlsConfig *tls.Config
+	if isSslHosts {
+		tlsConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+	}
+
+	cli, err := gocbcore.CreateDcpAgent(memdHosts, httpHosts, tlsConfig, bucket, password, authFn, streamName)
 	if err != nil {
 		return nil, err
 	}
