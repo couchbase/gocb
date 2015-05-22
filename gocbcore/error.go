@@ -29,6 +29,9 @@ type overloadError struct {
 func (e overloadError) Error() string {
 	return "Queue overflow."
 }
+func (e overloadError) Overload() bool {
+	return true
+}
 
 type memdError struct {
 	code StatusCode
@@ -75,6 +78,15 @@ func (e memdError) Temporary() bool {
 }
 func (e memdError) AuthError() bool {
 	return e.code == StatusAuthError
+}
+func (e memdError) ValueTooBig() bool {
+	return e.code == StatusTooBig
+}
+func (e memdError) NotStored() bool {
+	return e.code == StatusNotStored
+}
+func (e memdError) BadDelta() bool {
+	return e.code == StatusBadDelta
 }
 
 type agentError struct {
