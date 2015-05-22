@@ -188,11 +188,31 @@ func (c *Agent) GetReplica(key []byte, replicaIdx int, cb GetCallback) (PendingO
 	}
 }
 
-func (c *Agent) Touch(key []byte, expiry uint32, cb TouchCallback) (PendingOp, error) {
-	// This seems odd, but this is how it's done in Node.js
-	return c.GetAndTouch(key, expiry, func(value []byte, flags uint32, cas uint64, err error) {
-		cb(cas, err)
-	})
+func (c *Agent) Touch(key []byte, cas uint64, expiry uint32, cb TouchCallback) (PendingOp, error) {
+	handler := func(resp *memdResponse, err error) {
+		if err != nil {
+			cb(0, err)
+			return
+		}
+		cb(resp.Cas, nil)
+	}
+
+	extraBuf := make([]byte, 4)
+	binary.BigEndian.PutUint32(extraBuf[0:], expiry)
+
+	req := &memdQRequest{
+		memdRequest: memdRequest{
+			Magic:    ReqMagic,
+			Opcode:   CmdTouch,
+			Datatype: 0,
+			Cas:      cas,
+			Extras:   extraBuf,
+			Key:      key,
+			Value:    nil,
+		},
+		Callback: handler,
+	}
+	return c.dispatchOp(req)
 }
 
 func (c *Agent) Unlock(key []byte, cas uint64, cb UnlockCallback) (PendingOp, error) {

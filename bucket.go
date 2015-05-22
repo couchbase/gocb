@@ -161,9 +161,9 @@ func (b *Bucket) GetReplica(key string, valuePtr interface{}, replicaIdx int) (u
 }
 
 // Touches a document, specifying a new expiry time for it.
-func (b *Bucket) Touch(key string, expiry uint32) (uint64, error) {
+func (b *Bucket) Touch(key string, cas uint64, expiry uint32) (uint64, error) {
 	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
-		op, err := b.client.Touch([]byte(key), expiry, gocbcore.TouchCallback(cb))
+		op, err := b.client.Touch([]byte(key), cas, expiry, gocbcore.TouchCallback(cb))
 		return op, err
 	})
 }
