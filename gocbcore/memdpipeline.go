@@ -48,7 +48,6 @@ func (s *memdPipeline) Hostname() string {
 }
 
 func (s *memdPipeline) IsClosed() bool {
-	// BUG(brett19): Probably not thread-safe!
 	return s.isClosed
 }
 
