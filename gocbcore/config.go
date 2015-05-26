@@ -45,9 +45,11 @@ type cfgNodeExt struct {
 		Kv      uint16 `json:"kv"`
 		Capi    uint16 `json:"capi"`
 		Mgmt    uint16 `json:"mgmt"`
+		N1ql    uint16 `json:"n1ql"`
 		KvSsl   uint16 `json:"kvSSL"`
 		CapiSsl uint16 `json:"capiSSL"`
 		MgmtSsl uint16 `json:"mgmtSSL"`
+		N1qlSsl uint16 `json:"n1qlSSL"`
 	} `json:"services"`
 	Hostname string `json:"hostname"`
 }

@@ -12,6 +12,7 @@ type routeData struct {
 	vbMap      [][]int
 	capiEpList []string
 	mgmtEpList []string
+	n1qlEpList []string
 
 	servers        []*memdPipeline
 	pendingServers []*memdPipeline
@@ -88,6 +89,10 @@ func (d *routeData) logDebug() {
 	}
 	logDebugf("  Mgmt Eps:")
 	for _, ep := range d.mgmtEpList {
+		logDebugf("    - %s", ep)
+	}
+	logDebugf("  N1ql Eps:")
+	for _, ep := range d.n1qlEpList {
 		logDebugf("    - %s", ep)
 	}
 

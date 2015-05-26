@@ -188,6 +188,10 @@ func (agent *Agent) MgmtEps() []string {
 	return agent.routingInfo.get().mgmtEpList
 }
 
+func (agent *Agent) N1qlEps() []string {
+	return agent.routingInfo.get().n1qlEpList
+}
+
 func doCccpRequest(pipeline *memdPipeline) ([]byte, error) {
 	resp, err := pipeline.ExecuteRequest(&memdQRequest{
 		memdRequest: memdRequest{

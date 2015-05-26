@@ -35,8 +35,12 @@ func (bm *BucketManager) capiRequest(method, uri, contentType string, body io.Re
 		panic("Content-type must be specified for non-null body.")
 	}
 
-	reqUri := bm.bucket.getViewEp() + uri
-	req, err := http.NewRequest(method, reqUri, body)
+	viewEp, err := bm.bucket.getViewEp()
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(method, viewEp+uri, body)
 	if contentType != "" {
 		req.Header.Add("Content-Type", contentType)
 	}
@@ -53,8 +57,12 @@ func (bm *BucketManager) mgmtRequest(method, uri, contentType string, body io.Re
 		panic("Content-type must be specified for non-null body.")
 	}
 
-	reqUri := bm.bucket.getMgmtEp() + uri
-	req, err := http.NewRequest(method, reqUri, body)
+	mgmtEp, err := bm.bucket.getMgmtEp()
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(method, mgmtEp+uri, body)
 	if contentType != "" {
 		req.Header.Add("Content-Type", contentType)
 	}

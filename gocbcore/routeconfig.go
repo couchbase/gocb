@@ -11,6 +11,7 @@ type routeConfig struct {
 	kvServerList []string
 	capiEpList   []string
 	mgmtEpList   []string
+	n1qlEpList   []string
 	vbMap        [][]int
 
 	source *cfgBucket
@@ -20,29 +21,41 @@ func buildRouteConfig(bk *cfgBucket, useSsl bool) *routeConfig {
 	var kvServerList []string
 	var capiEpList []string
 	var mgmtEpList []string
+	var n1qlEpList []string
 
 	if bk.NodesExt != nil {
-		var kvPort uint16
 		for _, node := range bk.NodesExt {
-			if !useSsl {
-				kvPort = node.Services.Kv
-			} else {
-				kvPort = node.Services.KvSsl
-			}
-
 			// Hostname blank means to use the same one as was connected to
 			if node.Hostname == "" {
 				node.Hostname = bk.SourceHostname
 			}
 
-			kvServerList = append(kvServerList, fmt.Sprintf("%s:%d", node.Hostname, kvPort))
-
 			if !useSsl {
-				capiEpList = append(capiEpList, fmt.Sprintf("http://%s:%d/%s", node.Hostname, node.Services.Capi, bk.Name))
-				mgmtEpList = append(mgmtEpList, fmt.Sprintf("http://%s:%d", node.Hostname, node.Services.Mgmt))
+				if node.Services.Kv > 0 {
+					kvServerList = append(kvServerList, fmt.Sprintf("%s:%d", node.Hostname, node.Services.Kv))
+				}
+				if node.Services.Capi > 0 {
+					capiEpList = append(capiEpList, fmt.Sprintf("http://%s:%d/%s", node.Hostname, node.Services.Capi, bk.Name))
+				}
+				if node.Services.Mgmt > 0 {
+					mgmtEpList = append(mgmtEpList, fmt.Sprintf("http://%s:%d", node.Hostname, node.Services.Mgmt))
+				}
+				if node.Services.N1ql > 0 {
+					n1qlEpList = append(n1qlEpList, fmt.Sprintf("http://%s:%d", node.Hostname, node.Services.N1ql))
+				}
 			} else {
-				capiEpList = append(capiEpList, fmt.Sprintf("https://%s:%d/%s", node.Hostname, node.Services.CapiSsl, bk.Name))
-				mgmtEpList = append(mgmtEpList, fmt.Sprintf("https://%s:%d", node.Hostname, node.Services.MgmtSsl))
+				if node.Services.KvSsl > 0 {
+					kvServerList = append(kvServerList, fmt.Sprintf("%s:%d", node.Hostname, node.Services.KvSsl))
+				}
+				if node.Services.CapiSsl > 0 {
+					capiEpList = append(capiEpList, fmt.Sprintf("https://%s:%d/%s", node.Hostname, node.Services.CapiSsl, bk.Name))
+				}
+				if node.Services.MgmtSsl > 0 {
+					mgmtEpList = append(mgmtEpList, fmt.Sprintf("https://%s:%d", node.Hostname, node.Services.MgmtSsl))
+				}
+				if node.Services.N1qlSsl > 0 {
+					n1qlEpList = append(n1qlEpList, fmt.Sprintf("https://%s:%d", node.Hostname, node.Services.N1qlSsl))
+				}
 			}
 		}
 	} else {
@@ -67,6 +80,7 @@ func buildRouteConfig(bk *cfgBucket, useSsl bool) *routeConfig {
 		kvServerList: kvServerList,
 		capiEpList:   capiEpList,
 		mgmtEpList:   mgmtEpList,
+		n1qlEpList:   n1qlEpList,
 		vbMap:        bk.VBucketServerMap.VBucketMap,
 		source:       bk,
 	}

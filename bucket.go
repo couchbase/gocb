@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/couchbaselabs/gocb/gocbcore"
@@ -254,50 +255,55 @@ func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint6
 }
 
 // Returns a CAPI endpoint.  Guarenteed to return something for now...
-func (b *Bucket) getViewEp() string {
+func (b *Bucket) getViewEp() (string, error) {
 	capiEps := b.client.CapiEps()
-	return capiEps[rand.Intn(len(capiEps))]
+	if len(capiEps) == 0 {
+		return "", &clientError{"No available view nodes."}
+	}
+	return capiEps[rand.Intn(len(capiEps))], nil
 }
 
-func (b *Bucket) getMgmtEp() string {
+func (b *Bucket) getMgmtEp() (string, error) {
 	mgmtEps := b.client.MgmtEps()
-	return mgmtEps[rand.Intn(len(mgmtEps))]
+	if len(mgmtEps) == 0 {
+		return "", &clientError{"No available management nodes."}
+	}
+	return mgmtEps[rand.Intn(len(mgmtEps))], nil
 }
 
-type viewItem struct {
-	Bytes []byte
-}
-
-func (i *viewItem) UnmarshalJSON(data []byte) error {
-	i.Bytes = make([]byte, len(data))
-	copy(i.Bytes, data)
-	return nil
+func (b *Bucket) getN1qlEp() (string, error) {
+	n1qlEps := b.client.N1qlEps()
+	if len(n1qlEps) == 0 {
+		return "", &clientError{"No available N1QL nodes."}
+	}
+	return n1qlEps[rand.Intn(len(n1qlEps))], nil
 }
 
 type viewResponse struct {
-	TotalRows int        `json:"total_rows,omitempty"`
-	Rows      []viewItem `json:"rows,omitempty"`
-	Error     string     `json:"error,omitempty"`
-	Reason    string     `json:"reason,omitempty"`
+	TotalRows int               `json:"total_rows,omitempty"`
+	Rows      []json.RawMessage `json:"rows,omitempty"`
+	Error     string            `json:"error,omitempty"`
+	Reason    string            `json:"reason,omitempty"`
 }
 
 type viewError struct {
-	message string
-	reason  string
+	Message string `json:"message"`
+	Reason  string `json:"reason"`
 }
 
 func (e *viewError) Error() string {
-	return e.message + " - " + e.reason
+	return e.Message + " - " + e.Reason
 }
 
 type ViewResults interface {
+	One(valuePtr interface{}) error
 	Next(valuePtr interface{}) bool
 	Close() error
 }
 
 type viewResults struct {
 	index int
-	rows  []viewItem
+	rows  []json.RawMessage
 	err   error
 }
 
@@ -311,7 +317,7 @@ func (r *viewResults) Next(valuePtr interface{}) bool {
 	r.index++
 
 	row := r.rows[r.index]
-	r.err = json.Unmarshal(row.Bytes, valuePtr)
+	r.err = json.Unmarshal(row, valuePtr)
 	if r.err != nil {
 		return false
 	}
@@ -339,7 +345,10 @@ func (r *viewResults) One(valuePtr interface{}) error {
 
 // Performs a view query and returns a list of rows or an error.
 func (b *Bucket) ExecuteViewQuery(q *ViewQuery) ViewResults {
-	capiEp := b.getViewEp()
+	capiEp, err := b.getViewEp()
+	if err != nil {
+		return &viewResults{err: err}
+	}
 
 	reqUri := fmt.Sprintf("%s/_design/%s/_view/%s?%s", capiEp, q.ddoc, q.name, q.options.Encode())
 
@@ -364,15 +373,16 @@ func (b *Bucket) ExecuteViewQuery(q *ViewQuery) ViewResults {
 		if viewResp.Error != "" {
 			return &viewResults{
 				err: &viewError{
-					message: viewResp.Error,
-					reason:  viewResp.Reason,
+					Message: viewResp.Error,
+					Reason:  viewResp.Reason,
 				},
 			}
 		}
+
 		return &viewResults{
 			err: &viewError{
-				message: "HTTP Error",
-				reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
+				Message: "HTTP Error",
+				Reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
 			},
 		}
 	}
@@ -385,7 +395,10 @@ func (b *Bucket) ExecuteViewQuery(q *ViewQuery) ViewResults {
 
 // Performs a spatial query and returns a list of rows or an error.
 func (b *Bucket) ExecuteSpatialQuery(q *SpatialQuery) ViewResults {
-	capiEp := b.getViewEp()
+	capiEp, err := b.getViewEp()
+	if err != nil {
+		return &viewResults{err: err}
+	}
 
 	reqUri := fmt.Sprintf("%s/_design/%s/_spatial/%s?%s", capiEp, q.ddoc, q.name, q.options.Encode())
 
@@ -410,15 +423,16 @@ func (b *Bucket) ExecuteSpatialQuery(q *SpatialQuery) ViewResults {
 		if viewResp.Error != "" {
 			return &viewResults{
 				err: &viewError{
-					message: viewResp.Error,
-					reason:  viewResp.Reason,
+					Message: viewResp.Error,
+					Reason:  viewResp.Reason,
 				},
 			}
 		}
+
 		return &viewResults{
 			err: &viewError{
-				message: "HTTP Error",
-				reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
+				Message: "HTTP Error",
+				Reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
 			},
 		}
 	}
@@ -426,6 +440,144 @@ func (b *Bucket) ExecuteSpatialQuery(q *SpatialQuery) ViewResults {
 	return &viewResults{
 		index: -1,
 		rows:  viewResp.Rows,
+	}
+}
+
+type n1qlError struct {
+	Code    uint32 `json:"code"`
+	Message string `json:"msg"`
+}
+
+func (e *n1qlError) Error() string {
+	return fmt.Sprintf("[%d] %s", e.Code, e.Message)
+}
+
+type n1qlResponse struct {
+	RequestId string            `json:"requestID"`
+	Results   []json.RawMessage `json:"results,omitempty"`
+	Errors    []n1qlError       `json:"errors,omitempty"`
+	Status    string            `json:"status"`
+}
+
+type n1qlMultiError []n1qlError
+
+func (e *n1qlMultiError) Error() string {
+	return (*e)[0].Error()
+}
+
+type QueryResults interface {
+	One(valuePtr interface{}) error
+	Next(valuePtr interface{}) bool
+	Close() error
+}
+
+type n1qlResults struct {
+	index int
+	rows  []json.RawMessage
+	err   error
+}
+
+func (r *n1qlResults) Next(valuePtr interface{}) bool {
+	if r.err != nil {
+		return false
+	}
+	if r.index+1 >= len(r.rows) {
+		return false
+	}
+	r.index++
+
+	row := r.rows[r.index]
+	r.err = json.Unmarshal(row, valuePtr)
+	if r.err != nil {
+		return false
+	}
+
+	return true
+}
+
+func (r *n1qlResults) Close() error {
+	return r.err
+}
+
+func (r *n1qlResults) One(valuePtr interface{}) error {
+	if !r.Next(valuePtr) {
+		err := r.Close()
+		if err != nil {
+			return err
+		}
+		return clientError{"No results returned"}
+	}
+	// Ignore any errors occuring after we already have our result
+	r.Close()
+	// Return no error as we got the one result already.
+	return nil
+}
+
+// Performs a spatial query and returns a list of rows or an error.
+func (b *Bucket) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) ViewResults {
+	/*
+		n1qlEp, err := b.getN1qlEp()
+	*/
+	n1qlEp := "http://query.pub.couchbase.com"
+	var err error
+	if err != nil {
+		return &viewResults{err: err}
+	}
+
+	reqOpts := make(map[string]interface{})
+	for k, v := range q.options {
+		reqOpts[k] = v
+	}
+	if params != nil {
+		reqOpts["args"] = params
+	}
+
+	reqUri := fmt.Sprintf("%s/query/service", n1qlEp)
+
+	reqJson, err := json.Marshal(reqOpts)
+	if err != nil {
+		return &viewResults{err: err}
+	}
+
+	req, err := http.NewRequest("POST", reqUri, bytes.NewBuffer(reqJson))
+	if err != nil {
+		return &viewResults{err: err}
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.SetBasicAuth(b.name, b.password)
+
+	fmt.Printf("URI: %s\n", reqUri)
+	fmt.Printf("Data: %s\n", reqJson)
+
+	resp, err := b.httpCli.Do(req)
+	if err != nil {
+		return &viewResults{err: err}
+	}
+
+	n1qlResp := n1qlResponse{}
+	jsonDec := json.NewDecoder(resp.Body)
+	jsonDec.Decode(&n1qlResp)
+
+	resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		if len(n1qlResp.Errors) > 0 {
+			return &n1qlResults{
+				err: (*n1qlMultiError)(&n1qlResp.Errors),
+			}
+		}
+
+		return &n1qlResults{
+			err: &viewError{
+				Message: "HTTP Error",
+				Reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
+			},
+		}
+	}
+
+	return &n1qlResults{
+		index: -1,
+		rows:  n1qlResp.Results,
 	}
 }
 
