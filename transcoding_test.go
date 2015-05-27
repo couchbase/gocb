@@ -83,8 +83,8 @@ func TestDecodeString(t *testing.T) {
 }
 
 func TestDecodeBadType(t *testing.T) {
-	var testOut string
-	err := defaultTranscoder.Decode(jsonNumStr, 0x2000000, &testOut)
+	var testOut int
+	err := defaultTranscoder.Decode(jsonStrStr, 0x2000000, &testOut)
 	if err == nil {
 		t.Errorf("Decoding succeeded but should have failed")
 	}

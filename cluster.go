@@ -3,7 +3,7 @@ package gocb
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/couchbaselabs/gocb/gocbcore"
+	"github.com/VerveWireless/gocb/gocbcore"
 	"net/http"
 	"time"
 )
