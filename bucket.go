@@ -3,10 +3,14 @@ package gocb
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/couchbaselabs/gocb/gocbcore"
+	"github.com/VerveWireless/gocb/gocbcore"
 	"math/rand"
 	"net/http"
 	"time"
+)
+
+const (
+	timeout = 10 * time.Second
 )
 
 // An interface representing a single bucket within a cluster.
@@ -22,8 +26,8 @@ func (b *Bucket) SetTranscoder(transcoder Transcoder) {
 	b.transcoder = transcoder
 }
 
-func (b *Bucket) afterOpTimeout() <-chan time.Time {
-	return time.After(10 * time.Second)
+func (b *Bucket) afterOpTimeout() *time.Timer {
+	return time.NewTimer(timeout)
 }
 
 type pendingOp gocbcore.PendingOp
@@ -56,10 +60,12 @@ func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (casOut 
 		return 0, err
 	}
 
+	timer := b.afterOpTimeout()
+	defer timer.Stop()
 	select {
 	case <-signal:
 		return
-	case <-b.afterOpTimeout():
+	case <-timer.C:
 		op.Cancel()
 		return 0, timeoutError{}
 	}
@@ -83,10 +89,12 @@ func (b *Bucket) hlpCasExec(execFn hlpCasHandler) (casOut uint64, errOut error) 
 		return 0, err
 	}
 
+	timer := b.afterOpTimeout()
+	defer timer.Stop()
 	select {
 	case <-signal:
 		return
-	case <-b.afterOpTimeout():
+	case <-timer.C:
 		op.Cancel()
 		return 0, timeoutError{}
 	}
@@ -111,17 +119,19 @@ func (b *Bucket) hlpCtrExec(execFn hlpCtrHandler) (valOut uint64, casOut uint64,
 		return 0, 0, err
 	}
 
+	timer := b.afterOpTimeout()
+	defer timer.Stop()
 	select {
 	case <-signal:
 		return
-	case <-b.afterOpTimeout():
+	case <-timer.C:
 		op.Cancel()
 		return 0, 0, timeoutError{}
 	}
 }
 
 // Retrieves a document from the bucket
-func (b *Bucket) Get(key string, valuePtr interface{}) (uint64, error) {
+func (b *Bucket) Get(key string, valuePtr interface{}) (cas uint64, err error) {
 	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (pendingOp, error) {
 		op, err := b.client.Get([]byte(key), gocbcore.GetCallback(cb))
 		return op, err
@@ -129,7 +139,7 @@ func (b *Bucket) Get(key string, valuePtr interface{}) (uint64, error) {
 }
 
 // Retrieves a document and simultaneously updates its expiry time.
-func (b *Bucket) GetAndTouch(key string, expiry uint32, valuePtr interface{}) (uint64, error) {
+func (b *Bucket) GetAndTouch(key string, expiry uint32, valuePtr interface{}) (cas uint64, err error) {
 	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (pendingOp, error) {
 		op, err := b.client.GetAndTouch([]byte(key), expiry, gocbcore.GetCallback(cb))
 		return op, err
@@ -137,7 +147,7 @@ func (b *Bucket) GetAndTouch(key string, expiry uint32, valuePtr interface{}) (u
 }
 
 // Locks a document for a period of time, providing exclusive RW access to it.
-func (b *Bucket) GetAndLock(key string, lockTime uint32, valuePtr interface{}) (uint64, error) {
+func (b *Bucket) GetAndLock(key string, lockTime uint32, valuePtr interface{}) (cas uint64, err error) {
 	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (pendingOp, error) {
 		op, err := b.client.GetAndLock([]byte(key), lockTime, gocbcore.GetCallback(cb))
 		return op, err
@@ -153,7 +163,7 @@ func (b *Bucket) Unlock(key string, cas uint64) (casOut uint64, errOut error) {
 }
 
 // Returns the value of a particular document from a replica server.
-func (b *Bucket) GetReplica(key string, valuePtr interface{}, replicaIdx int) (uint64, error) {
+func (b *Bucket) GetReplica(key string, valuePtr interface{}, replicaIdx int) (cas uint64, err error) {
 	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (pendingOp, error) {
 		op, err := b.client.GetReplica([]byte(key), replicaIdx, gocbcore.GetCallback(cb))
 		return op, err
@@ -161,7 +171,7 @@ func (b *Bucket) GetReplica(key string, valuePtr interface{}, replicaIdx int) (u
 }
 
 // Touches a document, specifying a new expiry time for it.
-func (b *Bucket) Touch(key string, expiry uint32) (uint64, error) {
+func (b *Bucket) Touch(key string, expiry uint32) (cas uint64, err error) {
 	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
 		op, err := b.client.Touch([]byte(key), expiry, gocbcore.TouchCallback(cb))
 		return op, err
@@ -190,7 +200,7 @@ func (b *Bucket) Upsert(key string, value interface{}, expiry uint32) (casOut ui
 }
 
 // Inserts a new document to the bucket.
-func (b *Bucket) Insert(key string, value interface{}, expiry uint32) (uint64, error) {
+func (b *Bucket) Insert(key string, value interface{}, expiry uint32) (cas uint64, err error) {
 	bytes, flags, err := b.transcoder.Encode(value)
 	if err != nil {
 		return 0, err
@@ -203,7 +213,7 @@ func (b *Bucket) Insert(key string, value interface{}, expiry uint32) (uint64, e
 }
 
 // Replaces a document in the bucket.
-func (b *Bucket) Replace(key string, value interface{}, cas uint64, expiry uint32) (uint64, error) {
+func (b *Bucket) Replace(key string, value interface{}, cas uint64, expiry uint32) (casOut uint64, err error) {
 	bytes, flags, err := b.transcoder.Encode(value)
 	if err != nil {
 		return 0, err
@@ -216,7 +226,7 @@ func (b *Bucket) Replace(key string, value interface{}, cas uint64, expiry uint3
 }
 
 // Appends a string value to a document.
-func (b *Bucket) Append(key, value string) (uint64, error) {
+func (b *Bucket) Append(key, value string) (cas uint64, err error) {
 	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
 		op, err := b.client.Append([]byte(key), []byte(value), gocbcore.StoreCallback(cb))
 		return op, err
@@ -224,7 +234,7 @@ func (b *Bucket) Append(key, value string) (uint64, error) {
 }
 
 // Prepends a string value to a document.
-func (b *Bucket) Prepend(key, value string) (uint64, error) {
+func (b *Bucket) Prepend(key, value string) (cas uint64, err error) {
 	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
 		op, err := b.client.Prepend([]byte(key), []byte(value), gocbcore.StoreCallback(cb))
 		return op, err
@@ -232,7 +242,7 @@ func (b *Bucket) Prepend(key, value string) (uint64, error) {
 }
 
 // Performs an atomic addition or subtraction for an integer document.
-func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint64, uint64, error) {
+func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (valOut uint64, cas uint64, err error) {
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
 	if initial > 0 {
 		realInitial = uint64(initial)

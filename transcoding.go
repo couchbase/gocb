@@ -12,7 +12,7 @@ type Transcoder interface {
 type DefaultTranscoder struct {
 }
 
-func (t DefaultTranscoder) Decode(bytes []byte, flags uint32, out interface{}) error {
+func (t DefaultTranscoder) Decode(bytes []byte, flags uint32, out interface{}) (err error) {
 	// Check for legacy flags
 	if flags&cfMask == 0 {
 		// Legacy Flags
@@ -29,22 +29,27 @@ func (t DefaultTranscoder) Decode(bytes []byte, flags uint32, out interface{}) e
 		return clientError{"Unexpected value compression"}
 	}
 
-	// Normal types of decoding
-	if flags&cfFmtMask == cfFmtBinary {
-		*(out.(*[]byte)) = bytes
-		return nil
-	} else if flags&cfFmtMask == cfFmtString {
-		*(out.(*string)) = string(bytes)
-		return nil
-	} else if flags&cfFmtMask == cfFmtJson {
-		err := json.Unmarshal(bytes, &out)
-		if err != nil {
-			return err
-		}
-		return nil
-	} else {
+	// The only decodings supported at this time are binary, string, and JSON.
+	format := flags & cfFmtMask
+	if format != cfFmtBinary &&
+		format != cfFmtString &&
+		format != cfFmtJson {
 		return clientError{"Unexpected flags value"}
 	}
+	// Whether the user passed binary, string, or JSON, the following decodings
+	// always make sense:
+	switch out.(type) {
+	case *[]byte:
+		*(out.(*[]byte)) = bytes
+		return nil
+	case *string:
+		*(out.(*string)) = string(bytes)
+		return nil
+	default:
+		err := json.Unmarshal(bytes, &out)
+		return err
+	}
+
 }
 
 func (t DefaultTranscoder) Encode(value interface{}) ([]byte, uint32, error) {
