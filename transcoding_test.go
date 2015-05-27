@@ -90,6 +90,23 @@ func TestDecodeBadType(t *testing.T) {
 	}
 }
 
+func TestDecodeToInterface(t *testing.T) {
+	var testOut interface{}
+	testDecode(t, jsonNumStr, 0x2000000, &testOut)
+	switch testOut := testOut.(type) {
+	case int:
+		if testOut != 2222 {
+			t.Errorf("Decoding failed")
+		}
+	case float64:
+		if testOut != 2222 {
+			t.Errorf("Decoding failed")
+		}
+	default:
+		t.Errorf("Decoding failed")
+	}
+}
+
 func TestEncodeJson(t *testing.T) {
 	testIn := make(map[string]string)
 	testIn["test"] = "value"

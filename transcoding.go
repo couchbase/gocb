@@ -29,20 +29,35 @@ func (t DefaultTranscoder) Decode(bytes []byte, flags uint32, out interface{}) e
 		return clientError{"Unexpected value compression"}
 	}
 
-	// Normal types of decoding
-	if flags&cfFmtMask == cfFmtBinary {
-		*(out.(*[]byte)) = bytes
-		return nil
-	} else if flags&cfFmtMask == cfFmtString {
-		*(out.(*string)) = string(bytes)
-		return nil
-	} else if flags&cfFmtMask == cfFmtJson {
-		err := json.Unmarshal(bytes, &out)
-		if err != nil {
-			return err
+	format := flags & cfFmtMask
+
+	switch format {
+	case cfFmtBinary:
+		switch out.(type) {
+		case *[]byte:
+			*(out.(*[]byte)) = bytes
+			return nil
+		case *interface{}:
+			*(out.(*interface{})) = interface{}(bytes)
+			return nil
+		default:
+			return clientError{"You must encode binary in a byte array or interface"}
 		}
-		return nil
-	} else {
+	case cfFmtString:
+		switch out.(type) {
+		case *string:
+			*(out.(*string)) = string(bytes)
+			return nil
+		case *interface{}:
+			*(out.(*interface{})) = interface{}(bytes)
+			return nil
+		default:
+			return clientError{"You must encode a string in a string or interface"}
+		}
+	case cfFmtJson:
+		err := json.Unmarshal(bytes, &out)
+		return err
+	default:
 		return clientError{"Unexpected flags value"}
 	}
 }
