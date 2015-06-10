@@ -177,7 +177,7 @@ func (c *Agent) NumVbuckets() int {
 }
 
 func (c *Agent) NumReplicas() int {
-	return len(c.routingInfo.get().vbMap[0])
+	return len(c.routingInfo.get().vbMap[0]) - 1
 }
 
 func (agent *Agent) CapiEps() []string {
