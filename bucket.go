@@ -402,6 +402,7 @@ func (b *Bucket) durability(key string, cas Cas, replicaTo, persistTo uint, forD
 	}
 }
 
+// Touches a document, specifying a new expiry time for it.  Additionally checks document durability.
 func (b *Bucket) TouchDura(key string, cas Cas, expiry uint32, replicateTo, persistTo uint) (Cas, error) {
 	cas, err := b.Touch(key, cas, expiry)
 	if err != nil {
@@ -410,6 +411,7 @@ func (b *Bucket) TouchDura(key string, cas Cas, expiry uint32, replicateTo, pers
 	return cas, b.durability(key, cas, replicateTo, persistTo, false)
 }
 
+// Removes a document from the bucket.  Additionally checks document durability.
 func (b *Bucket) RemoveDura(key string, cas Cas, replicateTo, persistTo uint) (Cas, error) {
 	cas, err := b.Remove(key, cas)
 	if err != nil {
@@ -418,7 +420,7 @@ func (b *Bucket) RemoveDura(key string, cas Cas, replicateTo, persistTo uint) (C
 	return cas, b.durability(key, cas, replicateTo, persistTo, true)
 }
 
-// Inserts or replaces a document in the bucket.
+// Inserts or replaces a document in the bucket.  Additionally checks document durability.
 func (b *Bucket) UpsertDura(key string, value interface{}, expiry uint32, replicateTo, persistTo uint) (Cas, error) {
 	cas, err := b.Upsert(key, value, expiry)
 	if err != nil {
@@ -427,7 +429,7 @@ func (b *Bucket) UpsertDura(key string, value interface{}, expiry uint32, replic
 	return cas, b.durability(key, cas, replicateTo, persistTo, false)
 }
 
-// Inserts a new document to the bucket.
+// Inserts a new document to the bucket.  Additionally checks document durability.
 func (b *Bucket) InsertDura(key string, value interface{}, expiry uint32, replicateTo, persistTo uint) (Cas, error) {
 	cas, err := b.Insert(key, value, expiry)
 	if err != nil {
@@ -436,7 +438,7 @@ func (b *Bucket) InsertDura(key string, value interface{}, expiry uint32, replic
 	return cas, b.durability(key, cas, replicateTo, persistTo, false)
 }
 
-// Replaces a document in the bucket.
+// Replaces a document in the bucket.  Additionally checks document durability.
 func (b *Bucket) ReplaceDura(key string, value interface{}, cas Cas, expiry uint32, replicateTo, persistTo uint) (Cas, error) {
 	cas, err := b.Replace(key, value, cas, expiry)
 	if err != nil {
@@ -445,7 +447,7 @@ func (b *Bucket) ReplaceDura(key string, value interface{}, cas Cas, expiry uint
 	return cas, b.durability(key, cas, replicateTo, persistTo, false)
 }
 
-// Appends a string value to a document.
+// Appends a string value to a document.  Additionally checks document durability.
 func (b *Bucket) AppendDura(key, value string, replicateTo, persistTo uint) (Cas, error) {
 	cas, err := b.Append(key, value)
 	if err != nil {
@@ -454,7 +456,7 @@ func (b *Bucket) AppendDura(key, value string, replicateTo, persistTo uint) (Cas
 	return cas, b.durability(key, cas, replicateTo, persistTo, false)
 }
 
-// Prepends a string value to a document.
+// Prepends a string value to a document.  Additionally checks document durability.
 func (b *Bucket) PrependDura(key, value string, replicateTo, persistTo uint) (Cas, error) {
 	cas, err := b.Prepend(key, value)
 	if err != nil {
@@ -463,7 +465,7 @@ func (b *Bucket) PrependDura(key, value string, replicateTo, persistTo uint) (Ca
 	return cas, b.durability(key, cas, replicateTo, persistTo, false)
 }
 
-// Performs an atomic addition or subtraction for an integer document.
+// Performs an atomic addition or subtraction for an integer document.  Additionally checks document durability.
 func (b *Bucket) CounterDura(key string, delta, initial int64, expiry uint32, replicateTo, persistTo uint) (uint64, Cas, error) {
 	val, cas, err := b.Counter(key, delta, initial, expiry)
 	if err != nil {
