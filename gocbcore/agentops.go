@@ -37,6 +37,7 @@ type TouchCallback func(uint64, error)
 type RemoveCallback func(uint64, error)
 type StoreCallback func(uint64, error)
 type CounterCallback func(uint64, uint64, error)
+type ObserveCallback func(KeyState, uint64, error)
 
 func (c *Agent) Get(key []byte, cb GetCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
@@ -376,4 +377,51 @@ func (c *Agent) Increment(key []byte, delta, initial uint64, expiry uint32, cb C
 
 func (c *Agent) Decrement(key []byte, delta, initial uint64, expiry uint32, cb CounterCallback) (PendingOp, error) {
 	return c.counter(CmdDecrement, key, delta, initial, expiry, cb)
+}
+
+func (c *Agent) Observe(key []byte, replicaIdx int, cb ObserveCallback) (PendingOp, error) {
+	handler := func(resp *memdResponse, err error) {
+		if err != nil {
+			cb(0, 0, err)
+			return
+		}
+
+		if len(resp.Value) < 4 {
+			cb(0, 0, agentError{"Failed to parse response data"})
+			return
+		}
+		keyLen := int(binary.BigEndian.Uint16(resp.Value[2:]))
+
+		if len(resp.Value) != 2+2+keyLen+1+8 {
+			cb(0, 0, agentError{"Failed to parse response data"})
+			return
+		}
+		keyState := KeyState(resp.Value[2+2+keyLen])
+		cas := binary.BigEndian.Uint64(resp.Value[2+2+keyLen+1:])
+
+		cb(keyState, cas, nil)
+	}
+
+	vbId := c.KeyToVbucket(key)
+
+	valueBuf := make([]byte, 2+2+len(key))
+	binary.BigEndian.PutUint16(valueBuf[0:], vbId)
+	binary.BigEndian.PutUint16(valueBuf[2:], uint16(len(key)))
+	copy(valueBuf[4:], key)
+
+	req := &memdQRequest{
+		memdRequest: memdRequest{
+			Magic:    ReqMagic,
+			Opcode:   CmdObserve,
+			Datatype: 0,
+			Cas:      0,
+			Extras:   nil,
+			Key:      nil,
+			Value:    valueBuf,
+			Vbucket:  vbId,
+		},
+		ReplicaIdx: replicaIdx,
+		Callback:   handler,
+	}
+	return c.dispatchOp(req)
 }

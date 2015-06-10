@@ -254,6 +254,223 @@ func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint6
 	}
 }
 
+func (b *Bucket) observeOne(key []byte, cas uint64, forDelete bool, repId int, replicaCh, persistCh chan bool) {
+	observeOnce := func(commCh chan uint) (pendingOp, error) {
+		return b.client.Observe(key, repId, func(ks gocbcore.KeyState, obsCas uint64, err error) {
+			if err != nil {
+				commCh <- 0
+				return
+			}
+
+			didReplicate := false
+			didPersist := false
+
+			if ks == gocbcore.KeyStatePersisted {
+				if !forDelete {
+					if obsCas == cas {
+						if repId != 0 {
+							didReplicate = true
+						}
+						didPersist = true
+					}
+				}
+			} else if ks == gocbcore.KeyStateNotPersisted {
+				if !forDelete {
+					if obsCas == cas {
+						if repId != 0 {
+							didReplicate = true
+						}
+					}
+				}
+			} else if ks == gocbcore.KeyStateDeleted {
+				if forDelete {
+					didReplicate = true
+				}
+			} else {
+				if forDelete {
+					didReplicate = true
+					didPersist = true
+				}
+			}
+
+			var out uint
+			if didReplicate {
+				out |= 1
+			}
+			if didPersist {
+				out |= 2
+			}
+			commCh <- out
+		})
+	}
+
+	timeoutTmr := time.NewTimer(2 * time.Second)
+	waitTmr := time.NewTimer(2 * time.Second)
+
+	sentReplicated := false
+	sentPersisted := false
+
+	failMe := func() {
+		if !sentReplicated {
+			replicaCh <- false
+			sentReplicated = true
+		}
+		if !sentPersisted {
+			persistCh <- false
+			sentPersisted = true
+		}
+	}
+
+	commCh := make(chan uint)
+	for {
+		op, err := observeOnce(commCh)
+		if err != nil {
+			failMe()
+			return
+		}
+
+		select {
+		case val := <-commCh:
+		// Got Value
+			if (val & 1) != 0 && !sentReplicated {
+				replicaCh <- true
+				sentReplicated = true
+			}
+			if (val & 2) != 0 && !sentPersisted {
+				persistCh <- true
+				sentPersisted = true
+			}
+
+			waitTmr.Reset(100 * time.Millisecond)
+				select {
+				case <-waitTmr.C:
+				// Fall through to outside for loop
+				case <-timeoutTmr.C:
+					failMe()
+					return
+				}
+
+		case <-timeoutTmr.C:
+		// Timed out
+			op.Cancel()
+			failMe()
+			return
+		}
+	}
+}
+
+func (b *Bucket) durability(key string, cas uint64, replicaTo, persistTo uint, forDelete bool) error {
+	numServers := b.client.NumReplicas() + 1
+
+	if replicaTo > uint(numServers - 1) || persistTo > uint(numServers) {
+		return &clientError{"Not enough replicas to match durability requirements."}
+	}
+
+	keyBytes := []byte(key)
+
+	replicaCh := make(chan bool)
+	persistCh := make(chan bool)
+
+	for repId := 0; repId < numServers; repId++ {
+		go b.observeOne(keyBytes, cas, forDelete, repId, replicaCh, persistCh)
+	}
+
+	results := int(0)
+	replicas := uint(0)
+	persists := uint(0)
+
+	for {
+		select {
+		case rV := <- replicaCh:
+			if rV {
+				replicas++
+			}
+			results++
+		case pV := <- persistCh:
+			if pV {
+				persists++
+			}
+			results++
+		}
+
+		if replicas >= replicaTo && persists >= persistTo {
+			return nil
+		} else if results == ((numServers * 2) - 1) {
+			return &clientError{"Failed to meet durability requirements in time."}
+		}
+	}
+}
+
+func (b *Bucket) TouchDura(key string, cas uint64, expiry uint32, replicateTo, persistTo uint) (uint64, error) {
+	cas, err := b.Touch(key, cas, expiry)
+	if err != nil {
+		return cas, err
+	}
+	return cas, b.durability(key, cas, replicateTo, persistTo, false)
+}
+
+func (b *Bucket) RemoveDura(key string, cas uint64, replicateTo, persistTo uint) (uint64, error) {
+	cas, err := b.Remove(key, cas)
+	if err != nil {
+		return cas, err
+	}
+	return cas, b.durability(key, cas, replicateTo, persistTo, true)
+}
+
+// Inserts or replaces a document in the bucket.
+func (b *Bucket) UpsertDura(key string, value interface{}, expiry uint32, replicateTo, persistTo uint) (uint64, error) {
+	cas, err := b.Upsert(key, value, expiry)
+	if err != nil {
+		return cas, err
+	}
+	return cas, b.durability(key, cas, replicateTo, persistTo, false)
+}
+
+// Inserts a new document to the bucket.
+func (b *Bucket) InsertDura(key string, value interface{}, expiry uint32, replicateTo, persistTo uint) (uint64, error) {
+	cas, err := b.Insert(key, value, expiry)
+	if err != nil {
+		return cas, err
+	}
+	return cas, b.durability(key, cas, replicateTo, persistTo, false)
+}
+
+// Replaces a document in the bucket.
+func (b *Bucket) ReplaceDura(key string, value interface{}, cas uint64, expiry uint32, replicateTo, persistTo uint) (uint64, error) {
+	cas, err := b.Replace(key, value, cas, expiry)
+	if err != nil {
+		return cas, err
+	}
+	return cas, b.durability(key, cas, replicateTo, persistTo, false)
+}
+
+// Appends a string value to a document.
+func (b *Bucket) AppendDura(key, value string, replicateTo, persistTo uint) (uint64, error) {
+	cas, err := b.Append(key, value)
+	if err != nil {
+		return cas, err
+	}
+	return cas, b.durability(key, cas, replicateTo, persistTo, false)
+}
+
+// Prepends a string value to a document.
+func (b *Bucket) PrependDura(key, value string, replicateTo, persistTo uint) (uint64, error) {
+	cas, err := b.Prepend(key, value)
+	if err != nil {
+		return cas, err
+	}
+	return cas, b.durability(key, cas, replicateTo, persistTo, false)
+}
+
+// Performs an atomic addition or subtraction for an integer document.
+func (b *Bucket) CounterDura(key string, delta, initial int64, expiry uint32, replicateTo, persistTo uint) (uint64, uint64, error) {
+	val, cas, err := b.Counter(key, delta, initial, expiry)
+	if err != nil {
+		return val, cas, err
+	}
+	return val, cas, b.durability(key, cas, replicateTo, persistTo, false)
+}
+
 // Returns a CAPI endpoint.  Guarenteed to return something for now...
 func (b *Bucket) getViewEp() (string, error) {
 	capiEps := b.client.CapiEps()

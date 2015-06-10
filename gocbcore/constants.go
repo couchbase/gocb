@@ -67,3 +67,12 @@ const (
 	StatusOutOfMemory    = StatusCode(0x82)
 	StatusTmpFail        = StatusCode(0x86)
 )
+
+type KeyState uint8
+
+const (
+	KeyStateNotPersisted = KeyState(0x00)
+	KeyStatePersisted    = KeyState(0x01)
+	KeyStateNotFound     = KeyState(0x80)
+	KeyStateDeleted      = KeyState(0x81)
+)

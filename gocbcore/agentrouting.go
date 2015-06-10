@@ -313,6 +313,9 @@ func (agent *Agent) routeRequest(req *memdQRequest) *memdQueue {
 	if repId < 0 {
 		vbId := req.Vbucket
 		srvIdx = routingInfo.vbMap[vbId][0]
+	} else if req.Key == nil {
+		vbId := req.Vbucket
+		srvIdx = routingInfo.vbMap[vbId][repId]
 	} else {
 		vbId := cbCrc(req.Key) % uint32(len(routingInfo.vbMap))
 		req.Vbucket = uint16(vbId)
