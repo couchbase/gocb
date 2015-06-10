@@ -27,17 +27,18 @@ func (b *Bucket) afterOpTimeout() <-chan time.Time {
 	return time.After(10 * time.Second)
 }
 
+type Cas gocbcore.Cas
 type pendingOp gocbcore.PendingOp
 
-type ioGetCallback func([]byte, uint32, uint64, error)
-type ioCasCallback func(uint64, error)
-type ioCtrCallback func(uint64, uint64, error)
+type ioGetCallback func([]byte, uint32, gocbcore.Cas, error)
+type ioCasCallback func(gocbcore.Cas, error)
+type ioCtrCallback func(uint64, gocbcore.Cas, error)
 
 type hlpGetHandler func(ioGetCallback) (pendingOp, error)
 
-func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (casOut uint64, errOut error) {
+func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (casOut Cas, errOut error) {
 	signal := make(chan bool, 1)
-	op, err := execFn(func(bytes []byte, flags uint32, cas uint64, err error) {
+	op, err := execFn(func(bytes []byte, flags uint32, cas gocbcore.Cas, err error) {
 		go func() {
 			if err != nil {
 				errOut = err
@@ -46,7 +47,7 @@ func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (casOut 
 				if err != nil {
 					errOut = err
 				} else {
-					casOut = cas
+					casOut = Cas(cas)
 				}
 
 			}
@@ -68,14 +69,14 @@ func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (casOut 
 
 type hlpCasHandler func(ioCasCallback) (pendingOp, error)
 
-func (b *Bucket) hlpCasExec(execFn hlpCasHandler) (casOut uint64, errOut error) {
+func (b *Bucket) hlpCasExec(execFn hlpCasHandler) (casOut Cas, errOut error) {
 	signal := make(chan bool, 1)
-	op, err := execFn(func(cas uint64, err error) {
+	op, err := execFn(func(cas gocbcore.Cas, err error) {
 		go func() {
 			if err != nil {
 				errOut = err
 			} else {
-				casOut = cas
+				casOut = Cas(cas)
 			}
 			signal <- true
 		}()
@@ -95,15 +96,15 @@ func (b *Bucket) hlpCasExec(execFn hlpCasHandler) (casOut uint64, errOut error) 
 
 type hlpCtrHandler func(ioCtrCallback) (pendingOp, error)
 
-func (b *Bucket) hlpCtrExec(execFn hlpCtrHandler) (valOut uint64, casOut uint64, errOut error) {
+func (b *Bucket) hlpCtrExec(execFn hlpCtrHandler) (valOut uint64, casOut Cas, errOut error) {
 	signal := make(chan bool, 1)
-	op, err := execFn(func(value uint64, cas uint64, err error) {
+	op, err := execFn(func(value uint64, cas gocbcore.Cas, err error) {
 		go func() {
 			if err != nil {
 				errOut = err
 			} else {
 				valOut = value
-				casOut = cas
+				casOut = Cas(cas)
 			}
 			signal <- true
 		}()
@@ -122,7 +123,7 @@ func (b *Bucket) hlpCtrExec(execFn hlpCtrHandler) (valOut uint64, casOut uint64,
 }
 
 // Retrieves a document from the bucket
-func (b *Bucket) Get(key string, valuePtr interface{}) (uint64, error) {
+func (b *Bucket) Get(key string, valuePtr interface{}) (Cas, error) {
 	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (pendingOp, error) {
 		op, err := b.client.Get([]byte(key), gocbcore.GetCallback(cb))
 		return op, err
@@ -130,7 +131,7 @@ func (b *Bucket) Get(key string, valuePtr interface{}) (uint64, error) {
 }
 
 // Retrieves a document and simultaneously updates its expiry time.
-func (b *Bucket) GetAndTouch(key string, expiry uint32, valuePtr interface{}) (uint64, error) {
+func (b *Bucket) GetAndTouch(key string, expiry uint32, valuePtr interface{}) (Cas, error) {
 	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (pendingOp, error) {
 		op, err := b.client.GetAndTouch([]byte(key), expiry, gocbcore.GetCallback(cb))
 		return op, err
@@ -138,7 +139,7 @@ func (b *Bucket) GetAndTouch(key string, expiry uint32, valuePtr interface{}) (u
 }
 
 // Locks a document for a period of time, providing exclusive RW access to it.
-func (b *Bucket) GetAndLock(key string, lockTime uint32, valuePtr interface{}) (uint64, error) {
+func (b *Bucket) GetAndLock(key string, lockTime uint32, valuePtr interface{}) (Cas, error) {
 	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (pendingOp, error) {
 		op, err := b.client.GetAndLock([]byte(key), lockTime, gocbcore.GetCallback(cb))
 		return op, err
@@ -146,15 +147,15 @@ func (b *Bucket) GetAndLock(key string, lockTime uint32, valuePtr interface{}) (
 }
 
 // Unlocks a document which was locked with GetAndLock.
-func (b *Bucket) Unlock(key string, cas uint64) (casOut uint64, errOut error) {
+func (b *Bucket) Unlock(key string, cas Cas) (Cas, error) {
 	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
-		op, err := b.client.Unlock([]byte(key), cas, gocbcore.UnlockCallback(cb))
+		op, err := b.client.Unlock([]byte(key), gocbcore.Cas(cas), gocbcore.UnlockCallback(cb))
 		return op, err
 	})
 }
 
 // Returns the value of a particular document from a replica server.
-func (b *Bucket) GetReplica(key string, valuePtr interface{}, replicaIdx int) (uint64, error) {
+func (b *Bucket) GetReplica(key string, valuePtr interface{}, replicaIdx int) (Cas, error) {
 	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (pendingOp, error) {
 		op, err := b.client.GetReplica([]byte(key), replicaIdx, gocbcore.GetCallback(cb))
 		return op, err
@@ -162,23 +163,23 @@ func (b *Bucket) GetReplica(key string, valuePtr interface{}, replicaIdx int) (u
 }
 
 // Touches a document, specifying a new expiry time for it.
-func (b *Bucket) Touch(key string, cas uint64, expiry uint32) (uint64, error) {
+func (b *Bucket) Touch(key string, cas Cas, expiry uint32) (Cas, error) {
 	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
-		op, err := b.client.Touch([]byte(key), cas, expiry, gocbcore.TouchCallback(cb))
+		op, err := b.client.Touch([]byte(key), gocbcore.Cas(cas), expiry, gocbcore.TouchCallback(cb))
 		return op, err
 	})
 }
 
 // Removes a document from the bucket.
-func (b *Bucket) Remove(key string, cas uint64) (casOut uint64, errOut error) {
+func (b *Bucket) Remove(key string, cas Cas) (Cas, error) {
 	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
-		op, err := b.client.Remove([]byte(key), cas, gocbcore.RemoveCallback(cb))
+		op, err := b.client.Remove([]byte(key), gocbcore.Cas(cas), gocbcore.RemoveCallback(cb))
 		return op, err
 	})
 }
 
 // Inserts or replaces a document in the bucket.
-func (b *Bucket) Upsert(key string, value interface{}, expiry uint32) (casOut uint64, errOut error) {
+func (b *Bucket) Upsert(key string, value interface{}, expiry uint32) (Cas, error) {
 	bytes, flags, err := b.transcoder.Encode(value)
 	if err != nil {
 		return 0, err
@@ -191,7 +192,7 @@ func (b *Bucket) Upsert(key string, value interface{}, expiry uint32) (casOut ui
 }
 
 // Inserts a new document to the bucket.
-func (b *Bucket) Insert(key string, value interface{}, expiry uint32) (uint64, error) {
+func (b *Bucket) Insert(key string, value interface{}, expiry uint32) (Cas, error) {
 	bytes, flags, err := b.transcoder.Encode(value)
 	if err != nil {
 		return 0, err
@@ -204,20 +205,20 @@ func (b *Bucket) Insert(key string, value interface{}, expiry uint32) (uint64, e
 }
 
 // Replaces a document in the bucket.
-func (b *Bucket) Replace(key string, value interface{}, cas uint64, expiry uint32) (uint64, error) {
+func (b *Bucket) Replace(key string, value interface{}, cas Cas, expiry uint32) (Cas, error) {
 	bytes, flags, err := b.transcoder.Encode(value)
 	if err != nil {
 		return 0, err
 	}
 
 	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
-		op, err := b.client.Replace([]byte(key), bytes, flags, cas, expiry, gocbcore.StoreCallback(cb))
+		op, err := b.client.Replace([]byte(key), bytes, flags, gocbcore.Cas(cas), expiry, gocbcore.StoreCallback(cb))
 		return op, err
 	})
 }
 
 // Appends a string value to a document.
-func (b *Bucket) Append(key, value string) (uint64, error) {
+func (b *Bucket) Append(key, value string) (Cas, error) {
 	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
 		op, err := b.client.Append([]byte(key), []byte(value), gocbcore.StoreCallback(cb))
 		return op, err
@@ -225,7 +226,7 @@ func (b *Bucket) Append(key, value string) (uint64, error) {
 }
 
 // Prepends a string value to a document.
-func (b *Bucket) Prepend(key, value string) (uint64, error) {
+func (b *Bucket) Prepend(key, value string) (Cas, error) {
 	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
 		op, err := b.client.Prepend([]byte(key), []byte(value), gocbcore.StoreCallback(cb))
 		return op, err
@@ -233,7 +234,7 @@ func (b *Bucket) Prepend(key, value string) (uint64, error) {
 }
 
 // Performs an atomic addition or subtraction for an integer document.
-func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint64, uint64, error) {
+func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint64, Cas, error) {
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
 	if initial > 0 {
 		realInitial = uint64(initial)
@@ -254,9 +255,9 @@ func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint6
 	}
 }
 
-func (b *Bucket) observeOne(key []byte, cas uint64, forDelete bool, repId int, replicaCh, persistCh chan bool) {
+func (b *Bucket) observeOne(key []byte, cas Cas, forDelete bool, repId int, replicaCh, persistCh chan bool) {
 	observeOnce := func(commCh chan uint) (pendingOp, error) {
-		return b.client.Observe(key, repId, func(ks gocbcore.KeyState, obsCas uint64, err error) {
+		return b.client.Observe(key, repId, func(ks gocbcore.KeyState, obsCas gocbcore.Cas, err error) {
 			if err != nil {
 				commCh <- 0
 				return
@@ -267,7 +268,7 @@ func (b *Bucket) observeOne(key []byte, cas uint64, forDelete bool, repId int, r
 
 			if ks == gocbcore.KeyStatePersisted {
 				if !forDelete {
-					if obsCas == cas {
+					if Cas(obsCas) == cas {
 						if repId != 0 {
 							didReplicate = true
 						}
@@ -276,7 +277,7 @@ func (b *Bucket) observeOne(key []byte, cas uint64, forDelete bool, repId int, r
 				}
 			} else if ks == gocbcore.KeyStateNotPersisted {
 				if !forDelete {
-					if obsCas == cas {
+					if Cas(obsCas) == cas {
 						if repId != 0 {
 							didReplicate = true
 						}
@@ -359,7 +360,7 @@ func (b *Bucket) observeOne(key []byte, cas uint64, forDelete bool, repId int, r
 	}
 }
 
-func (b *Bucket) durability(key string, cas uint64, replicaTo, persistTo uint, forDelete bool) error {
+func (b *Bucket) durability(key string, cas Cas, replicaTo, persistTo uint, forDelete bool) error {
 	numServers := b.client.NumReplicas() + 1
 
 	if replicaTo > uint(numServers - 1) || persistTo > uint(numServers) {
@@ -401,7 +402,7 @@ func (b *Bucket) durability(key string, cas uint64, replicaTo, persistTo uint, f
 	}
 }
 
-func (b *Bucket) TouchDura(key string, cas uint64, expiry uint32, replicateTo, persistTo uint) (uint64, error) {
+func (b *Bucket) TouchDura(key string, cas Cas, expiry uint32, replicateTo, persistTo uint) (Cas, error) {
 	cas, err := b.Touch(key, cas, expiry)
 	if err != nil {
 		return cas, err
@@ -409,7 +410,7 @@ func (b *Bucket) TouchDura(key string, cas uint64, expiry uint32, replicateTo, p
 	return cas, b.durability(key, cas, replicateTo, persistTo, false)
 }
 
-func (b *Bucket) RemoveDura(key string, cas uint64, replicateTo, persistTo uint) (uint64, error) {
+func (b *Bucket) RemoveDura(key string, cas Cas, replicateTo, persistTo uint) (Cas, error) {
 	cas, err := b.Remove(key, cas)
 	if err != nil {
 		return cas, err
@@ -418,7 +419,7 @@ func (b *Bucket) RemoveDura(key string, cas uint64, replicateTo, persistTo uint)
 }
 
 // Inserts or replaces a document in the bucket.
-func (b *Bucket) UpsertDura(key string, value interface{}, expiry uint32, replicateTo, persistTo uint) (uint64, error) {
+func (b *Bucket) UpsertDura(key string, value interface{}, expiry uint32, replicateTo, persistTo uint) (Cas, error) {
 	cas, err := b.Upsert(key, value, expiry)
 	if err != nil {
 		return cas, err
@@ -427,7 +428,7 @@ func (b *Bucket) UpsertDura(key string, value interface{}, expiry uint32, replic
 }
 
 // Inserts a new document to the bucket.
-func (b *Bucket) InsertDura(key string, value interface{}, expiry uint32, replicateTo, persistTo uint) (uint64, error) {
+func (b *Bucket) InsertDura(key string, value interface{}, expiry uint32, replicateTo, persistTo uint) (Cas, error) {
 	cas, err := b.Insert(key, value, expiry)
 	if err != nil {
 		return cas, err
@@ -436,7 +437,7 @@ func (b *Bucket) InsertDura(key string, value interface{}, expiry uint32, replic
 }
 
 // Replaces a document in the bucket.
-func (b *Bucket) ReplaceDura(key string, value interface{}, cas uint64, expiry uint32, replicateTo, persistTo uint) (uint64, error) {
+func (b *Bucket) ReplaceDura(key string, value interface{}, cas Cas, expiry uint32, replicateTo, persistTo uint) (Cas, error) {
 	cas, err := b.Replace(key, value, cas, expiry)
 	if err != nil {
 		return cas, err
@@ -445,7 +446,7 @@ func (b *Bucket) ReplaceDura(key string, value interface{}, cas uint64, expiry u
 }
 
 // Appends a string value to a document.
-func (b *Bucket) AppendDura(key, value string, replicateTo, persistTo uint) (uint64, error) {
+func (b *Bucket) AppendDura(key, value string, replicateTo, persistTo uint) (Cas, error) {
 	cas, err := b.Append(key, value)
 	if err != nil {
 		return cas, err
@@ -454,7 +455,7 @@ func (b *Bucket) AppendDura(key, value string, replicateTo, persistTo uint) (uin
 }
 
 // Prepends a string value to a document.
-func (b *Bucket) PrependDura(key, value string, replicateTo, persistTo uint) (uint64, error) {
+func (b *Bucket) PrependDura(key, value string, replicateTo, persistTo uint) (Cas, error) {
 	cas, err := b.Prepend(key, value)
 	if err != nil {
 		return cas, err
@@ -463,7 +464,7 @@ func (b *Bucket) PrependDura(key, value string, replicateTo, persistTo uint) (ui
 }
 
 // Performs an atomic addition or subtraction for an integer document.
-func (b *Bucket) CounterDura(key string, delta, initial int64, expiry uint32, replicateTo, persistTo uint) (uint64, uint64, error) {
+func (b *Bucket) CounterDura(key string, delta, initial int64, expiry uint32, replicateTo, persistTo uint) (uint64, Cas, error) {
 	val, cas, err := b.Counter(key, delta, initial, expiry)
 	if err != nil {
 		return val, cas, err

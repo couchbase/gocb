@@ -5,6 +5,8 @@ import (
 	"sync/atomic"
 )
 
+type Cas uint64
+
 type PendingOp interface {
 	Cancel() bool
 }
@@ -31,13 +33,13 @@ func (c *Agent) dispatchOp(req *memdQRequest) (PendingOp, error) {
 	return req, nil
 }
 
-type GetCallback func([]byte, uint32, uint64, error)
-type UnlockCallback func(uint64, error)
-type TouchCallback func(uint64, error)
-type RemoveCallback func(uint64, error)
-type StoreCallback func(uint64, error)
-type CounterCallback func(uint64, uint64, error)
-type ObserveCallback func(KeyState, uint64, error)
+type GetCallback func([]byte, uint32, Cas, error)
+type UnlockCallback func(Cas, error)
+type TouchCallback func(Cas, error)
+type RemoveCallback func(Cas, error)
+type StoreCallback func(Cas, error)
+type CounterCallback func(uint64, Cas, error)
+type ObserveCallback func(KeyState, Cas, error)
 
 func (c *Agent) Get(key []byte, cb GetCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
@@ -46,7 +48,7 @@ func (c *Agent) Get(key []byte, cb GetCallback) (PendingOp, error) {
 			return
 		}
 		flags := binary.BigEndian.Uint32(resp.Extras[0:])
-		cb(resp.Value, flags, resp.Cas, nil)
+		cb(resp.Value, flags, Cas(resp.Cas), nil)
 	}
 	req := &memdQRequest{
 		memdRequest: memdRequest{
@@ -70,7 +72,7 @@ func (c *Agent) GetAndTouch(key []byte, expiry uint32, cb GetCallback) (PendingO
 			return
 		}
 		flags := binary.BigEndian.Uint32(resp.Extras[0:])
-		cb(resp.Value, flags, resp.Cas, nil)
+		cb(resp.Value, flags, Cas(resp.Cas), nil)
 	}
 
 	extraBuf := make([]byte, 4)
@@ -98,7 +100,7 @@ func (c *Agent) GetAndLock(key []byte, lockTime uint32, cb GetCallback) (Pending
 			return
 		}
 		flags := binary.BigEndian.Uint32(resp.Extras[0:])
-		cb(resp.Value, flags, resp.Cas, nil)
+		cb(resp.Value, flags, Cas(resp.Cas), nil)
 	}
 
 	extraBuf := make([]byte, 4)
@@ -130,7 +132,7 @@ func (c *Agent) getOneReplica(key []byte, replicaIdx int, cb GetCallback) (Pendi
 			return
 		}
 		flags := binary.BigEndian.Uint32(resp.Extras[0:])
-		cb(resp.Value, flags, resp.Cas, nil)
+		cb(resp.Value, flags, Cas(resp.Cas), nil)
 	}
 
 	req := &memdQRequest{
@@ -153,7 +155,7 @@ func (c *Agent) getAnyReplica(key []byte, cb GetCallback) (PendingOp, error) {
 	opRes := &multiPendingOp{}
 
 	var cbCalled uint32
-	handler := func(value []byte, flags uint32, cas uint64, err error) {
+	handler := func(value []byte, flags uint32, cas Cas, err error) {
 		if atomic.CompareAndSwapUint32(&cbCalled, 0, 1) {
 			// Cancel all other commands if possible.
 			opRes.Cancel()
@@ -189,13 +191,13 @@ func (c *Agent) GetReplica(key []byte, replicaIdx int, cb GetCallback) (PendingO
 	}
 }
 
-func (c *Agent) Touch(key []byte, cas uint64, expiry uint32, cb TouchCallback) (PendingOp, error) {
+func (c *Agent) Touch(key []byte, cas Cas, expiry uint32, cb TouchCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
 			cb(0, err)
 			return
 		}
-		cb(resp.Cas, nil)
+		cb(Cas(resp.Cas), nil)
 	}
 
 	extraBuf := make([]byte, 4)
@@ -206,7 +208,7 @@ func (c *Agent) Touch(key []byte, cas uint64, expiry uint32, cb TouchCallback) (
 			Magic:    ReqMagic,
 			Opcode:   CmdTouch,
 			Datatype: 0,
-			Cas:      cas,
+			Cas:      uint64(cas),
 			Extras:   extraBuf,
 			Key:      key,
 			Value:    nil,
@@ -216,13 +218,13 @@ func (c *Agent) Touch(key []byte, cas uint64, expiry uint32, cb TouchCallback) (
 	return c.dispatchOp(req)
 }
 
-func (c *Agent) Unlock(key []byte, cas uint64, cb UnlockCallback) (PendingOp, error) {
+func (c *Agent) Unlock(key []byte, cas Cas, cb UnlockCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
 			cb(0, err)
 			return
 		}
-		cb(resp.Cas, nil)
+		cb(Cas(resp.Cas), nil)
 	}
 
 	req := &memdQRequest{
@@ -240,13 +242,13 @@ func (c *Agent) Unlock(key []byte, cas uint64, cb UnlockCallback) (PendingOp, er
 	return c.dispatchOp(req)
 }
 
-func (c *Agent) Remove(key []byte, cas uint64, cb RemoveCallback) (PendingOp, error) {
+func (c *Agent) Remove(key []byte, cas Cas, cb RemoveCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
 			cb(0, err)
 			return
 		}
-		cb(resp.Cas, nil)
+		cb(Cas(resp.Cas), nil)
 	}
 
 	req := &memdQRequest{
@@ -254,7 +256,7 @@ func (c *Agent) Remove(key []byte, cas uint64, cb RemoveCallback) (PendingOp, er
 			Magic:    ReqMagic,
 			Opcode:   CmdDelete,
 			Datatype: 0,
-			Cas:      cas,
+			Cas:      uint64(cas),
 			Extras:   nil,
 			Key:      key,
 			Value:    nil,
@@ -264,13 +266,13 @@ func (c *Agent) Remove(key []byte, cas uint64, cb RemoveCallback) (PendingOp, er
 	return c.dispatchOp(req)
 }
 
-func (c *Agent) store(opcode CommandCode, key, value []byte, flags uint32, cas uint64, expiry uint32, cb StoreCallback) (PendingOp, error) {
+func (c *Agent) store(opcode CommandCode, key, value []byte, flags uint32, cas Cas, expiry uint32, cb StoreCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
 			cb(0, err)
 			return
 		}
-		cb(resp.Cas, nil)
+		cb(Cas(resp.Cas), nil)
 	}
 
 	extraBuf := make([]byte, 8)
@@ -281,7 +283,7 @@ func (c *Agent) store(opcode CommandCode, key, value []byte, flags uint32, cas u
 			Magic:    ReqMagic,
 			Opcode:   opcode,
 			Datatype: 0,
-			Cas:      cas,
+			Cas:      uint64(cas),
 			Extras:   extraBuf,
 			Key:      key,
 			Value:    value,
@@ -299,7 +301,7 @@ func (c *Agent) Set(key, value []byte, flags uint32, expiry uint32, cb StoreCall
 	return c.store(CmdSet, key, value, flags, 0, expiry, cb)
 }
 
-func (c *Agent) Replace(key, value []byte, flags uint32, cas uint64, expiry uint32, cb StoreCallback) (PendingOp, error) {
+func (c *Agent) Replace(key, value []byte, flags uint32, cas Cas, expiry uint32, cb StoreCallback) (PendingOp, error) {
 	return c.store(CmdReplace, key, value, flags, cas, expiry, cb)
 }
 
@@ -309,7 +311,7 @@ func (c *Agent) adjoin(opcode CommandCode, key, value []byte, cb StoreCallback) 
 			cb(0, err)
 			return
 		}
-		cb(resp.Cas, nil)
+		cb(Cas(resp.Cas), nil)
 	}
 
 	req := &memdQRequest{
@@ -348,7 +350,7 @@ func (c *Agent) counter(opcode CommandCode, key []byte, delta, initial uint64, e
 		}
 		intVal := binary.BigEndian.Uint64(resp.Value)
 
-		cb(intVal, resp.Cas, nil)
+		cb(intVal, Cas(resp.Cas), nil)
 	}
 
 	extraBuf := make([]byte, 20)
@@ -399,7 +401,7 @@ func (c *Agent) Observe(key []byte, replicaIdx int, cb ObserveCallback) (Pending
 		keyState := KeyState(resp.Value[2+2+keyLen])
 		cas := binary.BigEndian.Uint64(resp.Value[2+2+keyLen+1:])
 
-		cb(keyState, cas, nil)
+		cb(keyState, Cas(cas), nil)
 	}
 
 	vbId := c.KeyToVbucket(key)
