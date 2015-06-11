@@ -62,9 +62,7 @@ func DialMemdConn(address string, tlsConfig *tls.Config) (*memdConn, error) {
 	if tlsConfig == nil {
 		conn = tcpConn
 	} else {
-		tlsConn := tls.Client(tcpConn, &tls.Config{
-			InsecureSkipVerify: true,
-		})
+		tlsConn := tls.Client(tcpConn, tlsConfig)
 		if err != nil {
 			return nil, err
 		}
