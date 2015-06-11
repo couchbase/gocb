@@ -7,6 +7,7 @@ import (
 	"github.com/couchbaselabs/gocb/gocbcore"
 	"math/rand"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -17,14 +18,33 @@ type Bucket struct {
 	httpCli    *http.Client
 	client     *gocbcore.Agent
 	transcoder Transcoder
+
+	opTimeout       time.Duration
+	duraTimeout     time.Duration
+	duraPollTimeout time.Duration
 }
 
 func (b *Bucket) SetTranscoder(transcoder Transcoder) {
 	b.transcoder = transcoder
 }
 
-func (b *Bucket) afterOpTimeout() <-chan time.Time {
-	return time.After(10 * time.Second)
+var timerPool = sync.Pool{}
+
+func acquireTimer(d time.Duration) *time.Timer {
+	tmrMaybe := timerPool.Get()
+	if tmrMaybe == nil {
+		return time.NewTimer(d)
+	}
+	tmr := tmrMaybe.(*time.Timer)
+	tmr.Reset(d)
+	return tmr
+}
+func releaseTimer(t *time.Timer, wasRead bool) {
+	stopped := t.Stop()
+	if !wasRead && !stopped {
+		<-t.C
+	}
+	timerPool.Put(t)
 }
 
 type Cas gocbcore.Cas
@@ -58,10 +78,13 @@ func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (casOut 
 		return 0, err
 	}
 
+	timeoutTmr := acquireTimer(b.opTimeout)
 	select {
 	case <-signal:
+		releaseTimer(timeoutTmr, false)
 		return
-	case <-b.afterOpTimeout():
+	case <-timeoutTmr.C:
+		releaseTimer(timeoutTmr, true)
 		op.Cancel()
 		return 0, timeoutError{}
 	}
@@ -85,10 +108,13 @@ func (b *Bucket) hlpCasExec(execFn hlpCasHandler) (casOut Cas, errOut error) {
 		return 0, err
 	}
 
+	timeoutTmr := acquireTimer(b.opTimeout)
 	select {
 	case <-signal:
+		releaseTimer(timeoutTmr, false)
 		return
-	case <-b.afterOpTimeout():
+	case <-timeoutTmr.C:
+		releaseTimer(timeoutTmr, true)
 		op.Cancel()
 		return 0, timeoutError{}
 	}
@@ -113,10 +139,13 @@ func (b *Bucket) hlpCtrExec(execFn hlpCtrHandler) (valOut uint64, casOut Cas, er
 		return 0, 0, err
 	}
 
+	timeoutTmr := acquireTimer(b.opTimeout)
 	select {
 	case <-signal:
+		releaseTimer(timeoutTmr, false)
 		return
-	case <-b.afterOpTimeout():
+	case <-timeoutTmr.C:
+		releaseTimer(timeoutTmr, true)
 		op.Cancel()
 		return 0, 0, timeoutError{}
 	}
@@ -305,9 +334,6 @@ func (b *Bucket) observeOne(key []byte, cas Cas, forDelete bool, repId int, repl
 		})
 	}
 
-	timeoutTmr := time.NewTimer(2 * time.Second)
-	waitTmr := time.NewTimer(2 * time.Second)
-
 	sentReplicated := false
 	sentPersisted := false
 
@@ -322,38 +348,45 @@ func (b *Bucket) observeOne(key []byte, cas Cas, forDelete bool, repId int, repl
 		}
 	}
 
+	timeoutTmr := acquireTimer(b.duraTimeout)
+
 	commCh := make(chan uint)
 	for {
 		op, err := observeOnce(commCh)
 		if err != nil {
+			releaseTimer(timeoutTmr, false)
 			failMe()
 			return
 		}
 
 		select {
 		case val := <-commCh:
-		// Got Value
-			if (val & 1) != 0 && !sentReplicated {
+			// Got Value
+			if (val&1) != 0 && !sentReplicated {
 				replicaCh <- true
 				sentReplicated = true
 			}
-			if (val & 2) != 0 && !sentPersisted {
+			if (val&2) != 0 && !sentPersisted {
 				persistCh <- true
 				sentPersisted = true
 			}
 
-			waitTmr.Reset(100 * time.Millisecond)
-				select {
-				case <-waitTmr.C:
+			waitTmr := acquireTimer(b.duraPollTimeout)
+			select {
+			case <-waitTmr.C:
+				releaseTimer(waitTmr, true)
 				// Fall through to outside for loop
-				case <-timeoutTmr.C:
-					failMe()
-					return
-				}
+			case <-timeoutTmr.C:
+				releaseTimer(waitTmr, false)
+				releaseTimer(timeoutTmr, true)
+				failMe()
+				return
+			}
 
 		case <-timeoutTmr.C:
-		// Timed out
+			// Timed out
 			op.Cancel()
+			releaseTimer(timeoutTmr, true)
 			failMe()
 			return
 		}
@@ -363,7 +396,7 @@ func (b *Bucket) observeOne(key []byte, cas Cas, forDelete bool, repId int, repl
 func (b *Bucket) durability(key string, cas Cas, replicaTo, persistTo uint, forDelete bool) error {
 	numServers := b.client.NumReplicas() + 1
 
-	if replicaTo > uint(numServers - 1) || persistTo > uint(numServers) {
+	if replicaTo > uint(numServers-1) || persistTo > uint(numServers) {
 		return &clientError{"Not enough replicas to match durability requirements."}
 	}
 
@@ -382,12 +415,12 @@ func (b *Bucket) durability(key string, cas Cas, replicaTo, persistTo uint, forD
 
 	for {
 		select {
-		case rV := <- replicaCh:
+		case rV := <-replicaCh:
 			if rV {
 				replicas++
 			}
 			results++
-		case pV := <- persistCh:
+		case pV := <-persistCh:
 			if pV {
 				persists++
 			}

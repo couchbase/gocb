@@ -100,6 +100,10 @@ func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 			},
 		},
 		transcoder: &DefaultTranscoder{},
+
+		opTimeout:       2500 * time.Millisecond,
+		duraTimeout:     40000 * time.Millisecond,
+		duraPollTimeout: 100 * time.Millisecond,
 	}, nil
 }
 
