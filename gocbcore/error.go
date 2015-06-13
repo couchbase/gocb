@@ -12,6 +12,10 @@ func (e generalError) Error() string {
 	return e.message
 }
 
+func (e generalError) GeneralError() bool {
+	return true
+}
+
 type networkError struct {
 }
 
@@ -33,8 +37,24 @@ func (e overloadError) Overload() bool {
 	return true
 }
 
+func (e overloadError) OverloadError() bool {
+	return true
+}
+
 type memdError struct {
 	code StatusCode
+}
+
+type agentError struct {
+	message string
+}
+
+func (e agentError) Error() string {
+	return e.message
+}
+
+func (e agentError) AgentError() bool {
+	return true
 }
 
 func (e memdError) Error() string {
@@ -67,15 +87,39 @@ func (e memdError) Error() string {
 		return fmt.Sprintf("An unknown error occurred (%d).", e.code)
 	}
 }
+
+func (e memdError) Success() bool {
+	return e.code == StatusSuccess
+}
+
 func (e memdError) KeyNotFound() bool {
 	return e.code == StatusKeyNotFound
 }
+
 func (e memdError) KeyExists() bool {
 	return e.code == StatusKeyExists
 }
+
+func (e memdError) TooBig() bool {
+	return e.code == StatusTooBig
+}
+
+func (e memdError) NotStored() bool {
+	return e.code == StatusNotStored
+}
+
+func (e memdError) BadDelta() bool {
+	return e.code == StatusBadDelta
+}
+
+func (e memdError) NotMyVBucket() bool {
+	return e.code == StatusNotMyVBucket
+}
+
 func (e memdError) Temporary() bool {
 	return e.code == StatusOutOfMemory || e.code == StatusTmpFail
 }
+
 func (e memdError) AuthError() bool {
 	return e.code == StatusAuthError
 }
@@ -89,10 +133,25 @@ func (e memdError) BadDelta() bool {
 	return e.code == StatusBadDelta
 }
 
-type agentError struct {
-	message string
+func (e memdError) AuthContinue() bool {
+	return e.code == StatusAuthContinue
 }
 
-func (e agentError) Error() string {
-	return e.message
+func (e memdError) UnknownCommand() bool {
+	return e.code == StatusUnknownCommand
+}
+
+func (e memdError) UnknownError() bool {
+	return e.code != StatusSuccess &&
+		e.code != StatusKeyNotFound &&
+		e.code != StatusKeyExists &&
+		e.code != StatusTooBig &&
+		e.code != StatusNotStored &&
+		e.code != StatusBadDelta &&
+		e.code != StatusNotMyVBucket &&
+		e.code != StatusAuthError &&
+		e.code != StatusAuthContinue &&
+		e.code != StatusUnknownCommand &&
+		e.code != StatusOutOfMemory &&
+		e.code != StatusTmpFail
 }
