@@ -23,7 +23,7 @@ func (c *Agent) handleServerDeath(s *memdPipeline) {
 
 func (c *Agent) connectPipeline(pipeline *memdPipeline) error {
 	logDebugf("Attempting to connect pipeline to %s", pipeline.address)
-	memdConn, err := DialMemdConn(pipeline.address, nil)
+	memdConn, err := DialMemdConn(pipeline.address, c.tlsConfig)
 	if err != nil {
 		logDebugf("Failed to connect. %v", err)
 		return err
