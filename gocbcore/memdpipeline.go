@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-type memdInitFunc func(*memdPipeline) error
+type memdInitFunc func(*memdPipeline, time.Time) error
 
 type CloseHandler func(*memdPipeline)
 type BadRouteHandler func(*memdPipeline, *memdQRequest, *memdResponse)
@@ -66,7 +66,7 @@ func (s *memdPipeline) SetHandlers(badRouteFn BadRouteHandler, deathFn CloseHand
 	s.lock.Unlock()
 }
 
-func (pipeline *memdPipeline) ExecuteRequest(req *memdQRequest) (respOut *memdResponse, errOut error) {
+func (pipeline *memdPipeline) ExecuteRequest(req *memdQRequest, deadline time.Time) (respOut *memdResponse, errOut error) {
 	if req.Callback != nil {
 		panic("Tried to synchronously dispatch an operation with an async handler.")
 	}
@@ -86,7 +86,7 @@ func (pipeline *memdPipeline) ExecuteRequest(req *memdQRequest) (respOut *memdRe
 	select {
 	case <-signal:
 		return
-	case <-time.After(2500 * time.Millisecond):
+	case <-time.After(deadline.Sub(time.Now())):
 		req.Cancel()
 		return nil, &generalError{"Operation timed out."}
 	}

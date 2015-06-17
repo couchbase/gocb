@@ -49,7 +49,7 @@ func (bm *BucketManager) capiRequest(method, uri, contentType string, body io.Re
 	}
 
 	req.SetBasicAuth(bm.username, bm.password)
-	return bm.bucket.httpCli.Do(req)
+	return bm.bucket.client.HttpClient().Do(req)
 }
 
 func (bm *BucketManager) mgmtRequest(method, uri, contentType string, body io.Reader) (*http.Response, error) {
@@ -71,7 +71,7 @@ func (bm *BucketManager) mgmtRequest(method, uri, contentType string, body io.Re
 	}
 
 	req.SetBasicAuth(bm.username, bm.password)
-	return bm.bucket.httpCli.Do(req)
+	return bm.bucket.client.HttpClient().Do(req)
 }
 
 func (bm *BucketManager) Flush() error {

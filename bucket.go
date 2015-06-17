@@ -13,15 +13,51 @@ import (
 
 // An interface representing a single bucket within a cluster.
 type Bucket struct {
-	name       string
-	password   string
-	httpCli    *http.Client
-	client     *gocbcore.Agent
-	transcoder Transcoder
+	name     string
+	password string
+	client   *gocbcore.Agent
 
+	transcoder      Transcoder
 	opTimeout       time.Duration
 	duraTimeout     time.Duration
 	duraPollTimeout time.Duration
+}
+
+func createBucket(config *gocbcore.AgentConfig) (*Bucket, error) {
+	cli, err := gocbcore.CreateAgent(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Bucket{
+		name:       config.BucketName,
+		password:   config.Password,
+		client:     cli,
+		transcoder: &DefaultTranscoder{},
+
+		opTimeout:       2500 * time.Millisecond,
+		duraTimeout:     40000 * time.Millisecond,
+		duraPollTimeout: 100 * time.Millisecond,
+	}, nil
+}
+
+func (b *Bucket) OperationTimeout() time.Duration {
+	return b.opTimeout
+}
+func (b *Bucket) SetOperationTimeout(timeout time.Duration) {
+	b.opTimeout = timeout
+}
+func (b *Bucket) DurabilityTimeout() time.Duration {
+	return b.duraTimeout
+}
+func (b *Bucket) SetDurabilityTimeout(timeout time.Duration) {
+	b.duraTimeout = timeout
+}
+func (b *Bucket) DurabilityPollTimeout() time.Duration {
+	return b.duraPollTimeout
+}
+func (b *Bucket) SetDurabilityPollTimeout(timeout time.Duration) {
+	b.duraPollTimeout = timeout
 }
 
 func (b *Bucket) SetTranscoder(transcoder Transcoder) {
@@ -606,7 +642,7 @@ func (b *Bucket) ExecuteViewQuery(q *ViewQuery) ViewResults {
 	}
 	req.SetBasicAuth(b.name, b.password)
 
-	resp, err := b.httpCli.Do(req)
+	resp, err := b.client.HttpClient().Do(req)
 	if err != nil {
 		return &viewResults{err: err}
 	}
@@ -656,7 +692,7 @@ func (b *Bucket) ExecuteSpatialQuery(q *SpatialQuery) ViewResults {
 	}
 	req.SetBasicAuth(b.name, b.password)
 
-	resp, err := b.httpCli.Do(req)
+	resp, err := b.client.HttpClient().Do(req)
 	if err != nil {
 		return &viewResults{err: err}
 	}
@@ -797,7 +833,7 @@ func (b *Bucket) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) ViewResults 
 	fmt.Printf("URI: %s\n", reqUri)
 	fmt.Printf("Data: %s\n", reqJson)
 
-	resp, err := b.httpCli.Do(req)
+	resp, err := b.client.HttpClient().Do(req)
 	if err != nil {
 		return &viewResults{err: err}
 	}

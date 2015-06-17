@@ -9,8 +9,9 @@ import (
 )
 
 type Cluster struct {
-	spec              connSpec
-	connectionTimeout time.Duration
+	spec                 connSpec
+	connectTimeout       time.Duration
+	serverConnectTimeout time.Duration
 }
 
 func Connect(connSpecStr string) (*Cluster, error) {
@@ -23,10 +24,24 @@ func Connect(connSpecStr string) (*Cluster, error) {
 	}
 	csResolveDnsSrv(&spec)
 	cluster := &Cluster{
-		spec:              spec,
-		connectionTimeout: 10000 * time.Millisecond,
+		spec:                 spec,
+		connectTimeout:       60000 * time.Millisecond,
+		serverConnectTimeout: 7000 * time.Millisecond,
 	}
 	return cluster, nil
+}
+
+func (c *Cluster) ConnectTimeout() time.Duration {
+	return c.connectTimeout
+}
+func (c *Cluster) SetConnectTimeout(timeout time.Duration) {
+	c.connectTimeout = timeout
+}
+func (c *Cluster) ServerConnectTimeout() time.Duration {
+	return c.serverConnectTimeout
+}
+func (c *Cluster) SetServerConnectTimeout(timeout time.Duration) {
+	c.serverConnectTimeout = timeout
 }
 
 func specToHosts(spec connSpec) ([]string, []string, bool) {
@@ -59,10 +74,8 @@ func specToHosts(spec connSpec) ([]string, []string, bool) {
 	return memdHosts, httpHosts, isSslHosts
 }
 
-func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
-	memdHosts, httpHosts, isSslHosts := specToHosts(c.spec)
-
-	authFn := func(srv gocbcore.AuthClient) error {
+func (c *Cluster) makeAgentConfig(bucket, password string) *gocbcore.AgentConfig {
+	authFn := func(srv gocbcore.AuthClient, deadline time.Time) error {
 		// Build PLAIN auth data
 		userBuf := []byte(bucket)
 		passBuf := []byte(password)
@@ -73,10 +86,12 @@ func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 		copy(authData[1+len(userBuf)+1:], passBuf)
 
 		// Execute PLAIN authentication
-		_, err := srv.ExecSaslAuth([]byte("PLAIN"), authData)
+		_, err := srv.ExecSaslAuth([]byte("PLAIN"), authData, deadline)
 
 		return err
 	}
+
+	memdHosts, httpHosts, isSslHosts := specToHosts(c.spec)
 
 	var tlsConfig *tls.Config
 	if isSslHosts {
@@ -85,26 +100,21 @@ func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 		}
 	}
 
-	cli, err := gocbcore.CreateAgent(memdHosts, httpHosts, tlsConfig, bucket, password, authFn)
-	if err != nil {
-		return nil, err
+	return &gocbcore.AgentConfig{
+		MemdAddrs:            memdHosts,
+		HttpAddrs:            httpHosts,
+		TlsConfig:            tlsConfig,
+		BucketName:           bucket,
+		Password:             password,
+		AuthHandler:          authFn,
+		ConnectTimeout:       c.connectTimeout,
+		ServerConnectTimeout: c.serverConnectTimeout,
 	}
+}
 
-	return &Bucket{
-		name:     bucket,
-		password: password,
-		client:   cli,
-		httpCli: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: tlsConfig,
-			},
-		},
-		transcoder: &DefaultTranscoder{},
-
-		opTimeout:       2500 * time.Millisecond,
-		duraTimeout:     40000 * time.Millisecond,
-		duraPollTimeout: 100 * time.Millisecond,
-	}, nil
+func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
+	agentConfig := c.makeAgentConfig(bucket, password)
+	return createBucket(agentConfig)
 }
 
 func (c *Cluster) Manager(username, password string) *ClusterManager {
@@ -147,50 +157,7 @@ func (b *StreamingBucket) IoRouter() *gocbcore.Agent {
 }
 
 func (c *Cluster) OpenStreamingBucket(streamName, bucket, password string) (*StreamingBucket, error) {
-	var memdHosts []string
-	var httpHosts []string
-	isHttpHosts := c.spec.Scheme == "http"
-	isSslHosts := c.spec.Scheme == "couchbases"
-	for _, specHost := range c.spec.Hosts {
-		if specHost.Port == 0 {
-			if !isHttpHosts {
-				if !isSslHosts {
-					specHost.Port = 11210
-				} else {
-					specHost.Port = 11207
-				}
-			} else {
-				panic("HTTP configuration not yet supported")
-				//specHost.Port = 8091
-			}
-		}
-		memdHosts = append(memdHosts, fmt.Sprintf("%s:%d", specHost.Host, specHost.Port))
-	}
-
-	authFn := func(srv gocbcore.AuthClient) error {
-		// Build PLAIN auth data
-		userBuf := []byte(bucket)
-		passBuf := []byte(password)
-		authData := make([]byte, 1+len(userBuf)+1+len(passBuf))
-		authData[0] = 0
-		copy(authData[1:], userBuf)
-		authData[1+len(userBuf)] = 0
-		copy(authData[1+len(userBuf)+1:], passBuf)
-
-		// Execute PLAIN authentication
-		_, err := srv.ExecSaslAuth([]byte("PLAIN"), authData)
-
-		return err
-	}
-
-	var tlsConfig *tls.Config
-	if isSslHosts {
-		tlsConfig = &tls.Config{
-			InsecureSkipVerify: true,
-		}
-	}
-
-	cli, err := gocbcore.CreateDcpAgent(memdHosts, httpHosts, tlsConfig, bucket, password, authFn, streamName)
+	cli, err := gocbcore.CreateDcpAgent(c.makeAgentConfig(bucket, password), streamName)
 	if err != nil {
 		return nil, err
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 // This class represents the base client handling connections to a Couchbase Server.
@@ -20,38 +21,74 @@ type Agent struct {
 	numVbuckets int
 
 	httpCli *http.Client
+
+	serverConnectTimeout time.Duration
 }
 
-type AuthFunc func(AuthClient) error
+// The timeout for each server connection, including all authentication steps.
+func (c *Agent) ServerConnectTimeout() time.Duration {
+	return c.serverConnectTimeout
+}
+func (c *Agent) SetServerConnectTimeout(timeout time.Duration) {
+	c.serverConnectTimeout = timeout
+}
 
-func CreateDcpAgent(memdAddrs, httpAddrs []string, tlsConfig *tls.Config, bucketName, password string, authFn AuthFunc, dcpStreamName string) (*Agent, error) {
+// Returns a pre-configured HTTP Client for communicating with
+//   Couchbase Server.  You must still specify authentication
+//   information for any dispatched requests.
+func (c *Agent) HttpClient() *http.Client {
+	return c.httpCli
+}
+
+type AuthFunc func(client AuthClient, deadline time.Time) error
+
+type AgentConfig struct {
+	MemdAddrs   []string
+	HttpAddrs   []string
+	TlsConfig   *tls.Config
+	BucketName  string
+	Password    string
+	AuthHandler AuthFunc
+
+	ConnectTimeout       time.Duration
+	ServerConnectTimeout time.Duration
+}
+
+func CreateAgent(config *AgentConfig) (*Agent, error) {
+	initFn := func(pipeline *memdPipeline, deadline time.Time) error {
+		return config.AuthHandler(&authClient{pipeline}, deadline)
+	}
+	return createAgent(config, initFn)
+}
+
+func CreateDcpAgent(config *AgentConfig, dcpStreamName string) (*Agent, error) {
 	// We wrap the authorization system to force DCP channel opening
 	//   as part of the "initialization" for any servers.
-	dcpInitFn := func(pipeline *memdPipeline) error {
-		if err := authFn(&authClient{pipeline}); err != nil {
+	dcpInitFn := func(pipeline *memdPipeline, deadline time.Time) error {
+		if err := config.AuthHandler(&authClient{pipeline}, deadline); err != nil {
 			return err
 		}
-		return doOpenDcpChannel(pipeline, dcpStreamName)
+		return doOpenDcpChannel(pipeline, dcpStreamName, deadline)
 	}
-	return createAgent(memdAddrs, httpAddrs, tlsConfig, bucketName, password, dcpInitFn)
+	return createAgent(config, dcpInitFn)
 }
 
-func CreateAgent(memdAddrs, httpAddrs []string, tlsConfig *tls.Config, bucketName, password string, authFn AuthFunc) (*Agent, error) {
-	initFn := func(pipeline *memdPipeline) error {
-		return authFn(&authClient{pipeline})
-	}
-	return createAgent(memdAddrs, httpAddrs, tlsConfig, bucketName, password, initFn)
-}
-
-func createAgent(memdAddrs, httpAddrs []string, tlsConfig *tls.Config, bucketName, password string, initFn memdInitFunc) (*Agent, error) {
+func createAgent(config *AgentConfig, initFn memdInitFunc) (*Agent, error) {
 	c := &Agent{
-		bucket:    bucketName,
-		password:  password,
-		tlsConfig: tlsConfig,
+		bucket:    config.BucketName,
+		password:  config.Password,
+		tlsConfig: config.TlsConfig,
 		initFn:    initFn,
-		httpCli:   &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig}},
+		httpCli: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: config.TlsConfig,
+			},
+		},
+		serverConnectTimeout: config.ServerConnectTimeout,
 	}
-	if err := c.connect(memdAddrs, httpAddrs); err != nil {
+
+	deadline := time.Now().Add(config.ConnectTimeout)
+	if err := c.connect(config.MemdAddrs, config.HttpAddrs, deadline); err != nil {
 		return nil, err
 	}
 	return c, nil
@@ -68,16 +105,21 @@ func isAuthError(err error) bool {
 	return ok && te.AuthError()
 }
 
-func (c *Agent) connect(memdAddrs, httpAddrs []string) error {
+func (c *Agent) connect(memdAddrs, httpAddrs []string, deadline time.Time) error {
 	logDebugf("Attempting to connect...")
 
 	for _, thisHostPort := range memdAddrs {
 		logDebugf("Trying server at %s", thisHostPort)
 
+		srvDeadlineTm := time.Now().Add(c.serverConnectTimeout)
+		if srvDeadlineTm.After(deadline) {
+			srvDeadlineTm = deadline
+		}
+
 		srv := CreateMemdPipeline(thisHostPort)
 
 		logDebugf("Trying to connect")
-		err := c.connectPipeline(srv)
+		err := c.connectPipeline(srv, srvDeadlineTm)
 		if err != nil {
 			if isAuthError(err) {
 				return err
@@ -87,7 +129,7 @@ func (c *Agent) connect(memdAddrs, httpAddrs []string) error {
 		}
 
 		logDebugf("Attempting to request CCCP configuration")
-		cccpBytes, err := doCccpRequest(srv)
+		cccpBytes, err := doCccpRequest(srv, srvDeadlineTm)
 		if err != nil {
 			logDebugf("Failed to retrieve CCCP config. %v", err)
 			srv.Close()
@@ -192,7 +234,7 @@ func (agent *Agent) N1qlEps() []string {
 	return agent.routingInfo.get().n1qlEpList
 }
 
-func doCccpRequest(pipeline *memdPipeline) ([]byte, error) {
+func doCccpRequest(pipeline *memdPipeline, deadline time.Time) ([]byte, error) {
 	resp, err := pipeline.ExecuteRequest(&memdQRequest{
 		memdRequest: memdRequest{
 			Magic:    ReqMagic,
@@ -203,7 +245,7 @@ func doCccpRequest(pipeline *memdPipeline) ([]byte, error) {
 			Key:      nil,
 			Value:    nil,
 		},
-	})
+	}, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +253,7 @@ func doCccpRequest(pipeline *memdPipeline) ([]byte, error) {
 	return resp.Value, nil
 }
 
-func doOpenDcpChannel(pipeline *memdPipeline, streamName string) error {
+func doOpenDcpChannel(pipeline *memdPipeline, streamName string, deadline time.Time) error {
 	extraBuf := make([]byte, 8)
 	binary.BigEndian.PutUint32(extraBuf[0:], 0)
 	binary.BigEndian.PutUint32(extraBuf[4:], 1)
@@ -226,7 +268,7 @@ func doOpenDcpChannel(pipeline *memdPipeline, streamName string) error {
 			Key:      []byte(streamName),
 			Value:    nil,
 		},
-	})
+	}, deadline)
 	if err != nil {
 		return err
 	}

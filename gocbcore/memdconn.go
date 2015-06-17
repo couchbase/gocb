@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"io"
 	"net"
+	"time"
 )
 
 // The data for a request that can be queued with a memdqueueconn,
@@ -45,17 +46,17 @@ type memdConn struct {
 	recvBuf []byte
 }
 
-func DialMemdConn(address string, tlsConfig *tls.Config) (*memdConn, error) {
-	tcpAddr, err := net.ResolveTCPAddr("tcp", address)
+func DialMemdConn(address string, tlsConfig *tls.Config, deadline time.Time) (*memdConn, error) {
+	d := net.Dialer{
+		Deadline: deadline,
+	}
+
+	baseConn, err := d.Dial("tcp", address)
 	if err != nil {
 		return nil, err
 	}
 
-	tcpConn, err := net.DialTCP("tcp", nil, tcpAddr)
-	if err != nil {
-		return nil, err
-	}
-
+	tcpConn := baseConn.(*net.TCPConn)
 	tcpConn.SetNoDelay(false)
 
 	var conn io.ReadWriteCloser

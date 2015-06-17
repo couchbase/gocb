@@ -12,6 +12,17 @@ func (e generalError) Error() string {
 	return e.message
 }
 
+type timeoutError struct {
+}
+
+func (e timeoutError) Error() string {
+	return "The operation has timed out."
+}
+func (e timeoutError) Timeout() bool {
+	return true
+}
+
+
 type networkError struct {
 }
 

@@ -1,5 +1,9 @@
 package gocbcore
 
+import (
+	"time"
+)
+
 func (c *Agent) handleServerNmv(s *memdPipeline, req *memdQRequest, resp *memdResponse) {
 	// Try to parse the value as a bucket configuration
 	bk, err := parseConfig(resp.Value, s.Hostname())
@@ -21,9 +25,9 @@ func (c *Agent) handleServerDeath(s *memdPipeline) {
 	//  the issue, like requesting a new configuration.
 }
 
-func (c *Agent) connectPipeline(pipeline *memdPipeline) error {
+func (c *Agent) connectPipeline(pipeline *memdPipeline, deadline time.Time) error {
 	logDebugf("Attempting to connect pipeline to %s", pipeline.address)
-	memdConn, err := DialMemdConn(pipeline.address, c.tlsConfig)
+	memdConn, err := DialMemdConn(pipeline.address, c.tlsConfig, deadline)
 	if err != nil {
 		logDebugf("Failed to connect. %v", err)
 		return err
@@ -34,7 +38,7 @@ func (c *Agent) connectPipeline(pipeline *memdPipeline) error {
 	go pipeline.Run()
 
 	logDebugf("Authenticating...")
-	err = c.initFn(pipeline)
+	err = c.initFn(pipeline, deadline)
 	if err != nil {
 		logDebugf("Failed to authenticate. %v", err)
 		memdConn.Close()
@@ -251,7 +255,7 @@ func (agent *Agent) applyConfig(cfg *routeConfig) {
 	for _, newServer := range createdServers {
 		newServer := newServer
 		go func() {
-			agent.connectPipeline(newServer)
+			agent.connectPipeline(newServer, time.Now().Add(agent.serverConnectTimeout))
 			if !agent.activatePendingServer(newServer) {
 				// If this is no longer a valid pending server, we should shut
 				//   it down!
