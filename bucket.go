@@ -58,21 +58,16 @@ type hlpGetHandler func(ioGetCallback) (pendingOp, error)
 
 func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (casOut Cas, errOut error) {
 	signal := make(chan bool, 1)
+	var bytesOut []byte
+	var flagsOut uint32
 	op, err := execFn(func(bytes []byte, flags uint32, cas gocbcore.Cas, err error) {
-		go func() {
-			if err != nil {
-				errOut = err
-			} else {
-				err = b.transcoder.Decode(bytes, flags, valuePtr)
-				if err != nil {
-					errOut = err
-				} else {
-					casOut = Cas(cas)
-				}
-
-			}
-			signal <- true
-		}()
+		errOut = err
+		if errOut == nil {
+			bytesOut = bytes
+			flagsOut = flags
+			casOut = Cas(cas)
+		}
+		signal <- true
 	})
 	if err != nil {
 		return 0, err
@@ -82,6 +77,12 @@ func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (casOut 
 	select {
 	case <-signal:
 		releaseTimer(timeoutTmr, false)
+		if errOut == nil {
+			errOut = b.transcoder.Decode(bytesOut, flagsOut, valuePtr)
+			if errOut != nil {
+				casOut = 0
+			}
+		}
 		return
 	case <-timeoutTmr.C:
 		releaseTimer(timeoutTmr, true)
@@ -95,14 +96,11 @@ type hlpCasHandler func(ioCasCallback) (pendingOp, error)
 func (b *Bucket) hlpCasExec(execFn hlpCasHandler) (casOut Cas, errOut error) {
 	signal := make(chan bool, 1)
 	op, err := execFn(func(cas gocbcore.Cas, err error) {
-		go func() {
-			if err != nil {
-				errOut = err
-			} else {
-				casOut = Cas(cas)
-			}
-			signal <- true
-		}()
+		errOut = err
+		if errOut == nil {
+			casOut = Cas(cas)
+		}
+		signal <- true
 	})
 	if err != nil {
 		return 0, err
@@ -125,15 +123,12 @@ type hlpCtrHandler func(ioCtrCallback) (pendingOp, error)
 func (b *Bucket) hlpCtrExec(execFn hlpCtrHandler) (valOut uint64, casOut Cas, errOut error) {
 	signal := make(chan bool, 1)
 	op, err := execFn(func(value uint64, cas gocbcore.Cas, err error) {
-		go func() {
-			if err != nil {
-				errOut = err
-			} else {
-				valOut = value
-				casOut = Cas(cas)
-			}
-			signal <- true
-		}()
+		errOut = err
+		if errOut == nil {
+			valOut = value
+			casOut = Cas(cas)
+		}
+		signal <- true
 	})
 	if err != nil {
 		return 0, 0, err
