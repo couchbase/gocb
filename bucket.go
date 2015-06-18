@@ -94,14 +94,13 @@ type hlpGetHandler func(ioGetCallback) (pendingOp, error)
 
 func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (casOut Cas, errOut error) {
 	signal := make(chan bool, 1)
-	var bytesOut []byte
-	var flagsOut uint32
 	op, err := execFn(func(bytes []byte, flags uint32, cas gocbcore.Cas, err error) {
 		errOut = err
 		if errOut == nil {
-			bytesOut = bytes
-			flagsOut = flags
-			casOut = Cas(cas)
+			errOut = b.transcoder.Decode(bytes, flags, valuePtr)
+			if errOut == nil {
+				casOut = Cas(cas)
+			}
 		}
 		signal <- true
 	})
@@ -113,12 +112,6 @@ func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (casOut 
 	select {
 	case <-signal:
 		releaseTimer(timeoutTmr, false)
-		if errOut == nil {
-			errOut = b.transcoder.Decode(bytesOut, flagsOut, valuePtr)
-			if errOut != nil {
-				casOut = 0
-			}
-		}
 		return
 	case <-timeoutTmr.C:
 		releaseTimer(timeoutTmr, true)
