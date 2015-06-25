@@ -243,11 +243,7 @@ func (r *n1qlResults) One(valuePtr interface{}) error {
 
 // Performs a spatial query and returns a list of rows or an error.
 func (b *Bucket) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) ViewResults {
-	/*
-		n1qlEp, err := b.getN1qlEp()
-	*/
-	n1qlEp := "http://query.pub.couchbase.com"
-	var err error
+	n1qlEp, err := b.getN1qlEp()
 	if err != nil {
 		return &viewResults{err: err}
 	}
