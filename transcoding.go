@@ -33,18 +33,15 @@ func (t DefaultTranscoder) Decode(bytes []byte, flags uint32, out interface{}) e
 	if flags&cfFmtMask == cfFmtBinary {
 		*(out.(*[]byte)) = bytes
 		return nil
-	} else if flags&cfFmtMask == cfFmtString {
+	}
+	if flags&cfFmtMask == cfFmtString {
 		*(out.(*string)) = string(bytes)
 		return nil
-	} else if flags&cfFmtMask == cfFmtJson {
-		err := json.Unmarshal(bytes, &out)
-		if err != nil {
-			return err
-		}
-		return nil
-	} else {
-		return clientError{"Unexpected flags value"}
 	}
+	if flags&cfFmtMask == cfFmtJson {
+		return json.Unmarshal(bytes, &out)
+	}
+	return clientError{"Unexpected flags value"}
 }
 
 func (t DefaultTranscoder) Encode(value interface{}) ([]byte, uint32, error) {

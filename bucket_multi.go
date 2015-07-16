@@ -1,8 +1,9 @@
 package gocb
 
 import (
-	"github.com/couchbaselabs/gocb/gocbcore"
 	"time"
+
+	"github.com/couchbaselabs/gocb/gocbcore"
 )
 
 type bulkOp struct {
@@ -29,7 +30,7 @@ func (b *Bucket) Do(ops []BulkOp) error {
 	for _, item := range ops {
 		item.execute(b, signal)
 	}
-	for _, _ = range ops {
+	for range ops {
 		select {
 		case item := <-signal:
 			// We're really just clearing the pendop from this thread,
