@@ -79,9 +79,8 @@ func csResolveDnsSrv(spec *connSpec) bool {
 		spec.Hosts = hostList
 
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
 // Guesses a list of memcached hosts based on a connection string specification structure.
