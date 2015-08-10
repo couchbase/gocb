@@ -1,6 +1,7 @@
 package gocbcore
 
 import (
+	"encoding/binary"
 	"time"
 )
 
@@ -25,6 +26,22 @@ func (c *Agent) handleServerDeath(s *memdPipeline) {
 	//  the issue, like requesting a new configuration.
 }
 
+func (c *Agent) tryHello(pipeline *memdPipeline, deadline time.Time) error {
+	featuresBytes := make([]byte, 2)
+	binary.BigEndian.PutUint16(featuresBytes[0:], uint16(FeatureSeqNo))
+
+	_, err := pipeline.ExecuteRequest(&memdQRequest{
+		memdRequest: memdRequest{
+			Magic:  ReqMagic,
+			Opcode: CmdHello,
+			Key:    []byte("Go SDK"),
+			Value:  featuresBytes,
+		},
+	}, deadline)
+
+	return err
+}
+
 func (c *Agent) connectPipeline(pipeline *memdPipeline, deadline time.Time) error {
 	logDebugf("Attempting to connect pipeline to %s", pipeline.address)
 	memdConn, err := DialMemdConn(pipeline.address, c.tlsConfig, deadline)
@@ -41,6 +58,13 @@ func (c *Agent) connectPipeline(pipeline *memdPipeline, deadline time.Time) erro
 	err = c.initFn(pipeline, deadline)
 	if err != nil {
 		logDebugf("Failed to authenticate. %v", err)
+		memdConn.Close()
+		return err
+	}
+
+	err = c.tryHello(pipeline, deadline)
+	if err != nil {
+		logDebugf("Failed to hello. %v", err)
 		memdConn.Close()
 		return err
 	}

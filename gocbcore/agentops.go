@@ -7,6 +7,14 @@ import (
 
 type Cas uint64
 
+type VbUuid uint64
+type SeqNo uint64
+
+type MutationToken struct {
+	VbUuid VbUuid
+	SeqNo SeqNo
+}
+
 type PendingOp interface {
 	Cancel() bool
 }
@@ -34,12 +42,13 @@ func (c *Agent) dispatchOp(req *memdQRequest) (PendingOp, error) {
 }
 
 type GetCallback func([]byte, uint32, Cas, error)
-type UnlockCallback func(Cas, error)
-type TouchCallback func(Cas, error)
-type RemoveCallback func(Cas, error)
-type StoreCallback func(Cas, error)
-type CounterCallback func(uint64, Cas, error)
+type UnlockCallback func(Cas, MutationToken, error)
+type TouchCallback func(Cas, MutationToken, error)
+type RemoveCallback func(Cas, MutationToken, error)
+type StoreCallback func(Cas, MutationToken, error)
+type CounterCallback func(uint64, Cas, MutationToken, error)
 type ObserveCallback func(KeyState, Cas, error)
+type ObserveSeqNoCallback func(SeqNo, SeqNo, error)
 
 func (c *Agent) Get(key []byte, cb GetCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
@@ -194,10 +203,17 @@ func (c *Agent) GetReplica(key []byte, replicaIdx int, cb GetCallback) (PendingO
 func (c *Agent) Touch(key []byte, cas Cas, expiry uint32, cb TouchCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
-			cb(0, err)
+			cb(0, MutationToken{}, err)
 			return
 		}
-		cb(Cas(resp.Cas), nil)
+
+		mutToken := MutationToken{}
+		if len(resp.Extras) >= 16 {
+			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
+			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
+		}
+
+		cb(Cas(resp.Cas), mutToken, nil)
 	}
 
 	extraBuf := make([]byte, 4)
@@ -221,10 +237,17 @@ func (c *Agent) Touch(key []byte, cas Cas, expiry uint32, cb TouchCallback) (Pen
 func (c *Agent) Unlock(key []byte, cas Cas, cb UnlockCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
-			cb(0, err)
+			cb(0, MutationToken{}, err)
 			return
 		}
-		cb(Cas(resp.Cas), nil)
+
+		mutToken := MutationToken{}
+		if len(resp.Extras) >= 16 {
+			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
+			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
+		}
+
+		cb(Cas(resp.Cas), mutToken, nil)
 	}
 
 	req := &memdQRequest{
@@ -245,10 +268,17 @@ func (c *Agent) Unlock(key []byte, cas Cas, cb UnlockCallback) (PendingOp, error
 func (c *Agent) Remove(key []byte, cas Cas, cb RemoveCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
-			cb(0, err)
+			cb(0, MutationToken{}, err)
 			return
 		}
-		cb(Cas(resp.Cas), nil)
+
+		mutToken := MutationToken{}
+		if len(resp.Extras) >= 16 {
+			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
+			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
+		}
+
+		cb(Cas(resp.Cas), mutToken, nil)
 	}
 
 	req := &memdQRequest{
@@ -269,10 +299,17 @@ func (c *Agent) Remove(key []byte, cas Cas, cb RemoveCallback) (PendingOp, error
 func (c *Agent) store(opcode CommandCode, key, value []byte, flags uint32, cas Cas, expiry uint32, cb StoreCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
-			cb(0, err)
+			cb(0, MutationToken{}, err)
 			return
 		}
-		cb(Cas(resp.Cas), nil)
+
+		mutToken := MutationToken{}
+		if len(resp.Extras) >= 16 {
+			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
+			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
+		}
+
+		cb(Cas(resp.Cas), mutToken, nil)
 	}
 
 	extraBuf := make([]byte, 8)
@@ -308,10 +345,17 @@ func (c *Agent) Replace(key, value []byte, flags uint32, cas Cas, expiry uint32,
 func (c *Agent) adjoin(opcode CommandCode, key, value []byte, cb StoreCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
-			cb(0, err)
+			cb(0, MutationToken{}, err)
 			return
 		}
-		cb(Cas(resp.Cas), nil)
+
+		mutToken := MutationToken{}
+		if len(resp.Extras) >= 16 {
+			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
+			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
+		}
+
+		cb(Cas(resp.Cas), mutToken, nil)
 	}
 
 	req := &memdQRequest{
@@ -340,17 +384,23 @@ func (c *Agent) Prepend(key, value []byte, cb StoreCallback) (PendingOp, error) 
 func (c *Agent) counter(opcode CommandCode, key []byte, delta, initial uint64, expiry uint32, cb CounterCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
-			cb(0, 0, err)
+			cb(0, 0, MutationToken{}, err)
 			return
 		}
 
 		if len(resp.Value) != 8 {
-			cb(0, 0, agentError{"Failed to parse returned value"})
+			cb(0, 0, MutationToken{}, agentError{"Failed to parse returned value"})
 			return
 		}
 		intVal := binary.BigEndian.Uint64(resp.Value)
 
-		cb(intVal, Cas(resp.Cas), nil)
+		mutToken := MutationToken{}
+		if len(resp.Extras) >= 16 {
+			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
+			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
+		}
+
+		cb(intVal, Cas(resp.Cas), mutToken, nil)
 	}
 
 	extraBuf := make([]byte, 20)
@@ -415,6 +465,77 @@ func (c *Agent) Observe(key []byte, replicaIdx int, cb ObserveCallback) (Pending
 		memdRequest: memdRequest{
 			Magic:    ReqMagic,
 			Opcode:   CmdObserve,
+			Datatype: 0,
+			Cas:      0,
+			Extras:   nil,
+			Key:      nil,
+			Value:    valueBuf,
+			Vbucket:  vbId,
+		},
+		ReplicaIdx: replicaIdx,
+		Callback:   handler,
+	}
+	return c.dispatchOp(req)
+}
+
+func (c *Agent) ObserveSeqNo(key []byte, vbUuid VbUuid, replicaIdx int, cb ObserveSeqNoCallback) (PendingOp, error) {
+	handler := func(resp *memdResponse, err error) {
+		if err != nil {
+			cb(0, 0, err)
+			return
+		}
+
+		if len(resp.Value) < 1 {
+			cb(0, 0, agentError{"Failed to parse response data"})
+			return
+		}
+
+		formatType := resp.Value[0]
+		if formatType == 0 {
+			// Normal
+			if len(resp.Value) < 27 {
+				cb(0, 0, agentError{"Failed to parse response data (type=0)"})
+				return
+			}
+
+			//vbId := binary.BigEndian.Uint16(resp.Value[1:])
+			//vbUuid := binary.BigEndian.Uint64(resp.Value[3:])
+			persistSeqNo := binary.BigEndian.Uint64(resp.Value[11:])
+			currentSeqNo := binary.BigEndian.Uint64(resp.Value[19:])
+
+			cb(SeqNo(currentSeqNo), SeqNo(persistSeqNo), nil)
+			return
+		} else if formatType == 1 {
+			// Hard Failover
+			if len(resp.Value) < 43 {
+				cb(0, 0, agentError{"Failed to parse response data (type=1)"})
+				return
+			}
+
+			//vbId := binary.BigEndian.Uint16(resp.Value[1:])
+			//newVbUuid := binary.BigEndian.Uint64(resp.Value[3:])
+			//persistSeqNo := binary.BigEndian.Uint64(resp.Value[11:])
+			//currentSeqNo := binary.BigEndian.Uint64(resp.Value[19:])
+			//vbUuid := binary.BigEndian.Uint64(resp.Value[27:])
+			lastSeqNo := binary.BigEndian.Uint64(resp.Value[35:])
+
+			cb(SeqNo(lastSeqNo), SeqNo(lastSeqNo), nil)
+			return
+		} else {
+			cb(0, 0, agentError{"Failed to parse response format type"})
+			return
+		}
+	}
+
+	vbId := c.KeyToVbucket(key)
+
+	valueBuf := make([]byte, 8)
+	binary.BigEndian.PutUint64(valueBuf[0:], uint64(vbUuid))
+
+	req := &memdQRequest{
+		memdRequest: memdRequest{
+			Magic:    ReqMagic,
+			Opcode:   CmdObserveSeqNo,
 			Datatype: 0,
 			Cas:      0,
 			Extras:   nil,
