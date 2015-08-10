@@ -1,7 +1,7 @@
 package gocb
 
 import (
-	"github.com/couchbaselabs/gocb/gocbcore"
+	"github.com/couchbase/gocb/gocbcore"
 )
 
 type MutationToken gocbcore.MutationToken
