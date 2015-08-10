@@ -1,7 +1,7 @@
 package gocb
 
 import (
-	"github.com/couchbaselabs/gocb/gocbcore"
+	"github.com/couchbase/gocb/gocbcore"
 )
 
 func (b *Bucket) observeOnceCas(key []byte, cas Cas, forDelete bool, repId int, commCh chan uint) (pendingOp, error) {
@@ -146,7 +146,7 @@ func (b *Bucket) observeOne(key []byte, mt MutationToken, cas Cas, forDelete boo
 
 func (b *Bucket) durability(key string, cas Cas, mt MutationToken, replicaTo, persistTo uint, forDelete bool) error {
 	numServers := b.client.NumReplicas() + 1
-	
+
 	if replicaTo > uint(numServers-1) || persistTo > uint(numServers) {
 		return &clientError{"Not enough replicas to match durability requirements."}
 	}
