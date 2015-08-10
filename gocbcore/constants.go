@@ -23,6 +23,7 @@ const (
 	CmdStat               = CommandCode(0x10)
 	CmdTouch              = CommandCode(0x1c)
 	CmdGAT                = CommandCode(0x1d)
+	CmdHello              = CommandCode(0x1f)
 	CmdSASLListMechs      = CommandCode(0x20)
 	CmdSASLAuth           = CommandCode(0x21)
 	CmdSASLStep           = CommandCode(0x22)
@@ -43,10 +44,18 @@ const (
 	CmdDcpControl         = CommandCode(0x5e)
 	CmdGetReplica         = CommandCode(0x83)
 	CmdSelectBucket       = CommandCode(0x89)
+	CmdObserveSeqNo       = CommandCode(0x91)
 	CmdObserve            = CommandCode(0x92)
 	CmdGetLocked          = CommandCode(0x94)
 	CmdUnlockKey          = CommandCode(0x95)
 	CmdGetClusterConfig   = CommandCode(0xb5)
+)
+
+type HelloFeature uint16
+
+const (
+	FeatureDatatype = HelloFeature(0x01)
+	FeatureSeqNo = HelloFeature(0x04)
 )
 
 // Status field for memcached response.
