@@ -148,7 +148,7 @@ func (c *Agent) connect(memdAddrs, httpAddrs []string, deadline time.Time) error
 			break
 		}
 
-		logDebugf("Successfully connected\n")
+		logDebugf("Successfully connected")
 
 		// Build some fake routing data, this is used to essentially 'pass' the
 		//   server connection we already have over to the config update function.
