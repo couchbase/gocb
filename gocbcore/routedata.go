@@ -56,9 +56,9 @@ func (d *routeData) logDebug() {
 		if s == nil {
 			logDebugf("    %d: nil", i)
 		} else if !s.IsClosed() {
-			logDebugf("    %d: %s (ACTIVE)", i, s.Address())
+			logDebugf("    %d: %p[%s] (ACTIVE)", i, s, s.Address())
 		} else {
-			logDebugf("    %d: %s (CLOSED)", i, s.Address())
+			logDebugf("    %d: %p[%s] (CLOSED)", i, s, s.Address())
 		}
 	}
 
@@ -67,7 +67,7 @@ func (d *routeData) logDebug() {
 		if s == nil {
 			logDebugf("    %d: nil", i)
 		} else {
-			logDebugf("    %d: %s", i, s.Address())
+			logDebugf("    %d: %p[%s]", i, s, s.Address())
 		}
 	}
 
