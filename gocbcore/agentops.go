@@ -49,6 +49,7 @@ type StoreCallback func(Cas, MutationToken, error)
 type CounterCallback func(uint64, Cas, MutationToken, error)
 type ObserveCallback func(KeyState, Cas, error)
 type ObserveSeqNoCallback func(SeqNo, SeqNo, error)
+type GetRandomCallback func([]byte, []byte, uint32, Cas, error)
 
 func (c *Agent) Get(key []byte, cb GetCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
@@ -545,6 +546,30 @@ func (c *Agent) ObserveSeqNo(key []byte, vbUuid VbUuid, replicaIdx int, cb Obser
 		},
 		ReplicaIdx: replicaIdx,
 		Callback:   handler,
+	}
+	return c.dispatchOp(req)
+}
+
+func (c *Agent) GetRandom(cb GetRandomCallback) (PendingOp, error) {
+	handler := func(resp *memdResponse, err error) {
+		if err != nil {
+			cb(nil, nil, 0, 0, err)
+			return
+		}
+		flags := binary.BigEndian.Uint32(resp.Extras[0:])
+		cb(resp.Key, resp.Value, flags, Cas(resp.Cas), nil)
+	}
+	req := &memdQRequest{
+		memdRequest: memdRequest{
+			Magic:    ReqMagic,
+			Opcode:   CmdGetRandom,
+			Datatype: 0,
+			Cas:      0,
+			Extras:   nil,
+			Key:      nil,
+			Value:    nil,
+		},
+		Callback: handler,
 	}
 	return c.dispatchOp(req)
 }

@@ -49,6 +49,7 @@ const (
 	CmdGetLocked          = CommandCode(0x94)
 	CmdUnlockKey          = CommandCode(0x95)
 	CmdGetClusterConfig   = CommandCode(0xb5)
+	CmdGetRandom          = CommandCode(0xb6)
 )
 
 type HelloFeature uint16
