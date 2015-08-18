@@ -19,7 +19,7 @@ type memdPipeline struct {
 	queue *memdQueue
 
 	address  string
-	conn     *memdConn
+	conn     memdReadWriteCloser
 	isClosed bool
 	ioDoneCh chan bool
 
