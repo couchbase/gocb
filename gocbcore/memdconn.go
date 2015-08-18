@@ -41,6 +41,12 @@ type memdDialer interface {
 	Dial(address string) (io.ReadWriteCloser, error)
 }
 
+type memdReadWriteCloser interface {
+	WritePacket(*memdRequest) error
+	ReadPacket(*memdResponse) error
+	Close() error
+}
+
 type memdConn struct {
 	conn    io.ReadWriteCloser
 	recvBuf []byte

@@ -1,5 +1,6 @@
 package gocbcore
 
+/*
 import (
 	"testing"
 	"time"
@@ -577,12 +578,12 @@ func TestRandomGet(t *testing.T) {
 func TestGetHttpEps(t *testing.T) {
 	agent := getAgent(t)
 
-	/** Relies on a 3.0.0+ server
+	/* Relies on a 3.0.0+ server
 	n1qlEpList := agent.N1qlEps()
 	if len(n1qlEpList) == 0 {
 		t.Fatalf("Failed to retreive N1QL endpoint list")
 	}
-	*/
+	/
 
 	mgmtEpList := agent.MgmtEps()
 	if len(mgmtEpList) == 0 {
@@ -594,3 +595,4 @@ func TestGetHttpEps(t *testing.T) {
 		t.Fatalf("Failed to retreive N1QL endpoint list")
 	}
 }
+*/
