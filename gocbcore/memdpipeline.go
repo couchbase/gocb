@@ -87,7 +87,9 @@ func (pipeline *memdPipeline) ExecuteRequest(req *memdQRequest, deadline time.Ti
 	case <-signal:
 		return
 	case <-time.After(deadline.Sub(time.Now())):
-		req.Cancel()
+		if (!req.Cancel()) {
+			<-signal
+		}
 		return nil, &timeoutError{}
 	}
 }
@@ -256,6 +258,8 @@ func (pipeline *memdPipeline) Drain(reqCb drainedReqCallback) {
 	// As a last step, immediately notify all the requests that were
 	//   on-the-wire that a network error has occurred.
 	pipeline.opList.Drain(func(r *memdQRequest) {
-		r.Callback(nil, networkError{})
+		if pipeline.queue.UnqueueRequest(r) {
+			r.Callback(nil, networkError{})
+		}
 	})
 }
