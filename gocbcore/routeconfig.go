@@ -13,8 +13,6 @@ type routeConfig struct {
 	mgmtEpList   []string
 	n1qlEpList   []string
 	vbMap        [][]int
-
-	source *cfgBucket
 }
 
 func buildRouteConfig(bk *cfgBucket, useSsl bool) *routeConfig {
@@ -82,6 +80,5 @@ func buildRouteConfig(bk *cfgBucket, useSsl bool) *routeConfig {
 		mgmtEpList:   mgmtEpList,
 		n1qlEpList:   n1qlEpList,
 		vbMap:        bk.VBucketServerMap.VBucketMap,
-		source:       bk,
 	}
 }
