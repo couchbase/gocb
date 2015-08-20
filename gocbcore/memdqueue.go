@@ -113,6 +113,7 @@ func (queue *memdQueue) drainTillSignal(reqCb drainedReqCallback, signal chan bo
 			}
 		case <-signal:
 			queue.drainTillEmpty(reqCb)
+			return
 		}
 	}
 }
