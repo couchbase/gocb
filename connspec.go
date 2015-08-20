@@ -26,7 +26,7 @@ func parseConnSpec(connStr string) connSpec {
 	var out connSpec
 	out.Options = map[string]string{}
 
-	partMatcher := regexp.MustCompile(`((.*):\/\/)?([^\/?]*)(\/([^\?]*))?(\?(.*))?`)
+	partMatcher := regexp.MustCompile(`((.*):\/\/)?(([^\/?:]*)(:([^\/?:@]*))?@)?([^\/?]*)(\/([^\?]*))?(\?(.*))?`)
 	hostMatcher := regexp.MustCompile(`([^;\,\:]+)(:([0-9]*))?(;\,)?`)
 	kvMatcher := regexp.MustCompile(`([^=]*)=([^&?]*)[&?]?`)
 	parts := partMatcher.FindStringSubmatch(connStr)
@@ -35,8 +35,8 @@ func parseConnSpec(connStr string) connSpec {
 		out.Scheme = parts[2]
 	}
 
-	if parts[3] != "" {
-		hosts := hostMatcher.FindAllStringSubmatch(parts[3], -1)
+	if parts[7] != "" {
+		hosts := hostMatcher.FindAllStringSubmatch(parts[7], -1)
 		for _, hostInfo := range hosts {
 			port := 0
 			if hostInfo[3] != "" {
@@ -50,12 +50,12 @@ func parseConnSpec(connStr string) connSpec {
 		}
 	}
 
-	if parts[5] != "" {
-		out.Bucket = parts[5]
+	if parts[9] != "" {
+		out.Bucket = parts[9]
 	}
 
-	if parts[7] != "" {
-		kvs := kvMatcher.FindAllStringSubmatch(parts[7], -1)
+	if parts[11] != "" {
+		kvs := kvMatcher.FindAllStringSubmatch(parts[11], -1)
 		for _, kvInfo := range kvs {
 			out.Options[kvInfo[1]] = kvInfo[2]
 		}
