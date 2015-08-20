@@ -88,7 +88,7 @@ func (pipeline *memdPipeline) ExecuteRequest(req *memdQRequest, deadline time.Ti
 		return
 	case <-time.After(deadline.Sub(time.Now())):
 		req.Cancel()
-		return nil, &generalError{"Operation timed out."}
+		return nil, &timeoutError{}
 	}
 }
 
