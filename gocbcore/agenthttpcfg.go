@@ -80,6 +80,8 @@ func (c *Agent) httpLooper(firstCfgFn func(*cfgBucket, error)) {
 		// HTTP request time!
 		uri := fmt.Sprintf("%s/pools/default/bucketsStreaming/%s", pickedSrv, c.bucket)
 
+		logDebugf("Requesting config from: %s.", uri)
+
 		req, err := http.NewRequest("GET", uri, nil)
 		if err != nil {
 			logDebugf("Failed to build HTTP config request. %v", err)
