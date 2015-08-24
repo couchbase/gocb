@@ -42,6 +42,48 @@ func (c *Agent) tryHello(pipeline *memdPipeline, deadline time.Time) error {
 	return err
 }
 
+// Attempt to connect a server, this function must be called
+//  in its own goroutine and will ensure that offline servers
+//  are not spammed with connection attempts.
+func (agent *Agent) connectServer(server *memdPipeline) {
+	for {
+		agent.serverFailuresLock.Lock()
+		failureTime := agent.serverFailures[server.address]
+		agent.serverFailuresLock.Unlock()
+
+		if !failureTime.IsZero() {
+			waitedTime := time.Since(failureTime)
+			if waitedTime < agent.serverWaitTimeout {
+				time.Sleep(agent.serverWaitTimeout - waitedTime)
+
+				if !agent.checkPendingServer(server) {
+					// Server is no longer pending.  Stop trying.
+					break
+				}
+			}
+		}
+
+		err := agent.connectPipeline(server, time.Now().Add(agent.serverConnectTimeout))
+		if err != nil {
+			agent.serverFailuresLock.Lock()
+			agent.serverFailures[server.address] = time.Now()
+			agent.serverFailuresLock.Unlock()
+
+			// Try to connect again
+			continue
+		}
+
+		if !agent.activatePendingServer(server) {
+			// If this is no longer a valid pending server, we should shut
+			//   it down!
+			server.Close()
+		}
+
+		// Shut down this goroutine as we were successful
+		break
+	}
+}
+
 func (c *Agent) connectPipeline(pipeline *memdPipeline, deadline time.Time) error {
 	logDebugf("Attempting to connect pipeline to %s", pipeline.address)
 	memdConn, err := DialMemdConn(pipeline.address, c.tlsConfig, deadline)
@@ -79,6 +121,21 @@ func (c *Agent) shutdownPipeline(s *memdPipeline) {
 	s.Drain(func(req *memdQRequest) {
 		c.redispatchDirect(req)
 	})
+}
+
+func (agent *Agent) checkPendingServer(server *memdPipeline) bool {
+	oldRouting := agent.routingInfo.get()
+
+	// Find the index of the pending server we want to swap
+	var serverIdx int = -1
+	for i, s := range oldRouting.pendingServers {
+		if s == server {
+			serverIdx = i
+			break
+		}
+	}
+
+	return serverIdx != -1
 }
 
 func (agent *Agent) activatePendingServer(server *memdPipeline) bool {
@@ -277,15 +334,7 @@ func (agent *Agent) applyConfig(cfg *routeConfig) {
 
 	// Launch all the new servers
 	for _, newServer := range createdServers {
-		newServer := newServer
-		go func() {
-			agent.connectPipeline(newServer, time.Now().Add(agent.serverConnectTimeout))
-			if !agent.activatePendingServer(newServer) {
-				// If this is no longer a valid pending server, we should shut
-				//   it down!
-				newServer.Close()
-			}
-		}()
+		go agent.connectServer(newServer)
 	}
 
 	// Identify all the dead servers and drain their requests
