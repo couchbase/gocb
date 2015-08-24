@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+	"sync"
 )
 
 // This class represents the base client handling connections to a Couchbase Server.
@@ -20,9 +21,13 @@ type Agent struct {
 	routingInfo routeDataPtr
 	numVbuckets int
 
+	serverFailuresLock sync.Mutex
+	serverFailures map[string]time.Time
+
 	httpCli *http.Client
 
 	serverConnectTimeout time.Duration
+	serverWaitTimeout time.Duration
 }
 
 // The timeout for each server connection, including all authentication steps.
@@ -84,7 +89,9 @@ func createAgent(config *AgentConfig, initFn memdInitFunc) (*Agent, error) {
 				TLSClientConfig: config.TlsConfig,
 			},
 		},
+		serverFailures: make(map[string]time.Time),
 		serverConnectTimeout: config.ServerConnectTimeout,
+		serverWaitTimeout: 5 * time.Second,
 	}
 
 	deadline := time.Now().Add(config.ConnectTimeout)
