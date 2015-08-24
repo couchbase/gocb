@@ -64,12 +64,15 @@ func buildRouteConfig(bk *cfgBucket, useSsl bool) *routeConfig {
 		kvServerList = bk.VBucketServerMap.ServerList
 
 		for _, node := range bk.Nodes {
-			// Slice off the UUID as Go's HTTP client cannot handle being passed URL-Encoded path values.
-			capiEp := strings.SplitN(node.CouchAPIBase, "%2B", 2)[0]
+			if node.CouchAPIBase != "" {
+				// Slice off the UUID as Go's HTTP client cannot handle being passed URL-Encoded path values.
+				capiEp := strings.SplitN(node.CouchAPIBase, "%2B", 2)[0]
 
-			// Add this node to the list of nodes.
-			capiEpList = append(capiEpList, capiEp)
-			mgmtEpList = append(mgmtEpList, fmt.Sprintf("http://%s", node.Hostname))
+				capiEpList = append(capiEpList, capiEp)
+			}
+			if node.Hostname != "" {
+				mgmtEpList = append(mgmtEpList, fmt.Sprintf("http://%s", node.Hostname))
+			}
 		}
 	}
 
