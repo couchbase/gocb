@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net/http"
+	"math/rand"
 	"time"
 	"sync"
 )
@@ -112,6 +113,45 @@ func isAuthError(err error) bool {
 	return ok && te.AuthError()
 }
 
+func (c *Agent) cccpLooper() {
+	tickTime := time.Second * 10
+	maxWaitTime := time.Second * 3
+
+	logDebugf("CCCP Looper starting.")
+
+	for {
+		// Wait 10 seconds
+		time.Sleep(tickTime)
+
+		routingInfo := c.routingInfo.get()
+
+		numServers := len(routingInfo.servers)
+		if numServers == 0 {
+			logDebugf("CCCPPOLL: No servers")
+			continue
+		}
+
+		srvIdx := rand.Intn(numServers)
+		srv := routingInfo.servers[srvIdx]
+
+		// Force config refresh from random node
+		cccpBytes, err := doCccpRequest(srv, time.Now().Add(maxWaitTime))
+		if err != nil {
+			logDebugf("CCCPPOLL: Failed to retrieve CCCP config. %v", err)
+			continue
+		}
+
+		bk, err := parseConfig(cccpBytes, srv.Hostname())
+		if err != nil {
+			logDebugf("CCCPPOLL: Failed to parse CCCP config. %v", err)
+			continue
+		}
+
+		logDebugf("CCCPPOLL: Received new config")
+		c.updateConfig(bk)
+	}
+}
+
 func (c *Agent) connect(memdAddrs, httpAddrs []string, deadline time.Time) error {
 	logDebugf("Attempting to connect...")
 
@@ -168,6 +208,8 @@ func (c *Agent) connect(memdAddrs, httpAddrs []string, deadline time.Time) error
 		c.applyConfig(routeCfg)
 
 		srv.SetHandlers(c.handleServerNmv, c.handleServerDeath)
+
+		go c.cccpLooper();
 
 		return nil
 	}
