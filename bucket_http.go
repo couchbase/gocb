@@ -72,23 +72,23 @@ func (r *viewResults) One(valuePtr interface{}) error {
 }
 
 // Performs a view query and returns a list of rows or an error.
-func (b *Bucket) ExecuteViewQuery(q *ViewQuery) ViewResults {
+func (b *Bucket) ExecuteViewQuery(q *ViewQuery) (ViewResults, error) {
 	capiEp, err := b.getViewEp()
 	if err != nil {
-		return &viewResults{err: err}
+		return nil, err
 	}
 
 	reqUri := fmt.Sprintf("%s/_design/%s/_view/%s?%s", capiEp, q.ddoc, q.name, q.options.Encode())
 
 	req, err := http.NewRequest("GET", reqUri, nil)
 	if err != nil {
-		return &viewResults{err: err}
+		return nil, err
 	}
 	req.SetBasicAuth(b.name, b.password)
 
 	resp, err := b.client.HttpClient().Do(req)
 	if err != nil {
-		return &viewResults{err: err}
+		return nil, err
 	}
 
 	viewResp := viewResponse{}
@@ -99,46 +99,42 @@ func (b *Bucket) ExecuteViewQuery(q *ViewQuery) ViewResults {
 
 	if resp.StatusCode != 200 {
 		if viewResp.Error != "" {
-			return &viewResults{
-				err: &viewError{
-					Message: viewResp.Error,
-					Reason:  viewResp.Reason,
-				},
+			return nil, &viewError{
+				Message: viewResp.Error,
+				Reason:  viewResp.Reason,
 			}
 		}
 
-		return &viewResults{
-			err: &viewError{
-				Message: "HTTP Error",
-				Reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
-			},
+		return nil, &viewError{
+			Message: "HTTP Error",
+			Reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
 		}
 	}
 
 	return &viewResults{
 		index: -1,
 		rows:  viewResp.Rows,
-	}
+	}, nil
 }
 
 // Performs a spatial query and returns a list of rows or an error.
-func (b *Bucket) ExecuteSpatialQuery(q *SpatialQuery) ViewResults {
+func (b *Bucket) ExecuteSpatialQuery(q *SpatialQuery) (ViewResults, error) {
 	capiEp, err := b.getViewEp()
 	if err != nil {
-		return &viewResults{err: err}
+		return nil, err
 	}
 
 	reqUri := fmt.Sprintf("%s/_design/%s/_spatial/%s?%s", capiEp, q.ddoc, q.name, q.options.Encode())
 
 	req, err := http.NewRequest("GET", reqUri, nil)
 	if err != nil {
-		return &viewResults{err: err}
+		return nil, err
 	}
 	req.SetBasicAuth(b.name, b.password)
 
 	resp, err := b.client.HttpClient().Do(req)
 	if err != nil {
-		return &viewResults{err: err}
+		return nil, err
 	}
 
 	viewResp := viewResponse{}
@@ -149,26 +145,22 @@ func (b *Bucket) ExecuteSpatialQuery(q *SpatialQuery) ViewResults {
 
 	if resp.StatusCode != 200 {
 		if viewResp.Error != "" {
-			return &viewResults{
-				err: &viewError{
-					Message: viewResp.Error,
-					Reason:  viewResp.Reason,
-				},
+			return nil, &viewError{
+				Message: viewResp.Error,
+				Reason:  viewResp.Reason,
 			}
 		}
 
-		return &viewResults{
-			err: &viewError{
-				Message: "HTTP Error",
-				Reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
-			},
+		return nil, &viewError{
+			Message: "HTTP Error",
+			Reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
 		}
 	}
 
 	return &viewResults{
 		index: -1,
 		rows:  viewResp.Rows,
-	}
+	}, nil
 }
 
 type n1qlError struct {
@@ -242,10 +234,10 @@ func (r *n1qlResults) One(valuePtr interface{}) error {
 }
 
 // Performs a spatial query and returns a list of rows or an error.
-func (b *Bucket) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) ViewResults {
+func (b *Bucket) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) (ViewResults, error) {
 	n1qlEp, err := b.getN1qlEp()
 	if err != nil {
-		return &viewResults{err: err}
+		return nil, err
 	}
 
 	reqOpts := make(map[string]interface{})
@@ -260,12 +252,12 @@ func (b *Bucket) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) ViewResults 
 
 	reqJson, err := json.Marshal(reqOpts)
 	if err != nil {
-		return &viewResults{err: err}
+		return nil, err
 	}
 
 	req, err := http.NewRequest("POST", reqUri, bytes.NewBuffer(reqJson))
 	if err != nil {
-		return &viewResults{err: err}
+		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.SetBasicAuth(b.name, b.password)
@@ -275,7 +267,7 @@ func (b *Bucket) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) ViewResults 
 
 	resp, err := b.client.HttpClient().Do(req)
 	if err != nil {
-		return &viewResults{err: err}
+		return nil, err
 	}
 
 	n1qlResp := n1qlResponse{}
@@ -286,21 +278,17 @@ func (b *Bucket) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) ViewResults 
 
 	if resp.StatusCode != 200 {
 		if len(n1qlResp.Errors) > 0 {
-			return &n1qlResults{
-				err: (*n1qlMultiError)(&n1qlResp.Errors),
-			}
+			return nil, (*n1qlMultiError)(&n1qlResp.Errors)
 		}
 
-		return &n1qlResults{
-			err: &viewError{
-				Message: "HTTP Error",
-				Reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
-			},
+		return nil, &viewError{
+			Message: "HTTP Error",
+			Reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
 		}
 	}
 
 	return &n1qlResults{
 		index: -1,
 		rows:  n1qlResp.Results,
-	}
+	}, nil
 }
