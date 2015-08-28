@@ -7,6 +7,11 @@ import (
 	"net/http"
 )
 
+type n1qlCache struct {
+	name string
+	encodedPlan string
+}
+
 type viewResponse struct {
 	TotalRows int               `json:"total_rows,omitempty"`
 	Rows      []json.RawMessage `json:"rows,omitempty"`
@@ -233,24 +238,10 @@ func (r *n1qlResults) One(valuePtr interface{}) error {
 	return nil
 }
 
-// Performs a spatial query and returns a list of rows or an error.
-func (b *Bucket) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) (ViewResults, error) {
-	n1qlEp, err := b.getN1qlEp()
-	if err != nil {
-		return nil, err
-	}
-
-	reqOpts := make(map[string]interface{})
-	for k, v := range q.options {
-		reqOpts[k] = v
-	}
-	if params != nil {
-		reqOpts["args"] = params
-	}
-
+func (b *Bucket) executeN1qlQuery(n1qlEp string, opts map[string]interface{}) (ViewResults, error) {
 	reqUri := fmt.Sprintf("%s/query/service", n1qlEp)
 
-	reqJson, err := json.Marshal(reqOpts)
+	reqJson, err := json.Marshal(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -288,4 +279,68 @@ func (b *Bucket) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) (ViewResults
 		index: -1,
 		rows:  n1qlResp.Results,
 	}, nil
+}
+
+type n1qlPrepData struct {
+	EncodedPlan string `json:"encoded_plan"`
+	Name string `json:"name"`
+}
+
+// Performs a spatial query and returns a list of rows or an error.
+func (b *Bucket) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) (ViewResults, error) {
+	n1qlEp, err := b.getN1qlEp()
+	if err != nil {
+		return nil, err
+	}
+
+	execOpts := make(map[string]interface{})
+	for k, v := range q.options {
+		execOpts[k] = v
+	}
+	if params != nil {
+		execOpts["args"] = params
+	}
+
+	if !q.adHoc {
+		stmtStr := q.options["statement"].(string);
+
+		var cachedStmt *n1qlCache
+		b.queryCacheLock.RLock()
+		cachedStmt = b.queryCache[stmtStr]
+		b.queryCacheLock.RUnlock()
+
+		if cachedStmt == nil {
+			prepOpts := make(map[string]interface{})
+			for k, v := range q.options {
+				prepOpts[k] = v
+			}
+			prepOpts["statement"] = "PREPARE " + stmtStr;
+
+			prepRes, err := b.executeN1qlQuery(n1qlEp, prepOpts)
+			if err != nil {
+				return nil, err
+			}
+
+			var preped n1qlPrepData
+			err = prepRes.One(&preped)
+			if (err != nil) {
+				return nil, err
+			}
+
+			cachedStmt = &n1qlCache{
+				name: preped.Name,
+				encodedPlan: preped.EncodedPlan,
+			}
+
+			b.queryCacheLock.Lock()
+			b.queryCache[stmtStr] = cachedStmt
+			b.queryCacheLock.Unlock()
+		}
+
+		delete(execOpts, "statement")
+		execOpts["prepared"] = cachedStmt.name
+		execOpts["encoded_plan"] = cachedStmt.encodedPlan
+	}
+
+	return b.executeN1qlQuery(n1qlEp, execOpts)
 }

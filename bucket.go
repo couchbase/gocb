@@ -17,6 +17,9 @@ type Bucket struct {
 	opTimeout       time.Duration
 	duraTimeout     time.Duration
 	duraPollTimeout time.Duration
+
+	queryCacheLock  sync.RWMutex
+	queryCache      map[string]*n1qlCache
 }
 
 func createBucket(config *gocbcore.AgentConfig) (*Bucket, error) {
@@ -30,6 +33,7 @@ func createBucket(config *gocbcore.AgentConfig) (*Bucket, error) {
 		password:   config.Password,
 		client:     cli,
 		transcoder: &DefaultTranscoder{},
+		queryCache: make(map[string]*n1qlCache),
 
 		opTimeout:       2500 * time.Millisecond,
 		duraTimeout:     40000 * time.Millisecond,
@@ -58,6 +62,12 @@ func (b *Bucket) SetDurabilityPollTimeout(timeout time.Duration) {
 
 func (b *Bucket) SetTranscoder(transcoder Transcoder) {
 	b.transcoder = transcoder
+}
+
+func (b *Bucket) InvalidateQueryCache() {
+	b.queryCacheLock.Lock()
+	b.queryCache = make(map[string]*n1qlCache)
+	b.queryCacheLock.Unlock()
 }
 
 var timerPool = sync.Pool{}

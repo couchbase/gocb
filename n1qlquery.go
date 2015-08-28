@@ -10,6 +10,7 @@ const (
 
 type N1qlQuery struct {
 	options map[string]interface{}
+	adHoc   bool
 }
 
 func (nq *N1qlQuery) Consistency(stale ConsistencyMode) *N1qlQuery {
@@ -25,6 +26,11 @@ func (nq *N1qlQuery) Consistency(stale ConsistencyMode) *N1qlQuery {
 	return nq
 }
 
+func (nq *N1qlQuery) AdHoc(adhoc bool) *N1qlQuery {
+	nq.adHoc = adhoc;
+	return nq
+}
+
 func (nq *N1qlQuery) Custom(name, value string) *N1qlQuery {
 	nq.options[name] = value
 	return nq
@@ -33,6 +39,7 @@ func (nq *N1qlQuery) Custom(name, value string) *N1qlQuery {
 func NewN1qlQuery(statement string) *N1qlQuery {
 	nq := &N1qlQuery{
 		options: make(map[string]interface{}),
+		adHoc:   true,
 	}
 	nq.options["statement"] = statement
 	return nq
