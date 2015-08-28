@@ -262,9 +262,6 @@ func (b *Bucket) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) (ViewResults
 	req.Header.Set("Content-Type", "application/json")
 	req.SetBasicAuth(b.name, b.password)
 
-	fmt.Printf("URI: %s\n", reqUri)
-	fmt.Printf("Data: %s\n", reqJson)
-
 	resp, err := b.client.HttpClient().Do(req)
 	if err != nil {
 		return nil, err
