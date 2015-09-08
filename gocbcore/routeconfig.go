@@ -15,6 +15,14 @@ type routeConfig struct {
 	vbMap        [][]int
 }
 
+func (config *routeConfig) IsValid() bool {
+	return len(config.kvServerList) > 0 &&
+		len(config.mgmtEpList) > 0 &&
+		len(config.capiEpList) > 0 &&
+		len(config.vbMap) > 0 &&
+		len(config.vbMap[0]) > 0
+}
+
 func buildRouteConfig(bk *cfgBucket, useSsl bool) *routeConfig {
 	var kvServerList []string
 	var capiEpList []string
