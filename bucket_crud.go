@@ -8,20 +8,17 @@ type MutationToken gocbcore.MutationToken
 
 // Retrieves a document from the bucket
 func (b *Bucket) Get(key string, valuePtr interface{}) (Cas, error) {
-	cas, _, err := b.get(key, valuePtr)
-	return cas, err
+	return b.get(key, valuePtr)
 }
 
 // Retrieves a document and simultaneously updates its expiry time.
 func (b *Bucket) GetAndTouch(key string, expiry uint32, valuePtr interface{}) (Cas, error) {
-	cas, _, err := b.getAndTouch(key, expiry, valuePtr)
-	return cas, err
+	return b.getAndTouch(key, expiry, valuePtr)
 }
 
 // Locks a document for a period of time, providing exclusive RW access to it.
 func (b *Bucket) GetAndLock(key string, lockTime uint32, valuePtr interface{}) (Cas, error) {
-	cas, _, err := b.getAndLock(key, lockTime, valuePtr)
-	return cas, err
+	return b.getAndLock(key, lockTime, valuePtr)
 }
 
 // Unlocks a document which was locked with GetAndLock.
@@ -32,8 +29,7 @@ func (b *Bucket) Unlock(key string, cas Cas) (Cas, error) {
 
 // Returns the value of a particular document from a replica server.
 func (b *Bucket) GetReplica(key string, valuePtr interface{}, replicaIdx int) (Cas, error) {
-	cas, _, err := b.getReplica(key, valuePtr, replicaIdx)
-	return cas, err
+	return b.getReplica(key, valuePtr, replicaIdx)
 }
 
 // Touches a document, specifying a new expiry time for it.
@@ -90,7 +86,7 @@ type ioCtrCallback func(uint64, gocbcore.Cas, gocbcore.MutationToken, error)
 
 type hlpGetHandler func(ioGetCallback) (pendingOp, error)
 
-func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (casOut Cas, mtOut MutationToken, errOut error) {
+func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (casOut Cas, errOut error) {
 	signal := make(chan bool, 1)
 	op, err := execFn(func(bytes []byte, flags uint32, cas gocbcore.Cas, err error) {
 		errOut = err
@@ -103,7 +99,7 @@ func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (casOut 
 		signal <- true
 	})
 	if err != nil {
-		return 0, MutationToken{}, err
+		return 0, err
 	}
 
 	timeoutTmr := acquireTimer(b.opTimeout)
@@ -114,7 +110,7 @@ func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (casOut 
 	case <-timeoutTmr.C:
 		releaseTimer(timeoutTmr, true)
 		op.Cancel()
-		return 0, MutationToken{}, timeoutError{}
+		return 0, timeoutError{}
 	}
 }
 
@@ -175,21 +171,21 @@ func (b *Bucket) hlpCtrExec(execFn hlpCtrHandler) (valOut uint64, casOut Cas, mt
 	}
 }
 
-func (b *Bucket) get(key string, valuePtr interface{}) (Cas, MutationToken, error) {
+func (b *Bucket) get(key string, valuePtr interface{}) (Cas, error) {
 	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (pendingOp, error) {
 		op, err := b.client.Get([]byte(key), gocbcore.GetCallback(cb))
 		return op, err
 	})
 }
 
-func (b *Bucket) getAndTouch(key string, expiry uint32, valuePtr interface{}) (Cas, MutationToken, error) {
+func (b *Bucket) getAndTouch(key string, expiry uint32, valuePtr interface{}) (Cas, error) {
 	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (pendingOp, error) {
 		op, err := b.client.GetAndTouch([]byte(key), expiry, gocbcore.GetCallback(cb))
 		return op, err
 	})
 }
 
-func (b *Bucket) getAndLock(key string, lockTime uint32, valuePtr interface{}) (Cas, MutationToken, error) {
+func (b *Bucket) getAndLock(key string, lockTime uint32, valuePtr interface{}) (Cas, error) {
 	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (pendingOp, error) {
 		op, err := b.client.GetAndLock([]byte(key), lockTime, gocbcore.GetCallback(cb))
 		return op, err
@@ -203,7 +199,7 @@ func (b *Bucket) unlock(key string, cas Cas) (Cas, MutationToken, error) {
 	})
 }
 
-func (b *Bucket) getReplica(key string, valuePtr interface{}, replicaIdx int) (Cas, MutationToken, error) {
+func (b *Bucket) getReplica(key string, valuePtr interface{}, replicaIdx int) (Cas, error) {
 	return b.hlpGetExec(valuePtr, func(cb ioGetCallback) (pendingOp, error) {
 		op, err := b.client.GetReplica([]byte(key), replicaIdx, gocbcore.GetCallback(cb))
 		return op, err
