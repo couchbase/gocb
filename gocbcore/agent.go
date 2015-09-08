@@ -195,6 +195,13 @@ func (c *Agent) connect(memdAddrs, httpAddrs []string, deadline time.Time) error
 			break
 		}
 
+		routeCfg := buildRouteConfig(bk, c.IsSecure())
+		if !routeCfg.IsValid() {
+			// Something is invalid about this config, keep trying
+			srv.Close()
+			continue
+		}
+
 		logDebugf("Successfully connected")
 
 		// Build some fake routing data, this is used to essentially 'pass' the
@@ -203,7 +210,6 @@ func (c *Agent) connect(memdAddrs, httpAddrs []string, deadline time.Time) error
 			servers: []*memdPipeline{srv},
 		})
 
-		routeCfg := buildRouteConfig(bk, c.IsSecure())
 		c.numVbuckets = len(routeCfg.vbMap)
 		c.applyConfig(routeCfg)
 
