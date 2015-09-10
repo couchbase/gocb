@@ -143,6 +143,7 @@ func (item *RemoveOp) execute(b *Bucket, signal chan BulkOp) {
 		if item.Err == nil {
 			item.Cas = Cas(cas)
 		}
+		signal <- item
 	})
 	if err != nil {
 		item.Err = err
@@ -173,6 +174,7 @@ func (item *UpsertOp) execute(b *Bucket, signal chan BulkOp) {
 			if item.Err == nil {
 				item.Cas = Cas(cas)
 			}
+			signal <- item
 		})
 		if err != nil {
 			item.Err = err
@@ -204,6 +206,7 @@ func (item *InsertOp) execute(b *Bucket, signal chan BulkOp) {
 			if item.Err == nil {
 				item.Cas = Cas(cas)
 			}
+			signal <- item
 		})
 		if err != nil {
 			item.Err = err
@@ -235,6 +238,7 @@ func (item *ReplaceOp) execute(b *Bucket, signal chan BulkOp) {
 			if item.Err == nil {
 				item.Cas = Cas(cas)
 			}
+			signal <- item
 		})
 		if err != nil {
 			item.Err = err
@@ -260,6 +264,7 @@ func (item *AppendOp) execute(b *Bucket, signal chan BulkOp) {
 		if item.Err == nil {
 			item.Cas = Cas(cas)
 		}
+		signal <- item
 	})
 	if err != nil {
 		item.Err = err
@@ -284,6 +289,7 @@ func (item *PrependOp) execute(b *Bucket, signal chan BulkOp) {
 		if item.Err == nil {
 			item.Cas = Cas(cas)
 		}
+		signal <- item
 	})
 	if err != nil {
 		item.Err = err
@@ -318,6 +324,7 @@ func (item *CounterOp) execute(b *Bucket, signal chan BulkOp) {
 				item.Value = value
 				item.Cas = Cas(cas)
 			}
+			signal <- item
 		})
 		if err != nil {
 			item.Err = err
@@ -332,6 +339,7 @@ func (item *CounterOp) execute(b *Bucket, signal chan BulkOp) {
 				item.Value = value
 				item.Cas = Cas(cas)
 			}
+			signal <- item
 		})
 		if err != nil {
 			item.Err = err
