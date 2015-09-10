@@ -104,12 +104,7 @@ func (c *Agent) connectPipeline(pipeline *memdPipeline, deadline time.Time) erro
 		return err
 	}
 
-	err = c.tryHello(pipeline, deadline)
-	if err != nil {
-		logDebugf("Failed to hello. %v", err)
-		memdConn.Close()
-		return err
-	}
+	c.tryHello(pipeline, deadline)
 
 	return nil
 }
