@@ -31,11 +31,27 @@ func (t DefaultTranscoder) Decode(bytes []byte, flags uint32, out interface{}) e
 
 	// Normal types of decoding
 	if flags&cfFmtMask == cfFmtBinary {
-		*(out.(*[]byte)) = bytes
-		return nil
+		switch typedOut := out.(type) {
+		case *[]byte:
+			*typedOut = bytes
+			return nil
+		case *interface{}:
+			*typedOut = bytes
+			return nil
+		default:
+			return clientError{"You must encode binary in a byte array or interface"}
+		}
 	} else if flags&cfFmtMask == cfFmtString {
-		*(out.(*string)) = string(bytes)
-		return nil
+		switch typedOut := out.(type) {
+		case *string:
+			*typedOut = string(bytes)
+			return nil
+		case *interface{}:
+			*typedOut = string(bytes)
+			return nil
+		default:
+			return clientError{"You must encode a string in a string or interface"}
+		}
 	} else if flags&cfFmtMask == cfFmtJson {
 		err := json.Unmarshal(bytes, &out)
 		if err != nil {
