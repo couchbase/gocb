@@ -1,4 +1,4 @@
-[![GoDoc](https://godoc.org/github.com/couchbaselabs/gocb?status.png)](https://godoc.org/github.com/couchbaselabs/gocb)
+[![GoDoc](https://godoc.org/github.com/couchbase/gocb?status.png)](https://godoc.org/github.com/couchbase/gocb)
 
 # Couchbase Go Client
 
