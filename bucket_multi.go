@@ -86,16 +86,17 @@ type GetAndTouchOp struct {
 }
 
 func (item *GetAndTouchOp) execute(b *Bucket, signal chan BulkOp) {
-	op, err := b.client.GetAndTouch([]byte(item.Key), item.Expiry, func(bytes []byte, flags uint32, cas gocbcore.Cas, err error) {
-		item.Err = err
-		if item.Err == nil {
-			item.Err = b.transcoder.Decode(bytes, flags, item.Value)
+	op, err := b.client.GetAndTouch([]byte(item.Key), item.Expiry,
+		func(bytes []byte, flags uint32, cas gocbcore.Cas, err error) {
+			item.Err = err
 			if item.Err == nil {
-				item.Cas = Cas(cas)
+				item.Err = b.transcoder.Decode(bytes, flags, item.Value)
+				if item.Err == nil {
+					item.Cas = Cas(cas)
+				}
 			}
-		}
-		signal <- item
-	})
+			signal <- item
+		})
 	if err != nil {
 		item.Err = err
 		signal <- item
@@ -116,12 +117,12 @@ type TouchOp struct {
 func (item *TouchOp) execute(b *Bucket, signal chan BulkOp) {
 	op, err := b.client.Touch([]byte(item.Key), gocbcore.Cas(item.Cas), item.Expiry,
 		func(cas gocbcore.Cas, mutToken gocbcore.MutationToken, err error) {
-		item.Err = err
-		if item.Err == nil {
-			item.Cas = Cas(cas)
-		}
-		signal <- item
-	})
+			item.Err = err
+			if item.Err == nil {
+				item.Cas = Cas(cas)
+			}
+			signal <- item
+		})
 	if err != nil {
 		item.Err = err
 		signal <- item
@@ -141,11 +142,12 @@ type RemoveOp struct {
 func (item *RemoveOp) execute(b *Bucket, signal chan BulkOp) {
 	op, err := b.client.Remove([]byte(item.Key), gocbcore.Cas(item.Cas),
 		func(cas gocbcore.Cas, mutToken gocbcore.MutationToken, err error) {
-		item.Err = err
-		if item.Err == nil {
-			item.Cas = Cas(cas)
-		}
-	})
+			item.Err = err
+			if item.Err == nil {
+				item.Cas = Cas(cas)
+			}
+			signal <- item
+		})
 	if err != nil {
 		item.Err = err
 		signal <- item
@@ -172,11 +174,12 @@ func (item *UpsertOp) execute(b *Bucket, signal chan BulkOp) {
 	} else {
 		op, err := b.client.Set([]byte(item.Key), bytes, flags, item.Expiry,
 			func(cas gocbcore.Cas, mutToken gocbcore.MutationToken, err error) {
-			item.Err = err
-			if item.Err == nil {
-				item.Cas = Cas(cas)
-			}
-		})
+				item.Err = err
+				if item.Err == nil {
+					item.Cas = Cas(cas)
+				}
+				signal <- item
+			})
 		if err != nil {
 			item.Err = err
 			signal <- item
@@ -204,11 +207,12 @@ func (item *InsertOp) execute(b *Bucket, signal chan BulkOp) {
 	} else {
 		op, err := b.client.Add([]byte(item.Key), bytes, flags, item.Expiry,
 			func(cas gocbcore.Cas, mutToken gocbcore.MutationToken, err error) {
-			item.Err = err
-			if item.Err == nil {
-				item.Cas = Cas(cas)
-			}
-		})
+				item.Err = err
+				if item.Err == nil {
+					item.Cas = Cas(cas)
+				}
+				signal <- item
+			})
 		if err != nil {
 			item.Err = err
 			signal <- item
@@ -236,11 +240,12 @@ func (item *ReplaceOp) execute(b *Bucket, signal chan BulkOp) {
 	} else {
 		op, err := b.client.Replace([]byte(item.Key), bytes, flags, gocbcore.Cas(item.Cas), item.Expiry,
 			func(cas gocbcore.Cas, mutToken gocbcore.MutationToken, err error) {
-			item.Err = err
-			if item.Err == nil {
-				item.Cas = Cas(cas)
-			}
-		})
+				item.Err = err
+				if item.Err == nil {
+					item.Cas = Cas(cas)
+				}
+				signal <- item
+			})
 		if err != nil {
 			item.Err = err
 			signal <- item
@@ -262,11 +267,12 @@ type AppendOp struct {
 func (item *AppendOp) execute(b *Bucket, signal chan BulkOp) {
 	op, err := b.client.Append([]byte(item.Key), []byte(item.Value),
 		func(cas gocbcore.Cas, mutToken gocbcore.MutationToken, err error) {
-		item.Err = err
-		if item.Err == nil {
-			item.Cas = Cas(cas)
-		}
-	})
+			item.Err = err
+			if item.Err == nil {
+				item.Cas = Cas(cas)
+			}
+			signal <- item
+		})
 	if err != nil {
 		item.Err = err
 		signal <- item
@@ -287,11 +293,12 @@ type PrependOp struct {
 func (item *PrependOp) execute(b *Bucket, signal chan BulkOp) {
 	op, err := b.client.Prepend([]byte(item.Key), []byte(item.Value),
 		func(cas gocbcore.Cas, mutToken gocbcore.MutationToken, err error) {
-		item.Err = err
-		if item.Err == nil {
-			item.Cas = Cas(cas)
-		}
-	})
+			item.Err = err
+			if item.Err == nil {
+				item.Cas = Cas(cas)
+			}
+			signal <- item
+		})
 	if err != nil {
 		item.Err = err
 		signal <- item
@@ -321,12 +328,13 @@ func (item *CounterOp) execute(b *Bucket, signal chan BulkOp) {
 	if item.Delta > 0 {
 		op, err := b.client.Increment([]byte(item.Key), uint64(item.Delta), realInitial, item.Expiry,
 			func(value uint64, cas gocbcore.Cas, mutToken gocbcore.MutationToken, err error) {
-			item.Err = err
-			if item.Err == nil {
-				item.Value = value
-				item.Cas = Cas(cas)
-			}
-		})
+				item.Err = err
+				if item.Err == nil {
+					item.Value = value
+					item.Cas = Cas(cas)
+				}
+				signal <- item
+			})
 		if err != nil {
 			item.Err = err
 			signal <- item
@@ -336,12 +344,13 @@ func (item *CounterOp) execute(b *Bucket, signal chan BulkOp) {
 	} else if item.Delta < 0 {
 		op, err := b.client.Increment([]byte(item.Key), uint64(-item.Delta), realInitial, item.Expiry,
 			func(value uint64, cas gocbcore.Cas, mutToken gocbcore.MutationToken, err error) {
-			item.Err = err
-			if item.Err == nil {
-				item.Value = value
-				item.Cas = Cas(cas)
-			}
-		})
+				item.Err = err
+				if item.Err == nil {
+					item.Value = value
+					item.Cas = Cas(cas)
+				}
+				signal <- item
+			})
 		if err != nil {
 			item.Err = err
 			signal <- item
