@@ -190,6 +190,10 @@ func (e *n1qlMultiError) Error() string {
 	return (*e)[0].Error()
 }
 
+func (e *n1qlMultiError) Code() uint32 {
+	return (*e)[0].Code;
+}
+
 type QueryResults interface {
 	One(valuePtr interface{}) error
 	Next(valuePtr interface{}) bool
@@ -281,6 +285,30 @@ func (b *Bucket) executeN1qlQuery(n1qlEp string, opts map[string]interface{}) (V
 	}, nil
 }
 
+func (b *Bucket) prepareN1qlQuery(n1qlEp string, opts map[string]interface{}) (*n1qlCache, error) {
+	prepOpts := make(map[string]interface{})
+	for k, v := range opts {
+		prepOpts[k] = v
+	}
+	prepOpts["statement"] = "PREPARE " + opts["statement"].(string);
+
+	prepRes, err := b.executeN1qlQuery(n1qlEp, prepOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	var preped n1qlPrepData
+	err = prepRes.One(&preped)
+	if (err != nil) {
+		return nil, err
+	}
+
+	return &n1qlCache{
+		name: preped.Name,
+		encodedPlan: preped.EncodedPlan,
+	}, nil
+}
+
 type n1qlPrepData struct {
 	EncodedPlan string `json:"encoded_plan"`
 	Name string `json:"name"`
@@ -301,46 +329,55 @@ func (b *Bucket) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) (ViewResults
 		execOpts["args"] = params
 	}
 
-	if !q.adHoc {
-		stmtStr := q.options["statement"].(string);
+	if q.adHoc {
+		return b.executeN1qlQuery(n1qlEp, execOpts)
+	}
 
-		var cachedStmt *n1qlCache
-		b.queryCacheLock.RLock()
-		cachedStmt = b.queryCache[stmtStr]
-		b.queryCacheLock.RUnlock()
+	// Do Prepared Statement Logic
+	var cachedStmt *n1qlCache
 
-		if cachedStmt == nil {
-			prepOpts := make(map[string]interface{})
-			for k, v := range q.options {
-				prepOpts[k] = v
-			}
-			prepOpts["statement"] = "PREPARE " + stmtStr;
+	stmtStr := q.options["statement"].(string);
 
-			prepRes, err := b.executeN1qlQuery(n1qlEp, prepOpts)
-			if err != nil {
-				return nil, err
-			}
+	b.queryCacheLock.RLock()
+	cachedStmt = b.queryCache[stmtStr]
+	b.queryCacheLock.RUnlock()
 
-			var preped n1qlPrepData
-			err = prepRes.One(&preped)
-			if (err != nil) {
-				return nil, err
-			}
-
-			cachedStmt = &n1qlCache{
-				name: preped.Name,
-				encodedPlan: preped.EncodedPlan,
-			}
-
-			b.queryCacheLock.Lock()
-			b.queryCache[stmtStr] = cachedStmt
-			b.queryCacheLock.Unlock()
-		}
-
+	if cachedStmt != nil {
+		// Attempt to execute our cached query plan
 		delete(execOpts, "statement")
 		execOpts["prepared"] = cachedStmt.name
 		execOpts["encoded_plan"] = cachedStmt.encodedPlan
+
+		results, err := b.executeN1qlQuery(n1qlEp, execOpts)
+		if err == nil {
+			return results, nil
+		}
+
+		// If we get error 4050, 4070 or 5000, we should attempt
+		//   to reprepare the statement immediately before failing.
+		n1qlErr, isN1qlErr := err.(*n1qlMultiError)
+		if !isN1qlErr {
+			return nil, err
+		}
+		if n1qlErr.Code() != 4050 && n1qlErr.Code() != 4070 && n1qlErr.Code() != 5000 {
+			return nil, err
+		}
 	}
+
+	// Prepare the query
+	cachedStmt, err = b.prepareN1qlQuery(n1qlEp, q.options)
+	if err != nil {
+		return nil, err
+	}
+
+	// Save new cached statement
+	b.queryCacheLock.Lock()
+	b.queryCache[stmtStr] = cachedStmt
+	b.queryCacheLock.Unlock()
+
+	// Update with new prepared data
+	execOpts["prepared"] = cachedStmt.name
+	execOpts["encoded_plan"] = cachedStmt.encodedPlan
 
 	return b.executeN1qlQuery(n1qlEp, execOpts)
 }
