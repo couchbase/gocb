@@ -26,9 +26,23 @@ func (c *Agent) handleServerDeath(s *memdPipeline) {
 	//  the issue, like requesting a new configuration.
 }
 
+func appendFeatureCode(bytes []byte, feature HelloFeature) []byte {
+	bytes = append(bytes, 0, 0)
+	binary.BigEndian.PutUint16(bytes[len(bytes)-2:], uint16(FeatureSeqNo))
+	return bytes
+}
+
 func (c *Agent) tryHello(pipeline *memdPipeline, deadline time.Time) error {
-	featuresBytes := make([]byte, 2)
-	binary.BigEndian.PutUint16(featuresBytes[0:], uint16(FeatureSeqNo))
+	var featuresBytes []byte
+
+	if c.useMutationTokens {
+		featuresBytes = appendFeatureCode(featuresBytes, FeatureSeqNo)
+	}
+
+	if featuresBytes == nil {
+		// If we have no features, we don't need to HELLO at all
+		return nil
+	}
 
 	_, err := pipeline.ExecuteRequest(&memdQRequest{
 		memdRequest: memdRequest{
