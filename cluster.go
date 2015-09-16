@@ -107,6 +107,7 @@ func (c *Cluster) makeAgentConfig(bucket, password string) *gocbcore.AgentConfig
 		BucketName:           bucket,
 		Password:             password,
 		AuthHandler:          authFn,
+		UseMutationTokens:    false,
 		ConnectTimeout:       c.connectTimeout,
 		ServerConnectTimeout: c.serverConnectTimeout,
 	}

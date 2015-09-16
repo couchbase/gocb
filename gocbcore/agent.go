@@ -18,6 +18,7 @@ type Agent struct {
 	password  string
 	tlsConfig *tls.Config
 	initFn    memdInitFunc
+	useMutationTokens bool
 
 	routingInfo routeDataPtr
 	numVbuckets int
@@ -55,6 +56,7 @@ type AgentConfig struct {
 	BucketName  string
 	Password    string
 	AuthHandler AuthFunc
+	UseMutationTokens bool
 
 	ConnectTimeout       time.Duration
 	ServerConnectTimeout time.Duration
@@ -90,6 +92,7 @@ func createAgent(config *AgentConfig, initFn memdInitFunc) (*Agent, error) {
 				TLSClientConfig: config.TlsConfig,
 			},
 		},
+		useMutationTokens: config.UseMutationTokens,
 		serverFailures: make(map[string]time.Time),
 		serverConnectTimeout: config.ServerConnectTimeout,
 		serverWaitTimeout: 5 * time.Second,
