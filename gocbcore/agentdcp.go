@@ -16,8 +16,8 @@ func (s SnapshotState) HasOnDisk() bool {
 type StreamObserver interface {
 	SnapshotMarker(startSeqNo, endSeqNo uint64, snapshotType SnapshotState)
 	Mutation(seqNo, revNo uint64, flags, expiry, lockTime uint32, cas uint64, datatype uint8, vbId uint16, key, value []byte)
-	Deletion(seqNo, revNo, cas uint64, datatype uint8, vbId uint16, key []byte)
-	Expiration(seqNo, revNo, cas uint64, datatype uint8, vbId uint16, key []byte)
+	Deletion(seqNo, revNo, cas uint64, vbId uint16, key []byte)
+	Expiration(seqNo, revNo, cas uint64, vbId uint16, key []byte)
 	Flush()
 	End(err error)
 }
@@ -26,31 +26,53 @@ type OpenStreamCallback func(error)
 type CloseStreamCallback func(error)
 
 func (c *Agent) OpenStream(vbId uint16, vbUuid, startSeqNo, endSeqNo uint64, evtHandler StreamObserver, cb OpenStreamCallback) (PendingOp, error) {
+	streamOpened := false
+
 	handler := func(resp *memdResponse, err error) {
-		if resp.Magic == ReqMagic {
-			// This is one of the stream events
-			switch resp.Opcode {
-			case CmdDcpSnapshotMarker:
-				newStartSeqNo := binary.BigEndian.Uint64(resp.Extras[0:])
-				newEndSeqNo := binary.BigEndian.Uint64(resp.Extras[8:])
-				snapshotType := binary.BigEndian.Uint32(resp.Extras[16:])
-				evtHandler.SnapshotMarker(newStartSeqNo, newEndSeqNo, SnapshotState(snapshotType))
-			case CmdDcpMutation:
-				vbId := uint16(resp.Status)
-				seqNo := binary.BigEndian.Uint64(resp.Extras[0:])
-				revNo := binary.BigEndian.Uint64(resp.Extras[8:])
-				flags := binary.BigEndian.Uint32(resp.Extras[16:])
-				expiry := binary.BigEndian.Uint32(resp.Extras[20:])
-				lockTime := binary.BigEndian.Uint32(resp.Extras[24:])
-				evtHandler.Mutation(seqNo, revNo, flags, expiry, lockTime, resp.Cas, resp.Datatype, vbId, resp.Key, resp.Value)
-			case CmdDcpDeletion:
-			case CmdDcpExpiration:
-			case CmdDcpFlush:
-			case CmdDcpStreamEnd:
+		if err != nil {
+			if !streamOpened {
+				cb(err)
+				return
 			}
-		} else {
+
+			// We need to shutdown the stream here as well...
+			evtHandler.End(err)
+			return
+		}
+
+		if resp.Magic == ResMagic {
 			// This is the response to the open stream request.
-			cb(err)
+			streamOpened = true
+			return
+		}
+
+		// This is one of the stream events
+		switch resp.Opcode {
+		case CmdDcpSnapshotMarker:
+			newStartSeqNo := binary.BigEndian.Uint64(resp.Extras[0:])
+			newEndSeqNo := binary.BigEndian.Uint64(resp.Extras[8:])
+			snapshotType := binary.BigEndian.Uint32(resp.Extras[16:])
+			evtHandler.SnapshotMarker(newStartSeqNo, newEndSeqNo, SnapshotState(snapshotType))
+		case CmdDcpMutation:
+			vbId := uint16(resp.Status)
+			seqNo := binary.BigEndian.Uint64(resp.Extras[0:])
+			revNo := binary.BigEndian.Uint64(resp.Extras[8:])
+			flags := binary.BigEndian.Uint32(resp.Extras[16:])
+			expiry := binary.BigEndian.Uint32(resp.Extras[20:])
+			lockTime := binary.BigEndian.Uint32(resp.Extras[24:])
+			evtHandler.Mutation(seqNo, revNo, flags, expiry, lockTime, resp.Cas, resp.Datatype, vbId, resp.Key, resp.Value)
+		case CmdDcpDeletion:
+			vbId := uint16(resp.Status)
+			seqNo := binary.BigEndian.Uint64(resp.Extras[0:])
+			revNo := binary.BigEndian.Uint64(resp.Extras[8:])
+			evtHandler.Deletion(seqNo, revNo, resp.Cas, vbId, resp.Key)
+		case CmdDcpExpiration:
+			vbId := uint16(resp.Status)
+			seqNo := binary.BigEndian.Uint64(resp.Extras[0:])
+			revNo := binary.BigEndian.Uint64(resp.Extras[8:])
+			evtHandler.Expiration(seqNo, revNo, resp.Cas, vbId, resp.Key)
+		case CmdDcpFlush:
+		case CmdDcpStreamEnd:
 		}
 	}
 
