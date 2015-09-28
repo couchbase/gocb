@@ -22,10 +22,17 @@ type StreamObserver interface {
 	End(err error)
 }
 
+type FailoverEntry struct {
+	VbUuid VbUuid
+	SeqNo SeqNo
+}
+
 type OpenStreamCallback func(error)
 type CloseStreamCallback func(error)
+type GetFailoverLogCallback func([]FailoverEntry, error)
+type GetLastCheckpointCallback func(SeqNo, error)
 
-func (c *Agent) OpenStream(vbId uint16, vbUuid, startSeqNo, endSeqNo uint64, evtHandler StreamObserver, cb OpenStreamCallback) (PendingOp, error) {
+func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo SeqNo, evtHandler StreamObserver, cb OpenStreamCallback) (PendingOp, error) {
 	streamOpened := false
 
 	handler := func(resp *memdResponse, err error) {
@@ -79,11 +86,11 @@ func (c *Agent) OpenStream(vbId uint16, vbUuid, startSeqNo, endSeqNo uint64, evt
 	extraBuf := make([]byte, 48)
 	binary.BigEndian.PutUint32(extraBuf[0:], 0)
 	binary.BigEndian.PutUint32(extraBuf[4:], 0)
-	binary.BigEndian.PutUint64(extraBuf[8:], startSeqNo)
-	binary.BigEndian.PutUint64(extraBuf[16:], endSeqNo)
-	binary.BigEndian.PutUint64(extraBuf[24:], vbUuid)
-	binary.BigEndian.PutUint64(extraBuf[32:], startSeqNo)
-	binary.BigEndian.PutUint64(extraBuf[40:], endSeqNo)
+	binary.BigEndian.PutUint64(extraBuf[8:], uint64(startSeqNo))
+	binary.BigEndian.PutUint64(extraBuf[16:], uint64(endSeqNo))
+	binary.BigEndian.PutUint64(extraBuf[24:], uint64(vbUuid))
+	binary.BigEndian.PutUint64(extraBuf[32:], uint64(startSeqNo))
+	binary.BigEndian.PutUint64(extraBuf[40:], uint64(endSeqNo))
 
 	req := &memdQRequest{
 		memdRequest: memdRequest{
@@ -125,3 +132,69 @@ func (c *Agent) CloseStream(vbId uint16, cb CloseStreamCallback) (PendingOp, err
 	}
 	return c.dispatchOp(req)
 }
+
+func (c *Agent) GetFailoverLog(vbId uint16, cb GetFailoverLogCallback) (PendingOp, error) {
+	handler := func(resp *memdResponse, err error) {
+		if err != nil {
+			cb(nil, err)
+			return
+		}
+
+		numEntries := len(resp.Value) / 16
+		entries := make([]FailoverEntry, numEntries)
+		for i := 0; i < numEntries; i++ {
+			entries[i] = FailoverEntry{
+				VbUuid: VbUuid(binary.BigEndian.Uint64(resp.Value[i*16+0:])),
+				SeqNo: SeqNo(binary.BigEndian.Uint64(resp.Value[i*16+8:])),
+			}
+		}
+		cb(entries, nil)
+	}
+
+	req := &memdQRequest{
+		memdRequest: memdRequest{
+			Magic:    ReqMagic,
+			Opcode:   CmdDcpGetFailoverLog,
+			Datatype: 0,
+			Cas:      0,
+			Extras:   nil,
+			Key:      nil,
+			Value:    nil,
+			Vbucket:  vbId,
+		},
+		Callback:   handler,
+		ReplicaIdx: -1,
+		Persistent: true,
+	}
+	return c.dispatchOp(req)
+}
+
+func (c *Agent) GetLastCheckpoint(vbId uint16, cb GetLastCheckpointCallback) (PendingOp, error) {
+	handler := func(resp *memdResponse, err error) {
+		if err != nil {
+			cb(0, err)
+			return
+		}
+
+		seqNo := SeqNo(binary.BigEndian.Uint64(resp.Value[0:]))
+		cb(seqNo, err)
+	}
+
+	req := &memdQRequest{
+		memdRequest: memdRequest{
+			Magic:    ReqMagic,
+			Opcode:   CmdGetLastCheckpoint,
+			Datatype: 0,
+			Cas:      0,
+			Extras:   nil,
+			Key:      nil,
+			Value:    nil,
+			Vbucket:  vbId,
+		},
+		Callback:   handler,
+		ReplicaIdx: -1,
+		Persistent: true,
+	}
+	return c.dispatchOp(req)
+}
+

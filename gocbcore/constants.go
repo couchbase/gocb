@@ -48,6 +48,7 @@ const (
 	CmdObserve            = CommandCode(0x92)
 	CmdGetLocked          = CommandCode(0x94)
 	CmdUnlockKey          = CommandCode(0x95)
+	CmdGetLastCheckpoint  = CommandCode(0x97)
 	CmdGetClusterConfig   = CommandCode(0xb5)
 	CmdGetRandom          = CommandCode(0xb6)
 )
