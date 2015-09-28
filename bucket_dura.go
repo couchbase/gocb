@@ -99,13 +99,13 @@ func (b *Bucket) observeOne(key []byte, mt MutationToken, cas Cas, forDelete boo
 		}
 	}
 
-	timeoutTmr := acquireTimer(b.duraTimeout)
+	timeoutTmr := gocbcore.AcquireTimer(b.duraTimeout)
 
 	commCh := make(chan uint)
 	for {
 		op, err := observeOnce(commCh)
 		if err != nil {
-			releaseTimer(timeoutTmr, false)
+			gocbcore.ReleaseTimer(timeoutTmr, false)
 			failMe()
 			return
 		}
@@ -122,14 +122,14 @@ func (b *Bucket) observeOne(key []byte, mt MutationToken, cas Cas, forDelete boo
 				sentPersisted = true
 			}
 
-			waitTmr := acquireTimer(b.duraPollTimeout)
+			waitTmr := gocbcore.AcquireTimer(b.duraPollTimeout)
 			select {
 			case <-waitTmr.C:
-				releaseTimer(waitTmr, true)
-			// Fall through to outside for loop
+				gocbcore.ReleaseTimer(waitTmr, true)
+				// Fall through to outside for loop
 			case <-timeoutTmr.C:
-				releaseTimer(waitTmr, false)
-				releaseTimer(timeoutTmr, true)
+				gocbcore.ReleaseTimer(waitTmr, false)
+				gocbcore.ReleaseTimer(timeoutTmr, true)
 				failMe()
 				return
 			}
@@ -137,7 +137,7 @@ func (b *Bucket) observeOne(key []byte, mt MutationToken, cas Cas, forDelete boo
 		case <-timeoutTmr.C:
 			// Timed out
 			op.Cancel()
-			releaseTimer(timeoutTmr, true)
+			gocbcore.ReleaseTimer(timeoutTmr, true)
 			failMe()
 			return
 		}

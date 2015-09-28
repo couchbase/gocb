@@ -102,13 +102,13 @@ func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (casOut 
 		return 0, err
 	}
 
-	timeoutTmr := acquireTimer(b.opTimeout)
+	timeoutTmr := gocbcore.AcquireTimer(b.opTimeout)
 	select {
 	case <-signal:
-		releaseTimer(timeoutTmr, false)
+		gocbcore.ReleaseTimer(timeoutTmr, false)
 		return
 	case <-timeoutTmr.C:
-		releaseTimer(timeoutTmr, true)
+		gocbcore.ReleaseTimer(timeoutTmr, true)
 		op.Cancel()
 		return 0, timeoutError{}
 	}
@@ -130,13 +130,13 @@ func (b *Bucket) hlpCasExec(execFn hlpCasHandler) (casOut Cas, mtOut MutationTok
 		return 0, MutationToken{}, err
 	}
 
-	timeoutTmr := acquireTimer(b.opTimeout)
+	timeoutTmr := gocbcore.AcquireTimer(b.opTimeout)
 	select {
 	case <-signal:
-		releaseTimer(timeoutTmr, false)
+		gocbcore.ReleaseTimer(timeoutTmr, false)
 		return
 	case <-timeoutTmr.C:
-		releaseTimer(timeoutTmr, true)
+		gocbcore.ReleaseTimer(timeoutTmr, true)
 		op.Cancel()
 		return 0, MutationToken{}, timeoutError{}
 	}
@@ -159,13 +159,13 @@ func (b *Bucket) hlpCtrExec(execFn hlpCtrHandler) (valOut uint64, casOut Cas, mt
 		return 0, 0, MutationToken{}, err
 	}
 
-	timeoutTmr := acquireTimer(b.opTimeout)
+	timeoutTmr := gocbcore.AcquireTimer(b.opTimeout)
 	select {
 	case <-signal:
-		releaseTimer(timeoutTmr, false)
+		gocbcore.ReleaseTimer(timeoutTmr, false)
 		return
 	case <-timeoutTmr.C:
-		releaseTimer(timeoutTmr, true)
+		gocbcore.ReleaseTimer(timeoutTmr, true)
 		op.Cancel()
 		return 0, 0, MutationToken{}, timeoutError{}
 	}

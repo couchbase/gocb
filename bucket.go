@@ -70,25 +70,6 @@ func (b *Bucket) InvalidateQueryCache() {
 	b.queryCacheLock.Unlock()
 }
 
-var timerPool = sync.Pool{}
-
-func acquireTimer(d time.Duration) *time.Timer {
-	tmrMaybe := timerPool.Get()
-	if tmrMaybe == nil {
-		return time.NewTimer(d)
-	}
-	tmr := tmrMaybe.(*time.Timer)
-	tmr.Reset(d)
-	return tmr
-}
-func releaseTimer(t *time.Timer, wasRead bool) {
-	stopped := t.Stop()
-	if !wasRead && !stopped {
-		<-t.C
-	}
-	timerPool.Put(t)
-}
-
 type Cas gocbcore.Cas
 type pendingOp gocbcore.PendingOp
 

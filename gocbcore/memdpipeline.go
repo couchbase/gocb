@@ -81,13 +81,14 @@ func (pipeline *memdPipeline) ExecuteRequest(req *memdQRequest, deadline time.Ti
 		return nil, &generalError{"Failed to dispatch operation."}
 	}
 
+	timeoutTmr := AcquireTimer(deadline.Sub(time.Now()))
 	select {
 	case <-signal:
+		ReleaseTimer(timeoutTmr, false)
 		return
-	case <-time.After(deadline.Sub(time.Now())):
-		if (!req.Cancel()) {
-			<-signal
-		}
+	case <-timeoutTmr.C:
+		ReleaseTimer(timeoutTmr, true)
+		req.Cancel()
 		return nil, &timeoutError{}
 	}
 }

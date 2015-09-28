@@ -23,7 +23,7 @@ type BulkOp interface {
 }
 
 func (b *Bucket) Do(ops []BulkOp) error {
-	timeoutTmr := acquireTimer(time.Second * 10)
+	timeoutTmr := gocbcore.AcquireTimer(time.Second * 10)
 
 	signal := make(chan BulkOp, 1)
 	for _, item := range ops {
@@ -36,14 +36,14 @@ func (b *Bucket) Do(ops []BulkOp) error {
 			//   since it already completed, no cancel actually occurs
 			item.cancel()
 		case <-timeoutTmr.C:
-			releaseTimer(timeoutTmr, true)
+			gocbcore.ReleaseTimer(timeoutTmr, true)
 			for _, item := range ops {
 				item.cancel()
 			}
 			return timeoutError{}
 		}
 	}
-	releaseTimer(timeoutTmr, false)
+	gocbcore.ReleaseTimer(timeoutTmr, false)
 	return nil
 }
 
