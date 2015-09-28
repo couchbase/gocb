@@ -1,5 +1,9 @@
 package gocbcore
 
+import (
+	"sync"
+)
+
 // This is used to store operations while they are pending
 //   a response from the server to allow mapping of a response
 //   opaque back to the originating request.  This queue takes
@@ -7,12 +11,20 @@ package gocbcore
 //   and synchronous responses from the server to nearly always
 //   return the request without needing to iterate at all.
 type memdOpMap struct {
+	lock sync.Mutex
+	opIndex uint32
+
 	first *memdQRequest
 	last  *memdQRequest
 }
 
 // Add a new request to the bottom of the op queue.
 func (q *memdOpMap) Add(r *memdQRequest) {
+	q.lock.Lock()
+
+	q.opIndex++
+	r.Opaque = q.opIndex
+
 	if q.last == nil {
 		q.first = r
 		q.last = r
@@ -20,6 +32,8 @@ func (q *memdOpMap) Add(r *memdQRequest) {
 		q.last.queueNext = r
 		q.last = r
 	}
+
+	q.lock.Unlock()
 }
 
 // Removes a request from the op queue.  Expects to be passed
@@ -41,16 +55,21 @@ func (q *memdOpMap) remove(prev *memdQRequest, req *memdQRequest) {
 
 // Removes a specific request from the op queue.
 func (q *memdOpMap) Remove(req *memdQRequest) bool {
+	q.lock.Lock()
+
 	var cur *memdQRequest = q.first
 	var prev *memdQRequest
 	for cur != nil {
 		if cur == req {
 			q.remove(prev, cur)
+			q.lock.Unlock()
 			return true
 		}
 		prev = cur
 		cur = cur.queueNext
 	}
+
+	q.lock.Unlock()
 	return false
 }
 
@@ -58,6 +77,8 @@ func (q *memdOpMap) Remove(req *memdQRequest) bool {
 //   the opaque value that was assigned to it when it was dispatched.
 //   It then removes the request from the queue if it is not persistent.
 func (q *memdOpMap) FindAndMaybeRemove(opaque uint32) *memdQRequest {
+	q.lock.Lock()
+
 	var cur *memdQRequest = q.first
 	var prev *memdQRequest
 	for cur != nil {
@@ -65,11 +86,15 @@ func (q *memdOpMap) FindAndMaybeRemove(opaque uint32) *memdQRequest {
 			if !cur.Persistent {
 				q.remove(prev, cur)
 			}
+
+			q.lock.Unlock()
 			return cur
 		}
 		prev = cur
 		cur = cur.queueNext
 	}
+
+	q.lock.Unlock()
 	return nil
 }
 

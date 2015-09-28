@@ -23,8 +23,6 @@ type memdPipeline struct {
 	isClosed bool
 	ioDoneCh chan bool
 
-	mapLock sync.Mutex
-	opIndex uint32
 	opList  memdOpMap
 
 	handleBadRoute BadRouteHandler
@@ -104,19 +102,12 @@ func (pipeline *memdPipeline) dispatchRequest(req *memdQRequest) error {
 		return nil
 	}
 
-	pipeline.mapLock.Lock()
-	pipeline.opIndex++
-	req.Opaque = pipeline.opIndex
 	pipeline.opList.Add(req)
-	pipeline.mapLock.Unlock()
 
 	err := pipeline.conn.WritePacket(&req.memdRequest)
 	if err != nil {
 		logDebugf("Got write error")
-		pipeline.mapLock.Lock()
 		pipeline.opList.Remove(req)
-		pipeline.mapLock.Unlock()
-
 		return err
 	}
 
@@ -127,9 +118,7 @@ func (s *memdPipeline) resolveRequest(resp *memdResponse) {
 	opIndex := resp.Opaque
 
 	// Find the request that goes with this response
-	s.mapLock.Lock()
 	req := s.opList.FindAndMaybeRemove(opIndex)
-	s.mapLock.Unlock()
 
 	if req == nil {
 		// There is no known request that goes with this response.  Ignore it.
