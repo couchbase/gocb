@@ -21,7 +21,7 @@ Bug Tracker - [http://www.couchbase.com/issues/browse/GOCBC](http://www.couchbas
 
 To install the latest development version, run:
 ```bash
-go get gopkg.in/couchbaselabs/gocb.v0
+go get gopkg.in/couchbaselabs/gocb.v1
 ```
 
 
