@@ -326,7 +326,19 @@ func (b *Bucket) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) (ViewResults
 		execOpts[k] = v
 	}
 	if params != nil {
-		execOpts["args"] = params
+		args, isArray := params.([]interface{})
+		if isArray {
+			execOpts["args"] = args
+		} else {
+			mapArgs, isMap := params.(map[string]interface{})
+			if isMap {
+				for key, value := range mapArgs {
+					execOpts["$"+key] = value
+				}
+			} else {
+				panic("Invalid params argument passed")
+			}
+		}
 	}
 
 	if q.adHoc {
