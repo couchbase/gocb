@@ -49,6 +49,8 @@ const (
 	CmdGetLocked          = CommandCode(0x94)
 	CmdUnlockKey          = CommandCode(0x95)
 	CmdGetLastCheckpoint  = CommandCode(0x97)
+	CmdSetMeta            = CommandCode(0xa2)
+	CmdDetMeta            = CommandCode(0xa8)
 	CmdGetClusterConfig   = CommandCode(0xb5)
 	CmdGetRandom          = CommandCode(0xb6)
 )
