@@ -82,7 +82,7 @@ func bucketDataInToSettings(bucketData *bucketDataIn) *BucketSettings {
 		Quota:         bucketData.Quota.Ram,
 		Replicas:      bucketData.ReplicaNumber,
 	}
-	if bucketData.BucketType == "couchbase" {
+	if bucketData.BucketType == "membase" {
 		settings.Type = Couchbase
 	} else if bucketData.BucketType == "memcached" {
 		settings.Type = Memcached
