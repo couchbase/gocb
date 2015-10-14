@@ -81,6 +81,8 @@ func (t DefaultTranscoder) Encode(value interface{}) ([]byte, uint32, error) {
 	case *string:
 		bytes = []byte(*value.(*string))
 		flags = cfFmtString
+	case *interface{}:
+		return t.Encode(*value.(*interface{}))
 	default:
 		bytes, err = json.Marshal(value)
 		if err != nil {
