@@ -87,3 +87,13 @@ const (
 	KeyStateNotFound     = KeyState(0x80)
 	KeyStateDeleted      = KeyState(0x81)
 )
+
+type StreamEndStatus uint32
+
+const (
+	StreamEndOK           = StreamEndStatus(0x00)
+	StreamEndClosed       = StreamEndStatus(0x01)
+	StreamEndStateChanged = StreamEndStatus(0x02)
+	StreamEndDisconnected = StreamEndStatus(0x03)
+	StreamEndTooSlow      = StreamEndStatus(0x04)
+)

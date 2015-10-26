@@ -80,6 +80,8 @@ func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo SeqN
 			evtHandler.Expiration(seqNo, revNo, resp.Cas, vbId, resp.Key)
 		case CmdDcpFlush:
 		case CmdDcpStreamEnd:
+			code := StreamEndStatus(binary.BigEndian.Uint32(resp.Extras[0:]))
+			evtHandler.End(streamEndError{code})
 		}
 	}
 

@@ -107,3 +107,37 @@ type agentError struct {
 func (e agentError) Error() string {
 	return e.message
 }
+
+type streamEndError struct {
+	code StreamEndStatus
+}
+
+func (e streamEndError) Error() string {
+	switch e.code {
+	case StreamEndOK:
+		return "Success."
+	case StreamEndClosed:
+		return "Stream closed."
+	case StreamEndStateChanged:
+		return "State changed."
+	case StreamEndDisconnected:
+		return "Disconnected."
+	case StreamEndTooSlow:
+		return "Too slow."
+	default:
+		return fmt.Sprintf("Stream closed for unknown reason: (%d).", e.code)
+	}
+}
+
+func (e streamEndError) Closed() bool {
+	return e.code == StreamEndClosed
+}
+func (e streamEndError) StateChanged() bool {
+	return e.code == StreamEndStateChanged
+}
+func (e streamEndError) Disconnected() bool {
+	return e.code == StreamEndDisconnected
+}
+func (e streamEndError) TooSlow() bool {
+	return e.code == StreamEndTooSlow
+}
