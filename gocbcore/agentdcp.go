@@ -31,9 +31,8 @@ type CloseStreamCallback func(error)
 type GetFailoverLogCallback func([]FailoverEntry, error)
 type GetLastCheckpointCallback func(SeqNo, error)
 
-func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo SeqNo, evtHandler StreamObserver, cb OpenStreamCallback) (PendingOp, error) {
+func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo, snapStartSeqNo, snapEndSeqNo SeqNo, evtHandler StreamObserver, cb OpenStreamCallback) (PendingOp, error) {
 	streamOpened := false
-
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
 			if !streamOpened {
@@ -89,8 +88,8 @@ func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo SeqN
 	binary.BigEndian.PutUint64(extraBuf[8:], uint64(startSeqNo))
 	binary.BigEndian.PutUint64(extraBuf[16:], uint64(endSeqNo))
 	binary.BigEndian.PutUint64(extraBuf[24:], uint64(vbUuid))
-	binary.BigEndian.PutUint64(extraBuf[32:], uint64(startSeqNo))
-	binary.BigEndian.PutUint64(extraBuf[40:], uint64(endSeqNo))
+	binary.BigEndian.PutUint64(extraBuf[32:], uint64(snapStartSeqNo))
+	binary.BigEndian.PutUint64(extraBuf[40:], uint64(snapEndSeqNo))
 
 	req := &memdQRequest{
 		memdRequest: memdRequest{
