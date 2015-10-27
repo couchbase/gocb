@@ -388,6 +388,7 @@ func (b *Bucket) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) (ViewResults
 	b.queryCacheLock.Unlock()
 
 	// Update with new prepared data
+	delete(execOpts, "statement")
 	execOpts["prepared"] = cachedStmt.name
 	execOpts["encoded_plan"] = cachedStmt.encodedPlan
 
