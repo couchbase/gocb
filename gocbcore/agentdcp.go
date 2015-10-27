@@ -14,7 +14,7 @@ func (s SnapshotState) HasOnDisk() bool {
 }
 
 type StreamObserver interface {
-	SnapshotMarker(startSeqNo, endSeqNo uint64, snapshotType SnapshotState)
+	SnapshotMarker(startSeqNo, endSeqNo uint64, vbId uint16, snapshotType SnapshotState)
 	Mutation(seqNo, revNo uint64, flags, expiry, lockTime uint32, cas uint64, datatype uint8, vbId uint16, key, value []byte)
 	Deletion(seqNo, revNo, cas uint64, vbId uint16, key []byte)
 	Expiration(seqNo, revNo, cas uint64, vbId uint16, key []byte)
@@ -54,10 +54,11 @@ func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo, sna
 		// This is one of the stream events
 		switch resp.Opcode {
 		case CmdDcpSnapshotMarker:
+			vbId := uint16(resp.Status)
 			newStartSeqNo := binary.BigEndian.Uint64(resp.Extras[0:])
 			newEndSeqNo := binary.BigEndian.Uint64(resp.Extras[8:])
 			snapshotType := binary.BigEndian.Uint32(resp.Extras[16:])
-			evtHandler.SnapshotMarker(newStartSeqNo, newEndSeqNo, SnapshotState(snapshotType))
+			evtHandler.SnapshotMarker(newStartSeqNo, newEndSeqNo, vbId, SnapshotState(snapshotType))
 		case CmdDcpMutation:
 			vbId := uint16(resp.Status)
 			seqNo := binary.BigEndian.Uint64(resp.Extras[0:])
