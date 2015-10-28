@@ -20,6 +20,8 @@ type Bucket struct {
 
 	queryCacheLock  sync.RWMutex
 	queryCache      map[string]*n1qlCache
+
+	internal        *bucketInternal
 }
 
 func createBucket(config *gocbcore.AgentConfig) (*Bucket, error) {
@@ -28,7 +30,7 @@ func createBucket(config *gocbcore.AgentConfig) (*Bucket, error) {
 		return nil, err
 	}
 
-	return &Bucket{
+	bucket := &Bucket{
 		name:       config.BucketName,
 		password:   config.Password,
 		client:     cli,
@@ -38,7 +40,11 @@ func createBucket(config *gocbcore.AgentConfig) (*Bucket, error) {
 		opTimeout:       2500 * time.Millisecond,
 		duraTimeout:     40000 * time.Millisecond,
 		duraPollTimeout: 100 * time.Millisecond,
-	}, nil
+	}
+	bucket.internal = &bucketInternal{
+		b: bucket,
+	}
+	return bucket, nil
 }
 
 func (b *Bucket) OperationTimeout() time.Duration {
@@ -100,6 +106,11 @@ func (b *Bucket) getN1qlEp() (string, error) {
 
 func (b *Bucket) IoRouter() *gocbcore.Agent {
 	return b.client
+}
+
+// Internal methods, not safe to be consumed by third parties.
+func (b *Bucket) Internal() *bucketInternal {
+	return b.internal
 }
 
 func (b *Bucket) Manager(username, password string) *BucketManager {
