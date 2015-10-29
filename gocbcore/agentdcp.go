@@ -104,7 +104,7 @@ func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo SeqN
 			Vbucket:  vbId,
 		},
 		Callback:   handler,
-		ReplicaIdx: -1,
+		ReplicaIdx: 0,
 		Persistent: true,
 	}
 	return c.dispatchOp(req)
@@ -127,7 +127,7 @@ func (c *Agent) CloseStream(vbId uint16, cb CloseStreamCallback) (PendingOp, err
 			Vbucket:  vbId,
 		},
 		Callback:   handler,
-		ReplicaIdx: -1,
+		ReplicaIdx: 0,
 		Persistent: true,
 	}
 	return c.dispatchOp(req)
@@ -163,7 +163,7 @@ func (c *Agent) GetFailoverLog(vbId uint16, cb GetFailoverLogCallback) (PendingO
 			Vbucket:  vbId,
 		},
 		Callback:   handler,
-		ReplicaIdx: -1,
+		ReplicaIdx: 0,
 		Persistent: true,
 	}
 	return c.dispatchOp(req)
@@ -192,7 +192,7 @@ func (c *Agent) GetLastCheckpoint(vbId uint16, cb GetLastCheckpointCallback) (Pe
 			Vbucket:  vbId,
 		},
 		Callback:   handler,
-		ReplicaIdx: -1,
+		ReplicaIdx: 0,
 		Persistent: true,
 	}
 	return c.dispatchOp(req)

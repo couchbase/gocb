@@ -439,5 +439,12 @@ func (c *Agent) dispatchDirect(req *memdQRequest) error {
 //   around.  It will fail to redispatch operations which are not allowed to be
 //   moved between connections for whatever reason.
 func (c *Agent) redispatchDirect(req *memdQRequest) {
-	c.dispatchDirect(req)
+	if req.ReplicaIdx >= 0 {
+		// Reschedule the operation
+		c.dispatchDirect(req)
+	} else {
+		// Callback advising that a network failure caused this operation to
+		//   not be processed, nothing outside the agent should really see this.
+		req.Callback(nil, networkError{})
+	}
 }
