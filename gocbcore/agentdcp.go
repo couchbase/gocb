@@ -18,7 +18,6 @@ type StreamObserver interface {
 	Mutation(seqNo, revNo uint64, flags, expiry, lockTime uint32, cas uint64, datatype uint8, vbId uint16, key, value []byte)
 	Deletion(seqNo, revNo, cas uint64, vbId uint16, key []byte)
 	Expiration(seqNo, revNo, cas uint64, vbId uint16, key []byte)
-	Flush()
 	End(err error)
 }
 
@@ -78,7 +77,6 @@ func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo SeqN
 			seqNo := binary.BigEndian.Uint64(resp.Extras[0:])
 			revNo := binary.BigEndian.Uint64(resp.Extras[8:])
 			evtHandler.Expiration(seqNo, revNo, resp.Cas, vbId, resp.Key)
-		case CmdDcpFlush:
 		case CmdDcpStreamEnd:
 			code := StreamEndStatus(binary.BigEndian.Uint32(resp.Extras[0:]))
 			evtHandler.End(streamEndError{code})
