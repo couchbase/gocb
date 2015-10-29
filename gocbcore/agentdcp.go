@@ -18,7 +18,7 @@ type StreamObserver interface {
 	Mutation(seqNo, revNo uint64, flags, expiry, lockTime uint32, cas uint64, datatype uint8, vbId uint16, key, value []byte)
 	Deletion(seqNo, revNo, cas uint64, vbId uint16, key []byte)
 	Expiration(seqNo, revNo, cas uint64, vbId uint16, key []byte)
-	End(err error)
+	End(vbId uint16, err error)
 }
 
 type FailoverEntry struct {
@@ -32,22 +32,16 @@ type GetFailoverLogCallback func([]FailoverEntry, error)
 type GetLastCheckpointCallback func(SeqNo, error)
 
 func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo, snapStartSeqNo, snapEndSeqNo SeqNo, evtHandler StreamObserver, cb OpenStreamCallback) (PendingOp, error) {
-	streamOpened := false
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
-			if !streamOpened {
-				cb(err)
-				return
-			}
-
-			// We need to shutdown the stream here as well...
-			evtHandler.End(err)
+			// All client errors are handled by the StreamObserver
+			cb(err)
 			return
 		}
 
 		if resp.Magic == ResMagic {
 			// This is the response to the open stream request.
-			streamOpened = true
+			cb(nil)
 			return
 		}
 
@@ -78,8 +72,9 @@ func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo, sna
 			revNo := binary.BigEndian.Uint64(resp.Extras[8:])
 			evtHandler.Expiration(seqNo, revNo, resp.Cas, vbId, resp.Key)
 		case CmdDcpStreamEnd:
+			vbId := uint16(resp.Status)
 			code := StreamEndStatus(binary.BigEndian.Uint32(resp.Extras[0:]))
-			evtHandler.End(streamEndError{code})
+			evtHandler.End(vbId, streamEndError{code})
 		}
 	}
 
