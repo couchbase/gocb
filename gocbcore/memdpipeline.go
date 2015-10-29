@@ -127,7 +127,7 @@ func (s *memdPipeline) resolveRequest(resp *memdResponse) {
 		return
 	}
 
-	if !req.Persistent {
+	if !req.Persistent || (resp.Magic == ResMagic && resp.Status != StatusSuccess) {
 		if !s.queue.UnqueueRequest(req) {
 			// While we found a valid request, the request does not appear to be queued
 			//   with this server anymore, this probably means that it has been cancelled.
@@ -136,7 +136,7 @@ func (s *memdPipeline) resolveRequest(resp *memdResponse) {
 		}
 	}
 
-	if resp.Status == StatusNotMyVBucket {
+	if resp.Magic == ResMagic && resp.Status == StatusNotMyVBucket {
 		// If possible, lets backchannel our NMV back to the Agent of this memdQueueConn
 		//   instance.  This is primarily meant to enhance performance, and allow the
 		//   agent to be instantly notified upon a new configuration arriving.  If the
