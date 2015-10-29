@@ -55,8 +55,7 @@ func (s *memdQueue) QueueRequest(req *memdQRequest) bool {
 		return false
 	}
 
-	oldSP := atomic.SwapPointer(&req.queuedWith, unsafe.Pointer(s))
-	if oldSP != nil {
+	if !atomic.CompareAndSwapPointer(&req.queuedWith, nil, unsafe.Pointer(s)) {
 		panic("Request was dispatched while already queued somewhere.")
 	}
 
