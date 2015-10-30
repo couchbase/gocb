@@ -64,14 +64,32 @@ func (e memdError) Error() string {
 		return "An invalid delta was passed."
 	case StatusNotMyVBucket:
 		return "Operation sent to incorrect server."
+	case StatusNoBucket:
+		return "Not connected to a bucket."
+	case StatusAuthStale:
+		return "The authenication context is stale. Try re-authenticating."
 	case StatusAuthError:
 		return "Authentication Error."
 	case StatusAuthContinue:
 		return "Auth Continue."
+	case StatusRangeError:
+		return "Requested value is outside range."
+	case StatusAccessError:
+		return "No access."
+	case StatusNotInitialized:
+		return "The cluster is being initialized. Requests are blocked."
+	case StatusRollback:
+		return "A rollback is required."
 	case StatusUnknownCommand:
 		return "An unknown command was received."
 	case StatusOutOfMemory:
 		return "The server is out of memory."
+	case StatusNotSupported:
+		return "The server does not support this command."
+	case StatusInternalError:
+		return "Internal server error."
+	case StatusBusy:
+		return "The server is busy. Try again later."
 	case StatusTmpFail:
 		return "A temporary failure occurred.  Try again later."
 	default:
