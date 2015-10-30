@@ -26,7 +26,7 @@ type FailoverEntry struct {
 	SeqNo SeqNo
 }
 
-type OpenStreamCallback func(error)
+type OpenStreamCallback func([]FailoverEntry, error)
 type CloseStreamCallback func(error)
 type GetFailoverLogCallback func([]FailoverEntry, error)
 type GetLastCheckpointCallback func(SeqNo, error)
@@ -35,13 +35,23 @@ func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo, sna
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
 			// All client errors are handled by the StreamObserver
-			cb(err)
+			cb(nil, err)
 			return
 		}
 
 		if resp.Magic == ResMagic {
 			// This is the response to the open stream request.
-			cb(nil)
+
+			numEntries := len(resp.Value) / 16
+			entries := make([]FailoverEntry, numEntries)
+			for i := 0; i < numEntries; i++ {
+				entries[i] = FailoverEntry{
+					VbUuid: VbUuid(binary.BigEndian.Uint64(resp.Value[i*16+0:])),
+					SeqNo: SeqNo(binary.BigEndian.Uint64(resp.Value[i*16+8:])),
+				}
+			}
+
+			cb(entries, nil)
 			return
 		}
 
