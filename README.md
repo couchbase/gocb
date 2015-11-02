@@ -11,6 +11,7 @@ Go. It is written in pure Go, and uses the included gocbcore library to
 handle communicating to the cluster over the Couchbase binary
 protocol.
 
+Documentation - [http://developer.couchbase.com/documentation/server/4.0/sdks/go-beta/introduction.html](http://developer.couchbase.com/documentation/server/4.0/sdks/go-beta/introduction.html)
 Bug Tracker - [http://www.couchbase.com/issues/browse/GOCBC](http://www.couchbase.com/issues/browse/GOCBC)
 
 
