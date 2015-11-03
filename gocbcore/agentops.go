@@ -256,7 +256,7 @@ func (c *Agent) Unlock(key []byte, cas Cas, cb UnlockCallback) (PendingOp, error
 			Magic:    ReqMagic,
 			Opcode:   CmdUnlockKey,
 			Datatype: 0,
-			Cas:      0,
+			Cas:      uint64(cas),
 			Extras:   nil,
 			Key:      key,
 			Value:    nil,
