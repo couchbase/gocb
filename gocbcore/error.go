@@ -147,6 +147,9 @@ func (e streamEndError) Error() string {
 	}
 }
 
+func (e streamEndError) Success() bool {
+	return e.code == StreamEndOK
+}
 func (e streamEndError) Closed() bool {
 	return e.code == StreamEndClosed
 }
