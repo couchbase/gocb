@@ -225,7 +225,7 @@ func (pipeline *memdPipeline) Run() {
 }
 
 func (pipeline *memdPipeline) Close() {
-	pipeline.conn.Close()
+	pipeline.Drain(nil)
 }
 
 func (pipeline *memdPipeline) Drain(reqCb drainedReqCallback) {
