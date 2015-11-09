@@ -44,6 +44,17 @@ func (e overloadError) Overload() bool {
 	return true
 }
 
+type shutdownError struct {
+}
+
+func (e shutdownError) Error() string {
+	return "Connection shut down."
+}
+func (e shutdownError) ShutdownError() bool {
+	return true
+}
+
+
 type memdError struct {
 	code StatusCode
 }

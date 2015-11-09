@@ -120,3 +120,11 @@ func (ptr *routeDataPtr) update(old, new *routeData) bool {
 		return true
 	}
 }
+
+func (ptr *routeDataPtr) clear() *routeData {
+	val := atomic.SwapPointer(&ptr.data, nil)
+	if val == nil {
+		panic("Attempted to clear a nil routeDataPtr")
+	}
+	return (*routeData)(val)
+}

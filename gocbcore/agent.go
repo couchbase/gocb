@@ -127,6 +127,10 @@ func (c *Agent) cccpLooper() {
 		time.Sleep(tickTime)
 
 		routingInfo := c.routingInfo.get()
+		if routingInfo == nil {
+			// If we have a blank routingInfo, it indicates the client is shut down.
+			break;
+		}
 
 		numServers := len(routingInfo.servers)
 		if numServers == 0 {
@@ -257,10 +261,30 @@ func (c *Agent) connect(memdAddrs, httpAddrs []string, deadline time.Time) error
 	return nil
 }
 
-func (agent *Agent) CloseTest() {
-	routingInfo := agent.routingInfo.get()
+func (agent *Agent) Close() {
+	// Clear the routingInfo so no new operations are performed
+	//   and retrieve the last active routing configuration
+	routingInfo := agent.routingInfo.clear()
+
+	// Loop all the currently running servers and drain their
+	//   requests as errors (this also closes the server conn).
 	for _, s := range routingInfo.servers {
-		s.Close()
+		s.Drain(func (req *memdQRequest) {
+			req.Callback(nil, shutdownError{})
+		})
+	}
+
+	// Clear any extraneous queues that may still contain
+	//   requests which are not pending on a server queue.
+	if routingInfo.deadQueue != nil {
+		routingInfo.deadQueue.Drain(func (req *memdQRequest) {
+			req.Callback(nil, shutdownError{})
+		}, nil)
+	}
+	if routingInfo.waitQueue != nil {
+		routingInfo.waitQueue.Drain(func (req *memdQRequest) {
+			req.Callback(nil, shutdownError{})
+		}, nil)
 	}
 }
 
@@ -281,15 +305,27 @@ func (c *Agent) NumReplicas() int {
 }
 
 func (agent *Agent) CapiEps() []string {
-	return agent.routingInfo.get().capiEpList
+	routingInfo := agent.routingInfo.get()
+	if routingInfo == nil {
+		return nil
+	}
+	return routingInfo.capiEpList
 }
 
 func (agent *Agent) MgmtEps() []string {
-	return agent.routingInfo.get().mgmtEpList
+	routingInfo := agent.routingInfo.get()
+	if routingInfo == nil {
+		return nil
+	}
+	return routingInfo.mgmtEpList
 }
 
 func (agent *Agent) N1qlEps() []string {
-	return agent.routingInfo.get().n1qlEpList
+	routingInfo := agent.routingInfo.get()
+	if routingInfo == nil {
+		return nil
+	}
+	return routingInfo.n1qlEpList
 }
 
 func doCccpRequest(pipeline *memdPipeline, deadline time.Time) ([]byte, error) {

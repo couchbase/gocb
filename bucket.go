@@ -104,6 +104,10 @@ func (b *Bucket) getN1qlEp() (string, error) {
 	return n1qlEps[rand.Intn(len(n1qlEps))], nil
 }
 
+func (b *Bucket) Close() {
+	b.client.Close()
+}
+
 func (b *Bucket) IoRouter() *gocbcore.Agent {
 	return b.client
 }

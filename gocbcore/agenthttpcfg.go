@@ -38,6 +38,10 @@ func (c *Agent) httpLooper(firstCfgFn func(*cfgBucket, error)) {
 	logDebugf("HTTP Looper starting.")
 	for {
 		routingInfo := c.routingInfo.get()
+		if routingInfo == nil {
+			// Shutdown the looper if the agent is shutdown
+			break
+		}
 
 		var pickedSrv string
 		for _, srv := range routingInfo.mgmtEpList {
