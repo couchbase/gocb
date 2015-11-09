@@ -379,6 +379,11 @@ func (agent *Agent) updateConfig(bk *cfgBucket) {
 	if bk == nil {
 		// Use the existing config if none was passed.
 		oldRouting := agent.routingInfo.get()
+		if oldRouting == nil {
+			// If there is no previous config, we can't do anything
+			return
+		}
+
 		agent.applyConfig(oldRouting.source)
 	} else {
 		// Normalize the cfgBucket to a routeConfig and apply it.
@@ -423,7 +428,7 @@ func (c *Agent) dispatchDirect(req *memdQRequest) error {
 		if pipeline == nil {
 			// If no routing data exists this indicates that this Agent
 			//   has been shut down!
-			panic("Attempted to perform operation on closed agent.")
+			return agentError{"Attempted to perform operation on closed agent."}
 		}
 
 		if !pipeline.QueueRequest(req) {
