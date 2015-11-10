@@ -388,6 +388,12 @@ func (agent *Agent) updateConfig(bk *cfgBucket) {
 	} else {
 		// Normalize the cfgBucket to a routeConfig and apply it.
 		routeCfg := buildRouteConfig(bk, agent.IsSecure())
+		if !routeCfg.IsValid() {
+			// We received an invalid configuration, lets shutdown.
+			agent.Close()
+			return
+		}
+
 		agent.applyConfig(routeCfg)
 	}
 }
