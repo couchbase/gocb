@@ -133,7 +133,7 @@ func (c *Agent) CloseStream(vbId uint16, cb CloseStreamCallback) (PendingOp, err
 		},
 		Callback:   handler,
 		ReplicaIdx: 0,
-		Persistent: true,
+		Persistent: false,
 	}
 	return c.dispatchOp(req)
 }
@@ -169,7 +169,7 @@ func (c *Agent) GetFailoverLog(vbId uint16, cb GetFailoverLogCallback) (PendingO
 		},
 		Callback:   handler,
 		ReplicaIdx: 0,
-		Persistent: true,
+		Persistent: false,
 	}
 	return c.dispatchOp(req)
 }
