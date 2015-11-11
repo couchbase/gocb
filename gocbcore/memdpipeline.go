@@ -46,7 +46,10 @@ func (s *memdPipeline) Hostname() string {
 }
 
 func (s *memdPipeline) IsClosed() bool {
-	return s.isClosed
+	s.lock.Lock()
+	rv := s.isClosed
+	s.lock.Unlock()
+	return rv
 }
 
 func (s *memdPipeline) SetHandlers(badRouteFn BadRouteHandler, deathFn CloseHandler) {
