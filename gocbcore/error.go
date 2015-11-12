@@ -107,6 +107,9 @@ func (e memdError) Error() string {
 		return fmt.Sprintf("An unknown error occurred (%d).", e.code)
 	}
 }
+func (e memdError) Success() bool {
+	return e.code == StatusSuccess
+}
 func (e memdError) KeyNotFound() bool {
 	return e.code == StatusKeyNotFound
 }
@@ -116,8 +119,14 @@ func (e memdError) KeyExists() bool {
 func (e memdError) Temporary() bool {
 	return e.code == StatusOutOfMemory || e.code == StatusTmpFail
 }
+func (e memdError) AuthStale() bool {
+	return e.code == StatusAuthStale
+}
 func (e memdError) AuthError() bool {
 	return e.code == StatusAuthError
+}
+func (e memdError) AuthContinue() bool {
+	return e.code == StatusAuthContinue
 }
 func (e memdError) ValueTooBig() bool {
 	return e.code == StatusTooBig
@@ -127,6 +136,36 @@ func (e memdError) NotStored() bool {
 }
 func (e memdError) BadDelta() bool {
 	return e.code == StatusBadDelta
+}
+func (e memdError) NotMyVBucket() bool {
+	return e.code == StatusNotMyVBucket
+}
+func (e memdError) NoBucket() bool {
+	return e.code == StatusNoBucket
+}
+func (e memdError) RangeError() bool {
+	return e.code == StatusRangeError
+}
+func (e memdError) AccessError() bool {
+	return e.code == StatusAccessError
+}
+func (e memdError) NotIntializedError() bool {
+	return e.code == StatusNotInitialized
+}
+func (e memdError) Rollback() bool {
+	return e.code == StatusRollback
+}
+func (e memdError) UnknownCommandError() bool {
+	return e.code == StatusUnknownCommand
+}
+func (e memdError) NotSupportedError() bool {
+	return e.code == StatusNotSupported
+}
+func (e memdError) InternalError() bool {
+	return e.code == StatusInternalError
+}
+func (e memdError) BusyError() bool {
+	return e.code == StatusBusy
 }
 
 type agentError struct {
