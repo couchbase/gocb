@@ -134,6 +134,9 @@ func (c *Agent) shutdownPipeline(s *memdPipeline) {
 
 func (agent *Agent) checkPendingServer(server *memdPipeline) bool {
 	oldRouting := agent.routingInfo.get()
+	if oldRouting == nil {
+		return false
+	}
 
 	// Find the index of the pending server we want to swap
 	var serverIdx int = -1
@@ -153,6 +156,9 @@ func (agent *Agent) activatePendingServer(server *memdPipeline) bool {
 	var oldRouting *routeData
 	for {
 		oldRouting = agent.routingInfo.get()
+		if oldRouting == nil {
+			return false
+		}
 
 		// Find the index of the pending server we want to swap
 		var serverIdx int = -1
@@ -266,6 +272,9 @@ func (agent *Agent) applyConfig(cfg *routeConfig) {
 	var createdServers []*memdPipeline
 	for {
 		oldRouting = agent.routingInfo.get()
+		if oldRouting == nil {
+			return
+		}
 
 		if newRouting.revId < oldRouting.revId {
 			logDebugf("Ignoring new configuration as it has an older revision id.")

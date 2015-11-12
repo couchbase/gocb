@@ -301,7 +301,11 @@ func (c *Agent) NumVbuckets() int {
 }
 
 func (c *Agent) NumReplicas() int {
-	return len(c.routingInfo.get().vbMap[0]) - 1
+	routingInfo := c.routingInfo.get()
+	if routingInfo == nil {
+		return 0
+	}
+	return len(routingInfo.vbMap[0]) - 1
 }
 
 func (agent *Agent) CapiEps() []string {
