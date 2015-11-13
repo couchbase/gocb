@@ -32,6 +32,7 @@ type GetFailoverLogCallback func([]FailoverEntry, error)
 type GetLastCheckpointCallback func(SeqNo, error)
 
 func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo, snapStartSeqNo, snapEndSeqNo SeqNo, evtHandler StreamObserver, cb OpenStreamCallback) (PendingOp, error) {
+	var req *memdQRequest
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
 			// All client errors are handled by the StreamObserver
@@ -85,6 +86,7 @@ func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo, sna
 			vbId := uint16(resp.Status)
 			code := StreamEndStatus(binary.BigEndian.Uint32(resp.Extras[0:]))
 			evtHandler.End(vbId, streamEndError{code})
+			req.Cancel()
 		}
 	}
 
@@ -97,7 +99,7 @@ func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo, sna
 	binary.BigEndian.PutUint64(extraBuf[32:], uint64(snapStartSeqNo))
 	binary.BigEndian.PutUint64(extraBuf[40:], uint64(snapEndSeqNo))
 
-	req := &memdQRequest{
+	req = &memdQRequest{
 		memdRequest: memdRequest{
 			Magic:    ReqMagic,
 			Opcode:   CmdDcpStreamReq,
