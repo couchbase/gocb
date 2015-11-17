@@ -25,7 +25,10 @@ type BulkOp interface {
 func (b *Bucket) Do(ops []BulkOp) error {
 	timeoutTmr := gocbcore.AcquireTimer(time.Second * 10)
 
-	signal := make(chan BulkOp, 1)
+	// Make the channel big enough to hold all our ops in case
+	//   we get delayed inside execute (don't want to block the
+	//   individual op handlers when they dispatch their signal).
+	signal := make(chan BulkOp, len(ops))
 	for _, item := range ops {
 		item.execute(b, signal)
 	}
