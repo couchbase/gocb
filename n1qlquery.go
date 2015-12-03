@@ -15,11 +15,11 @@ type N1qlQuery struct {
 
 func (nq *N1qlQuery) Consistency(stale ConsistencyMode) *N1qlQuery {
 	if stale == NotBounded {
-		nq.options["consistency"] = "not_bounded"
+		nq.options["scan_consistency"] = "not_bounded"
 	} else if stale == RequestPlus {
-		nq.options["consistency"] = "request_plus"
+		nq.options["scan_consistency"] = "request_plus"
 	} else if stale == StatementPlus {
-		nq.options["consistency"] = "statement_plus"
+		nq.options["scan_consistency"] = "statement_plus"
 	} else {
 		panic("Unexpected consistency option")
 	}
