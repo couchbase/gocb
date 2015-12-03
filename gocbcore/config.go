@@ -73,24 +73,16 @@ type cfgVBucketServerMap struct {
 // Bucket is the primary entry point for most data operations.
 type cfgBucket struct {
 	SourceHostname      string
-	AuthType            string             `json:"authType"`
 	Capabilities        []string           `json:"bucketCapabilities"`
 	CapabilitiesVersion string             `json:"bucketCapabilitiesVer"`
-	Type                string             `json:"bucketType"`
 	Name                string             `json:"name"`
 	NodeLocator         string             `json:"nodeLocator"`
-	Quota               map[string]float64 `json:"quota,omitempty"`
-	Replicas            int                `json:"replicaNumber"`
-	Password            string             `json:"saslPassword"`
 	URI                 string             `json:"uri"`
 	StreamingURI        string             `json:"streamingUri"`
-	LocalRandomKeyURI   string             `json:"localRandomKeyUri,omitempty"`
 	UUID                string             `json:"uuid"`
 	DDocs               struct {
 		URI string `json:"uri"`
 	} `json:"ddocs,omitempty"`
-	BasicStats  map[string]interface{} `json:"basicStats,omitempty"`
-	Controllers map[string]interface{} `json:"controllers,omitempty"`
 
 	// These are used for JSON IO, but isn't used for processing
 	// since it needs to be swapped out safely.

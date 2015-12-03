@@ -82,7 +82,7 @@ func (c *Agent) httpLooper(firstCfgFn func(*cfgBucket, error)) {
 		logDebugf("HTTP Hostname: %s.", pickedSrv)
 
 		// HTTP request time!
-		uri := fmt.Sprintf("%s/pools/default/bucketsStreaming/%s", pickedSrv, c.bucket)
+		uri := fmt.Sprintf("%s/pools/default/bs/%s", pickedSrv, c.bucket)
 
 		logDebugf("Requesting config from: %s.", uri)
 
