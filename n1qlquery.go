@@ -1,5 +1,7 @@
 package gocb
 
+import "time"
+
 type ConsistencyMode int
 
 const (
@@ -27,12 +29,17 @@ func (nq *N1qlQuery) Consistency(stale ConsistencyMode) *N1qlQuery {
 }
 
 func (nq *N1qlQuery) AdHoc(adhoc bool) *N1qlQuery {
-	nq.adHoc = adhoc;
+	nq.adHoc = adhoc
 	return nq
 }
 
 func (nq *N1qlQuery) Custom(name, value string) *N1qlQuery {
 	nq.options[name] = value
+	return nq
+}
+
+func (nq *N1qlQuery) Timeout(timeout time.Duration) *N1qlQuery {
+	nq.options["timeout"] = timeout.String()
 	return nq
 }
 

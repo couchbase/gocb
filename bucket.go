@@ -17,11 +17,13 @@ type Bucket struct {
 	opTimeout       time.Duration
 	duraTimeout     time.Duration
 	duraPollTimeout time.Duration
+	viewTimeout     time.Duration
+	n1qlTimeout     time.Duration
 
-	queryCacheLock  sync.RWMutex
-	queryCache      map[string]*n1qlCache
+	queryCacheLock sync.RWMutex
+	queryCache     map[string]*n1qlCache
 
-	internal        *bucketInternal
+	internal *bucketInternal
 }
 
 func createBucket(config *gocbcore.AgentConfig) (*Bucket, error) {
@@ -40,6 +42,8 @@ func createBucket(config *gocbcore.AgentConfig) (*Bucket, error) {
 		opTimeout:       2500 * time.Millisecond,
 		duraTimeout:     40000 * time.Millisecond,
 		duraPollTimeout: 100 * time.Millisecond,
+		viewTimeout:     75 * time.Second,
+		n1qlTimeout:     75 * time.Second,
 	}
 	bucket.internal = &bucketInternal{
 		b: bucket,
