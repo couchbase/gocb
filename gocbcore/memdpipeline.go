@@ -81,7 +81,7 @@ func (pipeline *memdPipeline) ExecuteRequest(req *memdQRequest, deadline time.Ti
 	}
 
 	if !pipeline.queue.QueueRequest(req) {
-		return nil, &generalError{"Failed to dispatch operation."}
+		return nil, DispatchError
 	}
 
 	timeoutTmr := AcquireTimer(deadline.Sub(time.Now()))
@@ -92,7 +92,7 @@ func (pipeline *memdPipeline) ExecuteRequest(req *memdQRequest, deadline time.Ti
 	case <-timeoutTmr.C:
 		ReleaseTimer(timeoutTmr, true)
 		req.Cancel()
-		return nil, &timeoutError{}
+		return nil, TimeoutError
 	}
 }
 
@@ -159,7 +159,7 @@ func (s *memdPipeline) resolveRequest(resp *memdResponse) {
 	if resp.Magic == ReqMagic || resp.Status == StatusSuccess {
 		req.Callback(resp, nil)
 	} else {
-		req.Callback(nil, &memdError{resp.Status})
+		req.Callback(nil, getMemdError(resp.Status))
 	}
 }
 
@@ -236,7 +236,7 @@ func (pipeline *memdPipeline) Drain(reqCb drainedReqCallback) {
 	//   by immediately failing them with a network error.
 	if reqCb == nil {
 		reqCb = func(req *memdQRequest) {
-			req.Callback(nil, networkError{})
+			req.Callback(nil, NetworkError)
 		}
 	}
 
@@ -252,7 +252,7 @@ func (pipeline *memdPipeline) Drain(reqCb drainedReqCallback) {
 	//   on-the-wire that a network error has occurred.
 	pipeline.opList.Drain(func(r *memdQRequest) {
 		if pipeline.queue.UnqueueRequest(r) {
-			r.Callback(nil, networkError{})
+			r.Callback(nil, NetworkError)
 		}
 	})
 }

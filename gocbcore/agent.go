@@ -270,7 +270,7 @@ func (agent *Agent) Close() {
 	//   requests as errors (this also closes the server conn).
 	for _, s := range routingInfo.servers {
 		s.Drain(func (req *memdQRequest) {
-			req.Callback(nil, shutdownError{})
+			req.Callback(nil, ShutdownError)
 		})
 	}
 
@@ -278,12 +278,12 @@ func (agent *Agent) Close() {
 	//   requests which are not pending on a server queue.
 	if routingInfo.deadQueue != nil {
 		routingInfo.deadQueue.Drain(func (req *memdQRequest) {
-			req.Callback(nil, shutdownError{})
+			req.Callback(nil, ShutdownError)
 		}, nil)
 	}
 	if routingInfo.waitQueue != nil {
 		routingInfo.waitQueue.Drain(func (req *memdQRequest) {
-			req.Callback(nil, shutdownError{})
+			req.Callback(nil, ShutdownError)
 		}, nil)
 	}
 }

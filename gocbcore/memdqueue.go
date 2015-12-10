@@ -72,7 +72,7 @@ func (s *memdQueue) QueueRequest(req *memdQRequest) bool {
 		s.lock.RUnlock()
 		// As long as we have not lost ownership, dispatch a queue overflow error.
 		if atomic.CompareAndSwapPointer(&req.queuedWith, unsafe.Pointer(s), nil) {
-			req.Callback(nil, overloadError{})
+			req.Callback(nil, OverloadError)
 		}
 		return true
 	}

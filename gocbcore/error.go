@@ -1,214 +1,137 @@
 package gocbcore
 
 import (
-	"fmt"
+    "errors"
+    "fmt"
 )
 
-type generalError struct {
-	message string
-}
+var (
+    TimeoutError  = errors.New("The operation has timed out.")
+    DispatchError = errors.New("Failed to dispatch operation.")
+    NetworkError  = errors.New("Network error.")
+    OverloadError = errors.New("Queue overflow.")
+    ShutdownError = errors.New("Connection shut down.")
+)
 
-func (e generalError) Error() string {
-	return e.message
-}
+var (
+    SuccessError        = &memdError{code: StatusSuccess, message: "Success."}
+    KeyNotFoundError    = &memdError{code: StatusKeyNotFound, message: "Key not found."}
+    KeyExistsError      = &memdError{code: StatusKeyExists, message: "Key already exists."}
+    TooBigError         = &memdError{code: StatusTooBig, message: "Document value was too large."}
+    NotStoredError      = &memdError{code: StatusNotStored, message: "The document could not be stored."}
+    BadDeltaError       = &memdError{code: StatusBadDelta, message: "An invalid delta was passed."}
+    NotMyVBucketError   = &memdError{code: StatusNotMyVBucket, message: "Operation sent to incorrect server."}
+    NoBucketError       = &memdError{code: StatusNoBucket, message: "Not connected to a bucket."}
+    AuthStaleError      = &memdError{code: StatusAuthStale, message: "The authenication context is stale. Try re-authenticating."}
+    AuthError           = &memdError{code: StatusAuthError, message: "Authentication Error."}
+    AuthContinueError   = &memdError{code: StatusAuthContinue, message: "Auth Continue."}
+    RangeError          = &memdError{code: StatusRangeError, message: "Requested value is outside range."}
+    AccessError         = &memdError{code: StatusAccessError, message: "No access."}
+    NotInitializedError = &memdError{code: StatusNotInitialized, message: "The cluster is being initialized. Requests are blocked."}
+    RollbackError       = &memdError{code: StatusRollback, message: "A rollback is required."}
+    UnknownCommandError = &memdError{code: StatusUnknownCommand, message: "An unknown command was received."}
+    OutOfMemoryError    = &memdError{code: StatusOutOfMemory, message: "The server is out of memory."}
+    NotSupportedError   = &memdError{code: StatusNotSupported, message: "The server does not support this command."}
+    InternalError       = &memdError{code: StatusInternalError, message: "Internal server error."}
+    BusyError           = &memdError{code: StatusBusy, message: "The server is busy. Try again later."}
+    TmpFailError        = &memdError{code: StatusTmpFail, message: "A temporary failure occurred.  Try again later."}
+)
 
-type timeoutError struct {
-}
-
-func (e timeoutError) Error() string {
-	return "The operation has timed out."
-}
-func (e timeoutError) Timeout() bool {
-	return true
-}
-
-
-type networkError struct {
-}
-
-func (e networkError) Error() string {
-	return "Network error."
-}
-
-func (e networkError) NetworkError() bool {
-	return true
-}
-
-type overloadError struct {
-}
-
-func (e overloadError) Error() string {
-	return "Queue overflow."
-}
-func (e overloadError) Overload() bool {
-	return true
-}
-
-type shutdownError struct {
-}
-
-func (e shutdownError) Error() string {
-	return "Connection shut down."
-}
-func (e shutdownError) ShutdownError() bool {
-	return true
-}
-
+var (
+    StreamEndOKError           = &streamEndError{code: StreamEndOK, message: "Success."}
+    StreamEndClosedError       = &streamEndError{code: StreamEndClosed, message: "Stream closed."}
+    StreamEndStateChangedError = &streamEndError{code: StreamEndStateChanged, message: "State changed."}
+    StreamEndDisconnectedError = &streamEndError{code: StreamEndDisconnected, message: "Disconnected."}
+    StreamEndTooSlowError      = &streamEndError{code: StreamEndTooSlow, message: "Too slow."}
+)
 
 type memdError struct {
-	code StatusCode
+    code    StatusCode
+    message string
+}
+
+func getMemdError(code StatusCode) *memdError {
+    switch code {
+    case StatusSuccess:
+        return SuccessError
+    case StatusKeyNotFound:
+        return KeyNotFoundError
+    case StatusKeyExists:
+        return KeyExistsError
+    case StatusTooBig:
+        return TooBigError
+    case StatusNotStored:
+        return NotStoredError
+    case StatusBadDelta:
+        return BadDeltaError
+    case StatusNotMyVBucket:
+        return NotMyVBucketError
+    case StatusNoBucket:
+        return NoBucketError
+    case StatusAuthStale:
+        return AuthStaleError
+    case StatusAuthError:
+        return AuthError
+    case StatusAuthContinue:
+        return AuthContinueError
+    case StatusRangeError:
+        return RangeError
+    case StatusAccessError:
+        return AccessError
+    case StatusNotInitialized:
+        return NotInitializedError
+    case StatusRollback:
+        return RollbackError
+    case StatusUnknownCommand:
+        return UnknownCommandError
+    case StatusOutOfMemory:
+        return OutOfMemoryError
+    case StatusNotSupported:
+        return NotSupportedError
+    case StatusInternalError:
+        return InternalError
+    case StatusBusy:
+        return BusyError
+    case StatusTmpFail:
+        return TmpFailError
+    default:
+        return &memdError{code: code, message: fmt.Sprintf("An unknown error occurred (%d).", code)}
+    }
 }
 
 func (e memdError) Error() string {
-	switch e.code {
-	case StatusSuccess:
-		return "Success."
-	case StatusKeyNotFound:
-		return "Key not found."
-	case StatusKeyExists:
-		return "Key already exists."
-	case StatusTooBig:
-		return "Document value was too large."
-	case StatusNotStored:
-		return "The document could not be stored."
-	case StatusBadDelta:
-		return "An invalid delta was passed."
-	case StatusNotMyVBucket:
-		return "Operation sent to incorrect server."
-	case StatusNoBucket:
-		return "Not connected to a bucket."
-	case StatusAuthStale:
-		return "The authenication context is stale. Try re-authenticating."
-	case StatusAuthError:
-		return "Authentication Error."
-	case StatusAuthContinue:
-		return "Auth Continue."
-	case StatusRangeError:
-		return "Requested value is outside range."
-	case StatusAccessError:
-		return "No access."
-	case StatusNotInitialized:
-		return "The cluster is being initialized. Requests are blocked."
-	case StatusRollback:
-		return "A rollback is required."
-	case StatusUnknownCommand:
-		return "An unknown command was received."
-	case StatusOutOfMemory:
-		return "The server is out of memory."
-	case StatusNotSupported:
-		return "The server does not support this command."
-	case StatusInternalError:
-		return "Internal server error."
-	case StatusBusy:
-		return "The server is busy. Try again later."
-	case StatusTmpFail:
-		return "A temporary failure occurred.  Try again later."
-	default:
-		return fmt.Sprintf("An unknown error occurred (%d).", e.code)
-	}
-}
-func (e memdError) Success() bool {
-	return e.code == StatusSuccess
-}
-func (e memdError) KeyNotFound() bool {
-	return e.code == StatusKeyNotFound
-}
-func (e memdError) KeyExists() bool {
-	return e.code == StatusKeyExists
-}
-func (e memdError) Temporary() bool {
-	return e.code == StatusOutOfMemory || e.code == StatusTmpFail
-}
-func (e memdError) AuthStale() bool {
-	return e.code == StatusAuthStale
-}
-func (e memdError) AuthError() bool {
-	return e.code == StatusAuthError
-}
-func (e memdError) AuthContinue() bool {
-	return e.code == StatusAuthContinue
-}
-func (e memdError) ValueTooBig() bool {
-	return e.code == StatusTooBig
-}
-func (e memdError) NotStored() bool {
-	return e.code == StatusNotStored
-}
-func (e memdError) BadDelta() bool {
-	return e.code == StatusBadDelta
-}
-func (e memdError) NotMyVBucket() bool {
-	return e.code == StatusNotMyVBucket
-}
-func (e memdError) NoBucket() bool {
-	return e.code == StatusNoBucket
-}
-func (e memdError) RangeError() bool {
-	return e.code == StatusRangeError
-}
-func (e memdError) AccessError() bool {
-	return e.code == StatusAccessError
-}
-func (e memdError) NotIntializedError() bool {
-	return e.code == StatusNotInitialized
-}
-func (e memdError) Rollback() bool {
-	return e.code == StatusRollback
-}
-func (e memdError) UnknownCommandError() bool {
-	return e.code == StatusUnknownCommand
-}
-func (e memdError) NotSupportedError() bool {
-	return e.code == StatusNotSupported
-}
-func (e memdError) InternalError() bool {
-	return e.code == StatusInternalError
-}
-func (e memdError) BusyError() bool {
-	return e.code == StatusBusy
+    return e.message
 }
 
 type agentError struct {
-	message string
+    message string
 }
 
 func (e agentError) Error() string {
-	return e.message
+    return e.message
 }
 
 type streamEndError struct {
-	code StreamEndStatus
+    code    StreamEndStatus
+    message string
 }
 
 func (e streamEndError) Error() string {
-	switch e.code {
-	case StreamEndOK:
-		return "Success."
-	case StreamEndClosed:
-		return "Stream closed."
-	case StreamEndStateChanged:
-		return "State changed."
-	case StreamEndDisconnected:
-		return "Disconnected."
-	case StreamEndTooSlow:
-		return "Too slow."
-	default:
-		return fmt.Sprintf("Stream closed for unknown reason: (%d).", e.code)
-	}
+    return e.message
 }
-
-func (e streamEndError) Success() bool {
-	return e.code == StreamEndOK
-}
-func (e streamEndError) Closed() bool {
-	return e.code == StreamEndClosed
-}
-func (e streamEndError) StateChanged() bool {
-	return e.code == StreamEndStateChanged
-}
-func (e streamEndError) Disconnected() bool {
-	return e.code == StreamEndDisconnected
-}
-func (e streamEndError) TooSlow() bool {
-	return e.code == StreamEndTooSlow
+func getStreamEndError(code StreamEndStatus) *streamEndError {
+    switch code {
+    case StreamEndOK:
+        return StreamEndOKError
+    case StreamEndClosed:
+        return StreamEndClosedError
+    case StreamEndStateChanged:
+        return StreamEndStateChangedError
+    case StreamEndDisconnected:
+        return StreamEndDisconnectedError
+    case StreamEndTooSlow:
+        return StreamEndDisconnectedError
+    default:
+        return &streamEndError{code: code, message: fmt.Sprintf("Stream closed for unknown reason: (%d).", code)}
+    }
 }
