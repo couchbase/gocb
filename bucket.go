@@ -110,6 +110,7 @@ func (b *Bucket) getN1qlEp() (string, error) {
 
 func (b *Bucket) Close() {
 	b.client.Close()
+	b.internal = nil
 }
 
 func (b *Bucket) IoRouter() *gocbcore.Agent {
