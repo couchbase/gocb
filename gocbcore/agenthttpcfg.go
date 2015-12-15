@@ -103,7 +103,7 @@ func (c *Agent) httpLooper(firstCfgFn func(*cfgBucket, error)) {
 		if resp.StatusCode != 200 {
 			if resp.StatusCode == 401 {
 				logDebugf("Failed to connect to host, bad auth.")
-				firstCfgFn(nil, &memdError{StatusAuthError})
+				firstCfgFn(nil, getMemdError(StatusAuthError))
 				return
 			}
 			logDebugf("Failed to connect to host, unexpected status code: %v.", resp.StatusCode)

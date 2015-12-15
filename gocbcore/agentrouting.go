@@ -465,6 +465,6 @@ func (c *Agent) redispatchDirect(req *memdQRequest) {
 	} else {
 		// Callback advising that a network failure caused this operation to
 		//   not be processed, nothing outside the agent should really see this.
-		req.Callback(nil, networkError{})
+		req.Callback(nil, NetworkError)
 	}
 }
