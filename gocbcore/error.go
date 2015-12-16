@@ -22,6 +22,27 @@ func (e timeoutError) Timeout() bool {
 	return true
 }
 
+type invalidServerError struct {
+}
+
+func (e invalidServerError) Error() string {
+	return "The specific server index is invalid."
+}
+
+type invalidVbucketError struct {
+}
+
+func (e invalidVbucketError) Error() string {
+	return "The specific server index is invalid."
+}
+
+type invalidReplicaError struct {
+}
+
+func (e invalidReplicaError) Error() string {
+	return "The specific server index is invalid."
+}
+
 type networkError struct {
 }
 

@@ -407,39 +407,55 @@ func (agent *Agent) updateConfig(bk *cfgBucket) {
 	}
 }
 
-func (agent *Agent) routeRequest(req *memdQRequest) *memdQueue {
+func (agent *Agent) routeRequest(req *memdQRequest) (*memdQueue, error) {
 	routingInfo := agent.routingInfo.get()
 	if routingInfo == nil {
-		return nil
+		return nil, nil
 	}
 
 	var srvIdx int
 
 	repId := req.ReplicaIdx
 	if repId < 0 {
-		vbId := req.Vbucket
-		srvIdx = routingInfo.vbMap[vbId][0]
-	} else if req.Key == nil {
-		vbId := req.Vbucket
-		srvIdx = routingInfo.vbMap[vbId][repId]
+		srvIdx = -repId - 1
+
+		if srvIdx >= len(routingInfo.queues) {
+			return nil, invalidServerError{}
+		}
 	} else {
-		vbId := cbCrc(req.Key) % uint32(len(routingInfo.vbMap))
-		req.Vbucket = uint16(vbId)
-		srvIdx = routingInfo.vbMap[vbId][repId]
+		if req.Key != nil {
+			req.Vbucket = uint16(cbCrc(req.Key) % uint32(len(routingInfo.vbMap)))
+		}
+
+		if int(req.Vbucket) >= len(routingInfo.vbMap) {
+			return nil, invalidVbucketError{}
+		}
+
+		vBucketNodes := routingInfo.vbMap[req.Vbucket]
+
+		if repId >= len(vBucketNodes) {
+			return nil, invalidReplicaError{}
+		}
+
+		srvIdx = vBucketNodes[repId]
 	}
 
 	if srvIdx == -1 {
-		return routingInfo.deadQueue
+		return routingInfo.deadQueue, nil
 	}
 
-	return routingInfo.queues[srvIdx]
+	return routingInfo.queues[srvIdx], nil
 }
 
 // This immediately dispatches a request to the appropriate server based on the
 //  currently available routing data.
 func (c *Agent) dispatchDirect(req *memdQRequest) error {
 	for {
-		pipeline := c.routeRequest(req)
+		pipeline, err := c.routeRequest(req)
+		if err != nil {
+			return err
+		}
+
 		if pipeline == nil {
 			// If no routing data exists this indicates that this Agent
 			//   has been shut down!
@@ -456,15 +472,8 @@ func (c *Agent) dispatchDirect(req *memdQRequest) error {
 }
 
 // This function is meant to be used when a memdRequest is internally shuffled
-//   around.  It will fail to redispatch operations which are not allowed to be
-//   moved between connections for whatever reason.
+//   around.  It currently simply calls dispatchDirect.
 func (c *Agent) redispatchDirect(req *memdQRequest) {
-	if req.ReplicaIdx >= 0 {
-		// Reschedule the operation
-		c.dispatchDirect(req)
-	} else {
-		// Callback advising that a network failure caused this operation to
-		//   not be processed, nothing outside the agent should really see this.
-		req.Callback(nil, networkError{})
-	}
+	// Reschedule the operation
+	c.dispatchDirect(req)
 }
