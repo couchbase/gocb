@@ -72,7 +72,7 @@ func (pipeline *memdPipeline) ExecuteRequest(req *memdQRequest, deadline time.Ti
 		panic("Tried to synchronously dispatch an operation with an async handler.")
 	}
 
-	signal := make(chan bool, 1)
+	signal := make(chan bool)
 
 	req.Callback = func(resp *memdResponse, err error) {
 		respOut = resp
@@ -91,7 +91,9 @@ func (pipeline *memdPipeline) ExecuteRequest(req *memdQRequest, deadline time.Ti
 		return
 	case <-timeoutTmr.C:
 		ReleaseTimer(timeoutTmr, true)
-		req.Cancel()
+		if !req.Cancel() {
+			<- signal
+		}
 		return nil, &timeoutError{}
 	}
 }
