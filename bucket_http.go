@@ -69,7 +69,7 @@ func (r *viewResults) One(valuePtr interface{}) error {
 		if err != nil {
 			return err
 		}
-		return clientError{"No results returned"}
+		return ErrNoResults
 	}
 	// Ignore any errors occuring after we already have our result
 	r.Close()
@@ -235,7 +235,7 @@ func (r *n1qlResults) One(valuePtr interface{}) error {
 		if err != nil {
 			return err
 		}
-		return clientError{"No results returned"}
+		return ErrNoResults
 	}
 	// Ignore any errors occuring after we already have our result
 	r.Close()

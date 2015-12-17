@@ -148,7 +148,7 @@ func (b *Bucket) durability(key string, cas Cas, mt MutationToken, replicaTo, pe
 	numServers := b.client.NumReplicas() + 1
 
 	if replicaTo > uint(numServers-1) || persistTo > uint(numServers) {
-		return &clientError{"Not enough replicas to match durability requirements."}
+		return ErrNotEnoughReplicas
 	}
 
 	keyBytes := []byte(key)
@@ -181,7 +181,7 @@ func (b *Bucket) durability(key string, cas Cas, mt MutationToken, replicaTo, pe
 		if replicas >= replicaTo && persists >= persistTo {
 			return nil
 		} else if results == ((numServers * 2) - 1) {
-			return &clientError{"Failed to meet durability requirements in time."}
+			return ErrDurabilityTimeout
 		}
 	}
 }

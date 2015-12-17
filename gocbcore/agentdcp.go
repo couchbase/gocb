@@ -85,7 +85,7 @@ func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo, sna
 		case CmdDcpStreamEnd:
 			vbId := uint16(resp.Status)
 			code := StreamEndStatus(binary.BigEndian.Uint32(resp.Extras[0:]))
-			evtHandler.End(vbId, streamEndError{code})
+			evtHandler.End(vbId, getStreamEndError(code))
 			req.Cancel()
 		}
 	}

@@ -185,7 +185,7 @@ func (c *Agent) getAnyReplica(key []byte, cb GetCallback) (PendingOp, error) {
 
 	// If we have no pending ops, no requests were successful
 	if len(opRes.ops) == 0 {
-		return nil, &agentError{"No replicas available"}
+		return nil, ErrNoReplicas
 	}
 
 	return opRes, nil
@@ -390,7 +390,7 @@ func (c *Agent) counter(opcode CommandCode, key []byte, delta, initial uint64, e
 		}
 
 		if len(resp.Value) != 8 {
-			cb(0, 0, MutationToken{}, agentError{"Failed to parse returned value"})
+			cb(0, 0, MutationToken{}, ErrProtocol)
 			return
 		}
 		intVal := binary.BigEndian.Uint64(resp.Value)
@@ -440,13 +440,13 @@ func (c *Agent) Observe(key []byte, replicaIdx int, cb ObserveCallback) (Pending
 		}
 
 		if len(resp.Value) < 4 {
-			cb(0, 0, agentError{"Failed to parse response data"})
+			cb(0, 0, ErrProtocol)
 			return
 		}
 		keyLen := int(binary.BigEndian.Uint16(resp.Value[2:]))
 
 		if len(resp.Value) != 2+2+keyLen+1+8 {
-			cb(0, 0, agentError{"Failed to parse response data"})
+			cb(0, 0, ErrProtocol)
 			return
 		}
 		keyState := KeyState(resp.Value[2+2+keyLen])
@@ -487,7 +487,7 @@ func (c *Agent) ObserveSeqNo(key []byte, vbUuid VbUuid, replicaIdx int, cb Obser
 		}
 
 		if len(resp.Value) < 1 {
-			cb(0, 0, agentError{"Failed to parse response data"})
+			cb(0, 0, ErrProtocol)
 			return
 		}
 
@@ -495,7 +495,7 @@ func (c *Agent) ObserveSeqNo(key []byte, vbUuid VbUuid, replicaIdx int, cb Obser
 		if formatType == 0 {
 			// Normal
 			if len(resp.Value) < 27 {
-				cb(0, 0, agentError{"Failed to parse response data (type=0)"})
+				cb(0, 0, ErrProtocol)
 				return
 			}
 
@@ -509,7 +509,7 @@ func (c *Agent) ObserveSeqNo(key []byte, vbUuid VbUuid, replicaIdx int, cb Obser
 		} else if formatType == 1 {
 			// Hard Failover
 			if len(resp.Value) < 43 {
-				cb(0, 0, agentError{"Failed to parse response data (type=1)"})
+				cb(0, 0, ErrProtocol)
 				return
 			}
 
@@ -523,7 +523,7 @@ func (c *Agent) ObserveSeqNo(key []byte, vbUuid VbUuid, replicaIdx int, cb Obser
 			cb(SeqNo(lastSeqNo), SeqNo(lastSeqNo), nil)
 			return
 		} else {
-			cb(0, 0, agentError{"Failed to parse response format type"})
+			cb(0, 0, ErrProtocol)
 			return
 		}
 	}

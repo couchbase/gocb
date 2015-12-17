@@ -50,7 +50,7 @@ func (b *Bucket) getRandom(valuePtr interface{}) (keyOut string, casOut Cas, err
 	case <-timeoutTmr.C:
 		gocbcore.ReleaseTimer(timeoutTmr, true)
 		op.Cancel()
-		return "", 0, timeoutError{}
+		return "", 0, ErrTimeout
 	}
 }
 

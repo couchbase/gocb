@@ -110,7 +110,7 @@ func (b *Bucket) hlpGetExec(valuePtr interface{}, execFn hlpGetHandler) (casOut 
 	case <-timeoutTmr.C:
 		gocbcore.ReleaseTimer(timeoutTmr, true)
 		op.Cancel()
-		return 0, timeoutError{}
+		return 0, ErrTimeout
 	}
 }
 
@@ -138,7 +138,7 @@ func (b *Bucket) hlpCasExec(execFn hlpCasHandler) (casOut Cas, mtOut MutationTok
 	case <-timeoutTmr.C:
 		gocbcore.ReleaseTimer(timeoutTmr, true)
 		op.Cancel()
-		return 0, MutationToken{}, timeoutError{}
+		return 0, MutationToken{}, ErrTimeout
 	}
 }
 
@@ -167,7 +167,7 @@ func (b *Bucket) hlpCtrExec(execFn hlpCtrHandler) (valOut uint64, casOut Cas, mt
 	case <-timeoutTmr.C:
 		gocbcore.ReleaseTimer(timeoutTmr, true)
 		op.Cancel()
-		return 0, 0, MutationToken{}, timeoutError{}
+		return 0, 0, MutationToken{}, ErrTimeout
 	}
 }
 

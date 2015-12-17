@@ -1,16 +1,9 @@
 package gocbcore
 
 import (
+	"errors"
 	"fmt"
 )
-
-type generalError struct {
-	message string
-}
-
-func (e generalError) Error() string {
-	return e.message
-}
 
 type timeoutError struct {
 }
@@ -22,27 +15,6 @@ func (e timeoutError) Timeout() bool {
 	return true
 }
 
-type invalidServerError struct {
-}
-
-func (e invalidServerError) Error() string {
-	return "The specific server index is invalid."
-}
-
-type invalidVbucketError struct {
-}
-
-func (e invalidVbucketError) Error() string {
-	return "The specific server index is invalid."
-}
-
-type invalidReplicaError struct {
-}
-
-func (e invalidReplicaError) Error() string {
-	return "The specific server index is invalid."
-}
-
 type networkError struct {
 }
 
@@ -50,6 +22,7 @@ func (e networkError) Error() string {
 	return "Network error."
 }
 
+// Included for legacy support.
 func (e networkError) NetworkError() bool {
 	return true
 }
@@ -70,6 +43,8 @@ type shutdownError struct {
 func (e shutdownError) Error() string {
 	return "Connection shut down."
 }
+
+// Legacy
 func (e shutdownError) ShutdownError() bool {
 	return true
 }
@@ -126,6 +101,11 @@ func (e memdError) Error() string {
 		return fmt.Sprintf("An unknown error occurred (%d).", e.code)
 	}
 }
+func (e memdError) Temporary() bool {
+	return e.code == StatusOutOfMemory || e.code == StatusTmpFail || e.code == StatusBusy
+}
+
+/* Legacy MemdError Handlers */
 func (e memdError) Success() bool {
 	return e.code == StatusSuccess
 }
@@ -134,9 +114,6 @@ func (e memdError) KeyNotFound() bool {
 }
 func (e memdError) KeyExists() bool {
 	return e.code == StatusKeyExists
-}
-func (e memdError) Temporary() bool {
-	return e.code == StatusOutOfMemory || e.code == StatusTmpFail
 }
 func (e memdError) AuthStale() bool {
 	return e.code == StatusAuthStale
@@ -187,14 +164,6 @@ func (e memdError) BusyError() bool {
 	return e.code == StatusBusy
 }
 
-type agentError struct {
-	message string
-}
-
-func (e agentError) Error() string {
-	return e.message
-}
-
 type streamEndError struct {
 	code StreamEndStatus
 }
@@ -230,4 +199,114 @@ func (e streamEndError) Disconnected() bool {
 }
 func (e streamEndError) TooSlow() bool {
 	return e.code == StreamEndTooSlow
+}
+
+var (
+	ErrDispatchFail   = errors.New("Failed to dispatch operation.")
+	ErrBadHosts       = errors.New("Failed to connect to any of the specified hosts.")
+	ErrProtocol       = errors.New("Failed to parse server response.")
+	ErrNoReplicas     = errors.New("No replicas responded in time.")
+	ErrInvalidServer  = errors.New("The specific server index is invalid.")
+	ErrInvalidVBucket = errors.New("The specific vbucket index is invalid.")
+	ErrInvalidReplica = errors.New("The specific server index is invalid.")
+
+	ErrShutdown = &shutdownError{}
+	ErrOverload = &overloadError{}
+	ErrNetwork  = &networkError{}
+	ErrTimeout  = &timeoutError{}
+
+	ErrStreamClosed       = &streamEndError{StreamEndClosed}
+	ErrStreamStateChanged = &streamEndError{StreamEndStateChanged}
+	ErrStreamDisconnected = &streamEndError{StreamEndDisconnected}
+	ErrStreamTooSlow      = &streamEndError{StreamEndTooSlow}
+
+	ErrKeyNotFound    = &memdError{StatusKeyNotFound}
+	ErrKeyExists      = &memdError{StatusKeyExists}
+	ErrTooBig         = &memdError{StatusTooBig}
+	ErrInvalidArgs    = &memdError{StatusInvalidArgs}
+	ErrNotStored      = &memdError{StatusNotStored}
+	ErrBadDelta       = &memdError{StatusBadDelta}
+	ErrNotMyVBucket   = &memdError{StatusNotMyVBucket}
+	ErrNoBucket       = &memdError{StatusNoBucket}
+	ErrAuthStale      = &memdError{StatusAuthStale}
+	ErrAuthError      = &memdError{StatusAuthError}
+	ErrAuthContinue   = &memdError{StatusAuthContinue}
+	ErrRangeError     = &memdError{StatusRangeError}
+	ErrRollback       = &memdError{StatusRollback}
+	ErrAccessError    = &memdError{StatusAccessError}
+	ErrNotInitialized = &memdError{StatusNotInitialized}
+	ErrUnknownCommand = &memdError{StatusUnknownCommand}
+	ErrOutOfMemory    = &memdError{StatusOutOfMemory}
+	ErrNotSupported   = &memdError{StatusNotSupported}
+	ErrInternalError  = &memdError{StatusInternalError}
+	ErrBusy           = &memdError{StatusBusy}
+	ErrTmpFail        = &memdError{StatusTmpFail}
+)
+
+func getStreamEndError(code StreamEndStatus) *streamEndError {
+	switch code {
+	case StreamEndOK:
+		return nil
+	case StreamEndClosed:
+		return ErrStreamClosed
+	case StreamEndStateChanged:
+		return ErrStreamStateChanged
+	case StreamEndDisconnected:
+		return ErrStreamDisconnected
+	case StreamEndTooSlow:
+		return ErrStreamTooSlow
+	default:
+		return &streamEndError{code}
+	}
+}
+
+func getMemdError(code StatusCode) *memdError {
+	switch code {
+	case StatusSuccess:
+		return nil
+	case StatusKeyNotFound:
+		return ErrKeyNotFound
+	case StatusKeyExists:
+		return ErrKeyExists
+	case StatusTooBig:
+		return ErrTooBig
+	case StatusInvalidArgs:
+		return ErrInvalidArgs
+	case StatusNotStored:
+		return ErrNotStored
+	case StatusBadDelta:
+		return ErrBadDelta
+	case StatusNotMyVBucket:
+		return ErrNotMyVBucket
+	case StatusNoBucket:
+		return ErrNoBucket
+	case StatusAuthStale:
+		return ErrAuthStale
+	case StatusAuthError:
+		return ErrAuthError
+	case StatusAuthContinue:
+		return ErrAuthContinue
+	case StatusRangeError:
+		return ErrRangeError
+	case StatusAccessError:
+		return ErrAccessError
+	case StatusNotInitialized:
+		return ErrNotInitialized
+	case StatusRollback:
+		return ErrRollback
+	case StatusUnknownCommand:
+		return ErrUnknownCommand
+	case StatusOutOfMemory:
+		return ErrOutOfMemory
+	case StatusNotSupported:
+		return ErrNotSupported
+	case StatusInternalError:
+		return ErrInternalError
+	case StatusBusy:
+		return ErrBusy
+	case StatusTmpFail:
+		return ErrTmpFail
+	default:
+		return &memdError{code}
+	}
 }

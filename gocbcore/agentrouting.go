@@ -420,7 +420,7 @@ func (agent *Agent) routeRequest(req *memdQRequest) (*memdQueue, error) {
 		srvIdx = -repId - 1
 
 		if srvIdx >= len(routingInfo.queues) {
-			return nil, invalidServerError{}
+			return nil, ErrInvalidServer
 		}
 	} else {
 		if req.Key != nil {
@@ -428,13 +428,13 @@ func (agent *Agent) routeRequest(req *memdQRequest) (*memdQueue, error) {
 		}
 
 		if int(req.Vbucket) >= len(routingInfo.vbMap) {
-			return nil, invalidVbucketError{}
+			return nil, ErrInvalidVBucket
 		}
 
 		vBucketNodes := routingInfo.vbMap[req.Vbucket]
 
 		if repId >= len(vBucketNodes) {
-			return nil, invalidReplicaError{}
+			return nil, ErrInvalidReplica
 		}
 
 		srvIdx = vBucketNodes[repId]
@@ -459,7 +459,7 @@ func (c *Agent) dispatchDirect(req *memdQRequest) error {
 		if pipeline == nil {
 			// If no routing data exists this indicates that this Agent
 			//   has been shut down!
-			return agentError{"Attempted to perform operation on closed agent."}
+			return ErrShutdown
 		}
 
 		if !pipeline.QueueRequest(req) {

@@ -43,7 +43,7 @@ func (b *Bucket) Do(ops []BulkOp) error {
 			for _, item := range ops {
 				item.cancel()
 			}
-			return timeoutError{}
+			return ErrTimeout
 		}
 	}
 	gocbcore.ReleaseTimer(timeoutTmr, false)
