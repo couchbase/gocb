@@ -1,6 +1,7 @@
 package gocbcore
 
 import (
+	"sync"
 	"testing"
 	"time"
 )
@@ -23,7 +24,7 @@ func TestQueueOverflow(t *testing.T) {
 				t.Fatalf("Should have overflowed")
 			}
 		},
-	});
+	})
 }
 
 func TestQueueDouble(t *testing.T) {
@@ -58,16 +59,23 @@ func TestQueueDrain(t *testing.T) {
 		})
 	}
 
-	drainCount := 0
-	queue.Drain(func(*memdQRequest) {
-		drainCount++
-	}, nil)
-	if drainCount != queueMax {
-		t.Fatalf("Drain did not return all of the queued requests")
-	}
-
-	if queue.QueueRequest(&memdQRequest{}) {
-		t.Fatalf("Queueing operations after calling drain should fail")
+	done := make(chan bool)
+	go func() {
+		var wg sync.WaitGroup
+		wg.Add(queueMax)
+		queue.Drain(func(*memdQRequest) {
+			wg.Done()
+		}, nil)
+		wg.Wait()
+		done <- true
+	}()
+	select {
+	case <-done:
+		if queue.QueueRequest(&memdQRequest{}) {
+			t.Fatalf("Queueing operations after calling drain should fail")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatalf("Failed to drain queued requests in 3 seconds")
 	}
 }
 
@@ -83,21 +91,33 @@ func TestQueueDrainTimed(t *testing.T) {
 		})
 	}
 
-	signal := make(chan bool)
+	done := make(chan bool)
 	go func() {
-		time.Sleep(1 * time.Millisecond)
-		signal <- true
-	}()
+		var wg sync.WaitGroup
+		wg.Add(queueMax)
 
-	drainCount := 0
-	queue.Drain(func(req *memdQRequest) {
-		drainCount++
-		if req.QueueOwner() != nil {
-			t.Fatalf("Drained requests should not have an owner")
+		signal := make(chan bool)
+		go func() {
+			time.Sleep(1 * time.Millisecond)
+			signal <- true
+		}()
+
+		queue.Drain(func(req *memdQRequest) {
+			wg.Done()
+			if req.QueueOwner() != nil {
+				t.Fatalf("Drained requests should not have an owner")
+			}
+		}, signal)
+		wg.Wait()
+		done <- true
+	}()
+	select {
+	case <-done:
+		if queue.QueueRequest(&memdQRequest{}) {
+			t.Fatalf("Queueing operations after calling drain should fail")
 		}
-	}, signal)
-	if drainCount != queueMax {
-		t.Fatalf("Drain did not return all of the queued requests")
+	case <-time.After(4 * time.Second):
+		t.Fatalf("Failed to drain queued requests in 4 seconds")
 	}
 
 	if queue.QueueRequest(&memdQRequest{}) {

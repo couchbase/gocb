@@ -1,8 +1,6 @@
 package gocbcore
 
-import (
-	"sync"
-)
+import "sync"
 
 // This is used to store operations while they are pending
 //   a response from the server to allow mapping of a response
@@ -11,7 +9,7 @@ import (
 //   and synchronous responses from the server to nearly always
 //   return the request without needing to iterate at all.
 type memdOpMap struct {
-	lock sync.Mutex
+	lock    sync.Mutex
 	opIndex uint32
 
 	first *memdQRequest

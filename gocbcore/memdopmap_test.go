@@ -1,21 +1,15 @@
 package gocbcore
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestOpMap(t *testing.T) {
 	var rd memdOpMap
 
 	testOp1 := &memdQRequest{
-		memdRequest: memdRequest{
-			Opaque: 14,
-		},
+		memdRequest: memdRequest{},
 	}
 	testOp2 := &memdQRequest{
-		memdRequest: memdRequest{
-			Opaque: 22,
-		},
+		memdRequest: memdRequest{},
 	}
 
 	// Single Remove
@@ -29,10 +23,10 @@ func TestOpMap(t *testing.T) {
 
 	// Single opaque remove
 	rd.Add(testOp1)
-	if rd.FindAndMaybeRemove(14) != testOp1 {
+	if rd.FindAndMaybeRemove(testOp1.Opaque) != testOp1 {
 		t.Fatalf("The op should have been found")
 	}
-	if rd.FindAndMaybeRemove(14) != nil {
+	if rd.FindAndMaybeRemove(testOp1.Opaque) != nil {
 		t.Fatalf("The op should not have been there")
 	}
 
@@ -71,32 +65,32 @@ func TestOpMap(t *testing.T) {
 	// In order opaque remove
 	rd.Add(testOp1)
 	rd.Add(testOp2)
-	if rd.FindAndMaybeRemove(14) != testOp1 {
+	if rd.FindAndMaybeRemove(testOp1.Opaque) != testOp1 {
 		t.Fatalf("The op should have been found")
 	}
-	if rd.FindAndMaybeRemove(22) != testOp2 {
+	if rd.FindAndMaybeRemove(testOp2.Opaque) != testOp2 {
 		t.Fatalf("The op should have been found")
 	}
-	if rd.FindAndMaybeRemove(14) != nil {
+	if rd.FindAndMaybeRemove(testOp1.Opaque) != nil {
 		t.Fatalf("The op should not have been there")
 	}
-	if rd.FindAndMaybeRemove(22) != nil {
+	if rd.FindAndMaybeRemove(testOp2.Opaque) != nil {
 		t.Fatalf("The op should not have been there")
 	}
 
 	// Out of order opaque remove
 	rd.Add(testOp1)
 	rd.Add(testOp2)
-	if rd.FindAndMaybeRemove(22) != testOp2 {
+	if rd.FindAndMaybeRemove(testOp2.Opaque) != testOp2 {
 		t.Fatalf("The op should have been found")
 	}
-	if rd.FindAndMaybeRemove(14) != testOp1 {
+	if rd.FindAndMaybeRemove(testOp1.Opaque) != testOp1 {
 		t.Fatalf("The op should have been found")
 	}
-	if rd.FindAndMaybeRemove(22) != nil {
+	if rd.FindAndMaybeRemove(testOp2.Opaque) != nil {
 		t.Fatalf("The op should not have been there")
 	}
-	if rd.FindAndMaybeRemove(14) != nil {
+	if rd.FindAndMaybeRemove(testOp1.Opaque) != nil {
 		t.Fatalf("The op should not have been there")
 	}
 
