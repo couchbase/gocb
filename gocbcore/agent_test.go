@@ -113,6 +113,7 @@ func getSignaler(t *testing.T) *Signaler {
 }
 
 var globalAgent *Agent
+var globalMemdAgent *Agent
 var globalMock *gocbmock.Mock
 
 func getAgent(t *testing.T) *Agent {
@@ -614,6 +615,54 @@ func TestGetHttpEps(t *testing.T) {
 	}
 }
 
+func TestMemcachedBucket(t *testing.T) {
+	// Ensure we can do upserts..
+	agent := globalMemdAgent
+	s := getSignaler(t)
+
+	agent.Set([]byte("key"), []byte("value"), 0, 0, func(cas Cas, mt MutationToken, err error) {
+		s.Wrap(func() {
+			if err != nil {
+				t.Fatalf("Got error for Set: %v", err)
+			}
+		})
+	})
+	s.Wait(0)
+
+	agent.Get([]byte("key"), func(value []byte, flags uint32, cas Cas, err error) {
+		s.Wrap(func() {
+			if err != nil {
+				t.Fatalf("Couldn't get back key: %v", err)
+			}
+			if string(value) != "value" {
+				t.Fatalf("Got back wrong value!")
+			}
+		})
+	})
+	s.Wait(0)
+
+	// Try to perform Observe: should fail since this isn't supported on Memcached buckets
+	_, err := agent.Observe([]byte("key"), 0, func(ks KeyState, cas Cas, err error) {
+		s.Wrap(func() {
+			t.Fatalf("Scheduling should fail on memcached buckets!")
+		})
+	})
+
+	if err != ErrNotSupported {
+		t.Fatalf("Expected observe error for memcached bucket!")
+	}
+
+	// Try to use GETL, should also yield unsupported
+	agent.GetAndLock([]byte("key"), 10, func(val []byte, flags uint32, cas Cas, err error) {
+		s.Wrap(func() {
+			if err != ErrNotSupported && err != ErrUnknownCommand {
+				t.Fatalf("GETL should fail on memcached buckets: %v", err)
+			}
+		})
+	})
+	s.Wait(0)
+}
+
 func TestMain(m *testing.M) {
 	flag.Parse()
 	mpath, err := gocbmock.GetMockPath()
@@ -621,7 +670,11 @@ func TestMain(m *testing.M) {
 		panic(err.Error())
 	}
 
-	globalMock, err = gocbmock.NewMock(mpath, 4, 1, 64)
+	globalMock, err = gocbmock.NewMock(mpath, 4, 1, 64, []gocbmock.BucketSpec{
+		{Name: "default", Type: gocbmock.BCouchbase},
+		{Name: "memd", Type: gocbmock.BMemcached},
+	}...)
+
 	if err != nil {
 		panic(err.Error())
 	}
@@ -647,6 +700,16 @@ func TestMain(m *testing.M) {
 	globalAgent, err = CreateAgent(agentConfig)
 	if err != nil {
 		panic("Failed to connect to server")
+	}
+
+	memdAgentConfig := &AgentConfig{}
+	*memdAgentConfig = *agentConfig
+	memdAgentConfig.MemdAddrs = nil
+	memdAgentConfig.BucketName = "memd"
+	memdAgentConfig.AuthHandler = saslAuthFn("memd", "")
+	globalMemdAgent, err = CreateAgent(memdAgentConfig)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to connect to memcached bucket!: %v", err))
 	}
 
 	os.Exit(m.Run())

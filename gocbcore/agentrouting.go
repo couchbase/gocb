@@ -190,6 +190,7 @@ func (agent *Agent) activatePendingServer(server *memdPipeline) bool {
 			vbMap:      oldRouting.vbMap,
 			source:     oldRouting.source,
 			deadQueue:  oldRouting.deadQueue,
+			bktType:    oldRouting.bktType,
 		}
 
 		// Copy the lists
@@ -261,6 +262,7 @@ func (agent *Agent) applyConfig(cfg *routeConfig) {
 		mgmtEpList: cfg.mgmtEpList,
 		n1qlEpList: cfg.n1qlEpList,
 		vbMap:      cfg.vbMap,
+		bktType:    cfg.bktType,
 		source:     cfg,
 	}
 
@@ -422,30 +424,42 @@ func (agent *Agent) routeRequest(req *memdQRequest) (*memdQueue, error) {
 	}
 
 	var srvIdx int
-
 	repId := req.ReplicaIdx
+
+	// Route to specific server
 	if repId < 0 {
 		srvIdx = -repId - 1
-
 		if srvIdx >= len(routingInfo.queues) {
 			return nil, ErrInvalidServer
 		}
-	} else {
-		if req.Key != nil {
-			req.Vbucket = uint16(cbCrc(req.Key) % uint32(len(routingInfo.vbMap)))
-		}
+		return routingInfo.queues[srvIdx], nil
+	}
 
-		if int(req.Vbucket) >= len(routingInfo.vbMap) {
-			return nil, ErrInvalidVBucket
-		}
-
-		vBucketNodes := routingInfo.vbMap[req.Vbucket]
-
-		if repId >= len(vBucketNodes) {
+	if routingInfo.bktType == BktTypeCouchbase {
+		// Targeting a specific replica; repId >= 0
+		if repId >= routingInfo.source.numReplicas+1 {
 			return nil, ErrInvalidReplica
 		}
 
-		srvIdx = vBucketNodes[repId]
+		if req.Key != nil {
+			srvIdx, req.Vbucket = routingInfo.MapKeyVBucket(req.Key, repId)
+		} else {
+			// Filter explicit vBucket input. Really only used in OBSERVE
+			if int(req.Vbucket) >= len(routingInfo.vbMap) {
+				return nil, ErrInvalidVBucket
+			}
+			srvIdx = routingInfo.vbMap[req.Vbucket][repId]
+		}
+	} else if routingInfo.bktType == BktTypeMemcached {
+		if repId > 0 {
+			// Error. Memcached buckets don't understand replicas!
+			return nil, ErrInvalidReplica
+		}
+
+		if req.Key == nil {
+			panic("Non-broadcast keyless Memcached bucket request found!")
+		}
+		srvIdx = routingInfo.MapKetama(req.Key)
 	}
 
 	if srvIdx == -1 {

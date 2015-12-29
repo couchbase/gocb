@@ -108,3 +108,11 @@ const (
 	StreamEndDisconnected = StreamEndStatus(0x03)
 	StreamEndTooSlow      = StreamEndStatus(0x04)
 )
+
+type BucketType int
+
+const (
+	BktTypeInvalid   BucketType = 0
+	BktTypeCouchbase            = iota
+	BktTypeMemcached            = iota
+)

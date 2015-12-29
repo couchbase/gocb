@@ -433,6 +433,10 @@ func (c *Agent) Decrement(key []byte, delta, initial uint64, expiry uint32, cb C
 }
 
 func (c *Agent) Observe(key []byte, replicaIdx int, cb ObserveCallback) (PendingOp, error) {
+	if c.numVbuckets == 0 {
+		return nil, ErrNotSupported
+	}
+
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
 			cb(0, 0, err)
@@ -480,6 +484,10 @@ func (c *Agent) Observe(key []byte, replicaIdx int, cb ObserveCallback) (Pending
 }
 
 func (c *Agent) ObserveSeqNo(key []byte, vbUuid VbUuid, replicaIdx int, cb ObserveSeqNoCallback) (PendingOp, error) {
+	if c.numVbuckets == 0 {
+		return nil, ErrNotSupported
+	}
+
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
 			cb(0, 0, err)
