@@ -595,6 +595,31 @@ func TestRandomGet(t *testing.T) {
 	s.Wait(0)
 }
 
+func TestStats(t *testing.T) {
+	agent, s := getAgentnSignaler(t)
+	numServers := len(agent.routingInfo.get().queues)
+
+	agent.Stats("", func(stats map[string]SingleServerStats) {
+		s.Wrap(func() {
+			if len(stats) != numServers {
+				t.Fatalf("Didn't get all stats!")
+			}
+			numPerServer := 0
+			for srv, curStats := range stats {
+				if curStats.Error != nil {
+					t.Fatalf("Got error %v in stats for %s", curStats.Error, srv)
+				}
+				if numPerServer == 0 {
+					numPerServer = len(curStats.Stats)
+				}
+				if numPerServer != len(curStats.Stats) {
+					t.Fatalf("Got different number of stats for %s. Got %d, expected %d", srv, len(curStats.Stats), numPerServer)
+				}
+			}
+		})
+	})
+}
+
 func TestGetHttpEps(t *testing.T) {
 	agent := getAgent(t)
 

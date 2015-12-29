@@ -80,6 +80,37 @@ func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint6
 	return val, cas, err
 }
 
+type ServerStats map[string]map[string]string
+
+func (b *Bucket) Stats(key string) (statsOut ServerStats, errOut error) {
+	signal := make(chan bool, 1)
+	statsOut = make(ServerStats)
+
+	op, errOut := b.client.Stats(key, func(stats map[string]gocbcore.SingleServerStats) {
+		for curServer, curStats := range stats {
+			if curStats.Error != nil && errOut == nil {
+				errOut = curStats.Error
+			}
+			statsOut[curServer] = curStats.Stats
+		}
+		signal <- true
+	})
+
+	timeoutTmr := gocbcore.AcquireTimer(b.opTimeout)
+	select {
+	case <-signal:
+		gocbcore.ReleaseTimer(timeoutTmr, false)
+		return
+	case <-timeoutTmr.C:
+		gocbcore.ReleaseTimer(timeoutTmr, true)
+		if !op.Cancel() {
+			<-signal
+			return
+		}
+		return nil, ErrTimeout
+	}
+}
+
 type ioGetCallback func([]byte, uint32, gocbcore.Cas, error)
 type ioCasCallback func(gocbcore.Cas, gocbcore.MutationToken, error)
 type ioCtrCallback func(uint64, gocbcore.Cas, gocbcore.MutationToken, error)

@@ -15,6 +15,11 @@ type MutationToken struct {
 	SeqNo  SeqNo
 }
 
+type SingleServerStats struct {
+	Stats map[string]string
+	Error error
+}
+
 type PendingOp interface {
 	Cancel() bool
 }
@@ -50,6 +55,7 @@ type CounterCallback func(uint64, Cas, MutationToken, error)
 type ObserveCallback func(KeyState, Cas, error)
 type ObserveSeqNoCallback func(SeqNo, SeqNo, error)
 type GetRandomCallback func([]byte, []byte, uint32, Cas, error)
+type ServerStatsCallback func(stats map[string]SingleServerStats)
 
 func (c *Agent) Get(key []byte, cb GetCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
@@ -656,4 +662,83 @@ func (c *Agent) DeleteMeta(key, extra []byte, flags, expiry uint32, cas, revseqn
 		Callback: handler,
 	}
 	return c.dispatchOp(req)
+}
+
+func (c *Agent) Stats(key string, callback ServerStatsCallback) (PendingOp, error) {
+	config := c.routingInfo.get()
+	allOk := true
+	// Iterate over each of the configs
+
+	op := new(struct {
+		multiPendingOp
+		remaining int32
+	})
+	op.remaining = int32(len(config.servers))
+
+	stats := make(map[string]SingleServerStats)
+
+	defer func() {
+		if !allOk {
+			op.Cancel()
+		}
+	}()
+
+	for index, server := range config.servers {
+		var req *memdQRequest
+		serverName := server.address
+
+		handler := func(resp *memdResponse, err error) {
+			// No stat key!
+			curStats, ok := stats[serverName]
+
+			if !ok {
+				stats[serverName] = SingleServerStats{
+					Stats: make(map[string]string),
+				}
+				curStats = stats[serverName]
+			}
+			if err != nil {
+				if curStats.Error == nil {
+					curStats.Error = err
+				} else {
+					logDebugf("Got additional error for stats: %s: %v", serverName, err)
+				}
+			}
+
+			if len(resp.Key) == 0 {
+				// No more request for server!
+				req.Cancel()
+
+				remaining := atomic.AddInt32(&op.remaining, -1)
+				if remaining == 0 {
+					callback(stats)
+				}
+			} else {
+				curStats.Stats[string(resp.Key)] = string(resp.Value)
+			}
+		}
+
+		// Send the request
+		req = &memdQRequest{
+			memdRequest: memdRequest{
+				Magic:    ReqMagic,
+				Opcode:   CmdStat,
+				Datatype: 0,
+				Cas:      0,
+				Key:      []byte(key),
+				Value:    nil,
+			},
+			Persistent: true,
+			ReplicaIdx: (-1) + (-index),
+			Callback:   handler,
+		}
+
+		curOp, err := c.dispatchOp(req)
+		if err != nil {
+			return nil, err
+		}
+		op.ops = append(op.ops, curOp)
+	}
+	allOk = true
+	return op, nil
 }
