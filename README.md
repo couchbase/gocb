@@ -14,11 +14,18 @@ protocol.
 
 ## Useful Links
 
-Source - [http://github.com/couchbase/gocb](http://github.com/couchbase/gocb)
+### Source
+The project source is hosted at [http://github.com/couchbase/gocb](http://github.com/couchbase/gocb).
 
-Documentation - [http://developer.couchbase.com/documentation/server/4.0/sdks/go-beta/introduction.html](http://developer.couchbase.com/documentation/server/4.0/sdks/go-beta/introduction.html)
+### Documentation
+Couchbase Documentation is hosted at [http://developer.couchbase.com/documentation/server/4.0/sdks/go-beta/introduction.html](http://developer.couchbase.com/documentation/server/4.0/sdks/go-beta/introduction.html).
 
-Bug Tracker - [http://www.couchbase.com/issues/browse/GOCBC](http://www.couchbase.com/issues/browse/GOCBC)
+### Bug Tracker
+Issues are tracked on Couchbase's public [issues.couchbase.com](http://www.couchbase.com/issues/browse/GOCBC).
+Contact [the site admins](https://issues.couchbase.com/secure/ContactAdministrators!default.jspa)
+regarding login or other problems at issues.couchbase.com (officially) or ask
+around in [couchbase/discuss on gitter](https://gitter.im/couchbase/discuss)
+(unofficially).
 
 
 ## Installing
@@ -30,7 +37,7 @@ go get gopkg.in/couchbaselabs/gocb.v1
 
 
 ## License
-Copyright 2015 Couchbase Inc.
+Copyright 2016 Couchbase Inc.
 
 Licensed under the Apache License, Version 2.0.
 
