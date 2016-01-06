@@ -93,6 +93,7 @@ func (pipeline *memdPipeline) ExecuteRequest(req *memdQRequest, deadline time.Ti
 		ReleaseTimer(timeoutTmr, true)
 		if !req.Cancel() {
 			<-signal
+			return
 		}
 		return nil, ErrTimeout
 	}

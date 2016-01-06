@@ -9,17 +9,18 @@ type bulkOp struct {
 	pendop gocbcore.PendingOp
 }
 
-func (op *bulkOp) cancel() {
+func (op *bulkOp) cancel() bool {
 	if op.pendop == nil {
-		return
+		return true
 	}
-	op.pendop.Cancel()
+	res := op.pendop.Cancel()
 	op.pendop = nil
+	return res
 }
 
 type BulkOp interface {
 	execute(*Bucket, chan BulkOp)
-	cancel()
+	cancel() bool
 }
 
 func (b *Bucket) Do(ops []BulkOp) error {
@@ -41,7 +42,9 @@ func (b *Bucket) Do(ops []BulkOp) error {
 		case <-timeoutTmr.C:
 			gocbcore.ReleaseTimer(timeoutTmr, true)
 			for _, item := range ops {
-				item.cancel()
+				if !item.cancel() {
+					<-signal
+				}
 			}
 			return ErrTimeout
 		}
