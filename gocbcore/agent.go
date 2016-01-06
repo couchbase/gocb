@@ -265,6 +265,9 @@ func (agent *Agent) Close() {
 	// Clear the routingInfo so no new operations are performed
 	//   and retrieve the last active routing configuration
 	routingInfo := agent.routingInfo.clear()
+	if routingInfo == nil {
+		return
+	}
 
 	// Loop all the currently running servers and drain their
 	//   requests as errors (this also closes the server conn).
