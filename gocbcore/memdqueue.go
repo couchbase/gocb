@@ -103,7 +103,7 @@ func (queue *memdQueue) drainTillEmpty(reqCb drainedReqCallback) {
 	}
 }
 
-func (queue *memdQueue) drainTillSignal(reqCb drainedReqCallback, signal chan bool) {
+func (queue *memdQueue) drainTillSignalAndEmpty(reqCb drainedReqCallback, signal chan bool) {
 	for {
 		select {
 		case req := <-queue.reqsCh:
@@ -121,12 +121,19 @@ func (queue *memdQueue) drainTillSignal(reqCb drainedReqCallback, signal chan bo
 //   (further attempts to send it requests will fail), and call the specified
 //   callback for each request that was still queued.
 func (queue *memdQueue) Drain(reqCb drainedReqCallback, readersDoneSig chan bool) {
+	// Set up a signal for making this method synchronous in spite
+	//   of us internally running a goroutine.
+	finishedSig := make(chan bool)
+
 	// Start up our drainer goroutine.  This will ensure that queue is constantly
 	//   being drained while we perform the shutdown of the queue, without this,
 	//   we may deadlock between trying to write to a full queue, and trying to
 	//   get the lock to mark it as draining.
-	signal := make(chan bool)
-	go queue.drainTillSignal(reqCb, signal)
+	closedSig := make(chan bool)
+	go func() {
+		queue.drainTillSignalAndEmpty(reqCb, closedSig)
+		finishedSig <- true
+	}()
 
 	// First we mark this queue as draining, this will prevent further requests
 	//   from being dispatched from any external sources.
@@ -143,6 +150,9 @@ func (queue *memdQueue) Drain(reqCb drainedReqCallback, readersDoneSig chan bool
 		<-readersDoneSig
 	}
 
-	// Signal our drain coroutine that it can stop now (once its emptied the queue).
-	signal <- true
+	// Signal our drain goroutine that it can stop now (once its emptied the queue).
+	closedSig <- true
+
+	// Wait until the drainer goroutine finishes draining everything
+	<-finishedSig
 }

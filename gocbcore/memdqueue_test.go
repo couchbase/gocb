@@ -1,7 +1,6 @@
 package gocbcore
 
 import (
-	"sync"
 	"testing"
 	"time"
 )
@@ -59,23 +58,16 @@ func TestQueueDrain(t *testing.T) {
 		})
 	}
 
-	done := make(chan bool)
-	go func() {
-		var wg sync.WaitGroup
-		wg.Add(queueMax)
-		queue.Drain(func(*memdQRequest) {
-			wg.Done()
-		}, nil)
-		wg.Wait()
-		done <- true
-	}()
-	select {
-	case <-done:
-		if queue.QueueRequest(&memdQRequest{}) {
-			t.Fatalf("Queueing operations after calling drain should fail")
-		}
-	case <-time.After(3 * time.Second):
-		t.Fatalf("Failed to drain queued requests in 3 seconds")
+	drainCount := 0
+	queue.Drain(func(*memdQRequest) {
+		drainCount++
+	}, nil)
+	if drainCount != queueMax {
+		t.Fatalf("Drain did not return all of the queued requests")
+	}
+
+	if queue.QueueRequest(&memdQRequest{}) {
+		t.Fatalf("Queueing operations after calling drain should fail")
 	}
 }
 
@@ -91,33 +83,21 @@ func TestQueueDrainTimed(t *testing.T) {
 		})
 	}
 
-	done := make(chan bool)
+	signal := make(chan bool)
 	go func() {
-		var wg sync.WaitGroup
-		wg.Add(queueMax)
-
-		signal := make(chan bool)
-		go func() {
-			time.Sleep(1 * time.Millisecond)
-			signal <- true
-		}()
-
-		queue.Drain(func(req *memdQRequest) {
-			wg.Done()
-			if req.QueueOwner() != nil {
-				t.Fatalf("Drained requests should not have an owner")
-			}
-		}, signal)
-		wg.Wait()
-		done <- true
+		time.Sleep(1 * time.Millisecond)
+		signal <- true
 	}()
-	select {
-	case <-done:
-		if queue.QueueRequest(&memdQRequest{}) {
-			t.Fatalf("Queueing operations after calling drain should fail")
+
+	drainCount := 0
+	queue.Drain(func(req *memdQRequest) {
+		drainCount++
+		if req.QueueOwner() != nil {
+			t.Fatalf("Drained requests should not have an owner")
 		}
-	case <-time.After(4 * time.Second):
-		t.Fatalf("Failed to drain queued requests in 4 seconds")
+	}, signal)
+	if drainCount != queueMax {
+		t.Fatalf("Drain did not return all of the queued requests")
 	}
 
 	if queue.QueueRequest(&memdQRequest{}) {
