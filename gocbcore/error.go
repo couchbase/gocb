@@ -243,7 +243,7 @@ var (
 	ErrTmpFail        = &memdError{StatusTmpFail}
 )
 
-func getStreamEndError(code StreamEndStatus) *streamEndError {
+func getStreamEndError(code StreamEndStatus) error {
 	switch code {
 	case StreamEndOK:
 		return nil
@@ -260,7 +260,7 @@ func getStreamEndError(code StreamEndStatus) *streamEndError {
 	}
 }
 
-func getMemdError(code StatusCode) *memdError {
+func getMemdError(code StatusCode) error {
 	switch code {
 	case StatusSuccess:
 		return nil
