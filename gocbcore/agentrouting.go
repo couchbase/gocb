@@ -475,5 +475,8 @@ func (c *Agent) dispatchDirect(req *memdQRequest) error {
 //   around.  It currently simply calls dispatchDirect.
 func (c *Agent) redispatchDirect(req *memdQRequest) {
 	// Reschedule the operation
-	c.dispatchDirect(req)
+	err := c.dispatchDirect(req)
+	if err != nil {
+		panic("dispatchDirect errored during redispatch.")
+	}
 }
