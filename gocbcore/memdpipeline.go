@@ -194,16 +194,31 @@ func (pipeline *memdPipeline) ioLoop() {
 			logDebugf("Got a request to dispatch.")
 			err := pipeline.dispatchRequest(req)
 			if err != nil {
-				// We can assume that the server is not fully drained yet, as the drainer blocks
-				//   waiting for the IO goroutines to finish first.
-				pipeline.queue.reqsCh <- req
+				// Ensure that the connection gets fully closed
+				pipeline.conn.Close()
 
 				// We must wait for the receive goroutine to die as well before we can continue.
 				<-killSig
 
+				// We have to run this code in a goroutine as the requests channel
+				//   may be full so we need to notify people to drain this server
+				//   before it may complete, however at the same time, we have to
+				//   wait to trip ioDoneCh until after that last request is returned
+				//   to the queue or our drain might miss it.
+				go func() {
+					// Return the active request back to the queue and mark the io as being completed.
+					pipeline.queue.reqsCh <- req
+
+					// Now we must signal drainers that we are done!
+					pipeline.ioDoneCh <- true
+				}()
+
 				return
 			}
 		case <-killSig:
+			// Now we must signal drainers that we are done!
+			pipeline.ioDoneCh <- true
+
 			return
 		}
 	}
@@ -214,9 +229,6 @@ func (pipeline *memdPipeline) Run() {
 
 	// Run the IO loop.  This will block until the connection has been closed.
 	pipeline.ioLoop()
-
-	// Now we must signal drainers that we are done!
-	pipeline.ioDoneCh <- true
 
 	// Signal the creator that we died :(
 	pipeline.lock.Lock()
@@ -231,7 +243,7 @@ func (pipeline *memdPipeline) Run() {
 }
 
 func (pipeline *memdPipeline) Close() {
-	pipeline.Drain(nil)
+	pipeline.conn.Close()
 }
 
 func (pipeline *memdPipeline) Drain(reqCb drainedReqCallback) {
@@ -242,10 +254,6 @@ func (pipeline *memdPipeline) Drain(reqCb drainedReqCallback) {
 			req.Callback(nil, ErrNetwork)
 		}
 	}
-
-	// Make sure the connection is closed, which will signal the ioLoop
-	//   to stop running and signal on ioDoneCh
-	pipeline.conn.Close()
 
 	// Drain the request queue, this will block until the io thread signals
 	//   on ioDoneCh, and the queues have been completely emptied
