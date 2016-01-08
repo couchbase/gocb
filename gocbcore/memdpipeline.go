@@ -23,7 +23,7 @@ type memdPipeline struct {
 	isClosed bool
 	ioDoneCh chan bool
 
-	opList  memdOpMap
+	opList memdOpMap
 
 	handleBadRoute BadRouteHandler
 	handleDeath    CloseHandler
@@ -92,7 +92,7 @@ func (pipeline *memdPipeline) ExecuteRequest(req *memdQRequest, deadline time.Ti
 	case <-timeoutTmr.C:
 		ReleaseTimer(timeoutTmr, true)
 		if !req.Cancel() {
-			<- signal
+			<-signal
 		}
 		return nil, &timeoutError{}
 	}

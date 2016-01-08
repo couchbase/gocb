@@ -59,7 +59,7 @@ type HelloFeature uint16
 
 const (
 	FeatureDatatype = HelloFeature(0x01)
-	FeatureSeqNo = HelloFeature(0x04)
+	FeatureSeqNo    = HelloFeature(0x04)
 )
 
 // Status field for memcached response.

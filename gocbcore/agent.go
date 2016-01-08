@@ -4,32 +4,32 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"fmt"
-	"net/http"
 	"math/rand"
-	"time"
+	"net/http"
 	"sync"
+	"time"
 )
 
 // This class represents the base client handling connections to a Couchbase Server.
 // This is used internally by the higher level classes for communicating with the cluster,
 // it can also be used to perform more advanced operations with a cluster.
 type Agent struct {
-	bucket    string
-	password  string
-	tlsConfig *tls.Config
-	initFn    memdInitFunc
+	bucket            string
+	password          string
+	tlsConfig         *tls.Config
+	initFn            memdInitFunc
 	useMutationTokens bool
 
 	routingInfo routeDataPtr
 	numVbuckets int
 
 	serverFailuresLock sync.Mutex
-	serverFailures map[string]time.Time
+	serverFailures     map[string]time.Time
 
 	httpCli *http.Client
 
 	serverConnectTimeout time.Duration
-	serverWaitTimeout time.Duration
+	serverWaitTimeout    time.Duration
 }
 
 // The timeout for each server connection, including all authentication steps.
@@ -50,12 +50,12 @@ func (c *Agent) HttpClient() *http.Client {
 type AuthFunc func(client AuthClient, deadline time.Time) error
 
 type AgentConfig struct {
-	MemdAddrs   []string
-	HttpAddrs   []string
-	TlsConfig   *tls.Config
-	BucketName  string
-	Password    string
-	AuthHandler AuthFunc
+	MemdAddrs         []string
+	HttpAddrs         []string
+	TlsConfig         *tls.Config
+	BucketName        string
+	Password          string
+	AuthHandler       AuthFunc
 	UseMutationTokens bool
 
 	ConnectTimeout       time.Duration
@@ -92,10 +92,10 @@ func createAgent(config *AgentConfig, initFn memdInitFunc) (*Agent, error) {
 				TLSClientConfig: config.TlsConfig,
 			},
 		},
-		useMutationTokens: config.UseMutationTokens,
-		serverFailures: make(map[string]time.Time),
+		useMutationTokens:    config.UseMutationTokens,
+		serverFailures:       make(map[string]time.Time),
 		serverConnectTimeout: config.ServerConnectTimeout,
-		serverWaitTimeout: 5 * time.Second,
+		serverWaitTimeout:    5 * time.Second,
 	}
 
 	deadline := time.Now().Add(config.ConnectTimeout)
@@ -129,7 +129,7 @@ func (c *Agent) cccpLooper() {
 		routingInfo := c.routingInfo.get()
 		if routingInfo == nil {
 			// If we have a blank routingInfo, it indicates the client is shut down.
-			break;
+			break
 		}
 
 		numServers := len(routingInfo.servers)
@@ -222,7 +222,7 @@ func (c *Agent) connect(memdAddrs, httpAddrs []string, deadline time.Time) error
 
 		srv.SetHandlers(c.handleServerNmv, c.handleServerDeath)
 
-		go c.cccpLooper();
+		go c.cccpLooper()
 
 		return nil
 	}
@@ -269,7 +269,7 @@ func (agent *Agent) Close() {
 	// Loop all the currently running servers and drain their
 	//   requests as errors (this also closes the server conn).
 	for _, s := range routingInfo.servers {
-		s.Drain(func (req *memdQRequest) {
+		s.Drain(func(req *memdQRequest) {
 			req.Callback(nil, shutdownError{})
 		})
 	}
@@ -277,12 +277,12 @@ func (agent *Agent) Close() {
 	// Clear any extraneous queues that may still contain
 	//   requests which are not pending on a server queue.
 	if routingInfo.deadQueue != nil {
-		routingInfo.deadQueue.Drain(func (req *memdQRequest) {
+		routingInfo.deadQueue.Drain(func(req *memdQRequest) {
 			req.Callback(nil, shutdownError{})
 		}, nil)
 	}
 	if routingInfo.waitQueue != nil {
-		routingInfo.waitQueue.Drain(func (req *memdQRequest) {
+		routingInfo.waitQueue.Drain(func(req *memdQRequest) {
 			req.Callback(nil, shutdownError{})
 		}, nil)
 	}

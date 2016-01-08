@@ -73,13 +73,13 @@ type cfgVBucketServerMap struct {
 // Bucket is the primary entry point for most data operations.
 type cfgBucket struct {
 	SourceHostname      string
-	Capabilities        []string           `json:"bucketCapabilities"`
-	CapabilitiesVersion string             `json:"bucketCapabilitiesVer"`
-	Name                string             `json:"name"`
-	NodeLocator         string             `json:"nodeLocator"`
-	URI                 string             `json:"uri"`
-	StreamingURI        string             `json:"streamingUri"`
-	UUID                string             `json:"uuid"`
+	Capabilities        []string `json:"bucketCapabilities"`
+	CapabilitiesVersion string   `json:"bucketCapabilitiesVer"`
+	Name                string   `json:"name"`
+	NodeLocator         string   `json:"nodeLocator"`
+	URI                 string   `json:"uri"`
+	StreamingURI        string   `json:"streamingUri"`
+	UUID                string   `json:"uuid"`
 	DDocs               struct {
 		URI string `json:"uri"`
 	} `json:"ddocs,omitempty"`

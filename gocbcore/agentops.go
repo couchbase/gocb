@@ -12,7 +12,7 @@ type SeqNo uint64
 
 type MutationToken struct {
 	VbUuid VbUuid
-	SeqNo SeqNo
+	SeqNo  SeqNo
 }
 
 type PendingOp interface {
@@ -590,7 +590,7 @@ func (c *Agent) SetMeta(key, value, extra []byte, flags, expiry uint32, cas, rev
 		cb(Cas(resp.Cas), mutToken, nil)
 	}
 
-	extraBuf := make([]byte, 26 + len(extra))
+	extraBuf := make([]byte, 26+len(extra))
 	binary.BigEndian.PutUint32(extraBuf[0:], flags)
 	binary.BigEndian.PutUint32(extraBuf[4:], expiry)
 	binary.BigEndian.PutUint64(extraBuf[8:], revseqno)
@@ -628,7 +628,7 @@ func (c *Agent) DeleteMeta(key, extra []byte, flags, expiry uint32, cas, revseqn
 		cb(Cas(resp.Cas), mutToken, nil)
 	}
 
-	extraBuf := make([]byte, 26 + len(extra))
+	extraBuf := make([]byte, 26+len(extra))
 	binary.BigEndian.PutUint32(extraBuf[0:], flags)
 	binary.BigEndian.PutUint32(extraBuf[4:], expiry)
 	binary.BigEndian.PutUint64(extraBuf[8:], revseqno)

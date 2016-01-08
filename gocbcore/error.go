@@ -22,7 +22,6 @@ func (e timeoutError) Timeout() bool {
 	return true
 }
 
-
 type networkError struct {
 }
 
@@ -53,7 +52,6 @@ func (e shutdownError) Error() string {
 func (e shutdownError) ShutdownError() bool {
 	return true
 }
-
 
 type memdError struct {
 	code StatusCode

@@ -7,73 +7,73 @@ import (
 func (b *Bucket) observeOnceCas(key []byte, cas Cas, forDelete bool, repId int, commCh chan uint) (pendingOp, error) {
 	return b.client.Observe(key, repId,
 		func(ks gocbcore.KeyState, obsCas gocbcore.Cas, err error) {
-		if err != nil {
-			commCh <- 0
-			return
-		}
+			if err != nil {
+				commCh <- 0
+				return
+			}
 
-		didReplicate := false
-		didPersist := false
+			didReplicate := false
+			didPersist := false
 
-		if ks == gocbcore.KeyStatePersisted {
-			if !forDelete {
-				if Cas(obsCas) == cas {
-					if repId != 0 {
-						didReplicate = true
+			if ks == gocbcore.KeyStatePersisted {
+				if !forDelete {
+					if Cas(obsCas) == cas {
+						if repId != 0 {
+							didReplicate = true
+						}
+						didPersist = true
 					}
+				}
+			} else if ks == gocbcore.KeyStateNotPersisted {
+				if !forDelete {
+					if Cas(obsCas) == cas {
+						if repId != 0 {
+							didReplicate = true
+						}
+					}
+				}
+			} else if ks == gocbcore.KeyStateDeleted {
+				if forDelete {
+					didReplicate = true
+				}
+			} else {
+				if forDelete {
+					didReplicate = true
 					didPersist = true
 				}
 			}
-		} else if ks == gocbcore.KeyStateNotPersisted {
-			if !forDelete {
-				if Cas(obsCas) == cas {
-					if repId != 0 {
-						didReplicate = true
-					}
-				}
-			}
-		} else if ks == gocbcore.KeyStateDeleted {
-			if forDelete {
-				didReplicate = true
-			}
-		} else {
-			if forDelete {
-				didReplicate = true
-				didPersist = true
-			}
-		}
 
-		var out uint
-		if didReplicate {
-			out |= 1
-		}
-		if didPersist {
-			out |= 2
-		}
-		commCh <- out
-	})
+			var out uint
+			if didReplicate {
+				out |= 1
+			}
+			if didPersist {
+				out |= 2
+			}
+			commCh <- out
+		})
 }
 
 func (b *Bucket) observeOnceSeqNo(key []byte, mt MutationToken, repId int, commCh chan uint) (pendingOp, error) {
 	return b.client.ObserveSeqNo(key, mt.VbUuid, repId,
 		func(currentSeqNo gocbcore.SeqNo, persistSeqNo gocbcore.SeqNo, err error) {
-		if err != nil {
-			commCh <- 0
-			return
-		}
+			if err != nil {
+				commCh <- 0
+				return
+			}
 
-		didReplicate := currentSeqNo >= mt.SeqNo
-		didPersist := persistSeqNo >= mt.SeqNo
+			didReplicate := currentSeqNo >= mt.SeqNo
+			didPersist := persistSeqNo >= mt.SeqNo
 
-		var out uint
-		if didReplicate {
-			out |= 1
-		}
-		if didPersist {
-			out |= 2
-		}
-		commCh <- out
-	})
+			var out uint
+			if didReplicate {
+				out |= 1
+			}
+			if didPersist {
+				out |= 2
+			}
+			commCh <- out
+		})
 }
 
 func (b *Bucket) observeOne(key []byte, mt MutationToken, cas Cas, forDelete bool, repId int, replicaCh, persistCh chan bool) {

@@ -5,7 +5,7 @@ import (
 )
 
 type bucketInternal struct {
-	b *Bucket;
+	b *Bucket
 }
 
 // Retrieves a document from the bucket

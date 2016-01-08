@@ -23,7 +23,7 @@ type StreamObserver interface {
 
 type FailoverEntry struct {
 	VbUuid VbUuid
-	SeqNo SeqNo
+	SeqNo  SeqNo
 }
 
 type OpenStreamCallback func([]FailoverEntry, error)
@@ -48,7 +48,7 @@ func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo, sna
 			for i := 0; i < numEntries; i++ {
 				entries[i] = FailoverEntry{
 					VbUuid: VbUuid(binary.BigEndian.Uint64(resp.Value[i*16+0:])),
-					SeqNo: SeqNo(binary.BigEndian.Uint64(resp.Value[i*16+8:])),
+					SeqNo:  SeqNo(binary.BigEndian.Uint64(resp.Value[i*16+8:])),
 				}
 			}
 
@@ -152,7 +152,7 @@ func (c *Agent) GetFailoverLog(vbId uint16, cb GetFailoverLogCallback) (PendingO
 		for i := 0; i < numEntries; i++ {
 			entries[i] = FailoverEntry{
 				VbUuid: VbUuid(binary.BigEndian.Uint64(resp.Value[i*16+0:])),
-				SeqNo: SeqNo(binary.BigEndian.Uint64(resp.Value[i*16+8:])),
+				SeqNo:  SeqNo(binary.BigEndian.Uint64(resp.Value[i*16+8:])),
 			}
 		}
 		cb(entries, nil)
@@ -204,4 +204,3 @@ func (c *Agent) GetLastCheckpoint(vbId uint16, cb GetLastCheckpointCallback) (Pe
 	}
 	return c.dispatchOp(req)
 }
-
