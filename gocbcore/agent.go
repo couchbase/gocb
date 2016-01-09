@@ -30,6 +30,8 @@ type Agent struct {
 
 	serverConnectTimeout time.Duration
 	serverWaitTimeout    time.Duration
+
+	shutdownWaitCh chan *memdPipeline
 }
 
 // The timeout for each server connection, including all authentication steps.
@@ -262,6 +264,9 @@ func (c *Agent) connect(memdAddrs, httpAddrs []string, deadline time.Time) error
 }
 
 func (agent *Agent) Close() {
+	// Set up a channel so we can find out when servers shut down.
+	agent.shutdownWaitCh = make(chan *memdPipeline)
+
 	// Clear the routingInfo so no new operations are performed
 	//   and retrieve the last active routing configuration
 	routingInfo := agent.routingInfo.clear()
@@ -269,12 +274,10 @@ func (agent *Agent) Close() {
 		return
 	}
 
-	// Loop all the currently running servers and drain their
-	//   requests as errors (this also closes the server conn).
+	// Loop all the currently running servers and close their
+	//   connections.  Their requests will be drained below.
 	for _, s := range routingInfo.servers {
-		s.Drain(func(req *memdQRequest) {
-			req.Callback(nil, ErrShutdown)
-		})
+		s.Close()
 	}
 
 	// Clear any extraneous queues that may still contain
@@ -288,6 +291,16 @@ func (agent *Agent) Close() {
 		routingInfo.waitQueue.Drain(func(req *memdQRequest) {
 			req.Callback(nil, ErrShutdown)
 		}, nil)
+	}
+
+	// Loop all the currently running servers and wait for them
+	//   to stop running then drain their requests as errors
+	//   (this also closes the server conn).
+	for range routingInfo.servers {
+		s := <-agent.shutdownWaitCh
+		s.Drain(func(req *memdQRequest) {
+			req.Callback(nil, ErrShutdown)
+		})
 	}
 }
 

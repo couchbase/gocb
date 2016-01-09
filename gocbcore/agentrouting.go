@@ -18,6 +18,14 @@ func (c *Agent) handleServerNmv(s *memdPipeline, req *memdQRequest, resp *memdRe
 }
 
 func (c *Agent) handleServerDeath(s *memdPipeline) {
+	// Check if we are shutting down, if so, simply notify the shutdown
+	//   method that we are going away.
+	routeData := c.routingInfo.get()
+	if routeData == nil {
+		c.shutdownWaitCh <- s
+		return
+	}
+
 	// Refresh the routing data with the existing configuration, this has
 	//   the effect of attempting to rebuild the dead server.
 	c.updateConfig(nil)
