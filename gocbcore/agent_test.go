@@ -1,10 +1,36 @@
 package gocbcore
 
-/*
 import (
+	"./javamock"
+	"flag"
+	"fmt"
+	"os"
 	"testing"
 	"time"
 )
+
+// Gets a set of keys evenly distributed across all server nodes.
+// the result is an array of strings, each index representing an index
+// of a server
+func (a *Agent) makeDistKeys() (keys []string) {
+	// Get the routing information
+	cfg := a.routingInfo.get()
+	keys = make([]string, len(cfg.queues))
+	remaining := len(keys)
+
+	for i := 0; remaining > 0; i++ {
+		kTmp := fmt.Sprintf("DistKey_%d", i)
+		// Map the vBucket and server
+		vbid := a.KeyToVbucket([]byte(kTmp))
+		srvIx := cfg.vbMap[vbid][0]
+		if srvIx < 0 || srvIx >= len(keys) || keys[srvIx] != "" {
+			continue
+		}
+		keys[srvIx] = kTmp
+		remaining--
+	}
+	return
+}
 
 func saslAuthFn(bucket, password string) func(AuthClient, time.Time) error {
 	return func(srv AuthClient, deadline time.Time) error {
@@ -25,9 +51,9 @@ func saslAuthFn(bucket, password string) func(AuthClient, time.Time) error {
 }
 
 type Signaler struct {
-	t *testing.T
+	t       *testing.T
 	wrapped bool
-	signal chan int
+	signal  chan int
 }
 
 func (s *Signaler) Continue() {
@@ -80,42 +106,23 @@ func (s *Signaler) Wait(waitSecs int) {
 
 func getSignaler(t *testing.T) *Signaler {
 	signaler := &Signaler{
-		t: t,
+		t:      t,
 		signal: make(chan int),
 	}
 	return signaler
 }
 
 var globalAgent *Agent
+var globalMock *gocbmock.Mock
+
 func getAgent(t *testing.T) *Agent {
-	if globalAgent != nil {
-		return globalAgent
-	}
-
-	agentConfig := &AgentConfig{
-		MemdAddrs:            []string{"192.168.7.26:11210"},
-		HttpAddrs:            []string{"192.168.7.26:8091"},
-		TlsConfig:            nil,
-		BucketName:           "default",
-		Password:             "",
-		AuthHandler:          saslAuthFn("default", ""),
-		ConnectTimeout:       5 * time.Second,
-		ServerConnectTimeout: 1 * time.Second,
-	}
-
-	agent, err := CreateAgent(agentConfig)
-	if err != nil {
-		t.Fatalf("Failed to connect to server")
-	}
-
-	globalAgent = agent
-	return agent
+	return globalAgent
 }
 
 func TestHttpAgent(t *testing.T) {
 	agentConfig := &AgentConfig{
 		MemdAddrs:            []string{},
-		HttpAddrs:            []string{"192.168.7.26:8091"},
+		HttpAddrs:            []string{fmt.Sprintf("127.0.0.1:%d", globalMock.EntryPort)},
 		TlsConfig:            nil,
 		BucketName:           "default",
 		Password:             "",
@@ -128,8 +135,8 @@ func TestHttpAgent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to connect to server")
 	}
-
-	agent.CloseTest()
+	logDebugf("Agent created...")
+	agent.Close()
 }
 
 func getAgentnSignaler(t *testing.T) (*Agent, *Signaler) {
@@ -359,7 +366,9 @@ func TestBasicAdjoins(t *testing.T) {
 }
 
 func isKeyNotFoundError(err error) bool {
-	te, ok := err.(interface { KeyNotFound() bool })
+	te, ok := err.(interface {
+		KeyNotFound() bool
+	})
 	return ok && te.KeyNotFound()
 }
 
@@ -407,7 +416,7 @@ func TestTouch(t *testing.T) {
 				s.Fatalf("Touch operation failed")
 			}
 		})
-	});
+	})
 	s.Wait(0)
 
 	time.Sleep(1500 * time.Millisecond)
@@ -452,7 +461,7 @@ func TestGetAndTouch(t *testing.T) {
 				s.Fatalf("Touch operation failed")
 			}
 		})
-	});
+	})
 	s.Wait(0)
 
 	time.Sleep(1500 * time.Millisecond)
@@ -503,7 +512,7 @@ func TestObserveSeqNo(t *testing.T) {
 	origMt := MutationToken{}
 	agent.Set([]byte("testObserve"), []byte("there"), 0, 0, func(cas Cas, mt MutationToken, err error) {
 		s.Wrap(func() {
-			if (err != nil) {
+			if err != nil {
 				s.Fatalf("Initial set operation failed")
 			}
 
@@ -555,11 +564,21 @@ func TestObserveSeqNo(t *testing.T) {
 
 func TestRandomGet(t *testing.T) {
 	agent, s := getAgentnSignaler(t)
+	distkeys := agent.makeDistKeys()
+	for _, k := range distkeys {
+		agent.Set([]byte(k), []byte("Hello World!"), 0, 0, func(cas Cas, mt MutationToken, err error) {
+			s.Wrap(func() {
+				if err != nil {
+					s.Fatalf("Couldn't store some items: %v", err)
+				}
+			})
+		})
+	}
 
 	agent.GetRandom(func(key, value []byte, flags uint32, cas Cas, err error) {
 		s.Wrap(func() {
 			if err != nil {
-				s.Fatalf("Get operation failed")
+				s.Fatalf("Get operation failed: %v", err)
 			}
 			if cas == Cas(0) {
 				s.Fatalf("Invalid cas received")
@@ -578,12 +597,11 @@ func TestRandomGet(t *testing.T) {
 func TestGetHttpEps(t *testing.T) {
 	agent := getAgent(t)
 
-	/* Relies on a 3.0.0+ server
+	// Relies on a 3.0.0+ server
 	n1qlEpList := agent.N1qlEps()
 	if len(n1qlEpList) == 0 {
 		t.Fatalf("Failed to retreive N1QL endpoint list")
 	}
-	/
 
 	mgmtEpList := agent.MgmtEps()
 	if len(mgmtEpList) == 0 {
@@ -595,4 +613,41 @@ func TestGetHttpEps(t *testing.T) {
 		t.Fatalf("Failed to retreive N1QL endpoint list")
 	}
 }
-*/
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	mpath, err := gocbmock.GetMockPath()
+	if err != nil {
+		panic(err.Error())
+	}
+
+	globalMock, err = gocbmock.NewMock(mpath, 4, 1, 64)
+	if err != nil {
+		panic(err.Error())
+	}
+	var memdAddrs []string
+	for _, mcport := range globalMock.MemcachedPorts() {
+		memdAddrs = append(memdAddrs, fmt.Sprintf("127.0.0.1:%d", mcport))
+	}
+
+	httpAddrs := []string{fmt.Sprintf("127.0.0.1:%d", globalMock.EntryPort)}
+
+	agentConfig := &AgentConfig{
+		MemdAddrs:            memdAddrs,
+		HttpAddrs:            httpAddrs,
+		TlsConfig:            nil,
+		BucketName:           "default",
+		Password:             "",
+		AuthHandler:          saslAuthFn("default", ""),
+		ConnectTimeout:       5 * time.Second,
+		ServerConnectTimeout: 1 * time.Second,
+		UseMutationTokens:    true,
+	}
+
+	globalAgent, err = CreateAgent(agentConfig)
+	if err != nil {
+		panic("Failed to connect to server")
+	}
+
+	os.Exit(m.Run())
+}
