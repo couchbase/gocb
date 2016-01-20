@@ -88,6 +88,7 @@ const (
 	StatusInternalError  = StatusCode(0x84)
 	StatusBusy           = StatusCode(0x85)
 	StatusTmpFail        = StatusCode(0x86)
+	StatusUnknown        = StatusCode(0x87)
 )
 
 type KeyState uint8

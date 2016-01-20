@@ -310,3 +310,12 @@ func getMemdError(code StatusCode) error {
 		return &memdError{code}
 	}
 }
+
+func GetStatusCode(err error) StatusCode {
+	switch err.(type) {
+	case *memdError:
+		return err.(*memdError).code
+	default:
+		return StatusUnknown
+	}
+}

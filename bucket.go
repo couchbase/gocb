@@ -1,10 +1,11 @@
 package gocb
 
 import (
-	"github.com/couchbase/gocb/gocbcore"
 	"math/rand"
 	"sync"
 	"time"
+
+	"github.com/Vellocet/gocb/gocbcore"
 )
 
 // An interface representing a single bucket within a cluster.
