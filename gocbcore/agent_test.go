@@ -689,6 +689,7 @@ func TestMemcachedBucket(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
+	SetLogger(DefaultStdOutLogger())
 	flag.Parse()
 	mpath, err := gocbmock.GetMockPath()
 	if err != nil {

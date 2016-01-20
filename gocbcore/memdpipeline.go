@@ -160,7 +160,7 @@ func (s *memdPipeline) resolveRequest(resp *memdResponse) {
 	}
 
 	// Call the requests callback handler...  Ignore Status field for incoming requests.
-	logDebugf("Dispatching response callback.")
+	logSchedf("Dispatching response callback. OP=0x%x. Opaque=%d", resp.Opcode, resp.Opaque)
 	if resp.Magic == ReqMagic {
 		req.Callback(resp, nil)
 	} else {
@@ -182,8 +182,7 @@ func (pipeline *memdPipeline) ioLoop() {
 				killSig <- true
 				break
 			}
-
-			logDebugf("Got response to resolve.")
+			logSchedf("Resolving response OP=0x%x. Opaque=%d", resp.Opcode, resp.Opaque)
 			pipeline.resolveRequest(resp)
 		}
 	}()
@@ -193,7 +192,7 @@ func (pipeline *memdPipeline) ioLoop() {
 	for {
 		select {
 		case req := <-pipeline.queue.reqsCh:
-			logDebugf("Got a request to dispatch.")
+			logSchedf("Dispatching request OP=0x%x. Opaque=%d.", req.Opcode, req.Opaque)
 			err := pipeline.dispatchRequest(req)
 			if err != nil {
 				// Ensure that the connection gets fully closed
