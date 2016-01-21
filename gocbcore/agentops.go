@@ -1,20 +1,30 @@
 package gocbcore
 
+// A type representing a unique revision of a document.
+// This can be used to perform optimistic locking.
 type Cas uint64
 
+// A unique identifier for a particular vbucket history.
 type VbUuid uint64
+
+// A sequential mutation number indicating the order and
+// precise position of a write that has occured.
 type SeqNo uint64
 
+// Represents a particular mutation within the cluster.
 type MutationToken struct {
 	VbUuid VbUuid
 	SeqNo  SeqNo
 }
 
+// Represents the stats returned from a single server.
 type SingleServerStats struct {
 	Stats map[string]string
 	Error error
 }
 
+// Represents an outstanding operation within the client.
+// This can be used to cancel an operation before it completes.
 type PendingOp interface {
 	Cancel() bool
 }

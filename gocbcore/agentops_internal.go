@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 )
 
+// **INTERNAL**
+// Stores a document along with setting some internal Couchbase meta-data.
 func (c *Agent) SetMeta(key, value, extra []byte, flags, expiry uint32, cas, revseqno uint64, cb StoreCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
@@ -42,6 +44,8 @@ func (c *Agent) SetMeta(key, value, extra []byte, flags, expiry uint32, cas, rev
 	return c.dispatchOp(req)
 }
 
+// **INTERNAL**
+// Deletes a document along with setting some internal Couchbase meta-data.
 func (c *Agent) DeleteMeta(key, extra []byte, flags, expiry uint32, cas, revseqno uint64, cb RemoveCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {

@@ -38,13 +38,15 @@ type Agent struct {
 func (c *Agent) ServerConnectTimeout() time.Duration {
 	return c.serverConnectTimeout
 }
+
+// Sets the timeout for each server connection.
 func (c *Agent) SetServerConnectTimeout(timeout time.Duration) {
 	c.serverConnectTimeout = timeout
 }
 
 // Returns a pre-configured HTTP Client for communicating with
-//   Couchbase Server.  You must still specify authentication
-//   information for any dispatched requests.
+// Couchbase Server.  You must still specify authentication
+// information for any dispatched requests.
 func (c *Agent) HttpClient() *http.Client {
 	return c.httpCli
 }
@@ -64,6 +66,7 @@ type AgentConfig struct {
 	ServerConnectTimeout time.Duration
 }
 
+// Creates an agent for performing normal operations.
 func CreateAgent(config *AgentConfig) (*Agent, error) {
 	initFn := func(pipeline *memdPipeline, deadline time.Time) error {
 		return config.AuthHandler(&authClient{pipeline}, deadline)
@@ -71,6 +74,8 @@ func CreateAgent(config *AgentConfig) (*Agent, error) {
 	return createAgent(config, initFn)
 }
 
+// **INTERNAL**
+// Creates an agent for performing DCP operations.
 func CreateDcpAgent(config *AgentConfig, dcpStreamName string) (*Agent, error) {
 	// We wrap the authorization system to force DCP channel opening
 	//   as part of the "initialization" for any servers.
@@ -105,17 +110,6 @@ func createAgent(config *AgentConfig, initFn memdInitFunc) (*Agent, error) {
 		return nil, err
 	}
 	return c, nil
-}
-
-type AuthErrorType interface {
-	AuthError() bool
-}
-
-func isAuthError(err error) bool {
-	te, ok := err.(interface {
-		AuthError() bool
-	})
-	return ok && te.AuthError()
 }
 
 func (c *Agent) cccpLooper() {
@@ -177,7 +171,7 @@ func (c *Agent) connect(memdAddrs, httpAddrs []string, deadline time.Time) error
 		logDebugf("Trying to connect")
 		err := c.connectPipeline(srv, srvDeadlineTm)
 		if err != nil {
-			if isAuthError(err) {
+			if err == ErrAuthError {
 				return err
 			}
 			logDebugf("Connecting failed! %v", err)
@@ -263,6 +257,8 @@ func (c *Agent) connect(memdAddrs, httpAddrs []string, deadline time.Time) error
 	return nil
 }
 
+// Shuts down the agent, disconnecting from all servers and failing
+// any outstanding operations with ErrShutdown.
 func (agent *Agent) Close() {
 	// Set up a channel so we can find out when servers shut down.
 	agent.shutdownWaitCh = make(chan *memdPipeline)
@@ -304,18 +300,24 @@ func (agent *Agent) Close() {
 	}
 }
 
+// Returns whether this client is connected via SSL.
 func (c *Agent) IsSecure() bool {
 	return c.tlsConfig != nil
 }
 
+// Translates a particular key to its assigned vbucket.
 func (c *Agent) KeyToVbucket(key []byte) uint16 {
 	return uint16(cbCrc(key) % uint32(c.NumVbuckets()))
 }
 
+// Returns the number of VBuckets configured on the
+// connected cluster.
 func (c *Agent) NumVbuckets() int {
 	return c.numVbuckets
 }
 
+// Returns the number of replicas configured on the
+// connected cluster.
 func (c *Agent) NumReplicas() int {
 	routingInfo := c.routingInfo.get()
 	if routingInfo == nil {
@@ -324,6 +326,8 @@ func (c *Agent) NumReplicas() int {
 	return len(routingInfo.vbMap[0]) - 1
 }
 
+// Returns all the available endpoints for performing
+// map-reduce queries.
 func (agent *Agent) CapiEps() []string {
 	routingInfo := agent.routingInfo.get()
 	if routingInfo == nil {
@@ -332,6 +336,8 @@ func (agent *Agent) CapiEps() []string {
 	return routingInfo.capiEpList
 }
 
+// Returns all the available endpoints for performing
+// management queries.
 func (agent *Agent) MgmtEps() []string {
 	routingInfo := agent.routingInfo.get()
 	if routingInfo == nil {
@@ -340,6 +346,8 @@ func (agent *Agent) MgmtEps() []string {
 	return routingInfo.mgmtEpList
 }
 
+// Returns all the available endpoints for performing
+// N1QL queries.
 func (agent *Agent) N1qlEps() []string {
 	routingInfo := agent.routingInfo.get()
 	if routingInfo == nil {

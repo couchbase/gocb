@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 )
 
+// Retrieves the current CAS and persistence state for a document.
 func (c *Agent) Observe(key []byte, replicaIdx int, cb ObserveCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
@@ -51,6 +52,7 @@ func (c *Agent) Observe(key []byte, replicaIdx int, cb ObserveCallback) (Pending
 	return c.dispatchOp(req)
 }
 
+// Retrieves the persistence state sequence numbers for a particular VBucket.
 func (c *Agent) ObserveSeqNo(key []byte, vbUuid VbUuid, replicaIdx int, cb ObserveSeqNoCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {

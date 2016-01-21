@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 )
 
+// Retrieves a document.
 func (c *Agent) Get(key []byte, cb GetCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
@@ -29,6 +30,7 @@ func (c *Agent) Get(key []byte, cb GetCallback) (PendingOp, error) {
 	return c.dispatchOp(req)
 }
 
+// Retrieves a document and updates its expiry.
 func (c *Agent) GetAndTouch(key []byte, expiry uint32, cb GetCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
@@ -57,6 +59,7 @@ func (c *Agent) GetAndTouch(key []byte, expiry uint32, cb GetCallback) (PendingO
 	return c.dispatchOp(req)
 }
 
+// Retrieves a document and locks it.
 func (c *Agent) GetAndLock(key []byte, lockTime uint32, cb GetCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
@@ -145,6 +148,7 @@ func (c *Agent) getAnyReplica(key []byte, cb GetCallback) (PendingOp, error) {
 	return opRes, nil
 }
 
+// Retrieves a document from a replica server.
 func (c *Agent) GetReplica(key []byte, replicaIdx int, cb GetCallback) (PendingOp, error) {
 	if replicaIdx > 0 {
 		return c.getOneReplica(key, replicaIdx, cb)
@@ -155,6 +159,7 @@ func (c *Agent) GetReplica(key []byte, replicaIdx int, cb GetCallback) (PendingO
 	}
 }
 
+// Touches a document, updating its expiry.
 func (c *Agent) Touch(key []byte, cas Cas, expiry uint32, cb TouchCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
@@ -189,6 +194,7 @@ func (c *Agent) Touch(key []byte, cas Cas, expiry uint32, cb TouchCallback) (Pen
 	return c.dispatchOp(req)
 }
 
+// Unlocks a locked document.
 func (c *Agent) Unlock(key []byte, cas Cas, cb UnlockCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
@@ -220,6 +226,7 @@ func (c *Agent) Unlock(key []byte, cas Cas, cb UnlockCallback) (PendingOp, error
 	return c.dispatchOp(req)
 }
 
+// Removes a document.
 func (c *Agent) Remove(key []byte, cas Cas, cb RemoveCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
@@ -285,18 +292,22 @@ func (c *Agent) store(opcode CommandCode, key, value []byte, flags uint32, cas C
 	return c.dispatchOp(req)
 }
 
+// Stores a document as long as it does not already exist.
 func (c *Agent) Add(key, value []byte, flags uint32, expiry uint32, cb StoreCallback) (PendingOp, error) {
 	return c.store(CmdAdd, key, value, flags, 0, expiry, cb)
 }
 
+// Stores a document.
 func (c *Agent) Set(key, value []byte, flags uint32, expiry uint32, cb StoreCallback) (PendingOp, error) {
 	return c.store(CmdSet, key, value, flags, 0, expiry, cb)
 }
 
+// Replaces the value of a Couchbase document with another value.
 func (c *Agent) Replace(key, value []byte, flags uint32, cas Cas, expiry uint32, cb StoreCallback) (PendingOp, error) {
 	return c.store(CmdReplace, key, value, flags, cas, expiry, cb)
 }
 
+// Performs an adjoin operation.
 func (c *Agent) adjoin(opcode CommandCode, key, value []byte, cb StoreCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
@@ -328,14 +339,17 @@ func (c *Agent) adjoin(opcode CommandCode, key, value []byte, cb StoreCallback) 
 	return c.dispatchOp(req)
 }
 
+// Appends some bytes to a document.
 func (c *Agent) Append(key, value []byte, cb StoreCallback) (PendingOp, error) {
 	return c.adjoin(CmdAppend, key, value, cb)
 }
 
+// Prepends some bytes to a document.
 func (c *Agent) Prepend(key, value []byte, cb StoreCallback) (PendingOp, error) {
 	return c.adjoin(CmdPrepend, key, value, cb)
 }
 
+// Performs a counter operation.
 func (c *Agent) counter(opcode CommandCode, key []byte, delta, initial uint64, expiry uint32, cb CounterCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
@@ -378,14 +392,18 @@ func (c *Agent) counter(opcode CommandCode, key []byte, delta, initial uint64, e
 	return c.dispatchOp(req)
 }
 
+// Increments the unsigned integer value in a document.
 func (c *Agent) Increment(key []byte, delta, initial uint64, expiry uint32, cb CounterCallback) (PendingOp, error) {
 	return c.counter(CmdIncrement, key, delta, initial, expiry, cb)
 }
 
+// Decrements the unsigned integer value in a document.
 func (c *Agent) Decrement(key []byte, delta, initial uint64, expiry uint32, cb CounterCallback) (PendingOp, error) {
 	return c.counter(CmdDecrement, key, delta, initial, expiry, cb)
 }
 
+// *VOLATILE*
+// Returns the key and value of a random document stored within Couchbase Server.
 func (c *Agent) GetRandom(cb GetRandomCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
