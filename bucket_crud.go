@@ -111,9 +111,9 @@ func (b *Bucket) Stats(key string) (statsOut ServerStats, errOut error) {
 	}
 }
 
-type ioGetCallback func([]byte, uint32, gocbcore.Cas, error)
-type ioCasCallback func(gocbcore.Cas, gocbcore.MutationToken, error)
-type ioCtrCallback func(uint64, gocbcore.Cas, gocbcore.MutationToken, error)
+type ioGetCallback gocbcore.GetCallback
+type ioCasCallback gocbcore.StoreCallback
+type ioCtrCallback gocbcore.CounterCallback
 
 type hlpGetHandler func(ioGetCallback) (pendingOp, error)
 
