@@ -13,17 +13,17 @@ func (s SnapshotState) HasOnDisk() bool {
 	return uint32(s)&2 != 0
 }
 
+type FailoverEntry struct {
+	VbUuid VbUuid
+	SeqNo  SeqNo
+}
+
 type StreamObserver interface {
 	SnapshotMarker(startSeqNo, endSeqNo uint64, vbId uint16, snapshotType SnapshotState)
 	Mutation(seqNo, revNo uint64, flags, expiry, lockTime uint32, cas uint64, datatype uint8, vbId uint16, key, value []byte)
 	Deletion(seqNo, revNo, cas uint64, vbId uint16, key []byte)
 	Expiration(seqNo, revNo, cas uint64, vbId uint16, key []byte)
 	End(vbId uint16, err error)
-}
-
-type FailoverEntry struct {
-	VbUuid VbUuid
-	SeqNo  SeqNo
 }
 
 type OpenStreamCallback func([]FailoverEntry, error)
