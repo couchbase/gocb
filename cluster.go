@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"crypto/tls"
+	"errors"
 	"github.com/couchbase/gocb/gocbcore"
 	"net/http"
 	"time"
@@ -17,6 +18,9 @@ func Connect(connSpecStr string) (*Cluster, error) {
 	spec, err := parseConnSpec(connSpecStr)
 	if err != nil {
 		return nil, err
+	}
+	if spec.Bucket != "" {
+		return nil, errors.New("Connection string passed to Connect() must not have any bucket specified!")
 	}
 
 	csResolveDnsSrv(&spec)
