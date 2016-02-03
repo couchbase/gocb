@@ -2,7 +2,6 @@ package gocb
 
 import (
 	"crypto/tls"
-	"fmt"
 	"github.com/couchbase/gocb/gocbcore"
 	"net/http"
 	"time"
@@ -15,13 +14,11 @@ type Cluster struct {
 }
 
 func Connect(connSpecStr string) (*Cluster, error) {
-	spec := parseConnSpec(connSpecStr)
-	if spec.Scheme == "" {
-		spec.Scheme = "http"
+	spec, err := parseConnSpec(connSpecStr)
+	if err != nil {
+		return nil, err
 	}
-	if spec.Scheme != "couchbase" && spec.Scheme != "couchbases" && spec.Scheme != "http" {
-		panic("Unsupported Scheme!")
-	}
+
 	csResolveDnsSrv(&spec)
 	cluster := &Cluster{
 		spec:                 spec,
@@ -47,31 +44,16 @@ func (c *Cluster) SetServerConnectTimeout(timeout time.Duration) {
 func specToHosts(spec connSpec) ([]string, []string, bool) {
 	var memdHosts []string
 	var httpHosts []string
-	isHttpHosts := spec.Scheme == "http"
-	isSslHosts := spec.Scheme == "couchbases"
-	for _, specHost := range spec.Hosts {
-		cccpPort := specHost.Port
-		httpPort := specHost.Port
-		if isHttpHosts || cccpPort == 0 {
-			if !isSslHosts {
-				cccpPort = 11210
-			} else {
-				cccpPort = 11207
-			}
-		}
-		if !isHttpHosts || httpPort == 0 {
-			if !isSslHosts {
-				httpPort = 8091
-			} else {
-				httpPort = 18091
-			}
-		}
 
-		memdHosts = append(memdHosts, fmt.Sprintf("%s:%d", specHost.Host, cccpPort))
-		httpHosts = append(httpHosts, fmt.Sprintf("%s:%d", specHost.Host, httpPort))
+	for _, specHost := range spec.HttpHosts {
+		httpHosts = append(httpHosts, specHost.HostPort())
 	}
 
-	return memdHosts, httpHosts, isSslHosts
+	for _, specHost := range spec.MemcachedHosts {
+		memdHosts = append(memdHosts, specHost.HostPort())
+	}
+
+	return memdHosts, httpHosts, spec.Scheme.IsSSL()
 }
 
 func (c *Cluster) makeAgentConfig(bucket, password string) *gocbcore.AgentConfig {
