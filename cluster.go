@@ -24,6 +24,27 @@ func Connect(connSpecStr string) (*Cluster, error) {
 	}
 
 	csResolveDnsSrv(&spec)
+
+	// Get bootstrap_on option to determine which, if any, of the bootstrap nodes should be cleared
+	switch spec.Options.Get("bootstrap_on") {
+	case "http":
+		spec.MemcachedHosts = nil
+		if len(spec.HttpHosts) == 0 {
+			return nil, errors.New("bootstrap_on=http but no HTTP hosts in connection string")
+		}
+	case "cccp":
+		spec.HttpHosts = nil
+		if len(spec.MemcachedHosts) == 0 {
+			return nil, errors.New("bootstrap_on=cccp but no CCCP/Memcached hosts in connection string")
+		}
+	case "both":
+	case "":
+		// Do nothing
+		break
+	default:
+		return nil, errors.New("bootstrap_on={http,cccp,both}")
+	}
+
 	cluster := &Cluster{
 		spec:                 spec,
 		connectTimeout:       60000 * time.Millisecond,
