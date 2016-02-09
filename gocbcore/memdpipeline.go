@@ -159,10 +159,10 @@ func (s *memdPipeline) resolveRequest(resp *memdResponse) {
 
 	// Call the requests callback handler...  Ignore Status field for incoming requests.
 	logDebugf("Dispatching response callback.")
-	if resp.Magic == ReqMagic || resp.Status == StatusSuccess {
+	if resp.Magic == ReqMagic {
 		req.Callback(resp, nil)
 	} else {
-		req.Callback(nil, getMemdError(resp.Status))
+		req.Callback(resp, getMemdError(resp.Status))
 	}
 }
 

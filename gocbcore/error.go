@@ -5,6 +5,15 @@ import (
 	"fmt"
 )
 
+type SubDocMutateError struct {
+	Err     error
+	OpIndex int
+}
+
+func (e SubDocMutateError) Error() string {
+	return fmt.Sprintf("Subdocument mutation %d failed (%s)", e.OpIndex, e.Err.Error())
+}
+
 type timeoutError struct {
 }
 
@@ -97,6 +106,33 @@ func (e memdError) Error() string {
 		return "The server is busy. Try again later."
 	case StatusTmpFail:
 		return "A temporary failure occurred.  Try again later."
+	case StatusSubDocPathNotFound:
+		return "Sub-document path does not exist"
+	case StatusSubDocPathMismatch:
+		return "Type of element in sub-document path conflicts with type in document."
+	case StatusSubDocPathInvalid:
+		return "Malformed sub-document path."
+	case StatusSubDocPathTooBig:
+		return "Sub-document contains too many components."
+	case StatusSubDocDocTooDeep:
+		return "Existing document contains too many levels of nesting."
+	case StatusSubDocCantInsert:
+		return "Subdocument operation would invalidate the JSON."
+	case StatusSubDocNotJson:
+		return "Existing document is not valid JSON."
+	case StatusSubDocBadRange:
+		return "The existing numeric value is too large."
+	case StatusSubDocBadDelta:
+		return "The numeric operation would yield a number that is too large, or " +
+			"a zero delta was specified."
+	case StatusSubDocPathExists:
+		return "The given path already exists in the document."
+	case StatusSubDocValueTooDeep:
+		return "Value is too deep to insert."
+	case StatusSubDocBadCombo:
+		return "Incorrectly matched subdocument operation types."
+	case StatusSubDocBadMulti:
+		return "Could not execute one or more multi lookups or mutations."
 	default:
 		return fmt.Sprintf("An unknown error occurred (%d).", e.code)
 	}
@@ -220,27 +256,40 @@ var (
 	ErrStreamDisconnected = &streamEndError{StreamEndDisconnected}
 	ErrStreamTooSlow      = &streamEndError{StreamEndTooSlow}
 
-	ErrKeyNotFound    = &memdError{StatusKeyNotFound}
-	ErrKeyExists      = &memdError{StatusKeyExists}
-	ErrTooBig         = &memdError{StatusTooBig}
-	ErrInvalidArgs    = &memdError{StatusInvalidArgs}
-	ErrNotStored      = &memdError{StatusNotStored}
-	ErrBadDelta       = &memdError{StatusBadDelta}
-	ErrNotMyVBucket   = &memdError{StatusNotMyVBucket}
-	ErrNoBucket       = &memdError{StatusNoBucket}
-	ErrAuthStale      = &memdError{StatusAuthStale}
-	ErrAuthError      = &memdError{StatusAuthError}
-	ErrAuthContinue   = &memdError{StatusAuthContinue}
-	ErrRangeError     = &memdError{StatusRangeError}
-	ErrRollback       = &memdError{StatusRollback}
-	ErrAccessError    = &memdError{StatusAccessError}
-	ErrNotInitialized = &memdError{StatusNotInitialized}
-	ErrUnknownCommand = &memdError{StatusUnknownCommand}
-	ErrOutOfMemory    = &memdError{StatusOutOfMemory}
-	ErrNotSupported   = &memdError{StatusNotSupported}
-	ErrInternalError  = &memdError{StatusInternalError}
-	ErrBusy           = &memdError{StatusBusy}
-	ErrTmpFail        = &memdError{StatusTmpFail}
+	ErrKeyNotFound        = &memdError{StatusKeyNotFound}
+	ErrKeyExists          = &memdError{StatusKeyExists}
+	ErrTooBig             = &memdError{StatusTooBig}
+	ErrInvalidArgs        = &memdError{StatusInvalidArgs}
+	ErrNotStored          = &memdError{StatusNotStored}
+	ErrBadDelta           = &memdError{StatusBadDelta}
+	ErrNotMyVBucket       = &memdError{StatusNotMyVBucket}
+	ErrNoBucket           = &memdError{StatusNoBucket}
+	ErrAuthStale          = &memdError{StatusAuthStale}
+	ErrAuthError          = &memdError{StatusAuthError}
+	ErrAuthContinue       = &memdError{StatusAuthContinue}
+	ErrRangeError         = &memdError{StatusRangeError}
+	ErrRollback           = &memdError{StatusRollback}
+	ErrAccessError        = &memdError{StatusAccessError}
+	ErrNotInitialized     = &memdError{StatusNotInitialized}
+	ErrUnknownCommand     = &memdError{StatusUnknownCommand}
+	ErrOutOfMemory        = &memdError{StatusOutOfMemory}
+	ErrNotSupported       = &memdError{StatusNotSupported}
+	ErrInternalError      = &memdError{StatusInternalError}
+	ErrBusy               = &memdError{StatusBusy}
+	ErrTmpFail            = &memdError{StatusTmpFail}
+	ErrSubDocPathNotFound = &memdError{StatusSubDocPathNotFound}
+	ErrSubDocPathMismatch = &memdError{StatusSubDocPathMismatch}
+	ErrSubDocPathInvalid  = &memdError{StatusSubDocPathInvalid}
+	ErrSubDocPathTooBig   = &memdError{StatusSubDocPathTooBig}
+	ErrSubDocDocTooDeep   = &memdError{StatusSubDocDocTooDeep}
+	ErrSubDocCantInsert   = &memdError{StatusSubDocCantInsert}
+	ErrSubDocNotJson      = &memdError{StatusSubDocNotJson}
+	ErrSubDocBadRange     = &memdError{StatusSubDocBadRange}
+	ErrSubDocBadDelta     = &memdError{StatusSubDocBadDelta}
+	ErrSubDocPathExists   = &memdError{StatusSubDocPathExists}
+	ErrSubDocValueTooDeep = &memdError{StatusSubDocValueTooDeep}
+	ErrSubDocBadCombo     = &memdError{StatusSubDocBadCombo}
+	ErrSubDocBadMulti     = &memdError{StatusSubDocBadMulti}
 )
 
 func getStreamEndError(code StreamEndStatus) error {
@@ -306,6 +355,32 @@ func getMemdError(code StatusCode) error {
 		return ErrBusy
 	case StatusTmpFail:
 		return ErrTmpFail
+	case StatusSubDocPathNotFound:
+		return ErrSubDocPathNotFound
+	case StatusSubDocPathMismatch:
+		return ErrSubDocPathMismatch
+	case StatusSubDocPathInvalid:
+		return ErrSubDocPathInvalid
+	case StatusSubDocPathTooBig:
+		return ErrSubDocPathTooBig
+	case StatusSubDocDocTooDeep:
+		return ErrSubDocDocTooDeep
+	case StatusSubDocCantInsert:
+		return ErrSubDocCantInsert
+	case StatusSubDocNotJson:
+		return ErrSubDocNotJson
+	case StatusSubDocBadRange:
+		return ErrSubDocBadRange
+	case StatusSubDocBadDelta:
+		return ErrSubDocBadDelta
+	case StatusSubDocPathExists:
+		return ErrSubDocPathExists
+	case StatusSubDocValueTooDeep:
+		return ErrSubDocValueTooDeep
+	case StatusSubDocBadCombo:
+		return ErrSubDocBadCombo
+	case StatusSubDocBadMulti:
+		return ErrSubDocBadMulti
 	default:
 		return &memdError{code}
 	}

@@ -23,6 +23,12 @@ type SingleServerStats struct {
 	Error error
 }
 
+// The results from a single subdocument operation.
+type SubDocResult struct {
+	Err   error
+	Value []byte
+}
+
 // Represents an outstanding operation within the client.
 // This can be used to cancel an operation before it completes.
 type PendingOp interface {
@@ -61,3 +67,10 @@ type ObserveCallback func(KeyState, Cas, error)
 type ObserveSeqNoCallback func(SeqNo, SeqNo, error)
 type GetRandomCallback func([]byte, []byte, uint32, Cas, error)
 type ServerStatsCallback func(stats map[string]SingleServerStats)
+type GetInCallback func([]byte, Cas, error)
+type ExistsInCallback func(Cas, error)
+type RemoveInCallback func(Cas, MutationToken, error)
+type StoreInCallback func(Cas, MutationToken, error)
+type CounterInCallback func([]byte, Cas, MutationToken, error)
+type LookupInCallback func([]SubDocResult, Cas, error)
+type MutateInCallback func([]SubDocResult, Cas, MutationToken, error)
