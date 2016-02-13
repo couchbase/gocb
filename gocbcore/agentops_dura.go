@@ -6,6 +6,11 @@ import (
 
 // Retrieves the current CAS and persistence state for a document.
 func (c *Agent) Observe(key []byte, replicaIdx int, cb ObserveCallback) (PendingOp, error) {
+	// TODO(mnunberg): Use bktType when implemented
+	if c.numVbuckets == 0 {
+		return nil, ErrNotSupported
+	}
+
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
 			cb(0, 0, err)
@@ -54,6 +59,11 @@ func (c *Agent) Observe(key []byte, replicaIdx int, cb ObserveCallback) (Pending
 
 // Retrieves the persistence state sequence numbers for a particular VBucket.
 func (c *Agent) ObserveSeqNo(key []byte, vbUuid VbUuid, replicaIdx int, cb ObserveSeqNoCallback) (PendingOp, error) {
+	// TODO(mnunberg): Use bktType when implemented
+	if c.numVbuckets == 0 {
+		return nil, ErrNotSupported
+	}
+
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
 			cb(0, 0, err)
