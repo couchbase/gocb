@@ -33,12 +33,17 @@ type ViewResults interface {
 	One(valuePtr interface{}) error
 	Next(valuePtr interface{}) bool
 	Close() error
+	Count() int
 }
 
 type viewResults struct {
 	index int
 	rows  []json.RawMessage
 	err   error
+}
+
+func (r *viewResults) Count() int {
+	return len(r.rows)
 }
 
 func (r *viewResults) Next(valuePtr interface{}) bool {
@@ -205,6 +210,10 @@ type n1qlResults struct {
 	index int
 	rows  []json.RawMessage
 	err   error
+}
+
+func (r *n1qlResults) Count() int {
+	return len(r.rows)
 }
 
 func (r *n1qlResults) Next(valuePtr interface{}) bool {
