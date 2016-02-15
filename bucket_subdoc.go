@@ -11,6 +11,7 @@ type subDocResult struct {
 	err  error
 }
 
+// Represents multiple chunks of a full Document.
 type DocumentFragment struct {
 	cas      Cas
 	mt       MutationToken
@@ -18,14 +19,18 @@ type DocumentFragment struct {
 	pathMap  map[string]int
 }
 
+// Returns the Cas of the Document
 func (frag *DocumentFragment) Cas() Cas {
 	return frag.cas
 }
 
+// Returns the MutationToken for the change represented by this DocumentFragment.
 func (frag *DocumentFragment) MutationToken() MutationToken {
 	return frag.mt
 }
 
+// Retrieve the value of the operation by its index. The index is the position of
+// the operation as it was added to the builder.
 func (frag *DocumentFragment) ContentByIndex(idx int, valuePtr interface{}) error {
 	res := frag.contents[idx]
 	if res.err != nil {
@@ -37,6 +42,8 @@ func (frag *DocumentFragment) ContentByIndex(idx int, valuePtr interface{}) erro
 	return json.Unmarshal(res.data, valuePtr)
 }
 
+// Retrieve the value of the operation by its path. The path is the path provided
+// to the operation
 func (frag *DocumentFragment) Content(path string, valuePtr interface{}) error {
 	if frag.pathMap == nil {
 		frag.pathMap = make(map[string]int)
@@ -47,21 +54,28 @@ func (frag *DocumentFragment) Content(path string, valuePtr interface{}) error {
 	return frag.ContentByIndex(frag.pathMap[path], valuePtr)
 }
 
+// Checks whether the indicated path exists in this DocumentFragment and no
+// errors were returned from the server.
 func (frag *DocumentFragment) Exists(path string) bool {
 	err := frag.Content(path, nil)
 	return err == nil
 }
 
+// Builder used to create a set of sub-document lookup operations.
 type LookupInBuilder struct {
 	bucket *Bucket
 	name   string
 	ops    []gocbcore.SubDocOp
 }
 
+// Executes this set of lookup operations on the bucket.
 func (set *LookupInBuilder) Execute() (*DocumentFragment, error) {
 	return set.bucket.lookupIn(set)
 }
 
+// Indicate a path to be retrieved from the document.  The value of the path
+// can later be retrieved (after .Execute()) using the Content or ContentByIndex
+// method. The path syntax follows N1QL's path syntax (e.g. `foo.bar.baz`).
 func (set *LookupInBuilder) Get(path string) *LookupInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:   gocbcore.SubDocOpGet,
@@ -71,6 +85,10 @@ func (set *LookupInBuilder) Get(path string) *LookupInBuilder {
 	return set
 }
 
+// Similar to Get(), but does not actually retrieve the value from the server.
+// This may save bandwidth if you only need to check for the existence of a
+// path (without caring for its content). You can check the status of this
+// operation by using .Content (and ignoring the value) or .Exists()
 func (set *LookupInBuilder) Exists(path string) *LookupInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:   gocbcore.SubDocOpExists,
@@ -122,6 +140,8 @@ func (b *Bucket) lookupIn(set *LookupInBuilder) (resOut *DocumentFragment, errOu
 	}
 }
 
+// *VOLATILE*
+// Creates a sub-document lookup operation builder.
 func (b *Bucket) LookupIn(key string) *LookupInBuilder {
 	return &LookupInBuilder{
 		bucket: b,
@@ -129,6 +149,7 @@ func (b *Bucket) LookupIn(key string) *LookupInBuilder {
 	}
 }
 
+// Builder used to create a set of sub-document mutation operations.
 type MutateInBuilder struct {
 	bucket *Bucket
 	name   string
@@ -137,10 +158,12 @@ type MutateInBuilder struct {
 	ops    []gocbcore.SubDocOp
 }
 
+// Executes this set of mutation operations on the bucket.
 func (set *MutateInBuilder) Execute() (*DocumentFragment, error) {
 	return set.bucket.mutateIn(set)
 }
 
+// Adds an insert operation to this mutation operation set.
 func (set *MutateInBuilder) Insert(path string, value interface{}, createParents bool) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:   gocbcore.SubDocOpDictAdd,
@@ -154,6 +177,7 @@ func (set *MutateInBuilder) Insert(path string, value interface{}, createParents
 	return set
 }
 
+// Adds an upsert operation to this mutation operation set.
 func (set *MutateInBuilder) Upsert(path string, value interface{}, createParents bool) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:   gocbcore.SubDocOpDictSet,
@@ -167,6 +191,7 @@ func (set *MutateInBuilder) Upsert(path string, value interface{}, createParents
 	return set
 }
 
+// Adds an replace operation to this mutation operation set.
 func (set *MutateInBuilder) Replace(path string, value interface{}) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:   gocbcore.SubDocOpReplace,
@@ -177,6 +202,7 @@ func (set *MutateInBuilder) Replace(path string, value interface{}) *MutateInBui
 	return set
 }
 
+// Adds an remove operation to this mutation operation set.
 func (set *MutateInBuilder) Remove(path string) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:   gocbcore.SubDocOpDelete,
@@ -186,6 +212,7 @@ func (set *MutateInBuilder) Remove(path string) *MutateInBuilder {
 	return set
 }
 
+// Adds an array push front operation to this mutation operation set.
 func (set *MutateInBuilder) PushFront(path string, value interface{}, createParents bool) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:   gocbcore.SubDocOpArrayPushFirst,
@@ -199,6 +226,7 @@ func (set *MutateInBuilder) PushFront(path string, value interface{}, createPare
 	return set
 }
 
+// Adds an array push back operation to this mutation operation set.
 func (set *MutateInBuilder) PushBack(path string, value interface{}, createParents bool) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:   gocbcore.SubDocOpArrayPushLast,
@@ -212,6 +240,7 @@ func (set *MutateInBuilder) PushBack(path string, value interface{}, createParen
 	return set
 }
 
+// Adds an array insert operation to this mutation operation set.
 func (set *MutateInBuilder) ArrayInsert(path string, value interface{}) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:   gocbcore.SubDocOpArrayInsert,
@@ -222,6 +251,7 @@ func (set *MutateInBuilder) ArrayInsert(path string, value interface{}) *MutateI
 	return set
 }
 
+// Adds an dictionary add unique operation to this mutation operation set.
 func (set *MutateInBuilder) AddUnique(path string, value interface{}, createParents bool) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:   gocbcore.SubDocOpArrayAddUnique,
@@ -235,6 +265,7 @@ func (set *MutateInBuilder) AddUnique(path string, value interface{}, createPare
 	return set
 }
 
+// Adds an counter operation to this mutation operation set.
 func (set *MutateInBuilder) Counter(path string, delta int64, createParents bool) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:   gocbcore.SubDocOpCounter,
@@ -291,6 +322,8 @@ func (b *Bucket) mutateIn(set *MutateInBuilder) (resOut *DocumentFragment, errOu
 	}
 }
 
+// *VOLATILE*
+// Creates a sub-document mutation operation builder.
 func (b *Bucket) MutateIn(key string, cas Cas, expiry uint32) *MutateInBuilder {
 	return &MutateInBuilder{
 		bucket: b,

@@ -116,6 +116,7 @@ func (b *Bucket) IoRouter() *gocbcore.Agent {
 	return b.client
 }
 
+// *INTERNAL*
 // Internal methods, not safe to be consumed by third parties.
 func (b *Bucket) Internal() *bucketInternal {
 	return b.internal
