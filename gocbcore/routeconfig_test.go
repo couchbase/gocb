@@ -68,7 +68,7 @@ func TestKetama(t *testing.T) {
 	for k, exp_cur := range exp {
 		hash := cfg.KetamaHash([]byte(k))
 		if hash != exp_cur.Hash {
-			t.Fatalf("Bad hash for %s. Expected %d but got %d", exp_cur.Hash, hash)
+			t.Fatalf("Bad hash for %s. Expected %d but got %d", k, exp_cur.Hash, hash)
 		}
 
 		index := cfg.KetamaNode(hash)
