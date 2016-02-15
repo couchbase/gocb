@@ -22,6 +22,10 @@ func (frag *DocumentFragment) Cas() Cas {
 	return frag.cas
 }
 
+func (frag *DocumentFragment) MutationToken() MutationToken {
+	return frag.mt
+}
+
 func (frag *DocumentFragment) ContentByIndex(idx int, valuePtr interface{}) error {
 	res := frag.contents[idx]
 	if res.err != nil {
@@ -54,6 +58,10 @@ type LookupInBuilder struct {
 	ops    []gocbcore.SubDocOp
 }
 
+func (set *LookupInBuilder) Execute() (*DocumentFragment, error) {
+	return set.bucket.lookupIn(set)
+}
+
 func (set *LookupInBuilder) Get(path string) *LookupInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:   gocbcore.SubDocOpGet,
@@ -70,10 +78,6 @@ func (set *LookupInBuilder) Exists(path string) *LookupInBuilder {
 	}
 	set.ops = append(set.ops, op)
 	return set
-}
-
-func (set *LookupInBuilder) Do() (*DocumentFragment, error) {
-	return set.bucket.lookupIn(set)
 }
 
 func (b *Bucket) lookupIn(set *LookupInBuilder) (resOut *DocumentFragment, errOut error) {
@@ -133,7 +137,7 @@ type MutateInBuilder struct {
 	ops    []gocbcore.SubDocOp
 }
 
-func (set *MutateInBuilder) Do() (*DocumentFragment, error) {
+func (set *MutateInBuilder) Execute() (*DocumentFragment, error) {
 	return set.bucket.mutateIn(set)
 }
 
@@ -250,7 +254,10 @@ func (b *Bucket) mutateIn(set *MutateInBuilder) (resOut *DocumentFragment, errOu
 		func(results []gocbcore.SubDocResult, cas gocbcore.Cas, mt gocbcore.MutationToken, err error) {
 			errOut = err
 			if errOut == nil {
-				resSet := &DocumentFragment{}
+				resSet := &DocumentFragment{
+					cas: cas,
+					mt:  mt,
+				}
 				resSet.contents = make([]subDocResult, len(results))
 
 				for i, _ := range results {
