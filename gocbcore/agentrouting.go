@@ -68,41 +68,41 @@ func (c *Agent) tryHello(pipeline *memdPipeline, deadline time.Time) error {
 //  in its own goroutine and will ensure that offline servers
 //  are not spammed with connection attempts.
 func (agent *Agent) connectServer(server *memdPipeline) {
-	for {
-		agent.serverFailuresLock.Lock()
-		failureTime := agent.serverFailures[server.address]
-		agent.serverFailuresLock.Unlock()
+	agent.serverFailuresLock.Lock()
+	failureTime := agent.serverFailures[server.address]
+	agent.serverFailuresLock.Unlock()
 
-		if !failureTime.IsZero() {
-			waitedTime := time.Since(failureTime)
-			if waitedTime < agent.serverWaitTimeout {
-				time.Sleep(agent.serverWaitTimeout - waitedTime)
+	if !failureTime.IsZero() {
+		waitedTime := time.Since(failureTime)
+		if waitedTime < agent.serverWaitTimeout {
+			time.Sleep(agent.serverWaitTimeout - waitedTime)
 
-				if !agent.checkPendingServer(server) {
-					// Server is no longer pending.  Stop trying.
-					break
-				}
+			if !agent.checkPendingServer(server) {
+				// Server is no longer pending.  Stop trying.
+				return
 			}
 		}
+	}
 
-		err := agent.connectPipeline(server, time.Now().Add(agent.serverConnectTimeout))
-		if err != nil {
-			agent.serverFailuresLock.Lock()
-			agent.serverFailures[server.address] = time.Now()
-			agent.serverFailuresLock.Unlock()
+	err := agent.connectPipeline(server, time.Now().Add(agent.serverConnectTimeout))
+	if err != nil {
+		agent.serverFailuresLock.Lock()
+		agent.serverFailures[server.address] = time.Now()
+		agent.serverFailuresLock.Unlock()
 
-			// Try to connect again
-			continue
-		}
+		// Something failed, we should shut this down and try later
+		server.Close()
 
-		if !agent.activatePendingServer(server) {
-			// If this is no longer a valid pending server, we should shut
-			//   it down!
-			server.Close()
-		}
+		// Force a config update which will clear away this dead pending
+		// server and create a new one to connect with.
+		agent.updateConfig(nil)
+		return
+	}
 
-		// Shut down this goroutine as we were successful
-		break
+	if !agent.activatePendingServer(server) {
+		// If this is no longer a valid pending server, we should shut
+		//   it down!
+		server.Close()
 	}
 }
 
@@ -318,7 +318,7 @@ func (agent *Agent) applyConfig(cfg *routeConfig) {
 
 			// Search for any servers we are already trying to connect with.
 			for _, oldServer := range oldRouting.pendingServers {
-				if oldServer != nil && oldServer.Address() == hostPort {
+				if oldServer != nil && oldServer.Address() == hostPort && !oldServer.IsClosed() {
 					thisServer = oldServer
 					break
 				}
