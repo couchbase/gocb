@@ -369,8 +369,8 @@ func (c *Agent) SubDocMutate(key []byte, ops []SubDocOp, cas Cas, expiry uint32,
 				return
 			}
 
-			resError := StatusCode(binary.BigEndian.Uint16(resp.Value[0:]))
-			opIndex := int(resp.Value[2])
+			opIndex := int(resp.Value[0])
+			resError := StatusCode(binary.BigEndian.Uint16(resp.Value[1:]))
 
 			err := SubDocMutateError{
 				Err:     getMemdError(resError),
@@ -378,6 +378,19 @@ func (c *Agent) SubDocMutate(key []byte, ops []SubDocOp, cas Cas, expiry uint32,
 			}
 			cb(nil, 0, MutationToken{}, err)
 			return
+		}
+
+		for readPos := uint32(0); readPos < uint32(len(resp.Value)); {
+			opIndex := int(resp.Value[readPos+0])
+			opStatus := StatusCode(binary.BigEndian.Uint16(resp.Value[readPos+1:]))
+			results[opIndex].Err = getMemdError(opStatus)
+			readPos += 3
+
+			if opStatus == StatusSuccess {
+				valLength := binary.BigEndian.Uint32(resp.Value[readPos:])
+				results[opIndex].Value = resp.Value[readPos+4 : readPos+4+valLength]
+				readPos += 4 + valLength
+			}
 		}
 
 		mutToken := MutationToken{}
