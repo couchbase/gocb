@@ -90,9 +90,6 @@ func (agent *Agent) connectServer(server *memdPipeline) {
 		agent.serverFailures[server.address] = time.Now()
 		agent.serverFailuresLock.Unlock()
 
-		// Something failed, we should shut this down and try later
-		server.Close()
-
 		// Force a config update which will clear away this dead pending
 		// server and create a new one to connect with.
 		agent.updateConfig(nil)
