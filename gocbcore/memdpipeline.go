@@ -123,9 +123,11 @@ func (pipeline *memdPipeline) dispatchRequest(req *memdQRequest) error {
 
 func (s *memdPipeline) resolveRequest(resp *memdResponse) {
 	opIndex := resp.Opaque
+	isFailResp := resp.Magic == ResMagic && resp.Status != StatusSuccess
 
 	// Find the request that goes with this response
-	req := s.opList.FindAndMaybeRemove(opIndex)
+	alwaysRemove := isFailResp
+	req := s.opList.FindAndMaybeRemove(opIndex, alwaysRemove)
 
 	if req == nil {
 		// There is no known request that goes with this response.  Ignore it.
@@ -133,7 +135,7 @@ func (s *memdPipeline) resolveRequest(resp *memdResponse) {
 		return
 	}
 
-	if !req.Persistent || (resp.Magic == ResMagic && resp.Status != StatusSuccess) {
+	if isFailResp || !req.Persistent {
 		if !s.queue.UnqueueRequest(req) {
 			// While we found a valid request, the request does not appear to be queued
 			//   with this server anymore, this probably means that it has been cancelled.
@@ -142,7 +144,7 @@ func (s *memdPipeline) resolveRequest(resp *memdResponse) {
 		}
 	}
 
-	if resp.Magic == ResMagic && resp.Status == StatusNotMyVBucket {
+	if isFailResp && resp.Status == StatusNotMyVBucket {
 		// If possible, lets backchannel our NMV back to the Agent of this memdQueueConn
 		//   instance.  This is primarily meant to enhance performance, and allow the
 		//   agent to be instantly notified upon a new configuration arriving.  If the
