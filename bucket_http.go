@@ -34,6 +34,7 @@ type ViewResults interface {
 	Next(valuePtr interface{}) bool
 	Close() error
 	Count() int
+	Rewind(int)
 }
 
 type viewResults struct {
@@ -44,6 +45,13 @@ type viewResults struct {
 
 func (r *viewResults) Count() int {
 	return len(r.rows)
+}
+
+func (r *viewResults) Rewind(offset int) {
+	r.index -= offset
+	if r.index < 0 {
+		r.index = 0
+	}
 }
 
 func (r *viewResults) Next(valuePtr interface{}) bool {
@@ -214,6 +222,13 @@ type n1qlResults struct {
 
 func (r *n1qlResults) Count() int {
 	return len(r.rows)
+}
+
+func (r *n1qlResults) Rewind(offset int) {
+	r.index -= offset
+	if r.index < 0 {
+		r.index = 0
+	}
 }
 
 func (r *n1qlResults) Next(valuePtr interface{}) bool {
