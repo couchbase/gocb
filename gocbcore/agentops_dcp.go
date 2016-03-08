@@ -34,7 +34,7 @@ type StreamObserver interface {
 type OpenStreamCallback func([]FailoverEntry, error)
 type CloseStreamCallback func(error)
 type GetFailoverLogCallback func([]FailoverEntry, error)
-type GetLastCheckpointCallback func(SeqNo, error)
+type GetVBucketSeqnosCallback func(uint16, SeqNo, error)
 
 // **INTERNAL**
 // Opens a DCP stream for a particular VBucket.
@@ -191,31 +191,39 @@ func (c *Agent) GetFailoverLog(vbId uint16, cb GetFailoverLogCallback) (PendingO
 // **INTERNAL**
 // Returns the last checkpoint for a particular VBucket.  This is useful
 // for starting a DCP stream from wherever the server currently is.
-func (c *Agent) GetLastCheckpoint(vbId uint16, cb GetLastCheckpointCallback) (PendingOp, error) {
+func (c *Agent) GetVbucketSeqnos(serverIdx int, cb GetVBucketSeqnosCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
-			cb(0, err)
+			cb(0, 0, err)
 			return
 		}
 
-		seqNo := SeqNo(binary.BigEndian.Uint64(resp.Value[0:]))
-		cb(seqNo, err)
+		vbs := len(resp.Value) / 10
+		for i := 0; i < vbs; i++ {
+			vbid := binary.BigEndian.Uint16(resp.Value[i*10:])
+			seqNo := SeqNo(binary.BigEndian.Uint64(resp.Value[i*10+2:]))
+			cb(vbid, seqNo, nil)
+		}
 	}
+
+	extraBuf := make([]byte, 4)
+	binary.BigEndian.PutUint32(extraBuf[0:], uint32(VBucketStateActive))
 
 	req := &memdQRequest{
 		memdRequest: memdRequest{
 			Magic:    ReqMagic,
-			Opcode:   CmdGetLastCheckpoint,
+			Opcode:   CmdGetAllVBSeqnos,
 			Datatype: 0,
 			Cas:      0,
-			Extras:   nil,
+			Extras:   extraBuf,
 			Key:      nil,
 			Value:    nil,
-			Vbucket:  vbId,
+			Vbucket:  0,
 		},
 		Callback:   handler,
-		ReplicaIdx: 0,
-		Persistent: true,
+		ReplicaIdx: serverIdx,
+		Persistent: false,
 	}
+
 	return c.dispatchOp(req)
 }

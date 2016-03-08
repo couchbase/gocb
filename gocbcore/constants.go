@@ -27,6 +27,7 @@ const (
 	CmdSASLListMechs        = CommandCode(0x20)
 	CmdSASLAuth             = CommandCode(0x21)
 	CmdSASLStep             = CommandCode(0x22)
+	CmdGetAllVBSeqnos       = CommandCode(0x48)
 	CmdDcpOpenConnection    = CommandCode(0x50)
 	CmdDcpAddStream         = CommandCode(0x51)
 	CmdDcpCloseStream       = CommandCode(0x52)
@@ -48,7 +49,6 @@ const (
 	CmdObserve              = CommandCode(0x92)
 	CmdGetLocked            = CommandCode(0x94)
 	CmdUnlockKey            = CommandCode(0x95)
-	CmdGetLastCheckpoint    = CommandCode(0x97)
 	CmdSetMeta              = CommandCode(0xa2)
 	CmdDetMeta              = CommandCode(0xa8)
 	CmdGetClusterConfig     = CommandCode(0xb5)
@@ -163,4 +163,13 @@ const (
 	BktTypeInvalid   BucketType = 0
 	BktTypeCouchbase            = iota
 	BktTypeMemcached            = iota
+)
+
+type VBucketState uint32
+
+const (
+	VBucketStateActive  = VBucketState(0x01)
+	VBucketStateReplica = VBucketState(0x02)
+	VBucketStatePending = VBucketState(0x03)
+	VBucketStateDead    = VBucketState(0x04)
 )
