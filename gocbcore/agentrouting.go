@@ -108,6 +108,9 @@ func (c *Agent) connectPipeline(pipeline *memdPipeline, deadline time.Time) erro
 	memdConn, err := DialMemdConn(pipeline.address, c.tlsConfig, deadline)
 	if err != nil {
 		logDebugf("Failed to connect. %v", err)
+		pipeline.lock.Lock()
+		pipeline.isClosed = true
+		pipeline.lock.Unlock()
 		return err
 	}
 
