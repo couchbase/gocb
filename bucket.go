@@ -9,6 +9,7 @@ import (
 
 // An interface representing a single bucket within a cluster.
 type Bucket struct {
+	cluster  *Cluster
 	name     string
 	password string
 	client   *gocbcore.Agent
@@ -26,13 +27,14 @@ type Bucket struct {
 	internal *bucketInternal
 }
 
-func createBucket(config *gocbcore.AgentConfig) (*Bucket, error) {
+func createBucket(cluster *Cluster, config *gocbcore.AgentConfig) (*Bucket, error) {
 	cli, err := gocbcore.CreateAgent(config)
 	if err != nil {
 		return nil, err
 	}
 
 	bucket := &Bucket{
+		cluster:    cluster,
 		name:       config.BucketName,
 		password:   config.Password,
 		client:     cli,
@@ -135,9 +137,16 @@ func (b *Bucket) Internal() *bucketInternal {
 }
 
 func (b *Bucket) Manager(username, password string) *BucketManager {
+	userPass := userPassPair{username, password}
+	if username == "" || password == "" {
+		if b.cluster.auth != nil {
+			userPass = b.cluster.auth.bucketMgmt(b.name)
+		}
+	}
+
 	return &BucketManager{
 		bucket:   b,
-		username: username,
-		password: password,
+		username: userPass.Username,
+		password: userPass.Password,
 	}
 }

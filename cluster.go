@@ -10,6 +10,7 @@ import (
 
 type Cluster struct {
 	spec                 connSpec
+	auth                 Authenticator
 	connectTimeout       time.Duration
 	serverConnectTimeout time.Duration
 }
@@ -120,12 +121,30 @@ func (c *Cluster) makeAgentConfig(bucket, password string) *gocbcore.AgentConfig
 	}
 }
 
+func (c *Cluster) Authenticate(auth Authenticator) error {
+	c.auth = auth
+	return nil
+}
+
 func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
+	if password == "" {
+		if c.auth != nil {
+			password = c.auth.bucketMemd(bucket)
+		}
+	}
+
 	agentConfig := c.makeAgentConfig(bucket, password)
-	return createBucket(agentConfig)
+	return createBucket(c, agentConfig)
 }
 
 func (c *Cluster) Manager(username, password string) *ClusterManager {
+	userPass := userPassPair{username, password}
+	if username == "" || password == "" {
+		if c.auth != nil {
+			userPass = c.auth.clusterMgmt()
+		}
+	}
+
 	_, httpHosts, isSslHosts := specToHosts(c.spec)
 	var mgmtHosts []string
 
@@ -146,8 +165,8 @@ func (c *Cluster) Manager(username, password string) *ClusterManager {
 
 	return &ClusterManager{
 		hosts:    mgmtHosts,
-		username: username,
-		password: password,
+		username: userPass.Username,
+		password: userPass.Password,
 		httpCli: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: tlsConfig,

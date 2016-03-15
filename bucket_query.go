@@ -5,13 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 )
-
-type n1qlCache struct {
-	name        string
-	encodedPlan string
-}
 
 type viewResponse struct {
 	TotalRows int               `json:"total_rows,omitempty"`
@@ -77,20 +73,25 @@ func (r *viewResults) One(valuePtr interface{}) error {
 	return nil
 }
 
-// Performs a view query and returns a list of rows or an error.
-func (b *Bucket) ExecuteViewQuery(q *ViewQuery) (ViewResults, error) {
+func (b *Bucket) executeViewQuery(viewType, ddoc, viewName string, options url.Values) (ViewResults, error) {
 	capiEp, err := b.getViewEp()
 	if err != nil {
 		return nil, err
 	}
 
-	reqUri := fmt.Sprintf("%s/_design/%s/_view/%s?%s", capiEp, q.ddoc, q.name, q.options.Encode())
+	reqUri := fmt.Sprintf("%s/_design/%s/%s/%s?%s", capiEp, ddoc, viewType, viewName, options.Encode())
 
 	req, err := http.NewRequest("GET", reqUri, nil)
 	if err != nil {
 		return nil, err
 	}
-	req.SetBasicAuth(b.name, b.password)
+
+	if b.cluster.auth != nil {
+		userPass := b.cluster.auth.bucketViews(b.name)
+		req.SetBasicAuth(userPass.Username, userPass.Password)
+	} else {
+		req.SetBasicAuth(b.name, b.password)
+	}
 
 	resp, err := doHttpWithTimeout(b.client.HttpClient(), req, b.viewTimeout)
 	if err != nil {
@@ -123,50 +124,19 @@ func (b *Bucket) ExecuteViewQuery(q *ViewQuery) (ViewResults, error) {
 	}, nil
 }
 
+// Performs a view query and returns a list of rows or an error.
+func (b *Bucket) ExecuteViewQuery(q *ViewQuery) (ViewResults, error) {
+	return b.executeViewQuery("_view", q.ddoc, q.name, q.options)
+}
+
 // Performs a spatial query and returns a list of rows or an error.
 func (b *Bucket) ExecuteSpatialQuery(q *SpatialQuery) (ViewResults, error) {
-	capiEp, err := b.getViewEp()
-	if err != nil {
-		return nil, err
-	}
+	return b.executeViewQuery("_spatial", q.ddoc, q.name, q.options)
+}
 
-	reqUri := fmt.Sprintf("%s/_design/%s/_spatial/%s?%s", capiEp, q.ddoc, q.name, q.options.Encode())
-
-	req, err := http.NewRequest("GET", reqUri, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.SetBasicAuth(b.name, b.password)
-
-	resp, err := doHttpWithTimeout(b.client.HttpClient(), req, b.viewTimeout)
-	if err != nil {
-		return nil, err
-	}
-
-	viewResp := viewResponse{}
-	jsonDec := json.NewDecoder(resp.Body)
-	jsonDec.Decode(&viewResp)
-
-	resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		if viewResp.Error != "" {
-			return nil, &viewError{
-				Message: viewResp.Error,
-				Reason:  viewResp.Reason,
-			}
-		}
-
-		return nil, &viewError{
-			Message: "HTTP Error",
-			Reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
-		}
-	}
-
-	return &viewResults{
-		index: -1,
-		rows:  viewResp.Rows,
-	}, nil
+type n1qlCache struct {
+	name        string
+	encodedPlan string
 }
 
 type n1qlError struct {
@@ -243,28 +213,6 @@ func (r *n1qlResults) One(valuePtr interface{}) error {
 	return nil
 }
 
-// Wrapper around net.http.Client.Do().
-// This allows a per-request timeout without setting the timeout on the Client object
-// directly.
-// The third parameter is the duration for the request itself.
-func doHttpWithTimeout(cli *http.Client, req *http.Request, timeout time.Duration) (resp *http.Response, err error) {
-	if timeout.Seconds() == 0 {
-		// No timeout
-		resp, err = cli.Do(req)
-		return
-	}
-
-	tmoch := make(chan struct{})
-	timer := time.AfterFunc(timeout, func() {
-		tmoch <- struct{}{}
-	})
-
-	req.Cancel = tmoch
-	resp, err = cli.Do(req)
-	timer.Stop()
-	return
-}
-
 // Executes the N1QL query (in opts) on the server n1qlEp.
 // This function assumes that `opts` already contains all the required
 // settings. This function will inject any additional connection or request-level
@@ -286,12 +234,20 @@ func (b *Bucket) executeN1qlQuery(n1qlEp string, opts map[string]interface{}) (V
 		opts["timeout"] = timeout.String()
 	}
 
+	if b.cluster.auth != nil {
+		userPasses := b.cluster.auth.bucketN1ql(b.name)
+		opts["creds"] = userPasses
+	} else {
+		opts["creds"] = []userPassPair{
+			userPassPair{b.name, b.password},
+		}
+	}
+
 	req, err := http.NewRequest("POST", reqUri, bytes.NewBuffer(reqJson))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.SetBasicAuth(b.name, b.password)
 
 	resp, err := doHttpWithTimeout(b.client.HttpClient(), req, timeout)
 	if err != nil {
@@ -333,7 +289,10 @@ func (b *Bucket) prepareN1qlQuery(n1qlEp string, opts map[string]interface{}) (*
 		return nil, err
 	}
 
-	var preped n1qlPrepData
+	var preped struct {
+		EncodedPlan string `json:"encoded_plan"`
+		Name        string `json:"name"`
+	}
 	err = prepRes.One(&preped)
 	if err != nil {
 		return nil, err
@@ -343,11 +302,6 @@ func (b *Bucket) prepareN1qlQuery(n1qlEp string, opts map[string]interface{}) (*
 		name:        preped.Name,
 		encodedPlan: preped.EncodedPlan,
 	}, nil
-}
-
-type n1qlPrepData struct {
-	EncodedPlan string `json:"encoded_plan"`
-	Name        string `json:"name"`
 }
 
 // Performs a spatial query and returns a list of rows or an error.
