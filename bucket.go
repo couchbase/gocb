@@ -69,6 +69,18 @@ func (b *Bucket) DurabilityPollTimeout() time.Duration {
 func (b *Bucket) SetDurabilityPollTimeout(timeout time.Duration) {
 	b.duraPollTimeout = timeout
 }
+func (b *Bucket) ViewTimeout() time.Duration {
+	return b.viewTimeout
+}
+func (b *Bucket) SetViewTimeout(timeout time.Duration) {
+	b.viewTimeout = timeout
+}
+func (b *Bucket) N1qlTimeout() time.Duration {
+	return b.n1qlTimeout
+}
+func (b *Bucket) SetN1qlTimeout(timeout time.Duration) {
+	b.n1qlTimeout = timeout
+}
 
 func (b *Bucket) SetTranscoder(transcoder Transcoder) {
 	b.transcoder = transcoder
