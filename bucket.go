@@ -3,7 +3,6 @@ package gocb
 import (
 	"github.com/couchbase/gocb/gocbcore"
 	"math/rand"
-	"sync"
 	"time"
 )
 
@@ -21,9 +20,6 @@ type Bucket struct {
 	viewTimeout     time.Duration
 	n1qlTimeout     time.Duration
 
-	queryCacheLock sync.RWMutex
-	queryCache     map[string]*n1qlCache
-
 	internal *bucketInternal
 }
 
@@ -39,7 +35,6 @@ func createBucket(cluster *Cluster, config *gocbcore.AgentConfig) (*Bucket, erro
 		password:   config.Password,
 		client:     cli,
 		transcoder: &DefaultTranscoder{},
-		queryCache: make(map[string]*n1qlCache),
 
 		opTimeout:       2500 * time.Millisecond,
 		duraTimeout:     40000 * time.Millisecond,
@@ -89,9 +84,7 @@ func (b *Bucket) SetTranscoder(transcoder Transcoder) {
 }
 
 func (b *Bucket) InvalidateQueryCache() {
-	b.queryCacheLock.Lock()
-	b.queryCache = make(map[string]*n1qlCache)
-	b.queryCacheLock.Unlock()
+	b.cluster.InvalidateQueryCache()
 }
 
 type Cas gocbcore.Cas
@@ -123,6 +116,7 @@ func (b *Bucket) getN1qlEp() (string, error) {
 }
 
 func (b *Bucket) Close() {
+	b.cluster.closeBucket(b)
 	b.client.Close()
 }
 

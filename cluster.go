@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/couchbase/gocb/gocbcore"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -13,6 +14,11 @@ type Cluster struct {
 	auth                 Authenticator
 	connectTimeout       time.Duration
 	serverConnectTimeout time.Duration
+	n1qlTimeout          time.Duration
+
+	clusterLock sync.RWMutex
+	queryCache  map[string]*n1qlCache
+	bucketList  []*Bucket
 }
 
 func Connect(connSpecStr string) (*Cluster, error) {
@@ -50,6 +56,9 @@ func Connect(connSpecStr string) (*Cluster, error) {
 		spec:                 spec,
 		connectTimeout:       60000 * time.Millisecond,
 		serverConnectTimeout: 7000 * time.Millisecond,
+		n1qlTimeout:          75 * time.Second,
+
+		queryCache: make(map[string]*n1qlCache),
 	}
 	return cluster, nil
 }
@@ -134,7 +143,27 @@ func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 	}
 
 	agentConfig := c.makeAgentConfig(bucket, password)
-	return createBucket(c, agentConfig)
+	b, err := createBucket(c, agentConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	c.clusterLock.Lock()
+	c.bucketList = append(c.bucketList, b)
+	c.clusterLock.Unlock()
+
+	return b, nil
+}
+
+func (c *Cluster) closeBucket(bucket *Bucket) {
+	c.clusterLock.Lock()
+	for i, e := range c.bucketList {
+		if e == bucket {
+			c.bucketList = append(c.bucketList[0:i], c.bucketList[i+1:]...)
+			break
+		}
+	}
+	c.clusterLock.Unlock()
 }
 
 func (c *Cluster) Manager(username, password string) *ClusterManager {
@@ -175,6 +204,19 @@ func (c *Cluster) Manager(username, password string) *ClusterManager {
 	}
 }
 
+func (c *Cluster) N1qlTimeout() time.Duration {
+	return c.n1qlTimeout
+}
+func (c *Cluster) SetN1qlTimeout(timeout time.Duration) {
+	c.n1qlTimeout = timeout
+}
+
+func (c *Cluster) InvalidateQueryCache() {
+	c.clusterLock.Lock()
+	c.queryCache = make(map[string]*n1qlCache)
+	c.clusterLock.Unlock()
+}
+
 type StreamingBucket struct {
 	client *gocbcore.Agent
 }
@@ -192,4 +234,15 @@ func (c *Cluster) OpenStreamingBucket(streamName, bucket, password string) (*Str
 	return &StreamingBucket{
 		client: cli,
 	}, nil
+}
+
+func (c *Cluster) randomBucket() (*Bucket, error) {
+	c.clusterLock.RLock()
+	if len(c.bucketList) == 0 {
+		c.clusterLock.RUnlock()
+		return nil, ErrNoOpenBuckets
+	}
+	bucket := c.bucketList[0]
+	c.clusterLock.RUnlock()
+	return bucket, nil
 }
