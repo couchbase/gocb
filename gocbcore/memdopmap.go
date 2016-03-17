@@ -22,6 +22,7 @@ func (q *memdOpMap) Add(r *memdQRequest) {
 
 	q.opIndex++
 	r.Opaque = q.opIndex
+	r.queueNext = nil
 
 	if q.last == nil {
 		q.first = r
