@@ -372,10 +372,20 @@ func (c *Agent) counter(opcode CommandCode, key []byte, delta, initial uint64, e
 		cb(intVal, Cas(resp.Cas), mutToken, nil)
 	}
 
+	// You cannot have an expiry when you do not want to create the document.
+	if initial == uint64(0xFFFFFFFFFFFFFFFF) && expiry != 0 {
+		return nil, ErrInvalidArgs
+	}
+
 	extraBuf := make([]byte, 20)
 	binary.BigEndian.PutUint64(extraBuf[0:], delta)
-	binary.BigEndian.PutUint64(extraBuf[8:], initial)
-	binary.BigEndian.PutUint32(extraBuf[16:], expiry)
+	if initial != uint64(0xFFFFFFFFFFFFFFFF) {
+		binary.BigEndian.PutUint64(extraBuf[8:], initial)
+		binary.BigEndian.PutUint32(extraBuf[16:], expiry)
+	} else {
+		binary.BigEndian.PutUint64(extraBuf[8:], 0x0000000000000000)
+		binary.BigEndian.PutUint32(extraBuf[16:], 0xFFFFFFFF)
+	}
 
 	req := &memdQRequest{
 		memdRequest: memdRequest{

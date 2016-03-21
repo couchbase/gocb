@@ -74,7 +74,9 @@ func (b *Bucket) Prepend(key, value string) (Cas, error) {
 	return cas, err
 }
 
-// Performs an atomic addition or subtraction for an integer document.
+// Performs an atomic addition or subtraction for an integer document.  Passing a
+//  non-negative `initial` value will cause the document to be created if it did
+//  not already exist.
 func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint64, Cas, error) {
 	val, cas, _, err := b.counter(key, delta, initial, expiry)
 	return val, cas, err
@@ -312,7 +314,7 @@ func (b *Bucket) prepend(key, value string) (Cas, MutationToken, error) {
 
 func (b *Bucket) counter(key string, delta, initial int64, expiry uint32) (uint64, Cas, MutationToken, error) {
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
-	if initial > 0 {
+	if initial >= 0 {
 		realInitial = uint64(initial)
 	}
 
