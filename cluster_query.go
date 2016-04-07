@@ -55,18 +55,31 @@ func (r *n1qlResults) Next(valuePtr interface{}) bool {
 	if r.err != nil {
 		return false
 	}
-	if r.index+1 >= len(r.rows) {
+
+	row := r.NextBytes()
+	if row == nil {
 		return false
 	}
-	r.index++
 
-	row := r.rows[r.index]
 	r.err = json.Unmarshal(row, valuePtr)
 	if r.err != nil {
 		return false
 	}
 
 	return true
+}
+
+func (r *n1qlResults) NextBytes() []byte {
+	if r.err != nil {
+		return nil
+	}
+
+	if r.index+1 >= len(r.rows) {
+		return nil
+	}
+	r.index++
+
+	return r.rows[r.index]
 }
 
 func (r *n1qlResults) Close() error {
