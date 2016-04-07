@@ -27,7 +27,7 @@ func hostnameFromUri(uri string) string {
 	return strings.Split(uriInfo.Host, ":")[0]
 }
 
-func (c *Agent) httpLooper(firstCfgFn func(*cfgBucket, error)) {
+func (c *Agent) httpLooper(firstCfgFn func(*cfgBucket, error) bool) {
 	waitPeriod := 20 * time.Second
 	maxConnPeriod := 10 * time.Second
 	var iterNum uint64 = 1
@@ -161,7 +161,11 @@ func (c *Agent) httpLooper(firstCfgFn func(*cfgBucket, error)) {
 			iterSawConfig = true
 			if isFirstTry {
 				logDebugf("HTTP Config Init")
-				firstCfgFn(bkCfg, nil)
+				if !firstCfgFn(bkCfg, nil) {
+					logDebugf("Got error while activating first config")
+					resp.Body.Close()
+					break
+				}
 				isFirstTry = false
 			} else {
 				logDebugf("HTTP Config Update")

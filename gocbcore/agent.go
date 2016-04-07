@@ -237,12 +237,24 @@ func (c *Agent) connect(memdAddrs, httpAddrs []string, deadline time.Time) error
 		mgmtEpList: epList,
 	})
 
-	var bk *cfgBucket
+	var routeCfg *routeConfig
 
 	logDebugf("Starting HTTP looper! %v", epList)
-	go c.httpLooper(func(cfg *cfgBucket, err error) {
-		bk = cfg
-		signal <- err
+	go c.httpLooper(func(cfg *cfgBucket, err error) bool {
+		if err != nil {
+			signal <- err
+			return true
+		}
+
+		newRouteCfg := buildRouteConfig(cfg, c.IsSecure())
+		if !newRouteCfg.IsValid() {
+			// Something is invalid about this config, keep trying
+			return false
+		}
+
+		routeCfg = newRouteCfg
+		signal <- nil
+		return true
 	})
 
 	err := <-signal
@@ -250,7 +262,6 @@ func (c *Agent) connect(memdAddrs, httpAddrs []string, deadline time.Time) error
 		return err
 	}
 
-	routeCfg := buildRouteConfig(bk, c.IsSecure())
 	c.numVbuckets = len(routeCfg.vbMap)
 	c.applyConfig(routeCfg)
 
