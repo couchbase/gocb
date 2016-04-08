@@ -30,7 +30,7 @@ func throwMockError(msg string, cause error) error {
 	panic(mockError{message: msg, cause: cause})
 }
 
-const mockInitTimeout = 1 * time.Second
+const mockInitTimeout = 5 * time.Second
 
 type BucketType int
 
