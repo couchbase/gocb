@@ -75,7 +75,7 @@ func (bm *BucketManager) mgmtRequest(method, uri, contentType string, body io.Re
 }
 
 func (bm *BucketManager) Flush() error {
-	reqUri := fmt.Sprintf("/pools/default/%s/controller/doFlush", bm.bucket.name)
+	reqUri := fmt.Sprintf("/pools/default/buckets/%s/controller/doFlush", bm.bucket.name)
 	resp, err := bm.mgmtRequest("POST", reqUri, "", nil)
 	if err != nil {
 		return err
