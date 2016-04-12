@@ -205,8 +205,21 @@ func (c *Cluster) doN1qlQuery(b *Bucket, q *N1qlQuery, params interface{}) (View
 			timeout = c.n1qlTimeout
 		}
 		client = b.client.HttpClient()
-		creds = c.auth.bucketN1ql(b.name)
+		if c.auth != nil {
+			creds = c.auth.bucketN1ql(b.name)
+		} else {
+			creds = []userPassPair{
+				userPassPair{
+					Username: b.name,
+					Password: b.password,
+				},
+			}
+		}
 	} else {
+		if c.auth == nil {
+			panic("Cannot perform cluster level queries without Cluster Authenticator.")
+		}
+
 		tmpB, err := c.randomBucket()
 		if err != nil {
 			return nil, err
