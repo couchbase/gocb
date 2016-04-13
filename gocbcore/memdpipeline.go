@@ -123,9 +123,11 @@ func (pipeline *memdPipeline) dispatchRequest(req *memdQRequest) error {
 
 func (s *memdPipeline) resolveRequest(resp *memdResponse) {
 	opIndex := resp.Opaque
+	isFailResp := resp.Magic == ResMagic && resp.Status != StatusSuccess
 
 	// Find the request that goes with this response
-	req := s.opList.FindAndMaybeRemove(opIndex)
+	alwaysRemove := isFailResp
+	req := s.opList.FindAndMaybeRemove(opIndex, alwaysRemove)
 
 	if req == nil {
 		// There is no known request that goes with this response.  Ignore it.
@@ -133,7 +135,7 @@ func (s *memdPipeline) resolveRequest(resp *memdResponse) {
 		return
 	}
 
-	if !req.Persistent || (resp.Magic == ResMagic && resp.Status != StatusSuccess) {
+	if isFailResp || !req.Persistent {
 		if !s.queue.UnqueueRequest(req) {
 			// While we found a valid request, the request does not appear to be queued
 			//   with this server anymore, this probably means that it has been cancelled.
@@ -142,7 +144,7 @@ func (s *memdPipeline) resolveRequest(resp *memdResponse) {
 		}
 	}
 
-	if resp.Magic == ResMagic && resp.Status == StatusNotMyVBucket {
+	if isFailResp && resp.Status == StatusNotMyVBucket {
 		// If possible, lets backchannel our NMV back to the Agent of this memdQueueConn
 		//   instance.  This is primarily meant to enhance performance, and allow the
 		//   agent to be instantly notified upon a new configuration arriving.  If the
@@ -158,11 +160,11 @@ func (s *memdPipeline) resolveRequest(resp *memdResponse) {
 	}
 
 	// Call the requests callback handler...  Ignore Status field for incoming requests.
-	logDebugf("Dispatching response callback.")
-	if resp.Magic == ReqMagic || resp.Status == StatusSuccess {
+	logSchedf("Dispatching response callback. OP=0x%x. Opaque=%d", resp.Opcode, resp.Opaque)
+	if resp.Magic == ReqMagic {
 		req.Callback(resp, nil)
 	} else {
-		req.Callback(nil, getMemdError(resp.Status))
+		req.Callback(resp, getMemdError(resp.Status))
 	}
 }
 
@@ -180,8 +182,7 @@ func (pipeline *memdPipeline) ioLoop() {
 				killSig <- true
 				break
 			}
-
-			logDebugf("Got response to resolve.")
+			logSchedf("Resolving response OP=0x%x. Opaque=%d", resp.Opcode, resp.Opaque)
 			pipeline.resolveRequest(resp)
 		}
 	}()
@@ -191,7 +192,7 @@ func (pipeline *memdPipeline) ioLoop() {
 	for {
 		select {
 		case req := <-pipeline.queue.reqsCh:
-			logDebugf("Got a request to dispatch.")
+			logSchedf("Dispatching request OP=0x%x. Opaque=%d.", req.Opcode, req.Opaque)
 			err := pipeline.dispatchRequest(req)
 			if err != nil {
 				// Ensure that the connection gets fully closed

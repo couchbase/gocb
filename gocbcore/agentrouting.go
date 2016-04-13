@@ -68,41 +68,38 @@ func (c *Agent) tryHello(pipeline *memdPipeline, deadline time.Time) error {
 //  in its own goroutine and will ensure that offline servers
 //  are not spammed with connection attempts.
 func (agent *Agent) connectServer(server *memdPipeline) {
-	for {
-		agent.serverFailuresLock.Lock()
-		failureTime := agent.serverFailures[server.address]
-		agent.serverFailuresLock.Unlock()
+	agent.serverFailuresLock.Lock()
+	failureTime := agent.serverFailures[server.address]
+	agent.serverFailuresLock.Unlock()
 
-		if !failureTime.IsZero() {
-			waitedTime := time.Since(failureTime)
-			if waitedTime < agent.serverWaitTimeout {
-				time.Sleep(agent.serverWaitTimeout - waitedTime)
+	if !failureTime.IsZero() {
+		waitedTime := time.Since(failureTime)
+		if waitedTime < agent.serverWaitTimeout {
+			time.Sleep(agent.serverWaitTimeout - waitedTime)
 
-				if !agent.checkPendingServer(server) {
-					// Server is no longer pending.  Stop trying.
-					break
-				}
+			if !agent.checkPendingServer(server) {
+				// Server is no longer pending.  Stop trying.
+				return
 			}
 		}
+	}
 
-		err := agent.connectPipeline(server, time.Now().Add(agent.serverConnectTimeout))
-		if err != nil {
-			agent.serverFailuresLock.Lock()
-			agent.serverFailures[server.address] = time.Now()
-			agent.serverFailuresLock.Unlock()
+	err := agent.connectPipeline(server, time.Now().Add(agent.serverConnectTimeout))
+	if err != nil {
+		agent.serverFailuresLock.Lock()
+		agent.serverFailures[server.address] = time.Now()
+		agent.serverFailuresLock.Unlock()
 
-			// Try to connect again
-			continue
-		}
+		// Force a config update which will clear away this dead pending
+		// server and create a new one to connect with.
+		agent.updateConfig(nil)
+		return
+	}
 
-		if !agent.activatePendingServer(server) {
-			// If this is no longer a valid pending server, we should shut
-			//   it down!
-			server.Close()
-		}
-
-		// Shut down this goroutine as we were successful
-		break
+	if !agent.activatePendingServer(server) {
+		// If this is no longer a valid pending server, we should shut
+		//   it down!
+		server.Close()
 	}
 }
 
@@ -111,6 +108,9 @@ func (c *Agent) connectPipeline(pipeline *memdPipeline, deadline time.Time) erro
 	memdConn, err := DialMemdConn(pipeline.address, c.tlsConfig, deadline)
 	if err != nil {
 		logDebugf("Failed to connect. %v", err)
+		pipeline.lock.Lock()
+		pipeline.isClosed = true
+		pipeline.lock.Unlock()
 		return err
 	}
 
@@ -190,6 +190,7 @@ func (agent *Agent) activatePendingServer(server *memdPipeline) bool {
 			vbMap:      oldRouting.vbMap,
 			source:     oldRouting.source,
 			deadQueue:  oldRouting.deadQueue,
+			bktType:    oldRouting.bktType,
 		}
 
 		// Copy the lists
@@ -261,6 +262,7 @@ func (agent *Agent) applyConfig(cfg *routeConfig) {
 		mgmtEpList: cfg.mgmtEpList,
 		n1qlEpList: cfg.n1qlEpList,
 		vbMap:      cfg.vbMap,
+		bktType:    cfg.bktType,
 		source:     cfg,
 	}
 
@@ -316,7 +318,7 @@ func (agent *Agent) applyConfig(cfg *routeConfig) {
 
 			// Search for any servers we are already trying to connect with.
 			for _, oldServer := range oldRouting.pendingServers {
-				if oldServer != nil && oldServer.Address() == hostPort {
+				if oldServer != nil && oldServer.Address() == hostPort && !oldServer.IsClosed() {
 					thisServer = oldServer
 					break
 				}
@@ -422,30 +424,42 @@ func (agent *Agent) routeRequest(req *memdQRequest) (*memdQueue, error) {
 	}
 
 	var srvIdx int
-
 	repId := req.ReplicaIdx
+
+	// Route to specific server
 	if repId < 0 {
 		srvIdx = -repId - 1
-
 		if srvIdx >= len(routingInfo.queues) {
 			return nil, ErrInvalidServer
 		}
-	} else {
-		if req.Key != nil {
-			req.Vbucket = uint16(cbCrc(req.Key) % uint32(len(routingInfo.vbMap)))
-		}
+		return routingInfo.queues[srvIdx], nil
+	}
 
-		if int(req.Vbucket) >= len(routingInfo.vbMap) {
-			return nil, ErrInvalidVBucket
-		}
-
-		vBucketNodes := routingInfo.vbMap[req.Vbucket]
-
-		if repId >= len(vBucketNodes) {
+	if routingInfo.bktType == BktTypeCouchbase {
+		// Targeting a specific replica; repId >= 0
+		if repId >= routingInfo.source.numReplicas+1 {
 			return nil, ErrInvalidReplica
 		}
 
-		srvIdx = vBucketNodes[repId]
+		if req.Key != nil {
+			srvIdx, req.Vbucket = routingInfo.MapKeyVBucket(req.Key, repId)
+		} else {
+			// Filter explicit vBucket input. Really only used in OBSERVE
+			if int(req.Vbucket) >= len(routingInfo.vbMap) {
+				return nil, ErrInvalidVBucket
+			}
+			srvIdx = routingInfo.vbMap[req.Vbucket][repId]
+		}
+	} else if routingInfo.bktType == BktTypeMemcached {
+		if repId > 0 {
+			// Error. Memcached buckets don't understand replicas!
+			return nil, ErrInvalidReplica
+		}
+
+		if req.Key == nil {
+			panic("Non-broadcast keyless Memcached bucket request found!")
+		}
+		srvIdx = routingInfo.MapKetama(req.Key)
 	}
 
 	if srvIdx == -1 {

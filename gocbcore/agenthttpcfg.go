@@ -27,7 +27,7 @@ func hostnameFromUri(uri string) string {
 	return strings.Split(uriInfo.Host, ":")[0]
 }
 
-func (c *Agent) httpLooper(firstCfgFn func(*cfgBucket, error)) {
+func (c *Agent) httpLooper(firstCfgFn func(*cfgBucket, error) bool) {
 	waitPeriod := 20 * time.Second
 	maxConnPeriod := 10 * time.Second
 	var iterNum uint64 = 1
@@ -81,33 +81,52 @@ func (c *Agent) httpLooper(firstCfgFn func(*cfgBucket, error)) {
 
 		logDebugf("HTTP Hostname: %s.", pickedSrv)
 
-		// HTTP request time!
-		uri := fmt.Sprintf("%s/pools/default/bs/%s", pickedSrv, c.bucket)
+		var resp *http.Response
+		// 1 on success, 0 on failure for node, -1 for generic failure
+		var doConfigRequest func(bool) int
 
-		logDebugf("Requesting config from: %s.", uri)
-
-		req, err := http.NewRequest("GET", uri, nil)
-		if err != nil {
-			logDebugf("Failed to build HTTP config request. %v", err)
-			continue
-		}
-
-		req.SetBasicAuth(c.bucket, c.password)
-
-		resp, err := c.httpCli.Do(req)
-		if err != nil {
-			logDebugf("Failed to connect to host. %v", err)
-			continue
-		}
-
-		if resp.StatusCode != 200 {
-			if resp.StatusCode == 401 {
-				logDebugf("Failed to connect to host, bad auth.")
-				firstCfgFn(nil, ErrAuthError)
-				return
+		doConfigRequest = func(is2x bool) int {
+			streamPath := "bs"
+			if is2x {
+				streamPath = "bucketsStreaming"
 			}
-			logDebugf("Failed to connect to host, unexpected status code: %v.", resp.StatusCode)
+			// HTTP request time!
+			uri := fmt.Sprintf("%s/pools/default/%s/%s", pickedSrv, streamPath, c.bucket)
+			logDebugf("Requesting config from: %s.", uri)
+
+			req, err := http.NewRequest("GET", uri, nil)
+			if err != nil {
+				logDebugf("Failed to build HTTP config request. %v", err)
+				return 0
+			}
+
+			req.SetBasicAuth(c.bucket, c.password)
+
+			resp, err = c.httpCli.Do(req)
+			if err != nil {
+				logDebugf("Failed to connect to host. %v", err)
+				return 0
+			}
+
+			if resp.StatusCode != 200 {
+				if resp.StatusCode == 401 {
+					logDebugf("Failed to connect to host, bad auth.")
+					firstCfgFn(nil, ErrAuthError)
+					return -1
+				} else if resp.StatusCode == 404 && !is2x {
+					return doConfigRequest(true)
+				}
+				logDebugf("Failed to connect to host, unexpected status code: %v.", resp.StatusCode)
+				return -1
+			}
+			return 1
+		}
+
+		switch doConfigRequest(false) {
+		case 0:
 			continue
+		case -1:
+			return
 		}
 
 		logDebugf("Connected.")
@@ -128,10 +147,11 @@ func (c *Agent) httpLooper(firstCfgFn func(*cfgBucket, error)) {
 				break
 			}
 
-			logDebugf("Got Block.")
+			logDebugf("Got Block: %v", string(configBlock.Bytes))
 
 			bkCfg, err := parseConfig(configBlock.Bytes, hostname)
 			if err != nil {
+				logDebugf("Got error while parsing config: %v", err)
 				resp.Body.Close()
 				break
 			}
@@ -141,7 +161,11 @@ func (c *Agent) httpLooper(firstCfgFn func(*cfgBucket, error)) {
 			iterSawConfig = true
 			if isFirstTry {
 				logDebugf("HTTP Config Init")
-				firstCfgFn(bkCfg, nil)
+				if !firstCfgFn(bkCfg, nil) {
+					logDebugf("Got error while activating first config")
+					resp.Body.Close()
+					break
+				}
 				isFirstTry = false
 			} else {
 				logDebugf("HTTP Config Update")

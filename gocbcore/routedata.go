@@ -6,7 +6,8 @@ import (
 )
 
 type routeData struct {
-	revId uint
+	revId   uint
+	bktType BucketType
 
 	queues     []*memdQueue
 	vbMap      [][]int
@@ -124,4 +125,18 @@ func (ptr *routeDataPtr) update(old, new *routeData) bool {
 func (ptr *routeDataPtr) clear() *routeData {
 	val := atomic.SwapPointer(&ptr.data, nil)
 	return (*routeData)(val)
+}
+
+// Maps a key to a vBucket and a server
+// repidx is the server index within the vbucket entry to select. 0 means
+// the master server
+func (rd *routeData) MapKeyVBucket(key []byte, repIdx int) (srvidx int, vbid uint16) {
+	vbid = uint16(cbCrc(key) % uint32(len(rd.vbMap)))
+	srvidx = rd.vbMap[vbid][repIdx]
+	return
+}
+
+func (rd *routeData) MapKetama(key []byte) (srvidx int) {
+	var hash uint32 = rd.source.KetamaHash(key)
+	return int(rd.source.KetamaNode(hash))
 }

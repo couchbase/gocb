@@ -59,7 +59,7 @@ func (s *memdQueue) QueueRequest(req *memdQRequest) bool {
 		panic("Request was dispatched while already queued somewhere.")
 	}
 
-	logDebugf("Writing request to queue!")
+	logSchedf("Writing request to queue!")
 
 	// Try to write the request to the queue, if the queue is full,
 	//   we immediately fail the request with a queueOverflow error.

@@ -1,15 +1,14 @@
 package gocb
 
 import (
-	"math/rand"
-	"sync"
-	"time"
-
 	"github.com/Vellocet/gocb/gocbcore"
+	"math/rand"
+	"time"
 )
 
 // An interface representing a single bucket within a cluster.
 type Bucket struct {
+	cluster  *Cluster
 	name     string
 	password string
 	client   *gocbcore.Agent
@@ -21,24 +20,21 @@ type Bucket struct {
 	viewTimeout     time.Duration
 	n1qlTimeout     time.Duration
 
-	queryCacheLock sync.RWMutex
-	queryCache     map[string]*n1qlCache
-
 	internal *bucketInternal
 }
 
-func createBucket(config *gocbcore.AgentConfig) (*Bucket, error) {
+func createBucket(cluster *Cluster, config *gocbcore.AgentConfig) (*Bucket, error) {
 	cli, err := gocbcore.CreateAgent(config)
 	if err != nil {
 		return nil, err
 	}
 
 	bucket := &Bucket{
+		cluster:    cluster,
 		name:       config.BucketName,
 		password:   config.Password,
 		client:     cli,
 		transcoder: &DefaultTranscoder{},
-		queryCache: make(map[string]*n1qlCache),
 
 		opTimeout:       2500 * time.Millisecond,
 		duraTimeout:     40000 * time.Millisecond,
@@ -70,15 +66,25 @@ func (b *Bucket) DurabilityPollTimeout() time.Duration {
 func (b *Bucket) SetDurabilityPollTimeout(timeout time.Duration) {
 	b.duraPollTimeout = timeout
 }
+func (b *Bucket) ViewTimeout() time.Duration {
+	return b.viewTimeout
+}
+func (b *Bucket) SetViewTimeout(timeout time.Duration) {
+	b.viewTimeout = timeout
+}
+func (b *Bucket) N1qlTimeout() time.Duration {
+	return b.n1qlTimeout
+}
+func (b *Bucket) SetN1qlTimeout(timeout time.Duration) {
+	b.n1qlTimeout = timeout
+}
 
 func (b *Bucket) SetTranscoder(transcoder Transcoder) {
 	b.transcoder = transcoder
 }
 
 func (b *Bucket) InvalidateQueryCache() {
-	b.queryCacheLock.Lock()
-	b.queryCache = make(map[string]*n1qlCache)
-	b.queryCacheLock.Unlock()
+	b.cluster.InvalidateQueryCache()
 }
 
 type Cas gocbcore.Cas
@@ -110,6 +116,7 @@ func (b *Bucket) getN1qlEp() (string, error) {
 }
 
 func (b *Bucket) Close() {
+	b.cluster.closeBucket(b)
 	b.client.Close()
 }
 
@@ -117,15 +124,23 @@ func (b *Bucket) IoRouter() *gocbcore.Agent {
 	return b.client
 }
 
+// *INTERNAL*
 // Internal methods, not safe to be consumed by third parties.
 func (b *Bucket) Internal() *bucketInternal {
 	return b.internal
 }
 
 func (b *Bucket) Manager(username, password string) *BucketManager {
+	userPass := userPassPair{username, password}
+	if username == "" || password == "" {
+		if b.cluster.auth != nil {
+			userPass = b.cluster.auth.bucketMgmt(b.name)
+		}
+	}
+
 	return &BucketManager{
 		bucket:   b,
-		username: username,
-		password: password,
+		username: userPass.Username,
+		password: userPass.Password,
 	}
 }

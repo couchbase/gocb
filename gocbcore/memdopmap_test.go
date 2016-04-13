@@ -23,10 +23,10 @@ func TestOpMap(t *testing.T) {
 
 	// Single opaque remove
 	rd.Add(testOp1)
-	if rd.FindAndMaybeRemove(testOp1.Opaque) != testOp1 {
+	if rd.FindAndMaybeRemove(testOp1.Opaque, false) != testOp1 {
 		t.Fatalf("The op should have been found")
 	}
-	if rd.FindAndMaybeRemove(testOp1.Opaque) != nil {
+	if rd.FindAndMaybeRemove(testOp1.Opaque, false) != nil {
 		t.Fatalf("The op should not have been there")
 	}
 
@@ -65,32 +65,32 @@ func TestOpMap(t *testing.T) {
 	// In order opaque remove
 	rd.Add(testOp1)
 	rd.Add(testOp2)
-	if rd.FindAndMaybeRemove(testOp1.Opaque) != testOp1 {
+	if rd.FindAndMaybeRemove(testOp1.Opaque, false) != testOp1 {
 		t.Fatalf("The op should have been found")
 	}
-	if rd.FindAndMaybeRemove(testOp2.Opaque) != testOp2 {
+	if rd.FindAndMaybeRemove(testOp2.Opaque, false) != testOp2 {
 		t.Fatalf("The op should have been found")
 	}
-	if rd.FindAndMaybeRemove(testOp1.Opaque) != nil {
+	if rd.FindAndMaybeRemove(testOp1.Opaque, false) != nil {
 		t.Fatalf("The op should not have been there")
 	}
-	if rd.FindAndMaybeRemove(testOp2.Opaque) != nil {
+	if rd.FindAndMaybeRemove(testOp2.Opaque, false) != nil {
 		t.Fatalf("The op should not have been there")
 	}
 
 	// Out of order opaque remove
 	rd.Add(testOp1)
 	rd.Add(testOp2)
-	if rd.FindAndMaybeRemove(testOp2.Opaque) != testOp2 {
+	if rd.FindAndMaybeRemove(testOp2.Opaque, false) != testOp2 {
 		t.Fatalf("The op should have been found")
 	}
-	if rd.FindAndMaybeRemove(testOp1.Opaque) != testOp1 {
+	if rd.FindAndMaybeRemove(testOp1.Opaque, false) != testOp1 {
 		t.Fatalf("The op should have been found")
 	}
-	if rd.FindAndMaybeRemove(testOp2.Opaque) != nil {
+	if rd.FindAndMaybeRemove(testOp2.Opaque, false) != nil {
 		t.Fatalf("The op should not have been there")
 	}
-	if rd.FindAndMaybeRemove(testOp1.Opaque) != nil {
+	if rd.FindAndMaybeRemove(testOp1.Opaque, false) != nil {
 		t.Fatalf("The op should not have been there")
 	}
 
