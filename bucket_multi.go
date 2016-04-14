@@ -1,9 +1,8 @@
 package gocb
 
 import (
-	"time"
-
 	"github.com/Vellocet/gocb/gocbcore"
+	"time"
 )
 
 type bulkOp struct {

@@ -1,11 +1,68 @@
 package gocb
 
 import (
+	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"regexp"
 	"strconv"
 )
+
+type connSpecScheme int
+
+const (
+	csPlainMcd  connSpecScheme = 11210
+	csPlainHttp connSpecScheme = 8091
+	csSslMcd    connSpecScheme = 11207
+	csSslHttp   connSpecScheme = 18091
+	csInvalid   connSpecScheme = 0
+)
+
+// Gets the implicit port for the scheme
+func (s connSpecScheme) DefaultPort() int {
+	return int(s)
+}
+
+func (s connSpecScheme) IsMCD() bool {
+	return s == csPlainMcd || s == csSslMcd
+}
+
+func (s connSpecScheme) IsHTTP() bool {
+	return s == csPlainHttp || s == csSslHttp
+}
+
+func (s connSpecScheme) IsSSL() bool {
+	return s == csSslMcd || s == csSslHttp
+}
+
+func (s connSpecScheme) String() string {
+	switch s {
+	case csPlainHttp:
+		return "http"
+	case csPlainMcd:
+		return "couchbase"
+	case csSslHttp:
+		return "https"
+	case csSslMcd:
+		return "couchbases"
+	default:
+		return ""
+	}
+}
+
+func (scheme *connSpecScheme) load(s string) {
+	switch s {
+	case "couchbase":
+		*scheme = csPlainMcd
+	case "couchbases":
+		*scheme = csSslMcd
+	case "http":
+		*scheme = csPlainHttp
+	case "https":
+		*scheme = csSslHttp
+	}
+}
 
 // A single address stored within a connection string
 type connSpecAddr struct {
@@ -13,26 +70,73 @@ type connSpecAddr struct {
 	Port uint16
 }
 
+func (a *connSpecAddr) HostPort() string {
+	return fmt.Sprintf("%s:%d", a.Host, a.Port)
+}
+
 // A parsed connection string
 type connSpec struct {
-	Scheme  string
-	Hosts   []connSpecAddr
-	Bucket  string
-	Options map[string]string
+	Scheme            connSpecScheme
+	MemcachedHosts    []*connSpecAddr
+	HttpHosts         []*connSpecAddr
+	Bucket            string
+	Options           url.Values
+	hasExplicitPort   bool
+	hasExplicitScheme bool
+}
+
+// Loads a raw host definition into the spec
+// Host is the raw hostname (without the port) and port is the port used. May be 0
+func (cs *connSpec) addRawHost(host string, port int) error {
+	// The port is "implicit", so we can derive the neighboring port
+	if port != 0 && port != csPlainHttp.DefaultPort() && !cs.hasExplicitScheme {
+		return errors.New("Ambiguous port without scheme")
+	}
+	if cs.hasExplicitScheme && cs.Scheme.IsMCD() && port == csPlainHttp.DefaultPort() {
+		return errors.New("couchbase://host:8091 not supported for couchbase:// scheme. Use couchbase://host")
+	}
+	if port == 0 || port == cs.Scheme.DefaultPort() || port == csPlainHttp.DefaultPort() {
+		tmpHtHost := &connSpecAddr{Host: host}
+		tmpMcHost := &connSpecAddr{Host: host}
+		if cs.Scheme.IsSSL() {
+			tmpHtHost.Port = uint16(csSslHttp.DefaultPort())
+			tmpMcHost.Port = uint16(csSslMcd.DefaultPort())
+		} else {
+			tmpHtHost.Port = uint16(csPlainHttp.DefaultPort())
+			tmpMcHost.Port = uint16(csPlainMcd.DefaultPort())
+		}
+
+		cs.HttpHosts = append(cs.HttpHosts, tmpHtHost)
+		cs.MemcachedHosts = append(cs.MemcachedHosts, tmpMcHost)
+
+	} else {
+		// Explicit non-standard port. Just add the port without anything funny
+		tmpHost := &connSpecAddr{Host: host, Port: uint16(port)}
+		if cs.Scheme.IsMCD() {
+			cs.MemcachedHosts = append(cs.MemcachedHosts, tmpHost)
+		} else {
+			cs.HttpHosts = append(cs.HttpHosts, tmpHost)
+		}
+	}
+
+	return nil
 }
 
 // Parses a connection string into a structure more easily consumed by the library.
-func parseConnSpec(connStr string) connSpec {
-	var out connSpec
-	out.Options = map[string]string{}
-
+func parseConnSpec(connStr string) (out connSpec, err error) {
 	partMatcher := regexp.MustCompile(`((.*):\/\/)?(([^\/?:]*)(:([^\/?:@]*))?@)?([^\/?]*)(\/([^\?]*))?(\?(.*))?`)
 	hostMatcher := regexp.MustCompile(`([^;\,\:]+)(:([0-9]*))?(;\,)?`)
-	kvMatcher := regexp.MustCompile(`([^=]*)=([^&?]*)[&?]?`)
 	parts := partMatcher.FindStringSubmatch(connStr)
 
 	if parts[2] != "" {
-		out.Scheme = parts[2]
+		(&out.Scheme).load(parts[2])
+		if out.Scheme == csInvalid {
+			err = errors.New(fmt.Sprintf("Unknown scheme '%s'", parts[2]))
+			return
+		}
+		out.hasExplicitScheme = true
+	} else {
+		out.Scheme = csPlainMcd
 	}
 
 	if parts[7] != "" {
@@ -41,75 +145,64 @@ func parseConnSpec(connStr string) connSpec {
 			port := 0
 			if hostInfo[3] != "" {
 				port, _ = strconv.Atoi(hostInfo[3])
+				out.hasExplicitPort = true
 			}
-
-			out.Hosts = append(out.Hosts, connSpecAddr{
-				Host: hostInfo[1],
-				Port: uint16(port),
-			})
+			err = out.addRawHost(hostInfo[1], port)
+			if err != nil {
+				return
+			}
 		}
+	}
+
+	if len(out.HttpHosts) == 0 && len(out.MemcachedHosts) == 0 {
+		out.addRawHost("127.0.0.1", 0)
 	}
 
 	if parts[9] != "" {
-		out.Bucket = parts[9]
+		out.Bucket, err = url.QueryUnescape(parts[9])
+		if err != nil {
+			return
+		}
 	}
 
 	if parts[11] != "" {
-		kvs := kvMatcher.FindAllStringSubmatch(parts[11], -1)
-		for _, kvInfo := range kvs {
-			out.Options[kvInfo[1]] = kvInfo[2]
+		out.Options, err = url.ParseQuery(parts[11])
+		if err != nil {
+			return
 		}
 	}
 
-	return out
+	return
 }
 
 func csResolveDnsSrv(spec *connSpec) bool {
-	if len(spec.Hosts) == 1 && spec.Hosts[0].Port == 0 && (spec.Scheme == "couchbase" || spec.Scheme == "couchbases") {
-		srvHostname := spec.Hosts[0].Host
-		_, addrs, err := net.LookupSRV(spec.Scheme, "tcp", srvHostname)
-		if err != nil {
-			return false
-		}
-
-		var hostList []connSpecAddr
-		for _, srvRecord := range addrs {
-			hostList = append(hostList, connSpecAddr{srvRecord.Target, srvRecord.Port})
-		}
-		spec.Hosts = hostList
-
-		return true
-	} else {
+	if len(spec.MemcachedHosts) > 1 || len(spec.HttpHosts) > 1 {
 		return false
 	}
-}
 
-// Guesses a list of memcached hosts based on a connection string specification structure.
-func csGetMemdHosts(spec connSpec) []connSpecAddr {
-	var out []connSpecAddr
-	for _, host := range spec.Hosts {
-		memdHost := connSpecAddr{
-			Host: host.Host,
-			Port: 0,
-		}
-
-		fmt.Printf("Host parse: %s:%d", host.Host, host.Port)
-
-		if host.Port == 0 {
-			if spec.Scheme != "couchbases" {
-				memdHost.Port = 11210
-			} else {
-				memdHost.Port = 11207
-			}
-		} else if host.Port == 8091 {
-			memdHost.Port = 11210
-		} else if host.Port == 18091 {
-			memdHost.Port = 11207
-		}
-
-		if memdHost.Port != 0 {
-			out = append(out, memdHost)
-		}
+	if spec.hasExplicitPort || spec.Scheme.IsHTTP() {
+		return false
 	}
-	return out
+
+	srvHostname := spec.HttpHosts[0].Host
+	_, addrs, err := net.LookupSRV(spec.Scheme.String(), "tcp", srvHostname)
+	if err != nil || len(addrs) == 0 {
+		return false
+	}
+
+	var hostList []*connSpecAddr
+	for _, srvRecord := range addrs {
+		hostList = append(hostList, &connSpecAddr{srvRecord.Target, srvRecord.Port})
+	}
+
+	spec.HttpHosts = nil
+	spec.MemcachedHosts = nil
+
+	if spec.Scheme.IsHTTP() {
+		spec.HttpHosts = hostList
+	} else {
+		spec.MemcachedHosts = hostList
+	}
+
+	return true
 }

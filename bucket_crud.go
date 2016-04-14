@@ -1,6 +1,8 @@
 package gocb
 
-import "github.com/Vellocet/gocb/gocbcore"
+import (
+	"github.com/Vellocet/gocb/gocbcore"
+)
 
 type MutationToken gocbcore.MutationToken
 
@@ -72,15 +74,48 @@ func (b *Bucket) Prepend(key, value string) (Cas, error) {
 	return cas, err
 }
 
-// Performs an atomic addition or subtraction for an integer document.
+// Performs an atomic addition or subtraction for an integer document.  Passing a
+//  non-negative `initial` value will cause the document to be created if it did
+//  not already exist.
 func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint64, Cas, error) {
 	val, cas, _, err := b.counter(key, delta, initial, expiry)
 	return val, cas, err
 }
 
-type ioGetCallback func([]byte, uint32, gocbcore.Cas, error)
-type ioCasCallback func(gocbcore.Cas, gocbcore.MutationToken, error)
-type ioCtrCallback func(uint64, gocbcore.Cas, gocbcore.MutationToken, error)
+type ServerStats map[string]map[string]string
+
+func (b *Bucket) Stats(key string) (statsOut ServerStats, errOut error) {
+	signal := make(chan bool, 1)
+	statsOut = make(ServerStats)
+
+	op, errOut := b.client.Stats(key, func(stats map[string]gocbcore.SingleServerStats) {
+		for curServer, curStats := range stats {
+			if curStats.Error != nil && errOut == nil {
+				errOut = curStats.Error
+			}
+			statsOut[curServer] = curStats.Stats
+		}
+		signal <- true
+	})
+
+	timeoutTmr := gocbcore.AcquireTimer(b.opTimeout)
+	select {
+	case <-signal:
+		gocbcore.ReleaseTimer(timeoutTmr, false)
+		return
+	case <-timeoutTmr.C:
+		gocbcore.ReleaseTimer(timeoutTmr, true)
+		if !op.Cancel() {
+			<-signal
+			return
+		}
+		return nil, ErrTimeout
+	}
+}
+
+type ioGetCallback gocbcore.GetCallback
+type ioCasCallback gocbcore.StoreCallback
+type ioCtrCallback gocbcore.CounterCallback
 
 type hlpGetHandler func(ioGetCallback) (pendingOp, error)
 
@@ -279,7 +314,7 @@ func (b *Bucket) prepend(key, value string) (Cas, MutationToken, error) {
 
 func (b *Bucket) counter(key string, delta, initial int64, expiry uint32) (uint64, Cas, MutationToken, error) {
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
-	if initial > 0 {
+	if initial >= 0 {
 		realInitial = uint64(initial)
 	}
 

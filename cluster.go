@@ -2,32 +2,63 @@ package gocb
 
 import (
 	"crypto/tls"
-	"fmt"
-	"net/http"
-	"time"
-
+	"errors"
 	"github.com/Vellocet/gocb/gocbcore"
+	"net/http"
+	"sync"
+	"time"
 )
 
 type Cluster struct {
 	spec                 connSpec
+	auth                 Authenticator
 	connectTimeout       time.Duration
 	serverConnectTimeout time.Duration
+	n1qlTimeout          time.Duration
+
+	clusterLock sync.RWMutex
+	queryCache  map[string]*n1qlCache
+	bucketList  []*Bucket
 }
 
 func Connect(connSpecStr string) (*Cluster, error) {
-	spec := parseConnSpec(connSpecStr)
-	if spec.Scheme == "" {
-		spec.Scheme = "http"
+	spec, err := parseConnSpec(connSpecStr)
+	if err != nil {
+		return nil, err
 	}
-	if spec.Scheme != "couchbase" && spec.Scheme != "couchbases" && spec.Scheme != "http" {
-		panic("Unsupported Scheme!")
+	if spec.Bucket != "" {
+		return nil, errors.New("Connection string passed to Connect() must not have any bucket specified!")
 	}
+
 	csResolveDnsSrv(&spec)
+
+	// Get bootstrap_on option to determine which, if any, of the bootstrap nodes should be cleared
+	switch spec.Options.Get("bootstrap_on") {
+	case "http":
+		spec.MemcachedHosts = nil
+		if len(spec.HttpHosts) == 0 {
+			return nil, errors.New("bootstrap_on=http but no HTTP hosts in connection string")
+		}
+	case "cccp":
+		spec.HttpHosts = nil
+		if len(spec.MemcachedHosts) == 0 {
+			return nil, errors.New("bootstrap_on=cccp but no CCCP/Memcached hosts in connection string")
+		}
+	case "both":
+	case "":
+		// Do nothing
+		break
+	default:
+		return nil, errors.New("bootstrap_on={http,cccp,both}")
+	}
+
 	cluster := &Cluster{
 		spec:                 spec,
 		connectTimeout:       60000 * time.Millisecond,
 		serverConnectTimeout: 7000 * time.Millisecond,
+		n1qlTimeout:          75 * time.Second,
+
+		queryCache: make(map[string]*n1qlCache),
 	}
 	return cluster, nil
 }
@@ -48,31 +79,16 @@ func (c *Cluster) SetServerConnectTimeout(timeout time.Duration) {
 func specToHosts(spec connSpec) ([]string, []string, bool) {
 	var memdHosts []string
 	var httpHosts []string
-	isHttpHosts := spec.Scheme == "http"
-	isSslHosts := spec.Scheme == "couchbases"
-	for _, specHost := range spec.Hosts {
-		cccpPort := specHost.Port
-		httpPort := specHost.Port
-		if isHttpHosts || cccpPort == 0 {
-			if !isSslHosts {
-				cccpPort = 11210
-			} else {
-				cccpPort = 11207
-			}
-		}
-		if !isHttpHosts || httpPort == 0 {
-			if !isSslHosts {
-				httpPort = 8091
-			} else {
-				httpPort = 18091
-			}
-		}
 
-		memdHosts = append(memdHosts, fmt.Sprintf("%s:%d", specHost.Host, cccpPort))
-		httpHosts = append(httpHosts, fmt.Sprintf("%s:%d", specHost.Host, httpPort))
+	for _, specHost := range spec.HttpHosts {
+		httpHosts = append(httpHosts, specHost.HostPort())
 	}
 
-	return memdHosts, httpHosts, isSslHosts
+	for _, specHost := range spec.MemcachedHosts {
+		memdHosts = append(memdHosts, specHost.HostPort())
+	}
+
+	return memdHosts, httpHosts, spec.Scheme.IsSSL()
 }
 
 func (c *Cluster) makeAgentConfig(bucket, password string) *gocbcore.AgentConfig {
@@ -114,12 +130,50 @@ func (c *Cluster) makeAgentConfig(bucket, password string) *gocbcore.AgentConfig
 	}
 }
 
+func (c *Cluster) Authenticate(auth Authenticator) error {
+	c.auth = auth
+	return nil
+}
+
 func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
+	if password == "" {
+		if c.auth != nil {
+			password = c.auth.bucketMemd(bucket)
+		}
+	}
+
 	agentConfig := c.makeAgentConfig(bucket, password)
-	return createBucket(agentConfig)
+	b, err := createBucket(c, agentConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	c.clusterLock.Lock()
+	c.bucketList = append(c.bucketList, b)
+	c.clusterLock.Unlock()
+
+	return b, nil
+}
+
+func (c *Cluster) closeBucket(bucket *Bucket) {
+	c.clusterLock.Lock()
+	for i, e := range c.bucketList {
+		if e == bucket {
+			c.bucketList = append(c.bucketList[0:i], c.bucketList[i+1:]...)
+			break
+		}
+	}
+	c.clusterLock.Unlock()
 }
 
 func (c *Cluster) Manager(username, password string) *ClusterManager {
+	userPass := userPassPair{username, password}
+	if username == "" || password == "" {
+		if c.auth != nil {
+			userPass = c.auth.clusterMgmt()
+		}
+	}
+
 	_, httpHosts, isSslHosts := specToHosts(c.spec)
 	var mgmtHosts []string
 
@@ -140,14 +194,27 @@ func (c *Cluster) Manager(username, password string) *ClusterManager {
 
 	return &ClusterManager{
 		hosts:    mgmtHosts,
-		username: username,
-		password: password,
+		username: userPass.Username,
+		password: userPass.Password,
 		httpCli: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: tlsConfig,
 			},
 		},
 	}
+}
+
+func (c *Cluster) N1qlTimeout() time.Duration {
+	return c.n1qlTimeout
+}
+func (c *Cluster) SetN1qlTimeout(timeout time.Duration) {
+	c.n1qlTimeout = timeout
+}
+
+func (c *Cluster) InvalidateQueryCache() {
+	c.clusterLock.Lock()
+	c.queryCache = make(map[string]*n1qlCache)
+	c.clusterLock.Unlock()
 }
 
 type StreamingBucket struct {
@@ -167,4 +234,15 @@ func (c *Cluster) OpenStreamingBucket(streamName, bucket, password string) (*Str
 	return &StreamingBucket{
 		client: cli,
 	}, nil
+}
+
+func (c *Cluster) randomBucket() (*Bucket, error) {
+	c.clusterLock.RLock()
+	if len(c.bucketList) == 0 {
+		c.clusterLock.RUnlock()
+		return nil, ErrNoOpenBuckets
+	}
+	bucket := c.bucketList[0]
+	c.clusterLock.RUnlock()
+	return bucket, nil
 }

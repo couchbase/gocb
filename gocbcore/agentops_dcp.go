@@ -4,13 +4,23 @@ import (
 	"encoding/binary"
 )
 
+// Represents the state of a particular cluster snapshot.
 type SnapshotState uint32
 
+// Returns whether this snapshot is available in memory.
 func (s SnapshotState) HasInMemory() bool {
 	return uint32(s)&1 != 0
 }
+
+// Returns whether this snapshot is available on disk.
 func (s SnapshotState) HasOnDisk() bool {
 	return uint32(s)&2 != 0
+}
+
+// Represents a single entry in the server failover log.
+type FailoverEntry struct {
+	VbUuid VbUuid
+	SeqNo  SeqNo
 }
 
 type StreamObserver interface {
@@ -21,16 +31,13 @@ type StreamObserver interface {
 	End(vbId uint16, err error)
 }
 
-type FailoverEntry struct {
-	VbUuid VbUuid
-	SeqNo  SeqNo
-}
-
 type OpenStreamCallback func([]FailoverEntry, error)
 type CloseStreamCallback func(error)
 type GetFailoverLogCallback func([]FailoverEntry, error)
 type GetLastCheckpointCallback func(SeqNo, error)
 
+// **INTERNAL**
+// Opens a DCP stream for a particular VBucket.
 func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo, snapStartSeqNo, snapEndSeqNo SeqNo, evtHandler StreamObserver, cb OpenStreamCallback) (PendingOp, error) {
 	var req *memdQRequest
 	handler := func(resp *memdResponse, err error) {
@@ -117,6 +124,8 @@ func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo, sna
 	return c.dispatchOp(req)
 }
 
+// **INTERNAL**
+// Shuts down an open stream for the specified VBucket.
 func (c *Agent) CloseStream(vbId uint16, cb CloseStreamCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		cb(err)
@@ -140,6 +149,9 @@ func (c *Agent) CloseStream(vbId uint16, cb CloseStreamCallback) (PendingOp, err
 	return c.dispatchOp(req)
 }
 
+// **INTERNAL**
+// Retrieves the failover log for a particular VBucket.  This is used
+// to resume an interrupted stream after a node failover has occured.
 func (c *Agent) GetFailoverLog(vbId uint16, cb GetFailoverLogCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {
@@ -176,6 +188,9 @@ func (c *Agent) GetFailoverLog(vbId uint16, cb GetFailoverLogCallback) (PendingO
 	return c.dispatchOp(req)
 }
 
+// **INTERNAL**
+// Returns the last checkpoint for a particular VBucket.  This is useful
+// for starting a DCP stream from wherever the server currently is.
 func (c *Agent) GetLastCheckpoint(vbId uint16, cb GetLastCheckpointCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, err error) {
 		if err != nil {

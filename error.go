@@ -2,7 +2,6 @@ package gocb
 
 import (
 	"errors"
-
 	"github.com/Vellocet/gocb/gocbcore"
 )
 
@@ -18,6 +17,7 @@ var (
 	ErrNotEnoughReplicas = errors.New("Not enough replicas to match durability requirements.")
 	ErrDurabilityTimeout = errors.New("Failed to meet durability requirements in time.")
 	ErrNoResults         = errors.New("No results returned.")
+	ErrNoOpenBuckets     = errors.New("You must open a bucket before you can perform cluster level operations.")
 
 	ErrDispatchFail   = gocbcore.ErrDispatchFail
 	ErrBadHosts       = gocbcore.ErrBadHosts
