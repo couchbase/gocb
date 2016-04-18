@@ -47,16 +47,11 @@ func (c *Agent) tryHello(pipeline *memdPipeline, deadline time.Time) error {
 		featuresBytes = appendFeatureCode(featuresBytes, FeatureSeqNo)
 	}
 
-	if featuresBytes == nil {
-		// If we have no features, we don't need to HELLO at all
-		return nil
-	}
-
 	_, err := pipeline.ExecuteRequest(&memdQRequest{
 		memdRequest: memdRequest{
 			Magic:  ReqMagic,
 			Opcode: CmdHello,
-			Key:    []byte("Go SDK"),
+			Key:    []byte("gocb"),
 			Value:  featuresBytes,
 		},
 	}, deadline)
