@@ -51,7 +51,7 @@ func (c *Agent) tryHello(pipeline *memdPipeline, deadline time.Time) error {
 		memdRequest: memdRequest{
 			Magic:  ReqMagic,
 			Opcode: CmdHello,
-			Key:    []byte("gocb"),
+			Key:    []byte("gocb/" + GoCbVersionStr),
 			Value:  featuresBytes,
 		},
 	}, deadline)
