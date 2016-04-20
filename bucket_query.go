@@ -111,7 +111,10 @@ func (b *Bucket) executeViewQuery(viewType, ddoc, viewName string, options url.V
 
 	viewResp := viewResponse{}
 	jsonDec := json.NewDecoder(resp.Body)
-	jsonDec.Decode(&viewResp)
+	err = jsonDec.Decode(&viewResp)
+	if err != nil {
+		return nil, err
+	}
 
 	resp.Body.Close()
 
