@@ -107,13 +107,9 @@ func (r *n1qlResults) One(valuePtr interface{}) error {
 func (c *Cluster) executeN1qlQuery(n1qlEp string, opts map[string]interface{}, creds []userPassPair, timeout time.Duration, client *http.Client) (ViewResults, error) {
 	reqUri := fmt.Sprintf("%s/query/service", n1qlEp)
 
-	reqJson, err := json.Marshal(opts)
-	if err != nil {
-		return nil, err
-	}
-
 	tmostr, castok := opts["timeout"].(string)
 	if castok {
+		var err error
 		timeout, err = time.ParseDuration(tmostr)
 		if err != nil {
 			return nil, err
@@ -124,6 +120,11 @@ func (c *Cluster) executeN1qlQuery(n1qlEp string, opts map[string]interface{}, c
 	}
 
 	opts["creds"] = creds
+
+	reqJson, err := json.Marshal(opts)
+	if err != nil {
+		return nil, err
+	}
 
 	req, err := http.NewRequest("POST", reqUri, bytes.NewBuffer(reqJson))
 	if err != nil {
