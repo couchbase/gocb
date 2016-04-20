@@ -145,7 +145,10 @@ func (c *Cluster) executeN1qlQuery(n1qlEp string, opts map[string]interface{}, c
 
 	n1qlResp := n1qlResponse{}
 	jsonDec := json.NewDecoder(resp.Body)
-	jsonDec.Decode(&n1qlResp)
+	err = jsonDec.Decode(&n1qlResp)
+	if err != nil {
+		return nil, err
+	}
 
 	resp.Body.Close()
 
