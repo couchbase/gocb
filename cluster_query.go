@@ -143,11 +143,11 @@ func (c *Cluster) executeN1qlQuery(n1qlEp string, opts map[string]interface{}, c
 
 	resp.Body.Close()
 
-	if resp.StatusCode != 200 {
-		if len(n1qlResp.Errors) > 0 {
-			return nil, (*n1qlMultiError)(&n1qlResp.Errors)
-		}
+	if len(n1qlResp.Errors) > 0 {
+		return nil, (*n1qlMultiError)(&n1qlResp.Errors)
+	}
 
+	if resp.StatusCode != 200 {
 		return nil, &viewError{
 			Message: "HTTP Error",
 			Reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
