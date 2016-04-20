@@ -115,6 +115,9 @@ func (c *Cluster) executeN1qlQuery(n1qlEp string, opts map[string]interface{}, c
 	tmostr, castok := opts["timeout"].(string)
 	if castok {
 		timeout, err = time.ParseDuration(tmostr)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		// Set the timeout string to its default variant
 		opts["timeout"] = timeout.String()
