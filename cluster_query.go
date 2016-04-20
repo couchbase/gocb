@@ -119,7 +119,9 @@ func (c *Cluster) executeN1qlQuery(n1qlEp string, opts map[string]interface{}, c
 		opts["timeout"] = timeout.String()
 	}
 
-	opts["creds"] = creds
+	if len(creds) > 1 {
+		opts["creds"] = creds
+	}
 
 	reqJson, err := json.Marshal(opts)
 	if err != nil {
@@ -131,6 +133,10 @@ func (c *Cluster) executeN1qlQuery(n1qlEp string, opts map[string]interface{}, c
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+
+	if len(creds) == 1 {
+		req.SetBasicAuth(creds[0].Username, creds[0].Password)
+	}
 
 	resp, err := doHttpWithTimeout(client, req, timeout)
 	if err != nil {
