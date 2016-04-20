@@ -104,7 +104,7 @@ func (r *n1qlResults) One(valuePtr interface{}) error {
 // This function assumes that `opts` already contains all the required
 // settings. This function will inject any additional connection or request-level
 // settings into the `opts` map (currently this is only the timeout).
-func (c *Cluster) executeN1qlQuery(n1qlEp string, opts map[string]interface{}, creds []userPassPair, timeout time.Duration, client *http.Client) (ViewResults, error) {
+func (c *Cluster) executeN1qlQuery(n1qlEp string, opts map[string]interface{}, creds []userPassPair, timeout time.Duration, client *http.Client) (QueryResults, error) {
 	reqUri := fmt.Sprintf("%s/query/service", n1qlEp)
 
 	tmostr, castok := opts["timeout"].(string)
@@ -199,7 +199,7 @@ type n1qlPrepData struct {
 }
 
 // Performs a spatial query and returns a list of rows or an error.
-func (c *Cluster) doN1qlQuery(b *Bucket, q *N1qlQuery, params interface{}) (ViewResults, error) {
+func (c *Cluster) doN1qlQuery(b *Bucket, q *N1qlQuery, params interface{}) (QueryResults, error) {
 	var err error
 	var n1qlEp string
 	var timeout time.Duration
@@ -323,6 +323,6 @@ func (c *Cluster) doN1qlQuery(b *Bucket, q *N1qlQuery, params interface{}) (View
 }
 
 // Performs a spatial query and returns a list of rows or an error.
-func (c *Cluster) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) (ViewResults, error) {
+func (c *Cluster) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) (QueryResults, error) {
 	return c.doN1qlQuery(nil, q, params)
 }
