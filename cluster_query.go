@@ -322,7 +322,8 @@ func (c *Cluster) doN1qlQuery(b *Bucket, q *N1qlQuery, params interface{}) (Quer
 	return c.executeN1qlQuery(n1qlEp, execOpts, creds, timeout, client)
 }
 
-// Performs a spatial query and returns a list of rows or an error.
+// *VOLATILE*
+// Performs a n1ql query and returns a list of rows or an error.
 func (c *Cluster) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) (QueryResults, error) {
 	return c.doN1qlQuery(nil, q, params)
 }
