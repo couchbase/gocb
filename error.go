@@ -19,6 +19,11 @@ var (
 	ErrNoResults         = errors.New("No results returned.")
 	ErrNoOpenBuckets     = errors.New("You must open a bucket before you can perform cluster level operations.")
 
+	ErrIndexInvalidName   = errors.New("An invalid index name was specified.")
+	ErrIndexNoFields      = errors.New("You must specify at least one field to index.")
+	ErrIndexNotFound      = errors.New("The index specified does not exist.")
+	ErrIndexAlreadyExists = errors.New("The index specified already exists.")
+
 	ErrDispatchFail   = gocbcore.ErrDispatchFail
 	ErrBadHosts       = gocbcore.ErrBadHosts
 	ErrProtocol       = gocbcore.ErrProtocol

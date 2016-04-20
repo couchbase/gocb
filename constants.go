@@ -18,3 +18,10 @@ const (
 	// Common Flag Compressions
 	cfCmprNone = 0 << 29
 )
+
+type IndexType string
+
+const (
+	IndexTypeN1ql = IndexType("gsi")
+	IndexTypeView = IndexType("views")
+)
