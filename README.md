@@ -24,7 +24,7 @@ Couchbase Documentation is hosted at [http://developer.couchbase.com/documentati
 Issues are tracked on Couchbase's public [issues.couchbase.com](http://www.couchbase.com/issues/browse/GOCBC).
 Contact [the site admins](https://issues.couchbase.com/secure/ContactAdministrators!default.jspa)
 regarding login or other problems at issues.couchbase.com (officially) or ask
-around in [couchbase/discuss on gitter](https://gitter.im/couchbase/discuss)
+around in [couchbase/discuss on gitter.im](https://gitter.im/couchbase/discuss)
 (unofficially).
 
 
