@@ -221,7 +221,7 @@ func (c *Agent) GetVbucketSeqnos(serverIdx int, cb GetVBucketSeqnosCallback) (Pe
 			Vbucket:  0,
 		},
 		Callback:   handler,
-		ReplicaIdx: serverIdx,
+		ReplicaIdx: -serverIdx,
 		Persistent: false,
 	}
 
