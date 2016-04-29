@@ -32,6 +32,8 @@ var (
 	ErrInvalidVBucket = gocbcore.ErrInvalidVBucket
 	ErrInvalidReplica = gocbcore.ErrInvalidReplica
 
+	ErrInvalidCert = gocbcore.ErrInvalidCert
+
 	ErrShutdown = gocbcore.ErrShutdown
 	ErrOverload = gocbcore.ErrOverload
 	ErrNetwork  = gocbcore.ErrNetwork

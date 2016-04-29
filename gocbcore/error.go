@@ -246,6 +246,8 @@ var (
 	ErrInvalidVBucket = errors.New("The specific vbucket index is invalid.")
 	ErrInvalidReplica = errors.New("The specific server index is invalid.")
 
+	ErrInvalidCert = errors.New("The certificate is invalid.")
+
 	ErrShutdown = &shutdownError{}
 	ErrOverload = &overloadError{}
 	ErrNetwork  = &networkError{}

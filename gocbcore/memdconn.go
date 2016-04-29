@@ -70,6 +70,7 @@ func DialMemdConn(address string, tlsConfig *tls.Config, deadline time.Time) (*m
 		conn = tcpConn
 	} else {
 		tlsConn := tls.Client(tcpConn, tlsConfig)
+		err = tlsConn.Handshake()
 		if err != nil {
 			return nil, err
 		}

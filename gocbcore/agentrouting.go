@@ -1,7 +1,9 @@
 package gocbcore
 
 import (
+	"crypto/tls"
 	"encoding/binary"
+	"net"
 	"time"
 )
 
@@ -100,7 +102,20 @@ func (agent *Agent) connectServer(server *memdPipeline) {
 
 func (c *Agent) connectPipeline(pipeline *memdPipeline, deadline time.Time) error {
 	logDebugf("Attempting to connect pipeline to %s", pipeline.address)
-	memdConn, err := DialMemdConn(pipeline.address, c.tlsConfig, deadline)
+
+	// Copy the tls configuration since we need to provide the hostname for each
+	// server that we connect to so that the certificate can be validated properly.
+	var tlsConfig *tls.Config = nil
+	if c.tlsConfig != nil {
+		host, _, _ := net.SplitHostPort(pipeline.address)
+		tlsConfig = &tls.Config{
+			InsecureSkipVerify: c.tlsConfig.InsecureSkipVerify,
+			RootCAs:            c.tlsConfig.RootCAs,
+			ServerName:         host,
+		}
+	}
+
+	memdConn, err := DialMemdConn(pipeline.address, tlsConfig, deadline)
 	if err != nil {
 		logDebugf("Failed to connect. %v", err)
 		pipeline.lock.Lock()

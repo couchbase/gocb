@@ -2,8 +2,10 @@ package gocb
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"github.com/couchbase/gocb/gocbcore"
+	"io/ioutil"
 	"net/http"
 	"sync"
 	"time"
@@ -15,6 +17,7 @@ type Cluster struct {
 	connectTimeout       time.Duration
 	serverConnectTimeout time.Duration
 	n1qlTimeout          time.Duration
+	tlsConfig            *tls.Config
 
 	clusterLock sync.RWMutex
 	queryCache  map[string]*n1qlCache
@@ -91,7 +94,7 @@ func specToHosts(spec connSpec) ([]string, []string, bool) {
 	return memdHosts, httpHosts, spec.Scheme.IsSSL()
 }
 
-func (c *Cluster) makeAgentConfig(bucket, password string) *gocbcore.AgentConfig {
+func (c *Cluster) makeAgentConfig(bucket, password string) (*gocbcore.AgentConfig, error) {
 	authFn := func(srv gocbcore.AuthClient, deadline time.Time) error {
 		// Build PLAIN auth data
 		userBuf := []byte(bucket)
@@ -112,8 +115,24 @@ func (c *Cluster) makeAgentConfig(bucket, password string) *gocbcore.AgentConfig
 
 	var tlsConfig *tls.Config
 	if isSslHosts {
-		tlsConfig = &tls.Config{
-			InsecureSkipVerify: true,
+
+		certpath := c.spec.Options.Get("certpath")
+
+		tlsConfig = &tls.Config{}
+		if certpath == "" {
+			tlsConfig.InsecureSkipVerify = true
+		} else {
+			cacert, err := ioutil.ReadFile(certpath)
+			if err != nil {
+				return nil, err
+			}
+
+			roots := x509.NewCertPool()
+			ok := roots.AppendCertsFromPEM(cacert)
+			if !ok {
+				return nil, ErrInvalidCert
+			}
+			tlsConfig.RootCAs = roots
 		}
 	}
 
@@ -127,7 +146,7 @@ func (c *Cluster) makeAgentConfig(bucket, password string) *gocbcore.AgentConfig
 		UseMutationTokens:    false,
 		ConnectTimeout:       c.connectTimeout,
 		ServerConnectTimeout: c.serverConnectTimeout,
-	}
+	}, nil
 }
 
 func (c *Cluster) Authenticate(auth Authenticator) error {
@@ -142,7 +161,11 @@ func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 		}
 	}
 
-	agentConfig := c.makeAgentConfig(bucket, password)
+	agentConfig, err := c.makeAgentConfig(bucket, password)
+	if err != nil {
+		return nil, err
+	}
+
 	b, err := createBucket(c, agentConfig)
 	if err != nil {
 		return nil, err
@@ -187,8 +210,11 @@ func (c *Cluster) Manager(username, password string) *ClusterManager {
 
 	var tlsConfig *tls.Config
 	if isSslHosts {
-		tlsConfig = &tls.Config{
-			InsecureSkipVerify: true,
+		tlsConfig = c.tlsConfig
+		if tlsConfig == nil {
+			tlsConfig = &tls.Config{
+				InsecureSkipVerify: true,
+			}
 		}
 	}
 
@@ -226,7 +252,11 @@ func (b *StreamingBucket) IoRouter() *gocbcore.Agent {
 }
 
 func (c *Cluster) OpenStreamingBucket(streamName, bucket, password string) (*StreamingBucket, error) {
-	cli, err := gocbcore.CreateDcpAgent(c.makeAgentConfig(bucket, password), streamName)
+	agentConfig, err := c.makeAgentConfig(bucket, password)
+	if err != nil {
+		return nil, err
+	}
+	cli, err := gocbcore.CreateDcpAgent(agentConfig, streamName)
 	if err != nil {
 		return nil, err
 	}
