@@ -41,14 +41,13 @@ type GetVBucketSeqnosCallback func(uint16, SeqNo, error)
 func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo, snapStartSeqNo, snapEndSeqNo SeqNo, evtHandler StreamObserver, cb OpenStreamCallback) (PendingOp, error) {
 	var req *memdQRequest
 	handler := func(resp *memdResponse, err error) {
-		if err != nil {
-			// All client errors are handled by the StreamObserver
-			cb(nil, err)
-			return
-		}
-
 		if resp.Magic == ResMagic {
 			// This is the response to the open stream request.
+			if err != nil {
+				// All client errors are handled by the StreamObserver
+				cb(nil, err)
+				return
+			}
 
 			numEntries := len(resp.Value) / 16
 			entries := make([]FailoverEntry, numEntries)
@@ -60,6 +59,11 @@ func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo, sna
 			}
 
 			cb(entries, nil)
+			return
+		}
+
+		if err != nil {
+			evtHandler.End(vbId, err)
 			return
 		}
 
