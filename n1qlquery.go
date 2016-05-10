@@ -2,7 +2,6 @@ package gocb
 
 import (
 	"time"
-	"strings"
 )
 
 type ConsistencyMode int
