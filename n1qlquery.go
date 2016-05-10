@@ -1,6 +1,9 @@
 package gocb
 
-import "time"
+import (
+	"time"
+	"strings"
+)
 
 type ConsistencyMode int
 
@@ -16,6 +19,9 @@ type N1qlQuery struct {
 }
 
 func (nq *N1qlQuery) Consistency(stale ConsistencyMode) *N1qlQuery {
+	if _, ok := nq.options["scan_vectors"]; ok {
+		panic("Consistent and ConsistentWith must be used exclusively")
+	}
 	if stale == NotBounded {
 		nq.options["scan_consistency"] = "not_bounded"
 	} else if stale == RequestPlus {
@@ -25,6 +31,15 @@ func (nq *N1qlQuery) Consistency(stale ConsistencyMode) *N1qlQuery {
 	} else {
 		panic("Unexpected consistency option")
 	}
+	return nq
+}
+
+func (nq *N1qlQuery) ConsistentWith(state *MutationState) *N1qlQuery {
+	if _, ok := nq.options["scan_consistency"]; ok {
+		panic("Consistent and ConsistentWith must be used exclusively")
+	}
+	nq.options["scan_consistency"] = "at_plus"
+	nq.options["scan_vectors"] = state
 	return nq
 }
 

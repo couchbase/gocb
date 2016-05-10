@@ -79,6 +79,7 @@ func (c *Agent) storeIn(opcode CommandCode, key []byte, path string, value []byt
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = c.KeyToVbucket(key)
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
@@ -181,6 +182,7 @@ func (c *Agent) CounterIn(key []byte, path string, value []byte, cas Cas, expiry
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = c.KeyToVbucket(key)
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
@@ -232,6 +234,7 @@ func (c *Agent) RemoveIn(key []byte, path string, cas Cas, expiry uint32, cb Rem
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = c.KeyToVbucket(key)
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
@@ -395,6 +398,7 @@ func (c *Agent) SubDocMutate(key []byte, ops []SubDocOp, cas Cas, expiry uint32,
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = c.KeyToVbucket(key)
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}

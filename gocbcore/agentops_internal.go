@@ -15,6 +15,7 @@ func (c *Agent) SetMeta(key, value, extra []byte, flags, expiry uint32, cas, rev
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = c.KeyToVbucket(key)
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
@@ -55,6 +56,7 @@ func (c *Agent) DeleteMeta(key, extra []byte, flags, expiry uint32, cas, revseqn
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = c.KeyToVbucket(key)
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}

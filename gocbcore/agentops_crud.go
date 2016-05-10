@@ -169,6 +169,7 @@ func (c *Agent) Touch(key []byte, cas Cas, expiry uint32, cb TouchCallback) (Pen
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = c.KeyToVbucket(key)
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
@@ -204,6 +205,7 @@ func (c *Agent) Unlock(key []byte, cas Cas, cb UnlockCallback) (PendingOp, error
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = c.KeyToVbucket(key)
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
@@ -236,6 +238,7 @@ func (c *Agent) Remove(key []byte, cas Cas, cb RemoveCallback) (PendingOp, error
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = c.KeyToVbucket(key)
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
@@ -267,6 +270,7 @@ func (c *Agent) store(opcode CommandCode, key, value []byte, flags uint32, cas C
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = c.KeyToVbucket(key)
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
@@ -317,6 +321,7 @@ func (c *Agent) adjoin(opcode CommandCode, key, value []byte, cb StoreCallback) 
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = c.KeyToVbucket(key)
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
@@ -365,6 +370,7 @@ func (c *Agent) counter(opcode CommandCode, key []byte, delta, initial uint64, e
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = c.KeyToVbucket(key)
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}

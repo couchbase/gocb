@@ -4,8 +4,6 @@ import (
 	"github.com/couchbase/gocb/gocbcore"
 )
 
-type MutationToken gocbcore.MutationToken
-
 // Retrieves a document from the bucket
 func (b *Bucket) Get(key string, valuePtr interface{}) (Cas, error) {
 	return b.get(key, valuePtr)
@@ -158,7 +156,7 @@ func (b *Bucket) hlpCasExec(execFn hlpCasHandler) (casOut Cas, mtOut MutationTok
 		errOut = err
 		if errOut == nil {
 			casOut = Cas(cas)
-			mtOut = MutationToken(mt)
+			mtOut = MutationToken{mt, b}
 		}
 		signal <- true
 	})
@@ -190,7 +188,7 @@ func (b *Bucket) hlpCtrExec(execFn hlpCtrHandler) (valOut uint64, casOut Cas, mt
 		if errOut == nil {
 			valOut = value
 			casOut = Cas(cas)
-			mtOut = MutationToken(mt)
+			mtOut =  MutationToken{mt, b}
 		}
 		signal <- true
 	})
