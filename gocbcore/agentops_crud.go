@@ -7,7 +7,7 @@ import (
 
 // Retrieves a document.
 func (c *Agent) Get(key []byte, cb GetCallback) (PendingOp, error) {
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, req *memdRequest, err error) {
 		if err != nil {
 			cb(nil, 0, 0, err)
 			return
@@ -32,7 +32,7 @@ func (c *Agent) Get(key []byte, cb GetCallback) (PendingOp, error) {
 
 // Retrieves a document and updates its expiry.
 func (c *Agent) GetAndTouch(key []byte, expiry uint32, cb GetCallback) (PendingOp, error) {
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, req *memdRequest, err error) {
 		if err != nil {
 			cb(nil, 0, 0, err)
 			return
@@ -61,7 +61,7 @@ func (c *Agent) GetAndTouch(key []byte, expiry uint32, cb GetCallback) (PendingO
 
 // Retrieves a document and locks it.
 func (c *Agent) GetAndLock(key []byte, lockTime uint32, cb GetCallback) (PendingOp, error) {
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, req *memdRequest, err error) {
 		if err != nil {
 			cb(nil, 0, 0, err)
 			return
@@ -93,7 +93,7 @@ func (c *Agent) getOneReplica(key []byte, replicaIdx int, cb GetCallback) (Pendi
 		panic("Replica number must be greater than 0")
 	}
 
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, req *memdRequest, err error) {
 		if err != nil {
 			cb(nil, 0, 0, err)
 			return
@@ -161,7 +161,7 @@ func (c *Agent) GetReplica(key []byte, replicaIdx int, cb GetCallback) (PendingO
 
 // Touches a document, updating its expiry.
 func (c *Agent) Touch(key []byte, cas Cas, expiry uint32, cb TouchCallback) (PendingOp, error) {
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, req *memdRequest, err error) {
 		if err != nil {
 			cb(0, MutationToken{}, err)
 			return
@@ -169,6 +169,7 @@ func (c *Agent) Touch(key []byte, cas Cas, expiry uint32, cb TouchCallback) (Pen
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = c.KeyToVbucket(key)
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
@@ -196,7 +197,7 @@ func (c *Agent) Touch(key []byte, cas Cas, expiry uint32, cb TouchCallback) (Pen
 
 // Unlocks a locked document.
 func (c *Agent) Unlock(key []byte, cas Cas, cb UnlockCallback) (PendingOp, error) {
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, req *memdRequest, err error) {
 		if err != nil {
 			cb(0, MutationToken{}, err)
 			return
@@ -204,6 +205,7 @@ func (c *Agent) Unlock(key []byte, cas Cas, cb UnlockCallback) (PendingOp, error
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = req.Vbucket
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
@@ -228,7 +230,7 @@ func (c *Agent) Unlock(key []byte, cas Cas, cb UnlockCallback) (PendingOp, error
 
 // Removes a document.
 func (c *Agent) Remove(key []byte, cas Cas, cb RemoveCallback) (PendingOp, error) {
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, req *memdRequest, err error) {
 		if err != nil {
 			cb(0, MutationToken{}, err)
 			return
@@ -236,6 +238,7 @@ func (c *Agent) Remove(key []byte, cas Cas, cb RemoveCallback) (PendingOp, error
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = req.Vbucket
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
@@ -259,7 +262,7 @@ func (c *Agent) Remove(key []byte, cas Cas, cb RemoveCallback) (PendingOp, error
 }
 
 func (c *Agent) store(opcode CommandCode, key, value []byte, flags uint32, cas Cas, expiry uint32, cb StoreCallback) (PendingOp, error) {
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, req *memdRequest, err error) {
 		if err != nil {
 			cb(0, MutationToken{}, err)
 			return
@@ -267,6 +270,7 @@ func (c *Agent) store(opcode CommandCode, key, value []byte, flags uint32, cas C
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = req.Vbucket
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
@@ -309,7 +313,7 @@ func (c *Agent) Replace(key, value []byte, flags uint32, cas Cas, expiry uint32,
 
 // Performs an adjoin operation.
 func (c *Agent) adjoin(opcode CommandCode, key, value []byte, cb StoreCallback) (PendingOp, error) {
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, req *memdRequest, err error) {
 		if err != nil {
 			cb(0, MutationToken{}, err)
 			return
@@ -317,6 +321,7 @@ func (c *Agent) adjoin(opcode CommandCode, key, value []byte, cb StoreCallback) 
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = req.Vbucket
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
@@ -351,7 +356,7 @@ func (c *Agent) Prepend(key, value []byte, cb StoreCallback) (PendingOp, error) 
 
 // Performs a counter operation.
 func (c *Agent) counter(opcode CommandCode, key []byte, delta, initial uint64, expiry uint32, cb CounterCallback) (PendingOp, error) {
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, req *memdRequest, err error) {
 		if err != nil {
 			cb(0, 0, MutationToken{}, err)
 			return
@@ -365,6 +370,7 @@ func (c *Agent) counter(opcode CommandCode, key []byte, delta, initial uint64, e
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = req.Vbucket
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
@@ -415,7 +421,7 @@ func (c *Agent) Decrement(key []byte, delta, initial uint64, expiry uint32, cb C
 // *VOLATILE*
 // Returns the key and value of a random document stored within Couchbase Server.
 func (c *Agent) GetRandom(cb GetRandomCallback) (PendingOp, error) {
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, _ *memdRequest, err error) {
 		if err != nil {
 			cb(nil, nil, 0, 0, err)
 			return
@@ -461,7 +467,7 @@ func (c *Agent) Stats(key string, callback ServerStatsCallback) (PendingOp, erro
 		var req *memdQRequest
 		serverName := server.address
 
-		handler := func(resp *memdResponse, err error) {
+		handler := func(resp *memdResponse, _ *memdRequest, err error) {
 			// No stat key!
 			curStats, ok := stats[serverName]
 

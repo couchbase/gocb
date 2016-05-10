@@ -291,12 +291,12 @@ func (agent *Agent) Close() {
 	//   requests which are not pending on a server queue.
 	if routingInfo.deadQueue != nil {
 		routingInfo.deadQueue.Drain(func(req *memdQRequest) {
-			req.Callback(nil, ErrShutdown)
+			req.Callback(nil, nil, ErrShutdown)
 		}, nil)
 	}
 	if routingInfo.waitQueue != nil {
 		routingInfo.waitQueue.Drain(func(req *memdQRequest) {
-			req.Callback(nil, ErrShutdown)
+			req.Callback(nil, nil, ErrShutdown)
 		}, nil)
 	}
 
@@ -306,7 +306,7 @@ func (agent *Agent) Close() {
 	for range routingInfo.servers {
 		s := <-agent.shutdownWaitCh
 		s.Drain(func(req *memdQRequest) {
-			req.Callback(nil, ErrShutdown)
+			req.Callback(nil, nil, ErrShutdown)
 		})
 	}
 }
@@ -318,6 +318,9 @@ func (c *Agent) IsSecure() bool {
 
 // Translates a particular key to its assigned vbucket.
 func (c *Agent) KeyToVbucket(key []byte) uint16 {
+	if c.NumVbuckets() <= 0 {
+		return 0xFFFF
+	}
 	return uint16(cbCrc(key) % uint32(c.NumVbuckets()))
 }
 

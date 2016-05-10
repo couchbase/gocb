@@ -11,14 +11,14 @@ func TestQueueOverflow(t *testing.T) {
 
 	for i := 0; i < queueMax; i++ {
 		queue.QueueRequest(&memdQRequest{
-			Callback: func(resp *memdResponse, err error) {
+			Callback: func(resp *memdResponse, _ *memdRequest, err error) {
 				t.Fatalf("Should not have been tripped any callbacks")
 			},
 		})
 	}
 
 	queue.QueueRequest(&memdQRequest{
-		Callback: func(resp *memdResponse, err error) {
+		Callback: func(resp *memdResponse, _ *memdRequest, err error) {
 			if resp != nil || err == nil {
 				t.Fatalf("Should have overflowed")
 			}
@@ -31,7 +31,7 @@ func TestQueueDouble(t *testing.T) {
 	queue2 := createMemdQueue()
 
 	op := &memdQRequest{
-		Callback: func(resp *memdResponse, err error) {
+		Callback: func(resp *memdResponse, _ *memdRequest, err error) {
 			t.Fatalf("Should not have been tripped any callbacks")
 		},
 	}
@@ -52,7 +52,7 @@ func TestQueueDrain(t *testing.T) {
 
 	for i := 0; i < queueMax; i++ {
 		queue.QueueRequest(&memdQRequest{
-			Callback: func(resp *memdResponse, err error) {
+			Callback: func(resp *memdResponse, _ *memdRequest, err error) {
 				t.Fatalf("Should not have been tripped any callbacks")
 			},
 		})
@@ -77,7 +77,7 @@ func TestQueueDrainTimed(t *testing.T) {
 
 	for i := 0; i < queueMax; i++ {
 		queue.QueueRequest(&memdQRequest{
-			Callback: func(resp *memdResponse, err error) {
+			Callback: func(resp *memdResponse, _ *memdRequest, err error) {
 				t.Fatalf("Should not have been tripped any callbacks")
 			},
 		})
@@ -109,12 +109,12 @@ func TestQueueCancel(t *testing.T) {
 	queue := createMemdQueue()
 
 	op1 := &memdQRequest{
-		Callback: func(resp *memdResponse, err error) {
+		Callback: func(resp *memdResponse, _ *memdRequest, err error) {
 			t.Fatalf("Should not have been tripped any callbacks")
 		},
 	}
 	op2 := &memdQRequest{
-		Callback: func(resp *memdResponse, err error) {
+		Callback: func(resp *memdResponse, _ *memdRequest, err error) {
 			t.Fatalf("Should not have been tripped any callbacks")
 		},
 	}

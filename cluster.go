@@ -94,7 +94,7 @@ func specToHosts(spec connSpec) ([]string, []string, bool) {
 	return memdHosts, httpHosts, spec.Scheme.IsSSL()
 }
 
-func (c *Cluster) makeAgentConfig(bucket, password string) (*gocbcore.AgentConfig, error) {
+func (c *Cluster) makeAgentConfig(bucket, password string, mt bool) (*gocbcore.AgentConfig, error) {
 	authFn := func(srv gocbcore.AuthClient, deadline time.Time) error {
 		// Build PLAIN auth data
 		userBuf := []byte(bucket)
@@ -143,7 +143,7 @@ func (c *Cluster) makeAgentConfig(bucket, password string) (*gocbcore.AgentConfi
 		BucketName:           bucket,
 		Password:             password,
 		AuthHandler:          authFn,
-		UseMutationTokens:    false,
+		UseMutationTokens:    mt,
 		ConnectTimeout:       c.connectTimeout,
 		ServerConnectTimeout: c.serverConnectTimeout,
 	}, nil
@@ -154,14 +154,14 @@ func (c *Cluster) Authenticate(auth Authenticator) error {
 	return nil
 }
 
-func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
+func (c *Cluster) openBucket(bucket, password string, mt bool) (*Bucket, error) {
 	if password == "" {
 		if c.auth != nil {
 			password = c.auth.bucketMemd(bucket)
 		}
 	}
 
-	agentConfig, err := c.makeAgentConfig(bucket, password)
+	agentConfig, err := c.makeAgentConfig(bucket, password, mt)
 	if err != nil {
 		return nil, err
 	}
@@ -176,6 +176,14 @@ func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 	c.clusterLock.Unlock()
 
 	return b, nil
+}
+
+func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
+	return c.openBucket(bucket, password, false)
+}
+
+func (c *Cluster) OpenBucketWithMt(bucket, password string) (*Bucket, error) {
+	return c.openBucket(bucket, password, true)
 }
 
 func (c *Cluster) closeBucket(bucket *Bucket) {
@@ -252,7 +260,7 @@ func (b *StreamingBucket) IoRouter() *gocbcore.Agent {
 }
 
 func (c *Cluster) OpenStreamingBucket(streamName, bucket, password string) (*StreamingBucket, error) {
-	agentConfig, err := c.makeAgentConfig(bucket, password)
+	agentConfig, err := c.makeAgentConfig(bucket, password, false)
 	if err != nil {
 		return nil, err
 	}

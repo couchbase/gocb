@@ -13,6 +13,7 @@ type SeqNo uint64
 
 // Represents a particular mutation within the cluster.
 type MutationToken struct {
+	VbId   uint16
 	VbUuid VbUuid
 	SeqNo  SeqNo
 }

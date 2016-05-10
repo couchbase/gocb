@@ -287,7 +287,7 @@ func (b *Bucket) mutateIn(set *MutateInBuilder) (resOut *DocumentFragment, errOu
 			if errOut == nil {
 				resSet := &DocumentFragment{
 					cas: Cas(cas),
-					mt:  MutationToken(mt),
+					mt:  MutationToken{mt, b},
 				}
 				resSet.contents = make([]subDocResult, len(results))
 

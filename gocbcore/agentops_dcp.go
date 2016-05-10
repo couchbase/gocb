@@ -40,7 +40,7 @@ type GetVBucketSeqnosCallback func(uint16, SeqNo, error)
 // Opens a DCP stream for a particular VBucket.
 func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo, snapStartSeqNo, snapEndSeqNo SeqNo, evtHandler StreamObserver, cb OpenStreamCallback) (PendingOp, error) {
 	var req *memdQRequest
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, _ *memdRequest, err error) {
 		if resp.Magic == ResMagic {
 			// This is the response to the open stream request.
 			if err != nil {
@@ -131,7 +131,7 @@ func (c *Agent) OpenStream(vbId uint16, vbUuid VbUuid, startSeqNo, endSeqNo, sna
 // **INTERNAL**
 // Shuts down an open stream for the specified VBucket.
 func (c *Agent) CloseStream(vbId uint16, cb CloseStreamCallback) (PendingOp, error) {
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, _ *memdRequest, err error) {
 		cb(err)
 	}
 
@@ -157,7 +157,7 @@ func (c *Agent) CloseStream(vbId uint16, cb CloseStreamCallback) (PendingOp, err
 // Retrieves the failover log for a particular VBucket.  This is used
 // to resume an interrupted stream after a node failover has occured.
 func (c *Agent) GetFailoverLog(vbId uint16, cb GetFailoverLogCallback) (PendingOp, error) {
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, _ *memdRequest, err error) {
 		if err != nil {
 			cb(nil, err)
 			return
@@ -196,7 +196,7 @@ func (c *Agent) GetFailoverLog(vbId uint16, cb GetFailoverLogCallback) (PendingO
 // Returns the last checkpoint for a particular VBucket.  This is useful
 // for starting a DCP stream from wherever the server currently is.
 func (c *Agent) GetVbucketSeqnos(serverIdx int, cb GetVBucketSeqnosCallback) (PendingOp, error) {
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, _ *memdRequest, err error) {
 		if err != nil {
 			cb(0, 0, err)
 			return

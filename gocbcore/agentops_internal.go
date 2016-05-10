@@ -7,7 +7,7 @@ import (
 // **INTERNAL**
 // Stores a document along with setting some internal Couchbase meta-data.
 func (c *Agent) SetMeta(key, value, extra []byte, flags, expiry uint32, cas, revseqno uint64, cb StoreCallback) (PendingOp, error) {
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, req *memdRequest, err error) {
 		if err != nil {
 			cb(0, MutationToken{}, err)
 			return
@@ -15,6 +15,7 @@ func (c *Agent) SetMeta(key, value, extra []byte, flags, expiry uint32, cas, rev
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = req.Vbucket
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
@@ -47,7 +48,7 @@ func (c *Agent) SetMeta(key, value, extra []byte, flags, expiry uint32, cas, rev
 // **INTERNAL**
 // Deletes a document along with setting some internal Couchbase meta-data.
 func (c *Agent) DeleteMeta(key, extra []byte, flags, expiry uint32, cas, revseqno uint64, cb RemoveCallback) (PendingOp, error) {
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, req *memdRequest, err error) {
 		if err != nil {
 			cb(0, MutationToken{}, err)
 			return
@@ -55,6 +56,7 @@ func (c *Agent) DeleteMeta(key, extra []byte, flags, expiry uint32, cas, revseqn
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = req.Vbucket
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}

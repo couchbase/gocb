@@ -8,10 +8,11 @@ import (
 
 // An interface representing a single bucket within a cluster.
 type Bucket struct {
-	cluster  *Cluster
-	name     string
-	password string
-	client   *gocbcore.Agent
+	cluster   *Cluster
+	name      string
+	password  string
+	client    *gocbcore.Agent
+	mtEnabled bool
 
 	transcoder      Transcoder
 	opTimeout       time.Duration
@@ -34,6 +35,7 @@ func createBucket(cluster *Cluster, config *gocbcore.AgentConfig) (*Bucket, erro
 		name:       config.BucketName,
 		password:   config.Password,
 		client:     cli,
+		mtEnabled:  config.UseMutationTokens,
 		transcoder: &DefaultTranscoder{},
 
 		opTimeout:       2500 * time.Millisecond,

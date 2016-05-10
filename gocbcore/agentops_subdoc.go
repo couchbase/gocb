@@ -7,7 +7,7 @@ import (
 // **UNCOMMITTED**
 // Retrieves the value at a particular path within a JSON document.
 func (c *Agent) GetIn(key []byte, path string, cb GetInCallback) (PendingOp, error) {
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, _ *memdRequest, err error) {
 		if err != nil {
 			cb(nil, 0, err)
 			return
@@ -40,7 +40,7 @@ func (c *Agent) GetIn(key []byte, path string, cb GetInCallback) (PendingOp, err
 // **UNCOMMITTED**
 // Returns whether a particular path exists within a document.
 func (c *Agent) ExistsIn(key []byte, path string, cb ExistsInCallback) (PendingOp, error) {
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, _ *memdRequest, err error) {
 		if err != nil {
 			cb(0, err)
 			return
@@ -71,7 +71,7 @@ func (c *Agent) ExistsIn(key []byte, path string, cb ExistsInCallback) (PendingO
 }
 
 func (c *Agent) storeIn(opcode CommandCode, key []byte, path string, value []byte, createParents bool, cas Cas, expiry uint32, cb StoreInCallback) (PendingOp, error) {
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, req *memdRequest, err error) {
 		if err != nil {
 			cb(0, MutationToken{}, err)
 			return
@@ -79,6 +79,7 @@ func (c *Agent) storeIn(opcode CommandCode, key []byte, path string, value []byt
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = req.Vbucket
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
@@ -173,7 +174,7 @@ func (c *Agent) AddUniqueIn(key []byte, path string, value []byte, createParents
 // **UNCOMMITTED**
 // Performs an arithmetic add or subtract on a value at a path in the document.
 func (c *Agent) CounterIn(key []byte, path string, value []byte, cas Cas, expiry uint32, cb CounterInCallback) (PendingOp, error) {
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, req *memdRequest, err error) {
 		if err != nil {
 			cb(nil, 0, MutationToken{}, err)
 			return
@@ -181,6 +182,7 @@ func (c *Agent) CounterIn(key []byte, path string, value []byte, cas Cas, expiry
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = req.Vbucket
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
@@ -224,7 +226,7 @@ func (c *Agent) CounterIn(key []byte, path string, value []byte, cas Cas, expiry
 // **UNCOMMITTED**
 // Removes the value at a path within the document.
 func (c *Agent) RemoveIn(key []byte, path string, cas Cas, expiry uint32, cb RemoveInCallback) (PendingOp, error) {
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, req *memdRequest, err error) {
 		if err != nil {
 			cb(0, MutationToken{}, err)
 			return
@@ -232,6 +234,7 @@ func (c *Agent) RemoveIn(key []byte, path string, cas Cas, expiry uint32, cb Rem
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = req.Vbucket
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
@@ -281,7 +284,7 @@ type SubDocOp struct {
 func (c *Agent) SubDocLookup(key []byte, ops []SubDocOp, cb LookupInCallback) (PendingOp, error) {
 	results := make([]SubDocResult, len(ops))
 
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, _ *memdRequest, err error) {
 		if err != nil && err != ErrSubDocBadMulti {
 			cb(nil, 0, err)
 			return
@@ -357,7 +360,7 @@ func (c *Agent) SubDocLookup(key []byte, ops []SubDocOp, cb LookupInCallback) (P
 func (c *Agent) SubDocMutate(key []byte, ops []SubDocOp, cas Cas, expiry uint32, cb MutateInCallback) (PendingOp, error) {
 	results := make([]SubDocResult, len(ops))
 
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, req *memdRequest, err error) {
 		if err != nil && err != ErrSubDocBadMulti {
 			cb(nil, 0, MutationToken{}, err)
 			return
@@ -395,6 +398,7 @@ func (c *Agent) SubDocMutate(key []byte, ops []SubDocOp, cas Cas, expiry uint32,
 
 		mutToken := MutationToken{}
 		if len(resp.Extras) >= 16 {
+			mutToken.VbId = req.Vbucket
 			mutToken.VbUuid = VbUuid(binary.BigEndian.Uint64(resp.Extras[0:]))
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}

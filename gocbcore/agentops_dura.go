@@ -11,7 +11,7 @@ func (c *Agent) Observe(key []byte, replicaIdx int, cb ObserveCallback) (Pending
 		return nil, ErrNotSupported
 	}
 
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, _ *memdRequest, err error) {
 		if err != nil {
 			cb(0, 0, err)
 			return
@@ -64,7 +64,7 @@ func (c *Agent) ObserveSeqNo(key []byte, vbUuid VbUuid, replicaIdx int, cb Obser
 		return nil, ErrNotSupported
 	}
 
-	handler := func(resp *memdResponse, err error) {
+	handler := func(resp *memdResponse, _ *memdRequest, err error) {
 		if err != nil {
 			cb(0, 0, err)
 			return

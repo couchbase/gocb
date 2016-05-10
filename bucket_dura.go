@@ -55,15 +55,15 @@ func (b *Bucket) observeOnceCas(key []byte, cas Cas, forDelete bool, repId int, 
 }
 
 func (b *Bucket) observeOnceSeqNo(key []byte, mt MutationToken, repId int, commCh chan uint) (pendingOp, error) {
-	return b.client.ObserveSeqNo(key, mt.VbUuid, repId,
+	return b.client.ObserveSeqNo(key, mt.token.VbUuid, repId,
 		func(currentSeqNo gocbcore.SeqNo, persistSeqNo gocbcore.SeqNo, err error) {
 			if err != nil {
 				commCh <- 0
 				return
 			}
 
-			didReplicate := currentSeqNo >= mt.SeqNo
-			didPersist := persistSeqNo >= mt.SeqNo
+			didReplicate := currentSeqNo >= mt.token.SeqNo
+			didPersist := persistSeqNo >= mt.token.SeqNo
 
 			var out uint
 			if didReplicate {
@@ -78,7 +78,7 @@ func (b *Bucket) observeOnceSeqNo(key []byte, mt MutationToken, repId int, commC
 
 func (b *Bucket) observeOne(key []byte, mt MutationToken, cas Cas, forDelete bool, repId int, replicaCh, persistCh chan bool) {
 	observeOnce := func(commCh chan uint) (pendingOp, error) {
-		if mt.VbUuid != 0 && mt.SeqNo != 0 {
+		if mt.token.VbUuid != 0 && mt.token.SeqNo != 0 {
 			return b.observeOnceSeqNo(key, mt, repId, commCh)
 		} else {
 			return b.observeOnceCas(key, cas, forDelete, repId, commCh)

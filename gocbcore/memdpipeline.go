@@ -11,7 +11,7 @@ type memdInitFunc func(*memdPipeline, time.Time) error
 type CloseHandler func(*memdPipeline)
 type BadRouteHandler func(*memdPipeline, *memdQRequest, *memdResponse)
 
-type Callback func(*memdResponse, error)
+type Callback func(*memdResponse, *memdRequest, error)
 
 type memdPipeline struct {
 	lock sync.RWMutex
@@ -74,7 +74,7 @@ func (pipeline *memdPipeline) ExecuteRequest(req *memdQRequest, deadline time.Ti
 
 	signal := make(chan bool)
 
-	req.Callback = func(resp *memdResponse, err error) {
+	req.Callback = func(resp *memdResponse, _ *memdRequest, err error) {
 		respOut = resp
 		errOut = err
 		signal <- true
@@ -162,9 +162,9 @@ func (s *memdPipeline) resolveRequest(resp *memdResponse) {
 	// Call the requests callback handler...  Ignore Status field for incoming requests.
 	logSchedf("Dispatching response callback. OP=0x%x. Opaque=%d", resp.Opcode, resp.Opaque)
 	if resp.Magic == ReqMagic {
-		req.Callback(resp, nil)
+		req.Callback(resp, &req.memdRequest, nil)
 	} else {
-		req.Callback(resp, getMemdError(resp.Status))
+		req.Callback(resp, &req.memdRequest, getMemdError(resp.Status))
 	}
 }
 
@@ -252,7 +252,7 @@ func (pipeline *memdPipeline) Drain(reqCb drainedReqCallback) {
 	//   by immediately failing them with a network error.
 	if reqCb == nil {
 		reqCb = func(req *memdQRequest) {
-			req.Callback(nil, ErrNetwork)
+			req.Callback(nil, nil, ErrNetwork)
 		}
 	}
 
@@ -264,7 +264,7 @@ func (pipeline *memdPipeline) Drain(reqCb drainedReqCallback) {
 	//   on-the-wire that a network error has occurred.
 	pipeline.opList.Drain(func(r *memdQRequest) {
 		if pipeline.queue.UnqueueRequest(r) {
-			r.Callback(nil, ErrNetwork)
+			r.Callback(nil, nil, ErrNetwork)
 		}
 	})
 }
