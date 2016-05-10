@@ -97,6 +97,12 @@ func (vq *ViewQuery) Keys(keys []interface{}) *ViewQuery {
 	return vq
 }
 
+func (vq *ViewQuery) CompositeKeys(keys [][]interface{}) *ViewQuery {
+	jsonKeys, _ := json.Marshal(keys)
+	vq.options.Set("keys", string(jsonKeys))
+	return vq
+}
+
 func (vq *ViewQuery) Range(start, end interface{}, inclusive_end bool) *ViewQuery {
 	// TODO(brett19): Not currently handling errors due to no way to return the error
 	if start != nil {
