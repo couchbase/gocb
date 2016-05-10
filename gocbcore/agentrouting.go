@@ -7,6 +7,16 @@ import (
 	"time"
 )
 
+func (c *Agent) waitAndRetryOperation(req *memdQRequest) {
+	if c.nmvRetryDelay == 0 {
+		c.redispatchDirect(req)
+	} else {
+		time.AfterFunc(c.nmvRetryDelay, func() {
+			c.redispatchDirect(req)
+		})
+	}
+}
+
 func (c *Agent) handleServerNmv(s *memdPipeline, req *memdQRequest, resp *memdResponse) {
 	// Try to parse the value as a bucket configuration
 	bk, err := parseConfig(resp.Value, s.Hostname())
@@ -16,7 +26,7 @@ func (c *Agent) handleServerNmv(s *memdPipeline, req *memdQRequest, resp *memdRe
 
 	// Redirect it!  This may actually come back to this server, but I won't tell
 	//   if you don't ;)
-	c.redispatchDirect(req)
+	c.waitAndRetryOperation(req)
 }
 
 func (c *Agent) handleServerDeath(s *memdPipeline) {

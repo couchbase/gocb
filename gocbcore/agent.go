@@ -30,6 +30,7 @@ type Agent struct {
 
 	serverConnectTimeout time.Duration
 	serverWaitTimeout    time.Duration
+	nmvRetryDelay        time.Duration
 
 	shutdownWaitCh chan *memdPipeline
 }
@@ -64,6 +65,7 @@ type AgentConfig struct {
 
 	ConnectTimeout       time.Duration
 	ServerConnectTimeout time.Duration
+	NmvRetryDelay        time.Duration
 }
 
 // Creates an agent for performing normal operations.
@@ -103,6 +105,7 @@ func createAgent(config *AgentConfig, initFn memdInitFunc) (*Agent, error) {
 		serverFailures:       make(map[string]time.Time),
 		serverConnectTimeout: config.ServerConnectTimeout,
 		serverWaitTimeout:    5 * time.Second,
+		nmvRetryDelay:        config.NmvRetryDelay,
 	}
 
 	deadline := time.Now().Add(config.ConnectTimeout)

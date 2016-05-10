@@ -17,6 +17,7 @@ type Cluster struct {
 	connectTimeout       time.Duration
 	serverConnectTimeout time.Duration
 	n1qlTimeout          time.Duration
+	nmvRetryDelay        time.Duration
 	tlsConfig            *tls.Config
 
 	clusterLock sync.RWMutex
@@ -60,6 +61,7 @@ func Connect(connSpecStr string) (*Cluster, error) {
 		connectTimeout:       60000 * time.Millisecond,
 		serverConnectTimeout: 7000 * time.Millisecond,
 		n1qlTimeout:          75 * time.Second,
+		nmvRetryDelay:        100 * time.Millisecond,
 
 		queryCache: make(map[string]*n1qlCache),
 	}
@@ -77,6 +79,9 @@ func (c *Cluster) ServerConnectTimeout() time.Duration {
 }
 func (c *Cluster) SetServerConnectTimeout(timeout time.Duration) {
 	c.serverConnectTimeout = timeout
+}
+func (c *Cluster) SetNmvRetryDelay(delay time.Duration) {
+	c.nmvRetryDelay = delay
 }
 
 func specToHosts(spec connSpec) ([]string, []string, bool) {
@@ -146,6 +151,7 @@ func (c *Cluster) makeAgentConfig(bucket, password string, mt bool) (*gocbcore.A
 		UseMutationTokens:    mt,
 		ConnectTimeout:       c.connectTimeout,
 		ServerConnectTimeout: c.serverConnectTimeout,
+		NmvRetryDelay:        c.nmvRetryDelay,
 	}, nil
 }
 
