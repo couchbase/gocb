@@ -42,6 +42,7 @@ func (e *n1qlMultiError) Code() uint32 {
 type QueryResults interface {
 	One(valuePtr interface{}) error
 	Next(valuePtr interface{}) bool
+	NextBytes() []byte
 	Close() error
 }
 

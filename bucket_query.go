@@ -26,6 +26,7 @@ func (e *viewError) Error() string {
 type ViewResults interface {
 	One(valuePtr interface{}) error
 	Next(valuePtr interface{}) bool
+	NextBytes() []byte
 	Close() error
 }
 
