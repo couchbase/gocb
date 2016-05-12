@@ -398,6 +398,16 @@ func (agent *Agent) N1qlEps() []string {
 	return routingInfo.n1qlEpList
 }
 
+// Returns all the available endpoints for performing
+// FTS queries.
+func (agent *Agent) FtsEps() []string {
+	routingInfo := agent.routingInfo.get()
+	if routingInfo == nil {
+		return nil
+	}
+	return routingInfo.ftsEpList
+}
+
 func doCccpRequest(pipeline *memdPipeline, deadline time.Time) ([]byte, error) {
 	resp, err := pipeline.ExecuteRequest(&memdQRequest{
 		memdRequest: memdRequest{

@@ -3,10 +3,12 @@ package gocb
 type Authenticator interface {
 	clusterMgmt() userPassPair
 	clusterN1ql() []userPassPair
+	clusterFts() []userPassPair
 	bucketMemd(bucket string) string
 	bucketMgmt(bucket string) userPassPair
 	bucketViews(bucket string) userPassPair
 	bucketN1ql(bucket string) []userPassPair
+	bucketFts(bucket string) []userPassPair
 }
 
 type BucketAuthenticator struct {
@@ -30,7 +32,7 @@ func (ca ClusterAuthenticator) clusterMgmt() userPassPair {
 	return userPassPair{ca.Username, ca.Password}
 }
 
-func (ca ClusterAuthenticator) clusterN1ql() []userPassPair {
+func (ca ClusterAuthenticator) clusterAll() []userPassPair {
 	userPassList := make([]userPassPair, 0)
 	for bucket, auth := range ca.Buckets {
 		userPassList = append(userPassList, userPassPair{
@@ -39,6 +41,14 @@ func (ca ClusterAuthenticator) clusterN1ql() []userPassPair {
 		})
 	}
 	return userPassList
+}
+
+func (ca ClusterAuthenticator) clusterN1ql() []userPassPair {
+	return ca.clusterAll()
+}
+
+func (ca ClusterAuthenticator) clusterFts() []userPassPair {
+	return ca.clusterAll()
 }
 
 func (ca ClusterAuthenticator) bucketAll(bucket string) userPassPair {
@@ -61,6 +71,12 @@ func (ca ClusterAuthenticator) bucketViews(bucket string) userPassPair {
 }
 
 func (ca ClusterAuthenticator) bucketN1ql(bucket string) []userPassPair {
+	return []userPassPair{
+		ca.bucketAll(bucket),
+	}
+}
+
+func (ca ClusterAuthenticator) bucketFts(bucket string) []userPassPair {
 	return []userPassPair{
 		ca.bucketAll(bucket),
 	}

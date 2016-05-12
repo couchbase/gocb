@@ -17,6 +17,7 @@ type Cluster struct {
 	connectTimeout       time.Duration
 	serverConnectTimeout time.Duration
 	n1qlTimeout          time.Duration
+	ftsTimeout           time.Duration
 	nmvRetryDelay        time.Duration
 	tlsConfig            *tls.Config
 
@@ -61,6 +62,7 @@ func Connect(connSpecStr string) (*Cluster, error) {
 		connectTimeout:       60000 * time.Millisecond,
 		serverConnectTimeout: 7000 * time.Millisecond,
 		n1qlTimeout:          75 * time.Second,
+		ftsTimeout:           75 * time.Second,
 		nmvRetryDelay:        100 * time.Millisecond,
 
 		queryCache: make(map[string]*n1qlCache),

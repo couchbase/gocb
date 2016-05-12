@@ -20,6 +20,7 @@ type Bucket struct {
 	duraPollTimeout time.Duration
 	viewTimeout     time.Duration
 	n1qlTimeout     time.Duration
+	ftsTimeout      time.Duration
 
 	internal *bucketInternal
 }
@@ -43,6 +44,7 @@ func createBucket(cluster *Cluster, config *gocbcore.AgentConfig) (*Bucket, erro
 		duraPollTimeout: 100 * time.Millisecond,
 		viewTimeout:     75 * time.Second,
 		n1qlTimeout:     75 * time.Second,
+		ftsTimeout:      75 * time.Second,
 	}
 	bucket.internal = &bucketInternal{
 		b: bucket,
@@ -115,6 +117,14 @@ func (b *Bucket) getN1qlEp() (string, error) {
 		return "", &clientError{"No available N1QL nodes."}
 	}
 	return n1qlEps[rand.Intn(len(n1qlEps))], nil
+}
+
+func (b *Bucket) getFtsEp() (string, error) {
+	ftsEps := b.client.FtsEps()
+	if len(ftsEps) == 0 {
+		return "", &clientError{"No available FTS nodes."}
+	}
+	return ftsEps[rand.Intn(len(ftsEps))], nil
 }
 
 func (b *Bucket) Close() {

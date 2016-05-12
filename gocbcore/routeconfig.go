@@ -22,6 +22,7 @@ type routeConfig struct {
 	capiEpList   []string
 	mgmtEpList   []string
 	n1qlEpList   []string
+	ftsEpList    []string
 	vbMap        [][]int
 	ketamaMap    []routeKetamaContinuum
 }
@@ -132,6 +133,7 @@ func buildRouteConfig(bk *cfgBucket, useSsl bool) *routeConfig {
 	var capiEpList []string
 	var mgmtEpList []string
 	var n1qlEpList []string
+	var ftsEpList []string
 	var bktType BucketType
 
 	switch bk.NodeLocator {
@@ -164,6 +166,9 @@ func buildRouteConfig(bk *cfgBucket, useSsl bool) *routeConfig {
 				if node.Services.N1ql > 0 {
 					n1qlEpList = append(n1qlEpList, fmt.Sprintf("http://%s:%d", node.Hostname, node.Services.N1ql))
 				}
+				if node.Services.Fts > 0 {
+					ftsEpList = append(ftsEpList, fmt.Sprintf("http://%s:%d", node.Hostname, node.Services.Fts))
+				}
 			} else {
 				if node.Services.KvSsl > 0 {
 					kvServerList = append(kvServerList, fmt.Sprintf("%s:%d", node.Hostname, node.Services.KvSsl))
@@ -176,6 +181,9 @@ func buildRouteConfig(bk *cfgBucket, useSsl bool) *routeConfig {
 				}
 				if node.Services.N1qlSsl > 0 {
 					n1qlEpList = append(n1qlEpList, fmt.Sprintf("https://%s:%d", node.Hostname, node.Services.N1qlSsl))
+				}
+				if node.Services.FtsSsl > 0 {
+					ftsEpList = append(ftsEpList, fmt.Sprintf("http://%s:%d", node.Hostname, node.Services.FtsSsl))
 				}
 			}
 		}
@@ -217,6 +225,7 @@ func buildRouteConfig(bk *cfgBucket, useSsl bool) *routeConfig {
 		capiEpList:   capiEpList,
 		mgmtEpList:   mgmtEpList,
 		n1qlEpList:   n1qlEpList,
+		ftsEpList:    ftsEpList,
 		vbMap:        bk.VBucketServerMap.VBucketMap,
 		numReplicas:  bk.VBucketServerMap.NumReplicas,
 		bktType:      bktType,

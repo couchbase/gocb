@@ -23,6 +23,7 @@ var (
 	ErrIndexNoFields      = errors.New("You must specify at least one field to index.")
 	ErrIndexNotFound      = errors.New("The index specified does not exist.")
 	ErrIndexAlreadyExists = errors.New("The index specified already exists.")
+	ErrFacetNoRanges      = errors.New("At least one range must be specified on a facet.")
 
 	ErrDispatchFail   = gocbcore.ErrDispatchFail
 	ErrBadHosts       = gocbcore.ErrBadHosts

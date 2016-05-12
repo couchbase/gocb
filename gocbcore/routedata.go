@@ -14,6 +14,7 @@ type routeData struct {
 	capiEpList []string
 	mgmtEpList []string
 	n1qlEpList []string
+	ftsEpList  []string
 
 	servers        []*memdPipeline
 	pendingServers []*memdPipeline
@@ -94,6 +95,10 @@ func (d *routeData) logDebug() {
 	}
 	logDebugf("  N1ql Eps:")
 	for _, ep := range d.n1qlEpList {
+		logDebugf("    - %s", ep)
+	}
+	logDebugf("  FTS Eps:")
+	for _, ep := range d.ftsEpList {
 		logDebugf("    - %s", ep)
 	}
 

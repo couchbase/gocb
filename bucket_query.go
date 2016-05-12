@@ -153,3 +153,8 @@ func (b *Bucket) ExecuteSpatialQuery(q *SpatialQuery) (ViewResults, error) {
 func (b *Bucket) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) (QueryResults, error) {
 	return b.cluster.doN1qlQuery(b, q, params)
 }
+
+// Performs a view query and returns a list of rows or an error.
+func (b *Bucket) ExecuteSearchQuery(q *SearchQuery) (SearchResults, error) {
+	return b.cluster.doSearchQuery(b, q)
+}
