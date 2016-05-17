@@ -1,4 +1,4 @@
-package gocb
+package cbft
 
 import (
 	"encoding/json"
@@ -7,8 +7,6 @@ import (
 // *VOLATILE*
 // FtsFacet represents a facet for a search query.
 type FtsFacet interface {
-	json.Marshaler
-	validate()
 }
 
 type termFacetData struct {
@@ -24,9 +22,6 @@ type TermFacet struct {
 // MarshalJSON marshal's this facet to JSON for the FTS REST API.
 func (f TermFacet) MarshalJSON() ([]byte, error) {
 	return json.Marshal(f.data)
-}
-
-func (f TermFacet) validate() {
 }
 
 // NewTermFacet creates a new TermFacet
@@ -56,12 +51,6 @@ type NumericFacet struct {
 // MarshalJSON marshal's this facet to JSON for the FTS REST API.
 func (f NumericFacet) MarshalJSON() ([]byte, error) {
 	return json.Marshal(f.data)
-}
-
-func (f NumericFacet) validate() {
-	if len(f.data.NumericRanges) == 0 {
-		panic(ErrFacetNoRanges)
-	}
 }
 
 // AddRange adds a new range to this numeric range facet.
@@ -101,12 +90,6 @@ type DateFacet struct {
 // MarshalJSON marshal's this facet to JSON for the FTS REST API.
 func (f DateFacet) MarshalJSON() ([]byte, error) {
 	return json.Marshal(f.data)
-}
-
-func (f DateFacet) validate() {
-	if len(f.data.DateRanges) == 0 {
-		panic(ErrFacetNoRanges)
-	}
 }
 
 // AddRange adds a new range to this date range facet.

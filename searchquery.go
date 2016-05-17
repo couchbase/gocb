@@ -22,13 +22,13 @@ type searchQueryCtlData struct {
 	Timeout uint `json:"timeout,omitempty"`
 }
 type searchQueryData struct {
-	Query     FtsQuery                  `json:"query,omitempty"`
+	Query     interface{}               `json:"query,omitempty"`
 	Size      int                       `json:"size,omitempty"`
 	From      int                       `json:"from,omitempty"`
 	Explain   bool                      `json:"explain,omitempty"`
 	Highlight *searchQueryHighlightData `json:"highlight,omitempty"`
 	Fields    []string                  `json:"fields,omitempty"`
-	Facets    map[string]FtsFacet       `json:"facets,omitempty"`
+	Facets    map[string]interface{}    `json:"facets,omitempty"`
 	Ctl       *searchQueryCtlData       `json:"ctl,omitempty"`
 }
 
@@ -74,10 +74,9 @@ func (sq *SearchQuery) Fields(fields ...string) *SearchQuery {
 }
 
 // AddFacet adds a new search facet to include in the results.
-func (sq *SearchQuery) AddFacet(name string, facet FtsFacet) *SearchQuery {
-	facet.validate()
+func (sq *SearchQuery) AddFacet(name string, facet interface{}) *SearchQuery {
 	if sq.data.Facets == nil {
-		sq.data.Facets = make(map[string]FtsFacet)
+		sq.data.Facets = make(map[string]interface{})
 	}
 	sq.data.Facets[name] = facet
 	return sq
@@ -102,7 +101,7 @@ func (sq *SearchQuery) queryData() interface{} {
 
 // *VOLATILE*
 // NewSearchQuery creates a new SearchQuery object from an index name and query.
-func NewSearchQuery(indexName string, query FtsQuery) *SearchQuery {
+func NewSearchQuery(indexName string, query interface{}) *SearchQuery {
 	q := &SearchQuery{
 		name: indexName,
 	}

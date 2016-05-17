@@ -1,4 +1,4 @@
-package gocb
+package cbft
 
 import (
 	"encoding/json"
@@ -7,7 +7,6 @@ import (
 // *VOLATILE*
 // FtsQuery represents an FTS query for a search query.
 type FtsQuery interface {
-	json.Marshaler
 }
 
 type ftsQueryBase struct {
