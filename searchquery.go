@@ -4,10 +4,13 @@ import (
 	"time"
 )
 
+// SearchHighlightStyle indicates the type of highlighting to use for a search query.
 type SearchHighlightStyle string
 
 const (
-	HtmlHighlightStyle  = SearchHighlightStyle("html")
+	// HtmlHighlightStyle specifies to use HTML tags to highlight search result hits.
+	HtmlHighlightStyle = SearchHighlightStyle("html")
+	// AnsiHightlightStyle specifies to use ANSI tags to highlight search result hits.
 	AnsiHightlightStyle = SearchHighlightStyle("ansi")
 )
 
@@ -29,26 +32,32 @@ type searchQueryData struct {
 	Ctl       *searchQueryCtlData       `json:"ctl,omitempty"`
 }
 
+// *VOLATILE*
+// SearchQuery represents a pending search query.
 type SearchQuery struct {
 	name string
 	data searchQueryData
 }
 
+// Limit specifies a limit on the number of results to return.
 func (sq *SearchQuery) Limit(value int) *SearchQuery {
 	sq.data.Size = value
 	return sq
 }
 
+// Skip specifies how many results to skip at the beginning of the result list.
 func (sq *SearchQuery) Skip(value int) *SearchQuery {
 	sq.data.From = value
 	return sq
 }
 
+// Explain enables search query explanation which provides details on how a query is executed.
 func (sq *SearchQuery) Explain(value bool) *SearchQuery {
 	sq.data.Explain = value
 	return sq
 }
 
+// Highlight specifies how to highlight the hits in the search result.
 func (sq *SearchQuery) Highlight(style SearchHighlightStyle, fields ...string) *SearchQuery {
 	if sq.data.Highlight == nil {
 		sq.data.Highlight = &searchQueryHighlightData{}
@@ -58,11 +67,13 @@ func (sq *SearchQuery) Highlight(style SearchHighlightStyle, fields ...string) *
 	return sq
 }
 
+// Fields specifies which fields you wish to return in the results.
 func (sq *SearchQuery) Fields(fields ...string) *SearchQuery {
 	sq.data.Fields = fields
 	return sq
 }
 
+// AddFacet adds a new search facet to include in the results.
 func (sq *SearchQuery) AddFacet(name string, facet FtsFacet) *SearchQuery {
 	facet.validate()
 	if sq.data.Facets == nil {
@@ -72,6 +83,7 @@ func (sq *SearchQuery) AddFacet(name string, facet FtsFacet) *SearchQuery {
 	return sq
 }
 
+// Timeout indicates the maximum time to wait for this query to complete.
 func (sq *SearchQuery) Timeout(value time.Duration) *SearchQuery {
 	if sq.data.Ctl == nil {
 		sq.data.Ctl = &searchQueryCtlData{}
@@ -88,6 +100,8 @@ func (sq *SearchQuery) queryData() interface{} {
 	return sq.data
 }
 
+// *VOLATILE*
+// NewSearchQuery creates a new SearchQuery object from an index name and query.
 func NewSearchQuery(indexName string, query FtsQuery) *SearchQuery {
 	q := &SearchQuery{
 		name: indexName,

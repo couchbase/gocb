@@ -4,23 +4,25 @@ import (
 	"github.com/couchbase/gocb/gocbcore"
 )
 
-type bucketInternal struct {
+// *INTERNAL*
+// Internal bucket extension methods.
+type BucketInternal struct {
 	b *Bucket
 }
 
-// Retrieves a document from the bucket
-func (bi *bucketInternal) GetRandom(valuePtr interface{}) (string, Cas, error) {
+// GetRandom retrieves a document from the bucket
+func (bi *BucketInternal) GetRandom(valuePtr interface{}) (string, Cas, error) {
 	return bi.b.getRandom(valuePtr)
 }
 
-// Inserts or replaces (with meta) a document in a bucket.
-func (bi *bucketInternal) UpsertMeta(key string, value, extra []byte, flags, expiry uint32, cas, revseqno uint64) (Cas, error) {
+// UpsertMeta inserts or replaces (with metadata) a document in a bucket.
+func (bi *BucketInternal) UpsertMeta(key string, value, extra []byte, flags, expiry uint32, cas, revseqno uint64) (Cas, error) {
 	outcas, _, err := bi.b.upsertMeta(key, value, extra, flags, expiry, cas, revseqno)
 	return outcas, err
 }
 
-// Removes a document (with meta) from the bucket.
-func (bi *bucketInternal) RemoveMeta(key string, extra []byte, flags, expiry uint32, cas, revseqno uint64) (Cas, error) {
+// RemoveMeta removes a document (with metadata) from the bucket.
+func (bi *BucketInternal) RemoveMeta(key string, extra []byte, flags, expiry uint32, cas, revseqno uint64) (Cas, error) {
 	outcas, _, err := bi.b.removeMeta(key, extra, flags, expiry, cas, revseqno)
 	return outcas, err
 }

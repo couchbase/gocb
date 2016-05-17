@@ -22,7 +22,7 @@ type Bucket struct {
 	n1qlTimeout     time.Duration
 	ftsTimeout      time.Duration
 
-	internal *bucketInternal
+	internal *BucketInternal
 }
 
 func createBucket(cluster *Cluster, config *gocbcore.AgentConfig) (*Bucket, error) {
@@ -46,69 +46,78 @@ func createBucket(cluster *Cluster, config *gocbcore.AgentConfig) (*Bucket, erro
 		n1qlTimeout:     75 * time.Second,
 		ftsTimeout:      75 * time.Second,
 	}
-	bucket.internal = &bucketInternal{
+	bucket.internal = &BucketInternal{
 		b: bucket,
 	}
 	return bucket, nil
 }
 
-// OperationTimeout returns the int64 Duration encoded timeout for accessing a Bucket
+// OperationTimeout returns the maximum amount of time to wait for an operation to succeed.
 func (b *Bucket) OperationTimeout() time.Duration {
 	return b.opTimeout
 }
 
-// SetOperationTimeout allows for setting a Bucket timeout with an int64 time.Duration
+// SetOperationTimeout sets the maximum amount of time to wait for an operation to succeed.
 func (b *Bucket) SetOperationTimeout(timeout time.Duration) {
 	b.opTimeout = timeout
 }
 
-// DurabilityTimeout returns the specified Bucket durability timeout in int64 time.Duration
+// DurabilityTimeout returns the maximum amount of time to wait for durability to succeed.
 func (b *Bucket) DurabilityTimeout() time.Duration {
 	return b.duraTimeout
 }
 
-// SetDurabilityTimeout specifies the Bucket durability timeout via an int64 time.Duration
+// SetDurabilityTimeout sets the maximum amount of time to wait for durability to succeed.
 func (b *Bucket) SetDurabilityTimeout(timeout time.Duration) {
 	b.duraTimeout = timeout
 }
 
-// DurabilityPollTimeout returns the specified Bucket durability poll timeout in int64 time.Duration
+// SetDurabilityTimeout returns the amount of time waiting between durability polls.
 func (b *Bucket) DurabilityPollTimeout() time.Duration {
 	return b.duraPollTimeout
 }
 
-// SetDurabilityPollTimeout sets the specified Bucket's durability poll timeout via an int64 time.Duration
+// SetDurabilityTimeout sets the amount of time waiting between durability polls.
 func (b *Bucket) SetDurabilityPollTimeout(timeout time.Duration) {
 	b.duraPollTimeout = timeout
 }
+
+// ViewTimeout returns the maximum amount of time to wait for a view query to complete.
 func (b *Bucket) ViewTimeout() time.Duration {
 	return b.viewTimeout
 }
+
+// SetViewTimeout sets the maximum amount of time to wait for a view query to complete.
 func (b *Bucket) SetViewTimeout(timeout time.Duration) {
 	b.viewTimeout = timeout
 }
+
+// N1qlTimeout returns the maximum amount of time to wait for a N1QL query to complete.
 func (b *Bucket) N1qlTimeout() time.Duration {
 	return b.n1qlTimeout
 }
+
+// SetN1qlTimeout sets the maximum amount of time to wait for a N1QL query to complete.
 func (b *Bucket) SetN1qlTimeout(timeout time.Duration) {
 	b.n1qlTimeout = timeout
 }
 
-// SetTranscoder sets the Bucket's transcoder
+// SetTranscoder specifies a Transcoder to use when translating documents from their
+//  raw byte format to Go types and back.
 func (b *Bucket) SetTranscoder(transcoder Transcoder) {
 	b.transcoder = transcoder
 }
 
-// InvalidateQueryCache Invalidates and clears the query cache. This method can be used to explicitly clear the internal N1QL query cache. This cache will be filled with non-adhoc query statements (query plans) to speed up those subsequent executions. Triggering this method will wipe out the complete cache, which will not cause an interruption but rather all queries need to be re-prepared internally. This method is likely to be deprecated in the future once the server side query engine distributes its state throughout the cluster.
+// InvalidateQueryCache forces the internal cache of prepared queries to be cleared.
+//  Queries to be cached are controlled by the Adhoc() method of N1qlQuery.
 func (b *Bucket) InvalidateQueryCache() {
 	b.cluster.InvalidateQueryCache()
 }
 
-// Cas is acronym for "Check and Set" and is useful for ensuring that a mutation of a document by one user or thread does not override another near simultaneous mutation by another user or thread. The CAS value is returned by the server with the result when you perform a read on a document using Get or when you perform a mutation on a document using Insert, Upsert, Replace or Remove.
+// Cas represents the specific state of a document on the cluster.
 type Cas gocbcore.Cas
 type pendingOp gocbcore.PendingOp
 
-// Returns a CAPI endpoint.  Guarenteed to return something for now...
 func (b *Bucket) getViewEp() (string, error) {
 	capiEps := b.client.CapiEps()
 	if len(capiEps) == 0 {
@@ -147,18 +156,18 @@ func (b *Bucket) Close() {
 	b.client.Close()
 }
 
-// IoRouter returns a pointer to the Bucket's client
+// IoRouter returns the underlying gocb agent managing connections.
 func (b *Bucket) IoRouter() *gocbcore.Agent {
 	return b.client
 }
 
 // *INTERNAL*
 // Internal methods, not safe to be consumed by third parties.
-func (b *Bucket) Internal() *bucketInternal {
+func (b *Bucket) Internal() *BucketInternal {
 	return b.internal
 }
 
-// Manager returns a pointer to a BucketManager
+// Manager returns a BucketManager for performing management operations on this bucket.
 func (b *Bucket) Manager(username, password string) *BucketManager {
 	userPass := userPassPair{username, password}
 	if username == "" || password == "" {

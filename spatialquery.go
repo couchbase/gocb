@@ -7,12 +7,14 @@ import (
 	"strings"
 )
 
+// SpatialQuery represents a pending spatial query.
 type SpatialQuery struct {
 	ddoc    string
 	name    string
 	options url.Values
 }
 
+// Stale specifies the level of consistency required for this query.
 func (vq *SpatialQuery) Stale(stale StaleMode) *SpatialQuery {
 	if stale == Before {
 		vq.options.Set("stale", "false")
@@ -26,16 +28,19 @@ func (vq *SpatialQuery) Stale(stale StaleMode) *SpatialQuery {
 	return vq
 }
 
+// Skip specifies how many results to skip at the beginning of the result list.
 func (vq *SpatialQuery) Skip(num uint) *SpatialQuery {
 	vq.options.Set("skip", strconv.FormatUint(uint64(num), 10))
 	return vq
 }
 
+// Limit specifies a limit on the number of results to return.
 func (vq *SpatialQuery) Limit(num uint) *SpatialQuery {
 	vq.options.Set("limit", strconv.FormatUint(uint64(num), 10))
 	return vq
 }
 
+// Bbox specifies the bounding region to use for the spatial query.
 func (vq *SpatialQuery) Bbox(bounds []float64) *SpatialQuery {
 	if len(bounds) == 4 {
 		vq.options.Set("bbox", fmt.Sprintf("%f,%f,%f,%f", bounds[0], bounds[1], bounds[2], bounds[3]))
@@ -45,6 +50,7 @@ func (vq *SpatialQuery) Bbox(bounds []float64) *SpatialQuery {
 	return vq
 }
 
+// Development specifies whether to query the production or development design document.
 func (vq *SpatialQuery) Development(val bool) *SpatialQuery {
 	if val {
 		if !strings.HasPrefix(vq.ddoc, "dev_") {
@@ -56,11 +62,13 @@ func (vq *SpatialQuery) Development(val bool) *SpatialQuery {
 	return vq
 }
 
+// Custom allows specifying custom query options.
 func (vq *SpatialQuery) Custom(name, value string) *SpatialQuery {
 	vq.options.Set(name, value)
 	return vq
 }
 
+// NewSpatialQuery creates a new SpatialQuery object from a design document and view name.
 func NewSpatialQuery(ddoc, name string) *SpatialQuery {
 	return &SpatialQuery{
 		ddoc:    ddoc,

@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+// Cluster represents a connection to a specific Couchbase cluster.
 type Cluster struct {
 	spec                 connSpec
 	auth                 Authenticator
@@ -26,6 +27,7 @@ type Cluster struct {
 	bucketList  []*Bucket
 }
 
+// Connect creates a new Cluster object for a specific cluster.
 func Connect(connSpecStr string) (*Cluster, error) {
 	spec, err := parseConnSpec(connSpecStr)
 	if err != nil {
@@ -70,20 +72,61 @@ func Connect(connSpecStr string) (*Cluster, error) {
 	return cluster, nil
 }
 
+// ConnectTimeout returns the maximum time to wait when attempting to connect to a bucket.
 func (c *Cluster) ConnectTimeout() time.Duration {
 	return c.connectTimeout
 }
+
+// SetConnectTimeout sets the maximum time to wait when attempting to connect to a bucket.
 func (c *Cluster) SetConnectTimeout(timeout time.Duration) {
 	c.connectTimeout = timeout
 }
+
+// ServerConnectTimeout returns the maximum time to attempt to connect to a single node.
 func (c *Cluster) ServerConnectTimeout() time.Duration {
 	return c.serverConnectTimeout
 }
+
+// SetServerConnectTimeout sets the maximum time to attempt to connect to a single node.
 func (c *Cluster) SetServerConnectTimeout(timeout time.Duration) {
 	c.serverConnectTimeout = timeout
 }
+
+// N1qlTimeout returns the maximum time to wait for a cluster-level N1QL query to complete.
+func (c *Cluster) N1qlTimeout() time.Duration {
+	return c.n1qlTimeout
+}
+
+// SetN1qlTimeout sets the maximum time to wait for a cluster-level N1QL query to complete.
+func (c *Cluster) SetN1qlTimeout(timeout time.Duration) {
+	c.n1qlTimeout = timeout
+}
+
+// FtsTimeout returns the maximum time to wait for a cluster-level FTS query to complete.
+func (c *Cluster) FtsTimeout() time.Duration {
+	return c.ftsTimeout
+}
+
+// SetFtsTimeout sets the maximum time to wait for a cluster-level FTS query to complete.
+func (c *Cluster) SetFtsTimeout(timeout time.Duration) {
+	c.ftsTimeout = timeout
+}
+
+// NmvRetryDelay returns the time to wait between retrying an operation due to not my vbucket.
+func (c *Cluster) NmvRetryDelay() time.Duration {
+	return c.nmvRetryDelay
+}
+
+// SetNmvRetryDelay sets the time to wait between retrying an operation due to not my vbucket.
 func (c *Cluster) SetNmvRetryDelay(delay time.Duration) {
 	c.nmvRetryDelay = delay
+}
+
+// InvalidateQueryCache forces the internal cache of prepared queries to be cleared.
+func (c *Cluster) InvalidateQueryCache() {
+	c.clusterLock.Lock()
+	c.queryCache = make(map[string]*n1qlCache)
+	c.clusterLock.Unlock()
 }
 
 func specToHosts(spec connSpec) ([]string, []string, bool) {
@@ -157,6 +200,7 @@ func (c *Cluster) makeAgentConfig(bucket, password string, mt bool) (*gocbcore.A
 	}, nil
 }
 
+// Authenticate specifies an Authenticator interface to use to authenticate with cluster services.
 func (c *Cluster) Authenticate(auth Authenticator) error {
 	c.auth = auth
 	return nil
@@ -186,10 +230,14 @@ func (c *Cluster) openBucket(bucket, password string, mt bool) (*Bucket, error) 
 	return b, nil
 }
 
+// OpenBucket opens a new connection to the specified bucket.
 func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
 	return c.openBucket(bucket, password, false)
 }
 
+// OpenBucketWithMt opens a new connection to the specified bucket and enables mutation tokens.
+// MutationTokens allow you to execute queries and durability requirements with very specific
+// operation-level consistency.
 func (c *Cluster) OpenBucketWithMt(bucket, password string) (*Bucket, error) {
 	return c.openBucket(bucket, password, true)
 }
@@ -205,6 +253,7 @@ func (c *Cluster) closeBucket(bucket *Bucket) {
 	c.clusterLock.Unlock()
 }
 
+// Manager returns a ClusterManager object for performing cluster management operations on this cluster.
 func (c *Cluster) Manager(username, password string) *ClusterManager {
 	userPass := userPassPair{username, password}
 	if username == "" || password == "" {
@@ -246,27 +295,17 @@ func (c *Cluster) Manager(username, password string) *ClusterManager {
 	}
 }
 
-func (c *Cluster) N1qlTimeout() time.Duration {
-	return c.n1qlTimeout
-}
-func (c *Cluster) SetN1qlTimeout(timeout time.Duration) {
-	c.n1qlTimeout = timeout
-}
-
-func (c *Cluster) InvalidateQueryCache() {
-	c.clusterLock.Lock()
-	c.queryCache = make(map[string]*n1qlCache)
-	c.clusterLock.Unlock()
-}
-
+// StreamingBucket represents a bucket connection used for streaming data over DCP.
 type StreamingBucket struct {
 	client *gocbcore.Agent
 }
 
+// IoRouter returns the underlying gocb agent managing connections.
 func (b *StreamingBucket) IoRouter() *gocbcore.Agent {
 	return b.client
 }
 
+// OpenBucket opens a new connection to the specified bucket for the purpose of streaming data.
 func (c *Cluster) OpenStreamingBucket(streamName, bucket, password string) (*StreamingBucket, error) {
 	agentConfig, err := c.makeAgentConfig(bucket, password, false)
 	if err != nil {

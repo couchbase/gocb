@@ -108,7 +108,7 @@ func (b *Bucket) lookupIn(set *LookupInBuilder) (resOut *DocumentFragment, errOu
 				resSet := &DocumentFragment{}
 				resSet.contents = make([]subDocResult, len(results))
 
-				for i, _ := range results {
+				for i := range results {
 					resSet.contents[i].path = set.ops[i].Path
 					resSet.contents[i].err = results[i].Err
 					if results[i].Value != nil {
@@ -291,7 +291,7 @@ func (b *Bucket) mutateIn(set *MutateInBuilder) (resOut *DocumentFragment, errOu
 				}
 				resSet.contents = make([]subDocResult, len(results))
 
-				for i, _ := range results {
+				for i := range results {
 					resSet.contents[i].path = set.ops[i].Path
 					resSet.contents[i].err = results[i].Err
 					if results[i].Value != nil {

@@ -11,6 +11,7 @@ import (
 	"net/url"
 )
 
+// ClusterManager provides methods for performing cluster management operations.
 type ClusterManager struct {
 	hosts    []string
 	username string
@@ -18,10 +19,14 @@ type ClusterManager struct {
 	httpCli  *http.Client
 }
 
+// BucketType specifies the kind of bucket
 type BucketType int
 
 const (
+	// Couchbase indicates a Couchbase bucket type.
 	Couchbase = BucketType(0)
+
+	// Memcached indicates a Memcached bucket type.
 	Memcached = BucketType(1)
 )
 
@@ -41,6 +46,7 @@ type bucketDataIn struct {
 	} `json:"controllers"`
 }
 
+// BucketSettings holds information about the settings for a bucket.
 type BucketSettings struct {
 	FlushEnabled  bool
 	IndexReplicas bool
@@ -95,6 +101,7 @@ func bucketDataInToSettings(bucketData *bucketDataIn) *BucketSettings {
 	return settings
 }
 
+// GetBuckets returns a list of all active buckets on the cluster.
 func (cm *ClusterManager) GetBuckets() ([]*BucketSettings, error) {
 	resp, err := cm.mgmtRequest("GET", "/pools/default/buckets", "", nil)
 	if err != nil {
@@ -125,6 +132,7 @@ func (cm *ClusterManager) GetBuckets() ([]*BucketSettings, error) {
 	return buckets, nil
 }
 
+// InsertBucket creates a new bucket on the cluster.
 func (cm *ClusterManager) InsertBucket(settings *BucketSettings) error {
 	posts := url.Values{}
 	posts.Add("name", settings.Name)
@@ -164,11 +172,13 @@ func (cm *ClusterManager) InsertBucket(settings *BucketSettings) error {
 	return nil
 }
 
+// UpdateBucket will update the settings for a specific bucket on the cluster.
 func (cm *ClusterManager) UpdateBucket(settings *BucketSettings) error {
 	// Cluster-side, updates are the same as creates.
 	return cm.InsertBucket(settings)
 }
 
+// RemoveBucket will delete a bucket from the cluster by name.
 func (cm *ClusterManager) RemoveBucket(name string) error {
 	reqUri := fmt.Sprintf("/pools/default/buckets/%s", name)
 

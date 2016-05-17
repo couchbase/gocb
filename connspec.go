@@ -20,24 +20,24 @@ const (
 )
 
 // Gets the implicit port for the scheme
-func (s connSpecScheme) DefaultPort() int {
-	return int(s)
+func (scheme connSpecScheme) DefaultPort() int {
+	return int(scheme)
 }
 
-func (s connSpecScheme) IsMCD() bool {
-	return s == csPlainMcd || s == csSslMcd
+func (scheme connSpecScheme) IsMCD() bool {
+	return scheme == csPlainMcd || scheme == csSslMcd
 }
 
-func (s connSpecScheme) IsHTTP() bool {
-	return s == csPlainHttp || s == csSslHttp
+func (scheme connSpecScheme) IsHTTP() bool {
+	return scheme == csPlainHttp || scheme == csSslHttp
 }
 
-func (s connSpecScheme) IsSSL() bool {
-	return s == csSslMcd || s == csSslHttp
+func (scheme connSpecScheme) IsSSL() bool {
+	return scheme == csSslMcd || scheme == csSslHttp
 }
 
-func (s connSpecScheme) String() string {
-	switch s {
+func (scheme connSpecScheme) String() string {
+	switch scheme {
 	case csPlainHttp:
 		return "http"
 	case csPlainMcd:
@@ -131,7 +131,7 @@ func parseConnSpec(connStr string) (out connSpec, err error) {
 	if parts[2] != "" {
 		(&out.Scheme).load(parts[2])
 		if out.Scheme == csInvalid {
-			err = errors.New(fmt.Sprintf("Unknown scheme '%s'", parts[2]))
+			err = fmt.Errorf("Unknown scheme '%s'", parts[2])
 			return
 		}
 		out.hasExplicitScheme = true

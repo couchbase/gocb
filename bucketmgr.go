@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+// View represents a Couchbase view within a design document.
 type View struct {
 	Map    string `json:"map,omitempty"`
 	Reduce string `json:"reduce,omitempty"`
@@ -20,12 +21,14 @@ func (v View) hasReduce() bool {
 	return v.Reduce != ""
 }
 
+// DesignDocument represents a Couchbase design document containing multiple views.
 type DesignDocument struct {
 	Name         string          `json:"-"`
 	Views        map[string]View `json:"views,omitempty"`
 	SpatialViews map[string]View `json:"spatial,omitempty"`
 }
 
+// IndexInfo represents a Couchbase GSI index.
 type IndexInfo struct {
 	Name      string    `json:"name"`
 	IsPrimary bool      `json:"is_primary"`
@@ -36,6 +39,8 @@ type IndexInfo struct {
 	IndexKey  []string  `json:"index_key"`
 }
 
+// BucketManager provides methods for performing bucket management operations.
+// See ClusterManager for methods that allow creating and removing buckets themselves.
 type BucketManager struct {
 	bucket   *Bucket
 	username string
@@ -86,6 +91,8 @@ func (bm *BucketManager) mgmtRequest(method, uri, contentType string, body io.Re
 	return bm.bucket.client.HttpClient().Do(req)
 }
 
+// Flush will delete all the of the data from a bucket.
+// Keep in mind that you must have flushing enabled in the buckets configuration.
 func (bm *BucketManager) Flush() error {
 	reqUri := fmt.Sprintf("/pools/default/buckets/%s/controller/doFlush", bm.bucket.name)
 	resp, err := bm.mgmtRequest("POST", reqUri, "", nil)
@@ -104,6 +111,7 @@ func (bm *BucketManager) Flush() error {
 	return nil
 }
 
+// GetDesignDocument retrieves a single design document for the given bucket..
 func (bm *BucketManager) GetDesignDocument(name string) (*DesignDocument, error) {
 	reqUri := fmt.Sprintf("/_design/%s", name)
 
@@ -132,6 +140,7 @@ func (bm *BucketManager) GetDesignDocument(name string) (*DesignDocument, error)
 	return &ddocObj, nil
 }
 
+// GetDesignDocuments will retrieve all design documents for the given bucket.
 func (bm *BucketManager) GetDesignDocuments() ([]*DesignDocument, error) {
 	reqUri := fmt.Sprintf("/pools/default/buckets/%s/ddocs", bm.bucket.name)
 
@@ -175,6 +184,7 @@ func (bm *BucketManager) GetDesignDocuments() ([]*DesignDocument, error) {
 	return ddocs, nil
 }
 
+// InsertDesignDocument inserts a design document to the given bucket.
 func (bm *BucketManager) InsertDesignDocument(ddoc *DesignDocument) error {
 	oldDdoc, _ := bm.GetDesignDocument(ddoc.Name)
 	if oldDdoc != nil {
@@ -183,6 +193,8 @@ func (bm *BucketManager) InsertDesignDocument(ddoc *DesignDocument) error {
 	return bm.UpsertDesignDocument(ddoc)
 }
 
+// UpsertDesignDocument will insert a design document to the given bucket, or update
+// an existing design document with the same name.
 func (bm *BucketManager) UpsertDesignDocument(ddoc *DesignDocument) error {
 	reqUri := fmt.Sprintf("/_design/%s", ddoc.Name)
 
@@ -208,6 +220,7 @@ func (bm *BucketManager) UpsertDesignDocument(ddoc *DesignDocument) error {
 	return nil
 }
 
+// RemoveDesignDocument will remove a design document from the given bucket.
 func (bm *BucketManager) RemoveDesignDocument(name string) error {
 	reqUri := fmt.Sprintf("/_design/%s", name)
 

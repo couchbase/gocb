@@ -23,6 +23,7 @@ func (e *viewError) Error() string {
 	return e.Message + " - " + e.Reason
 }
 
+// ViewResults implements an iterator interface which can be used to iterate over the rows of the query results.
 type ViewResults interface {
 	One(valuePtr interface{}) error
 	Next(valuePtr interface{}) bool
@@ -154,6 +155,7 @@ func (b *Bucket) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) (QueryResult
 	return b.cluster.doN1qlQuery(b, q, params)
 }
 
+// *VOLATILE*
 // Performs a view query and returns a list of rows or an error.
 func (b *Bucket) ExecuteSearchQuery(q *SearchQuery) (SearchResults, error) {
 	return b.cluster.doSearchQuery(b, q)

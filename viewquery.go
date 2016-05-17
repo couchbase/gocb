@@ -7,27 +7,36 @@ import (
 	"strings"
 )
 
+// StaleMode specifies the consistency required for a view query.
 type StaleMode int
 
 const (
+	// Before indicates to update the index before querying it.
 	Before = StaleMode(1)
-	None   = StaleMode(2)
-	After  = StaleMode(3)
+	// None indicates that no special behaviour should be used.
+	None = StaleMode(2)
+	// After indicates to update the index asynchronously after querying.
+	After = StaleMode(3)
 )
 
+// SortOrder specifies the ordering for the view queries results.
 type SortOrder int
 
 const (
-	Ascending  = SortOrder(1)
+	// Ascending indicates the query results should be sorted from lowest to highest.
+	Ascending = SortOrder(1)
+	// Descending indicates the query results should be sorted from highest to lowest.
 	Descending = SortOrder(2)
 )
 
+// ViewQuery represents a pending view query.
 type ViewQuery struct {
 	ddoc    string
 	name    string
 	options url.Values
 }
 
+// Stale specifies the level of consistency required for this query.
 func (vq *ViewQuery) Stale(stale StaleMode) *ViewQuery {
 	if stale == Before {
 		vq.options.Set("stale", "false")
@@ -41,16 +50,19 @@ func (vq *ViewQuery) Stale(stale StaleMode) *ViewQuery {
 	return vq
 }
 
+// Skip specifies how many results to skip at the beginning of the result list.
 func (vq *ViewQuery) Skip(num uint) *ViewQuery {
 	vq.options.Set("skip", strconv.FormatUint(uint64(num), 10))
 	return vq
 }
 
+// Limit specifies a limit on the number of results to return.
 func (vq *ViewQuery) Limit(num uint) *ViewQuery {
 	vq.options.Set("limit", strconv.FormatUint(uint64(num), 10))
 	return vq
 }
 
+// Order specifies the order to sort the view results in.
 func (vq *ViewQuery) Order(order SortOrder) *ViewQuery {
 	if order == Ascending {
 		vq.options.Set("descending", "false")
@@ -62,6 +74,7 @@ func (vq *ViewQuery) Order(order SortOrder) *ViewQuery {
 	return vq
 }
 
+// Reduce specifies whether to run the reduce part of the map-reduce.
 func (vq *ViewQuery) Reduce(reduce bool) *ViewQuery {
 	if reduce == true {
 		vq.options.Set("reduce", "true")
@@ -71,6 +84,7 @@ func (vq *ViewQuery) Reduce(reduce bool) *ViewQuery {
 	return vq
 }
 
+// Group specifies whether to group the map-reduce results.
 func (vq *ViewQuery) Group(useGrouping bool) *ViewQuery {
 	if useGrouping {
 		vq.options.Set("group", "true")
@@ -80,24 +94,28 @@ func (vq *ViewQuery) Group(useGrouping bool) *ViewQuery {
 	return vq
 }
 
+// GroupLevel specifies at what level to group the map-reduce results.
 func (vq *ViewQuery) GroupLevel(groupLevel uint) *ViewQuery {
 	vq.options.Set("group_level", strconv.FormatUint(uint64(groupLevel), 10))
 	return vq
 }
 
+// Key specifies a specific key to retrieve from the index.
 func (vq *ViewQuery) Key(key interface{}) *ViewQuery {
 	jsonKey, _ := json.Marshal(key)
 	vq.options.Set("key", string(jsonKey))
 	return vq
 }
 
+// Keys specifies a list of specific keys to retrieve from the index.
 func (vq *ViewQuery) Keys(keys []interface{}) *ViewQuery {
 	jsonKeys, _ := json.Marshal(keys)
 	vq.options.Set("keys", string(jsonKeys))
 	return vq
 }
 
-func (vq *ViewQuery) Range(start, end interface{}, inclusive_end bool) *ViewQuery {
+// Range specifies a value range to get results within.
+func (vq *ViewQuery) Range(start, end interface{}, inclusiveEnd bool) *ViewQuery {
 	// TODO(brett19): Not currently handling errors due to no way to return the error
 	if start != nil {
 		jsonStartKey, _ := json.Marshal(start)
@@ -112,7 +130,7 @@ func (vq *ViewQuery) Range(start, end interface{}, inclusive_end bool) *ViewQuer
 		vq.options.Del("endkey")
 	}
 	if start != nil || end != nil {
-		if inclusive_end {
+		if inclusiveEnd {
 			vq.options.Set("inclusive_end", "true")
 		} else {
 			vq.options.Set("inclusive_end", "false")
@@ -123,6 +141,8 @@ func (vq *ViewQuery) Range(start, end interface{}, inclusive_end bool) *ViewQuer
 	return vq
 }
 
+// IdRange specifies a range of document id's to get results within.
+// Usually requires Range to be specified as well.
 func (vq *ViewQuery) IdRange(start, end string) *ViewQuery {
 	if start != "" {
 		vq.options.Set("startkey_docid", start)
@@ -137,6 +157,7 @@ func (vq *ViewQuery) IdRange(start, end string) *ViewQuery {
 	return vq
 }
 
+// Development specifies whether to query the production or development design document.
 func (vq *ViewQuery) Development(val bool) *ViewQuery {
 	if val {
 		if !strings.HasPrefix(vq.ddoc, "dev_") {
@@ -148,11 +169,13 @@ func (vq *ViewQuery) Development(val bool) *ViewQuery {
 	return vq
 }
 
+// Custom allows specifying custom query options.
 func (vq *ViewQuery) Custom(name, value string) *ViewQuery {
 	vq.options.Set(name, value)
 	return vq
 }
 
+// NewViewQuery creates a new ViewQuery object from a design document and view name.
 func NewViewQuery(ddoc, name string) *ViewQuery {
 	return &ViewQuery{
 		ddoc:    ddoc,

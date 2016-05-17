@@ -1,5 +1,7 @@
 package gocb
 
+// *VOLATILE*
+// Authenticator provides an interface to authenticate to each service.
 type Authenticator interface {
 	clusterMgmt() userPassPair
 	clusterN1ql() []userPassPair
@@ -11,6 +13,8 @@ type Authenticator interface {
 	bucketFts(bucket string) []userPassPair
 }
 
+// *VOLATILE*
+// Provides a password for a single bucket.
 type BucketAuthenticator struct {
 	Password string
 }
@@ -20,8 +24,11 @@ type userPassPair struct {
 	Password string `json:"pass"`
 }
 
+// BucketAuthenticatorMap is a map of bucket name to BucketAuthenticator.
 type BucketAuthenticatorMap map[string]BucketAuthenticator
 
+// *VOLATILE*
+// Authenticator which uses a list of buckets and passwords.
 type ClusterAuthenticator struct {
 	Buckets  BucketAuthenticatorMap
 	Username string
@@ -33,7 +40,7 @@ func (ca ClusterAuthenticator) clusterMgmt() userPassPair {
 }
 
 func (ca ClusterAuthenticator) clusterAll() []userPassPair {
-	userPassList := make([]userPassPair, 0)
+	userPassList := make([]userPassPair, len(ca.Buckets))
 	for bucket, auth := range ca.Buckets {
 		userPassList = append(userPassList, userPassPair{
 			Username: bucket,

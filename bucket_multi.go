@@ -18,11 +18,15 @@ func (op *bulkOp) cancel() bool {
 	return res
 }
 
+// BulkOp represents a single operation that can be submitted (within a list of more operations) to .Do()
+// You can create a bulk operation by instantiating one of the implementations of BulkOp,
+// such as GetOp, UpsertOp, ReplaceOp, and more.
 type BulkOp interface {
 	execute(*Bucket, chan BulkOp)
 	cancel() bool
 }
 
+// Do execute one or more `BulkOp` items in parallel.
 func (b *Bucket) Do(ops []BulkOp) error {
 	timeoutTmr := gocbcore.AcquireTimer(time.Second * 10)
 
@@ -33,7 +37,7 @@ func (b *Bucket) Do(ops []BulkOp) error {
 	for _, item := range ops {
 		item.execute(b, signal)
 	}
-	for _, _ = range ops {
+	for _ = range ops {
 		select {
 		case item := <-signal:
 			// We're really just clearing the pendop from this thread,
@@ -53,6 +57,7 @@ func (b *Bucket) Do(ops []BulkOp) error {
 	return nil
 }
 
+// GetOp represents a type of `BulkOp` used for Get operations. See BulkOp.
 type GetOp struct {
 	bulkOp
 
@@ -81,6 +86,7 @@ func (item *GetOp) execute(b *Bucket, signal chan BulkOp) {
 	}
 }
 
+// GetAndTouchOp represents a type of `BulkOp` used for GetAndTouch operations. See BulkOp.
 type GetAndTouchOp struct {
 	bulkOp
 
@@ -111,6 +117,7 @@ func (item *GetAndTouchOp) execute(b *Bucket, signal chan BulkOp) {
 	}
 }
 
+// TouchOp represents a type of `BulkOp` used for Touch operations. See BulkOp.
 type TouchOp struct {
 	bulkOp
 
@@ -137,6 +144,7 @@ func (item *TouchOp) execute(b *Bucket, signal chan BulkOp) {
 	}
 }
 
+// RemoveOp represents a type of `BulkOp` used for Remove operations. See BulkOp.
 type RemoveOp struct {
 	bulkOp
 
@@ -162,6 +170,7 @@ func (item *RemoveOp) execute(b *Bucket, signal chan BulkOp) {
 	}
 }
 
+// UpsertOp represents a type of `BulkOp` used for Upsert operations. See BulkOp.
 type UpsertOp struct {
 	bulkOp
 
@@ -195,6 +204,7 @@ func (item *UpsertOp) execute(b *Bucket, signal chan BulkOp) {
 	}
 }
 
+// InsertOp represents a type of `BulkOp` used for Insert operations. See BulkOp.
 type InsertOp struct {
 	bulkOp
 
@@ -228,6 +238,7 @@ func (item *InsertOp) execute(b *Bucket, signal chan BulkOp) {
 	}
 }
 
+// ReplaceOp represents a type of `BulkOp` used for Replace operations. See BulkOp.
 type ReplaceOp struct {
 	bulkOp
 
@@ -261,6 +272,7 @@ func (item *ReplaceOp) execute(b *Bucket, signal chan BulkOp) {
 	}
 }
 
+// AppendOp represents a type of `BulkOp` used for Append operations. See BulkOp.
 type AppendOp struct {
 	bulkOp
 
@@ -287,6 +299,7 @@ func (item *AppendOp) execute(b *Bucket, signal chan BulkOp) {
 	}
 }
 
+// PrependOp represents a type of `BulkOp` used for Prepend operations. See BulkOp.
 type PrependOp struct {
 	bulkOp
 
@@ -313,6 +326,7 @@ func (item *PrependOp) execute(b *Bucket, signal chan BulkOp) {
 	}
 }
 
+// CounterOp represents a type of `BulkOp` used for Counter operations. See BulkOp.
 type CounterOp struct {
 	bulkOp
 

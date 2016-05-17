@@ -17,7 +17,7 @@ func testBytesEqual(t *testing.T, left, right []byte) {
 		t.Errorf("Slice lengths do not match")
 		return
 	}
-	for i, _ := range left {
+	for i := range left {
 		if left[i] != right[i] {
 			t.Errorf("Slice values do not match")
 			return

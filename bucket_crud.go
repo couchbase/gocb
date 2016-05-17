@@ -80,8 +80,16 @@ func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint6
 	return val, cas, err
 }
 
+// ServerStats is a tree of statistics information returned from the server.
+// stats := cb.Stats(...)
+// for server := stats {
+//    for statName, stat := server {
+//      //...
+//    }
+// }
 type ServerStats map[string]map[string]string
 
+// Stats returns various server statistics from the cluster.
 func (b *Bucket) Stats(key string) (statsOut ServerStats, errOut error) {
 	signal := make(chan bool, 1)
 	statsOut = make(ServerStats)

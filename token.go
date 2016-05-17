@@ -6,6 +6,7 @@ import (
 	"github.com/couchbase/gocb/gocbcore"
 )
 
+// MutationToken holds the mutation state information from an operation.
 type MutationToken struct {
 	token  gocbcore.MutationToken
 	bucket *Bucket
@@ -18,10 +19,12 @@ type bucketToken struct {
 type bucketTokens map[string]*bucketToken
 type mutationStateData map[string]*bucketTokens
 
+// MutationState holds and aggregates MutationToken's across multiple operations.
 type MutationState struct {
 	data *mutationStateData
 }
 
+// NewMutationState creates a new MutationState for tracking mutation state.
 func NewMutationState(tokens ...MutationToken) *MutationState {
 	mt := &MutationState{}
 	mt.Add(tokens...)
@@ -55,16 +58,19 @@ func (mt *MutationState) addSingle(token MutationToken) {
 	stateToken.VbUuid = fmt.Sprintf("%d", token.token.VbUuid)
 }
 
+// Add includes an operation's mutation information in this mutation state.
 func (mt *MutationState) Add(tokens ...MutationToken) {
 	for _, v := range tokens {
 		mt.addSingle(v)
 	}
 }
 
+// MarshalJSON marshal's this mutation state to JSON.
 func (mt *MutationState) MarshalJSON() ([]byte, error) {
 	return json.Marshal(mt.data)
 }
 
+// UnmarshalJSON unmarshal's a mutation state from JSON.
 func (mt *MutationState) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &mt.data)
 }

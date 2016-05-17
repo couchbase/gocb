@@ -40,6 +40,7 @@ func (e *n1qlMultiError) Code() uint32 {
 	return (*e)[0].Code
 }
 
+// QueryResults allows access to the results of a N1QL query.
 type QueryResults interface {
 	One(valuePtr interface{}) error
 	Next(valuePtr interface{}) bool
@@ -171,14 +172,14 @@ func (c *Cluster) executeN1qlQuery(n1qlEp string, opts map[string]interface{}, c
 	}, nil
 }
 
-func (b *Cluster) prepareN1qlQuery(n1qlEp string, opts map[string]interface{}, creds []userPassPair, timeout time.Duration, client *http.Client) (*n1qlCache, error) {
+func (c *Cluster) prepareN1qlQuery(n1qlEp string, opts map[string]interface{}, creds []userPassPair, timeout time.Duration, client *http.Client) (*n1qlCache, error) {
 	prepOpts := make(map[string]interface{})
 	for k, v := range opts {
 		prepOpts[k] = v
 	}
 	prepOpts["statement"] = "PREPARE " + opts["statement"].(string)
 
-	prepRes, err := b.executeN1qlQuery(n1qlEp, prepOpts, creds, timeout, client)
+	prepRes, err := c.executeN1qlQuery(n1qlEp, prepOpts, creds, timeout, client)
 	if err != nil {
 		return nil, err
 	}
@@ -330,6 +331,7 @@ func (c *Cluster) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) (QueryResul
 	return c.doN1qlQuery(nil, q, params)
 }
 
+// SearchResultLocation holds the location of a hit in a list of search results.
 type SearchResultLocation struct {
 	Position       int    `json:"position,omitempty"`
 	Start          int    `json:"start,omitempty"`
@@ -337,6 +339,7 @@ type SearchResultLocation struct {
 	ArrayPositions []uint `json:"array_positions,omitempty"`
 }
 
+// SearchResultHit holds a single hit in a list of search results.
 type SearchResultHit struct {
 	Index       string                                       `json:"index,omitempty"`
 	Id          string                                       `json:"id,omitempty"`
@@ -347,11 +350,13 @@ type SearchResultHit struct {
 	Fields      map[string]string                            `json:"fields,omitempty"`
 }
 
+// SearchResultTermFacet holds the results of a term facet in search results.
 type SearchResultTermFacet struct {
 	Term  string `json:"term,omitempty"`
 	Count int    `json:"count,omitempty"`
 }
 
+// SearchResultNumericFacet holds the results of a numeric facet in search results.
 type SearchResultNumericFacet struct {
 	Name  string  `json:"name,omitempty"`
 	Min   float64 `json:"min,omitempty"`
@@ -359,6 +364,7 @@ type SearchResultNumericFacet struct {
 	Count int     `json:"count,omitempty"`
 }
 
+// SearchResultDateFacet holds the results of a date facet in search results.
 type SearchResultDateFacet struct {
 	Name  string `json:"name,omitempty"`
 	Min   string `json:"min,omitempty"`
@@ -366,6 +372,7 @@ type SearchResultDateFacet struct {
 	Count int    `json:"count,omitempty"`
 }
 
+// SearchResultFacet holds the results of a specified facet in search results.
 type SearchResultFacet struct {
 	Field         string                     `json:"field,omitempty"`
 	Total         int                        `json:"total,omitempty"`
@@ -376,12 +383,15 @@ type SearchResultFacet struct {
 	DateRanges    []SearchResultDateFacet    `json:"date_ranges,omitempty"`
 }
 
+// SearchResultStatus holds the status information for an executed search query.
 type SearchResultStatus struct {
 	Total      int `json:"total,omitempty"`
 	Failed     int `json:"failed,omitempty"`
 	Successful int `json:"successful,omitempty"`
 }
 
+// *VOLATILE*
+// SearchResults allows access to the results of a search query.
 type SearchResults interface {
 	Status() SearchResultStatus
 	Errors() []string
