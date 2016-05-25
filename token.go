@@ -16,6 +16,17 @@ type bucketToken struct {
 	SeqNo  uint64 `json:"seqno"`
 	VbUuid string `json:"vbuuid"`
 }
+
+func (mt bucketToken) MarshalJSON() ([]byte, error) {
+	info := []interface{}{mt.SeqNo, mt.VbUuid}
+	return json.Marshal(info)
+}
+
+func (mt *bucketToken) UnmarshalJSON(data []byte) error {
+	info := []interface{}{&mt.SeqNo, &mt.VbUuid}
+	return json.Unmarshal(data, &info)
+}
+
 type bucketTokens map[string]*bucketToken
 type mutationStateData map[string]*bucketTokens
 

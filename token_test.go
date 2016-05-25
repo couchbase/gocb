@@ -44,7 +44,7 @@ func TestMutationState_Add(t *testing.T) {
 		t.Fatalf("Failed to marshal %v", err)
 	}
 
-	if strings.Compare(string(bytes), "{\"frank\":{\"1\":{\"seqno\":12,\"vbuuid\":\"9\"},\"2\":{\"seqno\":99,\"vbuuid\":\"4\"}}}") != 0 {
+	if strings.Compare(string(bytes), "{\"frank\":{\"1\":[12,\"9\"],\"2\":[99,\"4\"]}}") != 0 {
 		t.Fatalf("Failed to generate correct JSON output %s", bytes)
 	}
 }
