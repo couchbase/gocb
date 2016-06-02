@@ -41,7 +41,7 @@ func (config *routeConfig) IsValid() bool {
 	}
 	switch config.bktType {
 	case BktTypeCouchbase:
-		return len(config.vbMap) > 0 && len(config.vbMap[0]) > 0 && len(config.capiEpList) > 0
+		return len(config.vbMap) > 0 && len(config.vbMap[0]) > 0
 	case BktTypeMemcached:
 		return len(config.ketamaMap) > 0
 	default:
