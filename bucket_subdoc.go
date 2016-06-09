@@ -3,6 +3,7 @@ package gocb
 import (
 	"encoding/json"
 	"github.com/couchbase/gocb/gocbcore"
+	"log"
 )
 
 type subDocResult struct {
@@ -171,7 +172,7 @@ func (set *MutateInBuilder) Insert(path string, value interface{}, createParents
 	}
 	op.Value, _ = json.Marshal(value)
 	if createParents {
-		op.Flags &= gocbcore.SubDocFlagMkDirP
+		op.Flags |= gocbcore.SubDocFlagMkDirP
 	}
 	set.ops = append(set.ops, op)
 	return set
@@ -185,7 +186,7 @@ func (set *MutateInBuilder) Upsert(path string, value interface{}, createParents
 	}
 	op.Value, _ = json.Marshal(value)
 	if createParents {
-		op.Flags &= gocbcore.SubDocFlagMkDirP
+		op.Flags |= gocbcore.SubDocFlagMkDirP
 	}
 	set.ops = append(set.ops, op)
 	return set
@@ -202,6 +203,23 @@ func (set *MutateInBuilder) Replace(path string, value interface{}) *MutateInBui
 	return set
 }
 
+type subDocMultiValue []byte
+
+func (set *MutateInBuilder) marshalArrayMulti(in interface{}) (out []byte) {
+	out, err := json.Marshal(in)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	// Assert first character is a '['
+	if len(out) < 2 || out[0] != '[' {
+		log.Panic("Not a JSON array")
+	}
+
+	out = out[1 : len(out)-1]
+	return
+}
+
 // Adds an remove operation to this mutation operation set.
 func (set *MutateInBuilder) Remove(path string) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
@@ -212,54 +230,95 @@ func (set *MutateInBuilder) Remove(path string) *MutateInBuilder {
 	return set
 }
 
-// Adds an array push front operation to this mutation operation set.
-func (set *MutateInBuilder) PushFront(path string, value interface{}, createParents bool) *MutateInBuilder {
+// Adds an element to the beginning (i.e. left) of an array
+func (set *MutateInBuilder) ArrayPrepend(path string, value interface{}, createParents bool) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:   gocbcore.SubDocOpArrayPushFirst,
 		Path: path,
 	}
-	op.Value, _ = json.Marshal(value)
+	if multiVal, isMulti := value.(subDocMultiValue); isMulti {
+		op.Value = multiVal
+	} else {
+		op.Value, _ = json.Marshal(value)
+	}
 	if createParents {
-		op.Flags &= gocbcore.SubDocFlagMkDirP
+		op.Flags |= gocbcore.SubDocFlagMkDirP
 	}
 	set.ops = append(set.ops, op)
 	return set
 }
 
-// Adds an array push back operation to this mutation operation set.
-func (set *MutateInBuilder) PushBack(path string, value interface{}, createParents bool) *MutateInBuilder {
+// Adds an element to the end (i.e. right) of an array
+func (set *MutateInBuilder) ArrayAppend(path string, value interface{}, createParents bool) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:   gocbcore.SubDocOpArrayPushLast,
 		Path: path,
 	}
-	op.Value, _ = json.Marshal(value)
+	if multiVal, isMulti := value.(subDocMultiValue); isMulti {
+		op.Value = multiVal
+	} else {
+		op.Value, _ = json.Marshal(value)
+	}
 	if createParents {
-		op.Flags &= gocbcore.SubDocFlagMkDirP
+		op.Flags |= gocbcore.SubDocFlagMkDirP
 	}
 	set.ops = append(set.ops, op)
 	return set
 }
 
-// Adds an array insert operation to this mutation operation set.
+// Inserts an element at a given position within an array. The position should be
+// specified as part of the path, e.g. path.to.array[3]
 func (set *MutateInBuilder) ArrayInsert(path string, value interface{}) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:   gocbcore.SubDocOpArrayInsert,
 		Path: path,
 	}
-	op.Value, _ = json.Marshal(value)
+	if multiVal, isMulti := value.(subDocMultiValue); isMulti {
+		op.Value = multiVal
+	} else {
+		op.Value, _ = json.Marshal(value)
+	}
 	set.ops = append(set.ops, op)
 	return set
 }
 
+// Adds multiple values as elements to an array.
+// `values` must be an array type
+// ArrayAppendMulti("path", []int{1,2,3,4}, true) =>
+//   "path" [..., 1,2,3,4]
+//
+// This is a more efficient version (at both the network and server levels)
+// of doing
+// ArrayAppend("path", 1, true).ArrayAppend("path", 2, true).ArrayAppend("path", 3, true)
+//
+// See ArrayAppend() for more information
+func (set *MutateInBuilder) ArrayAppendMulti(path string, values interface{}, createParents bool) *MutateInBuilder {
+	return set.ArrayAppend(path, set.marshalArrayMulti(values), createParents)
+}
+
+// Adds multiple values at the beginning of an array.
+// See ArrayAppendMulti for more information about multiple element operations
+// and ArrayPrepend for the semantics of this operation
+func (set *MutateInBuilder) ArrayPrependMulti(path string, values interface{}, createParents bool) *MutateInBuilder {
+	return set.ArrayPrepend(path, set.marshalArrayMulti(values), createParents)
+}
+
+// Inserts multiple elements at a specified position within the
+// array. See ArrayAppendMulti for more information about multiple element
+// operations, and ArrayInsert for more information about array insertion operations
+func (set *MutateInBuilder) ArrayInsertMulti(path string, values interface{}) *MutateInBuilder {
+	return set.ArrayInsert(path, set.marshalArrayMulti(values))
+}
+
 // Adds an dictionary add unique operation to this mutation operation set.
-func (set *MutateInBuilder) AddUnique(path string, value interface{}, createParents bool) *MutateInBuilder {
+func (set *MutateInBuilder) ArrayAddUnique(path string, value interface{}, createParents bool) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:   gocbcore.SubDocOpArrayAddUnique,
 		Path: path,
 	}
 	op.Value, _ = json.Marshal(value)
 	if createParents {
-		op.Flags &= gocbcore.SubDocFlagMkDirP
+		op.Flags |= gocbcore.SubDocFlagMkDirP
 	}
 	set.ops = append(set.ops, op)
 	return set
@@ -273,7 +332,7 @@ func (set *MutateInBuilder) Counter(path string, delta int64, createParents bool
 	}
 	op.Value, _ = json.Marshal(delta)
 	if createParents {
-		op.Flags &= gocbcore.SubDocFlagMkDirP
+		op.Flags |= gocbcore.SubDocFlagMkDirP
 	}
 	set.ops = append(set.ops, op)
 	return set

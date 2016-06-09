@@ -75,7 +75,7 @@ const (
 type SubDocFlag uint16
 
 const (
-	SubDocFlagMkDirP = SubDocFlag(0x00)
+	SubDocFlagMkDirP = SubDocFlag(0x01)
 )
 
 type SubDocOpType uint8
