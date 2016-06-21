@@ -141,7 +141,6 @@ func (b *Bucket) lookupIn(set *LookupInBuilder) (resOut *DocumentFragment, errOu
 	}
 }
 
-// *VOLATILE*
 // Creates a sub-document lookup operation builder.
 func (b *Bucket) LookupIn(key string) *LookupInBuilder {
 	return &LookupInBuilder{
@@ -381,7 +380,6 @@ func (b *Bucket) mutateIn(set *MutateInBuilder) (resOut *DocumentFragment, errOu
 	}
 }
 
-// *VOLATILE*
 // Creates a sub-document mutation operation builder.
 func (b *Bucket) MutateIn(key string, cas Cas, expiry uint32) *MutateInBuilder {
 	return &MutateInBuilder{

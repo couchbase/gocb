@@ -284,7 +284,6 @@ func (bm *BucketManager) createIndex(indexName string, fields []string, ignoreIf
 	return nil
 }
 
-// *VOLATILE*
 // Creates an index over the specified fields.
 func (bm *BucketManager) CreateIndex(indexName string, fields []string, ignoreIfExists, deferred bool) error {
 	if indexName == "" {
@@ -296,7 +295,6 @@ func (bm *BucketManager) CreateIndex(indexName string, fields []string, ignoreIf
 	return bm.createIndex(indexName, fields, ignoreIfExists, deferred)
 }
 
-// *VOLATILE*
 // Creates a primary index.  An empty customName uses the default naming.
 func (bm *BucketManager) CreatePrimaryIndex(customName string, ignoreIfExists, deferred bool) error {
 	return bm.createIndex(customName, nil, ignoreIfExists, deferred)
@@ -328,7 +326,6 @@ func (bm *BucketManager) dropIndex(indexName string, ignoreIfNotExists bool) err
 	return nil
 }
 
-// *VOLATILE*
 // Drops a specific index by name.
 func (bm *BucketManager) DropIndex(indexName string, ignoreIfNotExists bool) error {
 	if indexName == "" {
@@ -337,13 +334,11 @@ func (bm *BucketManager) DropIndex(indexName string, ignoreIfNotExists bool) err
 	return bm.dropIndex(indexName, ignoreIfNotExists)
 }
 
-// *VOLATILE*
 // Drops the primary index.  Pass an empty customName for unnamed primary indexes.
 func (bm *BucketManager) DropPrimaryIndex(customName string, ignoreIfNotExists bool) error {
 	return bm.dropIndex(customName, ignoreIfNotExists)
 }
 
-// *VOLATILE*
 // Returns a list of all currently registered indexes.
 func (bm *BucketManager) GetIndexes() ([]IndexInfo, error) {
 	q := NewN1qlQuery("SELECT `indexes`.* FROM system:indexes")
@@ -365,7 +360,6 @@ func (bm *BucketManager) GetIndexes() ([]IndexInfo, error) {
 	return indexes, nil
 }
 
-// *VOLATILE*
 // Builds all indexes which are currently in deferred state.
 func (bm *BucketManager) BuildDeferredIndexes() ([]string, error) {
 	indexList, err := bm.GetIndexes()
@@ -433,7 +427,6 @@ func checkIndexesActive(indexes []IndexInfo, checkList []string) (bool, error) {
 	return true, nil
 }
 
-// *VOLATILE*
 // Waits for a set of indexes to come online
 func (bm *BucketManager) WatchIndexes(watchList []string, watchPrimary bool, timeout time.Duration) error {
 	if watchPrimary {
