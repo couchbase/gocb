@@ -121,19 +121,19 @@ func (q *RegexpQuery) Boost(boost float32) *RegexpQuery {
 }
 
 // StringQuery represents a FTS string query.
-type StringQuery struct {
+type QueryStringQuery struct {
 	ftsQueryBase
 }
 
 // NewStringQuery creates a new StringQuery.
-func NewStringQuery(query string) *StringQuery {
-	q := &StringQuery{newFtsQueryBase()}
+func NewQueryStringQuery(query string) *QueryStringQuery {
+	q := &QueryStringQuery{newFtsQueryBase()}
 	q.options["query"] = query
 	return q
 }
 
 // Boost specifies the boost for this query.
-func (q *StringQuery) Boost(boost float32) *StringQuery {
+func (q *QueryStringQuery) Boost(boost float32) *QueryStringQuery {
 	q.options["boost"] = boost
 	return q
 }

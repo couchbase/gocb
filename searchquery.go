@@ -8,6 +8,8 @@ import (
 type SearchHighlightStyle string
 
 const (
+	// DefaultHighlightStyl specifies to use the default to highlight search result hits.
+	DefaultHighlightStyle = SearchHighlightStyle("")
 	// HtmlHighlightStyle specifies to use HTML tags to highlight search result hits.
 	HtmlHighlightStyle = SearchHighlightStyle("html")
 	// AnsiHightlightStyle specifies to use ANSI tags to highlight search result hits.
@@ -18,8 +20,13 @@ type searchQueryHighlightData struct {
 	Style  string   `json:"style,omitempty"`
 	Fields []string `json:"fields,omitempty"`
 }
+type searchQueryConsistencyData struct {
+	Level   string         `json:"level,omitempty"`
+	Vectors *MutationState `json:"vectors,omitempty"`
+}
 type searchQueryCtlData struct {
-	Timeout uint `json:"timeout,omitempty"`
+	Timeout     uint                        `json:"timeout,omitempty"`
+	Consistency *searchQueryConsistencyData `json:"consistency,omitempty"`
 }
 type searchQueryData struct {
 	Query     interface{}               `json:"query,omitempty"`
@@ -88,6 +95,43 @@ func (sq *SearchQuery) Timeout(value time.Duration) *SearchQuery {
 		sq.data.Ctl = &searchQueryCtlData{}
 	}
 	sq.data.Ctl.Timeout = uint(value / time.Millisecond)
+	return sq
+}
+
+// Consistency specifies the level of consistency required for this query.
+func (sq *SearchQuery) Consistency(stale ConsistencyMode) *SearchQuery {
+	if sq.data.Ctl == nil {
+		sq.data.Ctl = &searchQueryCtlData{}
+	}
+	if sq.data.Ctl.Consistency == nil {
+		sq.data.Ctl.Consistency = &searchQueryConsistencyData{}
+	}
+
+	if sq.data.Ctl.Consistency.Vectors != nil {
+		panic("Consistent and ConsistentWith must be used exclusively")
+	}
+	if stale == NotBounded {
+		sq.data.Ctl.Consistency.Level = "not_bounded"
+	} else {
+		panic("Unexpected consistency option")
+	}
+	return sq
+}
+
+// ConsistentWith specifies a mutation state to be consistent with for this query.
+func (sq *SearchQuery) ConsistentWith(state *MutationState) *SearchQuery {
+	if sq.data.Ctl == nil {
+		sq.data.Ctl = &searchQueryCtlData{}
+	}
+	if sq.data.Ctl.Consistency == nil {
+		sq.data.Ctl.Consistency = &searchQueryConsistencyData{}
+	}
+
+	if sq.data.Ctl.Consistency.Level != "" {
+		panic("Consistent and ConsistentWith must be used exclusively")
+	}
+	sq.data.Ctl.Consistency.Level = "at_plus"
+	sq.data.Ctl.Consistency.Vectors = state
 	return sq
 }
 
