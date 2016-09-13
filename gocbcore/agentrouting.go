@@ -158,6 +158,8 @@ func (c *Agent) shutdownPipeline(s *memdPipeline) {
 	s.Drain(func(req *memdQRequest) {
 		c.redispatchDirect(req)
 	})
+
+	s.Close()
 }
 
 func (agent *Agent) checkPendingServer(server *memdPipeline) bool {
