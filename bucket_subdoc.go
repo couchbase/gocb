@@ -202,8 +202,6 @@ func (set *MutateInBuilder) Replace(path string, value interface{}) *MutateInBui
 	return set
 }
 
-type subDocMultiValue []byte
-
 func (set *MutateInBuilder) marshalArrayMulti(in interface{}) (out []byte) {
 	out, err := json.Marshal(in)
 	if err != nil {
@@ -231,15 +229,19 @@ func (set *MutateInBuilder) Remove(path string) *MutateInBuilder {
 
 // Adds an element to the beginning (i.e. left) of an array
 func (set *MutateInBuilder) ArrayPrepend(path string, value interface{}, createParents bool) *MutateInBuilder {
+	jsonVal, _ := json.Marshal(value)
+
+	return set.arrayPrependValue(path, jsonVal, createParents)
+}
+
+func (set *MutateInBuilder) arrayPrependValue(path string, bytes []byte, createParents bool) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:   gocbcore.SubDocOpArrayPushFirst,
 		Path: path,
 	}
-	if multiVal, isMulti := value.(subDocMultiValue); isMulti {
-		op.Value = multiVal
-	} else {
-		op.Value, _ = json.Marshal(value)
-	}
+
+	op.Value = bytes
+
 	if createParents {
 		op.Flags |= gocbcore.SubDocFlagMkDirP
 	}
@@ -249,15 +251,19 @@ func (set *MutateInBuilder) ArrayPrepend(path string, value interface{}, createP
 
 // Adds an element to the end (i.e. right) of an array
 func (set *MutateInBuilder) ArrayAppend(path string, value interface{}, createParents bool) *MutateInBuilder {
+	jsonVal, _ := json.Marshal(value)
+
+	return set.arrayAppendValue(path, jsonVal, createParents)
+}
+
+func (set *MutateInBuilder) arrayAppendValue(path string, bytes []byte, createParents bool) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:   gocbcore.SubDocOpArrayPushLast,
 		Path: path,
 	}
-	if multiVal, isMulti := value.(subDocMultiValue); isMulti {
-		op.Value = multiVal
-	} else {
-		op.Value, _ = json.Marshal(value)
-	}
+
+	op.Value = bytes
+
 	if createParents {
 		op.Flags |= gocbcore.SubDocFlagMkDirP
 	}
@@ -268,15 +274,18 @@ func (set *MutateInBuilder) ArrayAppend(path string, value interface{}, createPa
 // Inserts an element at a given position within an array. The position should be
 // specified as part of the path, e.g. path.to.array[3]
 func (set *MutateInBuilder) ArrayInsert(path string, value interface{}) *MutateInBuilder {
+	jsonVal, _ := json.Marshal(value)
+
+	return set.arrayInsertValue(path, jsonVal)
+}
+
+func (set *MutateInBuilder) arrayInsertValue(path string, bytes []byte) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:   gocbcore.SubDocOpArrayInsert,
 		Path: path,
 	}
-	if multiVal, isMulti := value.(subDocMultiValue); isMulti {
-		op.Value = multiVal
-	} else {
-		op.Value, _ = json.Marshal(value)
-	}
+
+	op.Value = bytes
 	set.ops = append(set.ops, op)
 	return set
 }
@@ -292,21 +301,21 @@ func (set *MutateInBuilder) ArrayInsert(path string, value interface{}) *MutateI
 //
 // See ArrayAppend() for more information
 func (set *MutateInBuilder) ArrayAppendMulti(path string, values interface{}, createParents bool) *MutateInBuilder {
-	return set.ArrayAppend(path, set.marshalArrayMulti(values), createParents)
+	return set.arrayAppendValue(path, set.marshalArrayMulti(values), createParents)
 }
 
 // Adds multiple values at the beginning of an array.
 // See ArrayAppendMulti for more information about multiple element operations
 // and ArrayPrepend for the semantics of this operation
 func (set *MutateInBuilder) ArrayPrependMulti(path string, values interface{}, createParents bool) *MutateInBuilder {
-	return set.ArrayPrepend(path, set.marshalArrayMulti(values), createParents)
+	return set.arrayPrependValue(path, set.marshalArrayMulti(values), createParents)
 }
 
 // Inserts multiple elements at a specified position within the
 // array. See ArrayAppendMulti for more information about multiple element
 // operations, and ArrayInsert for more information about array insertion operations
 func (set *MutateInBuilder) ArrayInsertMulti(path string, values interface{}) *MutateInBuilder {
-	return set.ArrayInsert(path, set.marshalArrayMulti(values))
+	return set.arrayInsertValue(path, set.marshalArrayMulti(values))
 }
 
 // Adds an dictionary add unique operation to this mutation operation set.
