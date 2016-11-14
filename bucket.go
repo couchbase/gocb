@@ -16,6 +16,7 @@ type Bucket struct {
 
 	transcoder      Transcoder
 	opTimeout       time.Duration
+	bulkOpTimeout   time.Duration
 	duraTimeout     time.Duration
 	duraPollTimeout time.Duration
 	viewTimeout     time.Duration
@@ -40,6 +41,7 @@ func createBucket(cluster *Cluster, config *gocbcore.AgentConfig) (*Bucket, erro
 		transcoder: &DefaultTranscoder{},
 
 		opTimeout:       2500 * time.Millisecond,
+		bulkOpTimeout:   10000 * time.Millisecond,
 		duraTimeout:     40000 * time.Millisecond,
 		duraPollTimeout: 100 * time.Millisecond,
 		viewTimeout:     75 * time.Second,
@@ -60,6 +62,16 @@ func (b *Bucket) OperationTimeout() time.Duration {
 // SetOperationTimeout sets the maximum amount of time to wait for an operation to succeed.
 func (b *Bucket) SetOperationTimeout(timeout time.Duration) {
 	b.opTimeout = timeout
+}
+
+// BulkOperationTimeout returns the maximum amount of time to wait for a bulk op to succeed.
+func (b *Bucket) BulkOperationTimeout() time.Duration {
+	return b.bulkOpTimeout
+}
+
+// SetBulkOperationTimeout sets the maxium amount of time to wait for a bulk op to succeed.
+func (b *Bucket) SetBulkOperationTimeout(timeout time.Duration) {
+	b.bulkOpTimeout = timeout
 }
 
 // DurabilityTimeout returns the maximum amount of time to wait for durability to succeed.

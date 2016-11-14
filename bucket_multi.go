@@ -2,7 +2,6 @@ package gocb
 
 import (
 	"github.com/couchbase/gocb/gocbcore"
-	"time"
 )
 
 type bulkOp struct {
@@ -28,7 +27,7 @@ type BulkOp interface {
 
 // Do execute one or more `BulkOp` items in parallel.
 func (b *Bucket) Do(ops []BulkOp) error {
-	timeoutTmr := gocbcore.AcquireTimer(time.Second * 10)
+	timeoutTmr := gocbcore.AcquireTimer(b.bulkOpTimeout)
 
 	// Make the channel big enough to hold all our ops in case
 	//   we get delayed inside execute (don't want to block the
