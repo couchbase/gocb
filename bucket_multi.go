@@ -361,7 +361,7 @@ func (item *CounterOp) execute(b *Bucket, signal chan BulkOp) {
 			item.bulkOp.pendop = op
 		}
 	} else if item.Delta < 0 {
-		op, err := b.client.Increment([]byte(item.Key), uint64(-item.Delta), realInitial, item.Expiry,
+		op, err := b.client.Decrement([]byte(item.Key), uint64(-item.Delta), realInitial, item.Expiry,
 			func(value uint64, cas gocbcore.Cas, mutToken gocbcore.MutationToken, err error) {
 				item.Err = err
 				if item.Err == nil {
