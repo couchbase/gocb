@@ -177,3 +177,11 @@ const (
 	VBucketStatePending = VBucketState(0x03)
 	VBucketStateDead    = VBucketState(0x04)
 )
+
+type SetMetaOption uint32
+
+const (
+	SkipConflictResolution   = SetMetaOption(0x01)
+	UseLwwConflictResolution = SetMetaOption(0x02)
+	RegenerateCas            = SetMetaOption(0x04)
+)

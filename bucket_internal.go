@@ -14,14 +14,14 @@ func (bi *bucketInternal) GetRandom(valuePtr interface{}) (string, Cas, error) {
 }
 
 // Inserts or replaces (with meta) a document in a bucket.
-func (bi *bucketInternal) UpsertMeta(key string, value, extra []byte, flags, expiry uint32, cas, revseqno uint64) (Cas, error) {
-	outcas, _, err := bi.b.upsertMeta(key, value, extra, flags, expiry, cas, revseqno)
+func (bi *bucketInternal) UpsertMeta(key string, value, extra []byte, options, flags, expiry uint32, cas, revseqno uint64) (Cas, error) {
+	outcas, _, err := bi.b.upsertMeta(key, value, extra, options, flags, expiry, cas, revseqno)
 	return outcas, err
 }
 
 // Removes a document (with meta) from the bucket.
-func (bi *bucketInternal) RemoveMeta(key string, extra []byte, flags, expiry uint32, cas, revseqno uint64) (Cas, error) {
-	outcas, _, err := bi.b.removeMeta(key, extra, flags, expiry, cas, revseqno)
+func (bi *bucketInternal) RemoveMeta(key string, extra []byte, options, flags, expiry uint32, cas, revseqno uint64) (Cas, error) {
+	outcas, _, err := bi.b.removeMeta(key, extra, options, flags, expiry, cas, revseqno)
 	return outcas, err
 }
 
@@ -57,16 +57,16 @@ func (b *Bucket) getRandom(valuePtr interface{}) (keyOut string, casOut Cas, err
 	}
 }
 
-func (b *Bucket) upsertMeta(key string, value, extra []byte, flags uint32, expiry uint32, cas, revseqno uint64) (Cas, MutationToken, error) {
+func (b *Bucket) upsertMeta(key string, value, extra []byte, options, flags uint32, expiry uint32, cas, revseqno uint64) (Cas, MutationToken, error) {
 	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
-		op, err := b.client.SetMeta([]byte(key), value, extra, flags, expiry, cas, revseqno, gocbcore.StoreCallback(cb))
+		op, err := b.client.SetMeta([]byte(key), value, extra, options, flags, expiry, cas, revseqno, gocbcore.StoreCallback(cb))
 		return op, err
 	})
 }
 
-func (b *Bucket) removeMeta(key string, extra []byte, flags uint32, expiry uint32, cas, revseqno uint64) (Cas, MutationToken, error) {
+func (b *Bucket) removeMeta(key string, extra []byte, options, flags uint32, expiry uint32, cas, revseqno uint64) (Cas, MutationToken, error) {
 	return b.hlpCasExec(func(cb ioCasCallback) (pendingOp, error) {
-		op, err := b.client.DeleteMeta([]byte(key), extra, flags, expiry, cas, revseqno, gocbcore.RemoveCallback(cb))
+		op, err := b.client.DeleteMeta([]byte(key), extra, options, flags, expiry, cas, revseqno, gocbcore.RemoveCallback(cb))
 		return op, err
 	})
 }
