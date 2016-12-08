@@ -54,7 +54,7 @@ const (
 	CmdGetLocked            = CommandCode(0x94)
 	CmdUnlockKey            = CommandCode(0x95)
 	CmdSetMeta              = CommandCode(0xa2)
-	CmdDetMeta              = CommandCode(0xa8)
+	CmdDelMeta              = CommandCode(0xa8)
 	CmdGetClusterConfig     = CommandCode(0xb5)
 	CmdGetRandom            = CommandCode(0xb6)
 	CmdSubDocGet            = CommandCode(0xc5)
@@ -176,4 +176,12 @@ const (
 	VBucketStateReplica = VBucketState(0x02)
 	VBucketStatePending = VBucketState(0x03)
 	VBucketStateDead    = VBucketState(0x04)
+)
+
+type SetMetaOption uint32
+
+const (
+	SkipConflictResolution   = SetMetaOption(0x01)
+	UseLwwConflictResolution = SetMetaOption(0x02)
+	RegenerateCas            = SetMetaOption(0x04)
 )

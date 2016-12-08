@@ -6,7 +6,7 @@ import (
 
 // **INTERNAL**
 // Stores a document along with setting some internal Couchbase meta-data.
-func (c *Agent) SetMeta(key, value, extra []byte, flags, expiry uint32, cas, revseqno uint64, cb StoreCallback) (PendingOp, error) {
+func (c *Agent) SetMeta(key, value, extra []byte, options, flags, expiry uint32, cas, revseqno uint64, cb StoreCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, req *memdRequest, err error) {
 		if err != nil {
 			cb(0, MutationToken{}, err)
@@ -23,13 +23,14 @@ func (c *Agent) SetMeta(key, value, extra []byte, flags, expiry uint32, cas, rev
 		cb(Cas(resp.Cas), mutToken, nil)
 	}
 
-	extraBuf := make([]byte, 26+len(extra))
+	extraBuf := make([]byte, 30+len(extra))
 	binary.BigEndian.PutUint32(extraBuf[0:], flags)
 	binary.BigEndian.PutUint32(extraBuf[4:], expiry)
 	binary.BigEndian.PutUint64(extraBuf[8:], revseqno)
 	binary.BigEndian.PutUint64(extraBuf[16:], cas)
-	binary.BigEndian.PutUint16(extraBuf[24:], uint16(len(extra)))
-	copy(extraBuf[26:], extra)
+	binary.BigEndian.PutUint32(extraBuf[24:], options)
+	binary.BigEndian.PutUint16(extraBuf[28:], uint16(len(extra)))
+	copy(extraBuf[30:], extra)
 	req := &memdQRequest{
 		memdRequest: memdRequest{
 			Magic:    ReqMagic,
@@ -47,7 +48,7 @@ func (c *Agent) SetMeta(key, value, extra []byte, flags, expiry uint32, cas, rev
 
 // **INTERNAL**
 // Deletes a document along with setting some internal Couchbase meta-data.
-func (c *Agent) DeleteMeta(key, extra []byte, flags, expiry uint32, cas, revseqno uint64, cb RemoveCallback) (PendingOp, error) {
+func (c *Agent) DeleteMeta(key, extra []byte, options, flags, expiry uint32, cas, revseqno uint64, cb RemoveCallback) (PendingOp, error) {
 	handler := func(resp *memdResponse, req *memdRequest, err error) {
 		if err != nil {
 			cb(0, MutationToken{}, err)
@@ -64,17 +65,18 @@ func (c *Agent) DeleteMeta(key, extra []byte, flags, expiry uint32, cas, revseqn
 		cb(Cas(resp.Cas), mutToken, nil)
 	}
 
-	extraBuf := make([]byte, 26+len(extra))
+	extraBuf := make([]byte, 30+len(extra))
 	binary.BigEndian.PutUint32(extraBuf[0:], flags)
 	binary.BigEndian.PutUint32(extraBuf[4:], expiry)
 	binary.BigEndian.PutUint64(extraBuf[8:], revseqno)
 	binary.BigEndian.PutUint64(extraBuf[16:], cas)
-	binary.BigEndian.PutUint16(extraBuf[24:], uint16(len(extra)))
-	copy(extraBuf[26:], extra)
+	binary.BigEndian.PutUint32(extraBuf[24:], options)
+	binary.BigEndian.PutUint16(extraBuf[28:], uint16(len(extra)))
+	copy(extraBuf[30:], extra)
 	req := &memdQRequest{
 		memdRequest: memdRequest{
 			Magic:    ReqMagic,
-			Opcode:   CmdSetMeta,
+			Opcode:   CmdDelMeta,
 			Datatype: 0,
 			Cas:      0,
 			Extras:   extraBuf,
