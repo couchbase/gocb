@@ -23,11 +23,24 @@ func (e *n1qlError) Error() string {
 	return fmt.Sprintf("[%d] %s", e.Code, e.Message)
 }
 
+type n1qlResponseMetrics struct {
+	ElapsedTime   string `json:"elapsedTime"`
+	ExecutionTime string `json:"executionTime"`
+	ResultCount   uint   `json:"resultCount"`
+	ResultSize    uint   `json:"resultSize"`
+	MutationCount uint   `json:"mutationCount",omitempty`
+	SortCount     uint   `json:"sortCount",omitempty`
+	ErrorCount    uint   `json:"errorCount",omitempty`
+	WarningCount  uint   `json:"warningCount",omitempty`
+}
+
 type n1qlResponse struct {
-	RequestId string            `json:"requestID"`
-	Results   []json.RawMessage `json:"results,omitempty"`
-	Errors    []n1qlError       `json:"errors,omitempty"`
-	Status    string            `json:"status"`
+	RequestId       string              `json:"requestID"`
+	ClientContextId string              `json:"clientContextID"`
+	Results         []json.RawMessage   `json:"results,omitempty"`
+	Errors          []n1qlError         `json:"errors,omitempty"`
+	Status          string              `json:"status"`
+	Metrics         n1qlResponseMetrics `json:"metrics"`
 }
 
 type n1qlMultiError []n1qlError
@@ -40,18 +53,37 @@ func (e *n1qlMultiError) Code() uint32 {
 	return (*e)[0].Code
 }
 
+type QueryResultMetrics struct {
+	ElapsedTime   time.Duration
+	ExecutionTime time.Duration
+	ResultCount   uint
+	ResultSize    uint
+	MutationCount uint
+	SortCount     uint
+	ErrorCount    uint
+	WarningCount  uint
+}
+
 // QueryResults allows access to the results of a N1QL query.
 type QueryResults interface {
 	One(valuePtr interface{}) error
 	Next(valuePtr interface{}) bool
 	NextBytes() []byte
 	Close() error
+
+	RequestId() string
+	ClientContextId() string
+	Metrics() QueryResultMetrics
 }
 
 type n1qlResults struct {
-	index int
-	rows  []json.RawMessage
-	err   error
+	closed          bool
+	index           int
+	rows            []json.RawMessage
+	err             error
+	requestId       string
+	clientContextId string
+	metrics         QueryResultMetrics
 }
 
 func (r *n1qlResults) Next(valuePtr interface{}) bool {
@@ -78,6 +110,7 @@ func (r *n1qlResults) NextBytes() []byte {
 	}
 
 	if r.index+1 >= len(r.rows) {
+		r.closed = true
 		return nil
 	}
 	r.index++
@@ -86,6 +119,7 @@ func (r *n1qlResults) NextBytes() []byte {
 }
 
 func (r *n1qlResults) Close() error {
+	r.closed = true
 	return r.err
 }
 
@@ -101,6 +135,30 @@ func (r *n1qlResults) One(valuePtr interface{}) error {
 	r.Close()
 	// Return no error as we got the one result already.
 	return nil
+}
+
+func (r *n1qlResults) RequestId() string {
+	if !r.closed {
+		panic("Result must be closed before accessing meta-data")
+	}
+
+	return r.requestId
+}
+
+func (r *n1qlResults) ClientContextId() string {
+	if !r.closed {
+		panic("Result must be closed before accessing meta-data")
+	}
+
+	return r.clientContextId
+}
+
+func (r *n1qlResults) Metrics() QueryResultMetrics {
+	if !r.closed {
+		panic("Result must be closed before accessing meta-data")
+	}
+
+	return r.metrics
 }
 
 // Executes the N1QL query (in opts) on the server n1qlEp.
@@ -166,9 +224,24 @@ func (c *Cluster) executeN1qlQuery(n1qlEp string, opts map[string]interface{}, c
 		}
 	}
 
+	elapsedTime, _ := time.ParseDuration(n1qlResp.Metrics.ElapsedTime)
+	executionTime, _ := time.ParseDuration(n1qlResp.Metrics.ExecutionTime)
+
 	return &n1qlResults{
-		index: -1,
-		rows:  n1qlResp.Results,
+		requestId:       n1qlResp.RequestId,
+		clientContextId: n1qlResp.ClientContextId,
+		index:           -1,
+		rows:            n1qlResp.Results,
+		metrics: QueryResultMetrics{
+			ElapsedTime:   elapsedTime,
+			ExecutionTime: executionTime,
+			ResultCount:   n1qlResp.Metrics.ResultCount,
+			ResultSize:    n1qlResp.Metrics.ResultSize,
+			MutationCount: n1qlResp.Metrics.MutationCount,
+			SortCount:     n1qlResp.Metrics.SortCount,
+			ErrorCount:    n1qlResp.Metrics.ErrorCount,
+			WarningCount:  n1qlResp.Metrics.WarningCount,
+		},
 	}, nil
 }
 
