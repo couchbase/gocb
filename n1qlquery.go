@@ -56,7 +56,7 @@ func (nq *N1qlQuery) AdHoc(adhoc bool) *N1qlQuery {
 }
 
 // Custom allows specifying custom query options.
-func (nq *N1qlQuery) Custom(name, value string) *N1qlQuery {
+func (nq *N1qlQuery) Custom(name string, value interface{}) *N1qlQuery {
 	nq.options[name] = value
 	return nq
 }
