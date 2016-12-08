@@ -74,7 +74,7 @@ func (c *Agent) DeleteMeta(key, extra []byte, options, flags, expiry uint32, cas
 	req := &memdQRequest{
 		memdRequest: memdRequest{
 			Magic:    ReqMagic,
-			Opcode:   CmdSetMeta,
+			Opcode:   CmdDelMeta,
 			Datatype: 0,
 			Cas:      0,
 			Extras:   extraBuf,
