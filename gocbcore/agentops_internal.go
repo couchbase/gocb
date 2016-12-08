@@ -29,7 +29,7 @@ func (c *Agent) SetMeta(key, value, extra []byte, options, flags, expiry uint32,
 	binary.BigEndian.PutUint64(extraBuf[16:], cas)
 	binary.BigEndian.PutUint32(extraBuf[24:], options)
 	binary.BigEndian.PutUint16(extraBuf[28:], uint16(len(extra)))
-	copy(extraBuf[26:], extra)
+	copy(extraBuf[30:], extra)
 	req := &memdQRequest{
 		memdRequest: memdRequest{
 			Magic:    ReqMagic,
@@ -63,14 +63,14 @@ func (c *Agent) DeleteMeta(key, extra []byte, options, flags, expiry uint32, cas
 		cb(Cas(resp.Cas), mutToken, nil)
 	}
 
-	extraBuf := make([]byte, 26+len(extra))
+	extraBuf := make([]byte, 30+len(extra))
 	binary.BigEndian.PutUint32(extraBuf[0:], flags)
 	binary.BigEndian.PutUint32(extraBuf[4:], expiry)
 	binary.BigEndian.PutUint64(extraBuf[8:], revseqno)
 	binary.BigEndian.PutUint64(extraBuf[16:], cas)
 	binary.BigEndian.PutUint32(extraBuf[24:], options)
 	binary.BigEndian.PutUint16(extraBuf[28:], uint16(len(extra)))
-	copy(extraBuf[26:], extra)
+	copy(extraBuf[30:], extra)
 	req := &memdQRequest{
 		memdRequest: memdRequest{
 			Magic:    ReqMagic,
