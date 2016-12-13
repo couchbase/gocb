@@ -1,7 +1,7 @@
 package gocb
 
 import (
-	"github.com/couchbase/gocb/gocbcore"
+	"gopkg.in/couchbase/gocbcore.v2"
 )
 
 type bulkOp struct {

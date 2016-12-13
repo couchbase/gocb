@@ -3,24 +3,24 @@ package gocb
 import (
 	"flag"
 	"fmt"
-	"github.com/couchbase/gocb/gocbcore/javamock"
+	"gopkg.in/couchbaselabs/gojcbmock.v1"
 	"os"
 	"testing"
 )
 
 var globalBucket *Bucket
-var globalMock *gocbmock.Mock
+var globalMock *gojcbmock.Mock
 
 func TestMain(m *testing.M) {
 	flag.Parse()
-	mpath, err := gocbmock.GetMockPath()
+	mpath, err := gojcbmock.GetMockPath()
 	if err != nil {
 		panic(err.Error())
 	}
 
-	globalMock, err = gocbmock.NewMock(mpath, 4, 1, 64, []gocbmock.BucketSpec{
-		{Name: "default", Type: gocbmock.BCouchbase},
-		{Name: "memd", Type: gocbmock.BMemcached},
+	globalMock, err = gojcbmock.NewMock(mpath, 4, 1, 64, []gojcbmock.BucketSpec{
+		{Name: "default", Type: gojcbmock.BCouchbase},
+		{Name: "memd", Type: gojcbmock.BMemcached},
 	}...)
 
 	if err != nil {

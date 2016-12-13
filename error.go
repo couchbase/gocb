@@ -2,7 +2,7 @@ package gocb
 
 import (
 	"errors"
-	"github.com/couchbase/gocb/gocbcore"
+	"gopkg.in/couchbase/gocbcore.v2"
 )
 
 type clientError struct {

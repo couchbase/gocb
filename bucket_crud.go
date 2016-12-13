@@ -1,7 +1,7 @@
 package gocb
 
 import (
-	"github.com/couchbase/gocb/gocbcore"
+	"gopkg.in/couchbase/gocbcore.v2"
 )
 
 // Retrieves a document from the bucket

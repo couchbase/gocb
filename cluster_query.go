@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/couchbase/gocb/jsonx"
+	"gopkg.in/brett19/jsonx.v1"
 	"net/http"
 	"time"
 )
@@ -581,14 +581,14 @@ func (c *Cluster) doSearchQuery(b *Bucket, q *SearchQuery) (SearchResults, error
 		}
 	}
 
-	qTimeout := jsonx.MillisecondDuration(timeout)
+	qTimeout := jsonMillisecondDuration(timeout)
 	if ctlData.Has("timeout") {
 		err := ctlData.Get("timeout", &qTimeout)
 		if err != nil {
 			return nil, err
 		}
 		if qTimeout <= 0 || time.Duration(qTimeout) > timeout {
-			qTimeout = jsonx.MillisecondDuration(timeout)
+			qTimeout = jsonMillisecondDuration(timeout)
 		}
 	}
 	ctlData.Set("timeout", qTimeout)
