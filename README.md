@@ -32,9 +32,14 @@ around in [couchbase/discuss on gitter.im](https://gitter.im/couchbase/discuss)
 
 ## Installing
 
-To install the latest development version, run:
+To install the latest stable version, run:
 ```bash
 go get gopkg.in/couchbaselabs/gocb.v1
+```
+
+To install the latest developer version, run:
+```bash
+go get github.com/couchbaselabs/gocb
 ```
 
 
