@@ -302,3 +302,80 @@ func TestDsSetSize(t *testing.T) {
 		t.Fatalf("SetSize failed to return accurate size")
 	}
 }
+
+func TestDsQueuePush(t *testing.T) {
+	var itemArray []string
+	itemArray = append(itemArray, "one")
+	itemArray = append(itemArray, "two")
+
+	_, err := globalBucket.Upsert("queuePush", itemArray, 0)
+	if err != nil {
+		t.Fatalf("Failed to setup queue document %v", err)
+	}
+
+	_, err = globalBucket.QueuePush("queuePush", "three", false)
+	if err != nil {
+		t.Fatalf("Failed to perform queue push %v", err)
+	}
+
+	var queueContents []string
+	_, err = globalBucket.Get("queuePush", &queueContents)
+	if err != nil {
+		t.Fatalf("Failed to retrieve queue contents %v", err)
+	}
+	if len(queueContents) != 3 {
+		t.Fatalf("QueuePush failed to push the item")
+	}
+}
+
+func TestDsQueuePop(t *testing.T) {
+	var itemArray []string
+	itemArray = append(itemArray, "one")
+	itemArray = append(itemArray, "three")
+	itemArray = append(itemArray, "two")
+
+	_, err := globalBucket.Upsert("queuePop", itemArray, 0)
+	if err != nil {
+		t.Fatalf("Failed to setup queue document %v", err)
+	}
+
+	var queueItemValue string
+	_, err = globalBucket.QueuePop("queuePop", &queueItemValue)
+	if err != nil {
+		t.Fatalf("Failed to perform queue pop %v", err)
+	}
+
+	if queueItemValue != "two" {
+		t.Fatalf("Failed to retreive the correct queue item")
+	}
+
+	var queueContents []string
+	_, err = globalBucket.Get("queuePop", &queueContents)
+	if err != nil {
+		t.Fatalf("Failed to retrieve queue contents %v", err)
+	}
+	if len(queueContents) != 2 {
+		t.Fatalf("QueuePop failed to remove the item")
+	}
+}
+
+func TestDsQueueSize(t *testing.T) {
+	var itemArray []string
+	itemArray = append(itemArray, "one")
+	itemArray = append(itemArray, "two")
+	itemArray = append(itemArray, "three")
+
+	_, err := globalBucket.Upsert("queueSize", itemArray, 0)
+	if err != nil {
+		t.Fatalf("Failed to setup queue document %v", err)
+	}
+
+	size, _, err := globalBucket.QueueSize("queueSize")
+	if err != nil {
+		t.Fatalf("Failed to perform queue size op %v", err)
+	}
+
+	if size != 3 {
+		t.Fatalf("QueueSize failed to return accurate size")
+	}
+}

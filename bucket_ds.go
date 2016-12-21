@@ -257,3 +257,49 @@ func (b *Bucket) SetRemove(key string, value interface{}) (Cas, error) {
 		return cas, nil
 	}
 }
+
+// *UNCOMMITTED*
+// QueuePush adds a new item to the end of a queue.
+func (b *Bucket) QueuePush(key string, value interface{}, createQueue bool) (Cas, error) {
+	return b.ListPrepend(key, value, createQueue)
+}
+
+// *UNCOMMITTED*
+// QueuePop pops the oldest item from a queue and returns it.
+func (b *Bucket) QueuePop(key string, valuePtr interface{}) (Cas, error) {
+	for {
+		getFrag, err := b.LookupIn(key).Get("[-1]").Execute()
+		if err != nil {
+			return 0, err
+		}
+
+		rmFrag, err := b.MutateIn(key, getFrag.Cas(), 0).Remove("[-1]").Execute()
+		if err != nil {
+			if err == ErrKeyExists {
+				// If this is just a CAS error, try again!
+				continue
+			}
+
+			return 0, err
+		}
+
+		err = getFrag.ContentByIndex(0, valuePtr)
+		if err != nil {
+			return 0, err
+		}
+
+		return rmFrag.Cas(), nil
+	}
+}
+
+// *UNCOMMITTED*
+// QueueSize returns the current size of a queue.
+func (b *Bucket) QueueSize(key string) (uint, Cas, error) {
+	var queueContents []interface{}
+	cas, err := b.Get(key, &queueContents)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return uint(len(queueContents)), cas, nil
+}
