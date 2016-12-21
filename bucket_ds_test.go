@@ -105,7 +105,7 @@ func TestDsListGet(t *testing.T) {
 		t.Fatalf("Failed to retrieve from list %v", err)
 	}
 	if listValue0 != "two" {
-		t.Fatalf("Failed to retrieve data from list %v", err)
+		t.Fatalf("Failed to retrieve correct data from list")
 	}
 
 	size, _, err := globalBucket.ListSize("listGet")
@@ -117,33 +117,33 @@ func TestDsListGet(t *testing.T) {
 	}
 }
 
-func TestDsListPushAndShift(t *testing.T) {
+func TestDsListAppendAndPrepend(t *testing.T) {
 	var itemArray []string
 	itemArray = append(itemArray, "one")
 
-	_, err := globalBucket.Upsert("listPushShift", itemArray, 0)
+	_, err := globalBucket.Upsert("listAppendPrepend", itemArray, 0)
 	if err != nil {
 		t.Fatalf("Failed to setup list document %v", err)
 	}
 
-	_, err = globalBucket.ListPush("listPushShift", "two", false)
+	_, err = globalBucket.ListAppend("listAppendPrepend", "two", false)
 	if err != nil {
-		t.Fatalf("Failed to push to list %v", err)
+		t.Fatalf("Failed to append to list %v", err)
 	}
 
-	_, err = globalBucket.ListShift("listPushShift", "three", false)
+	_, err = globalBucket.ListPrepend("listAppendPrepend", "three", false)
 	if err != nil {
-		t.Fatalf("Failed to shift to list %v", err)
+		t.Fatalf("Failed to prepend to list %v", err)
 	}
 
 	var listContents []string
-	_, err = globalBucket.Get("listPushShift", &listContents)
+	_, err = globalBucket.Get("listAppendPrepend", &listContents)
 	if err != nil {
 		t.Fatalf("Failed to retrieve list contents %v", err)
 	}
 	if len(listContents) != 3 || listContents[0] != "three" ||
 		listContents[2] != "two" {
-		t.Fatalf("ListPush failed to push the item")
+		t.Fatalf("ListAppend failed to push the item")
 	}
 }
 

@@ -80,7 +80,7 @@ func (b *Bucket) ListGet(key string, index uint, valuePtr interface{}) (Cas, err
 
 // *UNCOMMITTED*
 // ListPush inserts an item to the end of a list document.
-func (b *Bucket) ListPush(key string, value interface{}, createList bool) (Cas, error) {
+func (b *Bucket) ListAppend(key string, value interface{}, createList bool) (Cas, error) {
 	for {
 		frag, err := b.MutateIn(key, 0, 0).ArrayAppend("", value, false).Execute()
 		if err != nil {
@@ -105,7 +105,7 @@ func (b *Bucket) ListPush(key string, value interface{}, createList bool) (Cas, 
 
 // *UNCOMMITTED*
 // ListShift inserts an item to the beginning of a list document.
-func (b *Bucket) ListShift(key string, value interface{}, createList bool) (Cas, error) {
+func (b *Bucket) ListPrepend(key string, value interface{}, createList bool) (Cas, error) {
 	for {
 		frag, err := b.MutateIn(key, 0, 0).ArrayPrepend("", value, false).Execute()
 		if err != nil {
