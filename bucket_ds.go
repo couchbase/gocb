@@ -2,7 +2,6 @@ package gocb
 
 import "fmt"
 
-// *UNCOMMITTED*
 // MapGet retrieves a single item from a map document by its key.
 func (b *Bucket) MapGet(key, path string, valuePtr interface{}) (Cas, error) {
 	frag, err := b.LookupIn(key).Get(path).Execute()
@@ -16,7 +15,6 @@ func (b *Bucket) MapGet(key, path string, valuePtr interface{}) (Cas, error) {
 	return frag.Cas(), nil
 }
 
-// *UNCOMMITTED*
 // MapRemove removes a specified key from the specified map document.
 func (b *Bucket) MapRemove(key, path string) (Cas, error) {
 	frag, err := b.MutateIn(key, 0, 0).Remove(path).Execute()
@@ -26,7 +24,6 @@ func (b *Bucket) MapRemove(key, path string) (Cas, error) {
 	return frag.Cas(), nil
 }
 
-// *UNCOMMITTED*
 // MapSize returns the current number of items in a map document.
 // PERFORMANCE NOTICE: This currently performs a full document fetch...
 func (b *Bucket) MapSize(key string) (uint, Cas, error) {
@@ -39,7 +36,6 @@ func (b *Bucket) MapSize(key string) (uint, Cas, error) {
 	return uint(len(mapContents)), cas, nil
 }
 
-// *UNCOMMITTED*
 // MapAdd inserts an item to a map document.
 func (b *Bucket) MapAdd(key, path string, value interface{}, createMap bool) (Cas, error) {
 	for {
@@ -64,7 +60,6 @@ func (b *Bucket) MapAdd(key, path string, value interface{}, createMap bool) (Ca
 	}
 }
 
-// *UNCOMMITTED*
 // ListGet retrieves an item from a list document by index.
 func (b *Bucket) ListGet(key string, index uint, valuePtr interface{}) (Cas, error) {
 	frag, err := b.LookupIn(key).Get(fmt.Sprintf("[%d]", index)).Execute()
@@ -78,7 +73,6 @@ func (b *Bucket) ListGet(key string, index uint, valuePtr interface{}) (Cas, err
 	return frag.Cas(), nil
 }
 
-// *UNCOMMITTED*
 // ListPush inserts an item to the end of a list document.
 func (b *Bucket) ListAppend(key string, value interface{}, createList bool) (Cas, error) {
 	for {
@@ -103,7 +97,6 @@ func (b *Bucket) ListAppend(key string, value interface{}, createList bool) (Cas
 	}
 }
 
-// *UNCOMMITTED*
 // ListShift inserts an item to the beginning of a list document.
 func (b *Bucket) ListPrepend(key string, value interface{}, createList bool) (Cas, error) {
 	for {
@@ -128,7 +121,6 @@ func (b *Bucket) ListPrepend(key string, value interface{}, createList bool) (Ca
 	}
 }
 
-// *UNCOMMITTED*
 // ListRemove removes an item from a list document by its index.
 func (b *Bucket) ListRemove(key string, index uint) (Cas, error) {
 	frag, err := b.MutateIn(key, 0, 0).Remove(fmt.Sprintf("[%d]", index)).Execute()
@@ -138,7 +130,6 @@ func (b *Bucket) ListRemove(key string, index uint) (Cas, error) {
 	return frag.Cas(), nil
 }
 
-// *UNCOMMITTED*
 // ListSet replaces the item at a particular index of a list document.
 func (b *Bucket) ListSet(key string, index uint, value interface{}) (Cas, error) {
 	frag, err := b.MutateIn(key, 0, 0).Replace(fmt.Sprintf("[%d]", index), value).Execute()
@@ -148,7 +139,6 @@ func (b *Bucket) ListSet(key string, index uint, value interface{}) (Cas, error)
 	return frag.Cas(), nil
 }
 
-// *UNCOMMITTED*
 // MapSize returns the current number of items in a list.
 // PERFORMANCE NOTICE: This currently performs a full document fetch...
 func (b *Bucket) ListSize(key string) (uint, Cas, error) {
@@ -161,7 +151,6 @@ func (b *Bucket) ListSize(key string) (uint, Cas, error) {
 	return uint(len(listContents)), cas, nil
 }
 
-// *UNCOMMITTED*
 // SetAdd adds a new value to a set document.
 func (b *Bucket) SetAdd(key string, value interface{}, createSet bool) (Cas, error) {
 	for {
@@ -186,7 +175,6 @@ func (b *Bucket) SetAdd(key string, value interface{}, createSet bool) (Cas, err
 	}
 }
 
-// *UNCOMMITTED*
 // SetExists checks if a particular value exists within the specified set document.
 // PERFORMANCE WARNING: This performs a full set fetch and compare.
 func (b *Bucket) SetExists(key string, value interface{}) (bool, Cas, error) {
@@ -205,7 +193,6 @@ func (b *Bucket) SetExists(key string, value interface{}) (bool, Cas, error) {
 	return false, 0, nil
 }
 
-// *UNCOMMITTED*
 // MapSize returns the current number of values in a set.
 // PERFORMANCE NOTICE: This currently performs a full document fetch...
 func (b *Bucket) SetSize(key string) (uint, Cas, error) {
@@ -218,7 +205,6 @@ func (b *Bucket) SetSize(key string) (uint, Cas, error) {
 	return uint(len(setContents)), cas, nil
 }
 
-// *UNCOMMITTED*
 // SetRemove removes a specified value from the specified set document.
 // WARNING: This relies on Go's interface{} comparison behaviour!
 // PERFORMANCE WARNING: This performs full set fetch, modify, store cycles.
@@ -258,13 +244,11 @@ func (b *Bucket) SetRemove(key string, value interface{}) (Cas, error) {
 	}
 }
 
-// *UNCOMMITTED*
 // QueuePush adds a new item to the end of a queue.
 func (b *Bucket) QueuePush(key string, value interface{}, createQueue bool) (Cas, error) {
 	return b.ListPrepend(key, value, createQueue)
 }
 
-// *UNCOMMITTED*
 // QueuePop pops the oldest item from a queue and returns it.
 func (b *Bucket) QueuePop(key string, valuePtr interface{}) (Cas, error) {
 	for {
@@ -292,7 +276,6 @@ func (b *Bucket) QueuePop(key string, valuePtr interface{}) (Cas, error) {
 	}
 }
 
-// *UNCOMMITTED*
 // QueueSize returns the current size of a queue.
 func (b *Bucket) QueueSize(key string) (uint, Cas, error) {
 	var queueContents []interface{}

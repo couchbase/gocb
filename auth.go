@@ -1,6 +1,5 @@
 package gocb
 
-// *VOLATILE*
 // Authenticator provides an interface to authenticate to each service.
 type Authenticator interface {
 	clusterMgmt() userPassPair
@@ -13,7 +12,6 @@ type Authenticator interface {
 	bucketFts(bucket string) []userPassPair
 }
 
-// *VOLATILE*
 // Provides a password for a single bucket.
 type BucketAuthenticator struct {
 	Password string
@@ -27,7 +25,6 @@ type userPassPair struct {
 // BucketAuthenticatorMap is a map of bucket name to BucketAuthenticator.
 type BucketAuthenticatorMap map[string]BucketAuthenticator
 
-// *VOLATILE*
 // Authenticator which uses a list of buckets and passwords.
 type ClusterAuthenticator struct {
 	Buckets  BucketAuthenticatorMap
