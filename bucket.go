@@ -54,6 +54,11 @@ func createBucket(cluster *Cluster, config *gocbcore.AgentConfig) (*Bucket, erro
 	return bucket, nil
 }
 
+// Name returns the name of the bucket we are connected to.
+func (b *Bucket) Name() string {
+	return b.name
+}
+
 // OperationTimeout returns the maximum amount of time to wait for an operation to succeed.
 func (b *Bucket) OperationTimeout() time.Duration {
 	return b.opTimeout
