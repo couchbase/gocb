@@ -22,6 +22,7 @@ func (op *bulkOp) cancel() bool {
 // such as GetOp, UpsertOp, ReplaceOp, and more.
 type BulkOp interface {
 	execute(*Bucket, chan BulkOp)
+	markError(err error)
 	cancel() bool
 }
 
@@ -36,7 +37,7 @@ func (b *Bucket) Do(ops []BulkOp) error {
 	for _, item := range ops {
 		item.execute(b, signal)
 	}
-	for _ = range ops {
+	for range ops {
 		select {
 		case item := <-signal:
 			// We're really just clearing the pendop from this thread,
@@ -47,7 +48,13 @@ func (b *Bucket) Do(ops []BulkOp) error {
 			for _, item := range ops {
 				if !item.cancel() {
 					<-signal
+					continue
 				}
+
+				// We use this method to mark the individual items as
+				// having timed out so we don't move `Err` in bulkOp
+				// and break backwards compatibility.
+				item.markError(ErrTimeout)
 			}
 			return ErrTimeout
 		}
@@ -64,6 +71,10 @@ type GetOp struct {
 	Value interface{}
 	Cas   Cas
 	Err   error
+}
+
+func (item *GetOp) markError(err error) {
+	item.Err = err
 }
 
 func (item *GetOp) execute(b *Bucket, signal chan BulkOp) {
@@ -96,6 +107,10 @@ type GetAndTouchOp struct {
 	Err    error
 }
 
+func (item *GetAndTouchOp) markError(err error) {
+	item.Err = err
+}
+
 func (item *GetAndTouchOp) execute(b *Bucket, signal chan BulkOp) {
 	op, err := b.client.GetAndTouch([]byte(item.Key), item.Expiry,
 		func(bytes []byte, flags uint32, cas gocbcore.Cas, err error) {
@@ -126,6 +141,10 @@ type TouchOp struct {
 	Err    error
 }
 
+func (item *TouchOp) markError(err error) {
+	item.Err = err
+}
+
 func (item *TouchOp) execute(b *Bucket, signal chan BulkOp) {
 	op, err := b.client.Touch([]byte(item.Key), gocbcore.Cas(item.Cas), item.Expiry,
 		func(cas gocbcore.Cas, mutToken gocbcore.MutationToken, err error) {
@@ -150,6 +169,10 @@ type RemoveOp struct {
 	Key string
 	Cas Cas
 	Err error
+}
+
+func (item *RemoveOp) markError(err error) {
+	item.Err = err
 }
 
 func (item *RemoveOp) execute(b *Bucket, signal chan BulkOp) {
@@ -178,6 +201,10 @@ type UpsertOp struct {
 	Expiry uint32
 	Cas    Cas
 	Err    error
+}
+
+func (item *UpsertOp) markError(err error) {
+	item.Err = err
 }
 
 func (item *UpsertOp) execute(b *Bucket, signal chan BulkOp) {
@@ -214,6 +241,10 @@ type InsertOp struct {
 	Err    error
 }
 
+func (item *InsertOp) markError(err error) {
+	item.Err = err
+}
+
 func (item *InsertOp) execute(b *Bucket, signal chan BulkOp) {
 	bytes, flags, err := b.transcoder.Encode(item.Value)
 	if err != nil {
@@ -246,6 +277,10 @@ type ReplaceOp struct {
 	Expiry uint32
 	Cas    Cas
 	Err    error
+}
+
+func (item *ReplaceOp) markError(err error) {
+	item.Err = err
 }
 
 func (item *ReplaceOp) execute(b *Bucket, signal chan BulkOp) {
@@ -281,6 +316,10 @@ type AppendOp struct {
 	Err   error
 }
 
+func (item *AppendOp) markError(err error) {
+	item.Err = err
+}
+
 func (item *AppendOp) execute(b *Bucket, signal chan BulkOp) {
 	op, err := b.client.Append([]byte(item.Key), []byte(item.Value),
 		func(cas gocbcore.Cas, mutToken gocbcore.MutationToken, err error) {
@@ -306,6 +345,10 @@ type PrependOp struct {
 	Value string
 	Cas   Cas
 	Err   error
+}
+
+func (item *PrependOp) markError(err error) {
+	item.Err = err
 }
 
 func (item *PrependOp) execute(b *Bucket, signal chan BulkOp) {
@@ -336,6 +379,10 @@ type CounterOp struct {
 	Cas     Cas
 	Value   uint64
 	Err     error
+}
+
+func (item *CounterOp) markError(err error) {
+	item.Err = err
 }
 
 func (item *CounterOp) execute(b *Bucket, signal chan BulkOp) {
