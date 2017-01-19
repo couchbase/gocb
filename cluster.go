@@ -145,20 +145,8 @@ func specToHosts(spec connSpec) ([]string, []string, bool) {
 }
 
 func (c *Cluster) makeAgentConfig(bucket, password string, mt bool) (*gocbcore.AgentConfig, error) {
-	authFn := func(srv gocbcore.AuthClient, deadline time.Time) error {
-		// Build PLAIN auth data
-		userBuf := []byte(bucket)
-		passBuf := []byte(password)
-		authData := make([]byte, 1+len(userBuf)+1+len(passBuf))
-		authData[0] = 0
-		copy(authData[1:], userBuf)
-		authData[1+len(userBuf)] = 0
-		copy(authData[1+len(userBuf)+1:], passBuf)
-
-		// Execute PLAIN authentication
-		_, err := srv.ExecSaslAuth([]byte("PLAIN"), authData, deadline)
-
-		return err
+	authFn := func(client gocbcore.AuthClient, deadline time.Time) error {
+		return gocbcore.SaslAuthPlain(bucket, password, client, deadline)
 	}
 
 	memdHosts, httpHosts, isSslHosts := specToHosts(c.spec)
