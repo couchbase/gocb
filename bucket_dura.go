@@ -120,6 +120,10 @@ func (b *Bucket) observeOne(key []byte, mt MutationToken, cas Cas, forDelete boo
 				persistCh <- true
 				sentPersisted = true
 			}
+			
+			if sentReplicated && sentPersisted {
+				return
+			}
 
 			waitTmr := gocbcore.AcquireTimer(b.duraPollTimeout)
 			select {
@@ -152,8 +156,8 @@ func (b *Bucket) durability(key string, cas Cas, mt MutationToken, replicaTo, pe
 
 	keyBytes := []byte(key)
 
-	replicaCh := make(chan bool)
-	persistCh := make(chan bool)
+	replicaCh := make(chan bool, numServers)
+	persistCh := make(chan bool, numServers)
 
 	for replicaIdx := 0; replicaIdx < numServers; replicaIdx++ {
 		go b.observeOne(keyBytes, mt, cas, forDelete, replicaIdx, replicaCh, persistCh)
