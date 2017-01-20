@@ -4,8 +4,9 @@ import (
 	"gopkg.in/couchbase/gocbcore.v2"
 )
 
-// *INTERNAL*
-// Internal bucket extension methods.
+// BucketInternal holds various internally used bucket extension methods.
+//
+// Internal: This should never be used and is not supported.
 type BucketInternal struct {
 	b *Bucket
 }

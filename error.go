@@ -113,7 +113,7 @@ var (
 	ErrAuthError = gocbcore.ErrAuthError
 	// ErrRangeError occurs when an invalid range is specified.
 	ErrRangeError = gocbcore.ErrRangeError
-	// ErrRollback occurs when a server rollback has occured making the operation no longer valid.
+	// ErrRollback occurs when a server rollback has occurred making the operation no longer valid.
 	ErrRollback = gocbcore.ErrRollback
 	// ErrAccessError occurs when you do not have access to the specified resource.
 	ErrAccessError = gocbcore.ErrAccessError

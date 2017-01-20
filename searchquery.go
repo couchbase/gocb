@@ -8,10 +8,12 @@ import (
 type SearchHighlightStyle string
 
 const (
-	// DefaultHighlightStyl specifies to use the default to highlight search result hits.
+	// DefaultHighlightStyle specifies to use the default to highlight search result hits.
 	DefaultHighlightStyle = SearchHighlightStyle("")
+
 	// HtmlHighlightStyle specifies to use HTML tags to highlight search result hits.
 	HtmlHighlightStyle = SearchHighlightStyle("html")
+
 	// AnsiHightlightStyle specifies to use ANSI tags to highlight search result hits.
 	AnsiHightlightStyle = SearchHighlightStyle("ansi")
 )
@@ -40,8 +42,9 @@ type searchQueryData struct {
 	Ctl       *searchQueryCtlData       `json:"ctl,omitempty"`
 }
 
-// *VOLATILE*
 // SearchQuery represents a pending search query.
+//
+// Experimental: This API is subject to change at any time.
 type SearchQuery struct {
 	name string
 	data searchQueryData
@@ -150,8 +153,9 @@ func (sq *SearchQuery) queryData() interface{} {
 	return sq.data
 }
 
-// *VOLATILE*
 // NewSearchQuery creates a new SearchQuery object from an index name and query.
+//
+// Experimental: This API is subject to change at any time.
 func NewSearchQuery(indexName string, query interface{}) *SearchQuery {
 	q := &SearchQuery{
 		name: indexName,

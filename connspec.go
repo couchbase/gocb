@@ -144,7 +144,10 @@ func parseConnSpec(connStr string) (out connSpec, err error) {
 		for _, hostInfo := range hosts {
 			port := 0
 			if hostInfo[3] != "" {
-				port, _ = strconv.Atoi(hostInfo[3])
+				port, err = strconv.Atoi(hostInfo[3])
+				if err != nil {
+					return
+				}
 				out.hasExplicitPort = true
 			}
 			err = out.addRawHost(hostInfo[1], port)
@@ -155,7 +158,10 @@ func parseConnSpec(connStr string) (out connSpec, err error) {
 	}
 
 	if len(out.HttpHosts) == 0 && len(out.MemcachedHosts) == 0 {
-		out.addRawHost("127.0.0.1", 0)
+		err = out.addRawHost("127.0.0.1", 0)
+		if err != nil {
+			return
+		}
 	}
 
 	if parts[9] != "" {

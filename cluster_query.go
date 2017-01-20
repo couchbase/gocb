@@ -28,10 +28,10 @@ type n1qlResponseMetrics struct {
 	ExecutionTime string `json:"executionTime"`
 	ResultCount   uint   `json:"resultCount"`
 	ResultSize    uint   `json:"resultSize"`
-	MutationCount uint   `json:"mutationCount",omitempty`
-	SortCount     uint   `json:"sortCount",omitempty`
-	ErrorCount    uint   `json:"errorCount",omitempty`
-	WarningCount  uint   `json:"warningCount",omitempty`
+	MutationCount uint   `json:"mutationCount,omitempty"`
+	SortCount     uint   `json:"sortCount,omitempty"`
+	ErrorCount    uint   `json:"errorCount,omitempty"`
+	WarningCount  uint   `json:"warningCount,omitempty"`
 }
 
 type n1qlResponse struct {
@@ -53,6 +53,7 @@ func (e *n1qlMultiError) Code() uint32 {
 	return (*e)[0].Code
 }
 
+// QueryResultMetrics encapsulates various metrics gathered during a queries execution.
 type QueryResultMetrics struct {
 	ElapsedTime   time.Duration
 	ExecutionTime time.Duration
@@ -131,9 +132,14 @@ func (r *n1qlResults) One(valuePtr interface{}) error {
 		}
 		return ErrNoResults
 	}
-	// Ignore any errors occuring after we already have our result
-	r.Close()
-	// Return no error as we got the one result already.
+
+	// Ignore any errors occurring after we already have our result
+	err := r.Close()
+	if err != nil {
+		// Return no error as we got the one result already.
+		return nil
+	}
+
 	return nil
 }
 
@@ -211,7 +217,10 @@ func (c *Cluster) executeN1qlQuery(n1qlEp string, opts map[string]interface{}, c
 		return nil, err
 	}
 
-	resp.Body.Close()
+	err = resp.Body.Close()
+	if err != nil {
+		logDebugf("Failed to close socket (%s)", err)
+	}
 
 	if len(n1qlResp.Errors) > 0 {
 		return nil, (*n1qlMultiError)(&n1qlResp.Errors)
@@ -224,8 +233,15 @@ func (c *Cluster) executeN1qlQuery(n1qlEp string, opts map[string]interface{}, c
 		}
 	}
 
-	elapsedTime, _ := time.ParseDuration(n1qlResp.Metrics.ElapsedTime)
-	executionTime, _ := time.ParseDuration(n1qlResp.Metrics.ExecutionTime)
+	elapsedTime, err := time.ParseDuration(n1qlResp.Metrics.ElapsedTime)
+	if err != nil {
+		logDebugf("Failed to parse elapsed time duration (%s)", err)
+	}
+
+	executionTime, err := time.ParseDuration(n1qlResp.Metrics.ExecutionTime)
+	if err != nil {
+		logDebugf("Failed to parse execution time duration (%s)", err)
+	}
 
 	return &n1qlResults{
 		requestId:       n1qlResp.RequestId,
@@ -298,7 +314,7 @@ func (c *Cluster) doN1qlQuery(b *Bucket, q *N1qlQuery, params interface{}) (Quer
 			creds = c.auth.bucketN1ql(b.name)
 		} else {
 			creds = []userPassPair{
-				userPassPair{
+				{
 					Username: b.name,
 					Password: b.password,
 				},
@@ -351,7 +367,10 @@ func (c *Cluster) doN1qlQuery(b *Bucket, q *N1qlQuery, params interface{}) (Quer
 	// Do Prepared Statement Logic
 	var cachedStmt *n1qlCache
 
-	stmtStr := q.options["statement"].(string)
+	stmtStr, isStr := q.options["statement"].(string)
+	if !isStr {
+		return nil, ErrInternalError
+	}
 
 	c.clusterLock.RLock()
 	cachedStmt = c.queryCache[stmtStr]
@@ -398,7 +417,7 @@ func (c *Cluster) doN1qlQuery(b *Bucket, q *N1qlQuery, params interface{}) (Quer
 	return c.executeN1qlQuery(n1qlEp, execOpts, creds, timeout, client)
 }
 
-// Performs a n1ql query and returns a list of rows or an error.
+// ExecuteN1qlQuery performs a n1ql query and returns a list of rows or an error.
 func (c *Cluster) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) (QueryResults, error) {
 	return c.doN1qlQuery(nil, q, params)
 }
@@ -462,8 +481,9 @@ type SearchResultStatus struct {
 	Successful int `json:"successful,omitempty"`
 }
 
-// *VOLATILE*
 // SearchResults allows access to the results of a search query.
+//
+// Experimental: This API is subject to change at any time.
 type SearchResults interface {
 	Status() SearchResultStatus
 	Errors() []string
@@ -534,7 +554,7 @@ func (c *Cluster) doSearchQuery(b *Bucket, q *SearchQuery) (SearchResults, error
 			creds = c.auth.bucketFts(b.name)
 		} else {
 			creds = []userPassPair{
-				userPassPair{
+				{
 					Username: b.name,
 					Password: b.password,
 				},
@@ -590,12 +610,21 @@ func (c *Cluster) doSearchQuery(b *Bucket, q *SearchQuery) (SearchResults, error
 			qTimeout = jsonMillisecondDuration(timeout)
 		}
 	}
-	ctlData.Set("timeout", qTimeout)
+	err = ctlData.Set("timeout", qTimeout)
+	if err != nil {
+		return nil, err
+	}
 
-	queryData.Set("ctl", ctlData)
+	err = queryData.Set("ctl", ctlData)
+	if err != nil {
+		return nil, err
+	}
 
 	if len(creds) > 1 {
-		queryData.Set("creds", creds)
+		err = queryData.Set("creds", creds)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	qBytes, err = json.Marshal(queryData)
@@ -627,7 +656,10 @@ func (c *Cluster) doSearchQuery(b *Bucket, q *SearchQuery) (SearchResults, error
 		return nil, err
 	}
 
-	resp.Body.Close()
+	err = resp.Body.Close()
+	if err != nil {
+		logDebugf("Failed to close socket (%s)", err)
+	}
 
 	if resp.StatusCode != 200 {
 		return nil, &viewError{
@@ -641,8 +673,9 @@ func (c *Cluster) doSearchQuery(b *Bucket, q *SearchQuery) (SearchResults, error
 	}, nil
 }
 
-// *VOLATILE*
-// Performs a n1ql query and returns a list of rows or an error.
+// ExecuteSearchQuery performs a n1ql query and returns a list of rows or an error.
+//
+// Experimental: This API is subject to change at any time.
 func (c *Cluster) ExecuteSearchQuery(q *SearchQuery) (SearchResults, error) {
 	return c.doSearchQuery(nil, q)
 }
