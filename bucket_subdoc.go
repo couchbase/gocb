@@ -74,13 +74,34 @@ func (set *LookupInBuilder) Execute() (*DocumentFragment, error) {
 	return set.bucket.lookupIn(set)
 }
 
+// GetEx allows you to perform a sub-document Get operation with flags
+//
+// Experimental: This API is subject to change at any time.
+func (set *LookupInBuilder) GetEx(path string, flags SubdocFlag) *LookupInBuilder {
+	op := gocbcore.SubDocOp{
+		Op:    gocbcore.SubDocOpGet,
+		Path:  path,
+		Flags: gocbcore.SubdocFlag(flags),
+	}
+	set.ops = append(set.ops, op)
+	return set
+}
+
 // Indicate a path to be retrieved from the document.  The value of the path
 // can later be retrieved (after .Execute()) using the Content or ContentByIndex
 // method. The path syntax follows N1QL's path syntax (e.g. `foo.bar.baz`).
 func (set *LookupInBuilder) Get(path string) *LookupInBuilder {
+	return set.GetEx(path, SubdocFlagNone)
+}
+
+// ExistsEx allows you to perform a sub-document Exists operation with flags
+//
+// Experimental: This API is subject to change at any time.
+func (set *LookupInBuilder) ExistsEx(path string, flags SubdocFlag) *LookupInBuilder {
 	op := gocbcore.SubDocOp{
-		Op:   gocbcore.SubDocOpGet,
-		Path: path,
+		Op:    gocbcore.SubDocOpExists,
+		Path:  path,
+		Flags: gocbcore.SubdocFlag(flags),
 	}
 	set.ops = append(set.ops, op)
 	return set
@@ -91,12 +112,7 @@ func (set *LookupInBuilder) Get(path string) *LookupInBuilder {
 // path (without caring for its content). You can check the status of this
 // operation by using .Content (and ignoring the value) or .Exists()
 func (set *LookupInBuilder) Exists(path string) *LookupInBuilder {
-	op := gocbcore.SubDocOp{
-		Op:   gocbcore.SubDocOpExists,
-		Path: path,
-	}
-	set.ops = append(set.ops, op)
-	return set
+	return set.ExistsEx(path, SubdocFlagNone)
 }
 
 func (b *Bucket) lookupIn(set *LookupInBuilder) (resOut *DocumentFragment, errOut error) {
@@ -163,43 +179,71 @@ func (set *MutateInBuilder) Execute() (*DocumentFragment, error) {
 	return set.bucket.mutateIn(set)
 }
 
-// Adds an insert operation to this mutation operation set.
-func (set *MutateInBuilder) Insert(path string, value interface{}, createParents bool) *MutateInBuilder {
+// InsertEx allows you to perform a sub-document Insert operation with flags
+//
+// Experimental: This API is subject to change at any time.
+func (set *MutateInBuilder) InsertEx(path string, value interface{}, flags SubdocFlag) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
-		Op:   gocbcore.SubDocOpDictAdd,
-		Path: path,
+		Op:    gocbcore.SubDocOpDictAdd,
+		Path:  path,
+		Flags: gocbcore.SubdocFlag(flags),
 	}
 	op.Value, _ = json.Marshal(value)
+	set.ops = append(set.ops, op)
+	return set
+}
+
+// Adds an insert operation to this mutation operation set.
+func (set *MutateInBuilder) Insert(path string, value interface{}, createParents bool) *MutateInBuilder {
+	var flags SubdocFlag
 	if createParents {
-		op.Flags |= gocbcore.SubDocFlagMkDirP
+		flags |= SubdocFlagCreatePath
 	}
+
+	return set.InsertEx(path, value, flags)
+}
+
+// UpsertEx allows you to perform a sub-document Upsert operation with flags
+//
+// Experimental: This API is subject to change at any time.
+func (set *MutateInBuilder) UpsertEx(path string, value interface{}, flags SubdocFlag) *MutateInBuilder {
+	op := gocbcore.SubDocOp{
+		Op:    gocbcore.SubDocOpDictSet,
+		Path:  path,
+		Flags: gocbcore.SubdocFlag(flags),
+	}
+	op.Value, _ = json.Marshal(value)
 	set.ops = append(set.ops, op)
 	return set
 }
 
 // Adds an upsert operation to this mutation operation set.
 func (set *MutateInBuilder) Upsert(path string, value interface{}, createParents bool) *MutateInBuilder {
+	var flags SubdocFlag
+	if createParents {
+		flags |= SubdocFlagCreatePath
+	}
+
+	return set.UpsertEx(path, value, flags)
+}
+
+// ReplaceEx allows you to perform a sub-document Replace operation with flags
+//
+// Experimental: This API is subject to change at any time.
+func (set *MutateInBuilder) ReplaceEx(path string, value interface{}, flags SubdocFlag) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
-		Op:   gocbcore.SubDocOpDictSet,
-		Path: path,
+		Op:    gocbcore.SubDocOpReplace,
+		Path:  path,
+		Flags: gocbcore.SubdocFlag(flags),
 	}
 	op.Value, _ = json.Marshal(value)
-	if createParents {
-		op.Flags |= gocbcore.SubDocFlagMkDirP
-	}
 	set.ops = append(set.ops, op)
 	return set
 }
 
 // Adds an replace operation to this mutation operation set.
 func (set *MutateInBuilder) Replace(path string, value interface{}) *MutateInBuilder {
-	op := gocbcore.SubDocOp{
-		Op:   gocbcore.SubDocOpReplace,
-		Path: path,
-	}
-	op.Value, _ = json.Marshal(value)
-	set.ops = append(set.ops, op)
-	return set
+	return set.ReplaceEx(path, value, SubdocFlagNone)
 }
 
 func (set *MutateInBuilder) marshalArrayMulti(in interface{}) (out []byte) {
@@ -217,77 +261,112 @@ func (set *MutateInBuilder) marshalArrayMulti(in interface{}) (out []byte) {
 	return
 }
 
-// Adds an remove operation to this mutation operation set.
-func (set *MutateInBuilder) Remove(path string) *MutateInBuilder {
+// RemoveEx allows you to perform a sub-document Remove operation with flags
+//
+// Experimental: This API is subject to change at any time.
+func (set *MutateInBuilder) RemoveEx(path string, flags SubdocFlag) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
-		Op:   gocbcore.SubDocOpDelete,
-		Path: path,
+		Op:    gocbcore.SubDocOpDelete,
+		Path:  path,
+		Flags: gocbcore.SubdocFlag(flags),
 	}
 	set.ops = append(set.ops, op)
 	return set
+}
+
+// Adds an remove operation to this mutation operation set.
+func (set *MutateInBuilder) Remove(path string) *MutateInBuilder {
+	return set.RemoveEx(path, SubdocFlagNone)
+}
+
+// ArrayPrependEx allows you to perform a sub-document ArrayPrepend operation with flags
+//
+// Experimental: This API is subject to change at any time.
+func (set *MutateInBuilder) ArrayPrependEx(path string, value interface{}, flags SubdocFlag) *MutateInBuilder {
+	jsonVal, _ := json.Marshal(value)
+	return set.arrayPrependValue(path, jsonVal, flags)
 }
 
 // Adds an element to the beginning (i.e. left) of an array
 func (set *MutateInBuilder) ArrayPrepend(path string, value interface{}, createParents bool) *MutateInBuilder {
-	jsonVal, _ := json.Marshal(value)
-
-	return set.arrayPrependValue(path, jsonVal, createParents)
-}
-
-func (set *MutateInBuilder) arrayPrependValue(path string, bytes []byte, createParents bool) *MutateInBuilder {
-	op := gocbcore.SubDocOp{
-		Op:   gocbcore.SubDocOpArrayPushFirst,
-		Path: path,
+	var flags SubdocFlag
+	if createParents {
+		flags |= SubdocFlagCreatePath
 	}
 
-	op.Value = bytes
+	return set.ArrayPrependEx(path, value, flags)
+}
 
-	if createParents {
-		op.Flags |= gocbcore.SubDocFlagMkDirP
+func (set *MutateInBuilder) arrayPrependValue(path string, bytes []byte, flags SubdocFlag) *MutateInBuilder {
+	op := gocbcore.SubDocOp{
+		Op:    gocbcore.SubDocOpArrayPushFirst,
+		Path:  path,
+		Flags: gocbcore.SubdocFlag(flags),
+		Value: bytes,
 	}
 	set.ops = append(set.ops, op)
 	return set
+}
+
+// ArrayAppendEx allows you to perform a sub-document ArrayAppend operation with flags
+//
+// Experimental: This API is subject to change at any time.
+func (set *MutateInBuilder) ArrayAppendEx(path string, value interface{}, flags SubdocFlag) *MutateInBuilder {
+	jsonVal, _ := json.Marshal(value)
+	return set.arrayAppendValue(path, jsonVal, flags)
 }
 
 // Adds an element to the end (i.e. right) of an array
 func (set *MutateInBuilder) ArrayAppend(path string, value interface{}, createParents bool) *MutateInBuilder {
-	jsonVal, _ := json.Marshal(value)
-
-	return set.arrayAppendValue(path, jsonVal, createParents)
-}
-
-func (set *MutateInBuilder) arrayAppendValue(path string, bytes []byte, createParents bool) *MutateInBuilder {
-	op := gocbcore.SubDocOp{
-		Op:   gocbcore.SubDocOpArrayPushLast,
-		Path: path,
+	var flags SubdocFlag
+	if createParents {
+		flags |= SubdocFlagCreatePath
 	}
 
-	op.Value = bytes
+	return set.ArrayAppendEx(path, value, flags)
+}
 
-	if createParents {
-		op.Flags |= gocbcore.SubDocFlagMkDirP
+func (set *MutateInBuilder) arrayAppendValue(path string, bytes []byte, flags SubdocFlag) *MutateInBuilder {
+	op := gocbcore.SubDocOp{
+		Op:    gocbcore.SubDocOpArrayPushLast,
+		Path:  path,
+		Flags: gocbcore.SubdocFlag(flags),
+		Value: bytes,
 	}
 	set.ops = append(set.ops, op)
 	return set
+}
+
+// ArrayInsertEx allows you to perform a sub-document ArrayInsert operation with flags
+//
+// Experimental: This API is subject to change at any time.
+func (set *MutateInBuilder) ArrayInsertEx(path string, value interface{}, flags SubdocFlag) *MutateInBuilder {
+	jsonVal, _ := json.Marshal(value)
+	return set.arrayInsertValue(path, jsonVal, flags)
 }
 
 // Inserts an element at a given position within an array. The position should be
 // specified as part of the path, e.g. path.to.array[3]
 func (set *MutateInBuilder) ArrayInsert(path string, value interface{}) *MutateInBuilder {
-	jsonVal, _ := json.Marshal(value)
-
-	return set.arrayInsertValue(path, jsonVal)
+	return set.ArrayInsertEx(path, value, SubdocFlagNone)
 }
 
-func (set *MutateInBuilder) arrayInsertValue(path string, bytes []byte) *MutateInBuilder {
+func (set *MutateInBuilder) arrayInsertValue(path string, bytes []byte, flags SubdocFlag) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
-		Op:   gocbcore.SubDocOpArrayInsert,
-		Path: path,
+		Op:    gocbcore.SubDocOpArrayInsert,
+		Path:  path,
+		Flags: gocbcore.SubdocFlag(flags),
+		Value: bytes,
 	}
-
-	op.Value = bytes
 	set.ops = append(set.ops, op)
 	return set
+}
+
+// ArrayAppendMultiEx allows you to perform a sub-document ArrayAppendMulti operation with flags
+//
+// Experimental: This API is subject to change at any time.
+func (set *MutateInBuilder) ArrayAppendMultiEx(path string, values interface{}, flags SubdocFlag) *MutateInBuilder {
+	return set.arrayAppendValue(path, set.marshalArrayMulti(values), flags)
 }
 
 // Adds multiple values as elements to an array.
@@ -301,49 +380,93 @@ func (set *MutateInBuilder) arrayInsertValue(path string, bytes []byte) *MutateI
 //
 // See ArrayAppend() for more information
 func (set *MutateInBuilder) ArrayAppendMulti(path string, values interface{}, createParents bool) *MutateInBuilder {
-	return set.arrayAppendValue(path, set.marshalArrayMulti(values), createParents)
+	var flags SubdocFlag
+	if createParents {
+		flags |= SubdocFlagCreatePath
+	}
+
+	return set.ArrayAppendMultiEx(path, values, flags)
+}
+
+// ArrayPrependMultiEx allows you to perform a sub-document ArrayPrependMulti operation with flags
+//
+// Experimental: This API is subject to change at any time.
+func (set *MutateInBuilder) ArrayPrependMultiEx(path string, values interface{}, flags SubdocFlag) *MutateInBuilder {
+	return set.arrayPrependValue(path, set.marshalArrayMulti(values), flags)
 }
 
 // Adds multiple values at the beginning of an array.
 // See ArrayAppendMulti for more information about multiple element operations
 // and ArrayPrepend for the semantics of this operation
 func (set *MutateInBuilder) ArrayPrependMulti(path string, values interface{}, createParents bool) *MutateInBuilder {
-	return set.arrayPrependValue(path, set.marshalArrayMulti(values), createParents)
+	var flags SubdocFlag
+	if createParents {
+		flags |= SubdocFlagCreatePath
+	}
+
+	return set.ArrayPrependMultiEx(path, values, flags)
+}
+
+// ArrayInsertMultiEx allows you to perform a sub-document ArrayInsertMulti operation with flags
+//
+// Experimental: This API is subject to change at any time.
+func (set *MutateInBuilder) ArrayInsertMultiEx(path string, values interface{}, flags SubdocFlag) *MutateInBuilder {
+	return set.arrayInsertValue(path, set.marshalArrayMulti(values), flags)
 }
 
 // Inserts multiple elements at a specified position within the
 // array. See ArrayAppendMulti for more information about multiple element
 // operations, and ArrayInsert for more information about array insertion operations
 func (set *MutateInBuilder) ArrayInsertMulti(path string, values interface{}) *MutateInBuilder {
-	return set.arrayInsertValue(path, set.marshalArrayMulti(values))
+	return set.ArrayInsertMultiEx(path, values, SubdocFlagNone)
+}
+
+// ArrayAddUniqueEx allows you to perform a sub-document ArrayAddUnique operation with flags
+//
+// Experimental: This API is subject to change at any time.
+func (set *MutateInBuilder) ArrayAddUniqueEx(path string, value interface{}, flags SubdocFlag) *MutateInBuilder {
+	op := gocbcore.SubDocOp{
+		Op:    gocbcore.SubDocOpArrayAddUnique,
+		Path:  path,
+		Flags: gocbcore.SubdocFlag(flags),
+	}
+	op.Value, _ = json.Marshal(value)
+	set.ops = append(set.ops, op)
+	return set
 }
 
 // Adds an dictionary add unique operation to this mutation operation set.
 func (set *MutateInBuilder) ArrayAddUnique(path string, value interface{}, createParents bool) *MutateInBuilder {
-	op := gocbcore.SubDocOp{
-		Op:   gocbcore.SubDocOpArrayAddUnique,
-		Path: path,
-	}
-	op.Value, _ = json.Marshal(value)
+	var flags SubdocFlag
 	if createParents {
-		op.Flags |= gocbcore.SubDocFlagMkDirP
+		flags |= SubdocFlagCreatePath
 	}
+
+	return set.ArrayAddUniqueEx(path, value, flags)
+}
+
+// CounterEx allows you to perform a sub-document Counter operation with flags
+//
+// Experimental: This API is subject to change at any time.
+func (set *MutateInBuilder) CounterEx(path string, delta int64, flags SubdocFlag) *MutateInBuilder {
+	op := gocbcore.SubDocOp{
+		Op:    gocbcore.SubDocOpCounter,
+		Path:  path,
+		Flags: gocbcore.SubdocFlag(flags),
+	}
+	op.Value, _ = json.Marshal(delta)
 	set.ops = append(set.ops, op)
 	return set
 }
 
 // Adds an counter operation to this mutation operation set.
 func (set *MutateInBuilder) Counter(path string, delta int64, createParents bool) *MutateInBuilder {
-	op := gocbcore.SubDocOp{
-		Op:   gocbcore.SubDocOpCounter,
-		Path: path,
-	}
-	op.Value, _ = json.Marshal(delta)
+	var flags SubdocFlag
 	if createParents {
-		op.Flags |= gocbcore.SubDocFlagMkDirP
+		flags |= SubdocFlagCreatePath
 	}
-	set.ops = append(set.ops, op)
-	return set
+
+	return set.CounterEx(path, delta, flags)
 }
 
 func (b *Bucket) mutateIn(set *MutateInBuilder) (resOut *DocumentFragment, errOut error) {
