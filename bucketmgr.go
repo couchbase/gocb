@@ -105,7 +105,10 @@ func (bm *BucketManager) Flush() error {
 		if err != nil {
 			return err
 		}
-		resp.Body.Close()
+		err = resp.Body.Close()
+		if err != nil {
+			logDebugf("Failed to close socket (%s)", err)
+		}
 		return clientError{string(data)}
 	}
 	return nil
@@ -125,7 +128,10 @@ func (bm *BucketManager) GetDesignDocument(name string) (*DesignDocument, error)
 		if err != nil {
 			return nil, err
 		}
-		resp.Body.Close()
+		err = resp.Body.Close()
+		if err != nil {
+			logDebugf("Failed to close socket (%s)", err)
+		}
 		return nil, clientError{string(data)}
 	}
 
@@ -154,7 +160,10 @@ func (bm *BucketManager) GetDesignDocuments() ([]*DesignDocument, error) {
 		if err != nil {
 			return nil, err
 		}
-		resp.Body.Close()
+		err = resp.Body.Close()
+		if err != nil {
+			logDebugf("Failed to close socket (%s)", err)
+		}
 		return nil, clientError{string(data)}
 	}
 
@@ -186,8 +195,8 @@ func (bm *BucketManager) GetDesignDocuments() ([]*DesignDocument, error) {
 
 // InsertDesignDocument inserts a design document to the given bucket.
 func (bm *BucketManager) InsertDesignDocument(ddoc *DesignDocument) error {
-	oldDdoc, _ := bm.GetDesignDocument(ddoc.Name)
-	if oldDdoc != nil {
+	oldDdoc, err := bm.GetDesignDocument(ddoc.Name)
+	if oldDdoc != nil || err == nil {
 		return clientError{"Design document already exists"}
 	}
 	return bm.UpsertDesignDocument(ddoc)
@@ -213,7 +222,10 @@ func (bm *BucketManager) UpsertDesignDocument(ddoc *DesignDocument) error {
 		if err != nil {
 			return err
 		}
-		resp.Body.Close()
+		err = resp.Body.Close()
+		if err != nil {
+			logDebugf("Failed to close socket (%s)", err)
+		}
 		return clientError{string(data)}
 	}
 
@@ -234,7 +246,10 @@ func (bm *BucketManager) RemoveDesignDocument(name string) error {
 		if err != nil {
 			return err
 		}
-		resp.Body.Close()
+		err = resp.Body.Close()
+		if err != nil {
+			logDebugf("Failed to close socket (%s)", err)
+		}
 		return clientError{string(data)}
 	}
 
@@ -284,7 +299,7 @@ func (bm *BucketManager) createIndex(indexName string, fields []string, ignoreIf
 	return nil
 }
 
-// Creates an index over the specified fields.
+// CreateIndex creates an index over the specified fields.
 func (bm *BucketManager) CreateIndex(indexName string, fields []string, ignoreIfExists, deferred bool) error {
 	if indexName == "" {
 		return ErrIndexInvalidName
@@ -295,7 +310,7 @@ func (bm *BucketManager) CreateIndex(indexName string, fields []string, ignoreIf
 	return bm.createIndex(indexName, fields, ignoreIfExists, deferred)
 }
 
-// Creates a primary index.  An empty customName uses the default naming.
+// CreatePrimaryIndex creates a primary index.  An empty customName uses the default naming.
 func (bm *BucketManager) CreatePrimaryIndex(customName string, ignoreIfExists, deferred bool) error {
 	return bm.createIndex(customName, nil, ignoreIfExists, deferred)
 }
@@ -326,7 +341,7 @@ func (bm *BucketManager) dropIndex(indexName string, ignoreIfNotExists bool) err
 	return nil
 }
 
-// Drops a specific index by name.
+// DropIndex drops a specific index by name.
 func (bm *BucketManager) DropIndex(indexName string, ignoreIfNotExists bool) error {
 	if indexName == "" {
 		return ErrIndexInvalidName
@@ -334,12 +349,12 @@ func (bm *BucketManager) DropIndex(indexName string, ignoreIfNotExists bool) err
 	return bm.dropIndex(indexName, ignoreIfNotExists)
 }
 
-// Drops the primary index.  Pass an empty customName for unnamed primary indexes.
+// DropPrimaryIndex drops the primary index.  Pass an empty customName for unnamed primary indexes.
 func (bm *BucketManager) DropPrimaryIndex(customName string, ignoreIfNotExists bool) error {
 	return bm.dropIndex(customName, ignoreIfNotExists)
 }
 
-// Returns a list of all currently registered indexes.
+// GetIndexes returns a list of all currently registered indexes.
 func (bm *BucketManager) GetIndexes() ([]IndexInfo, error) {
 	q := NewN1qlQuery("SELECT `indexes`.* FROM system:indexes")
 	rows, err := bm.bucket.ExecuteN1qlQuery(q, nil)
@@ -360,7 +375,7 @@ func (bm *BucketManager) GetIndexes() ([]IndexInfo, error) {
 	return indexes, nil
 }
 
-// Builds all indexes which are currently in deferred state.
+// BuildDeferredIndexes builds all indexes which are currently in deferred state.
 func (bm *BucketManager) BuildDeferredIndexes() ([]string, error) {
 	indexList, err := bm.GetIndexes()
 	if err != nil {
@@ -427,7 +442,7 @@ func checkIndexesActive(indexes []IndexInfo, checkList []string) (bool, error) {
 	return true, nil
 }
 
-// Waits for a set of indexes to come online
+// WatchIndexes waits for a set of indexes to come online
 func (bm *BucketManager) WatchIndexes(watchList []string, watchPrimary bool, timeout time.Duration) error {
 	if watchPrimary {
 		watchList = append(watchList, "#primary")
@@ -442,6 +457,10 @@ func (bm *BucketManager) WatchIndexes(watchList []string, watchPrimary bool, tim
 		}
 
 		allOnline, err := checkIndexesActive(indexes, watchList)
+		if err != nil {
+			return err
+		}
+
 		if allOnline {
 			break
 		}

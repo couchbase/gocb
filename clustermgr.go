@@ -113,7 +113,10 @@ func (cm *ClusterManager) GetBuckets() ([]*BucketSettings, error) {
 		if err != nil {
 			return nil, err
 		}
-		resp.Body.Close()
+		err = resp.Body.Close()
+		if err != nil {
+			logDebugf("Failed to close socket (%s)", err)
+		}
 		return nil, clientError{string(data)}
 	}
 
@@ -165,7 +168,10 @@ func (cm *ClusterManager) InsertBucket(settings *BucketSettings) error {
 		if err != nil {
 			return err
 		}
-		resp.Body.Close()
+		err = resp.Body.Close()
+		if err != nil {
+			logDebugf("Failed to close socket (%s)", err)
+		}
 		return clientError{string(data)}
 	}
 
@@ -192,7 +198,10 @@ func (cm *ClusterManager) RemoveBucket(name string) error {
 		if err != nil {
 			return err
 		}
-		resp.Body.Close()
+		err = resp.Body.Close()
+		if err != nil {
+			logDebugf("Failed to close socket (%s)", err)
+		}
 		return clientError{string(data)}
 	}
 

@@ -76,21 +76,21 @@ func (t DefaultTranscoder) Encode(value interface{}) ([]byte, uint32, error) {
 	var flags uint32
 	var err error
 
-	switch value.(type) {
+	switch typeValue := value.(type) {
 	case []byte:
-		bytes = value.([]byte)
+		bytes = typeValue
 		flags = cfFmtBinary
 	case *[]byte:
-		bytes = *value.(*[]byte)
+		bytes = *typeValue
 		flags = cfFmtBinary
 	case string:
-		bytes = []byte(value.(string))
+		bytes = []byte(typeValue)
 		flags = cfFmtString
 	case *string:
-		bytes = []byte(*value.(*string))
+		bytes = []byte(*typeValue)
 		flags = cfFmtString
 	case *interface{}:
-		return t.Encode(*value.(*interface{}))
+		return t.Encode(*typeValue)
 	default:
 		bytes, err = json.Marshal(value)
 		if err != nil {

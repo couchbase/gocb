@@ -4,77 +4,77 @@ import (
 	"gopkg.in/couchbase/gocbcore.v4"
 )
 
-// Retrieves a document from the bucket
+// Get retrieves a document from the bucket
 func (b *Bucket) Get(key string, valuePtr interface{}) (Cas, error) {
 	return b.get(key, valuePtr)
 }
 
-// Retrieves a document and simultaneously updates its expiry time.
+// GetAndTouch retrieves a document and simultaneously updates its expiry time.
 func (b *Bucket) GetAndTouch(key string, expiry uint32, valuePtr interface{}) (Cas, error) {
 	return b.getAndTouch(key, expiry, valuePtr)
 }
 
-// Locks a document for a period of time, providing exclusive RW access to it.
+// GetAndLock locks a document for a period of time, providing exclusive RW access to it.
 func (b *Bucket) GetAndLock(key string, lockTime uint32, valuePtr interface{}) (Cas, error) {
 	return b.getAndLock(key, lockTime, valuePtr)
 }
 
-// Unlocks a document which was locked with GetAndLock.
+// Unlock unlocks a document which was locked with GetAndLock.
 func (b *Bucket) Unlock(key string, cas Cas) (Cas, error) {
 	cas, _, err := b.unlock(key, cas)
 	return cas, err
 }
 
-// Returns the value of a particular document from a replica server.
+// GetReplica returns the value of a particular document from a replica server.
 func (b *Bucket) GetReplica(key string, valuePtr interface{}, replicaIdx int) (Cas, error) {
 	return b.getReplica(key, valuePtr, replicaIdx)
 }
 
-// Touches a document, specifying a new expiry time for it.
+// Touch touches a document, specifying a new expiry time for it.
 func (b *Bucket) Touch(key string, cas Cas, expiry uint32) (Cas, error) {
 	cas, _, err := b.touch(key, cas, expiry)
 	return cas, err
 }
 
-// Removes a document from the bucket.
+// Remove removes a document from the bucket.
 func (b *Bucket) Remove(key string, cas Cas) (Cas, error) {
 	cas, _, err := b.remove(key, cas)
 	return cas, err
 }
 
-// Inserts or replaces a document in the bucket.
+// Upsert inserts or replaces a document in the bucket.
 func (b *Bucket) Upsert(key string, value interface{}, expiry uint32) (Cas, error) {
 	cas, _, err := b.upsert(key, value, expiry)
 	return cas, err
 }
 
-// Inserts a new document to the bucket.
+// Insert inserts a new document to the bucket.
 func (b *Bucket) Insert(key string, value interface{}, expiry uint32) (Cas, error) {
 	cas, _, err := b.insert(key, value, expiry)
 	return cas, err
 }
 
-// Replaces a document in the bucket.
+// Replace replaces a document in the bucket.
 func (b *Bucket) Replace(key string, value interface{}, cas Cas, expiry uint32) (Cas, error) {
 	cas, _, err := b.replace(key, value, cas, expiry)
 	return cas, err
 }
 
-// Appends a string value to a document.
+// Append appends a string value to a document.
 func (b *Bucket) Append(key, value string) (Cas, error) {
 	cas, _, err := b.append(key, value)
 	return cas, err
 }
 
-// Prepends a string value to a document.
+// Prepend prepends a string value to a document.
 func (b *Bucket) Prepend(key, value string) (Cas, error) {
 	cas, _, err := b.prepend(key, value)
 	return cas, err
 }
 
-// Performs an atomic addition or subtraction for an integer document.  Passing a
-// non-negative `initial` value will cause the document to be created if it did
-// not already exist.
+// Counter performs an atomic addition or subtraction for an integer document.  Passing a
+// non-negative `initial` value will cause the document to be created if it did  not
+// already exist.
 func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint64, Cas, error) {
 	val, cas, _, err := b.counter(key, delta, initial, expiry)
 	return val, cas, err

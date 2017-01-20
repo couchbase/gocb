@@ -80,9 +80,14 @@ func (r *viewResults) One(valuePtr interface{}) error {
 		}
 		return ErrNoResults
 	}
-	// Ignore any errors occuring after we already have our result
-	r.Close()
-	// Return no error as we got the one result already.
+
+	// Ignore any errors occurring after we already have our result
+	err := r.Close()
+	if err != nil {
+		// Return no error as we got the one result already.
+		return nil
+	}
+
 	return nil
 }
 
@@ -118,7 +123,10 @@ func (b *Bucket) executeViewQuery(viewType, ddoc, viewName string, options url.V
 		return nil, err
 	}
 
-	resp.Body.Close()
+	err = resp.Body.Close()
+	if err != nil {
+		logDebugf("Failed to close socket (%s)", err)
+	}
 
 	if resp.StatusCode != 200 {
 		if viewResp.Error != "" {
@@ -140,23 +148,34 @@ func (b *Bucket) executeViewQuery(viewType, ddoc, viewName string, options url.V
 	}, nil
 }
 
-// Performs a view query and returns a list of rows or an error.
+// ExecuteViewQuery performs a view query and returns a list of rows or an error.
 func (b *Bucket) ExecuteViewQuery(q *ViewQuery) (ViewResults, error) {
-	return b.executeViewQuery("_view", q.ddoc, q.name, q.options)
+	ddoc, name, opts, err := q.getInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	return b.executeViewQuery("_view", ddoc, name, opts)
 }
 
-// Performs a spatial query and returns a list of rows or an error.
+// ExecuteSpatialQuery performs a spatial query and returns a list of rows or an error.
 func (b *Bucket) ExecuteSpatialQuery(q *SpatialQuery) (ViewResults, error) {
-	return b.executeViewQuery("_spatial", q.ddoc, q.name, q.options)
+	ddoc, name, opts, err := q.getInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	return b.executeViewQuery("_spatial", ddoc, name, opts)
 }
 
-// Performs a n1ql query and returns a list of rows or an error.
+// ExecuteN1qlQuery performs a n1ql query and returns a list of rows or an error.
 func (b *Bucket) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) (QueryResults, error) {
 	return b.cluster.doN1qlQuery(b, q, params)
 }
 
-// *VOLATILE*
-// Performs a view query and returns a list of rows or an error.
+// ExecuteSearchQuery performs a view query and returns a list of rows or an error.
+//
+// Experimental: This API is subject to change at any time.
 func (b *Bucket) ExecuteSearchQuery(q *SearchQuery) (SearchResults, error) {
 	return b.cluster.doSearchQuery(b, q)
 }

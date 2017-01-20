@@ -293,7 +293,7 @@ func (b *StreamingBucket) IoRouter() *gocbcore.Agent {
 	return b.client
 }
 
-// OpenBucket opens a new connection to the specified bucket for the purpose of streaming data.
+// OpenStreamingBucket opens a new connection to the specified bucket for the purpose of streaming data.
 func (c *Cluster) OpenStreamingBucket(streamName, bucket, password string) (*StreamingBucket, error) {
 	agentConfig, err := c.makeAgentConfig(bucket, password, false)
 	if err != nil {

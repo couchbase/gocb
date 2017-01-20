@@ -68,6 +68,10 @@ func (vq *SpatialQuery) Custom(name, value string) *SpatialQuery {
 	return vq
 }
 
+func (vq *SpatialQuery) getInfo() (string, string, url.Values, error) {
+	return vq.ddoc, vq.name, vq.options, nil
+}
+
 // NewSpatialQuery creates a new SpatialQuery object from a design document and view name.
 func NewSpatialQuery(ddoc, name string) *SpatialQuery {
 	return &SpatialQuery{

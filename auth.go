@@ -12,7 +12,7 @@ type Authenticator interface {
 	bucketFts(bucket string) []userPassPair
 }
 
-// Provides a password for a single bucket.
+// BucketAuthenticator provides a password for a single bucket.
 type BucketAuthenticator struct {
 	Password string
 }
@@ -25,7 +25,7 @@ type userPassPair struct {
 // BucketAuthenticatorMap is a map of bucket name to BucketAuthenticator.
 type BucketAuthenticatorMap map[string]BucketAuthenticator
 
-// Authenticator which uses a list of buckets and passwords.
+// ClusterAuthenticator implements an Authenticator which uses a list of buckets and passwords.
 type ClusterAuthenticator struct {
 	Buckets  BucketAuthenticatorMap
 	Username string

@@ -12,7 +12,7 @@ type subDocResult struct {
 	err  error
 }
 
-// Represents multiple chunks of a full Document.
+// DocumentFragment represents multiple chunks of a full Document.
 type DocumentFragment struct {
 	cas      Cas
 	mt       MutationToken
@@ -20,17 +20,17 @@ type DocumentFragment struct {
 	pathMap  map[string]int
 }
 
-// Returns the Cas of the Document
+// Cas returns the Cas of the Document
 func (frag *DocumentFragment) Cas() Cas {
 	return frag.cas
 }
 
-// Returns the MutationToken for the change represented by this DocumentFragment.
+// MutationToken returns the MutationToken for the change represented by this DocumentFragment.
 func (frag *DocumentFragment) MutationToken() MutationToken {
 	return frag.mt
 }
 
-// Retrieve the value of the operation by its index. The index is the position of
+// ContentByIndex retrieves the value of the operation by its index. The index is the position of
 // the operation as it was added to the builder.
 func (frag *DocumentFragment) ContentByIndex(idx int, valuePtr interface{}) error {
 	res := frag.contents[idx]
@@ -43,7 +43,7 @@ func (frag *DocumentFragment) ContentByIndex(idx int, valuePtr interface{}) erro
 	return json.Unmarshal(res.data, valuePtr)
 }
 
-// Retrieve the value of the operation by its path. The path is the path provided
+// Content retrieves the value of the operation by its path. The path is the path provided
 // to the operation
 func (frag *DocumentFragment) Content(path string, valuePtr interface{}) error {
 	if frag.pathMap == nil {
@@ -55,21 +55,21 @@ func (frag *DocumentFragment) Content(path string, valuePtr interface{}) error {
 	return frag.ContentByIndex(frag.pathMap[path], valuePtr)
 }
 
-// Checks whether the indicated path exists in this DocumentFragment and no
+// Exists checks whether the indicated path exists in this DocumentFragment and no
 // errors were returned from the server.
 func (frag *DocumentFragment) Exists(path string) bool {
 	err := frag.Content(path, nil)
 	return err == nil
 }
 
-// Builder used to create a set of sub-document lookup operations.
+// LookupInBuilder is a builder used to create a set of sub-document lookup operations.
 type LookupInBuilder struct {
 	bucket *Bucket
 	name   string
 	ops    []gocbcore.SubDocOp
 }
 
-// Executes this set of lookup operations on the bucket.
+// Execute executes this set of lookup operations on the bucket.
 func (set *LookupInBuilder) Execute() (*DocumentFragment, error) {
 	return set.bucket.lookupIn(set)
 }
@@ -87,7 +87,7 @@ func (set *LookupInBuilder) GetEx(path string, flags SubdocFlag) *LookupInBuilde
 	return set
 }
 
-// Indicate a path to be retrieved from the document.  The value of the path
+// Get indicates a path to be retrieved from the document.  The value of the path
 // can later be retrieved (after .Execute()) using the Content or ContentByIndex
 // method. The path syntax follows N1QL's path syntax (e.g. `foo.bar.baz`).
 func (set *LookupInBuilder) Get(path string) *LookupInBuilder {
@@ -107,7 +107,7 @@ func (set *LookupInBuilder) ExistsEx(path string, flags SubdocFlag) *LookupInBui
 	return set
 }
 
-// Similar to Get(), but does not actually retrieve the value from the server.
+// Exists is similar to Get(), but does not actually retrieve the value from the server.
 // This may save bandwidth if you only need to check for the existence of a
 // path (without caring for its content). You can check the status of this
 // operation by using .Content (and ignoring the value) or .Exists()
@@ -158,7 +158,7 @@ func (b *Bucket) lookupIn(set *LookupInBuilder) (resOut *DocumentFragment, errOu
 	}
 }
 
-// Creates a sub-document lookup operation builder.
+// LookupIn creates a sub-document lookup operation builder.
 func (b *Bucket) LookupIn(key string) *LookupInBuilder {
 	return &LookupInBuilder{
 		bucket: b,
@@ -166,7 +166,7 @@ func (b *Bucket) LookupIn(key string) *LookupInBuilder {
 	}
 }
 
-// Builder used to create a set of sub-document mutation operations.
+// MutateInBuilder is a builder used to create a set of sub-document mutation operations.
 type MutateInBuilder struct {
 	bucket *Bucket
 	name   string
@@ -176,7 +176,7 @@ type MutateInBuilder struct {
 	errs   MultiError
 }
 
-// Executes this set of mutation operations on the bucket.
+// Execute executes this set of mutation operations on the bucket.
 func (set *MutateInBuilder) Execute() (*DocumentFragment, error) {
 	return set.bucket.mutateIn(set)
 }
@@ -204,7 +204,7 @@ func (set *MutateInBuilder) InsertEx(path string, value interface{}, flags Subdo
 	return set
 }
 
-// Adds an insert operation to this mutation operation set.
+// Insert adds an insert operation to this mutation operation set.
 func (set *MutateInBuilder) Insert(path string, value interface{}, createParents bool) *MutateInBuilder {
 	var flags SubdocFlag
 	if createParents {
@@ -228,7 +228,7 @@ func (set *MutateInBuilder) UpsertEx(path string, value interface{}, flags Subdo
 	return set
 }
 
-// Adds an upsert operation to this mutation operation set.
+// Upsert adds an upsert operation to this mutation operation set.
 func (set *MutateInBuilder) Upsert(path string, value interface{}, createParents bool) *MutateInBuilder {
 	var flags SubdocFlag
 	if createParents {
@@ -252,7 +252,7 @@ func (set *MutateInBuilder) ReplaceEx(path string, value interface{}, flags Subd
 	return set
 }
 
-// Adds an replace operation to this mutation operation set.
+// Replace adds an replace operation to this mutation operation set.
 func (set *MutateInBuilder) Replace(path string, value interface{}) *MutateInBuilder {
 	return set.ReplaceEx(path, value, SubdocFlagNone)
 }
@@ -285,7 +285,7 @@ func (set *MutateInBuilder) RemoveEx(path string, flags SubdocFlag) *MutateInBui
 	return set
 }
 
-// Adds an remove operation to this mutation operation set.
+// Remove adds an remove operation to this mutation operation set.
 func (set *MutateInBuilder) Remove(path string) *MutateInBuilder {
 	return set.RemoveEx(path, SubdocFlagNone)
 }
@@ -297,7 +297,7 @@ func (set *MutateInBuilder) ArrayPrependEx(path string, value interface{}, flags
 	return set.arrayPrependValue(path, set.marshalJson(value), flags)
 }
 
-// Adds an element to the beginning (i.e. left) of an array
+// ArrayPrepend adds an element to the beginning (i.e. left) of an array
 func (set *MutateInBuilder) ArrayPrepend(path string, value interface{}, createParents bool) *MutateInBuilder {
 	var flags SubdocFlag
 	if createParents {
@@ -325,7 +325,7 @@ func (set *MutateInBuilder) ArrayAppendEx(path string, value interface{}, flags 
 	return set.arrayAppendValue(path, set.marshalJson(value), flags)
 }
 
-// Adds an element to the end (i.e. right) of an array
+// ArrayAppend adds an element to the end (i.e. right) of an array
 func (set *MutateInBuilder) ArrayAppend(path string, value interface{}, createParents bool) *MutateInBuilder {
 	var flags SubdocFlag
 	if createParents {
@@ -353,7 +353,7 @@ func (set *MutateInBuilder) ArrayInsertEx(path string, value interface{}, flags 
 	return set.arrayInsertValue(path, set.marshalJson(value), flags)
 }
 
-// Inserts an element at a given position within an array. The position should be
+// ArrayInsert inserts an element at a given position within an array. The position should be
 // specified as part of the path, e.g. path.to.array[3]
 func (set *MutateInBuilder) ArrayInsert(path string, value interface{}) *MutateInBuilder {
 	return set.ArrayInsertEx(path, value, SubdocFlagNone)
@@ -377,7 +377,7 @@ func (set *MutateInBuilder) ArrayAppendMultiEx(path string, values interface{}, 
 	return set.arrayAppendValue(path, set.marshalArrayMulti(values), flags)
 }
 
-// Adds multiple values as elements to an array.
+// ArrayAppendMulti adds multiple values as elements to an array.
 // `values` must be an array type
 // ArrayAppendMulti("path", []int{1,2,3,4}, true) =>
 //   "path" [..., 1,2,3,4]
@@ -403,7 +403,7 @@ func (set *MutateInBuilder) ArrayPrependMultiEx(path string, values interface{},
 	return set.arrayPrependValue(path, set.marshalArrayMulti(values), flags)
 }
 
-// Adds multiple values at the beginning of an array.
+// ArrayPrependMulti adds multiple values at the beginning of an array.
 // See ArrayAppendMulti for more information about multiple element operations
 // and ArrayPrepend for the semantics of this operation
 func (set *MutateInBuilder) ArrayPrependMulti(path string, values interface{}, createParents bool) *MutateInBuilder {
@@ -422,7 +422,7 @@ func (set *MutateInBuilder) ArrayInsertMultiEx(path string, values interface{}, 
 	return set.arrayInsertValue(path, set.marshalArrayMulti(values), flags)
 }
 
-// Inserts multiple elements at a specified position within the
+// ArrayInsertMulti inserts multiple elements at a specified position within the
 // array. See ArrayAppendMulti for more information about multiple element
 // operations, and ArrayInsert for more information about array insertion operations
 func (set *MutateInBuilder) ArrayInsertMulti(path string, values interface{}) *MutateInBuilder {
@@ -443,7 +443,7 @@ func (set *MutateInBuilder) ArrayAddUniqueEx(path string, value interface{}, fla
 	return set
 }
 
-// Adds an dictionary add unique operation to this mutation operation set.
+// ArrayAddUnique adds an dictionary add unique operation to this mutation operation set.
 func (set *MutateInBuilder) ArrayAddUnique(path string, value interface{}, createParents bool) *MutateInBuilder {
 	var flags SubdocFlag
 	if createParents {
@@ -467,7 +467,7 @@ func (set *MutateInBuilder) CounterEx(path string, delta int64, flags SubdocFlag
 	return set
 }
 
-// Adds an counter operation to this mutation operation set.
+// Counter adds an counter operation to this mutation operation set.
 func (set *MutateInBuilder) Counter(path string, delta int64, createParents bool) *MutateInBuilder {
 	var flags SubdocFlag
 	if createParents {
@@ -525,7 +525,7 @@ func (b *Bucket) mutateIn(set *MutateInBuilder) (resOut *DocumentFragment, errOu
 	}
 }
 
-// Creates a sub-document mutation operation builder.
+// MutateIn creates a sub-document mutation operation builder.
 func (b *Bucket) MutateIn(key string, cas Cas, expiry uint32) *MutateInBuilder {
 	return &MutateInBuilder{
 		bucket: b,

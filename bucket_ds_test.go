@@ -346,7 +346,7 @@ func TestDsQueuePop(t *testing.T) {
 	}
 
 	if queueItemValue != "two" {
-		t.Fatalf("Failed to retreive the correct queue item")
+		t.Fatalf("Failed to retrieve the correct queue item")
 	}
 
 	var queueContents []string

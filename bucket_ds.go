@@ -73,7 +73,7 @@ func (b *Bucket) ListGet(key string, index uint, valuePtr interface{}) (Cas, err
 	return frag.Cas(), nil
 }
 
-// ListPush inserts an item to the end of a list document.
+// ListAppend inserts an item to the end of a list document.
 func (b *Bucket) ListAppend(key string, value interface{}, createList bool) (Cas, error) {
 	for {
 		frag, err := b.MutateIn(key, 0, 0).ArrayAppend("", value, false).Execute()
@@ -97,7 +97,7 @@ func (b *Bucket) ListAppend(key string, value interface{}, createList bool) (Cas
 	}
 }
 
-// ListShift inserts an item to the beginning of a list document.
+// ListPrepend inserts an item to the beginning of a list document.
 func (b *Bucket) ListPrepend(key string, value interface{}, createList bool) (Cas, error) {
 	for {
 		frag, err := b.MutateIn(key, 0, 0).ArrayPrepend("", value, false).Execute()
@@ -139,7 +139,7 @@ func (b *Bucket) ListSet(key string, index uint, value interface{}) (Cas, error)
 	return frag.Cas(), nil
 }
 
-// MapSize returns the current number of items in a list.
+// ListSize returns the current number of items in a list.
 // PERFORMANCE NOTICE: This currently performs a full document fetch...
 func (b *Bucket) ListSize(key string) (uint, Cas, error) {
 	var listContents []interface{}
@@ -193,7 +193,7 @@ func (b *Bucket) SetExists(key string, value interface{}) (bool, Cas, error) {
 	return false, 0, nil
 }
 
-// MapSize returns the current number of values in a set.
+// SetSize returns the current number of values in a set.
 // PERFORMANCE NOTICE: This currently performs a full document fetch...
 func (b *Bucket) SetSize(key string) (uint, Cas, error) {
 	var setContents []interface{}

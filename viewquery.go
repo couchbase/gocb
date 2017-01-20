@@ -34,6 +34,16 @@ type ViewQuery struct {
 	ddoc    string
 	name    string
 	options url.Values
+	errs    MultiError
+}
+
+func (vq *ViewQuery) marshalJson(value interface{}) []byte {
+	bytes, err := json.Marshal(value)
+	if err != nil {
+		vq.errs.add(err)
+		return nil
+	}
+	return bytes
 }
 
 // Stale specifies the level of consistency required for this query.
@@ -102,14 +112,14 @@ func (vq *ViewQuery) GroupLevel(groupLevel uint) *ViewQuery {
 
 // Key specifies a specific key to retrieve from the index.
 func (vq *ViewQuery) Key(key interface{}) *ViewQuery {
-	jsonKey, _ := json.Marshal(key)
+	jsonKey := vq.marshalJson(key)
 	vq.options.Set("key", string(jsonKey))
 	return vq
 }
 
 // Keys specifies a list of specific keys to retrieve from the index.
 func (vq *ViewQuery) Keys(keys []interface{}) *ViewQuery {
-	jsonKeys, _ := json.Marshal(keys)
+	jsonKeys := vq.marshalJson(keys)
 	vq.options.Set("keys", string(jsonKeys))
 	return vq
 }
@@ -118,13 +128,13 @@ func (vq *ViewQuery) Keys(keys []interface{}) *ViewQuery {
 func (vq *ViewQuery) Range(start, end interface{}, inclusiveEnd bool) *ViewQuery {
 	// TODO(brett19): Not currently handling errors due to no way to return the error
 	if start != nil {
-		jsonStartKey, _ := json.Marshal(start)
+		jsonStartKey := vq.marshalJson(start)
 		vq.options.Set("startkey", string(jsonStartKey))
 	} else {
 		vq.options.Del("startkey")
 	}
 	if end != nil {
-		jsonEndKey, _ := json.Marshal(end)
+		jsonEndKey := vq.marshalJson(end)
 		vq.options.Set("endkey", string(jsonEndKey))
 	} else {
 		vq.options.Del("endkey")
@@ -173,6 +183,10 @@ func (vq *ViewQuery) Development(val bool) *ViewQuery {
 func (vq *ViewQuery) Custom(name, value string) *ViewQuery {
 	vq.options.Set(name, value)
 	return vq
+}
+
+func (vq *ViewQuery) getInfo() (string, string, url.Values, error) {
+	return vq.ddoc, vq.name, vq.options, vq.errs.get()
 }
 
 // NewViewQuery creates a new ViewQuery object from a design document and view name.
