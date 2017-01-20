@@ -3,7 +3,39 @@ package gocb
 import (
 	"errors"
 	"gopkg.in/couchbase/gocbcore.v2"
+	"strings"
 )
+
+// MultiError encapsulates multiple errors that may be returned by one method.
+type MultiError struct {
+	Errors []error
+}
+
+func (e *MultiError) add(err error) {
+	if multiErr, ok := err.(*MultiError); ok {
+		e.Errors = append(e.Errors, multiErr.Errors...)
+	} else {
+		e.Errors = append(e.Errors, err)
+	}
+}
+
+func (e *MultiError) get() error {
+	if len(e.Errors) == 0 {
+		return nil
+	} else if len(e.Errors) == 1 {
+		return e.Errors[0]
+	} else {
+		return e
+	}
+}
+
+func (e *MultiError) Error() string {
+	var errors []string
+	for _, err := range e.Errors {
+		errors = append(errors, err.Error())
+	}
+	return strings.Join(errors, ", ")
+}
 
 type clientError struct {
 	message string
