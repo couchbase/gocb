@@ -230,7 +230,7 @@ func (b *Bucket) SetRemove(key string, value interface{}) (Cas, error) {
 			return 0, ErrRangeError
 		}
 
-		b.Replace(key, newSetContents, cas, 0)
+		cas, err = b.Replace(key, newSetContents, cas, 0)
 		if err != nil {
 			if err == ErrKeyExists {
 				// If this is just a CAS error, try again!
