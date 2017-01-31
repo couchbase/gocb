@@ -49,5 +49,5 @@ Copyright 2016 Couchbase Inc.
 Licensed under the Apache License, Version 2.0.
 
 See
-[LICENSE](https://github.com/couchbase/couchnode/blob/master/LICENSE)
+[LICENSE](https://github.com/couchbase/gocb/blob/master/LICENSE)
 for further details.
