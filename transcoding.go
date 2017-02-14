@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"encoding/json"
+	"gopkg.in/couchbase/gocbcore.v4"
 )
 
 // Transcoder provides an interface for transforming Go values to and
@@ -21,24 +22,15 @@ type DefaultTranscoder struct {
 
 // Decode applies the default Couchbase transcoding behaviour to decode into a Go type.
 func (t DefaultTranscoder) Decode(bytes []byte, flags uint32, out interface{}) error {
-	// Check for legacy flags
-	if flags&cfMask == 0 {
-		// Legacy Flags
-		if flags == lfJson {
-			// Legacy JSON
-			flags = cfFmtJson
-		} else {
-			return clientError{"Unexpected legacy flags value"}
-		}
-	}
+	valueType, compression := gocbcore.DecodeCommonFlags(flags)
 
 	// Make sure compression is disabled
-	if flags&cfCmprMask != cfCmprNone {
+	if compression != gocbcore.NoCompression {
 		return clientError{"Unexpected value compression"}
 	}
 
 	// Normal types of decoding
-	if flags&cfFmtMask == cfFmtBinary {
+	if valueType == gocbcore.BinaryType {
 		switch typedOut := out.(type) {
 		case *[]byte:
 			*typedOut = bytes
@@ -49,7 +41,7 @@ func (t DefaultTranscoder) Decode(bytes []byte, flags uint32, out interface{}) e
 		default:
 			return clientError{"You must encode binary in a byte array or interface"}
 		}
-	} else if flags&cfFmtMask == cfFmtString {
+	} else if valueType == gocbcore.StringType {
 		switch typedOut := out.(type) {
 		case *string:
 			*typedOut = string(bytes)
@@ -60,13 +52,14 @@ func (t DefaultTranscoder) Decode(bytes []byte, flags uint32, out interface{}) e
 		default:
 			return clientError{"You must encode a string in a string or interface"}
 		}
-	} else if flags&cfFmtMask == cfFmtJson {
+	} else if valueType == gocbcore.JsonType {
 		err := json.Unmarshal(bytes, &out)
 		if err != nil {
 			return err
 		}
 		return nil
 	}
+
 	return clientError{"Unexpected flags value"}
 }
 
@@ -79,16 +72,16 @@ func (t DefaultTranscoder) Encode(value interface{}) ([]byte, uint32, error) {
 	switch typeValue := value.(type) {
 	case []byte:
 		bytes = typeValue
-		flags = cfFmtBinary
+		flags = gocbcore.EncodeCommonFlags(gocbcore.BinaryType, gocbcore.NoCompression)
 	case *[]byte:
 		bytes = *typeValue
-		flags = cfFmtBinary
+		flags = gocbcore.EncodeCommonFlags(gocbcore.BinaryType, gocbcore.NoCompression)
 	case string:
 		bytes = []byte(typeValue)
-		flags = cfFmtString
+		flags = gocbcore.EncodeCommonFlags(gocbcore.StringType, gocbcore.NoCompression)
 	case *string:
 		bytes = []byte(*typeValue)
-		flags = cfFmtString
+		flags = gocbcore.EncodeCommonFlags(gocbcore.StringType, gocbcore.NoCompression)
 	case *interface{}:
 		return t.Encode(*typeValue)
 	default:
@@ -96,7 +89,7 @@ func (t DefaultTranscoder) Encode(value interface{}) ([]byte, uint32, error) {
 		if err != nil {
 			return nil, 0, err
 		}
-		flags = cfFmtJson
+		flags = gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression)
 	}
 
 	// No compression supported currently
