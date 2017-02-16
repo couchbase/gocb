@@ -108,6 +108,7 @@ func (b *Bucket) lookupIn(set *LookupInBuilder) (resOut *DocumentFragment, errOu
 			{
 				resSet := &DocumentFragment{}
 				resSet.contents = make([]subDocResult, len(results))
+				resSet.cas = Cas(cas)
 
 				for i := range results {
 					resSet.contents[i].path = set.ops[i].Path
