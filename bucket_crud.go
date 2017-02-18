@@ -73,20 +73,20 @@ func (b *Bucket) Prepend(key, value string) (Cas, error) {
 }
 
 // Performs an atomic addition or subtraction for an integer document.  Passing a
-//  non-negative `initial` value will cause the document to be created if it did
-//  not already exist.
+// non-negative `initial` value will cause the document to be created if it did
+// not already exist.
 func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint64, Cas, error) {
 	val, cas, _, err := b.counter(key, delta, initial, expiry)
 	return val, cas, err
 }
 
 // ServerStats is a tree of statistics information returned from the server.
-// stats := cb.Stats(...)
-// for server := stats {
-//    for statName, stat := server {
-//      //...
-//    }
-// }
+//   stats := cb.Stats(...)
+//   for server := stats {
+//       for statName, stat := server {
+//       //...
+//       }
+//   }
 type ServerStats map[string]map[string]string
 
 // Stats returns various server statistics from the cluster.
