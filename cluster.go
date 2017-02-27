@@ -244,7 +244,7 @@ func (c *Cluster) closeBucket(bucket *Bucket) {
 // Manager returns a ClusterManager object for performing cluster management operations on this cluster.
 func (c *Cluster) Manager(username, password string) *ClusterManager {
 	userPass := userPassPair{username, password}
-	if username == "" || password == "" {
+	if username == "" && password == "" {
 		if c.auth != nil {
 			userPass = c.auth.clusterMgmt()
 		}
@@ -295,6 +295,12 @@ func (b *StreamingBucket) IoRouter() *gocbcore.Agent {
 
 // OpenStreamingBucket opens a new connection to the specified bucket for the purpose of streaming data.
 func (c *Cluster) OpenStreamingBucket(streamName, bucket, password string) (*StreamingBucket, error) {
+	if password == "" {
+		if c.auth != nil {
+			password = c.auth.bucketMemd(bucket)
+		}
+	}
+
 	agentConfig, err := c.makeAgentConfig(bucket, password, false)
 	if err != nil {
 		return nil, err
