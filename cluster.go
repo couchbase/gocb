@@ -144,9 +144,19 @@ func specToHosts(spec connSpec) ([]string, []string, bool) {
 	return memdHosts, httpHosts, spec.Scheme.IsSSL()
 }
 
-func (c *Cluster) makeAgentConfig(bucket, password string, mt bool) (*gocbcore.AgentConfig, error) {
+func (c *Cluster) makeAgentConfig(bucket, username, password string, mt bool) (*gocbcore.AgentConfig, error) {
 	authFn := func(client gocbcore.AuthClient, deadline time.Time) error {
-		return gocbcore.SaslAuthPlain(bucket, password, client, deadline)
+		if err := gocbcore.SaslAuthPlain(username, password, client, deadline); err != nil {
+			return err
+		}
+
+		if bucket != username {
+			if err := client.ExecSelectBucket([]byte(bucket), deadline); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	}
 
 	memdHosts, httpHosts, isSslHosts := specToHosts(c.spec)
@@ -195,13 +205,16 @@ func (c *Cluster) Authenticate(auth Authenticator) error {
 }
 
 func (c *Cluster) openBucket(bucket, password string, mt bool) (*Bucket, error) {
+	username := bucket
 	if password == "" {
 		if c.auth != nil {
-			password = c.auth.bucketMemd(bucket)
+			userPass := c.auth.bucketMemd(bucket)
+			username = userPass.Username
+			password = userPass.Password
 		}
 	}
 
-	agentConfig, err := c.makeAgentConfig(bucket, password, mt)
+	agentConfig, err := c.makeAgentConfig(bucket, username, password, mt)
 	if err != nil {
 		return nil, err
 	}
@@ -295,13 +308,16 @@ func (b *StreamingBucket) IoRouter() *gocbcore.Agent {
 
 // OpenStreamingBucket opens a new connection to the specified bucket for the purpose of streaming data.
 func (c *Cluster) OpenStreamingBucket(streamName, bucket, password string) (*StreamingBucket, error) {
+	username := bucket
 	if password == "" {
 		if c.auth != nil {
-			password = c.auth.bucketMemd(bucket)
+			userPass := c.auth.bucketMemd(bucket)
+			username = userPass.Username
+			password = userPass.Password
 		}
 	}
 
-	agentConfig, err := c.makeAgentConfig(bucket, password, false)
+	agentConfig, err := c.makeAgentConfig(bucket, username, password, false)
 	if err != nil {
 		return nil, err
 	}

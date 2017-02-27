@@ -5,7 +5,7 @@ type Authenticator interface {
 	clusterMgmt() userPassPair
 	clusterN1ql() []userPassPair
 	clusterFts() []userPassPair
-	bucketMemd(bucket string) string
+	bucketMemd(bucket string) userPassPair
 	bucketMgmt(bucket string) userPassPair
 	bucketViews(bucket string) userPassPair
 	bucketN1ql(bucket string) []userPassPair
@@ -62,8 +62,8 @@ func (ca ClusterAuthenticator) bucketAll(bucket string) userPassPair {
 	return userPassPair{"", ""}
 }
 
-func (ca ClusterAuthenticator) bucketMemd(bucket string) string {
-	return ca.bucketAll(bucket).Password
+func (ca ClusterAuthenticator) bucketMemd(bucket string) userPassPair {
+	return ca.bucketAll(bucket)
 }
 
 func (ca ClusterAuthenticator) bucketMgmt(bucket string) userPassPair {
@@ -83,5 +83,55 @@ func (ca ClusterAuthenticator) bucketN1ql(bucket string) []userPassPair {
 func (ca ClusterAuthenticator) bucketFts(bucket string) []userPassPair {
 	return []userPassPair{
 		ca.bucketAll(bucket),
+	}
+}
+
+// RbacAuthenticator implements an Authenticator which uses an RBAC username and password.
+type RbacAuthenticator struct {
+	Username string
+	Password string
+}
+
+func (ra RbacAuthenticator) rbacAll() userPassPair {
+	return userPassPair{ra.Username, ra.Password}
+}
+
+func (ra RbacAuthenticator) clusterMgmt() userPassPair {
+	return ra.rbacAll()
+}
+
+func (ra RbacAuthenticator) clusterN1ql() []userPassPair {
+	return []userPassPair{
+		ra.rbacAll(),
+	}
+}
+
+func (ra RbacAuthenticator) clusterFts() []userPassPair {
+	return []userPassPair{
+		ra.rbacAll(),
+	}
+}
+
+func (ra RbacAuthenticator) bucketMemd(bucket string) userPassPair {
+	return ra.rbacAll()
+}
+
+func (ra RbacAuthenticator) bucketMgmt(bucket string) userPassPair {
+	return ra.rbacAll()
+}
+
+func (ra RbacAuthenticator) bucketViews(bucket string) userPassPair {
+	return ra.rbacAll()
+}
+
+func (ra RbacAuthenticator) bucketN1ql(bucket string) []userPassPair {
+	return []userPassPair{
+		ra.rbacAll(),
+	}
+}
+
+func (ra RbacAuthenticator) bucketFts(bucket string) []userPassPair {
+	return []userPassPair{
+		ra.rbacAll(),
 	}
 }
