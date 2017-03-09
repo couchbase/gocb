@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"gopkg.in/brett19/jsonx.v1"
+	"gopkg.in/couchbaselabs/jsonx.v1"
 	"net/http"
 	"time"
 )
