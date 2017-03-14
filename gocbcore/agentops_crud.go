@@ -2,6 +2,7 @@ package gocbcore
 
 import (
 	"encoding/binary"
+	"sync"
 	"sync/atomic"
 )
 
@@ -450,6 +451,7 @@ func (c *Agent) Stats(key string, callback ServerStatsCallback) (PendingOp, erro
 	op.remaining = int32(len(config.servers))
 
 	stats := make(map[string]SingleServerStats)
+	var statsLock sync.Mutex
 
 	defer func() {
 		if !allOk {
@@ -462,6 +464,9 @@ func (c *Agent) Stats(key string, callback ServerStatsCallback) (PendingOp, erro
 		serverName := server.address
 
 		handler := func(resp *memdResponse, err error) {
+			statsLock.Lock()
+			defer statsLock.Unlock()
+
 			// No stat key!
 			curStats, ok := stats[serverName]
 
