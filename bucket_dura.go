@@ -122,8 +122,8 @@ func (b *Bucket) observeOne(key []byte, mt MutationToken, cas Cas, forDelete boo
 			}
 
 			if sentReplicated && sentPersisted {
- 				return
- 			}
+				return
+			}
 
 			waitTmr := gocbcore.AcquireTimer(b.duraPollTimeout)
 			select {
