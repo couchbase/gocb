@@ -54,7 +54,8 @@ func (b *Bucket) Insert(key string, value interface{}, expiry uint32) (Cas, erro
 	return cas, err
 }
 
-// Replaces a document in the bucket.
+// Replaces a document in the bucket.  If the key does not exist and the cas passed in is 0, this will behave exactly as Insert.
+// If 0 is passed in as the cas value, it won't be checked.  Otherwise, it must match what's in the bucket or the operation will fail.
 func (b *Bucket) Replace(key string, value interface{}, cas Cas, expiry uint32) (Cas, error) {
 	cas, _, err := b.replace(key, value, cas, expiry)
 	return cas, err
