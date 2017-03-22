@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"testing"
+	"encoding/json"
 )
 
 var defaultTranscoder DefaultTranscoder
@@ -94,16 +95,12 @@ func TestDecodeInterface(t *testing.T) {
 	var testOut interface{}
 	testDecode(t, jsonNumStr, 0x2000000, &testOut)
 	switch testOut := testOut.(type) {
-	case int:
-		if testOut != 2222 {
-			t.Errorf("Decoding failed")
-		}
-	case float64:
-		if testOut != 2222 {
+	case json.Number:
+		if v, err := testOut.Int64(); err != nil || v != 2222 {
 			t.Errorf("Decoding failed")
 		}
 	default:
-		t.Errorf("Decoding failed")
+		t.Errorf("Decoding failed %v", testOut)
 	}
 
 	testDecode(t, jsonStrStr, 0x4000000, &testOut)

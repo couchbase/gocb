@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	byteslib "bytes"
 	"encoding/json"
 )
 
@@ -61,10 +62,12 @@ func (t DefaultTranscoder) Decode(bytes []byte, flags uint32, out interface{}) e
 			return clientError{"You must encode a string in a string or interface"}
 		}
 	} else if flags&cfFmtMask == cfFmtJson {
-		err := json.Unmarshal(bytes, &out)
-		if err != nil {
+		decoder := json.NewDecoder(byteslib.NewReader(bytes))
+		decoder.UseNumber()
+	    	
+		if err := decoder.Decode(&out); err != nil {
 			return err
-		}
+	    }
 		return nil
 	}
 	return clientError{"Unexpected flags value"}
