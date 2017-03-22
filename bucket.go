@@ -166,6 +166,7 @@ func (b *Bucket) getFtsEp() (string, error) {
 func (b *Bucket) Close() {
 	b.cluster.closeBucket(b)
 	b.client.Close()
+	b.internal = nil
 }
 
 // IoRouter returns the underlying gocb agent managing connections.
