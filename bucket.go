@@ -1,7 +1,7 @@
 package gocb
 
 import (
-	"gopkg.in/couchbase/gocbcore.v2"
+	"gopkg.in/couchbase/gocbcore.v4"
 	"math/rand"
 	"time"
 )
