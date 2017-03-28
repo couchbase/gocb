@@ -1,7 +1,7 @@
 package gocb
 
 import (
-	"gopkg.in/couchbase/gocbcore.v4"
+	"gopkg.in/couchbase/gocbcore.v5"
 )
 
 // BucketInternal holds various internally used bucket extension methods.

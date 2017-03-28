@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"gopkg.in/couchbase/gocbcore.v4"
+	"gopkg.in/couchbase/gocbcore.v5"
 	"io/ioutil"
 	"net/http"
 	"sync"

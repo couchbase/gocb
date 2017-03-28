@@ -3,7 +3,7 @@ package gocb
 import (
 	"encoding/json"
 	"fmt"
-	"gopkg.in/couchbase/gocbcore.v4"
+	"gopkg.in/couchbase/gocbcore.v5"
 )
 
 // MutationToken holds the mutation state information from an operation.
