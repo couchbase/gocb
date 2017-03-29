@@ -189,6 +189,7 @@ func (c *Cluster) makeAgentConfig(bucket, username, password string, mt bool) (*
 		HttpAddrs:            httpHosts,
 		TlsConfig:            tlsConfig,
 		BucketName:           bucket,
+		Username:             username,
 		Password:             password,
 		AuthHandler:          authFn,
 		UseMutationTokens:    mt,
