@@ -78,6 +78,15 @@ func (set *LookupInBuilder) Execute() (*DocumentFragment, error) {
 //
 // Experimental: This API is subject to change at any time.
 func (set *LookupInBuilder) GetEx(path string, flags SubdocFlag) *LookupInBuilder {
+	if path == "" {
+		op := gocbcore.SubDocOp{
+			Op:    gocbcore.SubDocOpGetDoc,
+			Flags: gocbcore.SubdocFlag(flags),
+		}
+		set.ops = append(set.ops, op)
+		return set
+	}
+
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpGet,
 		Path:  path,
@@ -194,6 +203,16 @@ func (set *MutateInBuilder) marshalJson(value interface{}) []byte {
 //
 // Experimental: This API is subject to change at any time.
 func (set *MutateInBuilder) InsertEx(path string, value interface{}, flags SubdocFlag) *MutateInBuilder {
+	if path == "" {
+		op := gocbcore.SubDocOp{
+			Op:    gocbcore.SubDocOpAddDoc,
+			Flags: gocbcore.SubdocFlag(flags),
+			Value: set.marshalJson(value),
+		}
+		set.ops = append(set.ops, op)
+		return set
+	}
+
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpDictAdd,
 		Path:  path,
@@ -218,6 +237,16 @@ func (set *MutateInBuilder) Insert(path string, value interface{}, createParents
 //
 // Experimental: This API is subject to change at any time.
 func (set *MutateInBuilder) UpsertEx(path string, value interface{}, flags SubdocFlag) *MutateInBuilder {
+	if path == "" {
+		op := gocbcore.SubDocOp{
+			Op:    gocbcore.SubDocOpSetDoc,
+			Flags: gocbcore.SubdocFlag(flags),
+			Value: set.marshalJson(value),
+		}
+		set.ops = append(set.ops, op)
+		return set
+	}
+
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpDictSet,
 		Path:  path,
