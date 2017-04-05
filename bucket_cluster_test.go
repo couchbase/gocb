@@ -28,7 +28,7 @@ func TestBootstrapOn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Multi-host connection string failed: %v", err)
 	}
-	if len(c.spec.HttpHosts) != 3 || len(c.spec.MemcachedHosts) != 3 {
+	if len(c.agentConfig.HttpAddrs) != 3 || len(c.agentConfig.MemdAddrs) != 3 {
 		t.Fatal("Wrong number of hosts for http/memcached")
 	}
 
@@ -37,22 +37,22 @@ func TestBootstrapOn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("bootstrap_on=http: %v", err)
 	}
-	if len(c.spec.HttpHosts) != 3 {
-		t.Fatalf("HttpHosts is not 3 (%v)", c.spec.HttpHosts)
+	if len(c.agentConfig.HttpAddrs) != 3 {
+		t.Fatalf("HttpHosts is not 3 (%v)", c.agentConfig.HttpAddrs)
 	}
-	if len(c.spec.MemcachedHosts) != 0 {
-		t.Fatalf("MemcachedHosts is not 0: %v", c.spec.MemcachedHosts)
+	if len(c.agentConfig.MemdAddrs) != 0 {
+		t.Fatalf("MemcachedHosts is not 0: %v", c.agentConfig.MemdAddrs)
 	}
 
 	c, err = Connect("couchbase://foo.com,bar.com,baz.com?bootstrap_on=cccp")
 	if err != nil {
 		t.Fatalf("bootstrap_on=cccp: %v", err)
 	}
-	if len(c.spec.MemcachedHosts) != 3 {
-		t.Fatalf("Expected 3 hosts in memcached: %v", c.spec.MemcachedHosts)
+	if len(c.agentConfig.MemdAddrs) != 3 {
+		t.Fatalf("Expected 3 hosts in memcached: %v", c.agentConfig.MemdAddrs)
 	}
-	if len(c.spec.HttpHosts) != 0 {
-		t.Fatalf("Expected 0 hosts in http: %v", c.spec.HttpHosts)
+	if len(c.agentConfig.HttpAddrs) != 0 {
+		t.Fatalf("Expected 0 hosts in http: %v", c.agentConfig.HttpAddrs)
 	}
 
 	// Should fail if there are no hosts
