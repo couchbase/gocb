@@ -56,6 +56,9 @@ const (
 	// SubdocFlagXattr indicates your path refers to an extended attribute rather than the document.
 	SubdocFlagXattr = SubdocFlag(gocbcore.SubdocFlagXattrPath)
 
+	// SubdocFlagAccessDeleted indicates that you wish to receive soft-deleted documents.
+	SubdocFlagAccessDeleted = SubdocFlag(gocbcore.SubdocFlagAccessDeleted)
+
 	// SubdocFlagUseMacros indicates that you wish macro substitution to occur on the value
 	SubdocFlagUseMacros = SubdocFlag(gocbcore.SubdocFlagExpandMacros)
 )
