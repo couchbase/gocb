@@ -2,7 +2,7 @@ package gocb
 
 import (
 	"encoding/json"
-	"gopkg.in/couchbase/gocbcore.v5"
+	"gopkg.in/couchbase/gocbcore.v6"
 	"strings"
 	"testing"
 )

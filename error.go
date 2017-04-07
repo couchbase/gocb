@@ -2,7 +2,7 @@ package gocb
 
 import (
 	"errors"
-	"gopkg.in/couchbase/gocbcore.v5"
+	"gopkg.in/couchbase/gocbcore.v6"
 	"strings"
 )
 

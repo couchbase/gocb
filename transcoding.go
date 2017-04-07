@@ -2,7 +2,7 @@ package gocb
 
 import (
 	"encoding/json"
-	"gopkg.in/couchbase/gocbcore.v5"
+	"gopkg.in/couchbase/gocbcore.v6"
 )
 
 // Transcoder provides an interface for transforming Go values to and

@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"gopkg.in/couchbase/gocbcore.v5"
+	"gopkg.in/couchbase/gocbcore.v6"
 	"io/ioutil"
 	"net/http"
 	"sync"
@@ -322,7 +322,7 @@ func (c *Cluster) OpenStreamingBucket(streamName, bucket, password string) (*Str
 	if err != nil {
 		return nil, err
 	}
-	cli, err := gocbcore.CreateDcpAgent(agentConfig, streamName)
+	cli, err := gocbcore.CreateDcpAgent(agentConfig, streamName, 0)
 	if err != nil {
 		return nil, err
 	}
