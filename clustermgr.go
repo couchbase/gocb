@@ -163,7 +163,6 @@ func (cm *ClusterManager) InsertBucket(settings *BucketSettings) error {
 	posts.Add("authType", "sasl")
 	posts.Add("saslPassword", settings.Password)
 	posts.Add("ramQuotaMB", fmt.Sprintf("%d", settings.Quota))
-	posts.Add("proxyPort", "11210")
 
 	data := []byte(posts.Encode())
 	resp, err := cm.mgmtRequest("POST", "/pools/default/buckets", "application/x-www-form-urlencoded", bytes.NewReader(data))
