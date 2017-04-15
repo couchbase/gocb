@@ -161,7 +161,7 @@ func (cm *ClusterManager) InsertBucket(settings *BucketSettings) error {
 	data := []byte(posts.Encode())
 	resp, err := cm.mgmtRequest("POST", "/pools/default/buckets", "application/x-www-form-urlencoded", bytes.NewReader(data))
 	if err != nil {
-		return nil
+		return err
 	}
 
 	if resp.StatusCode != 202 {
