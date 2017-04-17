@@ -31,10 +31,17 @@ type ViewResults interface {
 	Close() error
 }
 
+// ViewResultMetrics allows access to the TotalRows value from the view response.  This is
+// implemented as an additional interface to maintain ABI compatibility for the 1.x series.
+type ViewResultMetrics interface {
+	TotalRows() int
+}
+
 type viewResults struct {
-	index int
-	rows  []json.RawMessage
-	err   error
+	index     int
+	rows      []json.RawMessage
+	totalRows int
+	err       error
 }
 
 func (r *viewResults) Next(valuePtr interface{}) bool {
@@ -91,6 +98,10 @@ func (r *viewResults) One(valuePtr interface{}) error {
 	return nil
 }
 
+func (r *viewResults) TotalRows() int {
+	return r.totalRows
+}
+
 func (b *Bucket) executeViewQuery(viewType, ddoc, viewName string, options url.Values) (ViewResults, error) {
 	capiEp, err := b.getViewEp()
 	if err != nil {
@@ -143,8 +154,9 @@ func (b *Bucket) executeViewQuery(viewType, ddoc, viewName string, options url.V
 	}
 
 	return &viewResults{
-		index: -1,
-		rows:  viewResp.Rows,
+		index:     -1,
+		rows:      viewResp.Rows,
+		totalRows: viewResp.TotalRows,
 	}, nil
 }
 
