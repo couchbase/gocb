@@ -13,14 +13,18 @@ import (
 
 // Cluster represents a connection to a specific Couchbase cluster.
 type Cluster struct {
-	auth        Authenticator
-	agentConfig gocbcore.AgentConfig
-	n1qlTimeout time.Duration
-	ftsTimeout  time.Duration
+	auth             Authenticator
+	agentConfig      gocbcore.AgentConfig
+	n1qlTimeout      time.Duration
+	ftsTimeout       time.Duration
+	analyticsTimeout time.Duration
 
 	clusterLock sync.RWMutex
 	queryCache  map[string]*n1qlCache
 	bucketList  []*Bucket
+	httpCli     *http.Client
+
+	analyticsHosts []string
 }
 
 // Connect creates a new Cluster object for a specific cluster.
@@ -52,11 +56,18 @@ func Connect(connSpecStr string) (*Cluster, error) {
 		return nil, err
 	}
 
+	httpCli := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: config.TlsConfig,
+		},
+	}
+
 	cluster := &Cluster{
 		agentConfig: config,
 		n1qlTimeout: 75 * time.Second,
 		ftsTimeout:  75 * time.Second,
 
+		httpCli:    httpCli,
 		queryCache: make(map[string]*n1qlCache),
 	}
 
@@ -117,6 +128,16 @@ func (c *Cluster) FtsTimeout() time.Duration {
 // SetFtsTimeout sets the maximum time to wait for a cluster-level FTS query to complete.
 func (c *Cluster) SetFtsTimeout(timeout time.Duration) {
 	c.ftsTimeout = timeout
+}
+
+// AnalyticsTimeout returns the maximum time to wait for a cluster-level Analytics query to complete.
+func (c *Cluster) AnalyticsTimeout() time.Duration {
+	return c.analyticsTimeout
+}
+
+// SetAnalyticsTimeout sets the maximum time to wait for a cluster-level Analytics query to complete.
+func (c *Cluster) SetAnalyticsTimeout(timeout time.Duration) {
+	c.analyticsTimeout = timeout
 }
 
 // NmvRetryDelay returns the time to wait between retrying an operation due to not my vbucket.
