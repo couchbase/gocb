@@ -179,15 +179,3 @@ func (b *Bucket) ExecuteSpatialQuery(q *SpatialQuery) (ViewResults, error) {
 
 	return b.executeViewQuery("_spatial", ddoc, name, opts)
 }
-
-// ExecuteN1qlQuery performs a n1ql query and returns a list of rows or an error.
-func (b *Bucket) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) (QueryResults, error) {
-	return b.cluster.doN1qlQuery(b, q, params)
-}
-
-// ExecuteSearchQuery performs a view query and returns a list of rows or an error.
-//
-// Experimental: This API is subject to change at any time.
-func (b *Bucket) ExecuteSearchQuery(q *SearchQuery) (SearchResults, error) {
-	return b.cluster.doSearchQuery(b, q)
-}
