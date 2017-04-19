@@ -72,6 +72,7 @@ func (frag *DocumentFragment) Exists(path string) bool {
 type LookupInBuilder struct {
 	bucket *Bucket
 	name   string
+	flags  gocbcore.SubdocDocFlag
 	ops    []gocbcore.SubDocOp
 }
 
@@ -132,7 +133,7 @@ func (set *LookupInBuilder) Exists(path string) *LookupInBuilder {
 
 func (b *Bucket) lookupIn(set *LookupInBuilder) (resOut *DocumentFragment, errOut error) {
 	signal := make(chan bool, 1)
-	op, err := b.client.SubDocLookup([]byte(set.name), set.ops, 0,
+	op, err := b.client.SubDocLookup([]byte(set.name), set.ops, set.flags,
 		func(results []gocbcore.SubDocResult, cas gocbcore.Cas, err error) {
 			errOut = err
 
@@ -173,18 +174,25 @@ func (b *Bucket) lookupIn(set *LookupInBuilder) (resOut *DocumentFragment, errOu
 	}
 }
 
-// LookupIn creates a sub-document lookup operation builder.
-func (b *Bucket) LookupIn(key string) *LookupInBuilder {
+// LookupInEx creates a sub-document lookup operation builder.
+func (b *Bucket) LookupInEx(key string, flags SubdocDocFlag) *LookupInBuilder {
 	return &LookupInBuilder{
 		bucket: b,
 		name:   key,
+		flags:  gocbcore.SubdocDocFlag(flags),
 	}
+}
+
+// LookupIn creates a sub-document lookup operation builder.
+func (b *Bucket) LookupIn(key string) *LookupInBuilder {
+	return b.LookupInEx(key, 0)
 }
 
 // MutateInBuilder is a builder used to create a set of sub-document mutation operations.
 type MutateInBuilder struct {
 	bucket *Bucket
 	name   string
+	flags  gocbcore.SubdocDocFlag
 	cas    gocbcore.Cas
 	expiry uint32
 	ops    []gocbcore.SubDocOp
@@ -527,7 +535,7 @@ func (b *Bucket) mutateIn(set *MutateInBuilder) (resOut *DocumentFragment, errOu
 	}
 
 	signal := make(chan bool, 1)
-	op, err := b.client.SubDocMutate([]byte(set.name), set.ops, 0, set.cas, set.expiry,
+	op, err := b.client.SubDocMutate([]byte(set.name), set.ops, set.flags, set.cas, set.expiry,
 		func(results []gocbcore.SubDocResult, cas gocbcore.Cas, mt gocbcore.MutationToken, err error) {
 			errOut = err
 			if errOut == nil {
@@ -568,12 +576,18 @@ func (b *Bucket) mutateIn(set *MutateInBuilder) (resOut *DocumentFragment, errOu
 	}
 }
 
-// MutateIn creates a sub-document mutation operation builder.
-func (b *Bucket) MutateIn(key string, cas Cas, expiry uint32) *MutateInBuilder {
+// MutateInEx creates a sub-document mutation operation builder.
+func (b *Bucket) MutateInEx(key string, flags SubdocDocFlag, cas Cas, expiry uint32) *MutateInBuilder {
 	return &MutateInBuilder{
 		bucket: b,
 		name:   key,
+		flags:  gocbcore.SubdocDocFlag(flags),
 		cas:    gocbcore.Cas(cas),
 		expiry: expiry,
 	}
+}
+
+// MutateIn creates a sub-document mutation operation builder.
+func (b *Bucket) MutateIn(key string, cas Cas, expiry uint32) *MutateInBuilder {
+	return b.MutateInEx(key, 0, cas, expiry)
 }

@@ -56,3 +56,20 @@ const (
 	// SubdocFlagUseMacros indicates that you wish macro substitution to occur on the value
 	SubdocFlagUseMacros = SubdocFlag(gocbcore.SubdocFlagExpandMacros)
 )
+
+// SubdocDocFlag specifies document-level flags for a sub-document operation.
+type SubdocDocFlag gocbcore.SubdocDocFlag
+
+const (
+	// SubdocDocFlagNone indicates no special behaviours
+	SubdocDocFlagNone = SubdocDocFlag(gocbcore.SubdocDocFlagNone)
+
+	// SubdocDocFlagMkDoc indicates that the document should be created if it does not already exist.
+	SubdocDocFlagMkDoc = SubdocDocFlag(gocbcore.SubdocDocFlagMkDoc)
+
+	// SubdocDocFlagReplaceDoc indices that this operation should be a replace rather than upsert.
+	SubdocDocFlagReplaceDoc = SubdocDocFlag(gocbcore.SubdocDocFlagReplaceDoc)
+
+	// SubdocDocFlagAccessDeleted indicates that you wish to receive soft-deleted documents.
+	SubdocDocFlagAccessDeleted = SubdocDocFlag(gocbcore.SubdocDocFlagAccessDeleted)
+)
