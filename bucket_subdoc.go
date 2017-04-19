@@ -2,7 +2,7 @@ package gocb
 
 import (
 	"encoding/json"
-	"gopkg.in/couchbase/gocbcore.v6"
+	"gopkg.in/couchbase/gocbcore.v7"
 	"log"
 )
 
@@ -132,7 +132,7 @@ func (set *LookupInBuilder) Exists(path string) *LookupInBuilder {
 
 func (b *Bucket) lookupIn(set *LookupInBuilder) (resOut *DocumentFragment, errOut error) {
 	signal := make(chan bool, 1)
-	op, err := b.client.SubDocLookup([]byte(set.name), set.ops,
+	op, err := b.client.SubDocLookup([]byte(set.name), set.ops, 0,
 		func(results []gocbcore.SubDocResult, cas gocbcore.Cas, err error) {
 			errOut = err
 
@@ -527,7 +527,7 @@ func (b *Bucket) mutateIn(set *MutateInBuilder) (resOut *DocumentFragment, errOu
 	}
 
 	signal := make(chan bool, 1)
-	op, err := b.client.SubDocMutate([]byte(set.name), set.ops, set.cas, set.expiry,
+	op, err := b.client.SubDocMutate([]byte(set.name), set.ops, 0, set.cas, set.expiry,
 		func(results []gocbcore.SubDocResult, cas gocbcore.Cas, mt gocbcore.MutationToken, err error) {
 			errOut = err
 			if errOut == nil {

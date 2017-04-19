@@ -3,7 +3,7 @@ package gocb
 import (
 	"errors"
 	"fmt"
-	"gopkg.in/couchbase/gocbcore.v6"
+	"gopkg.in/couchbase/gocbcore.v7"
 	"gopkg.in/couchbaselabs/gocbconnstr.v1"
 	"net/http"
 	"strconv"

@@ -19,6 +19,15 @@ func TestSubDocXattrs(t *testing.T) {
 		t.Fatalf("Failed to sub-doc mutate (%s)", err)
 	}
 
+	/* DISABLED DUE TO LACK OF MOCK SUPPORT
+	_, err = globalBucket.MutateInEx("subDocMkDoc", SubdocDocFlagMkDoc,0, 0).
+		UpsertEx("x", "x value 4", SubdocFlagNone).
+		Execute()
+	if err != nil {
+		t.Fatalf("Failed to sub-doc mkdoc mutate (%s)", err)
+	}
+	*/
+
 	res, err := globalBucket.LookupIn("subDocXattrs").
 		GetEx("xatest", SubdocFlagXattr).
 		GetEx("x", SubdocFlagNone).

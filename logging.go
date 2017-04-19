@@ -2,7 +2,7 @@ package gocb
 
 import (
 	"fmt"
-	"gopkg.in/couchbase/gocbcore.v6"
+	"gopkg.in/couchbase/gocbcore.v7"
 	"log"
 	"strings"
 )

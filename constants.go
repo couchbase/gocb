@@ -1,7 +1,7 @@
 package gocb
 
 import (
-	"gopkg.in/couchbase/gocbcore.v6"
+	"gopkg.in/couchbase/gocbcore.v7"
 )
 
 const (
@@ -46,18 +46,12 @@ const (
 	// SubdocFlagNone indicates no special behaviours
 	SubdocFlagNone = SubdocFlag(gocbcore.SubdocFlagNone)
 
-	// SubdocFlagCreateDoc indicates you wish to create the document if it does not exist.
-	SubdocFlagCreateDoc = SubdocFlag(gocbcore.SubdocFlagMkDoc)
-
 	// SubdocFlagCreatePath indicates you wish to recursively create the tree of paths
 	// if it does not already exist within the document.
 	SubdocFlagCreatePath = SubdocFlag(gocbcore.SubdocFlagMkDirP)
 
 	// SubdocFlagXattr indicates your path refers to an extended attribute rather than the document.
 	SubdocFlagXattr = SubdocFlag(gocbcore.SubdocFlagXattrPath)
-
-	// SubdocFlagAccessDeleted indicates that you wish to receive soft-deleted documents.
-	SubdocFlagAccessDeleted = SubdocFlag(gocbcore.SubdocFlagAccessDeleted)
 
 	// SubdocFlagUseMacros indicates that you wish macro substitution to occur on the value
 	SubdocFlagUseMacros = SubdocFlag(gocbcore.SubdocFlagExpandMacros)

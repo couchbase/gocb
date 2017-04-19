@@ -1,7 +1,7 @@
 package gocb
 
 import (
-	"gopkg.in/couchbase/gocbcore.v6"
+	"gopkg.in/couchbase/gocbcore.v7"
 )
 
 func (b *Bucket) observeOnceCas(key []byte, cas Cas, forDelete bool, replicaIdx int, commCh chan uint) (pendingOp, error) {
