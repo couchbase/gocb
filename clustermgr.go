@@ -29,6 +29,9 @@ const (
 
 	// Memcached indicates a Memcached bucket type.
 	Memcached = BucketType(1)
+
+	// Ephemeral indicates an Ephemeral bucket type.
+	Ephemeral = BucketType(2)
 )
 
 type bucketDataIn struct {
@@ -93,6 +96,8 @@ func bucketDataInToSettings(bucketData *bucketDataIn) *BucketSettings {
 		settings.Type = Couchbase
 	} else if bucketData.BucketType == "memcached" {
 		settings.Type = Memcached
+	} else if bucketData.BucketType == "ephemeral" {
+		settings.Type = Ephemeral
 	} else {
 		panic("Unrecognized bucket type string.")
 	}
@@ -144,6 +149,8 @@ func (cm *ClusterManager) InsertBucket(settings *BucketSettings) error {
 		posts.Add("bucketType", "couchbase")
 	} else if settings.Type == Memcached {
 		posts.Add("bucketType", "memcached")
+	} else if settings.Type == Ephemeral {
+		posts.Add("bucketType", "ephemeral")
 	} else {
 		panic("Unrecognized bucket type.")
 	}
