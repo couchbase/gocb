@@ -311,7 +311,7 @@ func (cm *ClusterManager) UpsertUser(name string, settings *UserSettings) error 
 	reqForm.Add("password", settings.Password)
 	reqForm.Add("roles", strings.Join(reqRoleStrs, ","))
 
-	uri := fmt.Sprintf("/settings/rbac/users/builtin/%s", name)
+	uri := fmt.Sprintf("/settings/rbac/users/local/%s", name)
 	reqBody := bytes.NewReader([]byte(reqForm.Encode()))
 	resp, err := cm.mgmtRequest("PUT", uri, "application/x-www-form-urlencoded", reqBody)
 	if err != nil {
@@ -335,7 +335,7 @@ func (cm *ClusterManager) UpsertUser(name string, settings *UserSettings) error 
 
 // RemoveUser removes a built-in RBAC user on the cluster.
 func (cm *ClusterManager) RemoveUser(name string) error {
-	uri := fmt.Sprintf("/settings/rbac/users/builtin/%s", name)
+	uri := fmt.Sprintf("/settings/rbac/users/local/%s", name)
 	resp, err := cm.mgmtRequest("DELETE", uri, "", nil)
 	if err != nil {
 		return err
