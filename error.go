@@ -127,4 +127,44 @@ var (
 	ErrBusy = gocbcore.ErrBusy
 	// ErrTmpFail occurs when the server is not immediately able to handle your request.
 	ErrTmpFail = gocbcore.ErrTmpFail
+
+	// ErrSubDocPathNotFound occurs when a sub-document operation targets a path
+	// which does not exist in the specifie document.
+	ErrSubDocPathNotFound = gocbcore.ErrSubDocPathNotFound
+	// ErrSubDocPathMismatch occurs when a sub-document operation specifies a path
+	// which does not match the document structure (field access on an array).
+	ErrSubDocPathMismatch = gocbcore.ErrSubDocPathMismatch
+	// ErrSubDocPathInvalid occurs when a sub-document path could not be parsed.
+	ErrSubDocPathInvalid = gocbcore.ErrSubDocPathInvalid
+	// ErrSubDocPathTooBig occurs when a sub-document path is too big.
+	ErrSubDocPathTooBig = gocbcore.ErrSubDocPathTooBig
+	// ErrSubDocDocTooDeep occurs when an operation would cause a document to be
+	// nested beyond the depth limits allowed by the sub-document specification.
+	ErrSubDocDocTooDeep = gocbcore.ErrSubDocDocTooDeep
+	// ErrSubDocCantInsert occurs when a sub-document operation could not insert.
+	ErrSubDocCantInsert = gocbcore.ErrSubDocCantInsert
+	// ErrSubDocNotJson occurs when a sub-document operation is performed on a
+	// document which is not JSON.
+	ErrSubDocNotJson = gocbcore.ErrSubDocNotJson
+	// ErrSubDocBadRange occurs when a sub-document operation is performed with
+	// a bad range.
+	ErrSubDocBadRange = gocbcore.ErrSubDocBadRange
+	// ErrSubDocBadDelta occurs when a sub-document counter operation is performed
+	// and the specified delta is not valid.
+	ErrSubDocBadDelta = gocbcore.ErrSubDocBadDelta
+	// ErrSubDocPathExists occurs when a sub-document operation expects a path not
+	// to exists, but the path was found in the document.
+	ErrSubDocPathExists = gocbcore.ErrSubDocPathExists
+	// ErrSubDocValueTooDeep occurs when a sub-document operation specifies a value
+	// which is deeper than the depth limits of the sub-document specification.
+	ErrSubDocValueTooDeep = gocbcore.ErrSubDocValueTooDeep
+	// ErrSubDocBadCombo occurs when a multi-operation sub-document operation is
+	// performed and operations within the package of ops conflict with each other.
+	ErrSubDocBadCombo = gocbcore.ErrSubDocBadCombo
+	// ErrSubDocBadMulti occurs when a multi-operation sub-document operation is
+	// performed and operations within the package of ops conflict with each other.
+	ErrSubDocBadMulti = gocbcore.ErrSubDocBadMulti
+	// ErrSubDocSuccessDeleted occurs when a multi-operation sub-document operation
+	// is performed on a soft-deleted document.
+	ErrSubDocSuccessDeleted = gocbcore.ErrSubDocSuccessDeleted
 )
