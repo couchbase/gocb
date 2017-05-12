@@ -86,51 +86,51 @@ func (ca ClusterAuthenticator) bucketFts(bucket string) []userPassPair {
 	}
 }
 
-// RbacAuthenticator implements an Authenticator which uses an RBAC username and password.
-type RbacAuthenticator struct {
+// PasswordAuthenticator implements an Authenticator which uses an RBAC username and password.
+type PasswordAuthenticator struct {
 	Username string
 	Password string
 }
 
-func (ra RbacAuthenticator) rbacAll() userPassPair {
+func (ra PasswordAuthenticator) rbacAll() userPassPair {
 	return userPassPair{ra.Username, ra.Password}
 }
 
-func (ra RbacAuthenticator) clusterMgmt() userPassPair {
+func (ra PasswordAuthenticator) clusterMgmt() userPassPair {
 	return ra.rbacAll()
 }
 
-func (ra RbacAuthenticator) clusterN1ql() []userPassPair {
+func (ra PasswordAuthenticator) clusterN1ql() []userPassPair {
 	return []userPassPair{
 		ra.rbacAll(),
 	}
 }
 
-func (ra RbacAuthenticator) clusterFts() []userPassPair {
+func (ra PasswordAuthenticator) clusterFts() []userPassPair {
 	return []userPassPair{
 		ra.rbacAll(),
 	}
 }
 
-func (ra RbacAuthenticator) bucketMemd(bucket string) userPassPair {
+func (ra PasswordAuthenticator) bucketMemd(bucket string) userPassPair {
 	return ra.rbacAll()
 }
 
-func (ra RbacAuthenticator) bucketMgmt(bucket string) userPassPair {
+func (ra PasswordAuthenticator) bucketMgmt(bucket string) userPassPair {
 	return ra.rbacAll()
 }
 
-func (ra RbacAuthenticator) bucketViews(bucket string) userPassPair {
+func (ra PasswordAuthenticator) bucketViews(bucket string) userPassPair {
 	return ra.rbacAll()
 }
 
-func (ra RbacAuthenticator) bucketN1ql(bucket string) []userPassPair {
+func (ra PasswordAuthenticator) bucketN1ql(bucket string) []userPassPair {
 	return []userPassPair{
 		ra.rbacAll(),
 	}
 }
 
-func (ra RbacAuthenticator) bucketFts(bucket string) []userPassPair {
+func (ra PasswordAuthenticator) bucketFts(bucket string) []userPassPair {
 	return []userPassPair{
 		ra.rbacAll(),
 	}
