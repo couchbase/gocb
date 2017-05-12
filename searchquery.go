@@ -37,7 +37,7 @@ type searchQueryData struct {
 	Explain   bool                      `json:"explain,omitempty"`
 	Highlight *searchQueryHighlightData `json:"highlight,omitempty"`
 	Fields    []string                  `json:"fields,omitempty"`
-	Sort      []string                  `json:"sort,omitempty"`
+	Sort      []interface{}             `json:"sort,omitempty"`
 	Facets    map[string]interface{}    `json:"facets,omitempty"`
 	Ctl       *searchQueryCtlData       `json:"ctl,omitempty"`
 }
@@ -85,7 +85,7 @@ func (sq *SearchQuery) Fields(fields ...string) *SearchQuery {
 }
 
 // Sort specifies a sorting order for the results.  Only available in Couchbase Server 4.6+.
-func (sq *SearchQuery) Sort(fields ...string) *SearchQuery {
+func (sq *SearchQuery) Sort(fields ...interface{}) *SearchQuery {
 	sq.data.Sort = fields
 	return sq
 }

@@ -530,3 +530,91 @@ type MatchNoneQuery struct {
 func NewMatchNoneQuery(prefix string) *MatchNoneQuery {
 	return &MatchNoneQuery{}
 }
+
+// TermRangeQuery represents a FTS term range query.
+type TermRangeQuery struct {
+	ftsQueryBase
+}
+
+// NewTermRangeQuery creates a new TermRangeQuery.
+func NewTermRangeQuery(term string) *TermRangeQuery {
+	q := &TermRangeQuery{newFtsQueryBase()}
+	q.options["term"] = term
+	return q
+}
+
+// Field specifies the field for this query.
+func (q *TermRangeQuery) Field(field string) *TermRangeQuery {
+	q.options["field"] = field
+	return q
+}
+
+// Min specifies the minimum value and inclusiveness for this range query.
+func (q *TermRangeQuery) Min(min string, inclusive bool) *TermRangeQuery {
+	q.options["min"] = min
+	q.options["inclusive_min"] = inclusive
+	return q
+}
+
+// Max specifies the maximum value and inclusiveness for this range query.
+func (q *TermRangeQuery) Max(max string, inclusive bool) *TermRangeQuery {
+	q.options["max"] = max
+	q.options["inclusive_max"] = inclusive
+	return q
+}
+
+// Boost specifies the boost for this query.
+func (q *TermRangeQuery) Boost(boost float32) *TermRangeQuery {
+	q.options["boost"] = boost
+	return q
+}
+
+// GeoDistanceQuery represents a FTS geographical distance query.
+type GeoDistanceQuery struct {
+	ftsQueryBase
+}
+
+// NewGeoDistanceQuery creates a new GeoDistanceQuery.
+func NewGeoDistanceQuery(lat, lon float64, distance string) *GeoDistanceQuery {
+	q := &GeoDistanceQuery{newFtsQueryBase()}
+	q.options["location"] = []float64{lon, lat}
+	q.options["distance"] = distance
+	return q
+}
+
+// Field specifies the field for this query.
+func (q *GeoDistanceQuery) Field(field string) *GeoDistanceQuery {
+	q.options["field"] = field
+	return q
+}
+
+// Boost specifies the boost for this query.
+func (q *GeoDistanceQuery) Boost(boost float32) *GeoDistanceQuery {
+	q.options["boost"] = boost
+	return q
+}
+
+// GeoBoundingBoxQuery represents a FTS geographical bounding box query.
+type GeoBoundingBoxQuery struct {
+	ftsQueryBase
+}
+
+// NewGeoBoundingBoxQuery creates a new GeoBoundingBoxQuery.
+func NewGeoBoundingBoxQuery(tl_lat, tl_lon, br_lat, br_lon float64) *GeoBoundingBoxQuery {
+	q := &GeoDistanceQuery{newFtsQueryBase()}
+	q.options["top_left"] = []float64{tl_lon, tl_lat}
+	q.options["bottom_right"] = []float64{br_lon, br_lat}
+	return q
+}
+
+// Field specifies the field for this query.
+func (q *GeoBoundingBoxQuery) Field(field string) *GeoBoundingBoxQuery {
+	q.options["field"] = field
+	return q
+}
+
+// Boost specifies the boost for this query.
+func (q *GeoBoundingBoxQuery) Boost(boost float32) *GeoBoundingBoxQuery {
+	q.options["boost"] = boost
+	return q
+}
