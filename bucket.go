@@ -59,6 +59,11 @@ func (b *Bucket) Name() string {
 	return b.name
 }
 
+// UUID returns the uuid of the bucket we are connected to.
+func (b *Bucket) UUID() string {
+	return b.client.BucketUUID()
+}
+
 // OperationTimeout returns the maximum amount of time to wait for an operation to succeed.
 func (b *Bucket) OperationTimeout() time.Duration {
 	return b.opTimeout
