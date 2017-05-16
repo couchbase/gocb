@@ -167,4 +167,21 @@ var (
 	// ErrSubDocSuccessDeleted occurs when a multi-operation sub-document operation
 	// is performed on a soft-deleted document.
 	ErrSubDocSuccessDeleted = gocbcore.ErrSubDocSuccessDeleted
+
+	// ErrSubDocXattrInvalidFlagCombo occurs when an invalid set of
+	// extended-attribute flags is passed to a sub-document operation.
+	ErrSubDocXattrInvalidFlagCombo = gocbcore.ErrSubDocXattrInvalidFlagCombo
+	// ErrSubDocXattrInvalidKeyCombo occurs when an invalid set of key operations
+	// are specified for a extended-attribute sub-document operation.
+	ErrSubDocXattrInvalidKeyCombo = gocbcore.ErrSubDocXattrInvalidKeyCombo
+	// ErrSubDocXattrUnknownMacro occurs when an invalid macro value is specified.
+	ErrSubDocXattrUnknownMacro = gocbcore.ErrSubDocXattrUnknownMacro
+	// ErrSubDocXattrUnknownVAttr occurs when an invalid virtual attribute is specified.
+	ErrSubDocXattrUnknownVAttr = gocbcore.ErrSubDocXattrUnknownVAttr
+	// ErrSubDocXattrCannotModifyVAttr occurs when a mutation is attempted upon
+	// a virtual attribute (which are immutable by definition).
+	ErrSubDocXattrCannotModifyVAttr = gocbcore.ErrSubDocXattrCannotModifyVAttr
+	// ErrSubDocMultiPathFailureDeleted occurs when a Multi Path Failure occurs on
+	// a soft-deleted document.
+	ErrSubDocMultiPathFailureDeleted = gocbcore.ErrSubDocMultiPathFailureDeleted
 )
