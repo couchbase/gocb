@@ -131,6 +131,23 @@ func (set *LookupInBuilder) Exists(path string) *LookupInBuilder {
 	return set.ExistsEx(path, SubdocFlagNone)
 }
 
+// GetCountEx allows you to perform a sub-document GetCount operation with flags
+func (set *LookupInBuilder) GetCountEx(path string, flags SubdocFlag) *LookupInBuilder {
+	op := gocbcore.SubDocOp{
+		Op:    gocbcore.SubDocOpGetCount,
+		Path:  path,
+		Flags: gocbcore.SubdocFlag(flags),
+	}
+	set.ops = append(set.ops, op)
+	return set
+}
+
+// GetCount allows you to retrieve the number of items in an array or keys within an
+// dictionary within an element of a document.
+func (set *LookupInBuilder) GetCount(path string) *LookupInBuilder {
+	return set.GetCountEx(path, SubdocFlagNone)
+}
+
 func (b *Bucket) lookupIn(set *LookupInBuilder) (resOut *DocumentFragment, errOut error) {
 	signal := make(chan bool, 1)
 	op, err := b.client.SubDocLookup([]byte(set.name), set.ops, set.flags,
