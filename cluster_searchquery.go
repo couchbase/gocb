@@ -55,7 +55,7 @@ type SearchResultFacet struct {
 	Field         string                     `json:"field,omitempty"`
 	Total         int                        `json:"total,omitempty"`
 	Missing       int                        `json:"missing,omitempty"`
-	Other         int                        `json:"missing,omitempty"`
+	Other         int                        `json:"other,omitempty"`
 	Terms         []SearchResultTermFacet    `json:"terms,omitempty"`
 	NumericRanges []SearchResultNumericFacet `json:"numeric_ranges,omitempty"`
 	DateRanges    []SearchResultDateFacet    `json:"date_ranges,omitempty"`
