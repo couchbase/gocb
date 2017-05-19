@@ -601,7 +601,7 @@ type GeoBoundingBoxQuery struct {
 
 // NewGeoBoundingBoxQuery creates a new GeoBoundingBoxQuery.
 func NewGeoBoundingBoxQuery(tl_lat, tl_lon, br_lat, br_lon float64) *GeoBoundingBoxQuery {
-	q := &GeoDistanceQuery{newFtsQueryBase()}
+	q := &GeoBoundingBoxQuery{newFtsQueryBase()}
 	q.options["top_left"] = []float64{tl_lon, tl_lat}
 	q.options["bottom_right"] = []float64{br_lon, br_lat}
 	return q
