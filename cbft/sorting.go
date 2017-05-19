@@ -4,8 +4,7 @@ import (
 	"encoding/json"
 )
 
-// *VOLATILE*
-// FtsQuery represents an FTS query for a search query.
+// FtsSort represents an FTS sorting for a search query.
 type FtsSort interface {
 }
 
@@ -42,12 +41,12 @@ func (q *SearchSortScore) Descending(descending bool) *SearchSortScore {
 	return q
 }
 
-// SearchSortScore represents a FTS Document ID sort.
+// SearchSortId represents a FTS Document ID sort.
 type SearchSortId struct {
 	ftsSortBase
 }
 
-// NewSearchSortScore creates a new SearchSortScore.
+// NewSearchSortId creates a new SearchSortScore.
 func NewSearchSortId() *SearchSortId {
 	q := &SearchSortId{newFtsSortBase()}
 	q.options["by"] = "id"
@@ -73,16 +72,19 @@ func NewSearchSortField(field string) *SearchSortField {
 	return q
 }
 
+// Type allows you to specify the FTS field sort type.
 func (q *SearchSortField) Type(value string) *SearchSortField {
 	q.options["type"] = value
 	return q
 }
 
+// Mode allows you to specify the FTS field sort mode.
 func (q *SearchSortField) Mode(mode string) *SearchSortField {
 	q.options["mode"] = mode
 	return q
 }
 
+// Missing allows you to specify the FTS field sort missing behaviour.
 func (q *SearchSortField) Missing(missing string) *SearchSortField {
 	q.options["missing"] = missing
 	return q

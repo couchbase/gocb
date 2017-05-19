@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 )
 
-// *VOLATILE*
 // FtsQuery represents an FTS query for a search query.
 type FtsQuery interface {
 }
@@ -120,12 +119,12 @@ func (q *RegexpQuery) Boost(boost float32) *RegexpQuery {
 	return q
 }
 
-// StringQuery represents a FTS string query.
+// QueryStringQuery represents a FTS string query.
 type QueryStringQuery struct {
 	ftsQueryBase
 }
 
-// NewStringQuery creates a new StringQuery.
+// NewQueryStringQuery creates a new StringQuery.
 func NewQueryStringQuery(query string) *QueryStringQuery {
 	q := &QueryStringQuery{newFtsQueryBase()}
 	q.options["query"] = query
@@ -289,13 +288,12 @@ func NewBooleanQuery() *BooleanQuery {
 func (q *BooleanQuery) Must(query FtsQuery) *BooleanQuery {
 	switch val := query.(type) {
 	case ConjunctionQuery:
-		query = &val
+		q.data.Must = &val
 	case *ConjunctionQuery:
-		// Do nothing
+		q.data.Must = val
 	default:
-		query = NewConjunctionQuery(val)
+		q.data.Must = NewConjunctionQuery(val)
 	}
-	q.data.Must = query.(*ConjunctionQuery)
 	return q
 }
 
@@ -303,13 +301,12 @@ func (q *BooleanQuery) Must(query FtsQuery) *BooleanQuery {
 func (q *BooleanQuery) Should(query FtsQuery) *BooleanQuery {
 	switch val := query.(type) {
 	case DisjunctionQuery:
-		query = &val
+		q.data.Should = &val
 	case *DisjunctionQuery:
-	// Do nothing
+		q.data.Should = val
 	default:
-		query = NewDisjunctionQuery(val)
+		q.data.Should = NewDisjunctionQuery(val)
 	}
-	q.data.Should = query.(*DisjunctionQuery)
 	return q
 }
 
@@ -317,13 +314,12 @@ func (q *BooleanQuery) Should(query FtsQuery) *BooleanQuery {
 func (q *BooleanQuery) MustNot(query FtsQuery) *BooleanQuery {
 	switch val := query.(type) {
 	case DisjunctionQuery:
-		query = &val
+		q.data.MustNot = &val
 	case *DisjunctionQuery:
-	// Do nothing
+		q.data.MustNot = val
 	default:
-		query = NewDisjunctionQuery(val)
+		q.data.MustNot = NewDisjunctionQuery(val)
 	}
-	q.data.MustNot = query.(*DisjunctionQuery)
 	return q
 }
 
@@ -600,10 +596,10 @@ type GeoBoundingBoxQuery struct {
 }
 
 // NewGeoBoundingBoxQuery creates a new GeoBoundingBoxQuery.
-func NewGeoBoundingBoxQuery(tl_lat, tl_lon, br_lat, br_lon float64) *GeoBoundingBoxQuery {
+func NewGeoBoundingBoxQuery(tlLat, tlLon, brLat, brLon float64) *GeoBoundingBoxQuery {
 	q := &GeoBoundingBoxQuery{newFtsQueryBase()}
-	q.options["top_left"] = []float64{tl_lon, tl_lat}
-	q.options["bottom_right"] = []float64{br_lon, br_lat}
+	q.options["top_left"] = []float64{tlLon, tlLat}
+	q.options["bottom_right"] = []float64{brLon, brLat}
 	return q
 }
 

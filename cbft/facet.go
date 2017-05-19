@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 )
 
-// *VOLATILE*
 // FtsFacet represents a facet for a search query.
 type FtsFacet interface {
 }
