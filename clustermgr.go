@@ -171,6 +171,9 @@ func (cm *ClusterManager) InsertBucket(settings *BucketSettings) error {
 	}
 
 	if resp.StatusCode != 202 {
+		if resp.StatusCode == 401 {
+			return ErrAuthError
+		}
 		data, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return err
