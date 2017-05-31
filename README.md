@@ -15,7 +15,7 @@ protocol.
 ## Useful Links
 
 ### Source
-The project source is hosted at [http://github.com/couchbase/gocb](http://github.com/couchbase/gocb).
+Thes project source is hosted at [http://github.com/couchbase/gocb](http://github.com/couchbase/gocb).
 
 ### Documentation
 You can explore our API reference through godoc at [https://godoc.org/github.com/couchbase/gocb](https://godoc.org/github.com/couchbase/gocb).
