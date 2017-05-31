@@ -39,7 +39,7 @@ func (t DefaultTranscoder) Decode(bytes []byte, flags uint32, out interface{}) e
 			*typedOut = bytes
 			return nil
 		default:
-			return clientError{"You must encode binary in a byte array or interface"}
+			return json.Unmarshal(bytes, out)  // workaround for https://github.com/couchbase/sync_gateway/issues/2376#issuecomment-287252269
 		}
 	} else if valueType == gocbcore.StringType {
 		switch typedOut := out.(type) {
