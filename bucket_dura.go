@@ -120,6 +120,10 @@ func (b *Bucket) observeOne(key []byte, mt MutationToken, cas Cas, forDelete boo
 				persistCh <- true
 				sentPersisted = true
 			}
+			
+			if sentReplicated && sentPersisted {
+				return
+			}
 
 			if sentReplicated && sentPersisted {
 				return
