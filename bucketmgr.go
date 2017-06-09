@@ -184,8 +184,8 @@ func (bm *BucketManager) GetDesignDocuments() ([]*DesignDocument, error) {
 	}
 
 	var ddocs []*DesignDocument
-	for _, ddocData := range ddocsObj.Rows {
-		ddoc := &ddocData.Doc.Json
+	for index, ddocData := range ddocsObj.Rows {
+		ddoc := &ddocsObj.Rows[index].Doc.Json
 		ddoc.Name = ddocData.Doc.Meta.Id[8:]
 		ddocs = append(ddocs, ddoc)
 	}
