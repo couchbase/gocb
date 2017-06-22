@@ -79,7 +79,9 @@ func (cm *ClusterManager) mgmtRequest(method, uri string, contentType string, bo
 		return nil, err
 	}
 
-	req.SetBasicAuth(cm.username, cm.password)
+	if cm.username != "" && cm.password != "" {
+		req.SetBasicAuth(cm.username, cm.password)
+	}
 	return cm.httpCli.Do(req)
 }
 
