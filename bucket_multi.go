@@ -387,7 +387,7 @@ func (item *CounterOp) markError(err error) {
 
 func (item *CounterOp) execute(b *Bucket, signal chan BulkOp) {
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
-	if item.Initial > 0 {
+	if item.Initial >= 0 {
 		realInitial = uint64(item.Initial)
 	}
 
