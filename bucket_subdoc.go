@@ -344,6 +344,15 @@ func (set *MutateInBuilder) marshalArrayMulti(in interface{}) (out []byte) {
 //
 // Experimental: This API is subject to change at any time.
 func (set *MutateInBuilder) RemoveEx(path string, flags SubdocFlag) *MutateInBuilder {
+	if path == "" {
+		op := gocbcore.SubDocOp{
+			Op:    gocbcore.SubDocOpDeleteDoc,
+			Flags: gocbcore.SubdocFlag(flags),
+		}
+		set.ops = append(set.ops, op)
+		return set
+	}
+
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpDelete,
 		Path:  path,
