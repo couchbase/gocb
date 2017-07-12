@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/url"
 	"strconv"
@@ -38,12 +39,15 @@ type ViewQuery struct {
 }
 
 func (vq *ViewQuery) marshalJson(value interface{}) []byte {
-	bytes, err := json.Marshal(value)
+	buf := new(bytes.Buffer)
+	enc := json.NewEncoder(buf)
+	enc.SetEscapeHTML(false)
+	err := enc.Encode(value)
 	if err != nil {
 		vq.errs.add(err)
 		return nil
 	}
-	return bytes
+	return buf.Bytes()
 }
 
 // Stale specifies the level of consistency required for this query.
