@@ -229,6 +229,18 @@ type User struct {
 	Roles []UserRole
 }
 
+// AuthDomain specifies the user domain of a specific user
+type AuthDomain string
+
+const (
+	// LocalDomain specifies users that are locally stored in Couchbase.
+	LocalDomain AuthDomain = "local"
+
+	// ExternalDomain specifies users that are externally stored
+	// (in LDAP for instance).
+	ExternalDomain = "external"
+)
+
 // UserSettings represents a user during user creation.
 type UserSettings struct {
 	Name     string
@@ -269,8 +281,9 @@ func transformUserJson(userData *userJson) User {
 }
 
 // GetUsers returns a list of all users on the cluster.
-func (cm *ClusterManager) GetUsers() ([]*User, error) {
-	resp, err := cm.mgmtRequest("GET", "/settings/rbac/users/local", "", nil)
+func (cm *ClusterManager) GetUsers(domain AuthDomain) ([]*User, error) {
+	uri := fmt.Sprintf("/settings/rbac/users/%s", domain)
+	resp, err := cm.mgmtRequest("GET", uri, "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -304,8 +317,8 @@ func (cm *ClusterManager) GetUsers() ([]*User, error) {
 }
 
 // GetUser returns the data for a particular user
-func (cm *ClusterManager) GetUser(name string) (*User, error) {
-	uri := fmt.Sprintf("/settings/rbac/users/local/%s", name)
+func (cm *ClusterManager) GetUser(domain AuthDomain, name string) (*User, error) {
+	uri := fmt.Sprintf("/settings/rbac/users/%s/%s", domain, name)
 	resp, err := cm.mgmtRequest("GET", uri, "", nil)
 	if err != nil {
 		return nil, err
@@ -335,7 +348,7 @@ func (cm *ClusterManager) GetUser(name string) (*User, error) {
 }
 
 // UpsertUser updates a built-in RBAC user on the cluster.
-func (cm *ClusterManager) UpsertUser(name string, settings *UserSettings) error {
+func (cm *ClusterManager) UpsertUser(domain AuthDomain, name string, settings *UserSettings) error {
 	var reqRoleStrs []string
 	for _, roleData := range settings.Roles {
 		reqRoleStrs = append(reqRoleStrs, fmt.Sprintf("%s[%s]", roleData.Role, roleData.BucketName))
@@ -346,7 +359,7 @@ func (cm *ClusterManager) UpsertUser(name string, settings *UserSettings) error 
 	reqForm.Add("password", settings.Password)
 	reqForm.Add("roles", strings.Join(reqRoleStrs, ","))
 
-	uri := fmt.Sprintf("/settings/rbac/users/local/%s", name)
+	uri := fmt.Sprintf("/settings/rbac/users/%s/%s", domain, name)
 	reqBody := bytes.NewReader([]byte(reqForm.Encode()))
 	resp, err := cm.mgmtRequest("PUT", uri, "application/x-www-form-urlencoded", reqBody)
 	if err != nil {
@@ -369,8 +382,8 @@ func (cm *ClusterManager) UpsertUser(name string, settings *UserSettings) error 
 }
 
 // RemoveUser removes a built-in RBAC user on the cluster.
-func (cm *ClusterManager) RemoveUser(name string) error {
-	uri := fmt.Sprintf("/settings/rbac/users/local/%s", name)
+func (cm *ClusterManager) RemoveUser(domain AuthDomain, name string) error {
+	uri := fmt.Sprintf("/settings/rbac/users/%s/%s", domain, name)
 	resp, err := cm.mgmtRequest("DELETE", uri, "", nil)
 	if err != nil {
 		return err
