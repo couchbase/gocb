@@ -254,9 +254,23 @@ type userSettingsJson struct {
 	Roles    []userRoleJson `json:"roles"`
 }
 
+func transformUserJson(userData *userJson) User {
+	var user User
+	user.Id = userData.Id
+	user.Name = userData.Name
+	user.Type = userData.Type
+	for _, roleData := range userData.Roles {
+		user.Roles = append(user.Roles, UserRole{
+			Role:       roleData.Role,
+			BucketName: roleData.BucketName,
+		})
+	}
+	return user
+}
+
 // GetUsers returns a list of all users on the cluster.
 func (cm *ClusterManager) GetUsers() ([]*User, error) {
-	resp, err := cm.mgmtRequest("GET", "/settings/rbac/users", "", nil)
+	resp, err := cm.mgmtRequest("GET", "/settings/rbac/users/local", "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -282,20 +296,42 @@ func (cm *ClusterManager) GetUsers() ([]*User, error) {
 
 	var users []*User
 	for _, userData := range usersData {
-		var user User
-		user.Id = userData.Id
-		user.Name = userData.Name
-		user.Type = userData.Type
-		for _, roleData := range userData.Roles {
-			user.Roles = append(user.Roles, UserRole{
-				Role:       roleData.Role,
-				BucketName: roleData.BucketName,
-			})
-		}
+		user := transformUserJson(userData)
 		users = append(users, &user)
 	}
 
 	return users, nil
+}
+
+// GetUser returns the data for a particular user
+func (cm *ClusterManager) GetUser(name string) (*User, error) {
+	uri := fmt.Sprintf("/settings/rbac/users/local/%s", name)
+	resp, err := cm.mgmtRequest("GET", uri, "", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		data, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		err = resp.Body.Close()
+		if err != nil {
+			logDebugf("Failed to close socket (%s)", err)
+		}
+		return nil, clientError{string(data)}
+	}
+
+	var userData userJson
+	jsonDec := json.NewDecoder(resp.Body)
+	err = jsonDec.Decode(&userData)
+	if err != nil {
+		return nil, err
+	}
+
+	user := transformUserJson(&userData)
+	return &user, nil
 }
 
 // UpsertUser updates a built-in RBAC user on the cluster.
