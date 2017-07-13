@@ -368,7 +368,7 @@ func (c *Cluster) doN1qlQuery(b *Bucket, q *N1qlQuery, params interface{}) (Quer
 
 	stmtStr, isStr := q.options["statement"].(string)
 	if !isStr {
-		return nil, ErrInternalError
+		return nil, ErrCliInternalError
 	}
 
 	c.clusterLock.RLock()

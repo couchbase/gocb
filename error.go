@@ -91,6 +91,8 @@ var (
 	ErrNetwork = gocbcore.ErrNetwork
 	// ErrTimeout occurs when an operation times out.
 	ErrTimeout = gocbcore.ErrTimeout
+	// ErrCliInternalError indicates an internal error occurred within the client.
+	ErrCliInternalError = gocbcore.ErrCliInternalError
 
 	// ErrStreamClosed occurs when an error is related to a stream closing.
 	ErrStreamClosed = gocbcore.ErrStreamClosed
