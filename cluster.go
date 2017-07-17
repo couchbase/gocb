@@ -50,6 +50,7 @@ func Connect(connSpecStr string) (*Cluster, error) {
 		ConnectTimeout:       60000 * time.Millisecond,
 		ServerConnectTimeout: 7000 * time.Millisecond,
 		NmvRetryDelay:        100 * time.Millisecond,
+		UseKvErrorMaps:       true,
 	}
 	err = config.FromConnStr(connSpecStr)
 	if err != nil {
