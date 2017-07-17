@@ -41,12 +41,12 @@ func (b *Bucket) MapAdd(key, path string, value interface{}, createMap bool) (Ca
 	for {
 		frag, err := b.MutateIn(key, 0, 0).Insert(path, value, false).Execute()
 		if err != nil {
-			if err == ErrKeyNotFound && createMap {
+			if IsKeyNotFoundError(err) && createMap {
 				data := make(map[string]interface{})
 				data[path] = value
 				cas, err := b.Insert(key, data, 0)
 				if err != nil {
-					if err == ErrKeyExists {
+					if IsKeyExistsError(err) {
 						continue
 					}
 
@@ -78,12 +78,12 @@ func (b *Bucket) ListAppend(key string, value interface{}, createList bool) (Cas
 	for {
 		frag, err := b.MutateIn(key, 0, 0).ArrayAppend("", value, false).Execute()
 		if err != nil {
-			if err == ErrKeyNotFound && createList {
+			if IsKeyNotFoundError(err) && createList {
 				var data []interface{}
 				data = append(data, value)
 				cas, err := b.Insert(key, data, 0)
 				if err != nil {
-					if err == ErrKeyExists {
+					if IsKeyExistsError(err) {
 						continue
 					}
 
@@ -102,12 +102,12 @@ func (b *Bucket) ListPrepend(key string, value interface{}, createList bool) (Ca
 	for {
 		frag, err := b.MutateIn(key, 0, 0).ArrayPrepend("", value, false).Execute()
 		if err != nil {
-			if err == ErrKeyNotFound && createList {
+			if IsKeyNotFoundError(err) && createList {
 				var data []interface{}
 				data = append(data, value)
 				cas, err := b.Insert(key, data, 0)
 				if err != nil {
-					if err == ErrKeyExists {
+					if IsKeyExistsError(err) {
 						continue
 					}
 
@@ -156,12 +156,12 @@ func (b *Bucket) SetAdd(key string, value interface{}, createSet bool) (Cas, err
 	for {
 		frag, err := b.MutateIn(key, 0, 0).ArrayAddUnique("", value, false).Execute()
 		if err != nil {
-			if err == ErrKeyNotFound && createSet {
+			if IsKeyNotFoundError(err) && createSet {
 				var data []interface{}
 				data = append(data, value)
 				cas, err := b.Insert(key, data, 0)
 				if err != nil {
-					if err == ErrKeyExists {
+					if IsKeyExistsError(err) {
 						continue
 					}
 
@@ -232,7 +232,7 @@ func (b *Bucket) SetRemove(key string, value interface{}) (Cas, error) {
 
 		cas, err = b.Replace(key, newSetContents, cas, 0)
 		if err != nil {
-			if err == ErrKeyExists {
+			if IsKeyExistsError(err) {
 				// If this is just a CAS error, try again!
 				continue
 			}
@@ -259,7 +259,7 @@ func (b *Bucket) QueuePop(key string, valuePtr interface{}) (Cas, error) {
 
 		rmFrag, err := b.MutateIn(key, getFrag.Cas(), 0).Remove("[-1]").Execute()
 		if err != nil {
-			if err == ErrKeyExists {
+			if IsKeyExistsError(err) {
 				// If this is just a CAS error, try again!
 				continue
 			}

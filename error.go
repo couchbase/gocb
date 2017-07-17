@@ -187,3 +187,19 @@ var (
 	// a soft-deleted document.
 	ErrSubDocMultiPathFailureDeleted = gocbcore.ErrSubDocMultiPathFailureDeleted
 )
+
+// IsKeyExistsError indicates whether the passed error is a
+// key-value "Key Already Exists" error.
+//
+// Experimental: This API is subject to change at any time.
+func IsKeyExistsError(err error) bool {
+	return gocbcore.IsErrorStatus(err, gocbcore.StatusKeyExists)
+}
+
+// IsKeyNotFoundError indicates whether the passed error is a
+// key-value "Key Not Found" error.
+//
+// Experimental: This API is subject to change at any time.
+func IsKeyNotFoundError(err error) bool {
+	return gocbcore.IsErrorStatus(err, gocbcore.StatusKeyNotFound)
+}
