@@ -72,14 +72,17 @@ func (cm *ClusterManager) mgmtRequest(method, uri string, contentType string, bo
 
 	reqUri := cm.getMgmtEp() + uri
 	req, err := http.NewRequest(method, reqUri, body)
-	if contentType != "" {
-		req.Header.Add("Content-Type", contentType)
-	}
 	if err != nil {
 		return nil, err
 	}
 
-	req.SetBasicAuth(cm.username, cm.password)
+	if contentType != "" {
+		req.Header.Add("Content-Type", contentType)
+	}
+	if cm.username != "" || cm.password != "" {
+		req.SetBasicAuth(cm.username, cm.password)
+	}
+
 	return cm.httpCli.Do(req)
 }
 

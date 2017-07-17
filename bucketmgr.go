@@ -80,14 +80,17 @@ func (bm *BucketManager) mgmtRequest(method, uri, contentType string, body io.Re
 	}
 
 	req, err := http.NewRequest(method, mgmtEp+uri, body)
-	if contentType != "" {
-		req.Header.Add("Content-Type", contentType)
-	}
 	if err != nil {
 		return nil, err
 	}
 
-	req.SetBasicAuth(bm.username, bm.password)
+	if contentType != "" {
+		req.Header.Add("Content-Type", contentType)
+	}
+	if bm.username != "" || bm.password != "" {
+		req.SetBasicAuth(bm.username, bm.password)
+	}
+
 	return bm.bucket.client.HttpClient().Do(req)
 }
 
