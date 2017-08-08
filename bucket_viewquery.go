@@ -7,16 +7,17 @@ import (
 	"net/url"
 )
 
+type viewError struct {
+	Message string `json:"message"`
+	Reason  string `json:"reason"`
+}
+
 type viewResponse struct {
 	TotalRows int               `json:"total_rows,omitempty"`
 	Rows      []json.RawMessage `json:"rows,omitempty"`
 	Error     string            `json:"error,omitempty"`
 	Reason    string            `json:"reason,omitempty"`
-}
-
-type viewError struct {
-	Message string `json:"message"`
-	Reason  string `json:"reason"`
+	Errors    []viewError       `json:"errors,omitempty"`
 }
 
 func (e *viewError) Error() string {
@@ -42,6 +43,7 @@ type viewResults struct {
 	rows      []json.RawMessage
 	totalRows int
 	err       error
+	endErr    error
 }
 
 func (r *viewResults) Next(valuePtr interface{}) bool {
@@ -76,7 +78,15 @@ func (r *viewResults) NextBytes() []byte {
 }
 
 func (r *viewResults) Close() error {
-	return r.err
+	if r.err != nil {
+		return r.err
+	}
+
+	if r.endErr != nil {
+		return r.endErr
+	}
+
+	return nil
 }
 
 func (r *viewResults) One(valuePtr interface{}) error {
@@ -153,10 +163,19 @@ func (b *Bucket) executeViewQuery(viewType, ddoc, viewName string, options url.V
 		}
 	}
 
+	var endErrs MultiError
+	for _, endErr := range viewResp.Errors {
+		endErrs.add(&viewError{
+			Message: endErr.Message,
+			Reason:  endErr.Reason,
+		})
+	}
+
 	return &viewResults{
 		index:     -1,
 		rows:      viewResp.Rows,
 		totalRows: viewResp.TotalRows,
+		endErr:    endErrs.get(),
 	}, nil
 }
 
