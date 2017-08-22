@@ -203,3 +203,8 @@ func IsKeyExistsError(err error) bool {
 func IsKeyNotFoundError(err error) bool {
 	return gocbcore.IsErrorStatus(err, gocbcore.StatusKeyNotFound)
 }
+
+// ErrorCause returns the underlying error for an enhanced error.
+func ErrorCause(err error) error {
+	return gocbcore.ErrorCause(err)
+}

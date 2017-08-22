@@ -91,6 +91,16 @@ func Connect(connSpecStr string) (*Cluster, error) {
 	return cluster, nil
 }
 
+// EnhancedErrors returns the current enhanced error message state.
+func (c *Cluster) EnhancedErrors() bool {
+	return c.agentConfig.UseEnhancedErrors
+}
+
+// SetEnhancedErrors sets the current enhanced error message state.
+func (c *Cluster) SetEnhancedErrors(enabled bool) {
+	c.agentConfig.UseEnhancedErrors = enabled
+}
+
 // ConnectTimeout returns the maximum time to wait when attempting to connect to a bucket.
 func (c *Cluster) ConnectTimeout() time.Duration {
 	return c.agentConfig.ConnectTimeout
