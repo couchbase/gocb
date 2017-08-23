@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"strconv"
 	"time"
 )
 
@@ -52,6 +53,35 @@ func (nq *N1qlQuery) ConsistentWith(state *MutationState) *N1qlQuery {
 // AdHoc specifies that this query is adhoc and should not be prepared.
 func (nq *N1qlQuery) AdHoc(adhoc bool) *N1qlQuery {
 	nq.adHoc = adhoc
+	return nq
+}
+
+// ScanCap specifies the maximum buffered channel size between the indexer
+// client and the query service for index scans. This parameter controls
+// when to use scan backfill. Use 0 or a negative number to disable.
+func (nq *N1qlQuery) ScanCap(scanCap int) *N1qlQuery {
+	nq.options["scan_cap"] = strconv.Itoa(scanCap)
+	return nq
+}
+
+// PipelineBatch controls the number of items execution operators can
+// batch for fetch from the KV node.
+func (nq *N1qlQuery) PipelineBatch(pipelineBatch int) *N1qlQuery {
+	nq.options["pipeline_batch"] = strconv.Itoa(pipelineBatch)
+	return nq
+}
+
+// PipelineCap controls the maximum number of items each execution operator
+// can buffer between various operators.
+func (nq *N1qlQuery) PipelineCap(pipelineCap int) *N1qlQuery {
+	nq.options["pipeline_cap"] = strconv.Itoa(pipelineCap)
+	return nq
+}
+
+// ReadOnly controls whether a query can change a resulting recordset.  If
+// readonly is true, then only SELECT statements are permitted.
+func (nq *N1qlQuery) ReadOnly(readOnly bool) *N1qlQuery {
+	nq.options["readonly"] = readOnly
 	return nq
 }
 
