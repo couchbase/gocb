@@ -43,8 +43,6 @@ type searchQueryData struct {
 }
 
 // SearchQuery represents a pending search query.
-//
-// Experimental: This API is subject to change at any time.
 type SearchQuery struct {
 	name string
 	data searchQueryData
@@ -154,8 +152,6 @@ func (sq *SearchQuery) queryData() interface{} {
 }
 
 // NewSearchQuery creates a new SearchQuery object from an index name and query.
-//
-// Experimental: This API is subject to change at any time.
 func NewSearchQuery(indexName string, query interface{}) *SearchQuery {
 	q := &SearchQuery{
 		name: indexName,

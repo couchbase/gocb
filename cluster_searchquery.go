@@ -69,8 +69,6 @@ type SearchResultStatus struct {
 }
 
 // SearchResults allows access to the results of a search query.
-//
-// Experimental: This API is subject to change at any time.
 type SearchResults interface {
 	Status() SearchResultStatus
 	Errors() []string
@@ -261,8 +259,6 @@ func (c *Cluster) doSearchQuery(b *Bucket, q *SearchQuery) (SearchResults, error
 }
 
 // ExecuteSearchQuery performs a n1ql query and returns a list of rows or an error.
-//
-// Experimental: This API is subject to change at any time.
 func (c *Cluster) ExecuteSearchQuery(q *SearchQuery) (SearchResults, error) {
 	return c.doSearchQuery(nil, q)
 }

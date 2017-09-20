@@ -82,8 +82,6 @@ func (set *LookupInBuilder) Execute() (*DocumentFragment, error) {
 }
 
 // GetEx allows you to perform a sub-document Get operation with flags
-//
-// Experimental: This API is subject to change at any time.
 func (set *LookupInBuilder) GetEx(path string, flags SubdocFlag) *LookupInBuilder {
 	if path == "" {
 		op := gocbcore.SubDocOp{
@@ -111,8 +109,6 @@ func (set *LookupInBuilder) Get(path string) *LookupInBuilder {
 }
 
 // ExistsEx allows you to perform a sub-document Exists operation with flags
-//
-// Experimental: This API is subject to change at any time.
 func (set *LookupInBuilder) ExistsEx(path string, flags SubdocFlag) *LookupInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpExists,
@@ -239,8 +235,6 @@ func (set *MutateInBuilder) marshalValue(value interface{}) []byte {
 }
 
 // InsertEx allows you to perform a sub-document Insert operation with flags
-//
-// Experimental: This API is subject to change at any time.
 func (set *MutateInBuilder) InsertEx(path string, value interface{}, flags SubdocFlag) *MutateInBuilder {
 	if path == "" {
 		op := gocbcore.SubDocOp{
@@ -273,8 +267,6 @@ func (set *MutateInBuilder) Insert(path string, value interface{}, createParents
 }
 
 // UpsertEx allows you to perform a sub-document Upsert operation with flags
-//
-// Experimental: This API is subject to change at any time.
 func (set *MutateInBuilder) UpsertEx(path string, value interface{}, flags SubdocFlag) *MutateInBuilder {
 	if path == "" {
 		op := gocbcore.SubDocOp{
@@ -307,8 +299,6 @@ func (set *MutateInBuilder) Upsert(path string, value interface{}, createParents
 }
 
 // ReplaceEx allows you to perform a sub-document Replace operation with flags
-//
-// Experimental: This API is subject to change at any time.
 func (set *MutateInBuilder) ReplaceEx(path string, value interface{}, flags SubdocFlag) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpReplace,
@@ -341,8 +331,6 @@ func (set *MutateInBuilder) marshalArrayMulti(in interface{}) (out []byte) {
 }
 
 // RemoveEx allows you to perform a sub-document Remove operation with flags
-//
-// Experimental: This API is subject to change at any time.
 func (set *MutateInBuilder) RemoveEx(path string, flags SubdocFlag) *MutateInBuilder {
 	if path == "" {
 		op := gocbcore.SubDocOp{
@@ -368,8 +356,6 @@ func (set *MutateInBuilder) Remove(path string) *MutateInBuilder {
 }
 
 // ArrayPrependEx allows you to perform a sub-document ArrayPrepend operation with flags
-//
-// Experimental: This API is subject to change at any time.
 func (set *MutateInBuilder) ArrayPrependEx(path string, value interface{}, flags SubdocFlag) *MutateInBuilder {
 	return set.arrayPrependValue(path, set.marshalValue(value), flags)
 }
@@ -396,8 +382,6 @@ func (set *MutateInBuilder) arrayPrependValue(path string, bytes []byte, flags S
 }
 
 // ArrayAppendEx allows you to perform a sub-document ArrayAppend operation with flags
-//
-// Experimental: This API is subject to change at any time.
 func (set *MutateInBuilder) ArrayAppendEx(path string, value interface{}, flags SubdocFlag) *MutateInBuilder {
 	return set.arrayAppendValue(path, set.marshalValue(value), flags)
 }
@@ -424,8 +408,6 @@ func (set *MutateInBuilder) arrayAppendValue(path string, bytes []byte, flags Su
 }
 
 // ArrayInsertEx allows you to perform a sub-document ArrayInsert operation with flags
-//
-// Experimental: This API is subject to change at any time.
 func (set *MutateInBuilder) ArrayInsertEx(path string, value interface{}, flags SubdocFlag) *MutateInBuilder {
 	return set.arrayInsertValue(path, set.marshalValue(value), flags)
 }
@@ -448,8 +430,6 @@ func (set *MutateInBuilder) arrayInsertValue(path string, bytes []byte, flags Su
 }
 
 // ArrayAppendMultiEx allows you to perform a sub-document ArrayAppendMulti operation with flags
-//
-// Experimental: This API is subject to change at any time.
 func (set *MutateInBuilder) ArrayAppendMultiEx(path string, values interface{}, flags SubdocFlag) *MutateInBuilder {
 	return set.arrayAppendValue(path, set.marshalArrayMulti(values), flags)
 }
@@ -474,8 +454,6 @@ func (set *MutateInBuilder) ArrayAppendMulti(path string, values interface{}, cr
 }
 
 // ArrayPrependMultiEx allows you to perform a sub-document ArrayPrependMulti operation with flags
-//
-// Experimental: This API is subject to change at any time.
 func (set *MutateInBuilder) ArrayPrependMultiEx(path string, values interface{}, flags SubdocFlag) *MutateInBuilder {
 	return set.arrayPrependValue(path, set.marshalArrayMulti(values), flags)
 }
@@ -493,8 +471,6 @@ func (set *MutateInBuilder) ArrayPrependMulti(path string, values interface{}, c
 }
 
 // ArrayInsertMultiEx allows you to perform a sub-document ArrayInsertMulti operation with flags
-//
-// Experimental: This API is subject to change at any time.
 func (set *MutateInBuilder) ArrayInsertMultiEx(path string, values interface{}, flags SubdocFlag) *MutateInBuilder {
 	return set.arrayInsertValue(path, set.marshalArrayMulti(values), flags)
 }
@@ -507,8 +483,6 @@ func (set *MutateInBuilder) ArrayInsertMulti(path string, values interface{}) *M
 }
 
 // ArrayAddUniqueEx allows you to perform a sub-document ArrayAddUnique operation with flags
-//
-// Experimental: This API is subject to change at any time.
 func (set *MutateInBuilder) ArrayAddUniqueEx(path string, value interface{}, flags SubdocFlag) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpArrayAddUnique,
@@ -531,8 +505,6 @@ func (set *MutateInBuilder) ArrayAddUnique(path string, value interface{}, creat
 }
 
 // CounterEx allows you to perform a sub-document Counter operation with flags
-//
-// Experimental: This API is subject to change at any time.
 func (set *MutateInBuilder) CounterEx(path string, delta int64, flags SubdocFlag) *MutateInBuilder {
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpCounter,
