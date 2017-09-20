@@ -296,10 +296,7 @@ func (bm *BucketManager) createIndex(indexName string, fields []string, ignoreIf
 		return err
 	}
 
-	if err := rows.Close(); err != nil {
-		return err
-	}
-	return nil
+	return rows.Close()
 }
 
 // CreateIndex creates an index over the specified fields.
@@ -338,10 +335,7 @@ func (bm *BucketManager) dropIndex(indexName string, ignoreIfNotExists bool) err
 		return err
 	}
 
-	if err := rows.Close(); err != nil {
-		return err
-	}
-	return nil
+	return rows.Close()
 }
 
 // DropIndex drops a specific index by name.
