@@ -25,7 +25,7 @@ type SearchResultHit struct {
 	Explanation map[string]interface{}                       `json:"explanation,omitempty"`
 	Locations   map[string]map[string][]SearchResultLocation `json:"locations,omitempty"`
 	Fragments   map[string][]string                          `json:"fragments,omitempty"`
-	Fields      map[string]string                            `json:"fields,omitempty"`
+	Fields      map[string]interface{}                       `json:"fields,omitempty"`
 }
 
 // SearchResultTermFacet holds the results of a term facet in search results.
