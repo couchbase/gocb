@@ -68,6 +68,7 @@ type QueryResultMetrics struct {
 type QueryResults interface {
 	One(valuePtr interface{}) error
 	Next(valuePtr interface{}) bool
+	GetBytes(valuePtr *[]byte) bool
 	NextBytes() []byte
 	Close() error
 
@@ -101,6 +102,21 @@ func (r *n1qlResults) Next(valuePtr interface{}) bool {
 		return false
 	}
 
+	return true
+}
+
+// Don't unmarshal return only []byte
+func (r *n1qlResults) GetBytes(valuePtr *[]byte) bool {
+	if r.err != nil {
+		return false
+	}
+
+	row := r.NextBytes()
+	if row == nil {
+		return false
+	}
+
+	*valuePtr = row
 	return true
 }
 
