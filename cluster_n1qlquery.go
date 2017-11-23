@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -74,6 +75,10 @@ type QueryResults interface {
 	RequestId() string
 	ClientContextId() string
 	Metrics() QueryResultMetrics
+
+	// SourceAddr returns the source endpoint where the request was sent to.
+	// VOLATILE
+	SourceEndpoint() string
 }
 
 type n1qlResults struct {
@@ -84,6 +89,7 @@ type n1qlResults struct {
 	requestId       string
 	clientContextId string
 	metrics         QueryResultMetrics
+	sourceAddr      string
 }
 
 func (r *n1qlResults) Next(valuePtr interface{}) bool {
@@ -140,6 +146,10 @@ func (r *n1qlResults) One(valuePtr interface{}) error {
 	}
 
 	return nil
+}
+
+func (r *n1qlResults) SourceEndpoint() string {
+	return r.sourceAddr
 }
 
 func (r *n1qlResults) RequestId() string {
@@ -242,7 +252,16 @@ func (c *Cluster) executeN1qlQuery(n1qlEp string, opts map[string]interface{}, c
 		logDebugf("Failed to parse execution time duration (%s)", err)
 	}
 
+	epInfo, err := url.Parse(reqUri)
+	if err != nil {
+		logWarnf("Failed to parse N1QL source address")
+		epInfo = &url.URL{
+			Host: "",
+		}
+	}
+
 	return &n1qlResults{
+		sourceAddr:      epInfo.Host,
 		requestId:       n1qlResp.RequestId,
 		clientContextId: n1qlResp.ClientContextId,
 		index:           -1,
