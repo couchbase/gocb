@@ -164,6 +164,14 @@ func (b *Bucket) getN1qlEp() (string, error) {
 	return n1qlEps[rand.Intn(len(n1qlEps))], nil
 }
 
+func (b *Bucket) getCbasEp() (string, error) {
+	cbasEps := b.cluster.analyticsHosts
+	if len(cbasEps) == 0 {
+		return "", &clientError{"No available Analytics nodes."}
+	}
+	return cbasEps[rand.Intn(len(cbasEps))], nil
+}
+
 func (b *Bucket) getFtsEp() (string, error) {
 	ftsEps := b.client.FtsEps()
 	if len(ftsEps) == 0 {

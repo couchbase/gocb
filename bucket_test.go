@@ -12,6 +12,7 @@ var globalBucket *Bucket
 var globalMock *gojcbmock.Mock
 
 func TestMain(m *testing.M) {
+	SetLogger(VerboseStdioLogger())
 	flag.Parse()
 	mpath, err := gojcbmock.GetMockPath()
 	if err != nil {
