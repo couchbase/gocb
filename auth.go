@@ -123,3 +123,15 @@ func (ra PasswordAuthenticator) Credentials(req AuthCredsRequest) ([]UserPassPai
 		Password: ra.Password,
 	}}, nil
 }
+
+// CertificateAuthenticator implements an Authenticator which can be used with certificate authentication.
+type CertificateAuthenticator struct {
+}
+
+// Credentials returns the credentials for a particular service.
+func (ca CertificateAuthenticator) Credentials(req AuthCredsRequest) ([]gocbcore.UserPassPair, error) {
+	return []gocbcore.UserPassPair{{
+		Username: "",
+		Password: "",
+	}}, nil
+}
