@@ -64,6 +64,8 @@ var (
 	ErrIndexAlreadyExists = errors.New("The index specified already exists.")
 	// ErrFacetNoRanges occurs when a range-based facet is specified but no ranges were indicated.
 	ErrFacetNoRanges = errors.New("At least one range must be specified on a facet.")
+	// ErrInvalidFeature occurs when the user utilizes an invalid feature.
+	ErrInvalidFeature = errors.New("An invalid feature was used.")
 
 	// ErrDispatchFail occurs when we failed to execute an operation due to internal routing issues.
 	ErrDispatchFail = gocbcore.ErrDispatchFail
