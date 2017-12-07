@@ -170,7 +170,7 @@ func (r *n1qlResults) Metrics() QueryResultMetrics {
 // This function assumes that `opts` already contains all the required
 // settings. This function will inject any additional connection or request-level
 // settings into the `opts` map (currently this is only the timeout).
-func (c *Cluster) executeN1qlQuery(n1qlEp string, opts map[string]interface{}, creds []userPassPair, timeout time.Duration, client *http.Client) (QueryResults, error) {
+func (c *Cluster) executeN1qlQuery(n1qlEp string, opts map[string]interface{}, creds []UserPassPair, timeout time.Duration, client *http.Client) (QueryResults, error) {
 	reqUri := fmt.Sprintf("%s/query/service", n1qlEp)
 
 	tmostr, castok := opts["timeout"].(string)
@@ -260,7 +260,7 @@ func (c *Cluster) executeN1qlQuery(n1qlEp string, opts map[string]interface{}, c
 	}, nil
 }
 
-func (c *Cluster) prepareN1qlQuery(n1qlEp string, opts map[string]interface{}, creds []userPassPair, timeout time.Duration, client *http.Client) (*n1qlCache, error) {
+func (c *Cluster) prepareN1qlQuery(n1qlEp string, opts map[string]interface{}, creds []UserPassPair, timeout time.Duration, client *http.Client) (*n1qlCache, error) {
 	prepOpts := make(map[string]interface{})
 	for k, v := range opts {
 		prepOpts[k] = v
@@ -295,7 +295,7 @@ func (c *Cluster) doN1qlQuery(b *Bucket, q *N1qlQuery, params interface{}) (Quer
 	var n1qlEp string
 	var timeout time.Duration
 	var client *http.Client
-	var creds []userPassPair
+	var creds []UserPassPair
 
 	if b != nil {
 		n1qlEp, err = b.getN1qlEp()
@@ -310,9 +310,16 @@ func (c *Cluster) doN1qlQuery(b *Bucket, q *N1qlQuery, params interface{}) (Quer
 		}
 		client = b.client.HttpClient()
 		if c.auth != nil {
-			creds = c.auth.bucketN1ql(b.name)
+			creds, err = c.auth.Credentials(AuthCredsRequest{
+				Service:  N1qlService,
+				Endpoint: n1qlEp,
+				Bucket:   b.name,
+			})
+			if err != nil {
+				return nil, err
+			}
 		} else {
-			creds = []userPassPair{
+			creds = []UserPassPair{
 				{
 					Username: b.name,
 					Password: b.password,
@@ -336,7 +343,14 @@ func (c *Cluster) doN1qlQuery(b *Bucket, q *N1qlQuery, params interface{}) (Quer
 
 		timeout = c.n1qlTimeout
 		client = tmpB.client.HttpClient()
-		creds = c.auth.clusterN1ql()
+
+		creds, err = c.auth.Credentials(AuthCredsRequest{
+			Service:  N1qlService,
+			Endpoint: n1qlEp,
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	execOpts := make(map[string]interface{})

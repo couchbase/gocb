@@ -126,7 +126,15 @@ func (b *Bucket) executeViewQuery(viewType, ddoc, viewName string, options url.V
 	}
 
 	if b.cluster.auth != nil {
-		userPass := b.cluster.auth.bucketViews(b.name)
+		userPass, err := getSingleCredential(b.cluster.auth, AuthCredsRequest{
+			Service:  CapiService,
+			Endpoint: capiEp,
+			Bucket:   b.name,
+		})
+		if err != nil {
+			return nil, err
+		}
+
 		req.SetBasicAuth(userPass.Username, userPass.Password)
 	} else {
 		req.SetBasicAuth(b.name, b.password)

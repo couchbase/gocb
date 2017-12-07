@@ -168,12 +168,26 @@ func (c *Cluster) InvalidateQueryCache() {
 	c.clusterLock.Unlock()
 }
 
-func (c *Cluster) makeAgentConfig(bucket, username, password string, forceMt bool) (*gocbcore.AgentConfig, error) {
+func (c *Cluster) makeAgentConfig(bucket, password string, forceMt bool) (*gocbcore.AgentConfig, error) {
+	auth := c.auth
+	if auth == nil {
+		authMap := make(BucketAuthenticatorMap)
+		authMap[bucket] = BucketAuthenticator{
+			Password: password,
+		}
+		auth = ClusterAuthenticator{
+			Buckets: authMap,
+		}
+	}
+
 	config := c.agentConfig
 
 	config.BucketName = bucket
-	config.Username = username
 	config.Password = password
+	config.Auth = &coreAuthWrapper{
+		auth:       auth,
+		bucketName: bucket,
+	}
 
 	if forceMt {
 		config.UseMutationTokens = true
@@ -189,16 +203,7 @@ func (c *Cluster) Authenticate(auth Authenticator) error {
 }
 
 func (c *Cluster) openBucket(bucket, password string, forceMt bool) (*Bucket, error) {
-	username := bucket
-	if password == "" {
-		if c.auth != nil {
-			userPass := c.auth.bucketMemd(bucket)
-			username = userPass.Username
-			password = userPass.Password
-		}
-	}
-
-	agentConfig, err := c.makeAgentConfig(bucket, username, password, forceMt)
+	agentConfig, err := c.makeAgentConfig(bucket, password, forceMt)
 	if err != nil {
 		return nil, err
 	}
@@ -240,13 +245,6 @@ func (c *Cluster) closeBucket(bucket *Bucket) {
 
 // Manager returns a ClusterManager object for performing cluster management operations on this cluster.
 func (c *Cluster) Manager(username, password string) *ClusterManager {
-	userPass := userPassPair{username, password}
-	if username == "" && password == "" {
-		if c.auth != nil {
-			userPass = c.auth.clusterMgmt()
-		}
-	}
-
 	var mgmtHosts []string
 	for _, host := range c.agentConfig.HttpAddrs {
 		if c.agentConfig.TlsConfig != nil {
@@ -259,8 +257,8 @@ func (c *Cluster) Manager(username, password string) *ClusterManager {
 	tlsConfig := c.agentConfig.TlsConfig
 	return &ClusterManager{
 		hosts:    mgmtHosts,
-		username: userPass.Username,
-		password: userPass.Password,
+		username: username,
+		password: password,
 		httpCli: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: tlsConfig,
@@ -281,16 +279,7 @@ func (b *StreamingBucket) IoRouter() *gocbcore.Agent {
 
 // OpenStreamingBucket opens a new connection to the specified bucket for the purpose of streaming data.
 func (c *Cluster) OpenStreamingBucket(streamName, bucket, password string) (*StreamingBucket, error) {
-	username := bucket
-	if password == "" {
-		if c.auth != nil {
-			userPass := c.auth.bucketMemd(bucket)
-			username = userPass.Username
-			password = userPass.Password
-		}
-	}
-
-	agentConfig, err := c.makeAgentConfig(bucket, username, password, false)
+	agentConfig, err := c.makeAgentConfig(bucket, password, false)
 	if err != nil {
 		return nil, err
 	}

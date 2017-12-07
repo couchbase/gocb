@@ -190,16 +190,9 @@ func (b *Bucket) Internal() *BucketInternal {
 
 // Manager returns a BucketManager for performing management operations on this bucket.
 func (b *Bucket) Manager(username, password string) *BucketManager {
-	userPass := userPassPair{username, password}
-	if username == "" || password == "" {
-		if b.cluster.auth != nil {
-			userPass = b.cluster.auth.bucketMgmt(b.name)
-		}
-	}
-
 	return &BucketManager{
 		bucket:   b,
-		username: userPass.Username,
-		password: userPass.Password,
+		username: username,
+		password: password,
 	}
 }

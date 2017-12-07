@@ -79,9 +79,10 @@ var (
 	ErrInvalidVBucket = gocbcore.ErrInvalidVBucket
 	// ErrInvalidReplica occurs when a specified replica index is invalid.
 	ErrInvalidReplica = gocbcore.ErrInvalidReplica
-
 	// ErrInvalidCert occurs when the specified certificate is not valid.
 	ErrInvalidCert = gocbcore.ErrInvalidCert
+	// ErrInvalidCredentials is returned when an invalid set of credentials is provided for a service.
+	ErrInvalidCredentials = gocbcore.ErrInvalidCredentials
 
 	// ErrShutdown occurs when an operation is performed on a bucket that has been closed.
 	ErrShutdown = gocbcore.ErrShutdown

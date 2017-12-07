@@ -1,25 +1,65 @@
 package gocb
 
-// Authenticator provides an interface to authenticate to each service.
+import "gopkg.in/couchbase/gocbcore.v7"
+
+// UserPassPair represents a username and password pair.
+type UserPassPair gocbcore.UserPassPair
+
+type coreAuthWrapper struct {
+	auth       Authenticator
+	bucketName string
+}
+
+// Credentials returns the credentials for a particular service.
+func (auth *coreAuthWrapper) Credentials(req gocbcore.AuthCredsRequest) ([]gocbcore.UserPassPair, error) {
+	creds, err := auth.auth.Credentials(AuthCredsRequest{
+		Service:  ServiceType(req.Service),
+		Endpoint: req.Endpoint,
+		Bucket:   auth.bucketName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	coreCreds := make([]gocbcore.UserPassPair, len(creds))
+	for credIdx, userPass := range creds {
+		coreCreds[credIdx] = gocbcore.UserPassPair(userPass)
+	}
+	return coreCreds, nil
+}
+
+// AuthCredsRequest encapsulates the data for a credential request
+// from the new Authenticator interface.
+// UNCOMMITTED
+type AuthCredsRequest struct {
+	Service  ServiceType
+	Endpoint string
+	Bucket   string
+}
+
+func getSingleCredential(auth Authenticator, req AuthCredsRequest) (UserPassPair, error) {
+	creds, err := auth.Credentials(req)
+	if err != nil {
+		return UserPassPair{}, err
+	}
+
+	if len(creds) != 1 {
+		return UserPassPair{}, gocbcore.ErrInvalidCredentials
+	}
+
+	return creds[0], nil
+}
+
+// Authenticator provides an interface to authenticate to each service.  Note that
+// only authenticators implemented here are stable, and support for custom
+// authenticators is considered volatile.
 type Authenticator interface {
-	clusterMgmt() userPassPair
-	clusterN1ql() []userPassPair
-	clusterFts() []userPassPair
-	bucketMemd(bucket string) userPassPair
-	bucketMgmt(bucket string) userPassPair
-	bucketViews(bucket string) userPassPair
-	bucketN1ql(bucket string) []userPassPair
-	bucketFts(bucket string) []userPassPair
+	Credentials(req AuthCredsRequest) ([]UserPassPair, error)
 }
 
 // BucketAuthenticator provides a password for a single bucket.
 type BucketAuthenticator struct {
 	Password string
-}
-
-type userPassPair struct {
-	Username string `json:"user"`
-	Password string `json:"pass"`
 }
 
 // BucketAuthenticatorMap is a map of bucket name to BucketAuthenticator.
@@ -32,58 +72,42 @@ type ClusterAuthenticator struct {
 	Password string
 }
 
-func (ca ClusterAuthenticator) clusterMgmt() userPassPair {
-	return userPassPair{ca.Username, ca.Password}
-}
-
-func (ca ClusterAuthenticator) clusterAll() []userPassPair {
-	userPassList := make([]userPassPair, len(ca.Buckets))
-	for bucket, auth := range ca.Buckets {
-		userPassList = append(userPassList, userPassPair{
-			Username: bucket,
-			Password: auth.Password,
+func (ca ClusterAuthenticator) clusterCreds() []UserPassPair {
+	var creds []UserPassPair
+	for bucketName, bucket := range ca.Buckets {
+		creds = append(creds, UserPassPair{
+			Username: bucketName,
+			Password: bucket.Password,
 		})
 	}
-	return userPassList
+	return creds
 }
 
-func (ca ClusterAuthenticator) clusterN1ql() []userPassPair {
-	return ca.clusterAll()
-}
+// Credentials returns the credentials for a particular service.
+func (ca ClusterAuthenticator) Credentials(req AuthCredsRequest) ([]UserPassPair, error) {
+	if req.Bucket == "" {
+		if req.Service == MemdService || req.Service == MgmtService ||
+			req.Service == CapiService {
+			return []UserPassPair{{
+				Username: ca.Username,
+				Password: ca.Password,
+			}}, nil
+		}
 
-func (ca ClusterAuthenticator) clusterFts() []userPassPair {
-	return ca.clusterAll()
-}
-
-func (ca ClusterAuthenticator) bucketAll(bucket string) userPassPair {
-	if bucketAuth, ok := ca.Buckets[bucket]; ok {
-		return userPassPair{bucket, bucketAuth.Password}
+		return ca.clusterCreds(), nil
 	}
-	return userPassPair{"", ""}
-}
 
-func (ca ClusterAuthenticator) bucketMemd(bucket string) userPassPair {
-	return ca.bucketAll(bucket)
-}
-
-func (ca ClusterAuthenticator) bucketMgmt(bucket string) userPassPair {
-	return ca.bucketAll(bucket)
-}
-
-func (ca ClusterAuthenticator) bucketViews(bucket string) userPassPair {
-	return ca.bucketAll(bucket)
-}
-
-func (ca ClusterAuthenticator) bucketN1ql(bucket string) []userPassPair {
-	return []userPassPair{
-		ca.bucketAll(bucket),
+	if bucketAuth, ok := ca.Buckets[req.Bucket]; ok {
+		return []UserPassPair{{
+			Username: req.Bucket,
+			Password: bucketAuth.Password,
+		}}, nil
 	}
-}
 
-func (ca ClusterAuthenticator) bucketFts(bucket string) []userPassPair {
-	return []userPassPair{
-		ca.bucketAll(bucket),
-	}
+	return []UserPassPair{{
+		Username: "",
+		Password: "",
+	}}, nil
 }
 
 // PasswordAuthenticator implements an Authenticator which uses an RBAC username and password.
@@ -92,46 +116,10 @@ type PasswordAuthenticator struct {
 	Password string
 }
 
-func (ra PasswordAuthenticator) rbacAll() userPassPair {
-	return userPassPair{ra.Username, ra.Password}
-}
-
-func (ra PasswordAuthenticator) clusterMgmt() userPassPair {
-	return ra.rbacAll()
-}
-
-func (ra PasswordAuthenticator) clusterN1ql() []userPassPair {
-	return []userPassPair{
-		ra.rbacAll(),
-	}
-}
-
-func (ra PasswordAuthenticator) clusterFts() []userPassPair {
-	return []userPassPair{
-		ra.rbacAll(),
-	}
-}
-
-func (ra PasswordAuthenticator) bucketMemd(bucket string) userPassPair {
-	return ra.rbacAll()
-}
-
-func (ra PasswordAuthenticator) bucketMgmt(bucket string) userPassPair {
-	return ra.rbacAll()
-}
-
-func (ra PasswordAuthenticator) bucketViews(bucket string) userPassPair {
-	return ra.rbacAll()
-}
-
-func (ra PasswordAuthenticator) bucketN1ql(bucket string) []userPassPair {
-	return []userPassPair{
-		ra.rbacAll(),
-	}
-}
-
-func (ra PasswordAuthenticator) bucketFts(bucket string) []userPassPair {
-	return []userPassPair{
-		ra.rbacAll(),
-	}
+// Credentials returns the credentials for a particular service.
+func (ra PasswordAuthenticator) Credentials(req AuthCredsRequest) ([]UserPassPair, error) {
+	return []UserPassPair{{
+		Username: ra.Username,
+		Password: ra.Password,
+	}}, nil
 }

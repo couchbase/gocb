@@ -121,7 +121,7 @@ func (c *Cluster) doSearchQuery(b *Bucket, q *SearchQuery) (SearchResults, error
 	var ftsEp string
 	var timeout time.Duration
 	var client *http.Client
-	var creds []userPassPair
+	var creds []UserPassPair
 
 	if b != nil {
 		ftsEp, err = b.getFtsEp()
@@ -136,9 +136,16 @@ func (c *Cluster) doSearchQuery(b *Bucket, q *SearchQuery) (SearchResults, error
 		}
 		client = b.client.HttpClient()
 		if c.auth != nil {
-			creds = c.auth.bucketFts(b.name)
+			creds, err = c.auth.Credentials(AuthCredsRequest{
+				Service:  FtsService,
+				Endpoint: ftsEp,
+				Bucket:   b.name,
+			})
+			if err != nil {
+				return nil, err
+			}
 		} else {
-			creds = []userPassPair{
+			creds = []UserPassPair{
 				{
 					Username: b.name,
 					Password: b.password,
@@ -162,7 +169,14 @@ func (c *Cluster) doSearchQuery(b *Bucket, q *SearchQuery) (SearchResults, error
 
 		timeout = c.ftsTimeout
 		client = tmpB.client.HttpClient()
-		creds = c.auth.clusterFts()
+
+		creds, err = c.auth.Credentials(AuthCredsRequest{
+			Service:  FtsService,
+			Endpoint: ftsEp,
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	qIndexName := q.indexName()
