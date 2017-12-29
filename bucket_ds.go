@@ -216,21 +216,21 @@ func (b *Bucket) SetRemove(key string, value interface{}) (Cas, error) {
 			return 0, err
 		}
 
-		foundItem := false
-		var newSetContents []interface{}
-		for _, item := range setContents {
-			if item == value {
-				foundItem = true
-			} else {
-				newSetContents = append(newSetContents, value)
+		id := -1
+		for i := range setContents {
+			if setContents[i] == value {
+				id = i
+				break
 			}
 		}
 
-		if !foundItem {
+		if id == -1 {
 			return 0, ErrRangeError
 		}
 
-		cas, err = b.Replace(key, newSetContents, cas, 0)
+		setContents = append(setContents[:id], setContents[id+1:]...)
+
+		cas, err = b.Replace(key, setContents, cas, 0)
 		if err != nil {
 			if IsKeyExistsError(err) {
 				// If this is just a CAS error, try again!
