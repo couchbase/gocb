@@ -280,6 +280,17 @@ func TestDsSetRemove(t *testing.T) {
 	if len(setContents) != 3 {
 		t.Fatalf("SetRemove failed to remove the item")
 	}
+
+	// Check to ensure the correct items are in the set
+	if setContents[0] != "one" {
+		t.Fatalf("SetRemove removed the incorrect item")
+	}
+	if setContents[1] != "two" {
+		t.Fatalf("SetRemove removed the incorrect item")
+	}
+	if setContents[2] != "four" {
+		t.Fatalf("SetRemove removed the incorrect item")
+	}
 }
 
 func TestDsSetSize(t *testing.T) {

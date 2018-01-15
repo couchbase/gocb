@@ -205,7 +205,7 @@ func (b *Bucket) SetSize(key string) (uint, Cas, error) {
 	return uint(len(setContents)), cas, nil
 }
 
-// SetRemove removes a specified value from the specified set document.
+// SetRemove removes a single specified value from the specified set document.
 // WARNING: This relies on Go's interface{} comparison behaviour!
 // PERFORMANCE WARNING: This performs full set fetch, modify, store cycles.
 func (b *Bucket) SetRemove(key string, value interface{}) (Cas, error) {
@@ -222,7 +222,7 @@ func (b *Bucket) SetRemove(key string, value interface{}) (Cas, error) {
 			if item == value {
 				foundItem = true
 			} else {
-				newSetContents = append(newSetContents, value)
+				newSetContents = append(newSetContents, item)
 			}
 		}
 
