@@ -5,6 +5,10 @@ import (
 )
 
 const (
+	goCbVersionStr = "v1.3.2"
+)
+
+const (
 	// Legacy flag format for JSON data.
 	lfJson = 0
 

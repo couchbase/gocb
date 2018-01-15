@@ -47,6 +47,7 @@ func Connect(connSpecStr string) (*Cluster, error) {
 	}
 
 	config := gocbcore.AgentConfig{
+		UserString:           "gocb/" + Version(),
 		ConnectTimeout:       60000 * time.Millisecond,
 		ServerConnectTimeout: 7000 * time.Millisecond,
 		NmvRetryDelay:        100 * time.Millisecond,
