@@ -217,7 +217,7 @@ func (b *Bucket) SetRemove(key string, value interface{}) (Cas, error) {
 		}
 
 		foundItem := false
-		var newSetContents []interface{}
+		newSetContents := make([]interface{}, 0)
 		for _, item := range setContents {
 			if item == value {
 				foundItem = true
