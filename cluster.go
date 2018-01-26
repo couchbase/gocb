@@ -279,12 +279,12 @@ func (b *StreamingBucket) IoRouter() *gocbcore.Agent {
 }
 
 // OpenStreamingBucket opens a new connection to the specified bucket for the purpose of streaming data.
-func (c *Cluster) OpenStreamingBucket(streamName, bucket, password string) (*StreamingBucket, error) {
+func (c *Cluster) OpenStreamingBucket(streamName, bucket, password string, openFlags gocbcore.DcpOpenFlag) (*StreamingBucket, error) {
 	agentConfig, err := c.makeAgentConfig(bucket, password, false)
 	if err != nil {
 		return nil, err
 	}
-	cli, err := gocbcore.CreateDcpAgent(agentConfig, streamName, 0)
+	cli, err := gocbcore.CreateDcpAgent(agentConfig, streamName, openFlags)
 	if err != nil {
 		return nil, err
 	}
