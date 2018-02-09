@@ -90,32 +90,45 @@ func (b *Bucket) Counter(key string, delta, initial int64, expiry uint32) (uint6
 type ServerStats map[string]map[string]string
 
 // Stats returns various server statistics from the cluster.
-func (b *Bucket) Stats(key string) (statsOut ServerStats, errOut error) {
-	signal := make(chan bool, 1)
-	statsOut = make(ServerStats)
+func (b *Bucket) Stats(key string) (ServerStats, error) {
+	stats, err := b.stats(key)
+	return stats, err
+}
 
-	op, errOut := b.client.Stats(key, func(stats map[string]gocbcore.SingleServerStats) {
-		for curServer, curStats := range stats {
-			if curStats.Error != nil && errOut == nil {
-				errOut = curStats.Error
-			}
-			statsOut[curServer] = curStats.Stats
-		}
-		signal <- true
-	})
+type opController struct {
+	b      *Bucket
+	signal chan error
+}
 
-	timeoutTmr := gocbcore.AcquireTimer(b.opTimeout)
+func (ctrl *opController) Resolve(err error) {
+	ctrl.signal <- err
+}
+
+func (ctrl *opController) Wait(op gocbcore.PendingOp, err error) error {
+	if err != nil {
+		return err
+	}
+
+	timeoutTmr := gocbcore.AcquireTimer(ctrl.b.opTimeout)
 	select {
-	case <-signal:
+	case err = <-ctrl.signal:
 		gocbcore.ReleaseTimer(timeoutTmr, false)
-		return
+		return err
 	case <-timeoutTmr.C:
 		gocbcore.ReleaseTimer(timeoutTmr, true)
 		if !op.Cancel() {
-			<-signal
-			return
+			err = <-ctrl.signal
+			return err
 		}
-		return nil, ErrTimeout
+
+		return ErrTimeout
+	}
+}
+
+func (b *Bucket) newOpController() *opController {
+	return &opController{
+		b:      b,
+		signal: make(chan error, 1),
 	}
 }
 
@@ -336,5 +349,34 @@ func (b *Bucket) counter(key string, delta, initial int64, expiry uint32) (uint6
 		})
 	} else {
 		return 0, 0, MutationToken{}, clientError{"Delta must be a non-zero value."}
+	}
+}
+
+func (b *Bucket) stats(key string) (statsOut ServerStats, errOut error) {
+	signal := make(chan bool, 1)
+	statsOut = make(ServerStats)
+
+	op, errOut := b.client.Stats(key, func(stats map[string]gocbcore.SingleServerStats) {
+		for curServer, curStats := range stats {
+			if curStats.Error != nil && errOut == nil {
+				errOut = curStats.Error
+			}
+			statsOut[curServer] = curStats.Stats
+		}
+		signal <- true
+	})
+
+	timeoutTmr := gocbcore.AcquireTimer(b.opTimeout)
+	select {
+	case <-signal:
+		gocbcore.ReleaseTimer(timeoutTmr, false)
+		return
+	case <-timeoutTmr.C:
+		gocbcore.ReleaseTimer(timeoutTmr, true)
+		if !op.Cancel() {
+			<-signal
+			return
+		}
+		return nil, ErrTimeout
 	}
 }
