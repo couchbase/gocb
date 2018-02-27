@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -203,7 +204,19 @@ func (c *Cluster) executeAnalyticsQuery(analyticsEp string, opts map[string]inte
 // Experimental: This API is only needed temporarily until full integration of the
 // Analytics service into Couchbase Server has been completed.
 func (c *Cluster) EnableAnalytics(hosts []string) {
-	c.analyticsHosts = hosts
+	c.analyticsHosts = make([]string, len(hosts))
+
+	for i, host := range hosts {
+		host := strings.TrimPrefix(strings.TrimPrefix(host, "http://"), "https://")
+
+		if c.agentConfig.TlsConfig == nil {
+			host = "http://" + host
+		} else {
+			host = "https://" + host
+		}
+
+		c.analyticsHosts[i] = host
+	}
 }
 
 // Performs a spatial query and returns a list of rows or an error.
