@@ -65,9 +65,10 @@ func Connect(connSpecStr string) (*Cluster, error) {
 	}
 
 	cluster := &Cluster{
-		agentConfig: config,
-		n1qlTimeout: 75 * time.Second,
-		ftsTimeout:  75 * time.Second,
+		agentConfig:      config,
+		n1qlTimeout:      75 * time.Second,
+		ftsTimeout:       75 * time.Second,
+		analyticsTimeout: 75 * time.Second,
 
 		httpCli:    httpCli,
 		queryCache: make(map[string]*n1qlCache),

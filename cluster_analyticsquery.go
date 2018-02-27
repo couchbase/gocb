@@ -128,7 +128,7 @@ func (r *analyticsResults) ClientContextId() string {
 	return r.clientContextId
 }
 
-func (c *Cluster) executeAnalyticsQuery(analyticsEp string, opts map[string]interface{}, timeout time.Duration, client *http.Client) (AnalyticsResults, error) {
+func (c *Cluster) executeAnalyticsQuery(analyticsEp string, opts map[string]interface{}, creds []UserPassPair, timeout time.Duration, client *http.Client) (AnalyticsResults, error) {
 	reqUri := fmt.Sprintf("%s/query/service", analyticsEp)
 
 	tmostr, castok := opts["timeout"].(string)
@@ -143,6 +143,10 @@ func (c *Cluster) executeAnalyticsQuery(analyticsEp string, opts map[string]inte
 		opts["timeout"] = timeout.String()
 	}
 
+	if len(creds) > 1 {
+		opts["creds"] = creds
+	}
+
 	reqJson, err := json.Marshal(opts)
 	if err != nil {
 		return nil, err
@@ -153,6 +157,10 @@ func (c *Cluster) executeAnalyticsQuery(analyticsEp string, opts map[string]inte
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+
+	if len(creds) == 1 {
+		req.SetBasicAuth(creds[0].Username, creds[0].Password)
+	}
 
 	resp, err := doHttpWithTimeout(client, req, timeout)
 	if err != nil {
@@ -207,7 +215,19 @@ func (c *Cluster) doAnalyticsQuery(q *AnalyticsQuery) (AnalyticsResults, error) 
 
 	analyticsEp := c.analyticsHosts[rand.Intn(numHosts)]
 
-	return c.executeAnalyticsQuery(analyticsEp, q.options, c.analyticsTimeout, c.httpCli)
+	if c.auth == nil {
+		panic("Cannot perform cluster level queries without Cluster Authenticator.")
+	}
+
+	creds, err := c.auth.Credentials(AuthCredsRequest{
+		Service:  CbasService,
+		Endpoint: analyticsEp,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return c.executeAnalyticsQuery(analyticsEp, q.options, creds, c.analyticsTimeout, c.httpCli)
 }
 
 // ExecuteAnalyticsQuery performs an analytics query and returns a list of rows or an error.
