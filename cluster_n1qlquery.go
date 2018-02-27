@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/opentracing/opentracing-go"
 	"net/http"
 	"net/url"
 	"time"
@@ -180,7 +181,7 @@ func (r *n1qlResults) Metrics() QueryResultMetrics {
 // This function assumes that `opts` already contains all the required
 // settings. This function will inject any additional connection or request-level
 // settings into the `opts` map (currently this is only the timeout).
-func (c *Cluster) executeN1qlQuery(n1qlEp string, opts map[string]interface{}, creds []UserPassPair, timeout time.Duration, client *http.Client) (QueryResults, error) {
+func (c *Cluster) executeN1qlQuery(tracectx opentracing.SpanContext, n1qlEp string, opts map[string]interface{}, creds []UserPassPair, timeout time.Duration, client *http.Client) (QueryResults, error) {
 	reqUri := fmt.Sprintf("%s/query/service", n1qlEp)
 
 	tmostr, castok := opts["timeout"].(string)
@@ -214,15 +215,25 @@ func (c *Cluster) executeN1qlQuery(n1qlEp string, opts map[string]interface{}, c
 		req.SetBasicAuth(creds[0].Username, creds[0].Password)
 	}
 
+	dtrace := c.agentConfig.Tracer.StartSpan("dispatch",
+		opentracing.ChildOf(tracectx))
+
 	resp, err := doHttpWithTimeout(client, req, timeout)
 	if err != nil {
+		dtrace.Finish()
 		return nil, err
 	}
+
+	dtrace.Finish()
+
+	strace := c.agentConfig.Tracer.StartSpan("streaming",
+		opentracing.ChildOf(tracectx))
 
 	n1qlResp := n1qlResponse{}
 	jsonDec := json.NewDecoder(resp.Body)
 	err = jsonDec.Decode(&n1qlResp)
 	if err != nil {
+		strace.Finish()
 		return nil, err
 	}
 
@@ -230,6 +241,12 @@ func (c *Cluster) executeN1qlQuery(n1qlEp string, opts map[string]interface{}, c
 	if err != nil {
 		logDebugf("Failed to close socket (%s)", err)
 	}
+
+	// TODO(brett19): place the server_duration in the right place...
+	//srvDuration, _ := time.ParseDuration(n1qlResp.Metrics.ExecutionTime)
+	//strace.SetTag("server_duration", srvDuration)
+
+	strace.Finish()
 
 	if len(n1qlResp.Errors) > 0 {
 		return nil, (*n1qlMultiError)(&n1qlResp.Errors)
@@ -279,14 +296,14 @@ func (c *Cluster) executeN1qlQuery(n1qlEp string, opts map[string]interface{}, c
 	}, nil
 }
 
-func (c *Cluster) prepareN1qlQuery(n1qlEp string, opts map[string]interface{}, creds []UserPassPair, timeout time.Duration, client *http.Client) (*n1qlCache, error) {
+func (c *Cluster) prepareN1qlQuery(tracectx opentracing.SpanContext, n1qlEp string, opts map[string]interface{}, creds []UserPassPair, timeout time.Duration, client *http.Client) (*n1qlCache, error) {
 	prepOpts := make(map[string]interface{})
 	for k, v := range opts {
 		prepOpts[k] = v
 	}
 	prepOpts["statement"] = "PREPARE " + opts["statement"].(string)
 
-	prepRes, err := c.executeN1qlQuery(n1qlEp, prepOpts, creds, timeout, client)
+	prepRes, err := c.executeN1qlQuery(tracectx, n1qlEp, prepOpts, creds, timeout, client)
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +326,7 @@ type n1qlPrepData struct {
 }
 
 // Performs a spatial query and returns a list of rows or an error.
-func (c *Cluster) doN1qlQuery(b *Bucket, q *N1qlQuery, params interface{}) (QueryResults, error) {
+func (c *Cluster) doN1qlQuery(tracectx opentracing.SpanContext, b *Bucket, q *N1qlQuery, params interface{}) (QueryResults, error) {
 	var err error
 	var n1qlEp string
 	var timeout time.Duration
@@ -393,7 +410,7 @@ func (c *Cluster) doN1qlQuery(b *Bucket, q *N1qlQuery, params interface{}) (Quer
 	}
 
 	if q.adHoc {
-		return c.executeN1qlQuery(n1qlEp, execOpts, creds, timeout, client)
+		return c.executeN1qlQuery(tracectx, n1qlEp, execOpts, creds, timeout, client)
 	}
 
 	// Do Prepared Statement Logic
@@ -414,10 +431,16 @@ func (c *Cluster) doN1qlQuery(b *Bucket, q *N1qlQuery, params interface{}) (Quer
 		execOpts["prepared"] = cachedStmt.name
 		execOpts["encoded_plan"] = cachedStmt.encodedPlan
 
-		results, err := c.executeN1qlQuery(n1qlEp, execOpts, creds, timeout, client)
+		etrace := c.agentConfig.Tracer.StartSpan("execute",
+			opentracing.ChildOf(tracectx))
+
+		results, err := c.executeN1qlQuery(etrace.Context(), n1qlEp, execOpts, creds, timeout, client)
 		if err == nil {
+			etrace.Finish()
 			return results, nil
 		}
+
+		etrace.Finish()
 
 		// If we get error 4050, 4070 or 5000, we should attempt
 		//   to reprepare the statement immediately before failing.
@@ -431,10 +454,16 @@ func (c *Cluster) doN1qlQuery(b *Bucket, q *N1qlQuery, params interface{}) (Quer
 	}
 
 	// Prepare the query
-	cachedStmt, err = c.prepareN1qlQuery(n1qlEp, q.options, creds, timeout, client)
+	ptrace := c.agentConfig.Tracer.StartSpan("prepare",
+		opentracing.ChildOf(tracectx))
+
+	cachedStmt, err = c.prepareN1qlQuery(ptrace.Context(), n1qlEp, q.options, creds, timeout, client)
 	if err != nil {
+		ptrace.Finish()
 		return nil, err
 	}
+
+	ptrace.Finish()
 
 	// Save new cached statement
 	c.clusterLock.Lock()
@@ -446,10 +475,18 @@ func (c *Cluster) doN1qlQuery(b *Bucket, q *N1qlQuery, params interface{}) (Quer
 	execOpts["prepared"] = cachedStmt.name
 	execOpts["encoded_plan"] = cachedStmt.encodedPlan
 
-	return c.executeN1qlQuery(n1qlEp, execOpts, creds, timeout, client)
+	etrace := c.agentConfig.Tracer.StartSpan("execute",
+		opentracing.ChildOf(tracectx))
+	defer etrace.Finish()
+
+	return c.executeN1qlQuery(etrace.Context(), n1qlEp, execOpts, creds, timeout, client)
 }
 
 // ExecuteN1qlQuery performs a n1ql query and returns a list of rows or an error.
 func (c *Cluster) ExecuteN1qlQuery(q *N1qlQuery, params interface{}) (QueryResults, error) {
-	return c.doN1qlQuery(nil, q, params)
+	span := c.agentConfig.Tracer.StartSpan("ExecuteSearchQuery",
+		opentracing.Tag{Key: "couchbase.service", Value: "n1ql"})
+	defer span.Finish()
+
+	return c.doN1qlQuery(span.Context(), nil, q, params)
 }

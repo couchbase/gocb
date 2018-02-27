@@ -4,7 +4,10 @@ import "fmt"
 
 // MapGet retrieves a single item from a map document by its key.
 func (b *Bucket) MapGet(key, path string, valuePtr interface{}) (Cas, error) {
-	frag, err := b.LookupIn(key).Get(path).Execute()
+	tracespan := b.startKvOpTrace("MapGet")
+	defer tracespan.Finish()
+
+	frag, err := b.startLookupIn("", key, 0).Get(path).execute(tracespan.Context())
 	if err != nil {
 		return 0, err
 	}
@@ -17,7 +20,10 @@ func (b *Bucket) MapGet(key, path string, valuePtr interface{}) (Cas, error) {
 
 // MapRemove removes a specified key from the specified map document.
 func (b *Bucket) MapRemove(key, path string) (Cas, error) {
-	frag, err := b.MutateIn(key, 0, 0).Remove(path).Execute()
+	tracespan := b.startKvOpTrace("MapRemove")
+	defer tracespan.Finish()
+
+	frag, err := b.startMutateIn("", key, 0, 0, 0).Remove(path).execute(tracespan.Context())
 	if err != nil {
 		return 0, err
 	}
@@ -39,7 +45,8 @@ func (b *Bucket) MapSize(key string) (uint, Cas, error) {
 // MapAdd inserts an item to a map document.
 func (b *Bucket) MapAdd(key, path string, value interface{}, createMap bool) (Cas, error) {
 	for {
-		frag, err := b.MutateIn(key, 0, 0).Insert(path, value, false).Execute()
+		frag, err := b.startMutateIn("MapAdd", key, 0, 0, 0).
+			Insert(path, value, false).Execute()
 		if err != nil {
 			if IsKeyNotFoundError(err) && createMap {
 				data := make(map[string]interface{})

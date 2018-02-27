@@ -1,87 +1,95 @@
 package gocb
 
 import (
+	"github.com/opentracing/opentracing-go"
 	"gopkg.in/couchbase/gocbcore.v7"
 )
 
-func (b *Bucket) observeOnceCas(key []byte, cas Cas, forDelete bool, replicaIdx int, commCh chan uint) (pendingOp, error) {
-	return b.client.Observe(key, replicaIdx,
-		func(ks gocbcore.KeyState, obsCas gocbcore.Cas, err error) {
-			if err != nil {
-				commCh <- 0
-				return
-			}
+func (b *Bucket) observeOnceCas(tracectx opentracing.SpanContext, key []byte, cas Cas, forDelete bool, replicaIdx int, commCh chan uint) (pendingOp, error) {
+	return b.client.ObserveEx(gocbcore.ObserveOptions{
+		Key:          key,
+		ReplicaIdx:   replicaIdx,
+		TraceContext: tracectx,
+	}, func(res *gocbcore.ObserveResult, err error) {
+		if err != nil || res == nil {
+			commCh <- 0
+			return
+		}
 
-			didReplicate := false
-			didPersist := false
+		didReplicate := false
+		didPersist := false
 
-			if ks == gocbcore.KeyStatePersisted {
-				if !forDelete {
-					if Cas(obsCas) == cas {
-						if replicaIdx != 0 {
-							didReplicate = true
-						}
-						didPersist = true
+		if res.KeyState == gocbcore.KeyStatePersisted {
+			if !forDelete {
+				if Cas(res.Cas) == cas {
+					if replicaIdx != 0 {
+						didReplicate = true
 					}
-				}
-			} else if ks == gocbcore.KeyStateNotPersisted {
-				if !forDelete {
-					if Cas(obsCas) == cas {
-						if replicaIdx != 0 {
-							didReplicate = true
-						}
-					}
-				}
-			} else if ks == gocbcore.KeyStateDeleted {
-				if forDelete {
-					didReplicate = true
-				}
-			} else {
-				if forDelete {
-					didReplicate = true
 					didPersist = true
 				}
 			}
+		} else if res.KeyState == gocbcore.KeyStateNotPersisted {
+			if !forDelete {
+				if Cas(res.Cas) == cas {
+					if replicaIdx != 0 {
+						didReplicate = true
+					}
+				}
+			}
+		} else if res.KeyState == gocbcore.KeyStateDeleted {
+			if forDelete {
+				didReplicate = true
+			}
+		} else {
+			if forDelete {
+				didReplicate = true
+				didPersist = true
+			}
+		}
 
-			var out uint
-			if didReplicate {
-				out |= 1
-			}
-			if didPersist {
-				out |= 2
-			}
-			commCh <- out
-		})
+		var out uint
+		if didReplicate {
+			out |= 1
+		}
+		if didPersist {
+			out |= 2
+		}
+		commCh <- out
+	})
 }
 
-func (b *Bucket) observeOnceSeqNo(key []byte, mt MutationToken, replicaIdx int, commCh chan uint) (pendingOp, error) {
-	return b.client.ObserveSeqNo(key, mt.token.VbUuid, replicaIdx,
-		func(currentSeqNo gocbcore.SeqNo, persistSeqNo gocbcore.SeqNo, err error) {
-			if err != nil {
-				commCh <- 0
-				return
-			}
+func (b *Bucket) observeOnceSeqNo(tracectx opentracing.SpanContext, mt MutationToken, replicaIdx int, commCh chan uint) (pendingOp, error) {
+	return b.client.ObserveVbEx(gocbcore.ObserveVbOptions{
+		VbId:         mt.token.VbId,
+		VbUuid:       mt.token.VbUuid,
+		ReplicaIdx:   replicaIdx,
+		TraceContext: tracectx,
+	}, func(res *gocbcore.ObserveVbResult, err error) {
+		if err != nil || res == nil {
+			commCh <- 0
+			return
+		}
 
-			didReplicate := currentSeqNo >= mt.token.SeqNo
-			didPersist := persistSeqNo >= mt.token.SeqNo
+		didReplicate := res.CurrentSeqNo >= mt.token.SeqNo
+		didPersist := res.PersistSeqNo >= mt.token.SeqNo
 
-			var out uint
-			if didReplicate {
-				out |= 1
-			}
-			if didPersist {
-				out |= 2
-			}
-			commCh <- out
-		})
+		var out uint
+		if didReplicate {
+			out |= 1
+		}
+		if didPersist {
+			out |= 2
+		}
+		commCh <- out
+	})
 }
 
-func (b *Bucket) observeOne(key []byte, mt MutationToken, cas Cas, forDelete bool, replicaIdx int, replicaCh, persistCh chan bool) {
+func (b *Bucket) observeOne(tracectx opentracing.SpanContext, key []byte, mt MutationToken, cas Cas, forDelete bool, replicaIdx int, replicaCh, persistCh chan bool) {
 	observeOnce := func(commCh chan uint) (pendingOp, error) {
 		if mt.token.VbUuid != 0 && mt.token.SeqNo != 0 {
-			return b.observeOnceSeqNo(key, mt, replicaIdx, commCh)
+			return b.observeOnceSeqNo(tracectx, mt, replicaIdx, commCh)
 		}
-		return b.observeOnceCas(key, cas, forDelete, replicaIdx, commCh)
+		return b.observeOnceCas(tracectx, key, cas, forDelete, replicaIdx, commCh)
 	}
 
 	sentReplicated := false
@@ -147,7 +155,7 @@ func (b *Bucket) observeOne(key []byte, mt MutationToken, cas Cas, forDelete boo
 	}
 }
 
-func (b *Bucket) durability(key string, cas Cas, mt MutationToken, replicaTo, persistTo uint, forDelete bool) error {
+func (b *Bucket) durability(tracectx opentracing.SpanContext, key string, cas Cas, mt MutationToken, replicaTo, persistTo uint, forDelete bool) error {
 	numServers := b.client.NumReplicas() + 1
 
 	if replicaTo > uint(numServers-1) || persistTo > uint(numServers) {
@@ -160,7 +168,7 @@ func (b *Bucket) durability(key string, cas Cas, mt MutationToken, replicaTo, pe
 	persistCh := make(chan bool, numServers)
 
 	for replicaIdx := 0; replicaIdx < numServers; replicaIdx++ {
-		go b.observeOne(keyBytes, mt, cas, forDelete, replicaIdx, replicaCh, persistCh)
+		go b.observeOne(tracectx, keyBytes, mt, cas, forDelete, replicaIdx, replicaCh, persistCh)
 	}
 
 	results := int(0)
@@ -191,72 +199,96 @@ func (b *Bucket) durability(key string, cas Cas, mt MutationToken, replicaTo, pe
 
 // TouchDura touches a document, specifying a new expiry time for it.  Additionally checks document durability.
 func (b *Bucket) TouchDura(key string, cas Cas, expiry uint32, replicateTo, persistTo uint) (Cas, error) {
-	cas, mt, err := b.touch(key, cas, expiry)
+	span := b.startKvOpTrace("TouchDura")
+	defer span.Finish()
+
+	cas, mt, err := b.touch(span.Context(), key, cas, expiry)
 	if err != nil {
 		return cas, err
 	}
-	return cas, b.durability(key, cas, mt, replicateTo, persistTo, false)
+	return cas, b.durability(span.Context(), key, cas, mt, replicateTo, persistTo, false)
 }
 
 // RemoveDura removes a document from the bucket.  Additionally checks document durability.
 func (b *Bucket) RemoveDura(key string, cas Cas, replicateTo, persistTo uint) (Cas, error) {
-	cas, mt, err := b.remove(key, cas)
+	span := b.startKvOpTrace("RemoveDura")
+	defer span.Finish()
+
+	cas, mt, err := b.remove(span.Context(), key, cas)
 	if err != nil {
 		return cas, err
 	}
-	return cas, b.durability(key, cas, mt, replicateTo, persistTo, true)
+	return cas, b.durability(span.Context(), key, cas, mt, replicateTo, persistTo, true)
 }
 
 // UpsertDura inserts or replaces a document in the bucket.  Additionally checks document durability.
 func (b *Bucket) UpsertDura(key string, value interface{}, expiry uint32, replicateTo, persistTo uint) (Cas, error) {
-	cas, mt, err := b.upsert(key, value, expiry)
+	span := b.startKvOpTrace("UpsertDura")
+	defer span.Finish()
+
+	cas, mt, err := b.upsert(span.Context(), key, value, expiry)
 	if err != nil {
 		return cas, err
 	}
-	return cas, b.durability(key, cas, mt, replicateTo, persistTo, false)
+	return cas, b.durability(span.Context(), key, cas, mt, replicateTo, persistTo, false)
 }
 
 // InsertDura inserts a new document to the bucket.  Additionally checks document durability.
 func (b *Bucket) InsertDura(key string, value interface{}, expiry uint32, replicateTo, persistTo uint) (Cas, error) {
-	cas, mt, err := b.insert(key, value, expiry)
+	span := b.startKvOpTrace("InsertDura")
+	defer span.Finish()
+
+	cas, mt, err := b.insert(span.Context(), key, value, expiry)
 	if err != nil {
 		return cas, err
 	}
-	return cas, b.durability(key, cas, mt, replicateTo, persistTo, false)
+	return cas, b.durability(span.Context(), key, cas, mt, replicateTo, persistTo, false)
 }
 
 // ReplaceDura replaces a document in the bucket.  Additionally checks document durability.
 func (b *Bucket) ReplaceDura(key string, value interface{}, cas Cas, expiry uint32, replicateTo, persistTo uint) (Cas, error) {
-	cas, mt, err := b.replace(key, value, cas, expiry)
+	span := b.startKvOpTrace("ReplaceDura")
+	defer span.Finish()
+
+	cas, mt, err := b.replace(span.Context(), key, value, cas, expiry)
 	if err != nil {
 		return cas, err
 	}
-	return cas, b.durability(key, cas, mt, replicateTo, persistTo, false)
+	return cas, b.durability(span.Context(), key, cas, mt, replicateTo, persistTo, false)
 }
 
 // AppendDura appends a string value to a document.  Additionally checks document durability.
 func (b *Bucket) AppendDura(key, value string, replicateTo, persistTo uint) (Cas, error) {
-	cas, mt, err := b.append(key, value)
+	span := b.startKvOpTrace("AppendDura")
+	defer span.Finish()
+
+	cas, mt, err := b.append(span.Context(), key, value)
 	if err != nil {
 		return cas, err
 	}
-	return cas, b.durability(key, cas, mt, replicateTo, persistTo, false)
+	return cas, b.durability(span.Context(), key, cas, mt, replicateTo, persistTo, false)
 }
 
 // PrependDura prepends a string value to a document.  Additionally checks document durability.
 func (b *Bucket) PrependDura(key, value string, replicateTo, persistTo uint) (Cas, error) {
-	cas, mt, err := b.prepend(key, value)
+	span := b.startKvOpTrace("PrependDura")
+	defer span.Finish()
+
+	cas, mt, err := b.prepend(span.Context(), key, value)
 	if err != nil {
 		return cas, err
 	}
-	return cas, b.durability(key, cas, mt, replicateTo, persistTo, false)
+	return cas, b.durability(span.Context(), key, cas, mt, replicateTo, persistTo, false)
 }
 
 // CounterDura performs an atomic addition or subtraction for an integer document.  Additionally checks document durability.
 func (b *Bucket) CounterDura(key string, delta, initial int64, expiry uint32, replicateTo, persistTo uint) (uint64, Cas, error) {
-	val, cas, mt, err := b.counter(key, delta, initial, expiry)
+	span := b.startKvOpTrace("CounterDura")
+	defer span.Finish()
+
+	val, cas, mt, err := b.counter(span.Context(), key, delta, initial, expiry)
 	if err != nil {
 		return val, cas, err
 	}
-	return val, cas, b.durability(key, cas, mt, replicateTo, persistTo, false)
+	return val, cas, b.durability(span.Context(), key, cas, mt, replicateTo, persistTo, false)
 }

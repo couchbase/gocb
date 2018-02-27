@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/opentracing/opentracing-go"
 	"math/rand"
 	"net/http"
 	"strings"
@@ -129,7 +130,7 @@ func (r *analyticsResults) ClientContextId() string {
 	return r.clientContextId
 }
 
-func (c *Cluster) executeAnalyticsQuery(analyticsEp string, opts map[string]interface{}, creds []UserPassPair, timeout time.Duration, client *http.Client) (AnalyticsResults, error) {
+func (c *Cluster) executeAnalyticsQuery(tracectx opentracing.SpanContext, analyticsEp string, opts map[string]interface{}, creds []UserPassPair, timeout time.Duration, client *http.Client) (AnalyticsResults, error) {
 	reqUri := fmt.Sprintf("%s/query/service", analyticsEp)
 
 	tmostr, castok := opts["timeout"].(string)
@@ -163,15 +164,25 @@ func (c *Cluster) executeAnalyticsQuery(analyticsEp string, opts map[string]inte
 		req.SetBasicAuth(creds[0].Username, creds[0].Password)
 	}
 
+	dtrace := c.agentConfig.Tracer.StartSpan("dispatch",
+		opentracing.ChildOf(tracectx))
+
 	resp, err := doHttpWithTimeout(client, req, timeout)
 	if err != nil {
+		dtrace.Finish()
 		return nil, err
 	}
+
+	dtrace.Finish()
+
+	strace := c.agentConfig.Tracer.StartSpan("streaming",
+		opentracing.ChildOf(tracectx))
 
 	analyticsResp := analyticsResponse{}
 	jsonDec := json.NewDecoder(resp.Body)
 	err = jsonDec.Decode(&analyticsResp)
 	if err != nil {
+		strace.Finish()
 		return nil, err
 	}
 
@@ -179,6 +190,8 @@ func (c *Cluster) executeAnalyticsQuery(analyticsEp string, opts map[string]inte
 	if err != nil {
 		logDebugf("Failed to close socket (%s)", err)
 	}
+
+	strace.Finish()
 
 	if len(analyticsResp.Errors) > 0 {
 		return nil, (*analyticsMultiError)(&analyticsResp.Errors)
@@ -220,7 +233,7 @@ func (c *Cluster) EnableAnalytics(hosts []string) {
 }
 
 // Performs a spatial query and returns a list of rows or an error.
-func (c *Cluster) doAnalyticsQuery(q *AnalyticsQuery) (AnalyticsResults, error) {
+func (c *Cluster) doAnalyticsQuery(tracectx opentracing.SpanContext, q *AnalyticsQuery) (AnalyticsResults, error) {
 	numHosts := len(c.analyticsHosts)
 	if numHosts == 0 {
 		return nil, fmt.Errorf("must specify analytics hosts with EnableAnalytics first")
@@ -240,12 +253,16 @@ func (c *Cluster) doAnalyticsQuery(q *AnalyticsQuery) (AnalyticsResults, error) 
 		return nil, err
 	}
 
-	return c.executeAnalyticsQuery(analyticsEp, q.options, creds, c.analyticsTimeout, c.httpCli)
+	return c.executeAnalyticsQuery(tracectx, analyticsEp, q.options, creds, c.analyticsTimeout, c.httpCli)
 }
 
 // ExecuteAnalyticsQuery performs an analytics query and returns a list of rows or an error.
 //
 // Experimental: This API is subject to change at any time.
 func (c *Cluster) ExecuteAnalyticsQuery(q *AnalyticsQuery) (AnalyticsResults, error) {
-	return c.doAnalyticsQuery(q)
+	span := c.agentConfig.Tracer.StartSpan("ExecuteAnalyticsQuery",
+		opentracing.Tag{Key: "couchbase.service", Value: "analytics"})
+	defer span.Finish()
+
+	return c.doAnalyticsQuery(span.Context(), q)
 }
