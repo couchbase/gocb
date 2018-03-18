@@ -118,7 +118,7 @@ func (vq *ViewQuery) Key(key interface{}) *ViewQuery {
 }
 
 // Keys specifies a list of specific keys to retrieve from the index.
-func (vq *ViewQuery) Keys(keys []interface{}) *ViewQuery {
+func (vq *ViewQuery) Keys(keys interface{}) *ViewQuery {
 	jsonKeys := vq.marshalJson(keys)
 	vq.options.Set("keys", string(jsonKeys))
 	return vq
