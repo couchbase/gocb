@@ -19,7 +19,7 @@ checkfmt:
 	! gofmt -l -d ./ ./cbft 2>&1 | read
 
 checkvet:
-	go tool vet -all -shadow=false ./ ./cbft
+	go vet
 
 checkiea:
 	ineffassign ./
