@@ -1,9 +1,10 @@
 package gocb
 
 import (
-	"gopkg.in/couchbase/gocbcore.v7"
 	"math/rand"
 	"time"
+
+	"gopkg.in/couchbase/gocbcore.v7"
 )
 
 // Bucket is an interface representing a single bucket within a cluster.
@@ -128,6 +129,11 @@ func (b *Bucket) SetN1qlTimeout(timeout time.Duration) {
 //  raw byte format to Go types and back.
 func (b *Bucket) SetTranscoder(transcoder Transcoder) {
 	b.transcoder = transcoder
+}
+
+// GetTranscoder returns the configured Transcoder for this Bucket
+func (b *Bucket) GetTranscoder() Transcoder {
+	return b.transcoder
 }
 
 // InvalidateQueryCache forces the internal cache of prepared queries to be cleared.
