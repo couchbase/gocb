@@ -166,7 +166,7 @@ func (b *Bucket) lookupIn(tracectx opentracing.SpanContext, set *LookupInBuilder
 	}, func(res *gocbcore.LookupInResult, err error) {
 		errOut = err
 
-		{
+		if res != nil {
 			resSet := &DocumentFragment{}
 			resSet.contents = make([]subDocResult, len(res.Ops))
 			resSet.cas = Cas(res.Cas)
@@ -574,7 +574,8 @@ func (b *Bucket) mutateIn(tracectx opentracing.SpanContext, set *MutateInBuilder
 		TraceContext: tracectx,
 	}, func(res *gocbcore.MutateInResult, err error) {
 		errOut = err
-		if errOut == nil {
+
+		if res != nil {
 			resSet := &DocumentFragment{
 				cas: Cas(res.Cas),
 				mt:  MutationToken{res.MutationToken, b},
@@ -591,6 +592,7 @@ func (b *Bucket) mutateIn(tracectx opentracing.SpanContext, set *MutateInBuilder
 
 			resOut = resSet
 		}
+
 		signal <- true
 	})
 	if err != nil {
