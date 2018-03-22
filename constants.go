@@ -43,6 +43,20 @@ const (
 	IndexTypeView = IndexType("views")
 )
 
+// QueryProfileType specifies the profiling mode to use during a query.
+type QueryProfileType string
+
+const (
+	// QueryProfileNone disables query profiling
+	QueryProfileNone = QueryProfileType("off")
+
+	// QueryProfilePhases includes phase profiling information in the query response
+	QueryProfilePhases = QueryProfileType("phases")
+
+	// QueryProfileTimings includes timing profiling information in the query response
+	QueryProfileTimings = QueryProfileType("timings")
+)
+
 // SubdocFlag provides special handling flags for sub-document operations
 type SubdocFlag gocbcore.SubdocFlag
 

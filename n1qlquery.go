@@ -56,6 +56,12 @@ func (nq *N1qlQuery) AdHoc(adhoc bool) *N1qlQuery {
 	return nq
 }
 
+// Profile specifies a profiling mode to use for this N1QL query.
+func (nq *N1qlQuery) Profile(profileMode QueryProfileType) *N1qlQuery {
+	nq.options["profile"] = profileMode
+	return nq
+}
+
 // ScanCap specifies the maximum buffered channel size between the indexer
 // client and the query service for index scans. This parameter controls
 // when to use scan backfill. Use 0 or a negative number to disable.
