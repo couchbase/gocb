@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/opentracing/opentracing-go"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -128,7 +130,7 @@ func (r *analyticsResults) ClientContextId() string {
 	return r.clientContextId
 }
 
-func (c *Cluster) executeAnalyticsQuery(analyticsEp string, opts map[string]interface{}, timeout time.Duration, client *http.Client) (AnalyticsResults, error) {
+func (c *Cluster) executeAnalyticsQuery(tracectx opentracing.SpanContext, analyticsEp string, opts map[string]interface{}, creds []UserPassPair, timeout time.Duration, client *http.Client) (AnalyticsResults, error) {
 	reqUri := fmt.Sprintf("%s/query/service", analyticsEp)
 
 	tmostr, castok := opts["timeout"].(string)
@@ -143,6 +145,10 @@ func (c *Cluster) executeAnalyticsQuery(analyticsEp string, opts map[string]inte
 		opts["timeout"] = timeout.String()
 	}
 
+	if len(creds) > 1 {
+		opts["creds"] = creds
+	}
+
 	reqJson, err := json.Marshal(opts)
 	if err != nil {
 		return nil, err
@@ -154,15 +160,29 @@ func (c *Cluster) executeAnalyticsQuery(analyticsEp string, opts map[string]inte
 	}
 	req.Header.Set("Content-Type", "application/json")
 
+	if len(creds) == 1 {
+		req.SetBasicAuth(creds[0].Username, creds[0].Password)
+	}
+
+	dtrace := c.agentConfig.Tracer.StartSpan("dispatch",
+		opentracing.ChildOf(tracectx))
+
 	resp, err := doHttpWithTimeout(client, req, timeout)
 	if err != nil {
+		dtrace.Finish()
 		return nil, err
 	}
+
+	dtrace.Finish()
+
+	strace := c.agentConfig.Tracer.StartSpan("streaming",
+		opentracing.ChildOf(tracectx))
 
 	analyticsResp := analyticsResponse{}
 	jsonDec := json.NewDecoder(resp.Body)
 	err = jsonDec.Decode(&analyticsResp)
 	if err != nil {
+		strace.Finish()
 		return nil, err
 	}
 
@@ -170,6 +190,8 @@ func (c *Cluster) executeAnalyticsQuery(analyticsEp string, opts map[string]inte
 	if err != nil {
 		logDebugf("Failed to close socket (%s)", err)
 	}
+
+	strace.Finish()
 
 	if len(analyticsResp.Errors) > 0 {
 		return nil, (*analyticsMultiError)(&analyticsResp.Errors)
@@ -195,11 +217,23 @@ func (c *Cluster) executeAnalyticsQuery(analyticsEp string, opts map[string]inte
 // Experimental: This API is only needed temporarily until full integration of the
 // Analytics service into Couchbase Server has been completed.
 func (c *Cluster) EnableAnalytics(hosts []string) {
-	c.analyticsHosts = hosts
+	c.analyticsHosts = make([]string, len(hosts))
+
+	for i, host := range hosts {
+		host := strings.TrimPrefix(strings.TrimPrefix(host, "http://"), "https://")
+
+		if c.agentConfig.TlsConfig == nil {
+			host = "http://" + host
+		} else {
+			host = "https://" + host
+		}
+
+		c.analyticsHosts[i] = host
+	}
 }
 
 // Performs a spatial query and returns a list of rows or an error.
-func (c *Cluster) doAnalyticsQuery(q *AnalyticsQuery) (AnalyticsResults, error) {
+func (c *Cluster) doAnalyticsQuery(tracectx opentracing.SpanContext, q *AnalyticsQuery) (AnalyticsResults, error) {
 	numHosts := len(c.analyticsHosts)
 	if numHosts == 0 {
 		return nil, fmt.Errorf("must specify analytics hosts with EnableAnalytics first")
@@ -207,12 +241,28 @@ func (c *Cluster) doAnalyticsQuery(q *AnalyticsQuery) (AnalyticsResults, error) 
 
 	analyticsEp := c.analyticsHosts[rand.Intn(numHosts)]
 
-	return c.executeAnalyticsQuery(analyticsEp, q.options, c.analyticsTimeout, c.httpCli)
+	if c.auth == nil {
+		panic("Cannot perform cluster level queries without Cluster Authenticator.")
+	}
+
+	creds, err := c.auth.Credentials(AuthCredsRequest{
+		Service:  CbasService,
+		Endpoint: analyticsEp,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return c.executeAnalyticsQuery(tracectx, analyticsEp, q.options, creds, c.analyticsTimeout, c.httpCli)
 }
 
 // ExecuteAnalyticsQuery performs an analytics query and returns a list of rows or an error.
 //
 // Experimental: This API is subject to change at any time.
 func (c *Cluster) ExecuteAnalyticsQuery(q *AnalyticsQuery) (AnalyticsResults, error) {
-	return c.doAnalyticsQuery(q)
+	span := c.agentConfig.Tracer.StartSpan("ExecuteAnalyticsQuery",
+		opentracing.Tag{Key: "couchbase.service", Value: "analytics"})
+	defer span.Finish()
+
+	return c.doAnalyticsQuery(span.Context(), q)
 }

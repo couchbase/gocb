@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/opentracing/opentracing-go"
 	"gopkg.in/couchbaselabs/jsonx.v1"
 	"net/http"
 	"time"
@@ -116,7 +117,7 @@ func (r searchResults) MaxScore() float64 {
 }
 
 // Performs a spatial query and returns a list of rows or an error.
-func (c *Cluster) doSearchQuery(b *Bucket, q *SearchQuery) (SearchResults, error) {
+func (c *Cluster) doSearchQuery(tracectx opentracing.SpanContext, b *Bucket, q *SearchQuery) (SearchResults, error) {
 	var err error
 	var ftsEp string
 	var timeout time.Duration
@@ -243,15 +244,25 @@ func (c *Cluster) doSearchQuery(b *Bucket, q *SearchQuery) (SearchResults, error
 		req.SetBasicAuth(creds[0].Username, creds[0].Password)
 	}
 
+	dtrace := c.agentConfig.Tracer.StartSpan("dispatch",
+		opentracing.ChildOf(tracectx))
+
 	resp, err := doHttpWithTimeout(client, req, timeout)
 	if err != nil {
+		dtrace.Finish()
 		return nil, err
 	}
+
+	dtrace.Finish()
+
+	strace := c.agentConfig.Tracer.StartSpan("streaming",
+		opentracing.ChildOf(tracectx))
 
 	ftsResp := searchResponse{}
 	jsonDec := json.NewDecoder(resp.Body)
 	err = jsonDec.Decode(&ftsResp)
 	if err != nil {
+		strace.Finish()
 		return nil, err
 	}
 
@@ -259,6 +270,8 @@ func (c *Cluster) doSearchQuery(b *Bucket, q *SearchQuery) (SearchResults, error
 	if err != nil {
 		logDebugf("Failed to close socket (%s)", err)
 	}
+
+	strace.Finish()
 
 	if resp.StatusCode != 200 {
 		return nil, &viewError{
@@ -274,5 +287,9 @@ func (c *Cluster) doSearchQuery(b *Bucket, q *SearchQuery) (SearchResults, error
 
 // ExecuteSearchQuery performs a n1ql query and returns a list of rows or an error.
 func (c *Cluster) ExecuteSearchQuery(q *SearchQuery) (SearchResults, error) {
-	return c.doSearchQuery(nil, q)
+	span := c.agentConfig.Tracer.StartSpan("ExecuteSearchQuery",
+		opentracing.Tag{Key: "couchbase.service", Value: "fts"})
+	defer span.Finish()
+
+	return c.doSearchQuery(span.Context(), nil, q)
 }

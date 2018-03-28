@@ -22,6 +22,27 @@ const (
 	LogMaxVerbosity = LogLevel(gocbcore.LogMaxVerbosity)
 )
 
+// LogRedactLevel specifies the degree with which to redact the logs.
+type LogRedactLevel int
+
+const (
+	// RedactNone indicates to perform no redactions
+	RedactNone = LogRedactLevel(0)
+
+	// RedactPartial indicates to redact all possible user-identifying information from logs.
+	RedactPartial = LogRedactLevel(1)
+
+	// RedactFull indicates to fully redact all possible identifying information from logs.
+	RedactFull = LogRedactLevel(1)
+)
+
+// SetLogRedactionLevel specifies the level with which logs should be redacted.
+func SetLogRedactionLevel(level LogRedactLevel) {
+	// We don't current log any data that falls under our current redaction rules.
+	// This function is included as a stub for future implementations of log redaction
+	// that act at a higher level and may need to perform actual redaction's.
+}
+
 // Logger defines a logging interface. You can either use one of the default loggers
 // (DefaultStdioLogger(), VerboseStdioLogger()) or implement your own.
 type Logger interface {
@@ -97,6 +118,10 @@ func logExf(level LogLevel, offset int, format string, v ...interface{}) {
 			log.Printf("Logger error occurred (%s)\n", err)
 		}
 	}
+}
+
+func logInfof(format string, v ...interface{}) {
+	logExf(LogInfo, 1, format, v...)
 }
 
 func logDebugf(format string, v ...interface{}) {

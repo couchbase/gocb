@@ -3,6 +3,7 @@ package gocb
 import (
 	"errors"
 	"fmt"
+	"github.com/opentracing/opentracing-go"
 	"gopkg.in/couchbase/gocbcore.v7"
 	"gopkg.in/couchbaselabs/gocbconnstr.v1"
 	"net/http"
@@ -46,12 +47,18 @@ func Connect(connSpecStr string) (*Cluster, error) {
 		return optValue[len(optValue)-1], true
 	}
 
+	initialTracer := &opentracing.NoopTracer{}
+	tracerAddRef(initialTracer)
+
 	config := gocbcore.AgentConfig{
 		UserString:           "gocb/" + Version(),
 		ConnectTimeout:       60000 * time.Millisecond,
 		ServerConnectTimeout: 7000 * time.Millisecond,
 		NmvRetryDelay:        100 * time.Millisecond,
 		UseKvErrorMaps:       true,
+		UseDurations:         true,
+		NoRootTraceSpans:     true,
+		Tracer:               initialTracer,
 	}
 	err = config.FromConnStr(connSpecStr)
 	if err != nil {
@@ -65,9 +72,10 @@ func Connect(connSpecStr string) (*Cluster, error) {
 	}
 
 	cluster := &Cluster{
-		agentConfig: config,
-		n1qlTimeout: 75 * time.Second,
-		ftsTimeout:  75 * time.Second,
+		agentConfig:      config,
+		n1qlTimeout:      75 * time.Second,
+		ftsTimeout:       75 * time.Second,
+		analyticsTimeout: 75 * time.Second,
 
 		httpCli:    httpCli,
 		queryCache: make(map[string]*n1qlCache),
@@ -90,6 +98,17 @@ func Connect(connSpecStr string) (*Cluster, error) {
 	}
 
 	return cluster, nil
+}
+
+// SetTracer allows you to specify a custom tracer to use for this cluster.
+// EXPERIMENTAL
+func (c *Cluster) SetTracer(tracer opentracing.Tracer) {
+	if c.agentConfig.Tracer != nil {
+		tracerDecRef(c.agentConfig.Tracer)
+	}
+
+	tracerAddRef(tracer)
+	c.agentConfig.Tracer = tracer
 }
 
 // EnhancedErrors returns the current enhanced error message state.
@@ -167,6 +186,37 @@ func (c *Cluster) InvalidateQueryCache() {
 	c.clusterLock.Lock()
 	c.queryCache = make(map[string]*n1qlCache)
 	c.clusterLock.Unlock()
+}
+
+// Close shuts down all buckets in this cluster and invalidates any references this cluster has.
+func (c *Cluster) Close() error {
+	var overallErr error
+
+	// We have an upper bound on how many buckets we try
+	// to close soely for deadlock prevention
+	for i := 0; i < 1024; i++ {
+		c.clusterLock.Lock()
+		if len(c.bucketList) == 0 {
+			c.clusterLock.Unlock()
+			break
+		}
+
+		bucket := c.bucketList[0]
+		c.clusterLock.Unlock()
+
+		err := bucket.Close()
+		if err != nil && gocbcore.ErrorCause(err) != gocbcore.ErrShutdown {
+			logWarnf("Failed to close a bucket in cluster close: %s", err)
+			overallErr = err
+		}
+	}
+
+	if c.agentConfig.Tracer != nil {
+		tracerDecRef(c.agentConfig.Tracer)
+		c.agentConfig.Tracer = nil
+	}
+
+	return overallErr
 }
 
 func (c *Cluster) makeAgentConfig(bucket, password string, forceMt bool) (*gocbcore.AgentConfig, error) {

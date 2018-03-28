@@ -3,6 +3,7 @@ package gocb
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/opentracing/opentracing-go"
 	"net/http"
 	"net/url"
 )
@@ -112,7 +113,7 @@ func (r *viewResults) TotalRows() int {
 	return r.totalRows
 }
 
-func (b *Bucket) executeViewQuery(viewType, ddoc, viewName string, options url.Values) (ViewResults, error) {
+func (b *Bucket) executeViewQuery(tracectx opentracing.SpanContext, viewType, ddoc, viewName string, options url.Values) (ViewResults, error) {
 	capiEp, err := b.getViewEp()
 	if err != nil {
 		return nil, err
@@ -140,15 +141,25 @@ func (b *Bucket) executeViewQuery(viewType, ddoc, viewName string, options url.V
 		req.SetBasicAuth(b.name, b.password)
 	}
 
+	dtrace := b.tracer.StartSpan("dispatch",
+		opentracing.ChildOf(tracectx))
+
 	resp, err := doHttpWithTimeout(b.client.HttpClient(), req, b.viewTimeout)
 	if err != nil {
+		dtrace.Finish()
 		return nil, err
 	}
+
+	dtrace.Finish()
+
+	strace := b.tracer.StartSpan("streaming",
+		opentracing.ChildOf(tracectx))
 
 	viewResp := viewResponse{}
 	jsonDec := json.NewDecoder(resp.Body)
 	err = jsonDec.Decode(&viewResp)
 	if err != nil {
+		strace.Finish()
 		return nil, err
 	}
 
@@ -156,6 +167,8 @@ func (b *Bucket) executeViewQuery(viewType, ddoc, viewName string, options url.V
 	if err != nil {
 		logDebugf("Failed to close socket (%s)", err)
 	}
+
+	strace.Finish()
 
 	if resp.StatusCode != 200 {
 		if viewResp.Error != "" {
@@ -189,20 +202,28 @@ func (b *Bucket) executeViewQuery(viewType, ddoc, viewName string, options url.V
 
 // ExecuteViewQuery performs a view query and returns a list of rows or an error.
 func (b *Bucket) ExecuteViewQuery(q *ViewQuery) (ViewResults, error) {
+	span := b.tracer.StartSpan("ExecuteViewQuery",
+		opentracing.Tag{Key: "couchbase.service", Value: "views"})
+	defer span.Finish()
+
 	ddoc, name, opts, err := q.getInfo()
 	if err != nil {
 		return nil, err
 	}
 
-	return b.executeViewQuery("_view", ddoc, name, opts)
+	return b.executeViewQuery(span.Context(), "_view", ddoc, name, opts)
 }
 
 // ExecuteSpatialQuery performs a spatial query and returns a list of rows or an error.
 func (b *Bucket) ExecuteSpatialQuery(q *SpatialQuery) (ViewResults, error) {
+	span := b.tracer.StartSpan("ExecuteSpatialQuery",
+		opentracing.Tag{Key: "couchbase.service", Value: "views"})
+	defer span.Finish()
+
 	ddoc, name, opts, err := q.getInfo()
 	if err != nil {
 		return nil, err
 	}
 
-	return b.executeViewQuery("_spatial", ddoc, name, opts)
+	return b.executeViewQuery(span.Context(), "_spatial", ddoc, name, opts)
 }

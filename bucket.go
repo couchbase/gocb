@@ -1,10 +1,10 @@
 package gocb
 
 import (
+	"github.com/opentracing/opentracing-go"
+	"gopkg.in/couchbase/gocbcore.v7"
 	"math/rand"
 	"time"
-
-	"gopkg.in/couchbase/gocbcore.v7"
 )
 
 // Bucket is an interface representing a single bucket within a cluster.
@@ -14,6 +14,7 @@ type Bucket struct {
 	password  string
 	client    *gocbcore.Agent
 	mtEnabled bool
+	tracer    opentracing.Tracer
 
 	transcoder      Transcoder
 	opTimeout       time.Duration
@@ -25,6 +26,12 @@ type Bucket struct {
 	ftsTimeout      time.Duration
 
 	internal *BucketInternal
+}
+
+func (b *Bucket) startKvOpTrace(operationName string) opentracing.Span {
+	return b.tracer.StartSpan(operationName,
+		opentracing.Tag{Key: "couchbase.bucket", Value: b.name},
+		opentracing.Tag{Key: "couchbase.service", Value: "kv"})
 }
 
 func createBucket(cluster *Cluster, config *gocbcore.AgentConfig) (*Bucket, error) {
@@ -40,6 +47,7 @@ func createBucket(cluster *Cluster, config *gocbcore.AgentConfig) (*Bucket, erro
 		client:     cli,
 		mtEnabled:  config.UseMutationTokens,
 		transcoder: &DefaultTranscoder{},
+		tracer:     config.Tracer,
 
 		opTimeout:       2500 * time.Millisecond,
 		bulkOpTimeout:   10000 * time.Millisecond,
