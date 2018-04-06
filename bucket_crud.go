@@ -405,6 +405,7 @@ func (b *Bucket) replace(tracectx opentracing.SpanContext, key string, value int
 
 	err = ctrl.Wait(b.client.ReplaceEx(gocbcore.ReplaceOptions{
 		Key:          []byte(key),
+		Cas:          gocbcore.Cas(cas),
 		Value:        bytes,
 		Flags:        flags,
 		Expiry:       expiry,
