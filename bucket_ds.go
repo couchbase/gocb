@@ -23,7 +23,7 @@ func (b *Bucket) MapRemove(key, path string) (Cas, error) {
 	tracespan := b.startKvOpTrace("MapRemove")
 	defer tracespan.Finish()
 
-	frag, err := b.startMutateIn("", key, 0, 0, 0).Remove(path).execute(tracespan.Context())
+	frag, err := b.startMutateIn("", key, 0, 0, 0, 0, 0).Remove(path).execute(tracespan.Context())
 	if err != nil {
 		return 0, err
 	}
@@ -45,7 +45,7 @@ func (b *Bucket) MapSize(key string) (uint, Cas, error) {
 // MapAdd inserts an item to a map document.
 func (b *Bucket) MapAdd(key, path string, value interface{}, createMap bool) (Cas, error) {
 	for {
-		frag, err := b.startMutateIn("MapAdd", key, 0, 0, 0).
+		frag, err := b.startMutateIn("MapAdd", key, 0, 0, 0, 0, 0).
 			Insert(path, value, false).Execute()
 		if err != nil {
 			if IsKeyNotFoundError(err) && createMap {
