@@ -20,7 +20,7 @@ The project source is hosted at [http://github.com/couchbase/gocb](http://github
 ### Documentation
 You can explore our API reference through godoc at [https://godoc.org/github.com/couchbase/gocb](https://godoc.org/github.com/couchbase/gocb).
 
-You can also find documentation for the Go SDK at the Couchbase [Developer Portal](http://developer.couchbase.com/documentation/server/4.5/sdk/go/start-using-sdk.html).
+You can also find documentation for the Go SDK at the Couchbase [Developer Portal](https://developer.couchbase.com/documentation/server/current/sdk/go/start-using-sdk.html).
 
 ### Bug Tracker
 Issues are tracked on Couchbase's public [issues.couchbase.com](http://www.couchbase.com/issues/browse/GOCBC).
