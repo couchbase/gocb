@@ -56,6 +56,7 @@ func Connect(connSpecStr string) (*Cluster, error) {
 		UseKvErrorMaps:       true,
 		UseDurations:         true,
 		NoRootTraceSpans:     true,
+		UseCompression:       true,
 	}
 	err = config.FromConnStr(connSpecStr)
 	if err != nil {
