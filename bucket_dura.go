@@ -191,7 +191,7 @@ func (b *Bucket) durability(tracectx opentracing.SpanContext, key string, cas Ca
 
 		if replicas >= replicaTo && persists >= persistTo {
 			return nil
-		} else if results == ((numServers * 2) - 1) {
+		} else if results == (numServers * 2) {
 			return ErrDurabilityTimeout
 		}
 	}
