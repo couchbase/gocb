@@ -139,6 +139,11 @@ func (b *Bucket) SetTranscoder(transcoder Transcoder) {
 	b.transcoder = transcoder
 }
 
+// GetTranscoder returns the configured Transcoder for this Bucket
+func (b *Bucket) GetTranscoder() Transcoder {
+	return b.transcoder
+}
+
 // InvalidateQueryCache forces the internal cache of prepared queries to be cleared.
 //  Queries to be cached are controlled by the Adhoc() method of N1qlQuery.
 func (b *Bucket) InvalidateQueryCache() {
