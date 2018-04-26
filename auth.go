@@ -131,8 +131,8 @@ type CertificateAuthenticator struct {
 }
 
 // Credentials returns the credentials for a particular service.
-func (ca CertificateAuthenticator) Credentials(req AuthCredsRequest) ([]gocbcore.UserPassPair, error) {
-	return []gocbcore.UserPassPair{{
+func (ca CertificateAuthenticator) Credentials(req AuthCredsRequest) ([]UserPassPair, error) {
+	return []UserPassPair{{
 		Username: "",
 		Password: "",
 	}}, nil
