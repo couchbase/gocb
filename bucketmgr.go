@@ -319,7 +319,7 @@ func (bm *BucketManager) dropIndex(indexName string, ignoreIfNotExists bool) err
 	var qs string
 
 	if indexName == "" {
-		qs += "DROP PRIMARY INDEX `" + bm.bucket.name + "`"
+		qs += "DROP PRIMARY INDEX ON `" + bm.bucket.name + "`"
 	} else {
 		qs += "DROP INDEX `" + bm.bucket.name + "`.`" + indexName + "`"
 	}
