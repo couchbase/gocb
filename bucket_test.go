@@ -10,6 +10,7 @@ import (
 
 var globalBucket *Bucket
 var globalMock *gojcbmock.Mock
+var globalCluster *Cluster
 
 func TestMain(m *testing.M) {
 	SetLogger(VerboseStdioLogger())
@@ -30,13 +31,13 @@ func TestMain(m *testing.M) {
 
 	connStr := fmt.Sprintf("http://127.0.0.1:%d", globalMock.EntryPort)
 
-	cluster, err := Connect(connStr)
+	globalCluster, err = Connect(connStr)
 
 	if err != nil {
 		panic(err.Error())
 	}
 
-	globalBucket, err = cluster.OpenBucket("default", "")
+	globalBucket, err = globalCluster.OpenBucket("default", "")
 
 	if err != nil {
 		panic(err.Error())

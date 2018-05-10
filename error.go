@@ -65,6 +65,23 @@ var (
 	// ErrFacetNoRanges occurs when a range-based facet is specified but no ranges were indicated.
 	ErrFacetNoRanges = errors.New("At least one range must be specified on a facet.")
 
+	// ErrSearchIndexInvalidName occurs when an invalid name was specified for a search index.
+	ErrSearchIndexInvalidName = errors.New("An invalid search index name was specified.")
+	// ErrSearchIndexMissingType occurs when no type was specified for a search index.
+	ErrSearchIndexMissingType = errors.New("No search index type was specified.")
+	// ErrSearchIndexInvalidSourceType occurs when an invalid source type was specific for a search index.
+	ErrSearchIndexInvalidSourceType = errors.New("An invalid search index source type was specified.")
+	// ErrSearchIndexInvalidSourceName occurs when an invalid source name was specific for a search index.
+	ErrSearchIndexInvalidSourceName = errors.New("An invalid search index source name was specified.")
+	// ErrSearchIndexAlreadyExists occurs when an invalid source name was specific for a search index.
+	ErrSearchIndexAlreadyExists = errors.New("The search index specified already exists.")
+	// ErrSearchIndexInvalidIngestControlOp occurs when an invalid ingest control op was specific for a search index.
+	ErrSearchIndexInvalidIngestControlOp = errors.New("An invalid search index ingest control op was specified.")
+	// ErrSearchIndexInvalidQueryControlOp occurs when an invalid query control op was specific for a search index.
+	ErrSearchIndexInvalidQueryControlOp = errors.New("An invalid search index query control op was specified.")
+	// ErrSearchIndexInvalidPlanFreezeControlOp occurs when an invalid plan freeze control op was specific for a search index.
+	ErrSearchIndexInvalidPlanFreezeControlOp = errors.New("An invalid search index plan freeze control op was specified.")
+
 	// ErrDispatchFail occurs when we failed to execute an operation due to internal routing issues.
 	ErrDispatchFail = gocbcore.ErrDispatchFail
 	// ErrBadHosts occurs when an invalid list of hosts is specified for bootstrapping.

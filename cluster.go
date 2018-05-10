@@ -315,6 +315,7 @@ func (c *Cluster) Manager(username, password string) *ClusterManager {
 				TLSClientConfig: tlsConfig,
 			},
 		},
+		cluster: c,
 	}
 }
 

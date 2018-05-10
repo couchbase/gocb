@@ -18,6 +18,7 @@ type ClusterManager struct {
 	username string
 	password string
 	httpCli  *http.Client
+	cluster  *Cluster
 }
 
 // BucketType specifies the kind of bucket
@@ -405,4 +406,11 @@ func (cm *ClusterManager) RemoveUser(domain AuthDomain, name string) error {
 	}
 
 	return nil
+}
+
+// SearchIndexManager returns a SearchIndexManager for performing FTS index management on this cluster
+func (cm *ClusterManager) SearchIndexManager() *SearchIndexManager {
+	return &SearchIndexManager{
+		cm: cm,
+	}
 }
