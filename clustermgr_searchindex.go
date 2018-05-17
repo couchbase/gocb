@@ -106,8 +106,8 @@ func (sim *SearchIndexManager) doSearchIndexRequest(method, uri, contentType, ca
 	return sim.cm.httpCli.Do(req)
 }
 
-// GetIndexes retrieves all of the FTS indexes for the cluster.
-func (sim *SearchIndexManager) GetIndexes() ([]interface{}, error) {
+// GetAllIndexDefinitions retrieves all of the FTS indexes for the cluster.
+func (sim *SearchIndexManager) GetAllIndexDefinitions() ([]interface{}, error) {
 	res, err := sim.doSearchIndexRequest("GET", "/api/index", "", "", nil)
 	if err != nil {
 		return nil, err
@@ -134,8 +134,8 @@ func (sim *SearchIndexManager) GetIndexes() ([]interface{}, error) {
 	return indexes, nil
 }
 
-// GetIndex retrieves a specific FTS index by name.
-func (sim *SearchIndexManager) GetIndex(indexName string) (interface{}, error) {
+// GetIndexDefinition retrieves a specific FTS index by name.
+func (sim *SearchIndexManager) GetIndexDefinition(indexName string) (interface{}, error) {
 	uri := fmt.Sprintf("/api/index/%s", indexName)
 	res, err := sim.doSearchIndexRequest("GET", uri, "", "", nil)
 	if err != nil {

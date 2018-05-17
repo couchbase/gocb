@@ -145,7 +145,7 @@ func TestCreateIndexNoSourceType(t *testing.T) {
 	}
 }
 
-//func TestGetIndexes(t *testing.T) {
+//func TestGetAllIndexDefinitions(t *testing.T) {
 //	manager := globalCluster.Manager("", "")
 //	searchManager := manager.SearchIndexManager()
 //
@@ -155,17 +155,17 @@ func TestCreateIndexNoSourceType(t *testing.T) {
 //	createSimpleIndex(t, "test_search_index_1", searchManager)
 //	createSimpleIndex(t, "test_search_index_2", searchManager)
 //
-//	indexes, err := searchManager.GetIndexes()
+//	indexes, err := searchManager.GetAllIndexDefinitions()
 //	if err != nil {
-//		t.Fatalf("Failed to GetIndexes %v", err)
+//		t.Fatalf("Failed to GetAllIndexDefinitions %v", err)
 //	}
 //
 //	if len(indexes) != 2 {
-//		t.Fatalf("GetIndexes returned incorrect number of indexes, expected 2 but was %d", len(indexes))
+//		t.Fatalf("GetAllIndexDefinitions returned incorrect number of indexes, expected 2 but was %d", len(indexes))
 //	}
 //}
 //
-//func TestGetIndex(t *testing.T) {
+//func TestGetIndexDefinition(t *testing.T) {
 //	manager := globalCluster.Manager("", "")
 //	searchManager := manager.SearchIndexManager()
 //
@@ -173,14 +173,14 @@ func TestCreateIndexNoSourceType(t *testing.T) {
 //	defer deleteIndex(t, expectedIdxName, searchManager)
 //	createSimpleIndex(t, expectedIdxName, searchManager)
 //
-//	rawIndex, err := searchManager.GetIndex(expectedIdxName)
+//	rawIndex, err := searchManager.GetIndexDefinition(expectedIdxName)
 //	if err != nil {
-//		t.Fatalf("Failed to GetIndex %v", err)
+//		t.Fatalf("Failed to GetIndexDefinition %v", err)
 //	}
 //
 //	index := rawIndex.(map[string]interface{})
 //	if index["name"] != expectedIdxName {
-//		t.Fatalf("GetIndex returned incorrect index, expected %s, was %v", expectedIdxName, index)
+//		t.Fatalf("GetIndexDefinition returned incorrect index, expected %s, was %v", expectedIdxName, index)
 //	}
 //}
 //
