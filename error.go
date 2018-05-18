@@ -83,6 +83,8 @@ var (
 	// ErrSearchIndexInvalidPlanFreezeControlOp occurs when an invalid plan freeze control op was specific for a search index.
 	ErrSearchIndexInvalidPlanFreezeControlOp = errors.New("An invalid search index plan freeze control op was specified.")
 
+	// ErrMixedAuthentication occurs when a combination of certification authentication and password authentication are used.
+	ErrMixedAuthentication = errors.New("Invalid mixed authentication configuration, cannot use cluster level authentication with bucket password authentication.")
 	// ErrDispatchFail occurs when we failed to execute an operation due to internal routing issues.
 	ErrDispatchFail = gocbcore.ErrDispatchFail
 	// ErrBadHosts occurs when an invalid list of hosts is specified for bootstrapping.

@@ -230,6 +230,10 @@ func (c *Cluster) makeAgentConfig(bucket, password string, forceMt bool) (*gocbc
 		auth = ClusterAuthenticator{
 			Buckets: authMap,
 		}
+	} else {
+		if password != "" {
+			return nil, ErrMixedAuthentication
+		}
 	}
 
 	config := c.agentConfig
