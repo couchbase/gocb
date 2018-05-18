@@ -126,14 +126,18 @@ func (ra PasswordAuthenticator) Credentials(req AuthCredsRequest) ([]UserPassPai
 	}}, nil
 }
 
-// CertificateAuthenticator implements an Authenticator which can be used with certificate authentication.
-type CertificateAuthenticator struct {
+// CertAuthenticator implements an Authenticator which can be used with certificate authentication.
+type CertAuthenticator struct {
 }
 
 // Credentials returns the credentials for a particular service.
-func (ca CertificateAuthenticator) Credentials(req AuthCredsRequest) ([]UserPassPair, error) {
+func (ca CertAuthenticator) Credentials(req AuthCredsRequest) ([]UserPassPair, error) {
 	return []UserPassPair{{
 		Username: "",
 		Password: "",
 	}}, nil
 }
+
+// CertificateAuthenticator is included for backwards compatibility only.
+// Deprecated: Use CertAuthenticator instead.
+type CertificateAuthenticator CertAuthenticator
