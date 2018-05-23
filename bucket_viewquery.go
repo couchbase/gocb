@@ -3,9 +3,10 @@ package gocb
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/opentracing/opentracing-go"
 	"net/http"
 	"net/url"
+
+	"github.com/opentracing/opentracing-go"
 )
 
 type viewError struct {

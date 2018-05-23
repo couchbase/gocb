@@ -1,10 +1,11 @@
 package gocb
 
 import (
-	"github.com/opentracing/opentracing-go"
-	"gopkg.in/couchbase/gocbcore.v7"
 	"math/rand"
 	"time"
+
+	"github.com/opentracing/opentracing-go"
+	"gopkg.in/couchbase/gocbcore.v7"
 )
 
 // Bucket is an interface representing a single bucket within a cluster.

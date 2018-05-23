@@ -2,8 +2,9 @@ package gocb
 
 import (
 	"encoding/json"
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // DiagConnState represents the state of a connection in a diagnostics report.

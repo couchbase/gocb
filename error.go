@@ -2,8 +2,9 @@ package gocb
 
 import (
 	"errors"
-	"gopkg.in/couchbase/gocbcore.v7"
 	"strings"
+
+	"gopkg.in/couchbase/gocbcore.v7"
 )
 
 // MultiError encapsulates multiple errors that may be returned by one method.

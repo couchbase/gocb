@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/opentracing/opentracing-go"
-	"gopkg.in/couchbaselabs/jsonx.v1"
 	"net/http"
 	"time"
+
+	"github.com/opentracing/opentracing-go"
+	"gopkg.in/couchbaselabs/jsonx.v1"
 )
 
 // SearchResultLocation holds the location of a hit in a list of search results.

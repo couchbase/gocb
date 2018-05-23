@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/opentracing/opentracing-go"
 	"math/rand"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/opentracing/opentracing-go"
 )
 
 type analyticsError struct {

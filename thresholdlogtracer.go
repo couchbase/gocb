@@ -2,12 +2,13 @@ package gocb
 
 import (
 	"encoding/json"
-	"github.com/opentracing/opentracing-go"
-	otlog "github.com/opentracing/opentracing-go/log"
 	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/opentracing/opentracing-go"
+	otlog "github.com/opentracing/opentracing-go/log"
 )
 
 var defaultThresholdLogTracer ThresholdLoggingTracer

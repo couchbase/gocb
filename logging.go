@@ -2,9 +2,10 @@ package gocb
 
 import (
 	"fmt"
-	"gopkg.in/couchbase/gocbcore.v7"
 	"log"
 	"strings"
+
+	"gopkg.in/couchbase/gocbcore.v7"
 )
 
 // LogLevel specifies the severity of a log message.

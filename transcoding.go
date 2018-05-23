@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"encoding/json"
+
 	"gopkg.in/couchbase/gocbcore.v7"
 )
 

@@ -2,9 +2,10 @@ package gocb
 
 import (
 	"encoding/json"
+	"log"
+
 	"github.com/opentracing/opentracing-go"
 	"gopkg.in/couchbase/gocbcore.v7"
-	"log"
 )
 
 type subDocResult struct {

@@ -3,9 +3,10 @@ package gocb
 import (
 	"flag"
 	"fmt"
-	"gopkg.in/couchbaselabs/gojcbmock.v1"
 	"os"
 	"testing"
+
+	"gopkg.in/couchbaselabs/gojcbmock.v1"
 )
 
 var globalBucket *Bucket

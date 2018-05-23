@@ -2,9 +2,10 @@ package gocb
 
 import (
 	"encoding/json"
-	"gopkg.in/couchbase/gocbcore.v7"
 	"strings"
 	"testing"
+
+	"gopkg.in/couchbase/gocbcore.v7"
 )
 
 func TestMutationState_Add(t *testing.T) {

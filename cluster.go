@@ -3,13 +3,14 @@ package gocb
 import (
 	"errors"
 	"fmt"
-	"github.com/opentracing/opentracing-go"
-	"gopkg.in/couchbase/gocbcore.v7"
-	"gopkg.in/couchbaselabs/gocbconnstr.v1"
 	"net/http"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/opentracing/opentracing-go"
+	"gopkg.in/couchbase/gocbcore.v7"
+	"gopkg.in/couchbaselabs/gocbconnstr.v1"
 )
 
 // Cluster represents a connection to a specific Couchbase cluster.

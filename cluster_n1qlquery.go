@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/opentracing/opentracing-go"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/opentracing/opentracing-go"
 )
 
 type n1qlCache struct {

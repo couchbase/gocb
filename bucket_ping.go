@@ -3,11 +3,12 @@ package gocb
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"gopkg.in/couchbase/gocbcore.v7"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
+	"gopkg.in/couchbase/gocbcore.v7"
 )
 
 func diagServiceString(service ServiceType) string {
