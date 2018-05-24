@@ -154,13 +154,13 @@ func (g *thresholdLogGroup) logRecordedRecords() {
 // likely to fail.
 // EXPERIMENTAL
 type ThresholdLoggingTracer struct {
-	TickInterval   time.Duration
-	SampleSize     uint32
-	KvFloor        time.Duration
-	ViewsFloor     time.Duration
-	QueryFloor     time.Duration
-	SearchFloor    time.Duration
-	AnalyticsFloor time.Duration
+	Interval           time.Duration
+	SampleSize         uint32
+	KvThreshold        time.Duration
+	ViewsThreshold     time.Duration
+	N1qlThreshold      time.Duration
+	SearchThreshold    time.Duration
+	AnalyticsThreshold time.Duration
 
 	killCh         chan struct{}
 	refCount       int32
@@ -203,40 +203,40 @@ func (t *ThresholdLoggingTracer) logRecordedRecords() {
 }
 
 func (t *ThresholdLoggingTracer) startLoggerRoutine() {
-	if t.TickInterval == 0 {
-		t.TickInterval = 10 * time.Second
+	if t.Interval == 0 {
+		t.Interval = 10 * time.Second
 	}
 	if t.SampleSize == 0 {
 		t.SampleSize = 10
 	}
-	if t.KvFloor == 0 {
-		t.KvFloor = 500 * time.Millisecond
+	if t.KvThreshold == 0 {
+		t.KvThreshold = 500 * time.Millisecond
 	}
-	if t.ViewsFloor == 0 {
-		t.ViewsFloor = 1 * time.Second
+	if t.ViewsThreshold == 0 {
+		t.ViewsThreshold = 1 * time.Second
 	}
-	if t.QueryFloor == 0 {
-		t.QueryFloor = 1 * time.Second
+	if t.N1qlThreshold == 0 {
+		t.N1qlThreshold = 1 * time.Second
 	}
-	if t.SearchFloor == 0 {
-		t.SearchFloor = 1 * time.Second
+	if t.SearchThreshold == 0 {
+		t.SearchThreshold = 1 * time.Second
 	}
-	if t.AnalyticsFloor == 0 {
-		t.AnalyticsFloor = 1 * time.Second
+	if t.AnalyticsThreshold == 0 {
+		t.AnalyticsThreshold = 1 * time.Second
 	}
 
-	t.kvGroup.init("kv", t.KvFloor, t.SampleSize)
-	t.viewsGroup.init("views", t.ViewsFloor, t.SampleSize)
-	t.queryGroup.init("query", t.QueryFloor, t.SampleSize)
-	t.searchGroup.init("search", t.SearchFloor, t.SampleSize)
-	t.analyticsGroup.init("analytics", t.AnalyticsFloor, t.SampleSize)
+	t.kvGroup.init("kv", t.KvThreshold, t.SampleSize)
+	t.viewsGroup.init("views", t.ViewsThreshold, t.SampleSize)
+	t.queryGroup.init("query", t.N1qlThreshold, t.SampleSize)
+	t.searchGroup.init("search", t.SearchThreshold, t.SampleSize)
+	t.analyticsGroup.init("analytics", t.AnalyticsThreshold, t.SampleSize)
 
 	if t.killCh == nil {
 		t.killCh = make(chan struct{})
 	}
 
 	if t.nextTick.IsZero() {
-		t.nextTick = time.Now().Add(t.TickInterval)
+		t.nextTick = time.Now().Add(t.Interval)
 	}
 
 	go t.loggerRoutine()
@@ -246,7 +246,7 @@ func (t *ThresholdLoggingTracer) loggerRoutine() {
 	for {
 		select {
 		case <-time.After(t.nextTick.Sub(time.Now())):
-			t.nextTick = t.nextTick.Add(t.TickInterval)
+			t.nextTick = t.nextTick.Add(t.Interval)
 			t.logRecordedRecords()
 		case <-t.killCh:
 			t.logRecordedRecords()

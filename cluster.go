@@ -48,9 +48,6 @@ func Connect(connSpecStr string) (*Cluster, error) {
 		return optValue[len(optValue)-1], true
 	}
 
-	initialTracer := &opentracing.NoopTracer{}
-	tracerAddRef(initialTracer)
-
 	config := gocbcore.AgentConfig{
 		UserString:           "gocb/" + Version(),
 		ConnectTimeout:       60000 * time.Millisecond,
@@ -59,12 +56,31 @@ func Connect(connSpecStr string) (*Cluster, error) {
 		UseKvErrorMaps:       true,
 		UseDurations:         true,
 		NoRootTraceSpans:     true,
-		Tracer:               initialTracer,
 	}
 	err = config.FromConnStr(connSpecStr)
 	if err != nil {
 		return nil, err
 	}
+
+	useTracing := false
+	if valStr, ok := fetchOption("operation_tracing"); ok {
+		val, err := strconv.ParseBool(valStr)
+		if err != nil {
+			return nil, fmt.Errorf("operation_tracing option must be a boolean")
+		}
+		if val {
+			useTracing = true
+		}
+	}
+
+	var initialTracer opentracing.Tracer
+	if useTracing {
+		initialTracer = &ThresholdLoggingTracer{}
+	} else {
+		initialTracer = &opentracing.NoopTracer{}
+	}
+	config.Tracer = initialTracer
+	tracerAddRef(initialTracer)
 
 	httpCli := &http.Client{
 		Transport: &http.Transport{
