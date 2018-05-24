@@ -17,22 +17,35 @@ var globalCluster *Cluster
 
 func TestMain(m *testing.M) {
 	SetLogger(VerboseStdioLogger())
+
+	server := flag.String("server", "", "The connection string to connect to for a real server")
+	user := flag.String("user", "", "The username to use to authenticate when using a real server")
+	password := flag.String("pass", "", "The password to use to authenticate when using a real server")
+	bucketName := flag.String("bucket", "default", "The bucket to use to test against")
+	bucketPassword := flag.String("bucket-pass", "", "The bucket password to use when connecting to the bucket")
 	flag.Parse()
-	mpath, err := gojcbmock.GetMockPath()
-	if err != nil {
-		panic(err.Error())
+
+	var err error
+	var connStr string
+	if *server == "" {
+		mpath, err := gojcbmock.GetMockPath()
+		if err != nil {
+			panic(err.Error())
+		}
+
+		globalMock, err = gojcbmock.NewMock(mpath, 4, 1, 64, []gojcbmock.BucketSpec{
+			{Name: "default", Type: gojcbmock.BCouchbase},
+			{Name: "memd", Type: gojcbmock.BMemcached},
+		}...)
+
+		if err != nil {
+			panic(err.Error())
+		}
+
+		connStr = fmt.Sprintf("http://127.0.0.1:%d", globalMock.EntryPort)
+	} else {
+		connStr = *server
 	}
-
-	globalMock, err = gojcbmock.NewMock(mpath, 4, 1, 64, []gojcbmock.BucketSpec{
-		{Name: "default", Type: gojcbmock.BCouchbase},
-		{Name: "memd", Type: gojcbmock.BMemcached},
-	}...)
-
-	if err != nil {
-		panic(err.Error())
-	}
-
-	connStr := fmt.Sprintf("http://127.0.0.1:%d", globalMock.EntryPort)
 
 	globalCluster, err = Connect(connStr)
 
@@ -40,7 +53,11 @@ func TestMain(m *testing.M) {
 		panic(err.Error())
 	}
 
-	globalBucket, err = globalCluster.OpenBucket("default", "")
+	if *user != "" {
+		globalCluster.Authenticate(PasswordAuthenticator{Username: *user, Password: *password})
+	}
+
+	globalBucket, err = globalCluster.OpenBucket(*bucketName, *bucketPassword)
 
 	if err != nil {
 		panic(err.Error())
@@ -61,4 +78,8 @@ func loadTestDataset(dataset string, valuePtr interface{}) error {
 	}
 
 	return nil
+}
+
+func IsMockServer() bool {
+	return globalMock != nil
 }
