@@ -85,6 +85,8 @@ var (
 
 	// ErrMixedAuthentication occurs when a combination of certification authentication and password authentication are used.
 	ErrMixedAuthentication = errors.New("Invalid mixed authentication configuration, cannot use cluster level authentication with bucket password authentication.")
+	// ErrMixedCertAuthentication occurs when client certificate authentication is setup but CertAuthenticator is not used or vise versa.
+	ErrMixedCertAuthentication = errors.New("Invalid mixed authentication configuration, client certificate and CertAuthenticator must be used together.")
 	// ErrDispatchFail occurs when we failed to execute an operation due to internal routing issues.
 	ErrDispatchFail = gocbcore.ErrDispatchFail
 	// ErrBadHosts occurs when an invalid list of hosts is specified for bootstrapping.

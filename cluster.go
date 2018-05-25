@@ -222,6 +222,17 @@ func (c *Cluster) Close() error {
 
 func (c *Cluster) makeAgentConfig(bucket, password string, forceMt bool) (*gocbcore.AgentConfig, error) {
 	auth := c.auth
+	useCertificates := c.agentConfig.TlsConfig != nil && len(c.agentConfig.TlsConfig.Certificates) > 0
+	if useCertificates {
+		if auth == nil {
+			return nil, ErrMixedCertAuthentication
+		}
+		_, ok := auth.(CertificateAuthenticator)
+		if !ok {
+			return nil, ErrMixedCertAuthentication
+		}
+	}
+
 	if auth == nil {
 		authMap := make(BucketAuthenticatorMap)
 		authMap[bucket] = BucketAuthenticator{
@@ -233,6 +244,10 @@ func (c *Cluster) makeAgentConfig(bucket, password string, forceMt bool) (*gocbc
 	} else {
 		if password != "" {
 			return nil, ErrMixedAuthentication
+		}
+		_, ok := auth.(CertificateAuthenticator)
+		if ok && !useCertificates {
+			return nil, ErrMixedCertAuthentication
 		}
 	}
 
