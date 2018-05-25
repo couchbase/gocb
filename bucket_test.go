@@ -11,9 +11,12 @@ import (
 	"gopkg.in/couchbaselabs/gojcbmock.v1"
 )
 
+const (
+	defaultServerVersion = "5.1.0"
+)
+
 var globalBucket *Bucket
-var globalMock *gojcbmock.Mock
-var globalCluster *Cluster
+var globalCluster *testCluster
 
 func TestMain(m *testing.M) {
 	SetLogger(VerboseStdioLogger())
@@ -23,17 +26,23 @@ func TestMain(m *testing.M) {
 	password := flag.String("pass", "", "The password to use to authenticate when using a real server")
 	bucketName := flag.String("bucket", "default", "The bucket to use to test against")
 	bucketPassword := flag.String("bucket-pass", "", "The bucket password to use when connecting to the bucket")
+	version := flag.String("version", "", "The server or mock version being tested against (major.minor.patch.build_edition)")
 	flag.Parse()
 
 	var err error
 	var connStr string
+	var mock *gojcbmock.Mock
 	if *server == "" {
+		if *version != "" {
+			panic("Version cannot be specified with mock")
+		}
+
 		mpath, err := gojcbmock.GetMockPath()
 		if err != nil {
 			panic(err.Error())
 		}
 
-		globalMock, err = gojcbmock.NewMock(mpath, 4, 1, 64, []gojcbmock.BucketSpec{
+		mock, err = gojcbmock.NewMock(mpath, 4, 1, 64, []gojcbmock.BucketSpec{
 			{Name: "default", Type: gojcbmock.BCouchbase},
 			{Name: "memd", Type: gojcbmock.BMemcached},
 		}...)
@@ -42,20 +51,31 @@ func TestMain(m *testing.M) {
 			panic(err.Error())
 		}
 
-		connStr = fmt.Sprintf("http://127.0.0.1:%d", globalMock.EntryPort)
+		*version = mock.Version()
+
+		connStr = fmt.Sprintf("http://127.0.0.1:%d", mock.EntryPort)
 	} else {
 		connStr = *server
+
+		if *version == "" {
+			*version = defaultServerVersion
+		}
 	}
 
-	globalCluster, err = Connect(connStr)
+	cluster, err := Connect(connStr)
 
 	if err != nil {
 		panic(err.Error())
 	}
 
-	if *user != "" {
-		globalCluster.Authenticate(PasswordAuthenticator{Username: *user, Password: *password})
+	nodeVersion, err := newNodeVersion(*version, mock != nil)
+	if err != nil {
+		panic(err.Error())
 	}
+
+	globalCluster = &testCluster{Cluster: cluster, Mock: mock, Version: nodeVersion}
+
+	globalCluster.Authenticate(PasswordAuthenticator{Username: *user, Password: *password})
 
 	globalBucket, err = globalCluster.OpenBucket(*bucketName, *bucketPassword)
 
@@ -78,8 +98,4 @@ func loadTestDataset(dataset string, valuePtr interface{}) error {
 	}
 
 	return nil
-}
-
-func IsMockServer() bool {
-	return globalMock != nil
 }
