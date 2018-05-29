@@ -132,7 +132,7 @@ type ServerStats map[string]map[string]string
 
 // Stats returns various server statistics from the cluster.
 func (b *Bucket) Stats(key string) (ServerStats, error) {
-	span := b.startKvOpTrace("Upsert")
+	span := b.startKvOpTrace("Stats")
 	defer span.Finish()
 
 	stats, err := b.stats(span.Context(), key)
