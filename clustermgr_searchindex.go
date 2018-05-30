@@ -38,6 +38,7 @@ const (
 )
 
 // SearchIndexManager provides methods for performing Couchbase FTS index management.
+// Experimental: This API is subject to change at any time.
 type SearchIndexManager struct {
 	cm *ClusterManager
 }

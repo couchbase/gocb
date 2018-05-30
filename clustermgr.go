@@ -409,6 +409,7 @@ func (cm *ClusterManager) RemoveUser(domain AuthDomain, name string) error {
 }
 
 // SearchIndexManager returns a SearchIndexManager for performing FTS index management on this cluster
+// Experimental: This API is subject to change at any time.
 func (cm *ClusterManager) SearchIndexManager() *SearchIndexManager {
 	return &SearchIndexManager{
 		cm: cm,
