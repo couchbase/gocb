@@ -83,6 +83,8 @@ type thresholdLogItem struct {
 	LastRemoteAddress      string `json:"last_remote_address,omitempty"`
 	LastLocalAddress       string `json:"last_local_address,omitempty"`
 	LastDispatchDurationUs uint64 `json:"last_dispatch_us,omitempty"`
+	LastOperationID        string `json:"last_operation_id,omitempty"`
+	LastLocalID            string `json:"last_local_id,omitempty"`
 }
 
 type thresholdLogService struct {
@@ -131,6 +133,8 @@ func (g *thresholdLogGroup) logRecordedRecords() {
 			DecodeDurationUs:       uint64(op.totalDecodeDuration / time.Microsecond),
 			LastRemoteAddress:      op.lastDispatchPeer,
 			LastDispatchDurationUs: uint64(op.lastDispatchDuration / time.Microsecond),
+			LastOperationID:        op.lastOperationID,
+			LastLocalID:            op.lastLocalID,
 		})
 	}
 
@@ -315,6 +319,8 @@ type thresholdLogSpan struct {
 	totalDecodeDuration   time.Duration
 	lastDispatchPeer      string
 	lastDispatchDuration  time.Duration
+	lastOperationID       string
+	lastLocalID           string
 }
 
 func (n *thresholdLogSpan) Context() opentracing.SpanContext {
@@ -344,6 +350,14 @@ func (n *thresholdLogSpan) SetTag(key string, value interface{}) opentracing.Spa
 	case "peer.address":
 		if n.peerAddress, ok = value.(string); !ok {
 			logDebugf("Failed to cast span peer.address tag")
+		}
+	case "couchbase.operation_id":
+		if n.lastOperationID, ok = value.(string); !ok {
+			logDebugf("Failed to cast span couchbase.operation_id tag")
+		}
+	case "couchbase.local_id":
+		if n.lastLocalID, ok = value.(string); !ok {
+			logDebugf("Failed to cast span couchbase.local_id tag")
 		}
 	}
 	return n
@@ -381,6 +395,12 @@ func (n *thresholdLogSpan) Finish() {
 		if n.lastDispatchPeer != "" || n.lastDispatchDuration > 0 {
 			n.parent.lastDispatchPeer = n.lastDispatchPeer
 			n.parent.lastDispatchDuration = n.lastDispatchDuration
+		}
+		if n.lastOperationID != "" {
+			n.parent.lastOperationID = n.lastOperationID
+		}
+		if n.lastLocalID != "" {
+			n.parent.lastLocalID = n.lastLocalID
 		}
 	}
 

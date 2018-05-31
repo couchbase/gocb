@@ -247,6 +247,7 @@ func (c *Cluster) executeN1qlQuery(tracectx opentracing.SpanContext, n1qlEp stri
 	//srvDuration, _ := time.ParseDuration(n1qlResp.Metrics.ExecutionTime)
 	//strace.SetTag("server_duration", srvDuration)
 
+	strace.SetTag("couchbase.operation_id", n1qlResp.RequestId)
 	strace.Finish()
 
 	if len(n1qlResp.Errors) > 0 {

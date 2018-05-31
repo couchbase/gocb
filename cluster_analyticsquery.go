@@ -192,6 +192,7 @@ func (c *Cluster) executeAnalyticsQuery(tracectx opentracing.SpanContext, analyt
 		logDebugf("Failed to close socket (%s)", err)
 	}
 
+	strace.SetTag("couchbase.operation_id", analyticsResp.RequestId)
 	strace.Finish()
 
 	if len(analyticsResp.Errors) > 0 {
@@ -262,7 +263,7 @@ func (c *Cluster) doAnalyticsQuery(tracectx opentracing.SpanContext, q *Analytic
 // Experimental: This API is subject to change at any time.
 func (c *Cluster) ExecuteAnalyticsQuery(q *AnalyticsQuery) (AnalyticsResults, error) {
 	span := c.agentConfig.Tracer.StartSpan("ExecuteAnalyticsQuery",
-		opentracing.Tag{Key: "couchbase.service", Value: "analytics"})
+		opentracing.Tag{Key: "couchbase.service", Value: "cbas"})
 	defer span.Finish()
 
 	return c.doAnalyticsQuery(span.Context(), q)
