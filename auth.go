@@ -140,4 +140,4 @@ func (ca CertAuthenticator) Credentials(req AuthCredsRequest) ([]UserPassPair, e
 
 // CertificateAuthenticator is included for backwards compatibility only.
 // Deprecated: Use CertAuthenticator instead.
-type CertificateAuthenticator CertAuthenticator
+type CertificateAuthenticator = CertAuthenticator
