@@ -48,11 +48,16 @@ func (b *Bucket) GetReplica(key string, valuePtr interface{}, replicaIdx int) (C
 }
 
 // Touch touches a document, specifying a new expiry time for it.
+// The Cas value must be 0.
 func (b *Bucket) Touch(key string, cas Cas, expiry uint32) (Cas, error) {
 	span := b.startKvOpTrace("Touch")
 	defer span.Finish()
 
-	cas, _, err := b.touch(span.Context(), key, cas, expiry)
+	if cas != 0 {
+		return 0, ErrNonZeroCas
+	}
+
+	cas, _, err := b.touch(span.Context(), key, expiry)
 	return cas, err
 }
 
@@ -302,11 +307,10 @@ func (b *Bucket) getReplica(tracectx opentracing.SpanContext, key string, valueP
 	return
 }
 
-func (b *Bucket) touch(tracectx opentracing.SpanContext, key string, cas Cas, expiry uint32) (casOut Cas, mtOut MutationToken, errOut error) {
+func (b *Bucket) touch(tracectx opentracing.SpanContext, key string, expiry uint32) (casOut Cas, mtOut MutationToken, errOut error) {
 	ctrl := b.newOpManager(tracectx)
 	err := ctrl.Wait(b.client.TouchEx(gocbcore.TouchOptions{
 		Key:          []byte(key),
-		Cas:          gocbcore.Cas(cas),
 		Expiry:       expiry,
 		TraceContext: tracectx,
 	}, func(res *gocbcore.TouchResult, err error) {

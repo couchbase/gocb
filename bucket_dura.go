@@ -198,11 +198,16 @@ func (b *Bucket) durability(tracectx opentracing.SpanContext, key string, cas Ca
 }
 
 // TouchDura touches a document, specifying a new expiry time for it.  Additionally checks document durability.
+// The Cas value must be 0.
 func (b *Bucket) TouchDura(key string, cas Cas, expiry uint32, replicateTo, persistTo uint) (Cas, error) {
 	span := b.startKvOpTrace("TouchDura")
 	defer span.Finish()
 
-	cas, mt, err := b.touch(span.Context(), key, cas, expiry)
+	if cas != 0 {
+		return 0, ErrNonZeroCas
+	}
+
+	cas, mt, err := b.touch(span.Context(), key, expiry)
 	if err != nil {
 		return cas, err
 	}
