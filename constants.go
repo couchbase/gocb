@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	goCbVersionStr = "v1.3.6"
+	goCbVersionStr = "v1.3.7"
 )
 
 const (
