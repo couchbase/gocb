@@ -37,7 +37,7 @@ func NewSearchSortScore() *SearchSortScore {
 
 // Descending specifies the ordering of the results.
 func (q *SearchSortScore) Descending(descending bool) *SearchSortScore {
-	q.options["descending"] = descending
+	q.options["desc"] = descending
 	return q
 }
 
@@ -55,7 +55,7 @@ func NewSearchSortId() *SearchSortId {
 
 // Descending specifies the ordering of the results.
 func (q *SearchSortId) Descending(descending bool) *SearchSortId {
-	q.options["descending"] = descending
+	q.options["desc"] = descending
 	return q
 }
 
@@ -92,7 +92,7 @@ func (q *SearchSortField) Missing(missing string) *SearchSortField {
 
 // Descending specifies the ordering of the results.
 func (q *SearchSortField) Descending(descending bool) *SearchSortField {
-	q.options["descending"] = descending
+	q.options["desc"] = descending
 	return q
 }
 
@@ -118,6 +118,6 @@ func (q *SearchSortGeoDistance) Unit(unit string) *SearchSortGeoDistance {
 
 // Descending specifies the ordering of the results.
 func (q *SearchSortGeoDistance) Descending(descending bool) *SearchSortGeoDistance {
-	q.options["descending"] = descending
+	q.options["desc"] = descending
 	return q
 }
