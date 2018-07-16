@@ -57,21 +57,20 @@ func Connect(connSpecStr string) (*Cluster, error) {
 		UseDurations:         true,
 		NoRootTraceSpans:     true,
 		UseCompression:       true,
+		UseZombieLogger:      true,
 	}
 	err = config.FromConnStr(connSpecStr)
 	if err != nil {
 		return nil, err
 	}
 
-	useTracing := false
+	useTracing := true
 	if valStr, ok := fetchOption("operation_tracing"); ok {
 		val, err := strconv.ParseBool(valStr)
 		if err != nil {
 			return nil, fmt.Errorf("operation_tracing option must be a boolean")
 		}
-		if val {
-			useTracing = true
-		}
+		useTracing = val
 	}
 
 	var initialTracer opentracing.Tracer
