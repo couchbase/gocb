@@ -94,6 +94,8 @@ type thresholdLogService struct {
 }
 
 func (g *thresholdLogGroup) logRecordedRecords(size uint32) {
+	oldOps := make([]*thresholdLogSpan, 0, size)
+
 	// Escape early if we have no ops to log...
 	g.lock.Lock()
 
@@ -106,7 +108,6 @@ func (g *thresholdLogGroup) logRecordedRecords(size uint32) {
 	// our ops from actually being recorded in other goroutines (which would
 	// effectively slow down the op pipeline for logging).
 
-	oldOps := make([]*thresholdLogSpan, 0, size)
 	copy(oldOps, g.ops)
 	g.ops = g.ops[:0]
 
