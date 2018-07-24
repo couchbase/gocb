@@ -94,13 +94,14 @@ type thresholdLogService struct {
 }
 
 func (g *thresholdLogGroup) logRecordedRecords() {
+	g.lock.Lock()
+
 	// capacity is static for the group, no need for a lock
 	sampleSize := cap(g.ops)
 
 	// Preallocate space to copy the ops into...
 	oldOps := make([]*thresholdLogSpan, sampleSize)
 
-	g.lock.Lock()
 	// Escape early if we have no ops to log...
 	if len(g.ops) == 0 {
 		g.lock.Unlock()
