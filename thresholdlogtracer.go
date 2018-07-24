@@ -93,15 +93,10 @@ type thresholdLogService struct {
 	Top     []thresholdLogItem `json:"top"`
 }
 
-func (g *thresholdLogGroup) logRecordedRecords() {
-	// capacity is static for the group, no need for a lock
-	sampleSize := cap(g.ops)
-
-	// Preallocate space to copy the ops into...
-	oldOps := make([]*thresholdLogSpan, sampleSize)
-
-	g.lock.Lock()
+func (g *thresholdLogGroup) logRecordedRecords(size uint32) {
 	// Escape early if we have no ops to log...
+	g.lock.Lock()
+
 	if len(g.ops) == 0 {
 		g.lock.Unlock()
 		return
@@ -111,7 +106,7 @@ func (g *thresholdLogGroup) logRecordedRecords() {
 	// our ops from actually being recorded in other goroutines (which would
 	// effectively slow down the op pipeline for logging).
 
-	oldOps = oldOps[0:len(g.ops)]
+	oldOps := make([]*thresholdLogSpan, 0, size)
 	copy(oldOps, g.ops)
 	g.ops = g.ops[:0]
 
@@ -195,11 +190,11 @@ func (t *ThresholdLoggingTracer) DecRef() int32 {
 func (t *ThresholdLoggingTracer) logRecordedRecords() {
 	logInfof("Threshold Log:")
 
-	t.kvGroup.logRecordedRecords()
-	t.viewsGroup.logRecordedRecords()
-	t.queryGroup.logRecordedRecords()
-	t.searchGroup.logRecordedRecords()
-	t.analyticsGroup.logRecordedRecords()
+	t.kvGroup.logRecordedRecords(t.SampleSize)
+	t.viewsGroup.logRecordedRecords(t.SampleSize)
+	t.queryGroup.logRecordedRecords(t.SampleSize)
+	t.searchGroup.logRecordedRecords(t.SampleSize)
+	t.analyticsGroup.logRecordedRecords(t.SampleSize)
 }
 
 func (t *ThresholdLoggingTracer) startLoggerRoutine() {
