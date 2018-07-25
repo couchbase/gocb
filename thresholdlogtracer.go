@@ -93,10 +93,7 @@ type thresholdLogService struct {
 	Top     []thresholdLogItem `json:"top"`
 }
 
-func (g *thresholdLogGroup) logRecordedRecords() {
-	// capacity is static for the group, no need for a lock
-	sampleSize := cap(g.ops)
-
+func (g *thresholdLogGroup) logRecordedRecords(sampleSize uint32) {
 	// Preallocate space to copy the ops into...
 	oldOps := make([]*thresholdLogSpan, sampleSize)
 
@@ -195,11 +192,11 @@ func (t *ThresholdLoggingTracer) DecRef() int32 {
 func (t *ThresholdLoggingTracer) logRecordedRecords() {
 	logInfof("Threshold Log:")
 
-	t.kvGroup.logRecordedRecords()
-	t.viewsGroup.logRecordedRecords()
-	t.queryGroup.logRecordedRecords()
-	t.searchGroup.logRecordedRecords()
-	t.analyticsGroup.logRecordedRecords()
+	t.kvGroup.logRecordedRecords(t.SampleSize)
+	t.viewsGroup.logRecordedRecords(t.SampleSize)
+	t.queryGroup.logRecordedRecords(t.SampleSize)
+	t.searchGroup.logRecordedRecords(t.SampleSize)
+	t.analyticsGroup.logRecordedRecords(t.SampleSize)
 }
 
 func (t *ThresholdLoggingTracer) startLoggerRoutine() {
