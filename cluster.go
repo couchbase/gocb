@@ -30,6 +30,36 @@ type Cluster struct {
 }
 
 // Connect creates a new Cluster object for a specific cluster.
+// These options are copied from (and should stay in sync with) the gocbcore agent.FromConnStr comment.
+// Supported connSpecStr options are:
+//   cacertpath (string) - Path to the CA certificate
+//   certpath (string) - Path to your authentication certificate
+//   keypath (string) - Path to your authentication key
+//   config_total_timeout (int) - Maximum period to attempt to connect to cluster in ms.
+//   config_node_timeout (int) - Maximum period to attempt to connect to a node in ms.
+//   http_redial_period (int) - Maximum period to keep HTTP config connections open in ms.
+//   http_retry_delay (int) - Period to wait between retrying nodes for HTTP config in ms.
+//   config_poll_floor_interval (int) - Minimum time to wait between fetching configs via CCCP in ms.
+//   config_poll_interval (int) - Period to wait between CCCP config polling in ms.
+//   kv_pool_size (int) - The number of connections to establish per node.
+//   max_queue_size (int) - The maximum size of the operation queues per node.
+//   use_kverrmaps (bool) - Whether to enable error maps from the server.
+//   use_enhanced_errors (bool) - Whether to enable enhanced error information.
+//   fetch_mutation_tokens (bool) - Whether to fetch mutation tokens for operations.
+//   compression (bool) - Whether to enable network-wise compression of documents.
+//   compression_min_size (int) - The minimal size of the document to consider compression.
+//   compression_min_ratio (float64) - The minimal compress ratio (compressed / original) for the document to be sent compressed.
+//   server_duration (bool) - Whether to enable fetching server operation durations.
+//   http_max_idle_conns (int) - Maximum number of idle http connections in the pool.
+//   http_max_idle_conns_per_host (int) - Maximum number of idle http connections in the pool per host.
+//   http_idle_conn_timeout (int) - Maximum length of time for an idle connection to stay in the pool in ms.
+//   network (string) - The network type to use.
+//   orphaned_response_logging (bool) - Whether to enable orphan response logging.
+//   orphaned_response_logging_interval (int) - How often to log orphan responses in ms.
+//   orphaned_response_logging_sample_size (int) - The number of samples to include in each orphaned response log.
+//   operation_tracing (bool) - Whether to enable tracing.
+//   n1ql_timeout (int) - Maximum execution time for n1ql queries in ms.
+//   fts_timeout (int) - Maximum execution time for fts searches in ms.
 func Connect(connSpecStr string) (*Cluster, error) {
 	spec, err := gocbconnstr.Parse(connSpecStr)
 	if err != nil {
