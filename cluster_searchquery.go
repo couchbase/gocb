@@ -260,11 +260,28 @@ func (c *Cluster) doSearchQuery(tracectx opentracing.SpanContext, b *Bucket, q *
 		opentracing.ChildOf(tracectx))
 
 	ftsResp := searchResponse{}
-	jsonDec := json.NewDecoder(resp.Body)
-	err = jsonDec.Decode(&ftsResp)
-	if err != nil {
-		strace.Finish()
-		return nil, err
+	switch resp.StatusCode {
+	case 200:
+		jsonDec := json.NewDecoder(resp.Body)
+		err = jsonDec.Decode(&ftsResp)
+		if err != nil {
+			strace.Finish()
+			return nil, err
+		}
+	case 400:
+		ftsResp.Status.Total = 1
+		ftsResp.Status.Failed = 1
+		buf := new(bytes.Buffer)
+		_, err := buf.ReadFrom(resp.Body)
+		if err != nil {
+			strace.Finish()
+			return nil, err
+		}
+		ftsResp.Errors = []string{buf.String()}
+	case 401:
+		ftsResp.Status.Total = 1
+		ftsResp.Status.Failed = 1
+		ftsResp.Errors = []string{"The requested consistency level could not be satisfied before the timeout was reached"}
 	}
 
 	err = resp.Body.Close()
@@ -274,7 +291,7 @@ func (c *Cluster) doSearchQuery(tracectx opentracing.SpanContext, b *Bucket, q *
 
 	strace.Finish()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != 200 && resp.StatusCode != 400 && resp.StatusCode != 401 {
 		return nil, &viewError{
 			Message: "HTTP Error",
 			Reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
