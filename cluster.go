@@ -25,8 +25,6 @@ type Cluster struct {
 	queryCache  map[string]*n1qlCache
 	bucketList  []*Bucket
 	httpCli     *http.Client
-
-	analyticsHosts []string
 }
 
 // Connect creates a new Cluster object for a specific cluster.
@@ -60,6 +58,7 @@ type Cluster struct {
 //   operation_tracing (bool) - Whether to enable tracing.
 //   n1ql_timeout (int) - Maximum execution time for n1ql queries in ms.
 //   fts_timeout (int) - Maximum execution time for fts searches in ms.
+//   analytics_timeout (int) - Maximum execution time for analytics queries in ms.
 func Connect(connSpecStr string) (*Cluster, error) {
 	spec, err := gocbconnstr.Parse(connSpecStr)
 	if err != nil {
@@ -142,6 +141,14 @@ func Connect(connSpecStr string) (*Cluster, error) {
 			return nil, fmt.Errorf("fts_timeout option must be a number")
 		}
 		cluster.ftsTimeout = time.Duration(val) * time.Millisecond
+	}
+
+	if valStr, ok := fetchOption("analytics_timeout"); ok {
+		val, err := strconv.ParseInt(valStr, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("analytics_timeout option must be a number")
+		}
+		cluster.analyticsTimeout = time.Duration(val) * time.Millisecond
 	}
 
 	return cluster, nil

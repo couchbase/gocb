@@ -17,14 +17,15 @@ type Bucket struct {
 	mtEnabled bool
 	tracer    opentracing.Tracer
 
-	transcoder      Transcoder
-	opTimeout       time.Duration
-	bulkOpTimeout   time.Duration
-	duraTimeout     time.Duration
-	duraPollTimeout time.Duration
-	viewTimeout     time.Duration
-	n1qlTimeout     time.Duration
-	ftsTimeout      time.Duration
+	transcoder       Transcoder
+	opTimeout        time.Duration
+	bulkOpTimeout    time.Duration
+	duraTimeout      time.Duration
+	duraPollTimeout  time.Duration
+	viewTimeout      time.Duration
+	n1qlTimeout      time.Duration
+	ftsTimeout       time.Duration
+	analyticsTimeout time.Duration
 
 	internal *BucketInternal
 
@@ -52,13 +53,14 @@ func createBucket(cluster *Cluster, config *gocbcore.AgentConfig) (*Bucket, erro
 		transcoder: &DefaultTranscoder{},
 		tracer:     config.Tracer,
 
-		opTimeout:       2500 * time.Millisecond,
-		bulkOpTimeout:   10000 * time.Millisecond,
-		duraTimeout:     40000 * time.Millisecond,
-		duraPollTimeout: 100 * time.Millisecond,
-		viewTimeout:     75 * time.Second,
-		n1qlTimeout:     75 * time.Second,
-		ftsTimeout:      75 * time.Second,
+		opTimeout:        2500 * time.Millisecond,
+		bulkOpTimeout:    10000 * time.Millisecond,
+		duraTimeout:      40000 * time.Millisecond,
+		duraPollTimeout:  100 * time.Millisecond,
+		viewTimeout:      75 * time.Second,
+		n1qlTimeout:      75 * time.Second,
+		ftsTimeout:       75 * time.Second,
+		analyticsTimeout: 75 * time.Second,
 
 		searchQueryRetryBehavior: NewQueryDelayRetryBehavior(10, 2, 500*time.Millisecond, QueryExponentialDelayFunction),
 	}
@@ -143,6 +145,16 @@ func (b *Bucket) SetN1qlTimeout(timeout time.Duration) {
 	b.n1qlTimeout = timeout
 }
 
+// AnalyticsTimeout returns the maximum amount of time to wait for an Analytics query to complete.
+func (b *Bucket) AnalyticsTimeout() time.Duration {
+	return b.analyticsTimeout
+}
+
+// SetAnalyticsTimeout sets the maximum amount of time to wait for an Analytics query to complete.
+func (b *Bucket) SetAnalyticsTimeout(timeout time.Duration) {
+	b.analyticsTimeout = timeout
+}
+
 // SetTranscoder specifies a Transcoder to use when translating documents from their
 //  raw byte format to Go types and back.
 func (b *Bucket) SetTranscoder(transcoder Transcoder) {
@@ -184,7 +196,7 @@ func (b *Bucket) getN1qlEp() (string, error) {
 }
 
 func (b *Bucket) getCbasEp() (string, error) {
-	cbasEps := b.cluster.analyticsHosts
+	cbasEps := b.client.CbasEps()
 	if len(cbasEps) == 0 {
 		return "", &clientError{"No available Analytics nodes."}
 	}

@@ -4,9 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net/http"
-	"strings"
+	"strconv"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -21,12 +20,33 @@ func (e *analyticsError) Error() string {
 	return fmt.Sprintf("[%d] %s", e.Code, e.Message)
 }
 
+// AnalyticsWarning represents any warning generating during the execution of an Analytics query.
+type AnalyticsWarning struct {
+	Code    uint32 `json:"code"`
+	Message string `json:"msg"`
+}
+
 type analyticsResponse struct {
-	RequestId       string            `json:"requestID"`
-	ClientContextId string            `json:"clientContextID"`
-	Results         []json.RawMessage `json:"results,omitempty"`
-	Errors          []analyticsError  `json:"errors,omitempty"`
-	Status          string            `json:"status"`
+	RequestId       string                   `json:"requestID"`
+	ClientContextId string                   `json:"clientContextID"`
+	Results         []json.RawMessage        `json:"results,omitempty"`
+	Errors          []analyticsError         `json:"errors,omitempty"`
+	Warnings        []AnalyticsWarning       `json:"warnings,omitempty"`
+	Status          string                   `json:"status,omitempty"`
+	Signature       interface{}              `json:"signature,omitempty"`
+	Metrics         analyticsResponseMetrics `json:"metrics,omitempty"`
+}
+
+type analyticsResponseMetrics struct {
+	ElapsedTime      string `json:"elapsedTime"`
+	ExecutionTime    string `json:"executionTime"`
+	ResultCount      uint   `json:"resultCount"`
+	ResultSize       uint   `json:"resultSize"`
+	MutationCount    uint   `json:"mutationCount,omitempty"`
+	SortCount        uint   `json:"sortCount,omitempty"`
+	ErrorCount       uint   `json:"errorCount,omitempty"`
+	WarningCount     uint   `json:"warningCount,omitempty"`
+	ProcessedObjects uint   `json:"processedObjects,omitempty"`
 }
 
 type analyticsMultiError []analyticsError
@@ -39,6 +59,19 @@ func (e *analyticsMultiError) Code() uint32 {
 	return (*e)[0].Code
 }
 
+// AnalyticsResultMetrics encapsulates various metrics gathered during a queries execution.
+type AnalyticsResultMetrics struct {
+	ElapsedTime      time.Duration
+	ExecutionTime    time.Duration
+	ResultCount      uint
+	ResultSize       uint
+	MutationCount    uint
+	SortCount        uint
+	ErrorCount       uint
+	WarningCount     uint
+	ProcessedObjects uint
+}
+
 // AnalyticsResults allows access to the results of a Analytics query.
 type AnalyticsResults interface {
 	One(valuePtr interface{}) error
@@ -48,6 +81,10 @@ type AnalyticsResults interface {
 
 	RequestId() string
 	ClientContextId() string
+	Status() string
+	Warnings() []AnalyticsWarning
+	Signature() interface{}
+	Metrics() AnalyticsResultMetrics
 }
 
 type analyticsResults struct {
@@ -57,6 +94,10 @@ type analyticsResults struct {
 	err             error
 	requestId       string
 	clientContextId string
+	status          string
+	warnings        []AnalyticsWarning
+	signature       interface{}
+	metrics         AnalyticsResultMetrics
 }
 
 func (r *analyticsResults) Next(valuePtr interface{}) bool {
@@ -115,6 +156,22 @@ func (r *analyticsResults) One(valuePtr interface{}) error {
 	return nil
 }
 
+func (r *analyticsResults) Warnings() []AnalyticsWarning {
+	return r.warnings
+}
+
+func (r *analyticsResults) Status() string {
+	return r.status
+}
+
+func (r *analyticsResults) Signature() interface{} {
+	return r.signature
+}
+
+func (r *analyticsResults) Metrics() AnalyticsResultMetrics {
+	return r.metrics
+}
+
 func (r *analyticsResults) RequestId() string {
 	if !r.closed {
 		panic("Result must be closed before accessing meta-data")
@@ -132,7 +189,7 @@ func (r *analyticsResults) ClientContextId() string {
 }
 
 func (c *Cluster) executeAnalyticsQuery(tracectx opentracing.SpanContext, analyticsEp string, opts map[string]interface{}, creds []UserPassPair, timeout time.Duration, client *http.Client) (AnalyticsResults, error) {
-	reqUri := fmt.Sprintf("%s/query/service", analyticsEp)
+	reqUri := fmt.Sprintf("%s/analytics/service", analyticsEp)
 
 	tmostr, castok := opts["timeout"].(string)
 	if castok {
@@ -150,6 +207,11 @@ func (c *Cluster) executeAnalyticsQuery(tracectx opentracing.SpanContext, analyt
 		opts["creds"] = creds
 	}
 
+	priority, priorityCastok := opts["priority"].(int)
+	if priorityCastok {
+		delete(opts, "priority")
+	}
+
 	reqJson, err := json.Marshal(opts)
 	if err != nil {
 		return nil, err
@@ -160,6 +222,10 @@ func (c *Cluster) executeAnalyticsQuery(tracectx opentracing.SpanContext, analyt
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+
+	if priorityCastok {
+		req.Header.Set("Analytics-Priority", strconv.Itoa(priority))
+	}
 
 	if len(creds) == 1 {
 		req.SetBasicAuth(creds[0].Username, creds[0].Password)
@@ -199,6 +265,16 @@ func (c *Cluster) executeAnalyticsQuery(tracectx opentracing.SpanContext, analyt
 		return nil, (*analyticsMultiError)(&analyticsResp.Errors)
 	}
 
+	elapsedTime, err := time.ParseDuration(analyticsResp.Metrics.ElapsedTime)
+	if err != nil {
+		logDebugf("Failed to parse elapsed time duration (%s)", err)
+	}
+
+	executionTime, err := time.ParseDuration(analyticsResp.Metrics.ExecutionTime)
+	if err != nil {
+		logDebugf("Failed to parse execution time duration (%s)", err)
+	}
+
 	if resp.StatusCode != 200 {
 		return nil, &viewError{
 			Message: "HTTP Error",
@@ -211,51 +287,103 @@ func (c *Cluster) executeAnalyticsQuery(tracectx opentracing.SpanContext, analyt
 		clientContextId: analyticsResp.ClientContextId,
 		index:           -1,
 		rows:            analyticsResp.Results,
+		signature:       analyticsResp.Signature,
+		status:          analyticsResp.Status,
+		warnings:        analyticsResp.Warnings,
+		metrics: AnalyticsResultMetrics{
+			ElapsedTime:      elapsedTime,
+			ExecutionTime:    executionTime,
+			ResultCount:      analyticsResp.Metrics.ResultCount,
+			ResultSize:       analyticsResp.Metrics.ResultSize,
+			MutationCount:    analyticsResp.Metrics.MutationCount,
+			SortCount:        analyticsResp.Metrics.SortCount,
+			ErrorCount:       analyticsResp.Metrics.ErrorCount,
+			WarningCount:     analyticsResp.Metrics.WarningCount,
+			ProcessedObjects: analyticsResp.Metrics.ProcessedObjects,
+		},
 	}, nil
 }
 
-// EnableAnalytics allows you to specify Analytics hosts to perform queries against.
-//
-// Experimental: This API is only needed temporarily until full integration of the
-// Analytics service into Couchbase Server has been completed.
-func (c *Cluster) EnableAnalytics(hosts []string) {
-	c.analyticsHosts = make([]string, len(hosts))
+// Performs a spatial query and returns a list of rows or an error.
+func (c *Cluster) doAnalyticsQuery(tracectx opentracing.SpanContext, b *Bucket, q *AnalyticsQuery) (AnalyticsResults, error) {
+	var err error
+	var cbasEp string
+	var timeout time.Duration
+	var client *http.Client
+	var creds []UserPassPair
+	var clientContextId string
 
-	for i, host := range hosts {
-		host := strings.TrimPrefix(strings.TrimPrefix(host, "http://"), "https://")
-
-		if c.agentConfig.TlsConfig == nil {
-			host = "http://" + host
-		} else {
-			host = "https://" + host
+	if b != nil {
+		cbasEp, err = b.getCbasEp()
+		if err != nil {
+			return nil, err
 		}
 
-		c.analyticsHosts[i] = host
+		if b.analyticsTimeout < c.analyticsTimeout {
+			timeout = b.analyticsTimeout
+		} else {
+			timeout = c.analyticsTimeout
+		}
+		client = b.client.HttpClient()
+		if c.auth != nil {
+			creds, err = c.auth.Credentials(AuthCredsRequest{
+				Service:  CbasService,
+				Endpoint: cbasEp,
+				Bucket:   b.name,
+			})
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			creds = []UserPassPair{
+				{
+					Username: b.name,
+					Password: b.password,
+				},
+			}
+		}
+
+		clientContextId = b.client.ClientId()
+	} else {
+		if c.auth == nil {
+			panic("Cannot perform cluster level queries without Cluster Authenticator.")
+		}
+
+		tmpB, err := c.randomBucket()
+		if err != nil {
+			return nil, err
+		}
+
+		cbasEp, err = tmpB.getCbasEp()
+		if err != nil {
+			return nil, err
+		}
+
+		timeout = c.analyticsTimeout
+		client = tmpB.client.HttpClient()
+
+		creds, err = c.auth.Credentials(AuthCredsRequest{
+			Service:  CbasService,
+			Endpoint: cbasEp,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		clientContextId = tmpB.client.ClientId()
 	}
-}
 
-// Performs a spatial query and returns a list of rows or an error.
-func (c *Cluster) doAnalyticsQuery(tracectx opentracing.SpanContext, q *AnalyticsQuery) (AnalyticsResults, error) {
-	numHosts := len(c.analyticsHosts)
-	if numHosts == 0 {
-		return nil, fmt.Errorf("must specify analytics hosts with EnableAnalytics first")
+	execOpts := make(map[string]interface{})
+	for k, v := range q.options {
+		execOpts[k] = v
 	}
 
-	analyticsEp := c.analyticsHosts[rand.Intn(numHosts)]
-
-	if c.auth == nil {
-		panic("Cannot perform cluster level queries without Cluster Authenticator.")
+	_, castok := execOpts["client_context_id"]
+	if !castok {
+		execOpts["client_context_id"] = clientContextId
 	}
 
-	creds, err := c.auth.Credentials(AuthCredsRequest{
-		Service:  CbasService,
-		Endpoint: analyticsEp,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return c.executeAnalyticsQuery(tracectx, analyticsEp, q.options, creds, c.analyticsTimeout, c.httpCli)
+	return c.executeAnalyticsQuery(tracectx, cbasEp, execOpts, creds, timeout, client)
 }
 
 // ExecuteAnalyticsQuery performs an analytics query and returns a list of rows or an error.
@@ -266,5 +394,5 @@ func (c *Cluster) ExecuteAnalyticsQuery(q *AnalyticsQuery) (AnalyticsResults, er
 		opentracing.Tag{Key: "couchbase.service", Value: "cbas"})
 	defer span.Finish()
 
-	return c.doAnalyticsQuery(span.Context(), q)
+	return c.doAnalyticsQuery(span.Context(), nil, q)
 }

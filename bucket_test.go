@@ -1,8 +1,10 @@
 package gocb
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"testing"
 
@@ -45,4 +47,18 @@ func TestMain(m *testing.M) {
 	}
 
 	os.Exit(m.Run())
+}
+
+func loadTestDataset(dataset string, valuePtr interface{}) error {
+	bytes, err := ioutil.ReadFile("testdata/" + dataset + ".json")
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(bytes, &valuePtr)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
