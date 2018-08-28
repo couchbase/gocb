@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -305,7 +306,7 @@ func (c *Cluster) executeAnalyticsQuery(tracectx opentracing.SpanContext, analyt
 }
 
 // Performs a spatial query and returns a list of rows or an error.
-func (c *Cluster) doAnalyticsQuery(tracectx opentracing.SpanContext, b *Bucket, q *AnalyticsQuery) (AnalyticsResults, error) {
+func (c *Cluster) doAnalyticsQuery(tracectx opentracing.SpanContext, b *Bucket, q *AnalyticsQuery, params interface{}) (AnalyticsResults, error) {
 	var err error
 	var cbasEp string
 	var timeout time.Duration
@@ -377,6 +378,24 @@ func (c *Cluster) doAnalyticsQuery(tracectx opentracing.SpanContext, b *Bucket, 
 	for k, v := range q.options {
 		execOpts[k] = v
 	}
+	if params != nil {
+		args, isArray := params.([]interface{})
+		if isArray {
+			execOpts["args"] = args
+		} else {
+			mapArgs, isMap := params.(map[string]interface{})
+			if isMap {
+				for key, value := range mapArgs {
+					if !strings.HasPrefix(key, "$") {
+						key = "$" + key
+					}
+					execOpts[key] = value
+				}
+			} else {
+				panic("Invalid params argument passed")
+			}
+		}
+	}
 
 	_, castok := execOpts["client_context_id"]
 	if !castok {
@@ -387,12 +406,10 @@ func (c *Cluster) doAnalyticsQuery(tracectx opentracing.SpanContext, b *Bucket, 
 }
 
 // ExecuteAnalyticsQuery performs an analytics query and returns a list of rows or an error.
-//
-// Experimental: This API is subject to change at any time.
-func (c *Cluster) ExecuteAnalyticsQuery(q *AnalyticsQuery) (AnalyticsResults, error) {
+func (c *Cluster) ExecuteAnalyticsQuery(q *AnalyticsQuery, params interface{}) (AnalyticsResults, error) {
 	span := c.agentConfig.Tracer.StartSpan("ExecuteAnalyticsQuery",
 		opentracing.Tag{Key: "couchbase.service", Value: "cbas"})
 	defer span.Finish()
 
-	return c.doAnalyticsQuery(span.Context(), nil, q)
+	return c.doAnalyticsQuery(span.Context(), nil, q, params)
 }
