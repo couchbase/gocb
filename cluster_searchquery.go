@@ -117,43 +117,35 @@ func (r searchResults) MaxScore() float64 {
 	return r.data.MaxScore
 }
 
+type searchError struct {
+	status int
+	err    viewError
+}
+
+func (e *searchError) Error() string {
+	return e.err.Error()
+}
+
+func (e *searchError) Retryable() bool {
+	return e.status == 429
+}
+
 // Performs a spatial query and returns a list of rows or an error.
 func (c *Cluster) doSearchQuery(tracectx opentracing.SpanContext, b *Bucket, q *SearchQuery) (SearchResults, error) {
 	var err error
 	var ftsEp string
 	var timeout time.Duration
-	var client *http.Client
 	var creds []UserPassPair
+	var selectedB *Bucket
 
 	if b != nil {
-		ftsEp, err = b.getFtsEp()
-		if err != nil {
-			return nil, err
-		}
-
 		if b.ftsTimeout < c.ftsTimeout {
 			timeout = b.ftsTimeout
 		} else {
 			timeout = c.ftsTimeout
 		}
-		client = b.client.HttpClient()
-		if c.auth != nil {
-			creds, err = c.auth.Credentials(AuthCredsRequest{
-				Service:  FtsService,
-				Endpoint: ftsEp,
-				Bucket:   b.name,
-			})
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			creds = []UserPassPair{
-				{
-					Username: b.name,
-					Password: b.password,
-				},
-			}
-		}
+
+		selectedB = b
 	} else {
 		if c.auth == nil {
 			panic("Cannot perform cluster level queries without Cluster Authenticator.")
@@ -164,22 +156,13 @@ func (c *Cluster) doSearchQuery(tracectx opentracing.SpanContext, b *Bucket, q *
 			return nil, err
 		}
 
-		ftsEp, err = tmpB.getFtsEp()
-		if err != nil {
-			return nil, err
-		}
-
 		timeout = c.ftsTimeout
-		client = tmpB.client.HttpClient()
 
-		creds, err = c.auth.Credentials(AuthCredsRequest{
-			Service:  FtsService,
-			Endpoint: ftsEp,
-		})
-		if err != nil {
-			return nil, err
-		}
+		selectedB = tmpB
 	}
+
+	client := selectedB.client.HttpClient()
+	retryBehavior := selectedB.searchQueryRetryBehavior
 
 	qIndexName := q.indexName()
 	qBytes, err := json.Marshal(q.queryData())
@@ -228,7 +211,68 @@ func (c *Cluster) doSearchQuery(tracectx opentracing.SpanContext, b *Bucket, q *
 		}
 	}
 
-	qBytes, err = json.Marshal(queryData)
+	var retries uint
+	var res SearchResults
+	start := time.Now()
+	for time.Now().Sub(start) <= time.Duration(qTimeout) {
+		retries++
+		ftsEp, err = selectedB.getFtsEp()
+		if err != nil {
+			return nil, err
+		}
+
+		// as the endpoint has possibly changed we need to refresh the creds
+		if b != nil {
+			if c.auth != nil {
+				creds, err = c.auth.Credentials(AuthCredsRequest{
+					Service:  FtsService,
+					Endpoint: ftsEp,
+					Bucket:   b.name,
+				})
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				creds = []UserPassPair{
+					{
+						Username: b.name,
+						Password: b.password,
+					},
+				}
+			}
+		} else {
+			creds, err = c.auth.Credentials(AuthCredsRequest{
+				Service:  FtsService,
+				Endpoint: ftsEp,
+			})
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		res, err = c.executeSearchQuery(tracectx, ftsEp, queryData, creds, timeout, qIndexName, client)
+		if err == nil {
+			return res, nil
+		}
+
+		searchErr, isSearchErr := err.(*searchError)
+		if !(isSearchErr && searchErr.Retryable()) {
+			return nil, err
+		}
+
+		if !retryBehavior.CanRetry(retries) {
+			break
+		}
+
+		time.Sleep(retryBehavior.NextInterval(retries))
+	}
+
+	return res, err
+}
+
+func (c *Cluster) executeSearchQuery(tracectx opentracing.SpanContext, ftsEp string, queryData jsonx.DelayedObject,
+	creds []UserPassPair, timeout time.Duration, qIndexName string, client *http.Client) (SearchResults, error) {
+	qBytes, err := json.Marshal(queryData)
 	if err != nil {
 		return nil, err
 	}
@@ -260,6 +304,7 @@ func (c *Cluster) doSearchQuery(tracectx opentracing.SpanContext, b *Bucket, q *
 		opentracing.ChildOf(tracectx))
 
 	ftsResp := searchResponse{}
+	errHandled := false
 	switch resp.StatusCode {
 	case 200:
 		jsonDec := json.NewDecoder(resp.Body)
@@ -278,10 +323,12 @@ func (c *Cluster) doSearchQuery(tracectx opentracing.SpanContext, b *Bucket, q *
 			return nil, err
 		}
 		ftsResp.Errors = []string{buf.String()}
+		errHandled = true
 	case 401:
 		ftsResp.Status.Total = 1
 		ftsResp.Status.Failed = 1
 		ftsResp.Errors = []string{"The requested consistency level could not be satisfied before the timeout was reached"}
+		errHandled = true
 	}
 
 	err = resp.Body.Close()
@@ -291,11 +338,13 @@ func (c *Cluster) doSearchQuery(tracectx opentracing.SpanContext, b *Bucket, q *
 
 	strace.Finish()
 
-	if resp.StatusCode != 200 && resp.StatusCode != 400 && resp.StatusCode != 401 {
-		return nil, &viewError{
-			Message: "HTTP Error",
-			Reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
-		}
+	if resp.StatusCode != 200 && !errHandled {
+		return nil, &searchError{
+			status: resp.StatusCode,
+			err: viewError{
+				Message: "HTTP Error",
+				Reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
+			}}
 	}
 
 	return searchResults{
