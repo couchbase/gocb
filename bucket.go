@@ -29,7 +29,8 @@ type Bucket struct {
 
 	internal *BucketInternal
 
-	searchQueryRetryBehavior QueryRetryBehavior
+	analyticsQueryRetryBehavior QueryRetryBehavior
+	searchQueryRetryBehavior    QueryRetryBehavior
 }
 
 func (b *Bucket) startKvOpTrace(operationName string) opentracing.Span {
@@ -62,7 +63,8 @@ func createBucket(cluster *Cluster, config *gocbcore.AgentConfig) (*Bucket, erro
 		ftsTimeout:       75 * time.Second,
 		analyticsTimeout: 75 * time.Second,
 
-		searchQueryRetryBehavior: NewQueryDelayRetryBehavior(10, 2, 500*time.Millisecond, QueryExponentialDelayFunction),
+		analyticsQueryRetryBehavior: NewQueryDelayRetryBehavior(10, 2, 500*time.Millisecond, QueryExponentialDelayFunction),
+		searchQueryRetryBehavior:    NewQueryDelayRetryBehavior(10, 2, 500*time.Millisecond, QueryExponentialDelayFunction),
 	}
 	bucket.internal = &BucketInternal{
 		b: bucket,
@@ -123,6 +125,11 @@ func (b *Bucket) SetDurabilityPollTimeout(timeout time.Duration) {
 // SetSearchQueryRetryBehavior sets the retry behavior to use for retrying queries.
 func (b *Bucket) SetSearchQueryRetryBehavior(retryBehavior QueryRetryBehavior) {
 	b.searchQueryRetryBehavior = retryBehavior
+}
+
+// SetAnalyticsQueryRetryBehavior sets the retry behavior to use for retrying queries.
+func (b *Bucket) SetAnalyticsQueryRetryBehavior(retryBehavior QueryRetryBehavior) {
+	b.analyticsQueryRetryBehavior = retryBehavior
 }
 
 // ViewTimeout returns the maximum amount of time to wait for a view query to complete.

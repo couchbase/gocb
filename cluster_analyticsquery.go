@@ -192,25 +192,13 @@ func (r *analyticsResults) ClientContextId() string {
 func (c *Cluster) executeAnalyticsQuery(tracectx opentracing.SpanContext, analyticsEp string, opts map[string]interface{}, creds []UserPassPair, timeout time.Duration, client *http.Client) (AnalyticsResults, error) {
 	reqUri := fmt.Sprintf("%s/analytics/service", analyticsEp)
 
-	tmostr, castok := opts["timeout"].(string)
-	if castok {
-		var err error
-		timeout, err = time.ParseDuration(tmostr)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		// Set the timeout string to its default variant
-		opts["timeout"] = timeout.String()
+	priority, priorityCastok := opts["priority"].(int)
+	if priorityCastok {
+		delete(opts, "priority")
 	}
 
 	if len(creds) > 1 {
 		opts["creds"] = creds
-	}
-
-	priority, priorityCastok := opts["priority"].(int)
-	if priorityCastok {
-		delete(opts, "priority")
 	}
 
 	reqJson, err := json.Marshal(opts)
@@ -262,10 +250,6 @@ func (c *Cluster) executeAnalyticsQuery(tracectx opentracing.SpanContext, analyt
 	strace.SetTag("couchbase.operation_id", analyticsResp.RequestId)
 	strace.Finish()
 
-	if len(analyticsResp.Errors) > 0 {
-		return nil, (*analyticsMultiError)(&analyticsResp.Errors)
-	}
-
 	elapsedTime, err := time.ParseDuration(analyticsResp.Metrics.ElapsedTime)
 	if err != nil {
 		logDebugf("Failed to parse elapsed time duration (%s)", err)
@@ -274,6 +258,10 @@ func (c *Cluster) executeAnalyticsQuery(tracectx opentracing.SpanContext, analyt
 	executionTime, err := time.ParseDuration(analyticsResp.Metrics.ExecutionTime)
 	if err != nil {
 		logDebugf("Failed to parse execution time duration (%s)", err)
+	}
+
+	if len(analyticsResp.Errors) > 0 {
+		return nil, (*analyticsMultiError)(&analyticsResp.Errors)
 	}
 
 	if resp.StatusCode != 200 {
@@ -310,41 +298,17 @@ func (c *Cluster) doAnalyticsQuery(tracectx opentracing.SpanContext, b *Bucket, 
 	var err error
 	var cbasEp string
 	var timeout time.Duration
-	var client *http.Client
 	var creds []UserPassPair
-	var clientContextId string
+	var selectedB *Bucket
 
 	if b != nil {
-		cbasEp, err = b.getCbasEp()
-		if err != nil {
-			return nil, err
-		}
-
 		if b.analyticsTimeout < c.analyticsTimeout {
 			timeout = b.analyticsTimeout
 		} else {
 			timeout = c.analyticsTimeout
 		}
-		client = b.client.HttpClient()
-		if c.auth != nil {
-			creds, err = c.auth.Credentials(AuthCredsRequest{
-				Service:  CbasService,
-				Endpoint: cbasEp,
-				Bucket:   b.name,
-			})
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			creds = []UserPassPair{
-				{
-					Username: b.name,
-					Password: b.password,
-				},
-			}
-		}
 
-		clientContextId = b.client.ClientId()
+		selectedB = b
 	} else {
 		if c.auth == nil {
 			panic("Cannot perform cluster level queries without Cluster Authenticator.")
@@ -355,24 +319,14 @@ func (c *Cluster) doAnalyticsQuery(tracectx opentracing.SpanContext, b *Bucket, 
 			return nil, err
 		}
 
-		cbasEp, err = tmpB.getCbasEp()
-		if err != nil {
-			return nil, err
-		}
-
 		timeout = c.analyticsTimeout
-		client = tmpB.client.HttpClient()
 
-		creds, err = c.auth.Credentials(AuthCredsRequest{
-			Service:  CbasService,
-			Endpoint: cbasEp,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		clientContextId = tmpB.client.ClientId()
+		selectedB = tmpB
 	}
+
+	client := selectedB.client.HttpClient()
+	clientContextId := selectedB.client.ClientId()
+	retryBehavior := selectedB.analyticsQueryRetryBehavior
 
 	execOpts := make(map[string]interface{})
 	for k, v := range q.options {
@@ -402,7 +356,83 @@ func (c *Cluster) doAnalyticsQuery(tracectx opentracing.SpanContext, b *Bucket, 
 		execOpts["client_context_id"] = clientContextId
 	}
 
-	return c.executeAnalyticsQuery(tracectx, cbasEp, execOpts, creds, timeout, client)
+	tmostr, castok := execOpts["timeout"].(string)
+	if castok {
+		var err error
+		timeout, err = time.ParseDuration(tmostr)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Set the timeout string to its default variant
+		execOpts["timeout"] = timeout.String()
+	}
+
+	var retries uint
+	var res AnalyticsResults
+	start := time.Now()
+	for time.Now().Sub(start) <= time.Duration(timeout) {
+		retries++
+		cbasEp, err = selectedB.getCbasEp()
+		if err != nil {
+			return nil, err
+		}
+
+		if b != nil {
+			if c.auth != nil {
+				creds, err = c.auth.Credentials(AuthCredsRequest{
+					Service:  CbasService,
+					Endpoint: cbasEp,
+					Bucket:   b.name,
+				})
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				creds = []UserPassPair{
+					{
+						Username: b.name,
+						Password: b.password,
+					},
+				}
+			}
+		} else {
+			creds, err = c.auth.Credentials(AuthCredsRequest{
+				Service:  CbasService,
+				Endpoint: cbasEp,
+			})
+			if err != nil {
+				return nil, err
+			}
+
+		}
+
+		etrace := c.agentConfig.Tracer.StartSpan("execute",
+			opentracing.ChildOf(tracectx))
+		res, err = c.executeAnalyticsQuery(tracectx, cbasEp, execOpts, creds, timeout, client)
+		if err == nil {
+			etrace.Finish()
+			return res, nil
+		}
+
+		etrace.Finish()
+
+		analyticsErr, isAnalyticsErr := err.(*analyticsMultiError)
+		if !isAnalyticsErr {
+			return nil, err
+		}
+		if analyticsErr.Code() != 21002 && analyticsErr.Code() != 23000 && analyticsErr.Code() != 23003 && analyticsErr.Code() != 23007 {
+			return nil, err
+		}
+
+		if !retryBehavior.CanRetry(retries) {
+			break
+		}
+
+		time.Sleep(retryBehavior.NextInterval(retries))
+	}
+
+	return res, err
 }
 
 // ExecuteAnalyticsQuery performs an analytics query and returns a list of rows or an error.
