@@ -85,6 +85,7 @@ type thresholdLogItem struct {
 	LastDispatchDurationUs uint64 `json:"last_dispatch_us,omitempty"`
 	LastOperationID        string `json:"last_operation_id,omitempty"`
 	LastLocalID            string `json:"last_local_id,omitempty"`
+	DocumentKey            string `json:"document_key,omitempty"`
 }
 
 type thresholdLogService struct {
@@ -132,6 +133,7 @@ func (g *thresholdLogGroup) logRecordedRecords(sampleSize uint32) {
 			LastDispatchDurationUs: uint64(op.lastDispatchDuration / time.Microsecond),
 			LastOperationID:        op.lastOperationID,
 			LastLocalID:            op.lastLocalID,
+			DocumentKey:            op.documentKey,
 		})
 	}
 
@@ -318,6 +320,7 @@ type thresholdLogSpan struct {
 	lastDispatchDuration  time.Duration
 	lastOperationID       string
 	lastLocalID           string
+	documentKey           string
 }
 
 func (n *thresholdLogSpan) Context() opentracing.SpanContext {
@@ -351,6 +354,10 @@ func (n *thresholdLogSpan) SetTag(key string, value interface{}) opentracing.Spa
 	case "couchbase.operation_id":
 		if n.lastOperationID, ok = value.(string); !ok {
 			logDebugf("Failed to cast span couchbase.operation_id tag")
+		}
+	case "couchbase.document_key":
+		if n.documentKey, ok = value.(string); !ok {
+			logDebugf("Failed to cast span couchbase.document_key tag")
 		}
 	case "couchbase.local_id":
 		if n.lastLocalID, ok = value.(string); !ok {
@@ -398,6 +405,9 @@ func (n *thresholdLogSpan) Finish() {
 		}
 		if n.lastLocalID != "" {
 			n.parent.lastLocalID = n.lastLocalID
+		}
+		if n.documentKey != "" {
+			n.parent.documentKey = n.documentKey
 		}
 	}
 

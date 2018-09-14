@@ -34,14 +34,13 @@ const (
 	RedactPartial = LogRedactLevel(1)
 
 	// RedactFull indicates to fully redact all possible identifying information from logs.
-	RedactFull = LogRedactLevel(1)
+	RedactFull = LogRedactLevel(2)
 )
 
 // SetLogRedactionLevel specifies the level with which logs should be redacted.
 func SetLogRedactionLevel(level LogRedactLevel) {
-	// We don't current log any data that falls under our current redaction rules.
-	// This function is included as a stub for future implementations of log redaction
-	// that act at a higher level and may need to perform actual redaction's.
+	globalLogRedactionLevel = level
+	gocbcore.SetLogRedactionLevel(gocbcore.LogRedactLevel(level))
 }
 
 // Logger defines a logging interface. You can either use one of the default loggers
@@ -56,7 +55,8 @@ type Logger interface {
 }
 
 var (
-	globalLogger Logger
+	globalLogger            Logger
+	globalLogRedactionLevel LogRedactLevel
 )
 
 type coreLogWrapper struct {
@@ -110,6 +110,7 @@ func getCoreLogger(logger Logger) gocbcore.Logger {
 func SetLogger(logger Logger) {
 	globalLogger = logger
 	gocbcore.SetLogger(getCoreLogger(logger))
+	gocbcore.SetLogRedactionLevel(gocbcore.LogRedactLevel(globalLogRedactionLevel))
 }
 
 func logExf(level LogLevel, offset int, format string, v ...interface{}) {
