@@ -65,7 +65,9 @@ func (bm *BucketManager) capiRequest(method, uri, contentType string, body io.Re
 		return nil, err
 	}
 
-	req.SetBasicAuth(bm.username, bm.password)
+	if bm.username != "" || bm.password != "" {
+		req.SetBasicAuth(bm.username, bm.password)
+	}
 	return bm.bucket.client.HttpClient().Do(req)
 }
 
