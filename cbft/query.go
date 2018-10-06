@@ -523,11 +523,14 @@ func NewMatchAllQuery() *MatchAllQuery {
 
 // MatchNoneQuery represents a FTS match none query.
 type MatchNoneQuery struct {
+	MatchNone map[string]string `json:"match_none"`
 }
 
 // NewMatchNoneQuery creates a new MatchNoneQuery.
 func NewMatchNoneQuery(prefix string) *MatchNoneQuery {
-	return &MatchNoneQuery{}
+	return &MatchNoneQuery{
+		MatchNone: make(map[string]string),
+	}
 }
 
 // TermRangeQuery represents a FTS term range query.
