@@ -511,11 +511,14 @@ func (q *PrefixQuery) Boost(boost float32) *PrefixQuery {
 
 // MatchAllQuery represents a FTS match all query.
 type MatchAllQuery struct {
+	MatchAll map[string]string `json:"match_all"`
 }
 
 // NewMatchAllQuery creates a new MatchAllQuery.
-func NewMatchAllQuery(prefix string) *MatchAllQuery {
-	return &MatchAllQuery{}
+func NewMatchAllQuery() *MatchAllQuery {
+	return &MatchAllQuery{
+		MatchAll: make(map[string]string),
+	}
 }
 
 // MatchNoneQuery represents a FTS match none query.
