@@ -511,26 +511,26 @@ func (q *PrefixQuery) Boost(boost float32) *PrefixQuery {
 
 // MatchAllQuery represents a FTS match all query.
 type MatchAllQuery struct {
-	MatchAll map[string]string `json:"match_all"`
+	ftsQueryBase
 }
 
 // NewMatchAllQuery creates a new MatchAllQuery.
 func NewMatchAllQuery() *MatchAllQuery {
-	return &MatchAllQuery{
-		MatchAll: make(map[string]string),
-	}
+	q := &MatchAllQuery{newFtsQueryBase()}
+	q.options["match_all"] = nil
+	return q
 }
 
 // MatchNoneQuery represents a FTS match none query.
 type MatchNoneQuery struct {
-	MatchNone map[string]string `json:"match_none"`
+	ftsQueryBase
 }
 
 // NewMatchNoneQuery creates a new MatchNoneQuery.
-func NewMatchNoneQuery(prefix string) *MatchNoneQuery {
-	return &MatchNoneQuery{
-		MatchNone: make(map[string]string),
-	}
+func NewMatchNoneQuery() *MatchNoneQuery {
+	q := &MatchNoneQuery{newFtsQueryBase()}
+	q.options["match_none"] = nil
+	return q
 }
 
 // TermRangeQuery represents a FTS term range query.
