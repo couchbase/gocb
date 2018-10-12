@@ -260,7 +260,7 @@ func (c *Cluster) doSearchQuery(tracectx opentracing.SpanContext, b *Bucket, q *
 			return nil, err
 		}
 
-		if !retryBehavior.CanRetry(retries) {
+		if retryBehavior == nil || !retryBehavior.CanRetry(retries) {
 			break
 		}
 

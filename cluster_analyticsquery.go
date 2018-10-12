@@ -425,7 +425,7 @@ func (c *Cluster) doAnalyticsQuery(tracectx opentracing.SpanContext, b *Bucket, 
 			return nil, err
 		}
 
-		if !retryBehavior.CanRetry(retries) {
+		if retryBehavior == nil || !retryBehavior.CanRetry(retries) {
 			break
 		}
 
