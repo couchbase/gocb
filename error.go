@@ -229,6 +229,22 @@ func IsKeyNotFoundError(err error) bool {
 	return gocbcore.IsErrorStatus(err, gocbcore.StatusKeyNotFound)
 }
 
+// IsStatusBusyError indicates whether the passed error is a
+// key-value "server is busy, try again later" error.
+//
+// Experimental: This API is subject to change at any time.
+func IsStatusBusyError(err error) bool {
+	return gocbcore.IsErrorStatus(err, gocbcore.StatusBusy)
+}
+
+// IsTmpFailError indicates whether the passed error is a
+// key-value "temporary failure, try again later" error.
+//
+// Experimental: This API is subject to change at any time.
+func IsTmpFailError(err error) bool {
+	return gocbcore.IsErrorStatus(err, gocbcore.StatusTmpFail)
+}
+
 // ErrorCause returns the underlying error for an enhanced error.
 func ErrorCause(err error) error {
 	return gocbcore.ErrorCause(err)
