@@ -36,6 +36,7 @@ type analyticsResponse struct {
 	Status          string                   `json:"status,omitempty"`
 	Signature       interface{}              `json:"signature,omitempty"`
 	Metrics         analyticsResponseMetrics `json:"metrics,omitempty"`
+	Handle          string                   `json:"handle,omitempty"`
 }
 
 type analyticsResponseMetrics struct {
@@ -48,6 +49,11 @@ type analyticsResponseMetrics struct {
 	ErrorCount       uint   `json:"errorCount,omitempty"`
 	WarningCount     uint   `json:"warningCount,omitempty"`
 	ProcessedObjects uint   `json:"processedObjects,omitempty"`
+}
+
+type analyticsResponseHandle struct {
+	Status string `json:"status,omitempty"`
+	Handle string `json:"handle,omitempty"`
 }
 
 type analyticsMultiError []analyticsError
@@ -73,6 +79,35 @@ type AnalyticsResultMetrics struct {
 	ProcessedObjects uint
 }
 
+// AnalyticsDeferredResultHandle allows access to the handle of a deferred Analytics query.
+//
+// Experimental: This API is subject to change at any time.
+type AnalyticsDeferredResultHandle interface {
+	One(valuePtr interface{}) error
+	Next(valuePtr interface{}) bool
+	NextBytes() []byte
+	Close() error
+
+	Status() (string, error)
+}
+
+type analyticsDeferredResultHandle struct {
+	handleUri string
+	status    string
+	rows      *analyticsRows
+	err       error
+	client    *http.Client
+	creds     []UserPassPair
+	hasResult bool
+	timeout   time.Duration
+}
+
+type analyticsRows struct {
+	closed bool
+	index  int
+	rows   []json.RawMessage
+}
+
 // AnalyticsResults allows access to the results of a Analytics query.
 type AnalyticsResults interface {
 	One(valuePtr interface{}) error
@@ -86,12 +121,11 @@ type AnalyticsResults interface {
 	Warnings() []AnalyticsWarning
 	Signature() interface{}
 	Metrics() AnalyticsResultMetrics
+	Handle() AnalyticsDeferredResultHandle
 }
 
 type analyticsResults struct {
-	closed          bool
-	index           int
-	rows            []json.RawMessage
+	rows            *analyticsRows
 	err             error
 	requestId       string
 	clientContextId string
@@ -99,6 +133,7 @@ type analyticsResults struct {
 	warnings        []AnalyticsWarning
 	signature       interface{}
 	metrics         AnalyticsResultMetrics
+	handle          AnalyticsDeferredResultHandle
 }
 
 func (r *analyticsResults) Next(valuePtr interface{}) bool {
@@ -124,17 +159,11 @@ func (r *analyticsResults) NextBytes() []byte {
 		return nil
 	}
 
-	if r.index+1 >= len(r.rows) {
-		r.closed = true
-		return nil
-	}
-	r.index++
-
-	return r.rows[r.index]
+	return r.rows.NextBytes()
 }
 
 func (r *analyticsResults) Close() error {
-	r.closed = true
+	r.rows.Close()
 	return r.err
 }
 
@@ -174,7 +203,7 @@ func (r *analyticsResults) Metrics() AnalyticsResultMetrics {
 }
 
 func (r *analyticsResults) RequestId() string {
-	if !r.closed {
+	if !r.rows.closed {
 		panic("Result must be closed before accessing meta-data")
 	}
 
@@ -182,11 +211,144 @@ func (r *analyticsResults) RequestId() string {
 }
 
 func (r *analyticsResults) ClientContextId() string {
-	if !r.closed {
+	if !r.rows.closed {
 		panic("Result must be closed before accessing meta-data")
 	}
 
 	return r.clientContextId
+}
+
+// Experimental: This API is subject to change at any time.
+func (r *analyticsResults) Handle() AnalyticsDeferredResultHandle {
+	return r.handle
+}
+
+func (r *analyticsRows) NextBytes() []byte {
+	if r.index+1 >= len(r.rows) {
+		r.closed = true
+		return nil
+	}
+	r.index++
+
+	return r.rows[r.index]
+}
+
+func (r *analyticsRows) Close() {
+	r.closed = true
+}
+
+func (r *analyticsDeferredResultHandle) Next(valuePtr interface{}) bool {
+	if r.err != nil {
+		return false
+	}
+
+	row := r.NextBytes()
+	if row == nil {
+		return false
+	}
+
+	r.err = json.Unmarshal(row, valuePtr)
+	if r.err != nil {
+		return false
+	}
+
+	return true
+}
+
+func (r *analyticsDeferredResultHandle) NextBytes() []byte {
+	if r.err != nil {
+		return nil
+	}
+
+	if r.status == "success" && !r.hasResult {
+		req, err := http.NewRequest("GET", r.handleUri, nil)
+		if err != nil {
+			r.err = err
+			return nil
+		}
+
+		if len(r.creds) == 1 {
+			req.SetBasicAuth(r.creds[0].Username, r.creds[0].Password)
+		}
+
+		err = r.executeHandle(r.client, req, r.timeout, &r.rows.rows)
+		if err != nil {
+			r.err = err
+			return nil
+		}
+		r.hasResult = true
+	} else if r.status != "success" {
+		return nil
+	}
+
+	return r.rows.NextBytes()
+}
+
+func (r *analyticsDeferredResultHandle) Close() error {
+	r.rows.Close()
+	return r.err
+}
+
+func (r *analyticsDeferredResultHandle) One(valuePtr interface{}) error {
+	if !r.Next(valuePtr) {
+		err := r.Close()
+		if err != nil {
+			return err
+		}
+		return ErrNoResults
+	}
+
+	// Ignore any errors occurring after we already have our result
+	err := r.Close()
+	if err != nil {
+		// Return no error as we got the one result already.
+		return nil
+	}
+
+	return nil
+}
+
+func (r *analyticsDeferredResultHandle) Status() (string, error) {
+	req, err := http.NewRequest("GET", r.handleUri, nil)
+	if err != nil {
+		r.err = err
+		return "", err
+	}
+
+	if len(r.creds) == 1 {
+		req.SetBasicAuth(r.creds[0].Username, r.creds[0].Password)
+	}
+
+	var analyticsResponse *analyticsResponseHandle
+	err = r.executeHandle(r.client, req, r.timeout, &analyticsResponse)
+	if err != nil {
+		r.err = err
+		return "", err
+	}
+
+	r.status = analyticsResponse.Status
+	r.handleUri = analyticsResponse.Handle
+	return r.status, nil
+}
+
+func (r *analyticsDeferredResultHandle) executeHandle(client *http.Client, req *http.Request, timeout time.Duration, valuePtr interface{}) error {
+	resp, err := doHttpWithTimeout(r.client, req, r.timeout)
+	if err != nil {
+		return err
+	}
+
+	jsonDec := json.NewDecoder(resp.Body)
+	err = jsonDec.Decode(valuePtr)
+	if err != nil {
+		return err
+	}
+
+	err = resp.Body.Close()
+	if err != nil {
+		logDebugf("Failed to close socket (%s)", err)
+	}
+
+	return nil
 }
 
 func (c *Cluster) executeAnalyticsQuery(tracectx opentracing.SpanContext, analyticsEp string, opts map[string]interface{}, creds []UserPassPair, timeout time.Duration, client *http.Client) (AnalyticsResults, error) {
@@ -274,11 +436,13 @@ func (c *Cluster) executeAnalyticsQuery(tracectx opentracing.SpanContext, analyt
 	return &analyticsResults{
 		requestId:       analyticsResp.RequestId,
 		clientContextId: analyticsResp.ClientContextId,
-		index:           -1,
-		rows:            analyticsResp.Results,
-		signature:       analyticsResp.Signature,
-		status:          analyticsResp.Status,
-		warnings:        analyticsResp.Warnings,
+		rows: &analyticsRows{
+			rows:  analyticsResp.Results,
+			index: -1,
+		},
+		signature: analyticsResp.Signature,
+		status:    analyticsResp.Status,
+		warnings:  analyticsResp.Warnings,
 		metrics: AnalyticsResultMetrics{
 			ElapsedTime:      elapsedTime,
 			ExecutionTime:    executionTime,
@@ -289,6 +453,16 @@ func (c *Cluster) executeAnalyticsQuery(tracectx opentracing.SpanContext, analyt
 			ErrorCount:       analyticsResp.Metrics.ErrorCount,
 			WarningCount:     analyticsResp.Metrics.WarningCount,
 			ProcessedObjects: analyticsResp.Metrics.ProcessedObjects,
+		},
+		handle: &analyticsDeferredResultHandle{
+			handleUri: analyticsResp.Handle,
+			rows: &analyticsRows{
+				index: -1,
+			},
+			status:  analyticsResp.Status,
+			client:  client,
+			creds:   creds,
+			timeout: timeout,
 		},
 	}, nil
 }

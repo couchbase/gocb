@@ -199,4 +199,10 @@ func TestAnalyticsQuery(t *testing.T) {
 		t.Logf("Expected priority to be missing but was %v", q.options["priority"])
 		t.Fail()
 	}
+
+	q.Deferred(true)
+	if q.options["mode"] != "async" {
+		t.Logf("Expected async to be %s but was %v", "async", q.options["mode"])
+		t.Fail()
+	}
 }

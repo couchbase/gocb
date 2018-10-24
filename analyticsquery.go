@@ -49,3 +49,15 @@ func (aq *AnalyticsQuery) Priority(priority bool) *AnalyticsQuery {
 	}
 	return aq
 }
+
+// Deferred sets whether or not the query should be run as a deferred query.
+//
+// Experimental: This API is subject to change at any time.
+func (aq *AnalyticsQuery) Deferred(deferred bool) *AnalyticsQuery {
+	if deferred {
+		aq.options["mode"] = "async"
+	} else {
+		delete(aq.options, "mode")
+	}
+	return aq
+}
