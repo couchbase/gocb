@@ -428,3 +428,22 @@ func (c *Cluster) randomBucket() (*Bucket, error) {
 	c.clusterLock.RUnlock()
 	return bucket, nil
 }
+
+type httpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+// getFtsEp retrieves a search endpoint from a random bucket
+func (c *Cluster) getFtsEp() (string, error) {
+	tmpB, err := c.randomBucket()
+	if err != nil {
+		return "", err
+	}
+
+	ftsEp, err := tmpB.getFtsEp()
+	if err != nil {
+		return "", err
+	}
+
+	return ftsEp, nil
+}

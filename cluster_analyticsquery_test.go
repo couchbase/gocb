@@ -1,171 +1,76 @@
 package gocb
 
 import (
+	"fmt"
+	"io/ioutil"
 	"testing"
 	"time"
 )
 
-// type testBeer struct {
-// 	ID   string `json:"id"`
-// 	Name string `json:"name"`
-// 	Type string `json:"type"`
-// }
+type testBeer struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
 
-// func createBeerDataset(t *testing.T) []testBeer {
-// 	var beers []testBeer
-// 	err := loadTestDataset("beer", &beers)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	for _, beer := range beers {
-// 		_, err := globalBucket.Upsert(beer.ID, beer, 0)
-// 		if err != nil {
-// 			t.Fatal(err)
-// 		}
-// 	}
+func assertAnalyticsBeers(t *testing.T, res AnalyticsResults, beers []testBeer) {
+	var row testBeer
+	i := 0
+	for res.Next(&row) {
+		if row.ID != beers[i].ID {
+			t.Logf("Beers not equal, expected %s but was %s", row.ID, beers[i].ID)
+			t.Fail()
+			return
+		}
+		i++
+	}
+	if err := res.Close(); err != nil {
+		t.Logf("Error closing rows: %v", err)
+		t.Fail()
+	}
+}
 
-// 	return beers
-// }
+func assertAnalyticsMetric(t *testing.T, metric uint, expected uint, metricName string) {
+	if metric != expected {
+		t.Logf("Expected %s to be %d, was %d", metricName, expected, metric)
+		t.Fail()
+	}
+}
 
-// func dropBeerDataset(t *testing.T) {
-// 	creds, err := globalCluster.auth.Credentials(AuthCredsRequest{
-// 		Service: MgmtService,
-// 	})
-// 	if err != nil {
-// 		logErrorf("Couldn't flush beer dataset %v", err)
-// 	}
+func TestAnalyticsQueryExecution(t *testing.T) {
+	var beers []testBeer
+	err := loadTestDataset("beer", &beers)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ep := "http://testip:8095"
+	opts := make(map[string]interface{})
+	q1 := NewAnalyticsQuery("SELECT id, name, `type` FROM `allbeers` WHERE `type`='beer' ORDER BY id ASC")
 
-// 	err = globalBucket.Manager(creds[0].Username, creds[0].Password).Flush()
-// 	if err != nil {
-// 		logErrorf("Couldn't flush beer dataset %v", err)
-// 	}
-// }
+	response, err := ioutil.ReadFile("testdata/beerAnalyticsResponse.json")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// func createAnalyticsDataset(t *testing.T) {
-// 	_, err := globalBucket.ExecuteAnalyticsQuery(
-// 		NewAnalyticsQuery("CREATE DATASET allbeers on `default`;"),
-// 		nil,
-// 	)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	creds := []UserPassPair{}
 
-// 	_, err = globalBucket.ExecuteAnalyticsQuery(
-// 		NewAnalyticsQuery("CONNECT LINK Local"),
-// 		nil,
-// 	)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// }
+	client := newMockHTTPClient(t, fmt.Sprintf("%s/analytics/service", ep), "POST", response)
+	opts["statement"] = q1
 
-// func dropAnalyticsDataset(t *testing.T) {
-// 	_, err := globalBucket.ExecuteAnalyticsQuery(
-// 		NewAnalyticsQuery("DISCONNECT LINK Local;"),
-// 		nil,
-// 	)
-// 	if err != nil {
-// 		t.Logf("Couldn't drop analytics dataset %v", err)
-// 	}
-
-// 	_, err = globalBucket.ExecuteAnalyticsQuery(
-// 		NewAnalyticsQuery("DROP DATASET allbeers;"),
-// 		nil,
-// 	)
-// 	if err != nil {
-// 		t.Logf("Couldn't drop analytics dataset %v", err)
-// 	}
-// }
-
-// func assertBeers(t *testing.T, res AnalyticsResults, beers []testBeer) {
-// 	var row testBeer
-// 	i := 0
-// 	for res.Next(&row) {
-// 		if row.ID != beers[i].ID {
-// 			t.Logf("Beers not equal, expected %s but was %s", row.ID, beers[i].ID)
-// 			t.Fail()
-// 			return
-// 		}
-// 		i++
-// 	}
-// 	if err := res.Close(); err != nil {
-// 		t.Logf("Error closing rows: %v", err)
-// 		t.Fail()
-// 	}
-// }
-
-// func assertMetric(t *testing.T, metric uint, expected uint, metricName string) {
-// 	if metric != expected {
-// 		t.Logf("Expected %s to be %d, was %d", metricName, expected, metric)
-// 		t.Fail()
-// 	}
-// }
-
-// func TestAnalyticsQueryExecution(t *testing.T) {
-// 	dropBeerDataset(t)
-// 	beers := createBeerDataset(t)
-// 	createAnalyticsDataset(t)
-// 	defer dropBeerDataset(t)
-// 	defer dropAnalyticsDataset(t)
-
-// 	time.Sleep(500 * time.Millisecond)
-
-// 	q1 := NewAnalyticsQuery("SELECT id, name, `type` FROM `allbeers` WHERE `type`='beer' ORDER BY id ASC")
-// 	res, err := globalBucket.ExecuteAnalyticsQuery(q1, nil)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	assertBeers(t, res, beers[1:])
-// 	metrics := res.Metrics()
-// 	assertMetric(t, metrics.ErrorCount, 0, "ErrorCount")
-// 	assertMetric(t, metrics.MutationCount, 0, "MutationCount")
-// 	assertMetric(t, metrics.ProcessedObjects, 10, "ProcessedObjects")
-// 	assertMetric(t, metrics.ResultCount, 9, "ResultCount")
-// 	assertMetric(t, metrics.SortCount, 0, "SortCount")
-// 	assertMetric(t, metrics.WarningCount, 0, "WarningCount")
-// 	if metrics.ResultSize == 0 {
-// 		t.Logf("Expected ResultSize to be greater than 0, was %d", metrics.ResultSize)
-// 		t.Fail()
-// 	}
-
-// 	qPositionalParam := NewAnalyticsQuery("SELECT id, name, `type` FROM `allbeers` WHERE `type`=$1 ORDER BY id ASC")
-// 	res, err = globalBucket.ExecuteAnalyticsQuery(qPositionalParam, []interface{}{"beer"})
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	assertBeers(t, res, beers[1:])
-// 	metrics = res.Metrics()
-// 	assertMetric(t, metrics.ErrorCount, 0, "ErrorCount")
-// 	assertMetric(t, metrics.MutationCount, 0, "MutationCount")
-// 	assertMetric(t, metrics.ProcessedObjects, 10, "ProcessedObjects")
-// 	assertMetric(t, metrics.ResultCount, 9, "ResultCount")
-// 	assertMetric(t, metrics.SortCount, 0, "SortCount")
-// 	assertMetric(t, metrics.WarningCount, 0, "WarningCount")
-// 	if metrics.ResultSize == 0 {
-// 		t.Logf("Expected ResultSize to be greater than 0, was %d", metrics.ResultSize)
-// 		t.Fail()
-// 	}
-
-// 	qNamedParam := NewAnalyticsQuery("SELECT id, name, `type` FROM `allbeers` WHERE `type`=$param ORDER BY id ASC")
-// 	params := make(map[string]interface{})
-// 	params["param"] = "beer"
-// 	res, err = globalBucket.ExecuteAnalyticsQuery(qNamedParam, params)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	assertBeers(t, res, beers[1:])
-// 	metrics = res.Metrics()
-// 	assertMetric(t, metrics.ErrorCount, 0, "ErrorCount")
-// 	assertMetric(t, metrics.MutationCount, 0, "MutationCount")
-// 	assertMetric(t, metrics.ProcessedObjects, 10, "ProcessedObjects")
-// 	assertMetric(t, metrics.ResultCount, 9, "ResultCount")
-// 	assertMetric(t, metrics.SortCount, 0, "SortCount")
-// 	assertMetric(t, metrics.WarningCount, 0, "WarningCount")
-// 	if metrics.ResultSize == 0 {
-// 		t.Logf("Expected ResultSize to be greater than 0, was %d", metrics.ResultSize)
-// 		t.Fail()
-// 	}
-// }
+	res, err := globalCluster.executeAnalyticsQuery(globalBucket.tracer.StartSpan("test").Context(), ep, opts, creds, 100*time.Millisecond, client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertAnalyticsBeers(t, res, beers[1:])
+	metrics := res.Metrics()
+	assertAnalyticsMetric(t, metrics.ErrorCount, 0, "ErrorCount")
+	assertAnalyticsMetric(t, metrics.MutationCount, 0, "MutationCount")
+	assertAnalyticsMetric(t, metrics.ResultCount, 10, "ResultCount")
+	assertAnalyticsMetric(t, metrics.SortCount, 0, "SortCount")
+	assertAnalyticsMetric(t, metrics.WarningCount, 0, "WarningCount")
+	assertAnalyticsMetric(t, metrics.ResultSize, 997, "ResultSize")
+	assertAnalyticsMetric(t, metrics.ProcessedObjects, 10, "ProcessedObjects")
+}
 
 func TestAnalyticsQuery(t *testing.T) {
 	qTxt := "SELECT id, name, `type` FROM `allbeers` WHERE `type`='brewery'"

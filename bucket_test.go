@@ -1,11 +1,14 @@
 package gocb
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
+	"strings"
 	"testing"
 
 	"gopkg.in/couchbaselabs/gojcbmock.v1"
@@ -98,4 +101,51 @@ func loadTestDataset(dataset string, valuePtr interface{}) error {
 	}
 
 	return nil
+}
+
+type mockAuthenticator struct {
+	username string
+	password string
+}
+
+func newMockAuthenticator(username string, password string) *mockAuthenticator {
+	return &mockAuthenticator{
+		username: username,
+		password: password,
+	}
+}
+
+func (ma *mockAuthenticator) Credentials(req AuthCredsRequest) ([]UserPassPair, error) {
+	return []UserPassPair{{
+		Username: ma.username,
+		Password: ma.password,
+	}}, nil
+}
+
+type roundTripFunc func(req *http.Request) *http.Response
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req), nil
+}
+
+//newMockHTTPClient returns *http.Client with Transport replaced to avoid making real calls
+func newMockHTTPClient(t *testing.T, expectedURL string, expectedMethod string, respBytes []byte) *http.Client {
+	return &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) *http.Response {
+			url := req.URL.String()
+			if !strings.HasSuffix(url, expectedURL) {
+				t.Fatalf("Incorrect URL, expected %s but was %s", expectedURL, url)
+			}
+			if req.Method != expectedMethod {
+				t.Fatalf("Expected %s but was %s", expectedMethod, req.Method)
+			}
+			return &http.Response{
+				StatusCode: 200,
+				// Send response to be tested
+				Body: ioutil.NopCloser(bytes.NewBuffer(respBytes)),
+				// Must be set to non-nil value or it panics
+				Header: make(http.Header),
+			}
+		}),
+	}
 }

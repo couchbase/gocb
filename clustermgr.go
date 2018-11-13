@@ -412,6 +412,8 @@ func (cm *ClusterManager) RemoveUser(domain AuthDomain, name string) error {
 // Experimental: This API is subject to change at any time.
 func (cm *ClusterManager) SearchIndexManager() *SearchIndexManager {
 	return &SearchIndexManager{
-		cm: cm,
+		authenticator: cm.cluster.auth,
+		httpCli:       cm.httpCli,
+		cluster:       cm.cluster,
 	}
 }

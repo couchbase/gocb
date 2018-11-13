@@ -40,7 +40,9 @@ const (
 // SearchIndexManager provides methods for performing Couchbase FTS index management.
 // Experimental: This API is subject to change at any time.
 type SearchIndexManager struct {
-	cm *ClusterManager
+	authenticator Authenticator
+	httpCli       httpClient
+	cluster       searchIndexCluster
 }
 
 // SearchIndexDefinitionBuilder provides methods for building a Couchbase FTS index.
@@ -63,23 +65,21 @@ type searchIndexesResp struct {
 	IndexDefs searchIndexDefs `json:"indexDefs,omitempty"`
 }
 
+type searchIndexCluster interface {
+	getFtsEp() (string, error)
+}
+
 func (sim *SearchIndexManager) doSearchIndexRequest(method, uri, contentType, cacheControl string, body io.Reader) (*http.Response, error) {
-	c := sim.cm.cluster
-	if c.auth == nil {
+	if sim.authenticator == nil {
 		return nil, errors.New("Cannot perform cluster level queries without Cluster Authenticator.")
 	}
 
-	tmpB, err := c.randomBucket()
+	ftsEp, err := sim.cluster.getFtsEp()
 	if err != nil {
 		return nil, err
 	}
 
-	ftsEp, err := tmpB.getFtsEp()
-	if err != nil {
-		return nil, err
-	}
-
-	creds, err := c.auth.Credentials(AuthCredsRequest{
+	creds, err := sim.authenticator.Credentials(AuthCredsRequest{
 		Service:  FtsService,
 		Endpoint: ftsEp,
 	})
@@ -104,7 +104,7 @@ func (sim *SearchIndexManager) doSearchIndexRequest(method, uri, contentType, ca
 		req.SetBasicAuth(creds[0].Username, creds[0].Password)
 	}
 
-	return sim.cm.httpCli.Do(req)
+	return sim.httpCli.Do(req)
 }
 
 // GetAllIndexDefinitions retrieves all of the FTS indexes for the cluster.
