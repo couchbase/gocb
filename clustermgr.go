@@ -51,6 +51,30 @@ type bucketDataIn struct {
 	} `json:"controllers"`
 }
 
+// NodeMetadata contains information about a node in the cluster.
+type NodeMetadata struct {
+	ClusterCompatibility int                `json:"clusterCompatibility"`
+	ClusterMembership    string             `json:"clusterMembership"`
+	CouchAPIBase         string             `json:"couchApiBase"`
+	Hostname             string             `json:"hostname"`
+	InterestingStats     map[string]float64 `json:"interestingStats,omitempty"`
+	MCDMemoryAllocated   float64            `json:"mcdMemoryAllocated"`
+	MCDMemoryReserved    float64            `json:"mcdMemoryReserved"`
+	MemoryFree           float64            `json:"memoryFree"`
+	MemoryTotal          float64            `json:"memoryTotal"`
+	OS                   string             `json:"os"`
+	Ports                map[string]int     `json:"ports"`
+	Status               string             `json:"status"`
+	Uptime               int                `json:"uptime,string"`
+	Version              string             `json:"version"`
+	ThisNode             bool               `json:"thisNode,omitempty"`
+}
+
+// clusterCfg contains information about the cluster setup, we only need a subset of that information.
+type clusterCfg struct {
+	Nodes []NodeMetadata `json:"nodes"`
+}
+
 // BucketSettings holds information about the settings for a bucket.
 type BucketSettings struct {
 	FlushEnabled  bool
@@ -270,6 +294,13 @@ type userSettingsJson struct {
 	Roles    []userRoleJson `json:"roles"`
 }
 
+// ClusterManagerInternal holds internally used cluster manager extension methods.
+//
+// Internal: This should never be used and is not supported.
+type ClusterManagerInternal struct {
+	manager *ClusterManager
+}
+
 func transformUserJson(userData *userJson) User {
 	var user User
 	user.Id = userData.Id
@@ -416,4 +447,42 @@ func (cm *ClusterManager) SearchIndexManager() *SearchIndexManager {
 		httpCli:       cm.httpCli,
 		cluster:       cm.cluster,
 	}
+}
+
+// Internal returns a ClusterManagerInternal internally used cluster manager extension methods.
+//
+// Internal: This should never be used and is not supported.
+func (cm *ClusterManager) Internal() *ClusterManagerInternal {
+	return &ClusterManagerInternal{
+		manager: cm,
+	}
+}
+
+// GetNodesMetadata returns a list of information about nodes in the cluster.
+func (cmi *ClusterManagerInternal) GetNodesMetadata() ([]NodeMetadata, error) {
+	resp, err := cmi.manager.mgmtRequest("GET", "/pools/default", "", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != 200 {
+		data, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		err = resp.Body.Close()
+		if err != nil {
+			logDebugf("Failed to close socket (%s)", err)
+		}
+		return nil, clientError{string(data)}
+	}
+
+	var clusterData clusterCfg
+	jsonDec := json.NewDecoder(resp.Body)
+	err = jsonDec.Decode(&clusterData)
+	if err != nil {
+		return nil, err
+	}
+
+	return clusterData.Nodes, nil
 }
