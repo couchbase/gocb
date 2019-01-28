@@ -1,34 +1,49 @@
 package gocb
 
 import (
-	"errors"
 	"fmt"
-	"net/http"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
-	"gopkg.in/couchbase/gocbcore.v7"
+	"gopkg.in/couchbase/gocbcore.v8"
 	"gopkg.in/couchbaselabs/gocbconnstr.v1"
 )
 
 // Cluster represents a connection to a specific Couchbase cluster.
 type Cluster struct {
-	auth             Authenticator
-	agentConfig      gocbcore.AgentConfig
-	n1qlTimeout      time.Duration
-	ftsTimeout       time.Duration
-	analyticsTimeout time.Duration
+	cSpec gocbconnstr.ConnSpec
+	auth  Authenticator
+
+	connectionsLock sync.RWMutex
+	connections     map[string]client
 
 	clusterLock sync.RWMutex
 	queryCache  map[string]*n1qlCache
-	bucketList  []*Bucket
-	httpCli     *http.Client
+
+	sb stateBlock
 }
 
-// Connect creates a new Cluster object for a specific cluster.
-// These options are copied from (and should stay in sync with) the gocbcore agent.FromConnStr comment.
+// ClusterOptions is the set of options available for creating a Cluster.
+type ClusterOptions struct {
+	Authenticator     Authenticator
+	ConnectTimeout    time.Duration
+	KVTimeout         time.Duration
+	ViewTimeout       time.Duration
+	QueryTimeout      time.Duration
+	AnalyticsTimeout  time.Duration
+	SearchTimeout     time.Duration
+	ManagementTimeout time.Duration
+	EnableTracing     bool
+}
+
+// ClusterCloseOptions is the set of options available when disconnecting from a Cluster.
+type ClusterCloseOptions struct {
+}
+
+// NewCluster creates and returns a Cluster instance created using the provided options and connection string.
+// The connection string properties are copied from (and should stay in sync with) the gocbcore agent.FromConnStr comment.
 // Supported connSpecStr options are:
 //   cacertpath (string) - Path to the CA certificate
 //   certpath (string) - Path to your authentication certificate
@@ -59,16 +74,74 @@ type Cluster struct {
 //   n1ql_timeout (int) - Maximum execution time for n1ql queries in ms.
 //   fts_timeout (int) - Maximum execution time for fts searches in ms.
 //   analytics_timeout (int) - Maximum execution time for analytics queries in ms.
-func Connect(connSpecStr string) (*Cluster, error) {
-	spec, err := gocbconnstr.Parse(connSpecStr)
+func NewCluster(connStr string, opts ClusterOptions) (*Cluster, error) {
+	connSpec, err := gocbconnstr.Parse(connStr)
 	if err != nil {
 		return nil, err
 	}
 
-	if spec.Bucket != "" {
-		return nil, errors.New("Connection string passed to Connect() must not have any bucket specified!")
+	connectTimeout := 10000 * time.Millisecond
+	kvTimeout := 2500 * time.Millisecond
+	viewTimeout := 75000 * time.Millisecond
+	queryTimeout := 75000 * time.Millisecond
+	analyticsTimeout := 75000 * time.Millisecond
+	searchTimeout := 75000 * time.Millisecond
+	if opts.ConnectTimeout > 0 {
+		connectTimeout = opts.ConnectTimeout
+	}
+	if opts.KVTimeout > 0 {
+		kvTimeout = opts.KVTimeout
+	}
+	if opts.ViewTimeout > 0 {
+		viewTimeout = opts.ViewTimeout
+	}
+	if opts.QueryTimeout > 0 {
+		queryTimeout = opts.QueryTimeout
+	}
+	if opts.AnalyticsTimeout > 0 {
+		analyticsTimeout = opts.AnalyticsTimeout
+	}
+	if opts.SearchTimeout > 0 {
+		searchTimeout = opts.SearchTimeout
 	}
 
+	cluster := &Cluster{
+		cSpec:       connSpec,
+		auth:        opts.Authenticator,
+		connections: make(map[string]client),
+		sb: stateBlock{
+			ConnectTimeout:         connectTimeout,
+			N1qlRetryBehavior:      StandardDelayRetryBehavior(10, 2, 500*time.Millisecond, ExponentialDelayFunction),
+			AnalyticsRetryBehavior: StandardDelayRetryBehavior(10, 2, 500*time.Millisecond, ExponentialDelayFunction),
+			SearchRetryBehavior:    StandardDelayRetryBehavior(10, 2, 500*time.Millisecond, ExponentialDelayFunction),
+			QueryTimeout:           queryTimeout,
+			AnalyticsTimeout:       analyticsTimeout,
+			SearchTimeout:          searchTimeout,
+			ViewTimeout:            viewTimeout,
+			KvTimeout:              kvTimeout,
+			DuraTimeout:            40000 * time.Millisecond,
+			DuraPollTimeout:        100 * time.Millisecond,
+		},
+
+		queryCache: make(map[string]*n1qlCache),
+	}
+
+	cluster.sb.client = cluster.getClient
+
+	err = cluster.parseExtraConnStrOptions(connSpec)
+	if err != nil {
+		return nil, err
+	}
+
+	if !opentracing.IsGlobalTracerRegistered() && opts.EnableTracing {
+		// TODO: we'd add threshold logging here
+		opentracing.SetGlobalTracer(opentracing.NoopTracer{})
+	}
+
+	return cluster, nil
+}
+
+func (c *Cluster) parseExtraConnStrOptions(spec gocbconnstr.ConnSpec) error {
 	fetchOption := func(name string) (string, bool) {
 		optValue := spec.Options[name]
 		if len(optValue) == 0 {
@@ -77,373 +150,118 @@ func Connect(connSpecStr string) (*Cluster, error) {
 		return optValue[len(optValue)-1], true
 	}
 
-	config := gocbcore.AgentConfig{
-		UserString:           "gocb/" + Version(),
-		ConnectTimeout:       60000 * time.Millisecond,
-		ServerConnectTimeout: 7000 * time.Millisecond,
-		NmvRetryDelay:        100 * time.Millisecond,
-		UseKvErrorMaps:       true,
-		UseDurations:         true,
-		NoRootTraceSpans:     true,
-		UseCompression:       true,
-		UseZombieLogger:      true,
-	}
-	err = config.FromConnStr(connSpecStr)
-	if err != nil {
-		return nil, err
-	}
-
-	useTracing := true
-	if valStr, ok := fetchOption("operation_tracing"); ok {
-		val, err := strconv.ParseBool(valStr)
-		if err != nil {
-			return nil, fmt.Errorf("operation_tracing option must be a boolean")
-		}
-		useTracing = val
-	}
-
-	var initialTracer opentracing.Tracer
-	if useTracing {
-		initialTracer = &ThresholdLoggingTracer{}
-	} else {
-		initialTracer = &opentracing.NoopTracer{}
-	}
-	config.Tracer = initialTracer
-	tracerAddRef(initialTracer)
-
-	httpCli := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: config.TlsConfig,
-		},
-	}
-
-	cluster := &Cluster{
-		agentConfig:      config,
-		n1qlTimeout:      75 * time.Second,
-		ftsTimeout:       75 * time.Second,
-		analyticsTimeout: 75 * time.Second,
-
-		httpCli:    httpCli,
-		queryCache: make(map[string]*n1qlCache),
-	}
-
 	if valStr, ok := fetchOption("n1ql_timeout"); ok {
 		val, err := strconv.ParseInt(valStr, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("n1ql_timeout option must be a number")
+			return fmt.Errorf("n1ql_timeout option must be a number")
 		}
-		cluster.n1qlTimeout = time.Duration(val) * time.Millisecond
-	}
-
-	if valStr, ok := fetchOption("fts_timeout"); ok {
-		val, err := strconv.ParseInt(valStr, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("fts_timeout option must be a number")
-		}
-		cluster.ftsTimeout = time.Duration(val) * time.Millisecond
+		c.sb.QueryTimeout = time.Duration(val) * time.Millisecond
 	}
 
 	if valStr, ok := fetchOption("analytics_timeout"); ok {
 		val, err := strconv.ParseInt(valStr, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("analytics_timeout option must be a number")
+			return fmt.Errorf("analytics_timeout option must be a number")
 		}
-		cluster.analyticsTimeout = time.Duration(val) * time.Millisecond
+		c.sb.AnalyticsTimeout = time.Duration(val) * time.Millisecond
 	}
 
-	return cluster, nil
-}
-
-// SetTracer allows you to specify a custom tracer to use for this cluster.
-// EXPERIMENTAL
-func (c *Cluster) SetTracer(tracer opentracing.Tracer) {
-	if c.agentConfig.Tracer != nil {
-		tracerDecRef(c.agentConfig.Tracer)
+	if valStr, ok := fetchOption("search_timeout"); ok {
+		val, err := strconv.ParseInt(valStr, 10, 64)
+		if err != nil {
+			return fmt.Errorf("search_timeout option must be a number")
+		}
+		c.sb.SearchTimeout = time.Duration(val) * time.Millisecond
 	}
 
-	tracerAddRef(tracer)
-	c.agentConfig.Tracer = tracer
+	if valStr, ok := fetchOption("view_timeout"); ok {
+		val, err := strconv.ParseInt(valStr, 10, 64)
+		if err != nil {
+			return fmt.Errorf("view_timeout option must be a number")
+		}
+		c.sb.ViewTimeout = time.Duration(val) * time.Millisecond
+	}
+
+	return nil
 }
 
-// EnhancedErrors returns the current enhanced error message state.
-func (c *Cluster) EnhancedErrors() bool {
-	return c.agentConfig.UseEnhancedErrors
+// Bucket connects the cluster to server(s) and returns a new Bucket instance.
+func (c *Cluster) Bucket(bucketName string, opts *BucketOptions) *Bucket {
+	if opts == nil {
+		opts = &BucketOptions{}
+	}
+	b := newBucket(&c.sb, bucketName, *opts)
+	b.connect()
+	return b
 }
 
-// SetEnhancedErrors sets the current enhanced error message state.
-func (c *Cluster) SetEnhancedErrors(enabled bool) {
-	c.agentConfig.UseEnhancedErrors = enabled
+func (c *Cluster) getClient(sb *clientStateBlock) client {
+	c.connectionsLock.Lock()
+	defer c.connectionsLock.Unlock()
+
+	hash := sb.Hash()
+	if cli, ok := c.connections[hash]; ok {
+		return cli
+	}
+
+	cli := newClient(c, sb)
+	c.connections[hash] = cli
+
+	return cli
 }
 
-// ConnectTimeout returns the maximum time to wait when attempting to connect to a bucket.
-func (c *Cluster) ConnectTimeout() time.Duration {
-	return c.agentConfig.ConnectTimeout
+func (c *Cluster) randomClient() (client, error) {
+	c.connectionsLock.RLock()
+	if len(c.connections) == 0 {
+		c.connectionsLock.RUnlock()
+		return nil, nil // TODO: return an error
+	}
+	var randomClient client
+	for _, c := range c.connections { // This is ugly
+		randomClient = c
+		break
+	}
+	c.connectionsLock.RUnlock()
+	return randomClient, nil
 }
 
-// SetConnectTimeout sets the maximum time to wait when attempting to connect to a bucket.
-func (c *Cluster) SetConnectTimeout(timeout time.Duration) {
-	c.agentConfig.ConnectTimeout = timeout
+func (c *Cluster) authenticator() Authenticator {
+	return c.auth
 }
 
-// ServerConnectTimeout returns the maximum time to attempt to connect to a single node.
-func (c *Cluster) ServerConnectTimeout() time.Duration {
-	return c.agentConfig.ServerConnectTimeout
-}
-
-// SetServerConnectTimeout sets the maximum time to attempt to connect to a single node.
-func (c *Cluster) SetServerConnectTimeout(timeout time.Duration) {
-	c.agentConfig.ServerConnectTimeout = timeout
-}
-
-// N1qlTimeout returns the maximum time to wait for a cluster-level N1QL query to complete.
-func (c *Cluster) N1qlTimeout() time.Duration {
-	return c.n1qlTimeout
-}
-
-// SetN1qlTimeout sets the maximum time to wait for a cluster-level N1QL query to complete.
-func (c *Cluster) SetN1qlTimeout(timeout time.Duration) {
-	c.n1qlTimeout = timeout
-}
-
-// FtsTimeout returns the maximum time to wait for a cluster-level FTS query to complete.
-func (c *Cluster) FtsTimeout() time.Duration {
-	return c.ftsTimeout
-}
-
-// SetFtsTimeout sets the maximum time to wait for a cluster-level FTS query to complete.
-func (c *Cluster) SetFtsTimeout(timeout time.Duration) {
-	c.ftsTimeout = timeout
-}
-
-// AnalyticsTimeout returns the maximum time to wait for a cluster-level Analytics query to complete.
-func (c *Cluster) AnalyticsTimeout() time.Duration {
-	return c.analyticsTimeout
-}
-
-// SetAnalyticsTimeout sets the maximum time to wait for a cluster-level Analytics query to complete.
-func (c *Cluster) SetAnalyticsTimeout(timeout time.Duration) {
-	c.analyticsTimeout = timeout
-}
-
-// NmvRetryDelay returns the time to wait between retrying an operation due to not my vbucket.
-func (c *Cluster) NmvRetryDelay() time.Duration {
-	return c.agentConfig.NmvRetryDelay
-}
-
-// SetNmvRetryDelay sets the time to wait between retrying an operation due to not my vbucket.
-func (c *Cluster) SetNmvRetryDelay(delay time.Duration) {
-	c.agentConfig.NmvRetryDelay = delay
-}
-
-// InvalidateQueryCache forces the internal cache of prepared queries to be cleared.
-func (c *Cluster) InvalidateQueryCache() {
-	c.clusterLock.Lock()
-	c.queryCache = make(map[string]*n1qlCache)
-	c.clusterLock.Unlock()
+func (c *Cluster) connSpec() gocbconnstr.ConnSpec {
+	return c.cSpec
 }
 
 // Close shuts down all buckets in this cluster and invalidates any references this cluster has.
-func (c *Cluster) Close() error {
+func (c *Cluster) Close(opts *ClusterCloseOptions) error {
 	var overallErr error
 
-	// We have an upper bound on how many buckets we try
-	// to close soely for deadlock prevention
-	for i := 0; i < 1024; i++ {
-		c.clusterLock.Lock()
-		if len(c.bucketList) == 0 {
-			c.clusterLock.Unlock()
-			break
-		}
-
-		bucket := c.bucketList[0]
-		c.clusterLock.Unlock()
-
-		err := bucket.Close()
+	c.clusterLock.Lock()
+	for key, conn := range c.connections {
+		err := conn.close()
 		if err != nil && gocbcore.ErrorCause(err) != gocbcore.ErrShutdown {
-			logWarnf("Failed to close a bucket in cluster close: %s", err)
+			logWarnf("Failed to close a client in cluster close: %s", err)
 			overallErr = err
 		}
-	}
 
-	if c.agentConfig.Tracer != nil {
-		tracerDecRef(c.agentConfig.Tracer)
-		c.agentConfig.Tracer = nil
+		delete(c.connections, key)
 	}
+	c.clusterLock.Unlock()
 
 	return overallErr
 }
 
-func (c *Cluster) makeAgentConfig(bucket, password string, forceMt bool) (*gocbcore.AgentConfig, error) {
-	auth := c.auth
-	useCertificates := c.agentConfig.TlsConfig != nil && len(c.agentConfig.TlsConfig.Certificates) > 0
-	if useCertificates {
-		if auth == nil {
-			return nil, ErrMixedCertAuthentication
-		}
-		_, ok := auth.(CertAuthenticator)
-		if !ok {
-			return nil, ErrMixedCertAuthentication
-		}
-	}
-
-	if auth == nil {
-		authMap := make(BucketAuthenticatorMap)
-		authMap[bucket] = BucketAuthenticator{
-			Password: password,
-		}
-		auth = ClusterAuthenticator{
-			Buckets: authMap,
-		}
-	} else {
-		if password != "" {
-			return nil, ErrMixedAuthentication
-		}
-		_, ok := auth.(CertAuthenticator)
-		if ok && !useCertificates {
-			return nil, ErrMixedCertAuthentication
-		}
-	}
-
-	config := c.agentConfig
-
-	config.BucketName = bucket
-	config.Password = password
-	config.Auth = &coreAuthWrapper{
-		auth:       auth,
-		bucketName: bucket,
-	}
-
-	if forceMt {
-		config.UseMutationTokens = true
-	}
-
-	return &config, nil
-}
-
-// Authenticate specifies an Authenticator interface to use to authenticate with cluster services.
-func (c *Cluster) Authenticate(auth Authenticator) error {
-	c.auth = auth
-	return nil
-}
-
-func (c *Cluster) openBucket(bucket, password string, forceMt bool) (*Bucket, error) {
-	agentConfig, err := c.makeAgentConfig(bucket, password, forceMt)
+func (c *Cluster) getHTTPProvider() (httpProvider, error) {
+	client, err := c.randomClient()
 	if err != nil {
 		return nil, err
 	}
 
-	b, err := createBucket(c, agentConfig)
+	provider, err := client.getHTTPProvider()
 	if err != nil {
 		return nil, err
 	}
 
-	c.clusterLock.Lock()
-	c.bucketList = append(c.bucketList, b)
-	c.clusterLock.Unlock()
-
-	return b, nil
-}
-
-// OpenBucket opens a new connection to the specified bucket.
-func (c *Cluster) OpenBucket(bucket, password string) (*Bucket, error) {
-	return c.openBucket(bucket, password, false)
-}
-
-// OpenBucketWithMt opens a new connection to the specified bucket and enables mutation tokens.
-// MutationTokens allow you to execute queries and durability requirements with very specific
-// operation-level consistency.
-func (c *Cluster) OpenBucketWithMt(bucket, password string) (*Bucket, error) {
-	return c.openBucket(bucket, password, true)
-}
-
-func (c *Cluster) closeBucket(bucket *Bucket) {
-	c.clusterLock.Lock()
-	for i, e := range c.bucketList {
-		if e == bucket {
-			c.bucketList = append(c.bucketList[0:i], c.bucketList[i+1:]...)
-			break
-		}
-	}
-	c.clusterLock.Unlock()
-}
-
-// Manager returns a ClusterManager object for performing cluster management operations on this cluster.
-func (c *Cluster) Manager(username, password string) *ClusterManager {
-	var mgmtHosts []string
-	for _, host := range c.agentConfig.HttpAddrs {
-		if c.agentConfig.TlsConfig != nil {
-			mgmtHosts = append(mgmtHosts, "https://"+host)
-		} else {
-			mgmtHosts = append(mgmtHosts, "http://"+host)
-		}
-	}
-
-	tlsConfig := c.agentConfig.TlsConfig
-	return &ClusterManager{
-		hosts:    mgmtHosts,
-		username: username,
-		password: password,
-		httpCli: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: tlsConfig,
-			},
-		},
-		cluster: c,
-	}
-}
-
-// StreamingBucket represents a bucket connection used for streaming data over DCP.
-type StreamingBucket struct {
-	client *gocbcore.Agent
-}
-
-// IoRouter returns the underlying gocb agent managing connections.
-func (b *StreamingBucket) IoRouter() *gocbcore.Agent {
-	return b.client
-}
-
-// OpenStreamingBucket opens a new connection to the specified bucket for the purpose of streaming data.
-func (c *Cluster) OpenStreamingBucket(streamName, bucket, password string) (*StreamingBucket, error) {
-	agentConfig, err := c.makeAgentConfig(bucket, password, false)
-	if err != nil {
-		return nil, err
-	}
-	cli, err := gocbcore.CreateDcpAgent(agentConfig, streamName, 0)
-	if err != nil {
-		return nil, err
-	}
-
-	return &StreamingBucket{
-		client: cli,
-	}, nil
-}
-
-func (c *Cluster) randomBucket() (*Bucket, error) {
-	c.clusterLock.RLock()
-	if len(c.bucketList) == 0 {
-		c.clusterLock.RUnlock()
-		return nil, ErrNoOpenBuckets
-	}
-	bucket := c.bucketList[0]
-	c.clusterLock.RUnlock()
-	return bucket, nil
-}
-
-type httpClient interface {
-	Do(req *http.Request) (*http.Response, error)
-}
-
-// getFtsEp retrieves a search endpoint from a random bucket
-func (c *Cluster) getFtsEp() (string, error) {
-	tmpB, err := c.randomBucket()
-	if err != nil {
-		return "", err
-	}
-
-	ftsEp, err := tmpB.getFtsEp()
-	if err != nil {
-		return "", err
-	}
-
-	return ftsEp, nil
+	return provider, nil
 }

@@ -1,7 +1,7 @@
 package gocb
 
 import (
-	"gopkg.in/couchbase/gocbcore.v7"
+	"gopkg.in/couchbase/gocbcore.v8"
 )
 
 // UserPassPair represents a username and password pair.
@@ -59,59 +59,6 @@ type Authenticator interface {
 	Credentials(req AuthCredsRequest) ([]UserPassPair, error)
 }
 
-// BucketAuthenticator provides a password for a single bucket.
-type BucketAuthenticator struct {
-	Password string
-}
-
-// BucketAuthenticatorMap is a map of bucket name to BucketAuthenticator.
-type BucketAuthenticatorMap map[string]BucketAuthenticator
-
-// ClusterAuthenticator implements an Authenticator which uses a list of buckets and passwords.
-type ClusterAuthenticator struct {
-	Buckets  BucketAuthenticatorMap
-	Username string
-	Password string
-}
-
-func (ca ClusterAuthenticator) clusterCreds() []UserPassPair {
-	var creds []UserPassPair
-	for bucketName, bucket := range ca.Buckets {
-		creds = append(creds, UserPassPair{
-			Username: bucketName,
-			Password: bucket.Password,
-		})
-	}
-	return creds
-}
-
-// Credentials returns the credentials for a particular service.
-func (ca ClusterAuthenticator) Credentials(req AuthCredsRequest) ([]UserPassPair, error) {
-	if req.Bucket == "" {
-		if req.Service == MemdService || req.Service == MgmtService ||
-			req.Service == CapiService {
-			return []UserPassPair{{
-				Username: ca.Username,
-				Password: ca.Password,
-			}}, nil
-		}
-
-		return ca.clusterCreds(), nil
-	}
-
-	if bucketAuth, ok := ca.Buckets[req.Bucket]; ok {
-		return []UserPassPair{{
-			Username: req.Bucket,
-			Password: bucketAuth.Password,
-		}}, nil
-	}
-
-	return []UserPassPair{{
-		Username: "",
-		Password: "",
-	}}, nil
-}
-
 // PasswordAuthenticator implements an Authenticator which uses an RBAC username and password.
 type PasswordAuthenticator struct {
 	Username string
@@ -136,10 +83,4 @@ func (ca CertAuthenticator) Credentials(req AuthCredsRequest) ([]UserPassPair, e
 		Username: "",
 		Password: "",
 	}}, nil
-}
-
-// CertificateAuthenticator is included for backwards compatibility only.
-// Deprecated: Use CertAuthenticator instead.
-type CertificateAuthenticator struct {
-	CertAuthenticator
 }

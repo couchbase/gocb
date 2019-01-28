@@ -1,25 +1,15 @@
 package gocb
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
-	"fmt"
-	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/pkg/errors"
+	"gopkg.in/couchbase/gocbcore.v8"
 )
-
-type analyticsError struct {
-	Code    uint32 `json:"code"`
-	Message string `json:"msg"`
-}
-
-func (e *analyticsError) Error() string {
-	return fmt.Sprintf("[%d] %s", e.Code, e.Message)
-}
 
 // AnalyticsWarning represents any warning generating during the execution of an Analytics query.
 type AnalyticsWarning struct {
@@ -28,10 +18,10 @@ type AnalyticsWarning struct {
 }
 
 type analyticsResponse struct {
-	RequestId       string                   `json:"requestID"`
-	ClientContextId string                   `json:"clientContextID"`
+	RequestID       string                   `json:"requestID"`
+	ClientContextID string                   `json:"clientContextID"`
 	Results         []json.RawMessage        `json:"results,omitempty"`
-	Errors          []analyticsError         `json:"errors,omitempty"`
+	Errors          []analyticsQueryError    `json:"errors,omitempty"`
 	Warnings        []AnalyticsWarning       `json:"warnings,omitempty"`
 	Status          string                   `json:"status,omitempty"`
 	Signature       interface{}              `json:"signature,omitempty"`
@@ -56,16 +46,6 @@ type analyticsResponseHandle struct {
 	Handle string `json:"handle,omitempty"`
 }
 
-type analyticsMultiError []analyticsError
-
-func (e *analyticsMultiError) Error() string {
-	return (*e)[0].Error()
-}
-
-func (e *analyticsMultiError) Code() uint32 {
-	return (*e)[0].Code
-}
-
 // AnalyticsResultMetrics encapsulates various metrics gathered during a queries execution.
 type AnalyticsResultMetrics struct {
 	ElapsedTime      time.Duration
@@ -79,29 +59,6 @@ type AnalyticsResultMetrics struct {
 	ProcessedObjects uint
 }
 
-// AnalyticsDeferredResultHandle allows access to the handle of a deferred Analytics query.
-//
-// Experimental: This API is subject to change at any time.
-type AnalyticsDeferredResultHandle interface {
-	One(valuePtr interface{}) error
-	Next(valuePtr interface{}) bool
-	NextBytes() []byte
-	Close() error
-
-	Status() (string, error)
-}
-
-type analyticsDeferredResultHandle struct {
-	handleUri string
-	status    string
-	rows      *analyticsRows
-	err       error
-	client    *http.Client
-	creds     []UserPassPair
-	hasResult bool
-	timeout   time.Duration
-}
-
 type analyticsRows struct {
 	closed bool
 	index  int
@@ -109,26 +66,11 @@ type analyticsRows struct {
 }
 
 // AnalyticsResults allows access to the results of a Analytics query.
-type AnalyticsResults interface {
-	One(valuePtr interface{}) error
-	Next(valuePtr interface{}) bool
-	NextBytes() []byte
-	Close() error
-
-	RequestId() string
-	ClientContextId() string
-	Status() string
-	Warnings() []AnalyticsWarning
-	Signature() interface{}
-	Metrics() AnalyticsResultMetrics
-	Handle() AnalyticsDeferredResultHandle
-}
-
-type analyticsResults struct {
+type AnalyticsResults struct {
 	rows            *analyticsRows
 	err             error
-	requestId       string
-	clientContextId string
+	requestID       string
+	clientContextID string
 	status          string
 	warnings        []AnalyticsWarning
 	signature       interface{}
@@ -136,7 +78,8 @@ type analyticsResults struct {
 	handle          AnalyticsDeferredResultHandle
 }
 
-func (r *analyticsResults) Next(valuePtr interface{}) bool {
+// Next assigns the next result from the results into the value pointer, returning whether the read was successful.
+func (r *AnalyticsResults) Next(valuePtr interface{}) bool {
 	if r.err != nil {
 		return false
 	}
@@ -154,7 +97,8 @@ func (r *analyticsResults) Next(valuePtr interface{}) bool {
 	return true
 }
 
-func (r *analyticsResults) NextBytes() []byte {
+// NextBytes returns the next result from the results as a byte array.
+func (r *AnalyticsResults) NextBytes() []byte {
 	if r.err != nil {
 		return nil
 	}
@@ -162,18 +106,20 @@ func (r *analyticsResults) NextBytes() []byte {
 	return r.rows.NextBytes()
 }
 
-func (r *analyticsResults) Close() error {
+// Close marks the results as closed, returning any errors that occurred during reading the results.
+func (r *AnalyticsResults) Close() error {
 	r.rows.Close()
 	return r.err
 }
 
-func (r *analyticsResults) One(valuePtr interface{}) error {
+// One assigns the first value from the results into the value pointer.
+func (r *AnalyticsResults) One(valuePtr interface{}) error {
 	if !r.Next(valuePtr) {
 		err := r.Close()
 		if err != nil {
 			return err
 		}
-		return ErrNoResults
+		// return ErrNoResults TODO
 	}
 
 	// Ignore any errors occurring after we already have our result
@@ -186,43 +132,53 @@ func (r *analyticsResults) One(valuePtr interface{}) error {
 	return nil
 }
 
-func (r *analyticsResults) Warnings() []AnalyticsWarning {
+// Warnings returns any warnings that occurred during query execution.
+func (r *AnalyticsResults) Warnings() []AnalyticsWarning {
 	return r.warnings
 }
 
-func (r *analyticsResults) Status() string {
+// Status returns the status for the results.
+func (r *AnalyticsResults) Status() string {
 	return r.status
 }
 
-func (r *analyticsResults) Signature() interface{} {
+// Signature returns TODO
+func (r *AnalyticsResults) Signature() interface{} {
 	return r.signature
 }
 
-func (r *analyticsResults) Metrics() AnalyticsResultMetrics {
+// Metrics returns metrics about execution of this result.
+func (r *AnalyticsResults) Metrics() AnalyticsResultMetrics {
 	return r.metrics
 }
 
-func (r *analyticsResults) RequestId() string {
+// RequestID returns the request ID used for this query.
+func (r *AnalyticsResults) RequestID() string {
 	if !r.rows.closed {
 		panic("Result must be closed before accessing meta-data")
 	}
 
-	return r.requestId
+	return r.requestID
 }
 
-func (r *analyticsResults) ClientContextId() string {
+// ClientContextID returns the context ID used for this query.
+func (r *AnalyticsResults) ClientContextID() string {
 	if !r.rows.closed {
 		panic("Result must be closed before accessing meta-data")
 	}
 
-	return r.clientContextId
+	return r.clientContextID
 }
 
+// Handle returns a deferred result handle. This can be polled to verify whether
+// the result is ready to be read.
+//
 // Experimental: This API is subject to change at any time.
-func (r *analyticsResults) Handle() AnalyticsDeferredResultHandle {
+func (r *AnalyticsResults) Handle() AnalyticsDeferredResultHandle {
 	return r.handle
 }
 
+// NextBytes returns the next result from the rows as a byte array.
 func (r *analyticsRows) NextBytes() []byte {
 	if r.index+1 >= len(r.rows) {
 		r.closed = true
@@ -233,175 +189,144 @@ func (r *analyticsRows) NextBytes() []byte {
 	return r.rows[r.index]
 }
 
+// Close marks the rows as closed.
 func (r *analyticsRows) Close() {
 	r.closed = true
 }
 
-func (r *analyticsDeferredResultHandle) Next(valuePtr interface{}) bool {
-	if r.err != nil {
-		return false
+// AnalyticsQuery performs an analytics query and returns a list of rows or an error.
+func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsQueryOptions) (*AnalyticsResults, error) {
+	if opts == nil {
+		opts = &AnalyticsQueryOptions{}
+	}
+	ctx := opts.Context
+	if ctx == nil {
+		ctx = context.Background()
 	}
 
-	row := r.NextBytes()
-	if row == nil {
-		return false
+	var span opentracing.Span
+	if opts.ParentSpanContext == nil {
+		span = opentracing.GlobalTracer().StartSpan("ExecuteAnalyticsQuery",
+			opentracing.Tag{Key: "couchbase.service", Value: "cbas"})
+	} else {
+		span = opentracing.GlobalTracer().StartSpan("ExecuteAnalyticsQuery",
+			opentracing.Tag{Key: "couchbase.service", Value: "cbas"}, opentracing.ChildOf(opts.ParentSpanContext))
+	}
+	defer span.Finish()
+
+	provider, err := c.getHTTPProvider()
+	if err != nil {
+		return nil, err
 	}
 
-	r.err = json.Unmarshal(row, valuePtr)
-	if r.err != nil {
-		return false
-	}
-
-	return true
+	return c.analyticsQuery(ctx, span.Context(), statement, opts, provider)
 }
 
-func (r *analyticsDeferredResultHandle) NextBytes() []byte {
-	if r.err != nil {
-		return nil
+func (c *Cluster) analyticsQuery(ctx context.Context, traceCtx opentracing.SpanContext, statement string, opts *AnalyticsQueryOptions,
+	provider httpProvider) (resultsOut *AnalyticsResults, errOut error) {
+
+	queryOpts, err := opts.toMap(statement)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not parse query options")
 	}
 
-	if r.status == "success" && !r.hasResult {
-		req, err := http.NewRequest("GET", r.handleUri, nil)
+	timeout := c.sb.AnalyticsTimeout
+	var optTimeout time.Duration
+	tmostr, castok := queryOpts["timeout"].(string)
+	if castok {
+		optTimeout, err = time.ParseDuration(tmostr)
 		if err != nil {
-			r.err = err
-			return nil
+			return nil, errors.Wrap(err, "could not parse timeout value")
+		}
+	}
+	if optTimeout > 0 && optTimeout < timeout {
+		timeout = optTimeout
+	}
+
+	now := time.Now()
+	d, ok := ctx.Deadline()
+
+	if !ok || now.Add(timeout).Before(d) {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	} else {
+		timeout = d.Sub(now)
+	}
+
+	queryOpts["timeout"] = timeout.String()
+
+	// TODO: clientcontextid?
+
+	var retries uint
+	for {
+		retries++
+		var res *AnalyticsResults
+		res, err = c.executeAnalyticsQuery(ctx, traceCtx, queryOpts, provider)
+		if err == nil {
+			return res, err
 		}
 
-		if len(r.creds) == 1 {
-			req.SetBasicAuth(r.creds[0].Username, r.creds[0].Password)
+		if !isRetryableError(err) || c.sb.AnalyticsRetryBehavior == nil || !c.sb.AnalyticsRetryBehavior.CanRetry(retries) {
+			return res, err
 		}
 
-		err = r.executeHandle(r.client, req, r.timeout, &r.rows.rows)
-		if err != nil {
-			r.err = err
-			return nil
-		}
-		r.hasResult = true
-	} else if r.status != "success" {
-		return nil
+		time.Sleep(c.sb.AnalyticsRetryBehavior.NextInterval(retries))
 	}
-
-	return r.rows.NextBytes()
 }
 
-func (r *analyticsDeferredResultHandle) Close() error {
-	r.rows.Close()
-	return r.err
-}
+func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracing.SpanContext, opts map[string]interface{},
+	provider httpProvider) (*AnalyticsResults, error) {
 
-func (r *analyticsDeferredResultHandle) One(valuePtr interface{}) error {
-	if !r.Next(valuePtr) {
-		err := r.Close()
-		if err != nil {
-			return err
-		}
-		return ErrNoResults
-	}
-
-	// Ignore any errors occurring after we already have our result
-	err := r.Close()
-	if err != nil {
-		// Return no error as we got the one result already.
-		return nil
-	}
-
-	return nil
-}
-
-func (r *analyticsDeferredResultHandle) Status() (string, error) {
-	req, err := http.NewRequest("GET", r.handleUri, nil)
-	if err != nil {
-		r.err = err
-		return "", err
-	}
-
-	if len(r.creds) == 1 {
-		req.SetBasicAuth(r.creds[0].Username, r.creds[0].Password)
-	}
-
-	var analyticsResponse *analyticsResponseHandle
-	err = r.executeHandle(r.client, req, r.timeout, &analyticsResponse)
-	if err != nil {
-		r.err = err
-		return "", err
-	}
-
-	r.status = analyticsResponse.Status
-	r.handleUri = analyticsResponse.Handle
-	return r.status, nil
-}
-
-func (r *analyticsDeferredResultHandle) executeHandle(client *http.Client, req *http.Request, timeout time.Duration, valuePtr interface{}) error {
-	resp, err := doHttpWithTimeout(r.client, req, r.timeout)
-	if err != nil {
-		return err
-	}
-
-	jsonDec := json.NewDecoder(resp.Body)
-	err = jsonDec.Decode(valuePtr)
-	if err != nil {
-		return err
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
-	}
-
-	return nil
-}
-
-func (c *Cluster) executeAnalyticsQuery(tracectx opentracing.SpanContext, analyticsEp string, opts map[string]interface{}, creds []UserPassPair, timeout time.Duration, client *http.Client) (AnalyticsResults, error) {
-	reqUri := fmt.Sprintf("%s/analytics/service", analyticsEp)
-
-	priority, priorityCastok := opts["priority"].(int)
-	if priorityCastok {
+	// priority is sent as a header not in the body
+	priority, priorityCastOK := opts["priority"].(int)
+	if priorityCastOK {
 		delete(opts, "priority")
 	}
 
-	if len(creds) > 1 {
-		opts["creds"] = creds
-	}
-
-	reqJson, err := json.Marshal(opts)
+	reqJSON, err := json.Marshal(opts)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to marshal query request body")
 	}
 
-	req, err := http.NewRequest("POST", reqUri, bytes.NewBuffer(reqJson))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	if priorityCastok {
-		req.Header.Set("Analytics-Priority", strconv.Itoa(priority))
+	req := &gocbcore.HttpRequest{
+		Service: gocbcore.CbasService,
+		Path:    "/analytics/service",
+		Method:  "POST",
+		Context: ctx,
+		Body:    reqJSON,
 	}
 
-	if len(creds) == 1 {
-		req.SetBasicAuth(creds[0].Username, creds[0].Password)
+	if priorityCastOK {
+		req.Headers = make(map[string]string)
+		req.Headers["Analytics-Priority"] = strconv.Itoa(priority)
 	}
 
-	dtrace := c.agentConfig.Tracer.StartSpan("dispatch",
-		opentracing.ChildOf(tracectx))
+	dtrace := opentracing.GlobalTracer().StartSpan("dispatch", opentracing.ChildOf(traceCtx))
 
-	resp, err := doHttpWithTimeout(client, req, timeout)
+	resp, err := provider.DoHttpRequest(req)
 	if err != nil {
 		dtrace.Finish()
-		return nil, err
+		if err == gocbcore.ErrNoCbasService {
+			return nil, serviceNotFoundError{}
+		}
+
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{}
+		}
+		return nil, errors.Wrap(err, "could not complete query http request")
 	}
 
 	dtrace.Finish()
 
-	strace := c.agentConfig.Tracer.StartSpan("streaming",
-		opentracing.ChildOf(tracectx))
+	strace := opentracing.GlobalTracer().StartSpan("streaming", opentracing.ChildOf(traceCtx))
 
 	analyticsResp := analyticsResponse{}
 	jsonDec := json.NewDecoder(resp.Body)
 	err = jsonDec.Decode(&analyticsResp)
 	if err != nil {
 		strace.Finish()
-		return nil, err
+		return nil, errors.Wrap(err, "failed to decode query response body")
 	}
 
 	err = resp.Body.Close()
@@ -409,7 +334,7 @@ func (c *Cluster) executeAnalyticsQuery(tracectx opentracing.SpanContext, analyt
 		logDebugf("Failed to close socket (%s)", err)
 	}
 
-	strace.SetTag("couchbase.operation_id", analyticsResp.RequestId)
+	strace.SetTag("couchbase.operation_id", analyticsResp.RequestID)
 	strace.Finish()
 
 	elapsedTime, err := time.ParseDuration(analyticsResp.Metrics.ElapsedTime)
@@ -423,19 +348,27 @@ func (c *Cluster) executeAnalyticsQuery(tracectx opentracing.SpanContext, analyt
 	}
 
 	if len(analyticsResp.Errors) > 0 {
-		return nil, (*analyticsMultiError)(&analyticsResp.Errors)
-	}
-
-	if resp.StatusCode != 200 {
-		return nil, &viewError{
-			Message: "HTTP Error",
-			Reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
+		errs := make([]AnalyticsQueryError, len(analyticsResp.Errors))
+		for i, e := range analyticsResp.Errors {
+			errs[i] = e
+		}
+		return nil, analyticsQueryMultiError{
+			errors:     errs,
+			endpoint:   resp.Endpoint,
+			httpStatus: resp.StatusCode,
+			contextID:  analyticsResp.ClientContextID,
 		}
 	}
 
-	return &analyticsResults{
-		requestId:       analyticsResp.RequestId,
-		clientContextId: analyticsResp.ClientContextId,
+	if resp.StatusCode != 200 {
+		return nil, &httpError{
+			statusCode: resp.StatusCode,
+		}
+	}
+
+	return &AnalyticsResults{
+		requestID:       analyticsResp.RequestID,
+		clientContextID: analyticsResp.ClientContextID,
 		rows: &analyticsRows{
 			rows:  analyticsResp.Results,
 			index: -1,
@@ -459,161 +392,8 @@ func (c *Cluster) executeAnalyticsQuery(tracectx opentracing.SpanContext, analyt
 			rows: &analyticsRows{
 				index: -1,
 			},
-			status:  analyticsResp.Status,
-			client:  client,
-			creds:   creds,
-			timeout: timeout,
+			status:   analyticsResp.Status,
+			provider: provider,
 		},
 	}, nil
-}
-
-// Performs a spatial query and returns a list of rows or an error.
-func (c *Cluster) doAnalyticsQuery(tracectx opentracing.SpanContext, b *Bucket, q *AnalyticsQuery, params interface{}) (AnalyticsResults, error) {
-	var err error
-	var cbasEp string
-	var timeout time.Duration
-	var creds []UserPassPair
-	var selectedB *Bucket
-
-	if b != nil {
-		if b.analyticsTimeout < c.analyticsTimeout {
-			timeout = b.analyticsTimeout
-		} else {
-			timeout = c.analyticsTimeout
-		}
-
-		selectedB = b
-	} else {
-		if c.auth == nil {
-			panic("Cannot perform cluster level queries without Cluster Authenticator.")
-		}
-
-		tmpB, err := c.randomBucket()
-		if err != nil {
-			return nil, err
-		}
-
-		timeout = c.analyticsTimeout
-
-		selectedB = tmpB
-	}
-
-	client := selectedB.client.HttpClient()
-	clientContextId := selectedB.client.ClientId()
-	retryBehavior := selectedB.analyticsQueryRetryBehavior
-
-	execOpts := make(map[string]interface{})
-	for k, v := range q.options {
-		execOpts[k] = v
-	}
-	if params != nil {
-		args, isArray := params.([]interface{})
-		if isArray {
-			execOpts["args"] = args
-		} else {
-			mapArgs, isMap := params.(map[string]interface{})
-			if isMap {
-				for key, value := range mapArgs {
-					if !strings.HasPrefix(key, "$") {
-						key = "$" + key
-					}
-					execOpts[key] = value
-				}
-			} else {
-				panic("Invalid params argument passed")
-			}
-		}
-	}
-
-	_, castok := execOpts["client_context_id"]
-	if !castok {
-		execOpts["client_context_id"] = clientContextId
-	}
-
-	tmostr, castok := execOpts["timeout"].(string)
-	if castok {
-		var err error
-		timeout, err = time.ParseDuration(tmostr)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		// Set the timeout string to its default variant
-		execOpts["timeout"] = timeout.String()
-	}
-
-	var retries uint
-	var res AnalyticsResults
-	start := time.Now()
-	for time.Now().Sub(start) <= time.Duration(timeout) {
-		retries++
-		cbasEp, err = selectedB.getCbasEp()
-		if err != nil {
-			return nil, err
-		}
-
-		if b != nil {
-			if c.auth != nil {
-				creds, err = c.auth.Credentials(AuthCredsRequest{
-					Service:  CbasService,
-					Endpoint: cbasEp,
-					Bucket:   b.name,
-				})
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				creds = []UserPassPair{
-					{
-						Username: b.name,
-						Password: b.password,
-					},
-				}
-			}
-		} else {
-			creds, err = c.auth.Credentials(AuthCredsRequest{
-				Service:  CbasService,
-				Endpoint: cbasEp,
-			})
-			if err != nil {
-				return nil, err
-			}
-
-		}
-
-		etrace := c.agentConfig.Tracer.StartSpan("execute",
-			opentracing.ChildOf(tracectx))
-		res, err = c.executeAnalyticsQuery(tracectx, cbasEp, execOpts, creds, timeout, client)
-		if err == nil {
-			etrace.Finish()
-			return res, nil
-		}
-
-		etrace.Finish()
-
-		analyticsErr, isAnalyticsErr := err.(*analyticsMultiError)
-		if !isAnalyticsErr {
-			return nil, err
-		}
-		if analyticsErr.Code() != 21002 && analyticsErr.Code() != 23000 && analyticsErr.Code() != 23003 && analyticsErr.Code() != 23007 {
-			return nil, err
-		}
-
-		if retryBehavior == nil || !retryBehavior.CanRetry(retries) {
-			break
-		}
-
-		time.Sleep(retryBehavior.NextInterval(retries))
-	}
-
-	return res, err
-}
-
-// ExecuteAnalyticsQuery performs an analytics query and returns a list of rows or an error.
-func (c *Cluster) ExecuteAnalyticsQuery(q *AnalyticsQuery, params interface{}) (AnalyticsResults, error) {
-	span := c.agentConfig.Tracer.StartSpan("ExecuteAnalyticsQuery",
-		opentracing.Tag{Key: "couchbase.service", Value: "cbas"})
-	defer span.Finish()
-
-	return c.doAnalyticsQuery(span.Context(), nil, q, params)
 }

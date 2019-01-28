@@ -1,35 +1,11 @@
 package gocb
 
 import (
-	"gopkg.in/couchbase/gocbcore.v7"
+	"gopkg.in/couchbase/gocbcore.v8"
 )
 
 const (
-	goCbVersionStr = "v1.5.3"
-)
-
-const (
-	// Legacy flag format for JSON data.
-	lfJson = 0
-
-	// Common flags mask
-	cfMask = 0xFF000000
-	// Common flags mask for data format
-	cfFmtMask = 0x0F000000
-	// Common flags mask for compression mode.
-	cfCmprMask = 0xE0000000
-
-	// Common flag format for sdk-private data.
-	cfFmtPrivate = 1 << 24
-	// Common flag format for JSON data.
-	cfFmtJson = 2 << 24
-	// Common flag format for binary data.
-	cfFmtBinary = 3 << 24
-	// Common flag format for string data.
-	cfFmtString = 4 << 24
-
-	// Common flags compression for disabled compression.
-	cfCmprNone = 0 << 29
+	goCbVersionStr = "v2.0.0-dev"
 )
 
 // IndexType provides information on the type of indexer used for an index.
@@ -41,6 +17,29 @@ const (
 
 	// IndexTypeView indicates that views were used to build the index.
 	IndexTypeView = IndexType("views")
+)
+
+// ServiceType specifies a particular Couchbase service type.
+type ServiceType gocbcore.ServiceType
+
+const (
+	// MemdService represents a memcached service.
+	MemdService = ServiceType(gocbcore.MemdService)
+
+	// MgmtService represents a management service (typically ns_server).
+	MgmtService = ServiceType(gocbcore.MgmtService)
+
+	// CapiService represents a CouchAPI service (typically for views).
+	CapiService = ServiceType(gocbcore.CapiService)
+
+	// N1qlService represents a N1QL service (typically for query).
+	N1qlService = ServiceType(gocbcore.N1qlService)
+
+	// FtsService represents a full-text-search service.
+	FtsService = ServiceType(gocbcore.FtsService)
+
+	// CbasService represents an analytics service.
+	CbasService = ServiceType(gocbcore.CbasService)
 )
 
 // QueryProfileType specifies the profiling mode to use during a query.
@@ -92,25 +91,18 @@ const (
 	SubdocDocFlagAccessDeleted = SubdocDocFlag(gocbcore.SubdocDocFlagAccessDeleted)
 )
 
-// ServiceType specifies a particular Couchbase service type.
-type ServiceType gocbcore.ServiceType
+// DurabilityLevel specifies the level of synchronous replication to use.
+type DurabilityLevel string
 
 const (
-	// MemdService represents a memcached service.
-	MemdService = ServiceType(gocbcore.MemdService)
+	// DurabilityLevelMajority specifies that a mutation must be replicated (held in memory) to a majority of nodes.
+	DurabilityLevelMajority = DurabilityLevel("majority")
 
-	// MgmtService represents a management service (typically ns_server).
-	MgmtService = ServiceType(gocbcore.MgmtService)
+	// DurabilityLevelMajorityAndPersistActive specifies that a mutation must be replicated (held in memory) to a
+	// majority of nodes and also persisted (written to disk) on the active node.
+	DurabilityLevelMajorityAndPersistActive = DurabilityLevel("majorityAndPersistActive")
 
-	// CapiService represents a CouchAPI service (typically for views).
-	CapiService = ServiceType(gocbcore.CapiService)
-
-	// N1qlService represents a N1QL service (typically for query).
-	N1qlService = ServiceType(gocbcore.N1qlService)
-
-	// FtsService represents a full-text-search service.
-	FtsService = ServiceType(gocbcore.FtsService)
-
-	// CbasService represents an analytics service.
-	CbasService = ServiceType(gocbcore.CbasService)
+	// DurabilityLevelPersistToMajority specifies that a mutation must be persisted (written to disk) to a majority
+	// of nodes.
+	DurabilityLevelPersistToMajority = DurabilityLevel("persistToMajority")
 )

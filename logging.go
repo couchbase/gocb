@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"gopkg.in/couchbase/gocbcore.v7"
+	"gopkg.in/couchbase/gocbcore.v8"
 )
 
 // LogLevel specifies the severity of a log message.
@@ -40,7 +40,7 @@ const (
 // SetLogRedactionLevel specifies the level with which logs should be redacted.
 func SetLogRedactionLevel(level LogRedactLevel) {
 	globalLogRedactionLevel = level
-	gocbcore.SetLogRedactionLevel(gocbcore.LogRedactLevel(level))
+	// gocbcore.SetLogRedactionLevel(gocbcore.LogRedactLevel(level))
 }
 
 // Logger defines a logging interface. You can either use one of the default loggers
@@ -110,7 +110,7 @@ func getCoreLogger(logger Logger) gocbcore.Logger {
 func SetLogger(logger Logger) {
 	globalLogger = logger
 	gocbcore.SetLogger(getCoreLogger(logger))
-	gocbcore.SetLogRedactionLevel(gocbcore.LogRedactLevel(globalLogRedactionLevel))
+	// gocbcore.SetLogRedactionLevel(gocbcore.LogRedactLevel(globalLogRedactionLevel))
 }
 
 func logExf(level LogLevel, offset int, format string, v ...interface{}) {

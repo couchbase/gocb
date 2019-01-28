@@ -34,6 +34,6 @@ lint: checkfmt checkerrs checkvet checkiea checkspell
 	golint -set_exit_status -min_confidence 0.81 ./cbft
 
 check: lint
-	go test -cover -race ./ ./cbft
+	go test -short -cover -race ./ ./cbft
 
 .PHONY: all test devsetup fasttest lint cover checkerrs checkfmt checkvet checkiea checkspell check

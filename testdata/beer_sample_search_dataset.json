@@ -1,0 +1,68 @@
+{
+  "status": {
+    "total": 1,
+    "failed": 0,
+    "successful": 1
+  },
+  "request": {
+    "query": {
+      "query": "London"
+    },
+    "size": 5,
+    "from": 0,
+    "highlight": null,
+    "fields": null,
+    "facets": null,
+    "explain": false,
+    "sort": [
+      "-_score"
+    ],
+    "includeLocations": false
+  },
+  "hits": [
+    {
+      "index": "hotels_384418a18e59eba2_acbbef99",
+      "id": "landmark_37138",
+      "score": 1.156383395549805,
+      "sort": [
+        "_score"
+      ]
+    },
+    {
+      "index": "hotels_384418a18e59eba2_acbbef99",
+      "id": "landmark_16309",
+      "score": 1.1315120632881468,
+      "sort": [
+        "_score"
+      ]
+    },
+    {
+      "index": "hotels_384418a18e59eba2_acbbef99",
+      "id": "landmark_16073",
+      "score": 1.1059247262932046,
+      "sort": [
+        "_score"
+      ]
+    },
+    {
+      "index": "hotels_384418a18e59eba2_acbbef99",
+      "id": "landmark_16288",
+      "score": 1.0926796273206518,
+      "sort": [
+        "_score"
+      ]
+    },
+    {
+      "index": "hotels_384418a18e59eba2_acbbef99",
+      "id": "landmark_16071",
+      "score": 1.0798993013885354,
+      "sort": [
+        "_score"
+      ]
+    }
+  ],
+  "total_hits": 809,
+  "max_score": 1.156383395549805,
+  "took": 62511375,
+  "facets": null
+}

@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"gopkg.in/couchbase/gocbcore.v7"
+	"gopkg.in/couchbase/gocbcore.v8"
 )
 
 // MutationToken holds the mutation state information from an operation.
 type MutationToken struct {
-	token  gocbcore.MutationToken
-	bucket *Bucket
+	token      gocbcore.MutationToken
+	bucketName string
 }
 
 type bucketToken struct {
@@ -44,7 +44,7 @@ func NewMutationState(tokens ...MutationToken) *MutationState {
 }
 
 func (mt *MutationState) addSingle(token MutationToken) {
-	if token.bucket == nil {
+	if token.bucketName == "" {
 		return
 	}
 
@@ -53,7 +53,7 @@ func (mt *MutationState) addSingle(token MutationToken) {
 		mt.data = &data
 	}
 
-	bucketName := token.bucket.name
+	bucketName := token.bucketName
 	if (*mt.data)[bucketName] == nil {
 		tokens := make(bucketTokens)
 		(*mt.data)[bucketName] = &tokens

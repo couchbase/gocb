@@ -2,12 +2,15 @@ package gocb
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"time"
 
+	"gopkg.in/couchbase/gocbcore.v8"
+
 	"github.com/opentracing/opentracing-go"
+	"github.com/pkg/errors"
 	"gopkg.in/couchbaselabs/jsonx.v1"
 )
 
@@ -27,7 +30,7 @@ type SearchResultHit struct {
 	Explanation map[string]interface{}                       `json:"explanation,omitempty"`
 	Locations   map[string]map[string][]SearchResultLocation `json:"locations,omitempty"`
 	Fragments   map[string][]string                          `json:"fragments,omitempty"`
-	Fields      map[string]string                            `json:"fields,omitempty"`
+	Fields      map[string]interface{}                       `json:"fields,omitempty"`
 }
 
 // SearchResultTermFacet holds the results of a term facet in search results.
@@ -70,17 +73,6 @@ type SearchResultStatus struct {
 	Successful int `json:"successful,omitempty"`
 }
 
-// SearchResults allows access to the results of a search query.
-type SearchResults interface {
-	Status() SearchResultStatus
-	Errors() []string
-	TotalHits() int
-	Hits() []SearchResultHit
-	Facets() map[string]SearchResultFacet
-	Took() time.Duration
-	MaxScore() float64
-}
-
 type searchResponse struct {
 	Status    SearchResultStatus           `json:"status,omitempty"`
 	Errors    []string                     `json:"errors,omitempty"`
@@ -91,81 +83,79 @@ type searchResponse struct {
 	MaxScore  float64                      `json:"max_score,omitempty"`
 }
 
-type searchResults struct {
+// SearchResults allows access to the results of a search query.
+type SearchResults struct {
 	data *searchResponse
 }
 
-func (r searchResults) Status() SearchResultStatus {
+// Status is the status information for the results.
+func (r SearchResults) Status() SearchResultStatus {
 	return r.data.Status
 }
-func (r searchResults) Errors() []string {
-	return r.data.Errors
-}
-func (r searchResults) TotalHits() int {
+
+// TotalHits is the actual number of hits before the limit was applied.
+func (r SearchResults) TotalHits() int {
 	return r.data.TotalHits
 }
-func (r searchResults) Hits() []SearchResultHit {
+
+// Hits are the matches for the search query.
+func (r SearchResults) Hits() []SearchResultHit {
 	return r.data.Hits
 }
-func (r searchResults) Facets() map[string]SearchResultFacet {
+
+// Facets contains the information relative to the facets requested in the search query.
+func (r SearchResults) Facets() map[string]SearchResultFacet {
 	return r.data.Facets
 }
-func (r searchResults) Took() time.Duration {
+
+// Took returns the time taken to execute the search.
+func (r SearchResults) Took() time.Duration {
 	return time.Duration(r.data.Took) / time.Nanosecond
 }
-func (r searchResults) MaxScore() float64 {
+
+// MaxScore returns the highest score of all documents for this query.
+func (r SearchResults) MaxScore() float64 {
 	return r.data.MaxScore
 }
 
-type searchError struct {
-	status int
-	err    viewError
-}
-
-func (e *searchError) Error() string {
-	return e.err.Error()
-}
-
-func (e *searchError) Retryable() bool {
-	return e.status == 429
-}
-
-// Performs a spatial query and returns a list of rows or an error.
-func (c *Cluster) doSearchQuery(tracectx opentracing.SpanContext, b *Bucket, q *SearchQuery) (SearchResults, error) {
-	var err error
-	var ftsEp string
-	var timeout time.Duration
-	var creds []UserPassPair
-	var selectedB *Bucket
-
-	if b != nil {
-		if b.ftsTimeout < c.ftsTimeout {
-			timeout = b.ftsTimeout
-		} else {
-			timeout = c.ftsTimeout
-		}
-
-		selectedB = b
-	} else {
-		if c.auth == nil {
-			panic("Cannot perform cluster level queries without Cluster Authenticator.")
-		}
-
-		tmpB, err := c.randomBucket()
-		if err != nil {
-			return nil, err
-		}
-
-		timeout = c.ftsTimeout
-
-		selectedB = tmpB
+// SearchQuery performs a n1ql query and returns a list of rows or an error.
+func (c *Cluster) SearchQuery(q SearchQuery, opts *SearchQueryOptions) (*SearchResults, error) {
+	if opts == nil {
+		opts = &SearchQueryOptions{}
+	}
+	ctx := opts.Context
+	if ctx == nil {
+		ctx = context.Background()
 	}
 
-	client := selectedB.client.HttpClient()
-	retryBehavior := selectedB.searchQueryRetryBehavior
+	var span opentracing.Span
+	if opts.ParentSpanContext == nil {
+		span = opentracing.GlobalTracer().StartSpan("ExecuteSearchQuery",
+			opentracing.Tag{Key: "couchbase.service", Value: "fts"})
+	} else {
+		span = opentracing.GlobalTracer().StartSpan("ExecuteSearchQuery",
+			opentracing.Tag{Key: "couchbase.service", Value: "fts"}, opentracing.ChildOf(opts.ParentSpanContext))
+	}
+	defer span.Finish()
+
+	provider, err := c.getHTTPProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return c.searchQuery(ctx, span.Context(), q, opts, provider)
+}
+
+func (c *Cluster) searchQuery(ctx context.Context, traceCtx opentracing.SpanContext, q SearchQuery, opts *SearchQueryOptions,
+	provider httpProvider) (*SearchResults, error) {
 
 	qIndexName := q.indexName()
-	qBytes, err := json.Marshal(q.queryData())
+	optsData, err := opts.toOptionsData()
+	if err != nil {
+		return nil, err
+	}
+
+	qBytes, err := json.Marshal(*optsData)
 	if err != nil {
 		return nil, err
 	}
@@ -184,17 +174,32 @@ func (c *Cluster) doSearchQuery(tracectx opentracing.SpanContext, b *Bucket, q *
 		}
 	}
 
-	qTimeout := jsonMillisecondDuration(timeout)
+	timeout := c.sb.SearchTimeout
+	opTimeout := jsonMillisecondDuration(timeout)
 	if ctlData.Has("timeout") {
-		err := ctlData.Get("timeout", &qTimeout)
+		err = ctlData.Get("timeout", &opTimeout)
 		if err != nil {
 			return nil, err
 		}
-		if qTimeout <= 0 || time.Duration(qTimeout) > timeout {
-			qTimeout = jsonMillisecondDuration(timeout)
+		if opTimeout <= 0 || time.Duration(opTimeout) > timeout {
+			opTimeout = jsonMillisecondDuration(timeout)
 		}
 	}
-	err = ctlData.Set("timeout", qTimeout)
+
+	now := time.Now()
+	d, ok := ctx.Deadline()
+
+	// If we don't need to then we don't touch the original ctx value so that the Done channel is set
+	// in a predictable manner.
+	if !ok || now.Add(time.Duration(opTimeout)).Before(d) {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(opTimeout))
+		defer cancel()
+	} else {
+		opTimeout = jsonMillisecondDuration(d.Sub(now))
+	}
+
+	err = ctlData.Set("timeout", opTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -204,105 +209,70 @@ func (c *Cluster) doSearchQuery(tracectx opentracing.SpanContext, b *Bucket, q *
 		return nil, err
 	}
 
-	if len(creds) > 1 {
-		err = queryData.Set("creds", creds)
-		if err != nil {
-			return nil, err
-		}
+	dq, err := q.toSearchQueryData()
+	if err != nil {
+		return nil, err
+	}
+
+	err = queryData.Set("query", dq.Query)
+	if err != nil {
+		return nil, err
 	}
 
 	var retries uint
-	var res SearchResults
-	start := time.Now()
-	for time.Now().Sub(start) <= time.Duration(qTimeout) {
+	for {
 		retries++
-		ftsEp, err = selectedB.getFtsEp()
-		if err != nil {
-			return nil, err
-		}
-
-		// as the endpoint has possibly changed we need to refresh the creds
-		if b != nil {
-			if c.auth != nil {
-				creds, err = c.auth.Credentials(AuthCredsRequest{
-					Service:  FtsService,
-					Endpoint: ftsEp,
-					Bucket:   b.name,
-				})
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				creds = []UserPassPair{
-					{
-						Username: b.name,
-						Password: b.password,
-					},
-				}
-			}
-		} else {
-			creds, err = c.auth.Credentials(AuthCredsRequest{
-				Service:  FtsService,
-				Endpoint: ftsEp,
-			})
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		res, err = c.executeSearchQuery(tracectx, ftsEp, queryData, creds, timeout, qIndexName, client)
+		var res *SearchResults
+		res, err = c.executeSearchQuery(ctx, traceCtx, queryData, qIndexName, provider)
 		if err == nil {
-			return res, nil
+			return res, err
 		}
 
-		searchErr, isSearchErr := err.(*searchError)
-		if !(isSearchErr && searchErr.Retryable()) {
-			return nil, err
+		if !isRetryableError(err) || c.sb.SearchRetryBehavior == nil || !c.sb.SearchRetryBehavior.CanRetry(retries) {
+			return res, err
 		}
 
-		if retryBehavior == nil || !retryBehavior.CanRetry(retries) {
-			break
-		}
-
-		time.Sleep(retryBehavior.NextInterval(retries))
+		time.Sleep(c.sb.SearchRetryBehavior.NextInterval(retries))
 	}
-
-	return res, err
 }
 
-func (c *Cluster) executeSearchQuery(tracectx opentracing.SpanContext, ftsEp string, queryData jsonx.DelayedObject,
-	creds []UserPassPair, timeout time.Duration, qIndexName string, client *http.Client) (SearchResults, error) {
-	qBytes, err := json.Marshal(queryData)
+func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.SpanContext, query jsonx.DelayedObject,
+	qIndexName string, provider httpProvider) (*SearchResults, error) {
+
+	qBytes, err := json.Marshal(query)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "could not parse query options")
 	}
 
-	reqUri := fmt.Sprintf("%s/api/index/%s/query", ftsEp, qIndexName)
-
-	req, err := http.NewRequest("POST", reqUri, bytes.NewBuffer(qBytes))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	if len(creds) == 1 {
-		req.SetBasicAuth(creds[0].Username, creds[0].Password)
+	req := &gocbcore.HttpRequest{
+		Service: gocbcore.FtsService,
+		Path:    fmt.Sprintf("/api/index/%s/query", qIndexName),
+		Method:  "POST",
+		Context: ctx,
+		Body:    qBytes,
 	}
 
-	dtrace := c.agentConfig.Tracer.StartSpan("dispatch",
-		opentracing.ChildOf(tracectx))
+	dtrace := opentracing.GlobalTracer().StartSpan("dispatch", opentracing.ChildOf(traceCtx))
 
-	resp, err := doHttpWithTimeout(client, req, timeout)
+	resp, err := provider.DoHttpRequest(req)
 	if err != nil {
 		dtrace.Finish()
-		return nil, err
+		if err == gocbcore.ErrNoFtsService {
+			return nil, serviceNotFoundError{}
+		}
+
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{}
+		} // TODO: test this...
+		return nil, errors.Wrap(err, "could not complete query http request")
 	}
 
 	dtrace.Finish()
 
-	strace := c.agentConfig.Tracer.StartSpan("streaming",
-		opentracing.ChildOf(tracectx))
+	strace := opentracing.GlobalTracer().StartSpan("streaming",
+		opentracing.ChildOf(traceCtx))
 
+	// TODO : Errors(). Partial search results.
 	ftsResp := searchResponse{}
 	errHandled := false
 	switch resp.StatusCode {
@@ -311,7 +281,7 @@ func (c *Cluster) executeSearchQuery(tracectx opentracing.SpanContext, ftsEp str
 		err = jsonDec.Decode(&ftsResp)
 		if err != nil {
 			strace.Finish()
-			return nil, err
+			return nil, errors.Wrap(err, "failed to decode query response body")
 		}
 	case 400:
 		ftsResp.Status.Total = 1
@@ -339,24 +309,36 @@ func (c *Cluster) executeSearchQuery(tracectx opentracing.SpanContext, ftsEp str
 	strace.Finish()
 
 	if resp.StatusCode != 200 && !errHandled {
-		return nil, &searchError{
-			status: resp.StatusCode,
-			err: viewError{
-				Message: "HTTP Error",
-				Reason:  fmt.Sprintf("Status code was %d.", resp.StatusCode),
-			}}
+		errOut := &httpError{
+			statusCode: resp.StatusCode,
+		}
+		if resp.StatusCode == 429 {
+			errOut.isRetryable = true
+		}
+
+		return nil, errOut
 	}
 
-	return searchResults{
+	var multiErr searchMultiError
+	if len(ftsResp.Errors) > 0 {
+		errs := make([]SearchError, len(ftsResp.Errors))
+		for i, e := range ftsResp.Errors {
+			errs[i] = searchError{
+				message: e,
+			}
+		}
+		multiErr = searchMultiError{
+			errors:     errs,
+			endpoint:   resp.Endpoint,
+			httpStatus: resp.StatusCode,
+			// contextID:  resp.ClientContextID, TODO?
+		}
+		if ftsResp.Status.Failed != ftsResp.Status.Total {
+			multiErr.partial = true
+		}
+	}
+
+	return &SearchResults{
 		data: &ftsResp,
-	}, nil
-}
-
-// ExecuteSearchQuery performs a n1ql query and returns a list of rows or an error.
-func (c *Cluster) ExecuteSearchQuery(q *SearchQuery) (SearchResults, error) {
-	span := c.agentConfig.Tracer.StartSpan("ExecuteSearchQuery",
-		opentracing.Tag{Key: "couchbase.service", Value: "fts"})
-	defer span.Finish()
-
-	return c.doSearchQuery(span.Context(), nil, q)
+	}, multiErr
 }

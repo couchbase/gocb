@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "id": "0xdeadbeef userstring",
+  "config_rev": 53,
+  "sdk": "gocbcore/v7.0.2",
+  "services": {
+    "fts": [
+      {
+        "id": "0x1415F11",
+        "latency_us": 877909,
+        "remote": "centos7-lx1.home.ingenthron.org:8094",
+        "local": "127.0.0.1:54669",
+        "state": "ok"
+      }
+    ],
+    "kv": [
+      {
+        "id": "0x1415F12",
+        "latency_us": 1182000,
+        "remote": "centos7-lx1.home.ingenthron.org:11210",
+        "local": "127.0.0.1:54670",
+        "state": "ok",
+        "scope" : "bucketname"
+      }
+    ],
+    "n1ql": [
+      {
+        "id": "0x1415F13",
+        "latency_us": 6217,
+        "remote": "centos7-lx1.home.ingenthron.org:8093",
+        "local": "127.0.0.1:54671",
+        "state": "ok"
+      },
+      {
+        "id": "0x1415F14",
+        "latency_us": 2213,
+        "remote": "centos7-lx2.home.ingenthron.org:8095",
+        "local": "127.0.0.1:54682",
+        "state": "timeout"
+      }
+    ],
+    "cbas": [
+      {
+        "id": "0x1415F15",
+        "latency_us": 2213,
+        "remote": "centos7-lx1.home.ingenthron.org:8095",
+        "local": "127.0.0.1:54675",
+        "state": "error",
+        "details": "endpoint returned HTTP code 500!"
+      }
+    ],
+    "view": [
+      {
+        "id": "0x1415F16",
+        "latency_us": 45585,
+        "remote": "centos7-lx1.home.ingenthron.org:8092",
+        "local": "127.0.0.1:54672",
+        "state": "ok"
+      }
+    ]
+  }
+}

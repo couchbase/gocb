@@ -1,0 +1,117 @@
+{
+  "requestID": "30f6bcdf-2288-4fe1-bea1-361bb96984a4",
+  "signature": {
+    "*": "*"
+  },
+  "results": [
+    {
+      "address": [
+        "407 Radam, F200"
+      ],
+      "city": "Austin",
+      "code": "78745",
+      "country": "United States",
+      "description": "(512) Brewing Company is a microbrewery located in the heart of Austin that brews for the community using as many local, domestic and organic ingredients as possible.",
+      "geo": {
+        "accuracy": "ROOFTOP",
+        "lat": 30.2234,
+        "lon": -97.7697
+      },
+      "name": "(512) Brewing Company",
+      "phone": "512.707.2337",
+      "state": "Texas",
+      "type": "brewery",
+      "updated": "2010-07-22 20:00:20",
+      "website": "http://512brewing.com/"
+    },
+    {
+      "address": [
+        "563 Second Street"
+      ],
+      "city": "San Francisco",
+      "code": "94107",
+      "country": "United States",
+      "description": "The 21st Amendment Brewery offers a variety of award winning house made brews and American grilled cuisine in a comfortable loft like setting. Join us before and after Giants baseball games in our outdoor beer garden. A great location for functions and parties in our semi-private Brewers Loft. See you soon at the 21A!",
+      "geo": {
+        "accuracy": "ROOFTOP",
+        "lat": 37.7825,
+        "lon": -122.393
+      },
+      "name": "21st Amendment Brewery Cafe",
+      "phone": "1-415-369-0900",
+      "state": "California",
+      "type": "brewery",
+      "updated": "2010-10-24 13:54:07",
+      "website": "http://www.21st-amendment.com/"
+    },
+    {
+      "address": [
+        "Hoogstraat 2A"
+      ],
+      "city": "Beersel",
+      "code": "",
+      "country": "Belgium",
+      "description": "",
+      "geo": {
+        "accuracy": "RANGE_INTERPOLATED",
+        "lat": 50.7668,
+        "lon": 4.3081
+      },
+      "name": "3 Fonteinen Brouwerij Ambachtelijke Geuzestekerij",
+      "phone": "32-02-/-306-71-03",
+      "state": "Vlaams Brabant",
+      "type": "brewery",
+      "updated": "2010-07-22 20:00:20",
+      "website": "http://www.3fonteinen.be/index.htm"
+    },
+    {
+      "address": [
+        "Ole Steensgt. 10 Postboks 1530"
+      ],
+      "city": "Drammen",
+      "code": "",
+      "country": "Norway",
+      "description": "Aass Brewery was established in 1834 and is the oldest brewery in Norway today. It is located in the city of Drammen, approximately 25 miles south of our capital, Oslo. You will spot it at the banks of the Drammen River at the very same place as it has been since 1834. The annual production of beer is aprox. 10 mill liter (85 000 barrels), and together with the production of 18 mill liters of soft drinks and mineralwater it gives employment to approximately 150 people.  You may wonder how we got our name ? It was a young fellow with the name Poul Lauritz Aass that bought the brewery in 1860. Since then it has been in the same family, and is today run by the 4th generation of Aass. (By the way - A real Norwegian viking would pronounce it Ouse)  The brewery is proud of its history. To us the quality of what we produce has always been and always will be the main issue. In 1516, Duke Wilhelm of Bavaria established a law admitting only malted barley, hops yeast, and water as ingredients in the production of beer. The law is known as the purity law and Aass Brewery is still loyal to Duke Wilhelm of Bavaria. In Norway the brewery is known for outstanding quality and large number of different beer types.",
+      "geo": {
+        "accuracy": "APPROXIMATE",
+        "lat": 59.7451,
+        "lon": 10.2135
+      },
+      "name": "Aass Brewery",
+      "phone": "47-32-26-60-00",
+      "state": "",
+      "type": "brewery",
+      "updated": "2010-07-22 20:00:20",
+      "website": "http://www.aass.no"
+    },
+    {
+      "address": [
+        "Rue de l'Abbaye 8"
+      ],
+      "city": "Rochefort",
+      "code": "",
+      "country": "Belgium",
+      "description": "",
+      "geo": {
+        "accuracy": "RANGE_INTERPOLATED",
+        "lat": 50.1999,
+        "lon": 5.2277
+      },
+      "name": "Abbaye Notre Dame du St Remy",
+      "phone": "32-084/22.01.47",
+      "state": "Namur",
+      "type": "brewery",
+      "updated": "2010-07-22 20:00:20",
+      "website": ""
+    }
+  ],
+  "plans": {},
+  "status": "success",
+  "metrics": {
+    "elapsedTime": "258.345597ms",
+    "executionTime": "251.536764ms",
+    "resultCount": 5,
+    "resultSize": 3367,
+    "processedObjects": 26
+  }
+}

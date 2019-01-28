@@ -1,0 +1,28 @@
+{
+  "name": "Emmy-lou Dickerson",
+  "age": 26,
+  "animals": ["cat", "dog", "parrot"],
+  "attributes": {
+    "hair": "brown",
+    "dimensions": {
+      "height": 67,
+      "weight": 175
+    },
+    "hobbies": [
+      {
+        "type": "winter sports",
+        "name": "curling"
+      },
+      {
+        "type": "summer sports",
+        "name": "water skiing",
+        "details": {
+          "location": {
+            "lat": 49.282730,
+            "long": -123.120735
+          }
+        }
+      }
+    ]
+  }
+}

@@ -5,20 +5,20 @@ import (
 	"strings"
 	"testing"
 
-	"gopkg.in/couchbase/gocbcore.v7"
+	"gopkg.in/couchbase/gocbcore.v8"
 )
 
 func TestMutationState_Add(t *testing.T) {
-	fakeBucket := &Bucket{
-		name: "frank",
-	}
+	fakeBucket := &Bucket{}
+	fakeBucket.sb.BucketName = "frank"
+
 	fakeToken1 := MutationToken{
 		token: gocbcore.MutationToken{
 			VbId:   1,
 			VbUuid: gocbcore.VbUuid(9),
 			SeqNo:  gocbcore.SeqNo(12),
 		},
-		bucket: fakeBucket,
+		bucketName: fakeBucket.Name(),
 	}
 	fakeToken2 := MutationToken{
 		token: gocbcore.MutationToken{
@@ -26,7 +26,7 @@ func TestMutationState_Add(t *testing.T) {
 			VbUuid: gocbcore.VbUuid(1),
 			SeqNo:  gocbcore.SeqNo(22),
 		},
-		bucket: fakeBucket,
+		bucketName: fakeBucket.Name(),
 	}
 	fakeToken3 := MutationToken{
 		token: gocbcore.MutationToken{
@@ -34,7 +34,7 @@ func TestMutationState_Add(t *testing.T) {
 			VbUuid: gocbcore.VbUuid(4),
 			SeqNo:  gocbcore.SeqNo(99),
 		},
-		bucket: fakeBucket,
+		bucketName: fakeBucket.Name(),
 	}
 
 	state := NewMutationState(fakeToken1, fakeToken2)

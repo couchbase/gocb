@@ -1,0 +1,17 @@
+{
+  "city": "Portland",
+  "code": "",
+  "country": "United States",
+  "description": "",
+  "geo": {
+    "accuracy": "APPROXIMATE",
+    "lat": 45.5325,
+    "lon": -122.686
+  },
+  "name": "Blitz-Weinhard Brewing",
+  "phone": "",
+  "state": "Oregon",
+  "type": "brewery",
+  "updated": "2010-07-22 20:00:20",
+  "website": ""
+}

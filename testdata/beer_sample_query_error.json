@@ -1,0 +1,18 @@
+{
+  "requestID": "fbe9ac66-a7ed-4b09-b1dc-4d3c791d8953",
+  "clientContextID": "62d29101-0c9f-400d-af2b-9bd44a557a7c",
+  "errors": [
+    {
+      "code": 3000,
+      "msg": "syntax error - at *"
+    }
+  ],
+  "status": "fatal",
+  "metrics": {
+    "elapsedTime": "837.425µs",
+    "executionTime": "732.345µs",
+    "resultCount": 0,
+    "resultSize": 0,
+    "errorCount": 1
+  }
+}

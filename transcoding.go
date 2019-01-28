@@ -3,26 +3,17 @@ package gocb
 import (
 	"encoding/json"
 
-	"gopkg.in/couchbase/gocbcore.v7"
+	"gopkg.in/couchbase/gocbcore.v8"
 )
 
-// Transcoder provides an interface for transforming Go values to and
-// from raw bytes for storage and retreival from Couchbase data storage.
-type Transcoder interface {
-	// Decodes retrieved bytes into a Go type.
-	Decode([]byte, uint32, interface{}) error
+// Decode retrieved bytes into a Go type.
+type Decode func([]byte, uint32, interface{}) error
 
-	// Encodes a Go type into bytes for storage.
-	Encode(interface{}) ([]byte, uint32, error)
-}
+// Encode a Go type into bytes for storage.
+type Encode func(interface{}) ([]byte, uint32, error)
 
-// DefaultTranscoder implements the default transcoding behaviour of
-// all Couchbase SDKs.
-type DefaultTranscoder struct {
-}
-
-// Decode applies the default Couchbase transcoding behaviour to decode into a Go type.
-func (t DefaultTranscoder) Decode(bytes []byte, flags uint32, out interface{}) error {
+// DefaultDecode applies the default Couchbase transcoding behaviour to decode into a Go type.
+func DefaultDecode(bytes []byte, flags uint32, out interface{}) error {
 	valueType, compression := gocbcore.DecodeCommonFlags(flags)
 
 	// Make sure compression is disabled
@@ -64,8 +55,11 @@ func (t DefaultTranscoder) Decode(bytes []byte, flags uint32, out interface{}) e
 	return clientError{"Unexpected flags value"}
 }
 
-// Encode applies the default Couchbase transcoding behaviour to encode a Go type.
-func (t DefaultTranscoder) Encode(value interface{}) ([]byte, uint32, error) {
+// DefaultEncode applies the default Couchbase transcoding behaviour to encode a Go type.
+// For a byte array this will return the value supplied with Binary flags.
+// For a string this will return the value supplied with String flags.
+// For aanything else this will try to return the value JSON encoded supplied, with JSON flags.
+func DefaultEncode(value interface{}) ([]byte, uint32, error) {
 	var bytes []byte
 	var flags uint32
 	var err error
@@ -84,13 +78,43 @@ func (t DefaultTranscoder) Encode(value interface{}) ([]byte, uint32, error) {
 		bytes = []byte(*typeValue)
 		flags = gocbcore.EncodeCommonFlags(gocbcore.StringType, gocbcore.NoCompression)
 	case *interface{}:
-		return t.Encode(*typeValue)
+		return DefaultEncode(*typeValue)
 	default:
 		bytes, err = json.Marshal(value)
 		if err != nil {
 			return nil, 0, err
 		}
 		flags = gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression)
+	}
+
+	// No compression supported currently
+
+	return bytes, flags, nil
+}
+
+// JSONEncode applies JSON encoding to a Go type. For strings and byte array data this will just return the value passed
+// to it as bytes with flags set to JSON.
+func JSONEncode(value interface{}) ([]byte, uint32, error) {
+	var bytes []byte
+	flags := gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression)
+	var err error
+
+	switch typeValue := value.(type) {
+	case []byte:
+		bytes = typeValue
+	case *[]byte:
+		bytes = *typeValue
+	case string:
+		bytes = []byte(typeValue)
+	case *string:
+		bytes = []byte(*typeValue)
+	case *interface{}:
+		return JSONEncode(*typeValue)
+	default:
+		bytes, err = json.Marshal(value)
+		if err != nil {
+			return nil, 0, err
+		}
 	}
 
 	// No compression supported currently
