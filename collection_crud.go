@@ -201,13 +201,14 @@ func (c *Collection) insert(ctx context.Context, traceCtx opentracing.SpanContex
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.AddEx(gocbcore.AddOptions{
-		Key:            []byte(key),
-		Value:          bytes,
-		Flags:          flags,
-		Expiry:         opts.Expiration,
-		TraceContext:   traceCtx,
-		CollectionName: c.name(),
-		ScopeName:      c.scopeName(),
+		Key:             []byte(key),
+		Value:           bytes,
+		Flags:           flags,
+		Expiry:          opts.Expiration,
+		TraceContext:    traceCtx,
+		CollectionName:  c.name(),
+		ScopeName:       c.scopeName(),
+		DurabilityLevel: gocbcore.DurabilityLevel(opts.DurabilityLevel),
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceErr(err, key)
@@ -291,13 +292,14 @@ func (c *Collection) upsert(ctx context.Context, traceCtx opentracing.SpanContex
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.SetEx(gocbcore.SetOptions{
-		Key:            []byte(key),
-		Value:          bytes,
-		Flags:          flags,
-		Expiry:         opts.Expiration,
-		TraceContext:   traceCtx,
-		CollectionName: c.name(),
-		ScopeName:      c.scopeName(),
+		Key:             []byte(key),
+		Value:           bytes,
+		Flags:           flags,
+		Expiry:          opts.Expiration,
+		TraceContext:    traceCtx,
+		CollectionName:  c.name(),
+		ScopeName:       c.scopeName(),
+		DurabilityLevel: gocbcore.DurabilityLevel(opts.DurabilityLevel),
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceErr(err, key)
@@ -317,7 +319,7 @@ func (c *Collection) upsert(ctx context.Context, traceCtx opentracing.SpanContex
 		ctrl.resolve()
 	}))
 	if err != nil {
-		return
+		errOut = err
 	}
 
 	return
@@ -393,14 +395,15 @@ func (c *Collection) replace(ctx context.Context, traceCtx opentracing.SpanConte
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.ReplaceEx(gocbcore.ReplaceOptions{
-		Key:            []byte(key),
-		Value:          bytes,
-		Flags:          flags,
-		Expiry:         opts.Expiration,
-		Cas:            gocbcore.Cas(opts.Cas),
-		TraceContext:   traceCtx,
-		CollectionName: c.name(),
-		ScopeName:      c.scopeName(),
+		Key:             []byte(key),
+		Value:           bytes,
+		Flags:           flags,
+		Expiry:          opts.Expiration,
+		Cas:             gocbcore.Cas(opts.Cas),
+		TraceContext:    traceCtx,
+		CollectionName:  c.name(),
+		ScopeName:       c.scopeName(),
+		DurabilityLevel: gocbcore.DurabilityLevel(opts.DurabilityLevel),
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceErr(err, key)
@@ -734,11 +737,12 @@ func (c *Collection) remove(ctx context.Context, traceCtx opentracing.SpanContex
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.DeleteEx(gocbcore.DeleteOptions{
-		Key:            []byte(key),
-		Cas:            gocbcore.Cas(opts.Cas),
-		TraceContext:   traceCtx,
-		CollectionName: c.name(),
-		ScopeName:      c.scopeName(),
+		Key:             []byte(key),
+		Cas:             gocbcore.Cas(opts.Cas),
+		TraceContext:    traceCtx,
+		CollectionName:  c.name(),
+		ScopeName:       c.scopeName(),
+		DurabilityLevel: gocbcore.DurabilityLevel(opts.DurabilityLevel),
 	}, func(res *gocbcore.DeleteResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceErr(err, key)

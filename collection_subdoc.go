@@ -630,14 +630,15 @@ func (c *Collection) mutate(ctx context.Context, traceCtx opentracing.SpanContex
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.MutateInEx(gocbcore.MutateInOptions{
-		Key:            []byte(key),
-		Flags:          gocbcore.SubdocDocFlag(flags),
-		Cas:            gocbcore.Cas(opts.Cas),
-		Ops:            subdocs,
-		TraceContext:   traceCtx,
-		Expiry:         opts.Expiration,
-		CollectionName: c.name(),
-		ScopeName:      c.scopeName(),
+		Key:             []byte(key),
+		Flags:           gocbcore.SubdocDocFlag(flags),
+		Cas:             gocbcore.Cas(opts.Cas),
+		Ops:             subdocs,
+		TraceContext:    traceCtx,
+		Expiry:          opts.Expiration,
+		CollectionName:  c.name(),
+		ScopeName:       c.scopeName(),
+		DurabilityLevel: gocbcore.DurabilityLevel(opts.DurabilityLevel),
 	}, func(res *gocbcore.MutateInResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceErr(err, key)
