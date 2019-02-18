@@ -19,7 +19,7 @@ const (
 	csInvalid   connSpecScheme = 0
 )
 
-// Gets the implicit port for the scheme
+// DefaultPort gets the implicit port for the scheme
 func (scheme connSpecScheme) DefaultPort() int {
 	return int(scheme)
 }
