@@ -27,7 +27,22 @@ type SearchResultHit struct {
 	Explanation map[string]interface{}                       `json:"explanation,omitempty"`
 	Locations   map[string]map[string][]SearchResultLocation `json:"locations,omitempty"`
 	Fragments   map[string][]string                          `json:"fragments,omitempty"`
-	Fields      map[string]string                            `json:"fields,omitempty"`
+	// Deprecated: See AllFields
+	Fields map[string]string `json:"-"`
+	// AllFields is to avoid making a breaking change changing the type of Fields. Only
+	// fields in the response that are of type string will be put into Fields, all
+	// field types will be placed into AllFields.
+	AllFields map[string]interface{} `json:"fields,omitempty"`
+}
+
+type searchResultHit struct {
+	Index       string                                       `json:"index,omitempty"`
+	Id          string                                       `json:"id,omitempty"`
+	Score       float64                                      `json:"score,omitempty"`
+	Explanation map[string]interface{}                       `json:"explanation,omitempty"`
+	Locations   map[string]map[string][]SearchResultLocation `json:"locations,omitempty"`
+	Fragments   map[string][]string                          `json:"fragments,omitempty"`
+	Fields      map[string]interface{}                       `json:"fields,omitempty"`
 }
 
 // SearchResultTermFacet holds the results of a term facet in search results.
@@ -85,7 +100,7 @@ type searchResponse struct {
 	Status    SearchResultStatus           `json:"status,omitempty"`
 	Errors    []string                     `json:"errors,omitempty"`
 	TotalHits int                          `json:"total_hits,omitempty"`
-	Hits      []SearchResultHit            `json:"hits,omitempty"`
+	Hits      []searchResultHit            `json:"hits,omitempty"`
 	Facets    map[string]SearchResultFacet `json:"facets,omitempty"`
 	Took      uint                         `json:"took,omitempty"`
 	MaxScore  float64                      `json:"max_score,omitempty"`
@@ -105,7 +120,11 @@ func (r searchResults) TotalHits() int {
 	return r.data.TotalHits
 }
 func (r searchResults) Hits() []SearchResultHit {
-	return r.data.Hits
+	hits := make([]SearchResultHit, len(r.data.Hits))
+	for i, hit := range r.data.Hits {
+		hits[i] = hit.toSearchResultHit()
+	}
+	return hits
 }
 func (r searchResults) Facets() map[string]SearchResultFacet {
 	return r.data.Facets
@@ -128,6 +147,27 @@ func (e *searchError) Error() string {
 
 func (e *searchError) Retryable() bool {
 	return e.status == 429
+}
+
+func (hit *searchResultHit) toSearchResultHit() (out SearchResultHit) {
+	out.Index = hit.Index
+	out.Id = hit.Id
+	out.Score = hit.Score
+	out.Explanation = hit.Explanation
+	out.Locations = hit.Locations
+	out.Fragments = hit.Fragments
+	out.AllFields = hit.Fields
+
+	if hit.Fields != nil {
+		out.Fields = make(map[string]string)
+		for k, v := range hit.Fields {
+			if vStr, ok := v.(string); ok {
+				out.Fields[k] = vStr
+			}
+		}
+	}
+
+	return
 }
 
 // Performs a spatial query and returns a list of rows or an error.
