@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"gopkg.in/couchbase/gocbcore.v8"
 
-	"gopkg.in/couchbaselabs/gojcbmock.v1"
+	gocbcore "github.com/couchbase/gocbcore/v8"
+	"github.com/couchbaselabs/gojcbmock"
 )
 
 type FeatureCode int

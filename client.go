@@ -5,11 +5,10 @@ import (
 	"sync"
 	"time"
 
+	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/pkg/errors"
-
-	"gopkg.in/couchbase/gocbcore.v8"
 )
 
 type client interface {

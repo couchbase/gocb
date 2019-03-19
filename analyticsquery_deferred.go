@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"gopkg.in/couchbase/gocbcore.v8"
+	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
 // AnalyticsDeferredResultHandle allows access to the handle of a deferred Analytics query.

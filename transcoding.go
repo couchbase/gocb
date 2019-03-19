@@ -3,7 +3,7 @@ package gocb
 import (
 	"encoding/json"
 
-	"gopkg.in/couchbase/gocbcore.v8"
+	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
 // Decode retrieved bytes into a Go type.

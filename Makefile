@@ -5,35 +5,32 @@ devsetup:
 	go get "github.com/client9/misspell/cmd/misspell"
 
 test:
-	go test ./ ./cbft
+	go test ./
 fasttest:
-	go test -short ./ ./cbft
+	go test -short ./
 
 cover:
-	go test -coverprofile=cover.out ./ ./cbft
+	go test -coverprofile=cover.out ./
 
 checkerrs:
-	errcheck -blank -asserts -ignoretests ./ ./cbft
+	errcheck -blank -asserts -ignoretests *.go
 
 checkfmt:
-	! gofmt -l -d ./ ./cbft 2>&1 | read
+	! gofmt -l -d *.go 2>&1 | read
 
 checkvet:
-	go vet
+	go vet *.go
 
 checkiea:
-	ineffassign ./
-	ineffassign ./cbft
+	ineffassign -n .
 
 checkspell:
-	misspell -error ./
-	misspell -error ./cbft
+	misspell -error *.*
 
 lint: checkfmt checkerrs checkvet checkiea checkspell
-	golint -set_exit_status -min_confidence 0.81 ./
-	golint -set_exit_status -min_confidence 0.81 ./cbft
+	golint -set_exit_status -min_confidence 0.81 *.go
 
 check: lint
-	go test -short -cover -race ./ ./cbft
+	go test -short -cover -race ./
 
 .PHONY: all test devsetup fasttest lint cover checkerrs checkfmt checkvet checkiea checkspell check

@@ -3,8 +3,8 @@ package gocb
 import (
 	"context"
 
+	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/opentracing/opentracing-go"
-	"gopkg.in/couchbase/gocbcore.v8"
 )
 
 func (c *Collection) observeOnceCas(tracectx opentracing.SpanContext, key []byte, cas Cas, forDelete bool,

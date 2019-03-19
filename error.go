@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"gopkg.in/couchbase/gocbcore.v8"
-
+	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
 )
 

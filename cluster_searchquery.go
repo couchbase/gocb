@@ -7,11 +7,10 @@ import (
 	"fmt"
 	"time"
 
-	"gopkg.in/couchbase/gocbcore.v8"
-
+	gocbcore "github.com/couchbase/gocbcore/v8"
+	"github.com/couchbaselabs/jsonx"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
-	"gopkg.in/couchbaselabs/jsonx.v1"
 )
 
 // SearchResultLocation holds the location of a hit in a list of search results.

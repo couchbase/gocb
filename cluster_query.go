@@ -6,10 +6,10 @@ import (
 	"net/url"
 	"time"
 
+	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
 
 	"github.com/opentracing/opentracing-go"
-	"gopkg.in/couchbase/gocbcore.v8"
 )
 
 type n1qlCache struct {

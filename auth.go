@@ -1,8 +1,6 @@
 package gocb
 
-import (
-	"gopkg.in/couchbase/gocbcore.v8"
-)
+import gocbcore "github.com/couchbase/gocbcore/v8"
 
 // UserPassPair represents a username and password pair.
 type UserPassPair gocbcore.UserPassPair

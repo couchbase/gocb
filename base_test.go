@@ -9,7 +9,7 @@ import (
 	"os"
 	"testing"
 
-	"gopkg.in/couchbaselabs/gojcbmock.v1"
+	"github.com/couchbaselabs/gojcbmock"
 )
 
 const (

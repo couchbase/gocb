@@ -3,8 +3,8 @@ package gocb
 import (
 	"encoding/json"
 
+	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
-	"gopkg.in/couchbase/gocbcore.v8"
 )
 
 // Result is the base type for the return types of operations

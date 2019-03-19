@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
+	gocbcore "github.com/couchbase/gocbcore/v8"
+	"github.com/couchbaselabs/gocbconnstr"
 	"github.com/opentracing/opentracing-go"
-	"gopkg.in/couchbase/gocbcore.v8"
-	"gopkg.in/couchbaselabs/gocbconnstr.v1"
 )
 
 // Cluster represents a connection to a specific Couchbase cluster.
