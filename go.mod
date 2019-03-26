@@ -1,7 +1,5 @@
 module github.com/couchbase/gocb/v2
 
-go 1.12
-
 require (
 	github.com/couchbase/gocbcore/v8 v8.0.0-alpha.1
 	github.com/couchbaselabs/gocbconnstr v1.0.2
