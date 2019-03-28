@@ -645,6 +645,13 @@ func (e queryError) retryable() bool {
 	return false
 }
 
+func (e queryError) Timeout() bool {
+	if e.ErrorCode == 1080 {
+		return true
+	}
+	return false
+}
+
 // QueryErrors is a collection of one or more QueryError that occurs for errors created by Couchbase Server
 // during N1ql query execution.
 type QueryErrors interface {
@@ -665,6 +672,16 @@ type queryMultiError struct {
 func (e queryMultiError) retryable() bool {
 	for _, n1qlErr := range e.errors {
 		if isRetryableError(n1qlErr) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (e queryMultiError) Timeout() bool {
+	for _, n1qlErr := range e.errors {
+		if IsTimeoutError(n1qlErr) {
 			return true
 		}
 	}

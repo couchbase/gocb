@@ -41,11 +41,15 @@ type QueryOptions struct {
 	// ReadOnly controls whether a query can change a resulting recordset.  If
 	// readonly is true, then only SELECT statements are permitted.
 	ReadOnly             bool
+	ClientContextID      string
 	Timeout              time.Duration
 	PositionalParameters []interface{}
 	NamedParameters      map[string]interface{}
-	Context              context.Context
-	ParentSpanContext    opentracing.SpanContext
+	// If Context is used then cancellation will only be applicable during initial http connect.
+	// If a timeout value is supplied with the context then that value will be propagated to the server
+	// and used to timeout the results stream.
+	Context           context.Context
+	ParentSpanContext opentracing.SpanContext
 	// Custom allows specifying custom query options.
 	Custom map[string]interface{}
 }
@@ -119,6 +123,10 @@ func (opts *QueryOptions) toMap(statement string) (map[string]interface{}, error
 		for k, v := range opts.Custom {
 			execOpts[k] = v
 		}
+	}
+
+	if opts.ClientContextID != "" {
+		execOpts["client_context_id"] = opts.ClientContextID
 	}
 
 	return execOpts, nil

@@ -8,6 +8,8 @@ github.com/couchbaselabs/gojcbmock
 github.com/couchbaselabs/jsonx
 # github.com/golang/snappy v0.0.1
 github.com/golang/snappy
+# github.com/google/uuid v1.1.1
+github.com/google/uuid
 # github.com/opentracing/opentracing-go v1.0.3-0.20190218023034-25a84ff92183
 github.com/opentracing/opentracing-go
 github.com/opentracing/opentracing-go/log

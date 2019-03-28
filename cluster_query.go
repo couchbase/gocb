@@ -6,9 +6,10 @@ import (
 	"net/url"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	"github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
 
+	"github.com/google/uuid"
 	"github.com/opentracing/opentracing-go"
 )
 
@@ -35,6 +36,13 @@ type n1qlResponse struct {
 	Errors          []queryError        `json:"errors,omitempty"`
 	Status          string              `json:"status"`
 	Metrics         n1qlResponseMetrics `json:"metrics"`
+	Warnings        []QueryWarning      `json:"warnings"`
+}
+
+// QueryWarning is the representation of any warnings that occurred during query execution.
+type QueryWarning struct {
+	Code    uint32 `json:"code"`
+	Message string `json:"msg"`
 }
 
 // QueryResultMetrics encapsulates various metrics gathered during a queries execution.
@@ -51,14 +59,18 @@ type QueryResultMetrics struct {
 
 // QueryResults allows access to the results of a N1QL query.
 type QueryResults struct {
-	closed          bool
-	index           int
-	rows            []json.RawMessage
-	err             error
 	requestID       string
 	clientContextID string
 	metrics         QueryResultMetrics
+	signature       interface{}
+	warnings        []QueryWarning
 	sourceAddr      string
+	err             error
+	httpStatus      int
+
+	streamResult *streamingResult
+	strace       opentracing.Span
+	cancel       context.CancelFunc
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
@@ -82,40 +94,59 @@ func (r *QueryResults) Next(valuePtr interface{}) bool {
 
 // NextBytes returns the next result from the results as a byte array.
 func (r *QueryResults) NextBytes() []byte {
-	if r.err != nil {
+	if r.streamResult.Closed() {
 		return nil
 	}
 
-	if r.index+1 >= len(r.rows) {
-		r.closed = true
+	raw, err := r.streamResult.NextBytes()
+	if err != nil {
+		r.err = err
 		return nil
 	}
-	r.index++
 
-	return r.rows[r.index]
+	return raw
 }
 
 // Close marks the results as closed, returning any errors that occurred during reading the results.
 func (r *QueryResults) Close() error {
-	r.closed = true
-	return r.err
+	if r.streamResult.Closed() {
+		return r.err
+	}
+
+	err := r.streamResult.Close()
+	if r.strace != nil {
+		r.strace.Finish()
+	}
+	if r.cancel != nil {
+		r.cancel()
+	}
+	if r.err != nil {
+		return r.err
+	}
+	return err
 }
 
 // One assigns the first value from the results into the value pointer.
+// It will close the results but not before iterating through all remaining
+// results, as such this should only be used for very small resultsets - ideally
+// of, at most, length 1.
 func (r *QueryResults) One(valuePtr interface{}) error {
 	if !r.Next(valuePtr) {
 		err := r.Close()
 		if err != nil {
 			return err
 		}
-		// return ErrNoResults TODO
+		return ErrNoResults // TODO
 	}
 
-	// Ignore any errors occurring after we already have our result
+	// We have to purge the remaining rows in order to get to the remaining
+	// response attributes
+	for r.NextBytes() != nil {
+	}
+
 	err := r.Close()
 	if err != nil {
-		// Return no error as we got the one result already.
-		return nil
+		return err
 	}
 
 	return nil
@@ -129,7 +160,7 @@ func (r *QueryResults) SourceEndpoint() string {
 
 // RequestID returns the request ID used for this query.
 func (r *QueryResults) RequestID() string {
-	if !r.closed {
+	if !r.streamResult.Closed() {
 		panic("Result must be closed before accessing meta-data")
 	}
 
@@ -138,7 +169,7 @@ func (r *QueryResults) RequestID() string {
 
 // ClientContextID returns the context ID used for this query.
 func (r *QueryResults) ClientContextID() string {
-	if !r.closed {
+	if !r.streamResult.Closed() {
 		panic("Result must be closed before accessing meta-data")
 	}
 
@@ -147,11 +178,118 @@ func (r *QueryResults) ClientContextID() string {
 
 // Metrics returns metrics about execution of this result.
 func (r *QueryResults) Metrics() QueryResultMetrics {
-	if !r.closed {
+	if !r.streamResult.Closed() {
 		panic("Result must be closed before accessing meta-data")
 	}
 
 	return r.metrics
+}
+
+// Warnings returns any warnings that were generated during execution of the query.
+func (r *QueryResults) Warnings() []QueryWarning {
+	if !r.streamResult.Closed() {
+		panic("Result must be closed before accessing meta-data")
+	}
+
+	return r.warnings
+}
+
+// Signature returns the schema of the results.
+func (r *QueryResults) Signature() interface{} {
+	if !r.streamResult.Closed() {
+		panic("Result must be closed before accessing meta-data")
+	}
+
+	return r.signature
+}
+
+func (r *QueryResults) readAttribute(decoder *json.Decoder, t json.Token) (bool, error) {
+	switch t {
+	case "requestID":
+		err := decoder.Decode(&r.requestID)
+		if err != nil {
+			return false, err
+		}
+	case "clientContextID":
+		err := decoder.Decode(&r.clientContextID)
+		if err != nil {
+			return false, err
+		}
+	case "metrics":
+		var metrics n1qlResponseMetrics
+		err := decoder.Decode(&metrics)
+		if err != nil {
+			return false, err
+		}
+		elapsedTime, err := time.ParseDuration(metrics.ElapsedTime)
+		if err != nil {
+			logDebugf("Failed to parse elapsed time duration (%s)", err)
+		}
+
+		executionTime, err := time.ParseDuration(metrics.ExecutionTime)
+		if err != nil {
+			logDebugf("Failed to parse execution time duration (%s)", err)
+		}
+
+		r.metrics = QueryResultMetrics{
+			ElapsedTime:   elapsedTime,
+			ExecutionTime: executionTime,
+			ResultCount:   metrics.ResultCount,
+			ResultSize:    metrics.ResultSize,
+			MutationCount: metrics.MutationCount,
+			SortCount:     metrics.SortCount,
+			ErrorCount:    metrics.ErrorCount,
+			WarningCount:  metrics.WarningCount,
+		}
+	case "errors":
+		var respErrs []queryError
+		err := decoder.Decode(&respErrs)
+		if err != nil {
+			return false, err
+		}
+		if len(respErrs) > 0 {
+			errs := make([]QueryError, len(respErrs))
+			for i, e := range respErrs {
+				errs[i] = e
+			}
+			// this isn't an error that we want to bail on so store it and keep going
+			r.err = queryMultiError{
+				errors:     errs,
+				endpoint:   r.sourceAddr,
+				httpStatus: r.httpStatus,
+				contextID:  r.clientContextID,
+			}
+		}
+	case "results":
+		// read the opening [, this prevents the decoder from loading the entire results array into memory
+		t, err := decoder.Token()
+		if err != nil {
+			return false, err
+		}
+		if delim, ok := t.(json.Delim); !ok || delim != '[' {
+			return false, errors.New("expected results opening token to be [ but was " + t.(string))
+		}
+
+		return true, nil
+	case "warnings":
+		err := decoder.Decode(&r.warnings)
+		if err != nil {
+			return false, err
+		}
+	case "signature":
+		err := decoder.Decode(&r.signature)
+		if err != nil {
+			return false, err
+		}
+	default:
+		var ignore interface{}
+		err := decoder.Decode(&ignore)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	return false, nil
 }
 
 type httpProvider interface {
@@ -197,6 +335,11 @@ func (c *Cluster) query(ctx context.Context, traceCtx opentracing.SpanContext, s
 		return nil, errors.Wrap(err, "could not parse query options")
 	}
 
+	_, castok := queryOpts["client_context_id"]
+	if !castok {
+		queryOpts["client_context_id"] = uuid.New()
+	}
+
 	// Work out which timeout to use, the cluster level default or query specific one
 	timeout := c.sb.QueryTimeout
 	var optTimeout time.Duration
@@ -235,18 +378,37 @@ func (c *Cluster) query(ctx context.Context, traceCtx opentracing.SpanContext, s
 			res, err = c.doPreparedN1qlQuery(ctx, traceCtx, queryOpts, provider)
 			etrace.Finish()
 		} else {
+			etrace := opentracing.GlobalTracer().StartSpan("execute", opentracing.ChildOf(traceCtx))
 			res, err = c.executeN1qlQuery(ctx, traceCtx, queryOpts, provider)
+			etrace.Finish()
 		}
-		if err == nil {
-			return res, err
+		if err != nil {
+			break
 		}
 
-		if !isRetryableError(err) || c.sb.N1qlRetryBehavior == nil || !c.sb.N1qlRetryBehavior.CanRetry(retries) {
-			return res, err
+		if !res.streamResult.Closed() {
+			// the stream is open so there's no way we have query errors already
+			break
+		}
+
+		// There were no rows so it's likely there was an error
+		resErr := res.err
+		if resErr == nil {
+			break
+		}
+		if !isRetryableError(resErr) || c.sb.N1qlRetryBehavior == nil || !c.sb.N1qlRetryBehavior.CanRetry(retries) {
+			break
 		}
 
 		time.Sleep(c.sb.N1qlRetryBehavior.NextInterval(retries))
+
 	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, traceCtx opentracing.SpanContext, queryOpts map[string]interface{},
@@ -343,6 +505,16 @@ type n1qlPrepData struct {
 	Name        string `json:"name"`
 }
 
+func (c *Cluster) runContextTimeout(ctx context.Context, reqCancel context.CancelFunc, doneChan chan struct{}) {
+	select {
+	case <-ctx.Done():
+		reqCancel()
+		<-doneChan
+	case <-doneChan:
+
+	}
+}
+
 // Executes the N1QL query (in opts) on the server n1qlEp.
 // This function assumes that `opts` already contains all the required
 // settings. This function will inject any additional connection or request-level
@@ -355,24 +527,32 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, traceCtx opentracing.Spa
 		return nil, errors.Wrap(err, "failed to marshal query request body")
 	}
 
+	// we only want ctx to timeout the initial connection rather than the stream
+	reqCtx, reqCancel := context.WithCancel(context.Background())
+	doneChan := make(chan struct{})
+	go c.runContextTimeout(ctx, reqCancel, doneChan)
+
 	req := &gocbcore.HttpRequest{
 		Service: gocbcore.N1qlService,
 		Path:    "/query/service",
 		Method:  "POST",
-		Context: ctx,
+		Context: reqCtx,
 		Body:    reqJSON,
 	}
 
 	dtrace := opentracing.GlobalTracer().StartSpan("dispatch", opentracing.ChildOf(traceCtx))
 
 	resp, err := provider.DoHttpRequest(req)
+	doneChan <- struct{}{}
 	if err != nil {
 		dtrace.Finish()
 		if err == gocbcore.ErrNoN1qlService {
 			return nil, serviceNotFoundError{}
 		}
 
-		if err == context.DeadlineExceeded {
+		// as we're effectively manually timing out the request using cancellation we need
+		// to check if the original context has timed out as err itself will only show as canceled
+		if ctx.Err() == context.DeadlineExceeded {
 			return nil, timeoutError{}
 		}
 		return nil, errors.Wrap(err, "could not complete query http request")
@@ -380,27 +560,9 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, traceCtx opentracing.Spa
 
 	dtrace.Finish()
 
-	strace := opentracing.GlobalTracer().StartSpan("streaming", opentracing.ChildOf(traceCtx))
-
-	n1qlResp := n1qlResponse{}
-	jsonDec := json.NewDecoder(resp.Body)
-	err = jsonDec.Decode(&n1qlResp)
-	if err != nil {
-		strace.Finish()
-		return nil, errors.Wrap(err, "failed to decode query response body")
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
-	}
-
 	// TODO(brett19): place the server_duration in the right place...
 	// srvDuration, _ := time.ParseDuration(n1qlResp.Metrics.ExecutionTime)
 	// strace.SetTag("server_duration", srvDuration)
-
-	strace.SetTag("couchbase.operation_id", n1qlResp.RequestID)
-	strace.Finish()
 
 	epInfo, err := url.Parse(resp.Endpoint)
 	if err != nil {
@@ -410,50 +572,45 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, traceCtx opentracing.Spa
 		}
 	}
 
-	if len(n1qlResp.Errors) > 0 {
-		errs := make([]QueryError, len(n1qlResp.Errors))
-		for i, e := range n1qlResp.Errors {
-			errs[i] = e
-		}
-		return nil, queryMultiError{
-			errors:     errs,
-			endpoint:   epInfo.Host,
-			httpStatus: resp.StatusCode,
-			contextID:  n1qlResp.ClientContextID,
-		}
+	strace := opentracing.GlobalTracer().StartSpan("streaming", opentracing.ChildOf(traceCtx))
+
+	queryResults := &QueryResults{
+		sourceAddr: epInfo.Host,
+		httpStatus: resp.StatusCode,
 	}
 
-	if resp.StatusCode != 200 {
-		return nil, &httpError{
-			statusCode: resp.StatusCode,
-		}
-	}
-
-	elapsedTime, err := time.ParseDuration(n1qlResp.Metrics.ElapsedTime)
+	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)
 	if err != nil {
-		logDebugf("Failed to parse elapsed time duration (%s)", err)
+		reqCancel()
+		strace.Finish()
+		return nil, err
 	}
 
-	executionTime, err := time.ParseDuration(n1qlResp.Metrics.ExecutionTime)
+	err = streamResult.readAttributes()
 	if err != nil {
-		logDebugf("Failed to parse execution time duration (%s)", err)
+		bodyErr := streamResult.Close()
+		if bodyErr != nil {
+			logDebugf("Failed to close socket (%s)", bodyErr.Error())
+		}
+		reqCancel()
+		strace.Finish()
+		return nil, err
 	}
 
-	return &QueryResults{
-		sourceAddr:      epInfo.Host,
-		requestID:       n1qlResp.RequestID,
-		clientContextID: n1qlResp.ClientContextID,
-		index:           -1,
-		rows:            n1qlResp.Results,
-		metrics: QueryResultMetrics{
-			ElapsedTime:   elapsedTime,
-			ExecutionTime: executionTime,
-			ResultCount:   n1qlResp.Metrics.ResultCount,
-			ResultSize:    n1qlResp.Metrics.ResultSize,
-			MutationCount: n1qlResp.Metrics.MutationCount,
-			SortCount:     n1qlResp.Metrics.SortCount,
-			ErrorCount:    n1qlResp.Metrics.ErrorCount,
-			WarningCount:  n1qlResp.Metrics.WarningCount,
-		},
-	}, nil
+	queryResults.streamResult = streamResult
+
+	strace.SetTag("couchbase.operation_id", queryResults.requestID)
+
+	if streamResult.HasRows() {
+		queryResults.strace = strace
+		queryResults.cancel = reqCancel
+	} else {
+		bodyErr := streamResult.Close()
+		if bodyErr != nil {
+			logDebugf("Failed to close response body, %s", bodyErr.Error())
+		}
+		reqCancel()
+		strace.Finish()
+	}
+	return queryResults, nil
 }

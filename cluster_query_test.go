@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	"github.com/couchbase/gocbcore/v8"
 )
 
 func TestQuery(t *testing.T) {
@@ -27,69 +27,335 @@ func TestQuery(t *testing.T) {
 	}
 
 	t.Run("testSimpleQuery", testSimpleQuery)
+	t.Run("testSimpleQueryTimeout", testSimpleQueryStreamTimeout)
+	t.Run("testSimpleQueryContextTimeout", testSimpleQueryStreamContextTimeout)
+	t.Run("testSimpleQueryOne", testSimpleQueryOne)
+	t.Run("testSimpleQueryNone", testSimpleQueryNone)
+	t.Run("testSimpleQueryOneNone", testSimpleQueryOneNone)
+	t.Run("testSimpleQueryError", testSimpleQueryError)
+	t.Run("testSimpleQueryOneError", testSimpleQueryOneError)
 	t.Run("testPreparedQuery", testPreparedQuery)
 	t.Run("testQueryNamedParameters", testQueryNamedParameters)
 	t.Run("testQueryPositionalParameters", testQueryPositionalParameters)
 }
 
+// In these tests use a large enough limit to force streaming to occur.
 func testSimpleQuery(t *testing.T) {
-	query := "SELECT `travel-sample`.* FROM `travel-sample` LIMIT 10;"
-	rows, err := globalCluster.Query(query, nil)
+	query := "SELECT `travel-sample`.* FROM `travel-sample` LIMIT 10000;"
+	results, err := globalCluster.Query(query, nil)
 	if err != nil {
 		t.Fatalf("Failed to execute query %v", err)
 	}
 
 	var samples []interface{}
 	var sample interface{}
-	for rows.Next(&sample) {
+	for results.Next(&sample) {
 		samples = append(samples, sample)
 	}
 
-	err = rows.Close()
+	err = results.Close()
 	if err != nil {
-		t.Fatalf("Rows close had error: %v", err)
+		t.Fatalf("results close had error: %v", err)
 	}
 
-	if len(samples) != 10 {
-		t.Fatalf("Expected result to contain 10 documents but had %d", len(samples))
+	if len(samples) != 10000 {
+		t.Fatalf("Expected result to contain 10000 documents but had %d", len(samples))
 	}
 
-	if rows.RequestID() == "" {
+	if results.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 
-	if rows.SourceEndpoint() == "" {
+	if results.SourceEndpoint() == "" {
+		t.Fatalf("Result should have had non empty SourceEndpoint")
+	}
+}
+
+func testSimpleQueryStreamTimeout(t *testing.T) {
+	query := "SELECT `travel-sample`.* FROM `travel-sample` LIMIT 30000;"
+	results, err := globalCluster.Query(query, &QueryOptions{
+		Timeout: 500 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatalf("Failed to execute query %v", err)
+	}
+
+	globalCluster.TimeTravel(1 * time.Second)
+
+	var samples []interface{}
+	var sample interface{}
+	for results.Next(&sample) {
+		samples = append(samples, sample)
+	}
+
+	err = results.Close()
+	if err == nil {
+		t.Fatalf("results close should have errored")
+	}
+
+	if !IsTimeoutError(err) {
+		t.Fatalf("Expected error to be timeout but was %v", err)
+	}
+
+	if results.RequestID() == "" {
+		t.Fatalf("Result should have had non empty RequestID")
+	}
+
+	if results.SourceEndpoint() == "" {
+		t.Fatalf("Result should have had non empty SourceEndpoint")
+	}
+}
+
+func testSimpleQueryStreamContextTimeout(t *testing.T) {
+	query := "SELECT `travel-sample`.* FROM `travel-sample` LIMIT 10000;"
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	results, err := globalCluster.Query(query, &QueryOptions{
+		Context: ctx,
+	})
+	if err != nil {
+		t.Fatalf("Failed to execute query %v", err)
+	}
+
+	globalCluster.TimeTravel(1 * time.Second)
+
+	var samples []interface{}
+	var sample interface{}
+	for results.Next(&sample) {
+		samples = append(samples, sample)
+	}
+
+	err = results.Close()
+	if err == nil {
+		t.Fatalf("results close should have errored")
+	}
+
+	if !IsTimeoutError(err) {
+		t.Fatalf("Expected error to be timeout but was %v", err)
+	}
+
+	if results.RequestID() == "" {
+		t.Fatalf("Result should have had non empty RequestID")
+	}
+
+	if results.SourceEndpoint() == "" {
+		t.Fatalf("Result should have had non empty SourceEndpoint")
+	}
+}
+
+func testSimpleQueryOne(t *testing.T) {
+	query := "SELECT `travel-sample`.* FROM `travel-sample` LIMIT 10000;"
+	results, err := globalCluster.Query(query, nil)
+	if err != nil {
+		t.Fatalf("Failed to execute query %v", err)
+	}
+
+	var sample interface{}
+	err = results.One(&sample)
+	if err != nil {
+		t.Fatalf("Reading row had error: %v", err)
+	}
+
+	if sample == nil {
+		t.Fatalf("Expected sample to be not nil")
+	}
+
+	if results.RequestID() == "" {
+		t.Fatalf("Result should have had non empty RequestID")
+	}
+
+	if results.SourceEndpoint() == "" {
+		t.Fatalf("Result should have had non empty SourceEndpoint")
+	}
+}
+
+func testSimpleQueryOneNone(t *testing.T) {
+	query := "SELECT `travel-sample`.* FROM `travel-sample` WHERE `name` = \"Idontexist\" LIMIT 10000;"
+	results, err := globalCluster.Query(query, nil)
+	if err != nil {
+		t.Fatalf("Failed to execute query %v", err)
+	}
+
+	var sample interface{}
+	err = results.One(&sample)
+	if err == nil {
+		t.Fatalf("Expected One to return error")
+	}
+
+	if err != ErrNoResults {
+		t.Fatalf("Expected error to be no results but was %v", err)
+	}
+
+	if sample != nil {
+		t.Fatalf("Expected sample to be nil but was %v", sample)
+	}
+
+	if results.RequestID() == "" {
+		t.Fatalf("Result should have had non empty RequestID")
+	}
+
+	if results.SourceEndpoint() == "" {
+		t.Fatalf("Result should have had non empty SourceEndpoint")
+	}
+}
+
+func testSimpleQueryOneError(t *testing.T) {
+	query := "SELECT `travel-sample`. FROM `travel-sample` LIMIT 10000;"
+	results, err := globalCluster.Query(query, nil)
+	if err != nil {
+		t.Fatalf("Failed to execute query %v", err)
+	}
+
+	var sample interface{}
+	err = results.One(&sample)
+	if err == nil {
+		t.Fatalf("Expected One to return error")
+	}
+
+	_, ok := err.(QueryErrors)
+	if !ok {
+		t.Fatalf("Expected error to be QueryErrors but was %s", reflect.TypeOf(err).String())
+	}
+
+	if sample != nil {
+		t.Fatalf("Expected sample to be nil but was %v", sample)
+	}
+
+	if results.RequestID() == "" {
+		t.Fatalf("Result should have had non empty RequestID")
+	}
+
+	if results.SourceEndpoint() == "" {
+		t.Fatalf("Result should have had non empty SourceEndpoint")
+	}
+}
+
+func testSimpleQueryNone(t *testing.T) {
+	query := "SELECT `travel-sample`.* FROM `travel-sample` WHERE `name` = \"Idontexist\" LIMIT 10000;"
+	results, err := globalCluster.Query(query, nil)
+	if err != nil {
+		t.Fatalf("Failed to execute query %v", err)
+	}
+
+	var samples []interface{}
+	var sample interface{}
+	for results.Next(&sample) {
+		samples = append(samples, sample)
+	}
+
+	err = results.Close()
+	if err != nil {
+		t.Fatalf("results close had error: %v", err)
+	}
+
+	if len(samples) != 0 {
+		t.Fatalf("Expected result to contain 0 documents but had %d", len(samples))
+	}
+
+	if results.RequestID() == "" {
+		t.Fatalf("Result should have had non empty RequestID")
+	}
+
+	if results.SourceEndpoint() == "" {
+		t.Fatalf("Result should have had non empty SourceEndpoint")
+	}
+}
+
+func testSimpleQueryError(t *testing.T) {
+	query := "SELECT `travel-sample`. FROM `travel-sample` LIMIT 10000;"
+	results, err := globalCluster.Query(query, nil)
+	if err != nil {
+		t.Fatalf("Failed to execute query %v", err)
+	}
+
+	var samples []interface{}
+	var sample interface{}
+	for results.Next(&sample) {
+		samples = append(samples, sample)
+	}
+
+	err = results.Close()
+	if err == nil {
+		t.Fatalf("Expected results close should to have error")
+	}
+
+	_, ok := err.(QueryErrors)
+	if !ok {
+		t.Fatalf("Expected error to be QueryErrors but was %s", reflect.TypeOf(err).String())
+	}
+
+	if len(samples) != 0 {
+		t.Fatalf("Expected result to contain 0 documents but had %d", len(samples))
+	}
+
+	if results.RequestID() == "" {
+		t.Fatalf("Result should have had non empty RequestID")
+	}
+
+	if results.SourceEndpoint() == "" {
 		t.Fatalf("Result should have had non empty SourceEndpoint")
 	}
 }
 
 func testPreparedQuery(t *testing.T) {
-	query := "SELECT `travel-sample`.* FROM `travel-sample` LIMIT 10;"
-	rows, err := globalCluster.Query(query, &QueryOptions{Prepared: true})
+	query := "SELECT `travel-sample`.* FROM `travel-sample` LIMIT 10000;"
+	results, err := globalCluster.Query(query, &QueryOptions{Prepared: true})
 	if err != nil {
-		t.Fatalf("Failed to execute query %v", err)
+		t.Fatalf("Failed to execute query: %v", err)
 	}
 
 	var samples []interface{}
 	var sample interface{}
-	for rows.Next(&sample) {
+	for results.Next(&sample) {
 		samples = append(samples, sample)
 	}
 
-	err = rows.Close()
+	err = results.Close()
 	if err != nil {
-		t.Fatalf("Rows close had error: %v", err)
+		t.Fatalf("results close had error: %v", err)
 	}
 
-	if len(samples) != 10 {
-		t.Fatalf("Expected result to contain 10 documents but had %d", len(samples))
+	if len(samples) != 10000 {
+		t.Fatalf("Expected result to contain 10000 documents but had %d", len(samples))
 	}
 
-	if rows.RequestID() == "" {
+	if results.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 
-	if rows.SourceEndpoint() == "" {
+	if results.SourceEndpoint() == "" {
+		t.Fatalf("Result should have had non empty SourceEndpoint")
+	}
+
+	if globalCluster.queryCache[query] == nil {
+		t.Fatalf("Query should have been in query cache after prepared statement execution")
+	}
+
+	results, err = globalCluster.Query(query, &QueryOptions{Prepared: true})
+	if err != nil {
+		t.Fatalf("Failed to execute query: %v", err)
+	}
+
+	var secondSamples []interface{}
+	var secondSample interface{}
+	for results.Next(&secondSample) {
+		secondSamples = append(secondSamples, secondSample)
+	}
+
+	err = results.Close()
+	if err != nil {
+		t.Fatalf("results close had error: %v", err)
+	}
+
+	if len(secondSamples) != 10000 {
+		t.Fatalf("Expected result to contain 10000 documents but had %d", len(secondSamples))
+	}
+
+	if results.RequestID() == "" {
+		t.Fatalf("Result should have had non empty RequestID")
+	}
+
+	if results.SourceEndpoint() == "" {
 		t.Fatalf("Result should have had non empty SourceEndpoint")
 	}
 
@@ -99,66 +365,66 @@ func testPreparedQuery(t *testing.T) {
 }
 
 func testQueryNamedParameters(t *testing.T) {
-	query := "SELECT `travel-sample`.* FROM `travel-sample` where `type`=$type AND `name`=$name LIMIT 10;"
+	query := "SELECT `travel-sample`.* FROM `travel-sample` where `type`=$type AND `name`=$name LIMIT 10000;"
 	params := make(map[string]interface{}, 1)
 	params["type"] = "hotel"
 	params["name"] = "Medway Youth Hostel"
-	rows, err := globalCluster.Query(query, &QueryOptions{NamedParameters: params})
+	results, err := globalCluster.Query(query, &QueryOptions{NamedParameters: params})
 	if err != nil {
 		t.Fatalf("Failed to execute query %v", err)
 	}
 
 	var samples []interface{}
 	var sample interface{}
-	for rows.Next(&sample) {
+	for results.Next(&sample) {
 		samples = append(samples, sample)
 	}
 
-	err = rows.Close()
+	err = results.Close()
 	if err != nil {
-		t.Fatalf("Rows close had error: %v", err)
+		t.Fatalf("results close had error: %v", err)
 	}
 
 	if len(samples) != 1 {
 		t.Fatalf("Expected breweries to contain 1 document but had %d", len(samples))
 	}
 
-	if rows.RequestID() == "" {
+	if results.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 
-	if rows.SourceEndpoint() == "" {
+	if results.SourceEndpoint() == "" {
 		t.Fatalf("Result should have had non empty SourceEndpoint")
 	}
 }
 
 func testQueryPositionalParameters(t *testing.T) {
-	query := "SELECT `travel-sample`.* FROM `travel-sample` where `type`=? AND `name`=? LIMIT 10;"
-	rows, err := globalCluster.Query(query, &QueryOptions{PositionalParameters: []interface{}{"hotel", "Medway Youth Hostel"}})
+	query := "SELECT `travel-sample`.* FROM `travel-sample` where `type`=? AND `name`=? LIMIT 10000;"
+	results, err := globalCluster.Query(query, &QueryOptions{PositionalParameters: []interface{}{"hotel", "Medway Youth Hostel"}})
 	if err != nil {
 		t.Fatalf("Failed to execute query %v", err)
 	}
 
 	var samples []interface{}
 	var sample interface{}
-	for rows.Next(&sample) {
+	for results.Next(&sample) {
 		samples = append(samples, sample)
 	}
 
-	err = rows.Close()
+	err = results.Close()
 	if err != nil {
-		t.Fatalf("Rows close had error: %v", err)
+		t.Fatalf("results close had error: %v", err)
 	}
 
 	if len(samples) != 1 {
 		t.Fatalf("Expected breweries to contain 1 document but had %d", len(samples))
 	}
 
-	if rows.RequestID() == "" {
+	if results.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 
-	if rows.SourceEndpoint() == "" {
+	if results.SourceEndpoint() == "" {
 		t.Fatalf("Result should have had non empty SourceEndpoint")
 	}
 }
@@ -191,8 +457,8 @@ func TestBasicQuery(t *testing.T) {
 			t.Fatalf("Failed to unmarshal request body %v", err)
 		}
 
-		if len(opts) != 3 {
-			t.Fatalf("Expected request body to contain 3 options but was %d, %v", len(opts), opts)
+		if len(opts) != 4 {
+			t.Fatalf("Expected request body to contain 4 options but was %d, %v", len(opts), opts)
 		}
 
 		optsStatement, ok := opts["statement"]
@@ -209,6 +475,13 @@ func TestBasicQuery(t *testing.T) {
 		optsDuration, err := time.ParseDuration(optsTimeout.(string))
 		if err != nil {
 			t.Fatalf("Failed to parse request timeout %v", err)
+		}
+		optsContextID, ok := opts["client_context_id"]
+		if !ok {
+			t.Fatalf("Request query options missing client context id")
+		}
+		if optsContextID == "" {
+			t.Fatalf("Client context id should have been not empty")
 		}
 
 		if optsDuration < (timeout-50*time.Millisecond) || optsDuration > (timeout+50*time.Millisecond) {
@@ -283,13 +556,25 @@ func TestQueryError(t *testing.T) {
 	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
 
 	res, err := cluster.Query(statement, queryOptions)
-	if err == nil {
-		t.Fatal("Expected query to return error")
+	if err != nil {
+		t.Fatalf("Expected query to not return error but was %v", err)
 	}
 
-	if res != nil {
-		t.Fatalf("Expected result to be nil but was %v", res)
+	if res == nil {
+		t.Fatal("Expected result to be not nil but was")
 	}
+
+	var results []interface{}
+	var row interface{}
+	for res.Next(&row) {
+		results = append(results, row)
+	}
+
+	if len(results) > 0 {
+		t.Fatalf("results should have had length 0 but was %d", len(results))
+	}
+
+	err = res.Close()
 
 	queryErrs, ok := err.(QueryErrors)
 	if !ok {
@@ -364,9 +649,9 @@ func TestQueryServiceNotFound(t *testing.T) {
 	}
 }
 
-func TestQueryTimeout(t *testing.T) {
+func TestQueryConnectTimeout(t *testing.T) {
 	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
-	timeout := 40 * time.Second
+	timeout := 20 * time.Millisecond
 	clusterTimeout := 50 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -394,8 +679,10 @@ func TestQueryTimeout(t *testing.T) {
 			t.Fatalf("Expected timeout to be %s but was %s", timeout.String(), optsTimeout)
 		}
 
-		cancel()
-		return nil, context.DeadlineExceeded
+		// we can't use time travel here as we need the context to actually timeout
+		time.Sleep(100 * time.Millisecond)
+
+		return nil, context.Canceled
 	}
 
 	provider := &mockHTTPProvider{
@@ -413,11 +700,11 @@ func TestQueryTimeout(t *testing.T) {
 	}
 }
 
-func TestQueryContextTimeout(t *testing.T) {
+func TestQueryConnectContextTimeout(t *testing.T) {
 	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
 	timeout := 50 * time.Second
 	clusterTimeout := 50 * time.Second
-	ctxTimeout := 30 * time.Second
+	ctxTimeout := 10 * time.Millisecond
 	ctx, cancel := context.WithTimeout(context.Background(), ctxTimeout)
 	defer cancel()
 
@@ -444,8 +731,10 @@ func TestQueryContextTimeout(t *testing.T) {
 			t.Fatalf("Expected timeout to be %s but was %s", ctxTimeout.String(), optsTimeout)
 		}
 
-		cancel()
-		return nil, context.DeadlineExceeded
+		// we can't use time travel here as we need the context to actually timeout
+		time.Sleep(100 * time.Millisecond)
+
+		return nil, context.Canceled
 	}
 
 	provider := &mockHTTPProvider{
@@ -463,10 +752,10 @@ func TestQueryContextTimeout(t *testing.T) {
 	}
 }
 
-func TestQueryClusterTimeout(t *testing.T) {
+func TestQueryConnectClusterTimeout(t *testing.T) {
 	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
 	timeout := 50 * time.Second
-	clusterTimeout := 10 * time.Second
+	clusterTimeout := 10 * time.Millisecond
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -493,8 +782,10 @@ func TestQueryClusterTimeout(t *testing.T) {
 			t.Fatalf("Expected timeout to be %s but was %s", clusterTimeout.String(), optsTimeout)
 		}
 
-		cancel()
-		return nil, context.DeadlineExceeded
+		// we can't use time travel here as we need the context to actually timeout
+		time.Sleep(100 * time.Millisecond)
+
+		return nil, context.Canceled
 	}
 
 	provider := &mockHTTPProvider{
@@ -521,11 +812,6 @@ func testAssertQueryRequest(t *testing.T, req *gocbcore.HttpRequest) {
 		t.Fatalf("Context should not have been nil, but was")
 	}
 
-	_, ok := req.Context.Deadline()
-	if !ok {
-		t.Fatalf("Context should have had a deadline") // Difficult to test the actual deadline value
-	}
-
 	if req.Method != "POST" {
 		t.Fatalf("Request method should have been POST but was %s", req.Method)
 	}
@@ -536,13 +822,18 @@ func testAssertQueryRequest(t *testing.T, req *gocbcore.HttpRequest) {
 }
 
 func testAssertQueryResult(t *testing.T, expectedResult *n1qlResponse, actualResult *QueryResults, expectData bool) {
-	if expectData {
-		var breweryDocs []testBreweryDocument
-		var resDoc testBreweryDocument
-		for actualResult.Next(&resDoc) {
-			breweryDocs = append(breweryDocs, resDoc)
-		}
+	var breweryDocs []testBreweryDocument
+	var resDoc testBreweryDocument
+	for actualResult.Next(&resDoc) {
+		breweryDocs = append(breweryDocs, resDoc)
+	}
 
+	err := actualResult.Close()
+	if err != nil {
+		t.Fatalf("expected err to be nil but was %v", err)
+	}
+
+	if expectData {
 		var expectedDocs []testBreweryDocument
 		for _, doc := range expectedResult.Results {
 			var expectedDoc testBreweryDocument
@@ -562,6 +853,8 @@ func testAssertQueryResult(t *testing.T, expectedResult *n1qlResponse, actualRes
 				t.Fatalf("Docs did not match, expected %v but was %v", doc, breweryDocs[i])
 			}
 		}
+	} else {
+
 	}
 
 	if actualResult.ClientContextID() != expectedResult.ClientContextID {
@@ -614,6 +907,56 @@ func testAssertQueryResult(t *testing.T, expectedResult *n1qlResponse, actualRes
 
 	if metrics.WarningCount != expectedResult.Metrics.WarningCount {
 		t.Fatalf("Expected metrics WarningCount to be %d but was %d", metrics.WarningCount, expectedResult.Metrics.WarningCount)
+	}
+}
+
+func TestBasicRetries(t *testing.T) {
+	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
+	timeout := 60 * time.Second
+
+	dataBytes, err := loadRawTestDataset("beer_sample_query_temp_error")
+	if err != nil {
+		t.Fatalf("Could not read test dataset: %v", err)
+	}
+
+	var expectedResult n1qlResponse
+	err = json.Unmarshal(dataBytes, &expectedResult)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal dataset %v", err)
+	}
+
+	var retries int
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		testAssertQueryRequest(t, req)
+		retries++
+
+		return &gocbcore.HttpResponse{
+			Endpoint:   "http://localhost:8093",
+			StatusCode: 503, // this is a guess
+			Body:       &testReadCloser{bytes.NewBuffer(dataBytes), nil},
+		}, nil
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+	}
+
+	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
+	cluster.sb.N1qlRetryBehavior = StandardDelayRetryBehavior(3, 1, 100*time.Millisecond, LinearDelayFunction)
+
+	res, err := cluster.Query(statement, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if retries != 3 {
+		t.Fatalf("Expected query to be retried 3 time but ws retried %d times", retries)
+	}
+
+	err = res.Close()
+	if err == nil {
+		t.Fatalf("error should not have been nil")
 	}
 }
 
