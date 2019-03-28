@@ -220,7 +220,10 @@ type MutateInOptions struct {
 	PersistTo         uint
 	ReplicateTo       uint
 	DurabilityLevel   DurabilityLevel
-	CreateDocument    bool
+	InsertDocument    bool
+	UpsertDocument    bool
+	// Internal: This should never be used and is not supported.
+	AccessDeleted bool
 }
 
 func (spec *MutateInSpec) marshalValue(value interface{}) ([]byte, error) {
@@ -256,6 +259,11 @@ func (spec MutateInSpec) Insert(path string, val interface{}, opts *MutateInSpec
 	}
 	if opts.IsXattr {
 		flags |= SubdocFlagXattr
+	}
+
+	_, ok := val.(MutationMacro)
+	if ok {
+		flags |= SubdocFlagUseMacros
 	}
 
 	var op gocbcore.SubDocOp
@@ -299,6 +307,11 @@ func (spec MutateInSpec) Upsert(path string, val interface{}, opts *MutateInSpec
 	}
 	if opts.IsXattr {
 		flags |= SubdocFlagXattr
+	}
+
+	_, ok := val.(MutationMacro)
+	if ok {
+		flags |= SubdocFlagUseMacros
 	}
 
 	var op gocbcore.SubDocOp
@@ -392,7 +405,7 @@ type MutateInSpecArrayAppendOptions struct {
 }
 
 // ArrayAppend adds an element to the end (i.e. right) of an array
-func (spec MutateInSpec) ArrayAppend(path string, bytes []byte, opts *MutateInSpecArrayAppendOptions) (*MutateInOp, error) {
+func (spec MutateInSpec) ArrayAppend(path string, val interface{}, opts *MutateInSpecArrayAppendOptions) (*MutateInOp, error) {
 	if opts == nil {
 		opts = &MutateInSpecArrayAppendOptions{}
 	}
@@ -404,11 +417,21 @@ func (spec MutateInSpec) ArrayAppend(path string, bytes []byte, opts *MutateInSp
 		flags |= SubdocFlagXattr
 	}
 
+	_, ok := val.(MutationMacro)
+	if ok {
+		flags |= SubdocFlagUseMacros
+	}
+
+	marshaled, err := spec.marshalValue(val)
+	if err != nil {
+		return nil, err
+	}
+
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpArrayPushLast,
 		Path:  path,
 		Flags: gocbcore.SubdocFlag(flags),
-		Value: bytes,
+		Value: marshaled,
 	}
 
 	return &MutateInOp{op: op}, nil
@@ -421,7 +444,7 @@ type MutateInSpecArrayPrependOptions struct {
 }
 
 // ArrayPrepend adds an element to the beginning (i.e. left) of an array
-func (spec MutateInSpec) ArrayPrepend(path string, bytes []byte, opts *MutateInSpecArrayPrependOptions) (*MutateInOp, error) {
+func (spec MutateInSpec) ArrayPrepend(path string, val interface{}, opts *MutateInSpecArrayPrependOptions) (*MutateInOp, error) {
 	if opts == nil {
 		opts = &MutateInSpecArrayPrependOptions{}
 	}
@@ -433,11 +456,21 @@ func (spec MutateInSpec) ArrayPrepend(path string, bytes []byte, opts *MutateInS
 		flags |= SubdocFlagXattr
 	}
 
+	_, ok := val.(MutationMacro)
+	if ok {
+		flags |= SubdocFlagUseMacros
+	}
+
+	marshaled, err := spec.marshalValue(val)
+	if err != nil {
+		return nil, err
+	}
+
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpArrayPushFirst,
 		Path:  path,
 		Flags: gocbcore.SubdocFlag(flags),
-		Value: bytes,
+		Value: marshaled,
 	}
 
 	return &MutateInOp{op: op}, nil
@@ -451,7 +484,7 @@ type MutateInSpecArrayInsertOptions struct {
 
 // ArrayInsert inserts an element at a given position within an array. The position should be
 // specified as part of the path, e.g. path.to.array[3]
-func (spec MutateInSpec) ArrayInsert(path string, bytes []byte, opts *MutateInSpecArrayInsertOptions) (*MutateInOp, error) {
+func (spec MutateInSpec) ArrayInsert(path string, val interface{}, opts *MutateInSpecArrayInsertOptions) (*MutateInOp, error) {
 	if opts == nil {
 		opts = &MutateInSpecArrayInsertOptions{}
 	}
@@ -463,11 +496,21 @@ func (spec MutateInSpec) ArrayInsert(path string, bytes []byte, opts *MutateInSp
 		flags |= SubdocFlagXattr
 	}
 
+	_, ok := val.(MutationMacro)
+	if ok {
+		flags |= SubdocFlagUseMacros
+	}
+
+	marshaled, err := spec.marshalValue(val)
+	if err != nil {
+		return nil, err
+	}
+
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpArrayInsert,
 		Path:  path,
 		Flags: gocbcore.SubdocFlag(flags),
-		Value: bytes,
+		Value: marshaled,
 	}
 
 	return &MutateInOp{op: op}, nil
@@ -480,7 +523,7 @@ type MutateInSpecArrayAddUniqueOptions struct {
 }
 
 // ArrayAddUnique adds an dictionary add unique operation to this mutation operation set.
-func (spec MutateInSpec) ArrayAddUnique(path string, bytes []byte, opts *MutateInSpecArrayAddUniqueOptions) (*MutateInOp, error) {
+func (spec MutateInSpec) ArrayAddUnique(path string, val interface{}, opts *MutateInSpecArrayAddUniqueOptions) (*MutateInOp, error) {
 	if opts == nil {
 		opts = &MutateInSpecArrayAddUniqueOptions{}
 	}
@@ -492,11 +535,21 @@ func (spec MutateInSpec) ArrayAddUnique(path string, bytes []byte, opts *MutateI
 		flags |= SubdocFlagXattr
 	}
 
+	_, ok := val.(MutationMacro)
+	if ok {
+		flags |= SubdocFlagUseMacros
+	}
+
+	marshaled, err := spec.marshalValue(val)
+	if err != nil {
+		return nil, err
+	}
+
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpArrayAddUnique,
 		Path:  path,
 		Flags: gocbcore.SubdocFlag(flags),
-		Value: bytes,
+		Value: marshaled,
 	}
 
 	return &MutateInOp{op: op}, nil
@@ -619,8 +672,14 @@ func (c *Collection) mutate(ctx context.Context, traceCtx opentracing.SpanContex
 	}
 
 	var flags SubdocDocFlag
-	if opts.CreateDocument {
+	if opts.InsertDocument {
 		flags |= SubdocDocFlagMkDoc
+	}
+	if opts.UpsertDocument {
+		flags |= SubdocDocFlagReplaceDoc
+	}
+	if opts.AccessDeleted {
+		flags |= SubdocDocFlagAccessDeleted
 	}
 
 	var subdocs []gocbcore.SubDocOp

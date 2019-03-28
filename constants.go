@@ -104,3 +104,17 @@ const (
 	// of nodes.
 	DurabilityLevelPersistToMajority = DurabilityLevel(3)
 )
+
+// MutationMacro can be supplied to MutateIn operations to perform ExpandMacros operations.
+type MutationMacro string
+
+const (
+	// MutationMacroCAS can be used to tell the server to use the CAS macro.
+	MutationMacroCAS = MutationMacro("${Mutation.CAS}")
+
+	// MutationMacroSeqNo can be used to tell the server to use the seqno macro.
+	MutationMacroSeqNo = MutationMacro("${Mutation.seqno}")
+
+	// MutationMacroValueCRC32c can be used to tell the server to use the value_crc32c macro.
+	MutationMacroValueCRC32c = MutationMacro("${Mutation.value_crc32c}")
+)
