@@ -55,6 +55,7 @@ var (
 	CollectionsFeature       = FeatureCode(18)
 	SubdocMockBugFeature     = FeatureCode(19)
 	AdjoinFeature            = FeatureCode(20)
+	ExpandMacrosFeature      = FeatureCode(21)
 )
 
 type testCluster struct {
@@ -90,6 +91,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case CollectionsFeature:
 			supported = false
 		case SubdocMockBugFeature:
+			supported = false
+		case ExpandMacrosFeature:
 			supported = false
 		}
 	} else {

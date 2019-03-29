@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	"github.com/couchbase/gocbcore/v8"
 	"github.com/opentracing/opentracing-go"
 )
 
@@ -27,62 +27,99 @@ type LookupInOptions struct {
 	WithExpiry        bool
 }
 
+// LookupInSpecGetOptions are the options available to LookupIn subdoc Get operations.
+type LookupInSpecGetOptions struct {
+	IsXattr bool
+}
+
 // Get indicates a path to be retrieved from the document.  The value of the path
 // can later be retrieved from the LookupResult.
 // The path syntax follows N1QL's path syntax (e.g. `foo.bar.baz`).
-func (spec LookupInSpec) Get(path string) LookupInOp {
-	return spec.getWithFlags(path, SubdocFlagNone)
+func (spec LookupInSpec) Get(path string, opts *LookupInSpecGetOptions) LookupInOp {
+	if opts == nil {
+		opts = &LookupInSpecGetOptions{}
+	}
+	return spec.getWithFlags(path, opts.IsXattr)
 }
 
-func (spec LookupInSpec) getWithFlags(path string, flags SubdocFlag) LookupInOp {
-	var op gocbcore.SubDocOp
-	if path == "" {
-		op = gocbcore.SubDocOp{
-			Op:    gocbcore.SubDocOpGetDoc,
-			Flags: gocbcore.SubdocFlag(flags),
-		}
-	} else {
-		op = gocbcore.SubDocOp{
-			Op:    gocbcore.SubDocOpGet,
-			Path:  path,
-			Flags: gocbcore.SubdocFlag(flags),
-		}
+// GetFull indicates that a full document should be retrieved. This command allows you
+// to do things like combine with Get to fetch a document with certain Xattrs
+func (spec LookupInSpec) GetFull() LookupInOp {
+	op := gocbcore.SubDocOp{
+		Op:    gocbcore.SubDocOpGetDoc,
+		Flags: gocbcore.SubdocFlag(SubdocFlagNone),
 	}
 
 	return LookupInOp{op: op}
+}
+
+func (spec LookupInSpec) getWithFlags(path string, isXattr bool) LookupInOp {
+	var flags gocbcore.SubdocFlag
+	if isXattr {
+		flags |= gocbcore.SubdocFlag(SubdocFlagXattr)
+	}
+
+	op := gocbcore.SubDocOp{
+		Op:    gocbcore.SubDocOpGet,
+		Path:  path,
+		Flags: gocbcore.SubdocFlag(flags),
+	}
+
+	return LookupInOp{op: op}
+}
+
+// LookupInSpecExistsOptions are the options available to LookupIn subdoc Exists operations.
+type LookupInSpecExistsOptions struct {
+	IsXattr bool
 }
 
 // Exists is similar to Path(), but does not actually retrieve the value from the server.
 // This may save bandwidth if you only need to check for the existence of a
 // path (without caring for its content). You can check the status of this
 // operation by using .ContentAt (and ignoring the value) or .Exists() on the LookupResult.
-func (spec LookupInSpec) Exists(path string) LookupInOp {
+func (spec LookupInSpec) Exists(path string, opts *LookupInSpecExistsOptions) LookupInOp {
+	if opts == nil {
+		opts = &LookupInSpecExistsOptions{}
+	}
+
+	var flags gocbcore.SubdocFlag
+	if opts.IsXattr {
+		flags |= gocbcore.SubdocFlag(SubdocFlagXattr)
+	}
+
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpExists,
 		Path:  path,
-		Flags: gocbcore.SubdocFlagNone,
+		Flags: gocbcore.SubdocFlag(flags),
 	}
 
 	return LookupInOp{op: op}
+}
+
+// LookupInSpecCountOptions are the options available to LookupIn subdoc Count operations.
+type LookupInSpecCountOptions struct {
+	IsXattr bool
 }
 
 // Count allows you to retrieve the number of items in an array or keys within an
 // dictionary within an element of a document.
-func (spec LookupInSpec) Count(path string) LookupInOp {
+func (spec LookupInSpec) Count(path string, opts *LookupInSpecCountOptions) LookupInOp {
+	if opts == nil {
+		opts = &LookupInSpecCountOptions{}
+	}
+
+	var flags gocbcore.SubdocFlag
+	if opts.IsXattr {
+		flags |= gocbcore.SubdocFlag(SubdocFlagXattr)
+	}
+
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpGetCount,
 		Path:  path,
-		Flags: gocbcore.SubdocFlagNone,
+		Flags: gocbcore.SubdocFlag(flags),
 	}
 
 	return LookupInOp{op: op}
-}
-
-// XAttr indicates an extended attribute to be retrieved from the document.  The value of the path
-// can later be retrieved from the LookupResult.
-// The path syntax follows N1QL's path syntax (e.g. `foo.bar.baz`).
-func (spec LookupInSpec) XAttr(path string) LookupInOp {
-	return spec.getWithFlags(path, SubdocFlagXattr)
 }
 
 // LookupIn performs a set of subdocument lookup operations on the document identified by key.
@@ -207,7 +244,8 @@ type MutateInSpec struct {
 
 // MutateInOp is the representation of an operation available when calling MutateIn
 type MutateInOp struct {
-	op gocbcore.SubDocOp
+	op  gocbcore.SubDocOp
+	err error
 }
 
 // MutateInOptions are the set of options available to MutateIn.
@@ -242,18 +280,39 @@ func (spec *MutateInSpec) marshalValue(value interface{}) ([]byte, error) {
 	return bytes, nil
 }
 
+func (spec *MutateInSpec) marshalArrayMulti(in interface{}) ([]byte, error) {
+	out, err := json.Marshal(in)
+	if err != nil {
+		return nil, err
+	}
+
+	// Assert first character is a '['
+	if len(out) < 2 || out[0] != '[' {
+		return nil, errors.New("not a JSON array")
+	}
+
+	out = out[1 : len(out)-1]
+	return out, nil
+}
+
 // MutateInSpecInsertOptions are the options available to subdocument Insert operations.
 type MutateInSpecInsertOptions struct {
 	CreateParents bool
 	IsXattr       bool
 }
 
-// Insert inserts a value at the specified path within the document, optionally creating the document first.
-func (spec MutateInSpec) Insert(path string, val interface{}, opts *MutateInSpecInsertOptions) (*MutateInOp, error) {
+// Insert inserts a value at the specified path within the document.
+func (spec MutateInSpec) Insert(path string, val interface{}, opts *MutateInSpecInsertOptions) MutateInOp {
 	if opts == nil {
 		opts = &MutateInSpecInsertOptions{}
 	}
 	var flags SubdocFlag
+	_, ok := val.(MutationMacro)
+	if ok {
+		flags |= SubdocFlagUseMacros
+		opts.IsXattr = true
+	}
+
 	if opts.CreateParents {
 		flags |= SubdocFlagCreatePath
 	}
@@ -261,32 +320,18 @@ func (spec MutateInSpec) Insert(path string, val interface{}, opts *MutateInSpec
 		flags |= SubdocFlagXattr
 	}
 
-	_, ok := val.(MutationMacro)
-	if ok {
-		flags |= SubdocFlagUseMacros
-	}
-
-	var op gocbcore.SubDocOp
 	marshaled, err := spec.marshalValue(val)
 	if err != nil {
-		return nil, err
+		return MutateInOp{err: err}
 	}
-	if path == "" {
-		op = gocbcore.SubDocOp{
-			Op:    gocbcore.SubDocOpAddDoc,
-			Flags: gocbcore.SubdocFlag(flags),
-			Value: marshaled,
-		}
-	} else {
-		op = gocbcore.SubDocOp{
-			Op:    gocbcore.SubDocOpDictAdd,
-			Path:  path,
-			Flags: gocbcore.SubdocFlag(flags),
-			Value: marshaled,
-		}
+	op := gocbcore.SubDocOp{
+		Op:    gocbcore.SubDocOpDictAdd,
+		Path:  path,
+		Flags: gocbcore.SubdocFlag(flags),
+		Value: marshaled,
 	}
 
-	return &MutateInOp{op: op}, nil
+	return MutateInOp{op: op}
 }
 
 // MutateInSpecUpsertOptions are the options available to subdocument Upsert operations.
@@ -297,11 +342,17 @@ type MutateInSpecUpsertOptions struct {
 
 // Upsert creates a new value at the specified path within the document if it does not exist, if it does exist then it
 // updates it.
-func (spec MutateInSpec) Upsert(path string, val interface{}, opts *MutateInSpecUpsertOptions) (*MutateInOp, error) {
+func (spec MutateInSpec) Upsert(path string, val interface{}, opts *MutateInSpecUpsertOptions) MutateInOp {
 	if opts == nil {
 		opts = &MutateInSpecUpsertOptions{}
 	}
 	var flags SubdocFlag
+	_, ok := val.(MutationMacro)
+	if ok {
+		flags |= SubdocFlagUseMacros
+		opts.IsXattr = true
+	}
+
 	if opts.CreateParents {
 		flags |= SubdocFlagCreatePath
 	}
@@ -309,32 +360,35 @@ func (spec MutateInSpec) Upsert(path string, val interface{}, opts *MutateInSpec
 		flags |= SubdocFlagXattr
 	}
 
-	_, ok := val.(MutationMacro)
-	if ok {
-		flags |= SubdocFlagUseMacros
-	}
-
-	var op gocbcore.SubDocOp
 	marshaled, err := spec.marshalValue(val)
 	if err != nil {
-		return nil, err
+		return MutateInOp{err: err}
 	}
-	if path == "" {
-		op = gocbcore.SubDocOp{
-			Op:    gocbcore.SubDocOpSetDoc,
-			Flags: gocbcore.SubdocFlag(flags),
-			Value: marshaled,
-		}
-	} else {
-		op = gocbcore.SubDocOp{
-			Op:    gocbcore.SubDocOpDictSet,
-			Path:  path,
-			Flags: gocbcore.SubdocFlag(flags),
-			Value: marshaled,
-		}
+	op := gocbcore.SubDocOp{
+		Op:    gocbcore.SubDocOpDictSet,
+		Path:  path,
+		Flags: gocbcore.SubdocFlag(flags),
+		Value: marshaled,
 	}
 
-	return &MutateInOp{op: op}, nil
+	return MutateInOp{op: op}
+}
+
+// UpsertFull creates a new document if it does not exist, if it does exist then it
+// updates it. This command allows you to do things like updating xattrs whilst upserting
+// a document.
+func (spec MutateInSpec) UpsertFull(val interface{}) MutateInOp {
+	marshaled, err := spec.marshalValue(val)
+	if err != nil {
+		return MutateInOp{err: err}
+	}
+	op := gocbcore.SubDocOp{
+		Op:    gocbcore.SubDocOpSetDoc,
+		Flags: gocbcore.SubdocFlag(SubdocFlagNone),
+		Value: marshaled,
+	}
+
+	return MutateInOp{op: op}
 }
 
 // MutateInSpecReplaceOptions are the options available to subdocument Replace operations.
@@ -343,7 +397,7 @@ type MutateInSpecReplaceOptions struct {
 }
 
 // Replace replaces the value of the field at path.
-func (spec MutateInSpec) Replace(path string, val interface{}, opts *MutateInSpecReplaceOptions) (*MutateInOp, error) {
+func (spec MutateInSpec) Replace(path string, val interface{}, opts *MutateInSpecReplaceOptions) MutateInOp {
 	if opts == nil {
 		opts = &MutateInSpecReplaceOptions{}
 	}
@@ -354,7 +408,7 @@ func (spec MutateInSpec) Replace(path string, val interface{}, opts *MutateInSpe
 
 	marshaled, err := spec.marshalValue(val)
 	if err != nil {
-		return nil, err
+		return MutateInOp{err: err}
 	}
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpReplace,
@@ -363,7 +417,7 @@ func (spec MutateInSpec) Replace(path string, val interface{}, opts *MutateInSpe
 		Value: marshaled,
 	}
 
-	return &MutateInOp{op: op}, nil
+	return MutateInOp{op: op}
 }
 
 // MutateInSpecRemoveOptions are the options available to subdocument Remove operations.
@@ -372,7 +426,7 @@ type MutateInSpecRemoveOptions struct {
 }
 
 // Remove removes the field at path.
-func (spec MutateInSpec) Remove(path string, opts *MutateInSpecRemoveOptions) (*MutateInOp, error) {
+func (spec MutateInSpec) Remove(path string, opts *MutateInSpecRemoveOptions) MutateInOp {
 	if opts == nil {
 		opts = &MutateInSpecRemoveOptions{}
 	}
@@ -381,18 +435,20 @@ func (spec MutateInSpec) Remove(path string, opts *MutateInSpecRemoveOptions) (*
 		flags |= SubdocFlagXattr
 	}
 
-	var op gocbcore.SubDocOp
-	if path == "" {
-		op = gocbcore.SubDocOp{
-			Op:    gocbcore.SubDocOpDeleteDoc,
-			Flags: gocbcore.SubdocFlag(flags),
-		}
-	} else {
-		op = gocbcore.SubDocOp{
-			Op:    gocbcore.SubDocOpDelete,
-			Path:  path,
-			Flags: gocbcore.SubdocFlag(flags),
-		}
+	op := gocbcore.SubDocOp{
+		Op:    gocbcore.SubDocOpDelete,
+		Path:  path,
+		Flags: gocbcore.SubdocFlag(flags),
+	}
+
+	return MutateInOp{op: op}
+}
+
+// RemoveFull removes the full document, including metadata.
+func (spec MutateInSpec) RemoveFull() (*MutateInOp, error) {
+	op := gocbcore.SubDocOp{
+		Op:    gocbcore.SubDocOpDeleteDoc,
+		Flags: gocbcore.SubdocFlag(SubdocFlagNone),
 	}
 
 	return &MutateInOp{op: op}, nil
@@ -402,14 +458,31 @@ func (spec MutateInSpec) Remove(path string, opts *MutateInSpecRemoveOptions) (*
 type MutateInSpecArrayAppendOptions struct {
 	CreateParents bool
 	IsXattr       bool
+	// HasMultiple adds multiple values as elements to an array.
+	// When used `value` in the spec must be an array type
+	// ArrayAppend("path", []int{1,2,3,4}, MutateInSpecArrayAppendOptions{HasMultiple:true}) =>
+	//   "path" [..., 1,2,3,4]
+	//
+	// This is a more efficient version (at both the network and server levels)
+	// of doing
+	// spec.ArrayAppend("path", 1, nil)
+	// spec.ArrayAppend("path", 2, nil)
+	// spec.ArrayAppend("path", 3, nil)
+	HasMultiple bool
 }
 
-// ArrayAppend adds an element to the end (i.e. right) of an array
-func (spec MutateInSpec) ArrayAppend(path string, val interface{}, opts *MutateInSpecArrayAppendOptions) (*MutateInOp, error) {
+// ArrayAppend adds an element(s) to the end (i.e. right) of an array
+func (spec MutateInSpec) ArrayAppend(path string, val interface{}, opts *MutateInSpecArrayAppendOptions) MutateInOp {
 	if opts == nil {
 		opts = &MutateInSpecArrayAppendOptions{}
 	}
 	var flags SubdocFlag
+	_, ok := val.(MutationMacro)
+	if ok {
+		flags |= SubdocFlagUseMacros
+		opts.IsXattr = true
+	}
+
 	if opts.CreateParents {
 		flags |= SubdocFlagCreatePath
 	}
@@ -417,14 +490,16 @@ func (spec MutateInSpec) ArrayAppend(path string, val interface{}, opts *MutateI
 		flags |= SubdocFlagXattr
 	}
 
-	_, ok := val.(MutationMacro)
-	if ok {
-		flags |= SubdocFlagUseMacros
+	var marshaled []byte
+	var err error
+	if opts.HasMultiple {
+		marshaled, err = spec.marshalArrayMulti(val)
+	} else {
+		marshaled, err = spec.marshalValue(val)
 	}
 
-	marshaled, err := spec.marshalValue(val)
 	if err != nil {
-		return nil, err
+		return MutateInOp{err: err}
 	}
 
 	op := gocbcore.SubDocOp{
@@ -434,21 +509,38 @@ func (spec MutateInSpec) ArrayAppend(path string, val interface{}, opts *MutateI
 		Value: marshaled,
 	}
 
-	return &MutateInOp{op: op}, nil
+	return MutateInOp{op: op}
 }
 
 // MutateInSpecArrayPrependOptions are the options available to subdocument ArrayPrepend operations.
 type MutateInSpecArrayPrependOptions struct {
 	CreateParents bool
 	IsXattr       bool
+	// HasMultiple adds multiple values as elements to an array.
+	// When used `value` in the spec must be an array type
+	// ArrayPrepend("path", []int{1,2,3,4}, MutateInSpecArrayPrependOptions{HasMultiple:true}) =>
+	//   "path" [1,2,3,4, ....]
+	//
+	// This is a more efficient version (at both the network and server levels)
+	// of doing
+	// spec.ArrayPrepend("path", 1, nil)
+	// spec.ArrayPrepend("path", 2, nil)
+	// spec.ArrayPrepend("path", 3, nil)
+	HasMultiple bool
 }
 
 // ArrayPrepend adds an element to the beginning (i.e. left) of an array
-func (spec MutateInSpec) ArrayPrepend(path string, val interface{}, opts *MutateInSpecArrayPrependOptions) (*MutateInOp, error) {
+func (spec MutateInSpec) ArrayPrepend(path string, val interface{}, opts *MutateInSpecArrayPrependOptions) MutateInOp {
 	if opts == nil {
 		opts = &MutateInSpecArrayPrependOptions{}
 	}
 	var flags SubdocFlag
+	_, ok := val.(MutationMacro)
+	if ok {
+		flags |= SubdocFlagUseMacros
+		opts.IsXattr = true
+	}
+
 	if opts.CreateParents {
 		flags |= SubdocFlagCreatePath
 	}
@@ -456,14 +548,16 @@ func (spec MutateInSpec) ArrayPrepend(path string, val interface{}, opts *Mutate
 		flags |= SubdocFlagXattr
 	}
 
-	_, ok := val.(MutationMacro)
-	if ok {
-		flags |= SubdocFlagUseMacros
+	var marshaled []byte
+	var err error
+	if opts.HasMultiple {
+		marshaled, err = spec.marshalArrayMulti(val)
+	} else {
+		marshaled, err = spec.marshalValue(val)
 	}
 
-	marshaled, err := spec.marshalValue(val)
 	if err != nil {
-		return nil, err
+		return MutateInOp{err: err}
 	}
 
 	op := gocbcore.SubDocOp{
@@ -473,22 +567,39 @@ func (spec MutateInSpec) ArrayPrepend(path string, val interface{}, opts *Mutate
 		Value: marshaled,
 	}
 
-	return &MutateInOp{op: op}, nil
+	return MutateInOp{op: op}
 }
 
 // MutateInSpecArrayInsertOptions are the options available to subdocument ArrayInsert operations.
 type MutateInSpecArrayInsertOptions struct {
 	CreateParents bool
 	IsXattr       bool
+	// HasMultiple adds multiple values as elements to an array.
+	// When used `value` in the spec must be an array type
+	// ArrayInsert("path[1]", []int{1,2,3,4}, MutateInSpecArrayInsertOptions{HasMultiple:true}) =>
+	//   "path" [..., 1,2,3,4]
+	//
+	// This is a more efficient version (at both the network and server levels)
+	// of doing
+	// spec.ArrayInsert("path[2]", 1, nil)
+	// spec.ArrayInsert("path[3]", 2, nil)
+	// spec.ArrayInsert("path[4]", 3, nil)
+	HasMultiple bool
 }
 
 // ArrayInsert inserts an element at a given position within an array. The position should be
 // specified as part of the path, e.g. path.to.array[3]
-func (spec MutateInSpec) ArrayInsert(path string, val interface{}, opts *MutateInSpecArrayInsertOptions) (*MutateInOp, error) {
+func (spec MutateInSpec) ArrayInsert(path string, val interface{}, opts *MutateInSpecArrayInsertOptions) MutateInOp {
 	if opts == nil {
 		opts = &MutateInSpecArrayInsertOptions{}
 	}
 	var flags SubdocFlag
+	_, ok := val.(MutationMacro)
+	if ok {
+		flags |= SubdocFlagUseMacros
+		opts.IsXattr = true
+	}
+
 	if opts.CreateParents {
 		flags |= SubdocFlagCreatePath
 	}
@@ -496,14 +607,16 @@ func (spec MutateInSpec) ArrayInsert(path string, val interface{}, opts *MutateI
 		flags |= SubdocFlagXattr
 	}
 
-	_, ok := val.(MutationMacro)
-	if ok {
-		flags |= SubdocFlagUseMacros
+	var marshaled []byte
+	var err error
+	if opts.HasMultiple {
+		marshaled, err = spec.marshalArrayMulti(val)
+	} else {
+		marshaled, err = spec.marshalValue(val)
 	}
 
-	marshaled, err := spec.marshalValue(val)
 	if err != nil {
-		return nil, err
+		return MutateInOp{err: err}
 	}
 
 	op := gocbcore.SubDocOp{
@@ -513,7 +626,7 @@ func (spec MutateInSpec) ArrayInsert(path string, val interface{}, opts *MutateI
 		Value: marshaled,
 	}
 
-	return &MutateInOp{op: op}, nil
+	return MutateInOp{op: op}
 }
 
 // MutateInSpecArrayAddUniqueOptions are the options available to subdocument ArrayAddUnique operations.
@@ -523,11 +636,17 @@ type MutateInSpecArrayAddUniqueOptions struct {
 }
 
 // ArrayAddUnique adds an dictionary add unique operation to this mutation operation set.
-func (spec MutateInSpec) ArrayAddUnique(path string, val interface{}, opts *MutateInSpecArrayAddUniqueOptions) (*MutateInOp, error) {
+func (spec MutateInSpec) ArrayAddUnique(path string, val interface{}, opts *MutateInSpecArrayAddUniqueOptions) MutateInOp {
 	if opts == nil {
 		opts = &MutateInSpecArrayAddUniqueOptions{}
 	}
 	var flags SubdocFlag
+	_, ok := val.(MutationMacro)
+	if ok {
+		flags |= SubdocFlagUseMacros
+		opts.IsXattr = true
+	}
+
 	if opts.CreateParents {
 		flags |= SubdocFlagCreatePath
 	}
@@ -535,14 +654,9 @@ func (spec MutateInSpec) ArrayAddUnique(path string, val interface{}, opts *Muta
 		flags |= SubdocFlagXattr
 	}
 
-	_, ok := val.(MutationMacro)
-	if ok {
-		flags |= SubdocFlagUseMacros
-	}
-
 	marshaled, err := spec.marshalValue(val)
 	if err != nil {
-		return nil, err
+		return MutateInOp{err: err}
 	}
 
 	op := gocbcore.SubDocOp{
@@ -552,7 +666,7 @@ func (spec MutateInSpec) ArrayAddUnique(path string, val interface{}, opts *Muta
 		Value: marshaled,
 	}
 
-	return &MutateInOp{op: op}, nil
+	return MutateInOp{op: op}
 }
 
 // MutateInSpecCounterOptions are the options available to subdocument Increment and Decrement operations.
@@ -562,7 +676,7 @@ type MutateInSpecCounterOptions struct {
 }
 
 // Increment adds an increment operation to this mutation operation set.
-func (spec MutateInSpec) Increment(path string, delta int64, opts *MutateInSpecCounterOptions) (*MutateInOp, error) {
+func (spec MutateInSpec) Increment(path string, delta int64, opts *MutateInSpecCounterOptions) MutateInOp {
 	if opts == nil {
 		opts = &MutateInSpecCounterOptions{}
 	}
@@ -576,7 +690,7 @@ func (spec MutateInSpec) Increment(path string, delta int64, opts *MutateInSpecC
 
 	marshaled, err := spec.marshalValue(delta)
 	if err != nil {
-		return nil, err
+		return MutateInOp{err: err}
 	}
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpCounter,
@@ -585,11 +699,11 @@ func (spec MutateInSpec) Increment(path string, delta int64, opts *MutateInSpecC
 		Value: marshaled,
 	}
 
-	return &MutateInOp{op: op}, nil
+	return MutateInOp{op: op}
 }
 
 // Decrement adds a decrement operation to this mutation operation set.
-func (spec MutateInSpec) Decrement(path string, delta int64, opts *MutateInSpecCounterOptions) (*MutateInOp, error) {
+func (spec MutateInSpec) Decrement(path string, delta int64, opts *MutateInSpecCounterOptions) MutateInOp {
 	if opts == nil {
 		opts = &MutateInSpecCounterOptions{}
 	}
@@ -603,7 +717,7 @@ func (spec MutateInSpec) Decrement(path string, delta int64, opts *MutateInSpecC
 
 	marshaled, err := spec.marshalValue(-delta)
 	if err != nil {
-		return nil, err
+		return MutateInOp{err: err}
 	}
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpCounter,
@@ -612,11 +726,11 @@ func (spec MutateInSpec) Decrement(path string, delta int64, opts *MutateInSpecC
 		Value: marshaled,
 	}
 
-	return &MutateInOp{op: op}, nil
+	return MutateInOp{op: op}
 }
 
-// Mutate performs a set of subdocument mutations on the document specified by key.
-func (c *Collection) Mutate(key string, ops []MutateInOp, opts *MutateInOptions) (mutOut *MutateInResult, errOut error) {
+// MutateIn performs a set of subdocument mutations on the document specified by key.
+func (c *Collection) MutateIn(key string, ops []MutateInOp, opts *MutateInOptions) (mutOut *MutateInResult, errOut error) {
 	if opts == nil {
 		opts = &MutateInOptions{}
 	}
@@ -684,6 +798,9 @@ func (c *Collection) mutate(ctx context.Context, traceCtx opentracing.SpanContex
 
 	var subdocs []gocbcore.SubDocOp
 	for _, op := range ops {
+		if op.err != nil {
+			return nil, err
+		}
 		subdocs = append(subdocs, op.op)
 	}
 

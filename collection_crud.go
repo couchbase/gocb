@@ -477,11 +477,11 @@ func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOu
 	var ops []LookupInOp
 	if opts.Project == nil || (len(opts.Project.Fields) > 15 && opts.WithExpiry) {
 		// This is a subdoc full doc as WithExpiry is set and projections are either missing or too many.
-		ops = append(ops, spec.Get(""))
+		ops = append(ops, spec.GetFull())
 		opts.Project = &ProjectOptions{}
 	} else {
 		for _, path := range opts.Project.Fields {
-			ops = append(ops, spec.Get(path))
+			ops = append(ops, spec.Get(path, nil))
 		}
 	}
 
