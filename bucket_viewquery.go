@@ -9,7 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	"github.com/couchbase/gocbcore/v8"
 	"github.com/opentracing/opentracing-go"
 )
 
@@ -23,13 +23,17 @@ type viewResponse struct {
 
 // ViewResults implements an iterator interface which can be used to iterate over the rows of the query results.
 type ViewResults struct {
-	index     int
-	rows      []json.RawMessage
-	totalRows int
-	err       error
+	totalRows  int
+	errReason  string
+	errMessage string
+
+	cancel       context.CancelFunc
+	streamResult *streamingResult
+	strace       opentracing.Span
+	err          error
 }
 
-// Next performs a JSON unmarshal on the next row in the results to the specified value pointer.
+// Next assigns the next result from the results into the value pointer, returning whether the read was successful.
 func (r *ViewResults) Next(valuePtr interface{}) bool {
 	if r.err != nil {
 		return false
@@ -48,44 +52,131 @@ func (r *ViewResults) Next(valuePtr interface{}) bool {
 	return true
 }
 
-// NextBytes gets the next row in the results as bytes.
+// NextBytes returns the next result from the results as a byte array.
 func (r *ViewResults) NextBytes() []byte {
-	if r.err != nil {
+	if r.streamResult == nil || r.streamResult.Closed() {
 		return nil
 	}
 
-	if r.index+1 >= len(r.rows) {
+	raw, err := r.streamResult.NextBytes()
+	if err != nil {
+		r.err = err
 		return nil
 	}
-	r.index++
 
-	return r.rows[r.index]
+	return raw
 }
 
-// Close closes the results returning any errors that occurred during iteration.
+// Close marks the results as closed, returning any errors that occurred during reading the results.
 func (r *ViewResults) Close() error {
-	if r.err != nil {
-		return r.err
+	if r.streamResult == nil || r.streamResult.Closed() {
+		return r.makeError()
 	}
 
-	return nil
+	err := r.streamResult.Close()
+	if r.strace != nil {
+		r.strace.Finish()
+	}
+	if r.cancel != nil {
+		r.cancel()
+	}
+	if vErr := r.makeError(); vErr != nil {
+		return vErr
+	}
+	return err
 }
 
-// One performs a JSON unmarshal of the first result from the rows into the value pointer.
+func (r *ViewResults) makeError() error {
+	if r.errReason != "" || r.errMessage != "" {
+		err := viewError{
+			ErrorMessage: r.errMessage,
+			ErrorReason:  r.errReason,
+		}
+		return viewMultiError{
+			errors: []ViewQueryError{err},
+		}
+	}
+
+	return r.err
+}
+
+func (r *ViewResults) readAttribute(decoder *json.Decoder, t json.Token) (bool, error) {
+	switch t {
+	case "total_rows":
+		err := decoder.Decode(&r.totalRows)
+		if err != nil {
+			return false, err
+		}
+	case "error":
+		err := decoder.Decode(&r.errMessage)
+		if err != nil {
+			return false, err
+		}
+	case "reason":
+		err := decoder.Decode(&r.errReason)
+		if err != nil {
+			return false, err
+		}
+	case "errors":
+		var respErrs []viewError
+		err := decoder.Decode(&respErrs)
+		if err != nil {
+			return false, err
+		}
+		if len(respErrs) > 0 {
+			errs := make([]ViewQueryError, len(respErrs))
+			for i, e := range errs {
+				errs[i] = e
+			}
+			endErrs := viewMultiError{
+				errors: errs,
+			}
+
+			r.err = endErrs
+		}
+	case "rows":
+		// read the opening [, this prevents the decoder from loading the entire results array into memory
+		t, err := decoder.Token()
+		if err != nil {
+			return false, err
+		}
+		if delim, ok := t.(json.Delim); !ok || delim != '[' {
+			return false, errors.New("expected results opening token to be [ but was " + string(delim))
+		}
+
+		return true, nil
+	default:
+		var ignore interface{}
+		err := decoder.Decode(&ignore)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	return false, nil
+}
+
+// One assigns the first value from the results into the value pointer.
+// It will close the results but not before iterating through all remaining
+// results, as such this should only be used for very small resultsets - ideally
+// of, at most, length 1.
 func (r *ViewResults) One(valuePtr interface{}) error {
 	if !r.Next(valuePtr) {
 		err := r.Close()
 		if err != nil {
 			return err
 		}
-		// return ErrNoResults TODO
+		return ErrNoResults // TODO
 	}
 
-	// Ignore any errors occurring after we already have our result
+	// We have to purge the remaining rows in order to get to the remaining
+	// response attributes
+	for r.NextBytes() != nil {
+	}
+
 	err := r.Close()
 	if err != nil {
-		// Return no error as we got the one result already.
-		return nil
+		return err
 	}
 
 	return nil
@@ -93,7 +184,21 @@ func (r *ViewResults) One(valuePtr interface{}) error {
 
 // TotalRows returns the total number of rows in the view, can be greater than the number of rows returned.
 func (r *ViewResults) TotalRows() int {
+	if !r.streamResult.Closed() {
+		panic("Result must be closed before accessing meta-data")
+	}
+
 	return r.totalRows
+}
+
+func (b *Bucket) runContextTimeout(ctx context.Context, reqCancel context.CancelFunc, doneChan chan struct{}) {
+	select {
+	case <-ctx.Done():
+		reqCancel()
+		<-doneChan
+	case <-doneChan:
+
+	}
 }
 
 // ViewQuery performs a view query and returns a list of rows or an error.
@@ -171,12 +276,17 @@ func (b *Bucket) SpatialViewQuery(designDoc string, viewName string, opts *Spati
 func (b *Bucket) executeViewQuery(ctx context.Context, traceCtx opentracing.SpanContext, viewType, ddoc, viewName string,
 	options url.Values, provider httpProvider) (*ViewResults, error) {
 
+	// we only want ctx to timeout the initial connection rather than the stream
+	reqCtx, reqCancel := context.WithCancel(context.Background())
+	doneChan := make(chan struct{})
+	go b.runContextTimeout(ctx, reqCancel, doneChan)
+
 	reqUri := fmt.Sprintf("/_design/%s/%s/%s?%s", ddoc, viewType, viewName, options.Encode())
 	req := &gocbcore.HttpRequest{
 		Service: gocbcore.CapiService,
 		Path:    reqUri,
 		Method:  "GET",
-		Context: ctx,
+		Context: reqCtx,
 	}
 
 	dtrace := opentracing.GlobalTracer().StartSpan("dispatch", opentracing.ChildOf(traceCtx))
@@ -184,7 +294,13 @@ func (b *Bucket) executeViewQuery(ctx context.Context, traceCtx opentracing.Span
 	resp, err := provider.DoHttpRequest(req)
 	if err != nil {
 		dtrace.Finish()
-		if err == context.DeadlineExceeded {
+		if err == gocbcore.ErrNoCapiService {
+			return nil, serviceNotFoundError{}
+		}
+
+		// as we're effectively manually timing out the request using cancellation we need
+		// to check if the original context has timed out as err itself will only show as canceled
+		if ctx.Err() == context.DeadlineExceeded {
 			return nil, timeoutError{}
 		}
 		return nil, errors.Wrap(err, "could not complete query http request")
@@ -192,61 +308,88 @@ func (b *Bucket) executeViewQuery(ctx context.Context, traceCtx opentracing.Span
 
 	dtrace.Finish()
 
-	strace := opentracing.GlobalTracer().StartSpan("streaming",
-		opentracing.ChildOf(traceCtx))
+	queryResults := &ViewResults{}
 
-	viewResp := viewResponse{}
-	jsonDec := json.NewDecoder(resp.Body)
-	err = jsonDec.Decode(&viewResp)
-	if err != nil {
-		strace.Finish()
-		return nil, errors.Wrap(err, "failed to decode query response body")
-	}
+	strace := opentracing.GlobalTracer().StartSpan("streaming", opentracing.ChildOf(traceCtx))
 
-	err = resp.Body.Close()
-	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
-	}
+	if resp.StatusCode == 500 {
+		// We have to handle the views 500 case as a special case because the body can be of form [] or {}
+		defer reqCancel()
+		defer strace.Finish()
+		defer func() {
+			err := resp.Body.Close()
+			if err != nil {
+				logDebugf("Failed to close socket (%s)", err.Error())
+			}
+		}()
 
-	strace.Finish()
-
-	if resp.StatusCode != 200 {
-		if viewResp.Error != "" {
-			return nil, &viewError{
-				ErrorMessage: viewResp.Error,
-				ErrorReason:  viewResp.Reason,
+		decoder := json.NewDecoder(resp.Body)
+		t, err := decoder.Token()
+		if err != nil {
+			return nil, err
+		}
+		delim, ok := t.(json.Delim)
+		if !ok {
+			return nil, errors.New("could not read response body, no data found")
+		}
+		if delim == '[' {
+			errMsg, err := decoder.Token()
+			if err != nil {
+				return nil, err
+			}
+			queryResults.err = viewMultiError{
+				errors: []ViewQueryError{
+					viewError{
+						ErrorMessage: errMsg.(string),
+						ErrorReason:  fmt.Sprintf("%d", resp.StatusCode),
+					},
+				},
+				httpStatus: resp.StatusCode,
+				endpoint:   resp.Endpoint,
+			}
+		} else if t == '{' {
+			queryResults.streamResult = &streamingResult{
+				decoder:     decoder,
+				stream:      resp.Body,
+				attributeCb: queryResults.readAttribute,
 			}
 		}
 
-		return nil, &httpError{
-			statusCode: resp.StatusCode,
-		}
+		return queryResults, nil
 	}
 
-	// TODO : endErrs. Partial view results.
-	var endErrs viewMultiError
-	if len(viewResp.Errors) > 0 {
-		errs := make([]ViewQueryError, len(viewResp.Errors))
-		for i, e := range errs {
-			errs[i] = e
-		}
-		endErrs = viewMultiError{
-			errors:     errs,
-			endpoint:   resp.Endpoint,
-			httpStatus: resp.StatusCode,
-		}
-
-		if len(viewResp.Rows) > 0 {
-			endErrs.partial = true
-		}
+	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)
+	if err != nil {
+		reqCancel()
+		strace.Finish()
+		return nil, err
 	}
 
-	return &ViewResults{
-		index:     -1,
-		rows:      viewResp.Rows,
-		totalRows: viewResp.TotalRows,
-		// endErr:    endErrs,
-	}, endErrs
+	err = streamResult.readAttributes()
+	if err != nil {
+		bodyErr := streamResult.Close()
+		if bodyErr != nil {
+			logDebugf("Failed to close socket (%s)", bodyErr.Error())
+		}
+		reqCancel()
+		strace.Finish()
+		return nil, err
+	}
+
+	queryResults.streamResult = streamResult
+
+	if streamResult.HasRows() {
+		queryResults.strace = strace
+		queryResults.cancel = reqCancel
+	} else {
+		bodyErr := streamResult.Close()
+		if bodyErr != nil {
+			logDebugf("Failed to close response body, %s", bodyErr.Error())
+		}
+		reqCancel()
+		strace.Finish()
+	}
+	return queryResults, nil
 }
 
 func (b *Bucket) maybePrefixDevDocument(val bool, ddoc string) string {

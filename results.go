@@ -338,12 +338,20 @@ func newStreamingResults(stream io.ReadCloser, attributeCb streamingResultCb) (*
 		}
 		return nil, err
 	}
-	if delim, ok := t.(json.Delim); !ok || delim != '{' {
+	delim, ok := t.(json.Delim)
+	if !ok {
 		bodyErr := stream.Close()
 		if bodyErr != nil {
 			logDebugf("Failed to close socket (%s)", bodyErr.Error())
 		}
-		return nil, errors.New("expected response opening token to be { but was " + t.(string))
+		return nil, errors.New("could not read response body, no data found")
+	}
+	if delim != '{' {
+		bodyErr := stream.Close()
+		if bodyErr != nil {
+			logDebugf("Failed to close socket (%s)", bodyErr.Error())
+		}
+		return nil, errors.New("could not read response body, opening token should have been { but found: " + string(delim))
 	}
 
 	return &streamingResult{
@@ -353,7 +361,7 @@ func newStreamingResults(stream io.ReadCloser, attributeCb streamingResultCb) (*
 	}, nil
 }
 
-func (r streamingResult) Next(valuePtr interface{}) (bool, error) {
+func (r *streamingResult) Next(valuePtr interface{}) (bool, error) {
 	row, err := r.NextBytes()
 	if err != nil {
 		return false, err
@@ -428,6 +436,19 @@ func (r *streamingResult) Closed() bool {
 
 func (r *streamingResult) HasRows() bool {
 	return r.hasRows
+}
+
+func (r *streamingResult) Token() (json.Token, error) {
+	if r.decoder.More() {
+		t, err := r.decoder.Token()
+		if err != nil {
+			return nil, err
+		}
+
+		return t, nil
+	}
+
+	return nil, nil
 }
 
 func (r *streamingResult) readAttributes() error {

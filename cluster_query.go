@@ -267,7 +267,7 @@ func (r *QueryResults) readAttribute(decoder *json.Decoder, t json.Token) (bool,
 			return false, err
 		}
 		if delim, ok := t.(json.Delim); !ok || delim != '[' {
-			return false, errors.New("expected results opening token to be [ but was " + t.(string))
+			return false, errors.New("expected results opening token to be [ but was " + string(delim))
 		}
 
 		return true, nil

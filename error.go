@@ -463,17 +463,17 @@ type viewError struct {
 	ErrorReason  string `json:"reason"`
 }
 
-func (e *viewError) Error() string {
+func (e viewError) Error() string {
 	return e.ErrorMessage + " - " + e.ErrorReason
 }
 
 // Reason is the reason for the error occurring.
-func (e *viewError) Reason() string {
+func (e viewError) Reason() string {
 	return e.ErrorReason
 }
 
 // Message contains any message from the server for this error.
-func (e *viewError) Message() string {
+func (e viewError) Message() string {
 	return e.ErrorMessage
 }
 
@@ -484,7 +484,6 @@ type ViewQueryErrors interface {
 	Errors() []ViewQueryError
 	HTTPStatus() int
 	Endpoint() string
-	PartialResults() bool
 }
 
 type viewMultiError struct {
@@ -515,11 +514,6 @@ func (e viewMultiError) Endpoint() string {
 // Errors returns the list of ViewQueryErrors.
 func (e viewMultiError) Errors() []ViewQueryError {
 	return e.errors
-}
-
-// PartialResults indicates whether or not the operation also yielded results.
-func (e viewMultiError) PartialResults() bool {
-	return e.partial
 }
 
 // AnalyticsQueryError occurs for errors created by Couchbase Server during Analytics query execution.
