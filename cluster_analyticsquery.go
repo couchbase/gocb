@@ -3,10 +3,11 @@ package gocb
 import (
 	"context"
 	"encoding/json"
+	"net/url"
 	"strconv"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	"github.com/couchbase/gocbcore/v8"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 )
@@ -41,11 +42,6 @@ type analyticsResponseMetrics struct {
 	ProcessedObjects uint   `json:"processedObjects,omitempty"`
 }
 
-type analyticsResponseHandle struct {
-	Status string `json:"status,omitempty"`
-	Handle string `json:"handle,omitempty"`
-}
-
 // AnalyticsResultMetrics encapsulates various metrics gathered during a queries execution.
 type AnalyticsResultMetrics struct {
 	ElapsedTime      time.Duration
@@ -59,15 +55,8 @@ type AnalyticsResultMetrics struct {
 	ProcessedObjects uint
 }
 
-type analyticsRows struct {
-	closed bool
-	index  int
-	rows   []json.RawMessage
-}
-
 // AnalyticsResults allows access to the results of a Analytics query.
 type AnalyticsResults struct {
-	rows            *analyticsRows
 	err             error
 	requestID       string
 	clientContextID string
@@ -75,7 +64,14 @@ type AnalyticsResults struct {
 	warnings        []AnalyticsWarning
 	signature       interface{}
 	metrics         AnalyticsResultMetrics
-	handle          AnalyticsDeferredResultHandle
+	handle          *AnalyticsDeferredResultHandle
+	sourceAddr      string
+	httpStatus      int
+
+	streamResult *streamingResult
+	cancel       context.CancelFunc
+	strace       opentracing.Span
+	httpProvider httpProvider
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
@@ -99,34 +95,59 @@ func (r *AnalyticsResults) Next(valuePtr interface{}) bool {
 
 // NextBytes returns the next result from the results as a byte array.
 func (r *AnalyticsResults) NextBytes() []byte {
-	if r.err != nil {
+	if r.streamResult.Closed() {
 		return nil
 	}
 
-	return r.rows.NextBytes()
+	raw, err := r.streamResult.NextBytes()
+	if err != nil {
+		r.err = err
+		return nil
+	}
+
+	return raw
 }
 
 // Close marks the results as closed, returning any errors that occurred during reading the results.
 func (r *AnalyticsResults) Close() error {
-	r.rows.Close()
-	return r.err
+	if r.streamResult.Closed() {
+		return r.err
+	}
+
+	err := r.streamResult.Close()
+	if r.strace != nil {
+		r.strace.Finish()
+	}
+	if r.cancel != nil {
+		r.cancel()
+	}
+	if r.err != nil {
+		return r.err
+	}
+	return err
 }
 
 // One assigns the first value from the results into the value pointer.
+// It will close the results but not before iterating through all remaining
+// results, as such this should only be used for very small resultsets - ideally
+// of, at most, length 1.
 func (r *AnalyticsResults) One(valuePtr interface{}) error {
 	if !r.Next(valuePtr) {
 		err := r.Close()
 		if err != nil {
 			return err
 		}
-		// return ErrNoResults TODO
+		return ErrNoResults // TODO
 	}
 
-	// Ignore any errors occurring after we already have our result
+	// We have to purge the remaining rows in order to get to the remaining
+	// response attributes
+	for r.NextBytes() != nil {
+	}
+
 	err := r.Close()
 	if err != nil {
-		// Return no error as we got the one result already.
-		return nil
+		return err
 	}
 
 	return nil
@@ -134,27 +155,43 @@ func (r *AnalyticsResults) One(valuePtr interface{}) error {
 
 // Warnings returns any warnings that occurred during query execution.
 func (r *AnalyticsResults) Warnings() []AnalyticsWarning {
+	if !r.streamResult.Closed() {
+		panic("Result must be closed before accessing meta-data")
+	}
+
 	return r.warnings
 }
 
 // Status returns the status for the results.
 func (r *AnalyticsResults) Status() string {
+	if !r.streamResult.Closed() {
+		panic("Result must be closed before accessing meta-data")
+	}
+
 	return r.status
 }
 
 // Signature returns TODO
 func (r *AnalyticsResults) Signature() interface{} {
+	if !r.streamResult.Closed() {
+		panic("Result must be closed before accessing meta-data")
+	}
+
 	return r.signature
 }
 
 // Metrics returns metrics about execution of this result.
 func (r *AnalyticsResults) Metrics() AnalyticsResultMetrics {
+	if !r.streamResult.Closed() {
+		panic("Result must be closed before accessing meta-data")
+	}
+
 	return r.metrics
 }
 
 // RequestID returns the request ID used for this query.
 func (r *AnalyticsResults) RequestID() string {
-	if !r.rows.closed {
+	if !r.streamResult.Closed() {
 		panic("Result must be closed before accessing meta-data")
 	}
 
@@ -163,7 +200,7 @@ func (r *AnalyticsResults) RequestID() string {
 
 // ClientContextID returns the context ID used for this query.
 func (r *AnalyticsResults) ClientContextID() string {
-	if !r.rows.closed {
+	if !r.streamResult.Closed() {
 		panic("Result must be closed before accessing meta-data")
 	}
 
@@ -174,24 +211,113 @@ func (r *AnalyticsResults) ClientContextID() string {
 // the result is ready to be read.
 //
 // Experimental: This API is subject to change at any time.
-func (r *AnalyticsResults) Handle() AnalyticsDeferredResultHandle {
+func (r *AnalyticsResults) Handle() *AnalyticsDeferredResultHandle {
 	return r.handle
 }
 
-// NextBytes returns the next result from the rows as a byte array.
-func (r *analyticsRows) NextBytes() []byte {
-	if r.index+1 >= len(r.rows) {
-		r.closed = true
-		return nil
+func (r *AnalyticsResults) readAttribute(decoder *json.Decoder, t json.Token) (bool, error) {
+	switch t {
+	case "requestID":
+		err := decoder.Decode(&r.requestID)
+		if err != nil {
+			return false, err
+		}
+	case "clientContextID":
+		err := decoder.Decode(&r.clientContextID)
+		if err != nil {
+			return false, err
+		}
+	case "metrics":
+		var metrics analyticsResponseMetrics
+		err := decoder.Decode(&metrics)
+		if err != nil {
+			return false, err
+		}
+		elapsedTime, err := time.ParseDuration(metrics.ElapsedTime)
+		if err != nil {
+			logDebugf("Failed to parse elapsed time duration (%s)", err)
+		}
+
+		executionTime, err := time.ParseDuration(metrics.ExecutionTime)
+		if err != nil {
+			logDebugf("Failed to parse execution time duration (%s)", err)
+		}
+
+		r.metrics = AnalyticsResultMetrics{
+			ElapsedTime:      elapsedTime,
+			ExecutionTime:    executionTime,
+			ResultCount:      metrics.ResultCount,
+			ResultSize:       metrics.ResultSize,
+			MutationCount:    metrics.MutationCount,
+			SortCount:        metrics.SortCount,
+			ErrorCount:       metrics.ErrorCount,
+			WarningCount:     metrics.WarningCount,
+			ProcessedObjects: metrics.ProcessedObjects,
+		}
+	case "errors":
+		var respErrs []analyticsQueryError
+		err := decoder.Decode(&respErrs)
+		if err != nil {
+			return false, err
+		}
+		if len(respErrs) > 0 {
+			errs := make([]AnalyticsQueryError, len(respErrs))
+			for i, e := range respErrs {
+				errs[i] = e
+			}
+			// this isn't an error that we want to bail on so store it and keep going
+			r.err = analyticsQueryMultiError{
+				errors:     errs,
+				endpoint:   r.sourceAddr,
+				httpStatus: 200, // this can only be 200, for now at least
+				contextID:  r.clientContextID,
+			}
+		}
+	case "results":
+		// read the opening [, this prevents the decoder from loading the entire results array into memory
+		t, err := decoder.Token()
+		if err != nil {
+			return false, err
+		}
+		if delim, ok := t.(json.Delim); !ok || delim != '[' {
+			return false, errors.New("expected results opening token to be [ but was " + t.(string))
+		}
+
+		return true, nil
+	case "warnings":
+		err := decoder.Decode(&r.warnings)
+		if err != nil {
+			return false, err
+		}
+	case "signature":
+		err := decoder.Decode(&r.signature)
+		if err != nil {
+			return false, err
+		}
+	case "status":
+		err := decoder.Decode(&r.status)
+		if err != nil {
+			return false, err
+		}
+	case "handle":
+		var handle string
+		err := decoder.Decode(&handle)
+		if err != nil {
+			return false, err
+		}
+		r.handle = &AnalyticsDeferredResultHandle{
+			handleUri: handle,
+			provider:  r.httpProvider,
+		}
+	default:
+		var ignore interface{}
+		err := decoder.Decode(&ignore)
+		if err != nil {
+			return false, err
+		}
 	}
-	r.index++
 
-	return r.rows[r.index]
-}
-
-// Close marks the rows as closed.
-func (r *analyticsRows) Close() {
-	r.closed = true
+	return false, nil
 }
 
 // AnalyticsQuery performs an analytics query and returns a list of rows or an error.
@@ -223,7 +349,7 @@ func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsQueryOptions) 
 }
 
 func (c *Cluster) analyticsQuery(ctx context.Context, traceCtx opentracing.SpanContext, statement string, opts *AnalyticsQueryOptions,
-	provider httpProvider) (resultsOut *AnalyticsResults, errOut error) {
+	provider httpProvider) (*AnalyticsResults, error) {
 
 	queryOpts, err := opts.toMap(statement)
 	if err != nil {
@@ -259,20 +385,38 @@ func (c *Cluster) analyticsQuery(ctx context.Context, traceCtx opentracing.SpanC
 	// TODO: clientcontextid?
 
 	var retries uint
+	var res *AnalyticsResults
 	for {
 		retries++
-		var res *AnalyticsResults
+		etrace := opentracing.GlobalTracer().StartSpan("execute", opentracing.ChildOf(traceCtx))
 		res, err = c.executeAnalyticsQuery(ctx, traceCtx, queryOpts, provider)
-		if err == nil {
-			return res, err
+		etrace.Finish()
+		if err != nil {
+			break
 		}
 
-		if !isRetryableError(err) || c.sb.AnalyticsRetryBehavior == nil || !c.sb.AnalyticsRetryBehavior.CanRetry(retries) {
-			return res, err
+		if !res.streamResult.Closed() {
+			// the stream is open so there's no way we have query errors already
+			break
+		}
+
+		// There were no rows so it's likely there was an error
+		resErr := res.err
+		if resErr == nil {
+			break
+		}
+		if !isRetryableError(resErr) || c.sb.AnalyticsRetryBehavior == nil || !c.sb.AnalyticsRetryBehavior.CanRetry(retries) {
+			break
 		}
 
 		time.Sleep(c.sb.AnalyticsRetryBehavior.NextInterval(retries))
 	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracing.SpanContext, opts map[string]interface{},
@@ -289,11 +433,16 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracin
 		return nil, errors.Wrap(err, "failed to marshal query request body")
 	}
 
+	// we only want ctx to timeout the initial connection rather than the stream
+	reqCtx, reqCancel := context.WithCancel(context.Background())
+	doneChan := make(chan struct{})
+	go c.runContextTimeout(ctx, reqCancel, doneChan)
+
 	req := &gocbcore.HttpRequest{
 		Service: gocbcore.CbasService,
 		Path:    "/analytics/service",
 		Method:  "POST",
-		Context: ctx,
+		Context: reqCtx,
 		Body:    reqJSON,
 	}
 
@@ -305,95 +454,71 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracin
 	dtrace := opentracing.GlobalTracer().StartSpan("dispatch", opentracing.ChildOf(traceCtx))
 
 	resp, err := provider.DoHttpRequest(req)
+	doneChan <- struct{}{}
 	if err != nil {
 		dtrace.Finish()
 		if err == gocbcore.ErrNoCbasService {
 			return nil, serviceNotFoundError{}
 		}
 
-		if err == context.DeadlineExceeded {
+		// as we're effectively manually timing out the request using cancellation we need
+		// to check if the original context has timed out as err itself will only show as canceled
+		if ctx.Err() == context.DeadlineExceeded {
 			return nil, timeoutError{}
 		}
-		return nil, errors.Wrap(err, "could not complete query http request")
+		return nil, errors.Wrap(err, "could not complete analytics http request")
 	}
 
 	dtrace.Finish()
 
+	epInfo, err := url.Parse(resp.Endpoint)
+	if err != nil {
+		logWarnf("Failed to parse N1QL source address")
+		epInfo = &url.URL{
+			Host: "",
+		}
+	}
+
 	strace := opentracing.GlobalTracer().StartSpan("streaming", opentracing.ChildOf(traceCtx))
 
-	analyticsResp := analyticsResponse{}
-	jsonDec := json.NewDecoder(resp.Body)
-	err = jsonDec.Decode(&analyticsResp)
+	queryResults := &AnalyticsResults{
+		sourceAddr:   epInfo.Host,
+		httpStatus:   resp.StatusCode,
+		httpProvider: provider,
+	}
+
+	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)
 	if err != nil {
+		reqCancel()
 		strace.Finish()
-		return nil, errors.Wrap(err, "failed to decode query response body")
+		return nil, err
 	}
 
-	err = resp.Body.Close()
+	err = streamResult.readAttributes()
 	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
-	}
-
-	strace.SetTag("couchbase.operation_id", analyticsResp.RequestID)
-	strace.Finish()
-
-	elapsedTime, err := time.ParseDuration(analyticsResp.Metrics.ElapsedTime)
-	if err != nil {
-		logDebugf("Failed to parse elapsed time duration (%s)", err)
-	}
-
-	executionTime, err := time.ParseDuration(analyticsResp.Metrics.ExecutionTime)
-	if err != nil {
-		logDebugf("Failed to parse execution time duration (%s)", err)
-	}
-
-	if len(analyticsResp.Errors) > 0 {
-		errs := make([]AnalyticsQueryError, len(analyticsResp.Errors))
-		for i, e := range analyticsResp.Errors {
-			errs[i] = e
+		bodyErr := streamResult.Close()
+		if bodyErr != nil {
+			logDebugf("Failed to close socket (%s)", bodyErr.Error())
 		}
-		return nil, analyticsQueryMultiError{
-			errors:     errs,
-			endpoint:   resp.Endpoint,
-			httpStatus: resp.StatusCode,
-			contextID:  analyticsResp.ClientContextID,
-		}
+		reqCancel()
+		strace.Finish()
+		return nil, err
 	}
 
-	if resp.StatusCode != 200 {
-		return nil, &httpError{
-			statusCode: resp.StatusCode,
-		}
-	}
+	queryResults.streamResult = streamResult
 
-	return &AnalyticsResults{
-		requestID:       analyticsResp.RequestID,
-		clientContextID: analyticsResp.ClientContextID,
-		rows: &analyticsRows{
-			rows:  analyticsResp.Results,
-			index: -1,
-		},
-		signature: analyticsResp.Signature,
-		status:    analyticsResp.Status,
-		warnings:  analyticsResp.Warnings,
-		metrics: AnalyticsResultMetrics{
-			ElapsedTime:      elapsedTime,
-			ExecutionTime:    executionTime,
-			ResultCount:      analyticsResp.Metrics.ResultCount,
-			ResultSize:       analyticsResp.Metrics.ResultSize,
-			MutationCount:    analyticsResp.Metrics.MutationCount,
-			SortCount:        analyticsResp.Metrics.SortCount,
-			ErrorCount:       analyticsResp.Metrics.ErrorCount,
-			WarningCount:     analyticsResp.Metrics.WarningCount,
-			ProcessedObjects: analyticsResp.Metrics.ProcessedObjects,
-		},
-		handle: &analyticsDeferredResultHandle{
-			handleUri: analyticsResp.Handle,
-			rows: &analyticsRows{
-				index: -1,
-			},
-			status:   analyticsResp.Status,
-			provider: provider,
-		},
-	}, nil
+	strace.SetTag("couchbase.operation_id", queryResults.requestID)
+
+	if streamResult.HasRows() {
+		queryResults.strace = strace
+		queryResults.cancel = reqCancel
+	} else {
+		bodyErr := streamResult.Close()
+		if bodyErr != nil {
+			logDebugf("Failed to close response body, %s", bodyErr.Error())
+		}
+		reqCancel()
+		strace.Finish()
+	}
+	return queryResults, nil
 }

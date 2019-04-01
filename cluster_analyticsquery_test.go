@@ -2,12 +2,349 @@ package gocb
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	"github.com/couchbase/gocbcore/v8"
 )
+
+// If the travel-sample dataset is not created up front then this can be a very slow test
+// as it will create said dataset and then wait for it to become available.
+func TestAnalyticsQuery(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping test in short mode.")
+	}
+
+	if globalCluster.NotSupportsFeature(AnalyticsFeature) {
+		t.Skip("Skipping test as analytics not supported.")
+	}
+
+	if globalTravelBucket == nil {
+		t.Skip("Skipping test as no travel-sample bucket")
+	}
+
+	testCreateAnalyticsDataset(t)
+	errCh := make(chan error)
+	timer := time.NewTimer(30 * time.Second)
+	go testWaitAnalyticsDataset(errCh)
+
+	select {
+	case <-timer.C:
+		t.Fatalf("Wait time for analytics dataset to become ready expired")
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("Failed to wait for analytics dataset to become ready: %v", err)
+		}
+	}
+
+	t.Run("testSimpleAnalyticsQuery", testSimpleAnalyticsQuery)
+	t.Run("testSimpleAnalyticsQueryOne", testSimpleAnalyticsQueryOne)
+	t.Run("testSimpleAnalyticsQueryNone", testSimpleAnalyticsQueryNone)
+	t.Run("testSimpleAnalyticsQueryOneNone", testSimpleAnalyticsQueryOneNone)
+	t.Run("testSimpleAnalyticsQueryError", testSimpleAnalyticsQueryError)
+	t.Run("testSimpleAnalyticsQueryOneError", testSimpleAnalyticsQueryOneError)
+	t.Run("testAnalyticsQueryNamedParameters", testAnalyticsQueryNamedParameters)
+	t.Run("testAnalyticsQueryPositionalParameters", testAnalyticsQueryPositionalParameters)
+}
+
+func testCreateAnalyticsDataset(t *testing.T) {
+	// _p/cbas-admin/analytics/node/agg/stats/remaining
+	query := "CREATE DATASET `travel-sample` ON `travel-sample`;"
+	res, err := globalCluster.AnalyticsQuery(query, nil)
+	if err != nil {
+		t.Fatalf("Failed to create dataset %v", err)
+	}
+
+	// assume there aren't any rows, there shouldn't be any rows
+	err = res.Close()
+	if err != nil {
+		aErrs, ok := err.(AnalyticsQueryErrors)
+		if !ok {
+			t.Fatalf("Failed to create dataset: %v", err)
+		}
+
+		for _, aErr := range aErrs.Errors() {
+			// 24040 means that this dataset already exists, which is a-ok
+			if aErr.Code() == 24040 {
+				break
+			}
+		}
+	}
+
+	query = "CONNECT LINK Local;"
+	res, err = globalCluster.AnalyticsQuery(query, nil)
+	if err != nil {
+		t.Fatalf("Failed to connect link %v", err)
+	}
+
+	err = res.Close()
+	if err != nil {
+		t.Fatalf("Failed to connect link: %v", err)
+	}
+}
+
+func testWaitAnalyticsDataset(errCh chan error) {
+	req := &gocbcore.HttpRequest{
+		Service: gocbcore.MgmtService,
+		Path:    "/_p/cbas-admin/analytics/node/agg/stats/remaining",
+		Method:  "GET",
+	}
+
+	agent, err := globalCluster.getHTTPProvider()
+	if err != nil {
+		errCh <- fmt.Errorf("failed to get HTTP provider: %v", err)
+	}
+
+	for {
+		time.Sleep(250 * time.Millisecond)
+
+		res, err := agent.DoHttpRequest(req)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to execute HTTP request: %v", err)
+		}
+
+		decoder := json.NewDecoder(res.Body)
+		var indexRemaining map[string]int
+		err = decoder.Decode(&indexRemaining)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to decode response: %v", err)
+		}
+
+		remaining, ok := indexRemaining["Default.travel-sample"]
+		if !ok {
+			errCh <- fmt.Errorf("missing Default.travel-sample entry from index remaining")
+		}
+
+		if remaining == 0 {
+			break
+		}
+	}
+
+	errCh <- nil
+}
+
+// In these tests use a large enough limit to force streaming to occur.
+func testSimpleAnalyticsQuery(t *testing.T) {
+	query := "SELECT `travel-sample`.* FROM `travel-sample` LIMIT 10000;"
+	result, err := globalCluster.AnalyticsQuery(query, nil)
+	if err != nil {
+		t.Fatalf("Failed to execute query %v", err)
+	}
+
+	var samples []interface{}
+	var sample interface{}
+	for result.Next(&sample) {
+		samples = append(samples, sample)
+	}
+
+	err = result.Close()
+	if err != nil {
+		t.Fatalf("Rows close had error: %v", err)
+	}
+
+	if len(samples) != 10000 {
+		t.Fatalf("Expected result to contain 10000 documents but had %d", len(samples))
+	}
+
+	if result.RequestID() == "" {
+		t.Fatalf("Result should have had non empty RequestID")
+	}
+}
+
+func testSimpleAnalyticsQueryOne(t *testing.T) {
+	query := "SELECT `travel-sample`.* FROM `travel-sample` LIMIT 10000;"
+	rows, err := globalCluster.AnalyticsQuery(query, nil)
+	if err != nil {
+		t.Fatalf("Failed to execute query %v", err)
+	}
+
+	var sample interface{}
+	err = rows.One(&sample)
+	if err != nil {
+		t.Fatalf("Reading row had error: %v", err)
+	}
+
+	if sample == nil {
+		t.Fatalf("Expected sample to be not nil")
+	}
+
+	if rows.RequestID() == "" {
+		t.Fatalf("Result should have had non empty RequestID")
+	}
+}
+
+func testSimpleAnalyticsQueryOneNone(t *testing.T) {
+	query := "SELECT `travel-sample`.* FROM `travel-sample` WHERE `name` = \"Idontexist\" LIMIT 10000;"
+	rows, err := globalCluster.AnalyticsQuery(query, nil)
+	if err != nil {
+		t.Fatalf("Failed to execute query %v", err)
+	}
+
+	var sample interface{}
+	err = rows.One(&sample)
+	if err == nil {
+		t.Fatalf("Expected One to return error")
+	}
+
+	if err != ErrNoResults {
+		t.Fatalf("Expected error to be no results but was %v", err)
+	}
+
+	if sample != nil {
+		t.Fatalf("Expected sample to be nil but was %v", sample)
+	}
+
+	if rows.RequestID() == "" {
+		t.Fatalf("Result should have had non empty RequestID")
+	}
+}
+
+func testSimpleAnalyticsQueryOneError(t *testing.T) {
+	query := "SELECT `travel-sample`. FROM `travel-sample` LIMIT 10000;"
+	rows, err := globalCluster.AnalyticsQuery(query, nil)
+	if err != nil {
+		t.Fatalf("Failed to execute query %v", err)
+	}
+
+	var sample interface{}
+	err = rows.One(&sample)
+	if err == nil {
+		t.Fatalf("Expected One to return error")
+	}
+
+	_, ok := err.(AnalyticsQueryErrors)
+	if !ok {
+		t.Fatalf("Expected error to be AnalyticsQueryErrors but was %s", reflect.TypeOf(err).String())
+	}
+
+	if sample != nil {
+		t.Fatalf("Expected sample to be nil but was %v", sample)
+	}
+
+	if rows.RequestID() == "" {
+		t.Fatalf("Result should have had non empty RequestID")
+	}
+}
+
+func testSimpleAnalyticsQueryNone(t *testing.T) {
+	query := "SELECT `travel-sample`.* FROM `travel-sample` WHERE `name` = \"Idontexist\" LIMIT 10000;"
+	rows, err := globalCluster.AnalyticsQuery(query, nil)
+	if err != nil {
+		t.Fatalf("Failed to execute query %v", err)
+	}
+
+	var samples []interface{}
+	var sample interface{}
+	for rows.Next(&sample) {
+		samples = append(samples, sample)
+	}
+
+	err = rows.Close()
+	if err != nil {
+		t.Fatalf("Rows close had error: %v", err)
+	}
+
+	if len(samples) != 0 {
+		t.Fatalf("Expected result to contain 0 documents but had %d", len(samples))
+	}
+
+	if rows.RequestID() == "" {
+		t.Fatalf("Result should have had non empty RequestID")
+	}
+}
+
+func testSimpleAnalyticsQueryError(t *testing.T) {
+	query := "SELECT `travel-sample`. FROM `travel-sample` LIMIT 10000;"
+	rows, err := globalCluster.AnalyticsQuery(query, nil)
+	if err != nil {
+		t.Fatalf("Failed to execute query %v", err)
+	}
+
+	var samples []interface{}
+	var sample interface{}
+	for rows.Next(&sample) {
+		samples = append(samples, sample)
+	}
+
+	err = rows.Close()
+	if err == nil {
+		t.Fatalf("Expected rows close should to have error")
+	}
+
+	_, ok := err.(AnalyticsQueryErrors)
+	if !ok {
+		t.Fatalf("Expected error to be AnalyticsQueryErrors but was %s", reflect.TypeOf(err).String())
+	}
+
+	if len(samples) != 0 {
+		t.Fatalf("Expected result to contain 0 documents but had %d", len(samples))
+	}
+
+	if rows.RequestID() == "" {
+		t.Fatalf("Result should have had non empty RequestID")
+	}
+}
+
+func testAnalyticsQueryNamedParameters(t *testing.T) {
+	query := "SELECT `travel-sample`.* FROM `travel-sample` where `type`=$t AND `name`=$name LIMIT 10000;"
+	params := make(map[string]interface{}, 1)
+	params["t"] = "hotel"
+	params["$name"] = "Medway Youth Hostel"
+	rows, err := globalCluster.AnalyticsQuery(query, &AnalyticsQueryOptions{NamedParameters: params})
+	if err != nil {
+		t.Fatalf("Failed to execute query %v", err)
+	}
+
+	var samples []interface{}
+	var sample interface{}
+	for rows.Next(&sample) {
+		samples = append(samples, sample)
+	}
+
+	err = rows.Close()
+	if err != nil {
+		t.Fatalf("Rows close had error: %v", err)
+	}
+
+	if len(samples) != 1 {
+		t.Fatalf("Expected breweries to contain 1 document but had %d", len(samples))
+	}
+
+	if rows.RequestID() == "" {
+		t.Fatalf("Result should have had non empty RequestID")
+	}
+}
+
+func testAnalyticsQueryPositionalParameters(t *testing.T) {
+	query := "SELECT `travel-sample`.* FROM `travel-sample` where `type`=? AND `name`=? LIMIT 10000;"
+	rows, err := globalCluster.AnalyticsQuery(query, &AnalyticsQueryOptions{PositionalParameters: []interface{}{"hotel", "Medway Youth Hostel"}})
+	if err != nil {
+		t.Fatalf("Failed to execute query %v", err)
+	}
+
+	var samples []interface{}
+	var sample interface{}
+	for rows.Next(&sample) {
+		samples = append(samples, sample)
+	}
+
+	err = rows.Close()
+	if err != nil {
+		t.Fatalf("Rows close had error: %v", err)
+	}
+
+	if len(samples) != 1 {
+		t.Fatalf("Expected breweries to contain 1 document but had %d", len(samples))
+	}
+
+	if rows.RequestID() == "" {
+		t.Fatalf("Result should have had non empty RequestID")
+	}
+}
 
 func TestBasicAnalyticsQuery(t *testing.T) {
 	dataBytes, err := loadRawTestDataset("beer_sample_analytics_dataset")
@@ -80,6 +417,160 @@ func TestAnalyticsQueryServiceNotFound(t *testing.T) {
 	}
 }
 
+func TestAnalyticsQueryConnectTimeout(t *testing.T) {
+	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
+	timeout := 20 * time.Millisecond
+	clusterTimeout := 50 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		testAssertAnalyticsQueryRequest(t, req)
+
+		var opts map[string]interface{}
+		err := json.Unmarshal(req.Body, &opts)
+		if err != nil {
+			t.Fatalf("Failed to unmarshal request body %v", err)
+		}
+
+		optsTimeout, ok := opts["timeout"]
+		if !ok {
+			t.Fatalf("Request query options missing timeout")
+		}
+
+		dur, err := time.ParseDuration(optsTimeout.(string))
+		if err != nil {
+			t.Fatalf("Could not parse timeout: %v", err)
+		}
+
+		if dur < (timeout-50*time.Millisecond) || dur > (timeout+50*time.Millisecond) {
+			t.Fatalf("Expected timeout to be %s but was %s", timeout.String(), optsTimeout)
+		}
+
+		// we can't use time travel here as we need the context to actually timeout
+		time.Sleep(100 * time.Millisecond)
+
+		return nil, context.Canceled
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+	}
+
+	cluster := testGetClusterForHTTP(provider, clusterTimeout, 0, 0)
+
+	_, err := cluster.AnalyticsQuery(statement, &AnalyticsQueryOptions{
+		ServerSideTimeout: timeout,
+		Context:           ctx,
+	})
+	if err != nil && !IsTimeoutError(err) {
+		t.Fatal(err)
+	}
+}
+
+func TestAnalyticsQueryConnectContextTimeout(t *testing.T) {
+	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
+	timeout := 50 * time.Second
+	clusterTimeout := 50 * time.Second
+	ctxTimeout := 10 * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), ctxTimeout)
+	defer cancel()
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		testAssertAnalyticsQueryRequest(t, req)
+
+		var opts map[string]interface{}
+		err := json.Unmarshal(req.Body, &opts)
+		if err != nil {
+			t.Fatalf("Failed to unmarshal request body %v", err)
+		}
+
+		optsTimeout, ok := opts["timeout"]
+		if !ok {
+			t.Fatalf("Request query options missing timeout")
+		}
+
+		dur, err := time.ParseDuration(optsTimeout.(string))
+		if err != nil {
+			t.Fatalf("Could not parse timeout: %v", err)
+		}
+
+		if dur < (ctxTimeout-50*time.Millisecond) || dur > (ctxTimeout+50*time.Millisecond) {
+			t.Fatalf("Expected timeout to be %s but was %s", ctxTimeout.String(), optsTimeout)
+		}
+
+		// we can't use time travel here as we need the context to actually timeout
+		time.Sleep(100 * time.Millisecond)
+
+		return nil, context.Canceled
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+	}
+
+	cluster := testGetClusterForHTTP(provider, clusterTimeout, 0, 0)
+
+	_, err := cluster.AnalyticsQuery(statement, &AnalyticsQueryOptions{
+		ServerSideTimeout: timeout,
+		Context:           ctx,
+	})
+	if err != nil && !IsTimeoutError(err) {
+		t.Fatal(err)
+	}
+}
+
+func TestAnalyticsQueryConnectClusterTimeout(t *testing.T) {
+	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
+	timeout := 50 * time.Second
+	clusterTimeout := 10 * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		testAssertAnalyticsQueryRequest(t, req)
+
+		var opts map[string]interface{}
+		err := json.Unmarshal(req.Body, &opts)
+		if err != nil {
+			t.Fatalf("Failed to unmarshal request body %v", err)
+		}
+
+		optsTimeout, ok := opts["timeout"]
+		if !ok {
+			t.Fatalf("Request query options missing timeout")
+		}
+
+		dur, err := time.ParseDuration(optsTimeout.(string))
+		if err != nil {
+			t.Fatalf("Could not parse timeout: %v", err)
+		}
+
+		if dur < (clusterTimeout-50*time.Millisecond) || dur > (clusterTimeout+50*time.Millisecond) {
+			t.Fatalf("Expected timeout to be %s but was %s", clusterTimeout.String(), optsTimeout)
+		}
+
+		// we can't use time travel here as we need the context to actually timeout
+		time.Sleep(100 * time.Millisecond)
+
+		return nil, context.Canceled
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+	}
+
+	cluster := testGetClusterForHTTP(provider, clusterTimeout, 0, 0)
+
+	_, err := cluster.AnalyticsQuery(statement, &AnalyticsQueryOptions{
+		ServerSideTimeout: timeout,
+		Context:           ctx,
+	})
+	if err != nil && !IsTimeoutError(err) {
+		t.Fatal(err)
+	}
+}
+
 func testAssertAnalyticsQueryRequest(t *testing.T, req *gocbcore.HttpRequest) {
 	if req.Service != gocbcore.CbasService {
 		t.Fatalf("Service should have been CbasService but was %d", req.Service)
@@ -87,11 +578,6 @@ func testAssertAnalyticsQueryRequest(t *testing.T, req *gocbcore.HttpRequest) {
 
 	if req.Context == nil {
 		t.Fatalf("Context should not have been nil, but was")
-	}
-
-	_, ok := req.Context.Deadline()
-	if !ok {
-		t.Fatalf("Context should have had a deadline") // Difficult to test the actual deadline value
 	}
 
 	if req.Method != "POST" {
@@ -108,13 +594,18 @@ func testAssertAnalyticsQueryRequest(t *testing.T, req *gocbcore.HttpRequest) {
 }
 
 func testAssertAnalyticsQueryResult(t *testing.T, expectedResult *analyticsResponse, actualResult *AnalyticsResults, expectData bool) {
-	if expectData {
-		var breweryDocs []testBreweryDocument
-		var resDoc testBreweryDocument
-		for actualResult.Next(&resDoc) {
-			breweryDocs = append(breweryDocs, resDoc)
-		}
+	var breweryDocs []testBreweryDocument
+	var resDoc testBreweryDocument
+	for actualResult.Next(&resDoc) {
+		breweryDocs = append(breweryDocs, resDoc)
+	}
 
+	err := actualResult.Close()
+	if err != nil {
+		t.Fatalf("expected err to be nil but was %v", err)
+	}
+
+	if expectData {
 		var expectedDocs []testBreweryDocument
 		for _, doc := range expectedResult.Results {
 			var expectedDoc testBreweryDocument

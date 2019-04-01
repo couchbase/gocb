@@ -2,35 +2,34 @@ package gocb
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	"github.com/couchbase/gocbcore/v8"
+	"github.com/pkg/errors"
 )
 
 // AnalyticsDeferredResultHandle allows access to the handle of a deferred Analytics query.
 //
 // Experimental: This API is subject to change at any time.
-type AnalyticsDeferredResultHandle interface {
-	One(valuePtr interface{}) error
-	Next(valuePtr interface{}) bool
-	NextBytes() []byte
-	Close() error
-
-	Status() (string, error)
-}
-
-type analyticsDeferredResultHandle struct {
+type AnalyticsDeferredResultHandle struct {
 	handleUri string
 	status    string
-	rows      *analyticsRows
 	err       error
 	provider  httpProvider
-	hasResult bool
+	decoder   *json.Decoder
 	timeout   time.Duration
+	stream    io.ReadCloser
+}
+
+type analyticsResponseHandle struct {
+	Status string `json:"status,omitempty"`
+	Handle string `json:"handle,omitempty"`
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
-func (r *analyticsDeferredResultHandle) Next(valuePtr interface{}) bool {
+func (r *AnalyticsDeferredResultHandle) Next(valuePtr interface{}) bool {
 	if r.err != nil {
 		return false
 	}
@@ -50,39 +49,85 @@ func (r *analyticsDeferredResultHandle) Next(valuePtr interface{}) bool {
 
 // NextBytes returns the next result from the results as a byte array.
 // TODO: how to deadline/timeout this?
-func (r *analyticsDeferredResultHandle) NextBytes() []byte {
+func (r *AnalyticsDeferredResultHandle) NextBytes() []byte {
 	if r.err != nil {
 		return nil
 	}
 
-	if r.status == "success" && !r.hasResult {
+	if r.status == "success" && r.decoder == nil {
 		req := &gocbcore.HttpRequest{
-			Service: gocbcore.CbasService,
-			Path:    r.handleUri,
-			Method:  "GET",
+			Service:  gocbcore.CbasService,
+			Endpoint: r.handleUri,
+			Method:   "GET",
 		}
 
-		err := r.executeHandle(req, &r.rows.rows)
+		resp, err := r.provider.DoHttpRequest(req)
 		if err != nil {
 			r.err = err
 			return nil
 		}
-		r.hasResult = true
+		if resp.StatusCode != 200 {
+			r.err = fmt.Errorf("handle request failed, received http status %d", resp.StatusCode)
+			return nil
+		}
+
+		r.decoder = json.NewDecoder(resp.Body)
+		t, err := r.decoder.Token()
+		if err != nil {
+			bodyErr := resp.Body.Close()
+			if bodyErr != nil {
+				logDebugf("Failed to close response body, %s", bodyErr.Error())
+			}
+			r.err = err
+			return nil
+		}
+		if delim, ok := t.(json.Delim); !ok || delim != '[' {
+			bodyErr := resp.Body.Close()
+			if bodyErr != nil {
+				logDebugf("Failed to close response body, %s", bodyErr.Error())
+			}
+			r.err = errors.New("expected response opening token to be [ but was " + t.(string))
+			return nil
+		}
+
+		r.stream = resp.Body
 	} else if r.status != "success" {
 		return nil
 	}
 
-	return r.rows.NextBytes()
+	return r.nextBytes()
+}
+
+func (r *AnalyticsDeferredResultHandle) nextBytes() []byte {
+	if r.decoder.More() {
+		var raw json.RawMessage
+		err := r.decoder.Decode(&raw)
+		if err != nil {
+			r.err = err
+			return nil
+		}
+
+		return raw
+	}
+
+	return nil
 }
 
 // Close marks the results as closed, returning any errors that occurred during reading the results.
-func (r *analyticsDeferredResultHandle) Close() error {
-	r.rows.Close()
-	return r.err
+func (r *AnalyticsDeferredResultHandle) Close() error {
+	if r.stream == nil {
+		return r.err
+	}
+
+	err := r.stream.Close()
+	if r.err != nil {
+		return r.err
+	}
+	return err
 }
 
 // One assigns the first value from the results into the value pointer.
-func (r *analyticsDeferredResultHandle) One(valuePtr interface{}) error {
+func (r *AnalyticsDeferredResultHandle) One(valuePtr interface{}) error {
 	if !r.Next(valuePtr) {
 		err := r.Close()
 		if err != nil {
@@ -103,30 +148,34 @@ func (r *analyticsDeferredResultHandle) One(valuePtr interface{}) error {
 
 // Status triggers a network call to the handle URI, returning the current status of the long running query.
 // TODO: how to deadline/timeout this?
-func (r *analyticsDeferredResultHandle) Status() (string, error) {
+func (r *AnalyticsDeferredResultHandle) Status() (string, error) {
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.CbasService,
-		Path:    r.handleUri,
-		Method:  "GET",
+		Service:  gocbcore.CbasService,
+		Endpoint: r.handleUri,
+		Method:   "GET",
 	}
 
 	var resp *analyticsResponseHandle
 	err := r.executeHandle(req, &resp)
 	if err != nil {
-		r.err = err
 		return "", err
 	}
 
 	r.status = resp.Status
-	r.handleUri = resp.Handle
+	if r.status == "success" {
+		r.handleUri = resp.Handle
+	}
 	return r.status, nil
 }
 
 // TODO: how to deadline/timeout this?
-func (r *analyticsDeferredResultHandle) executeHandle(req *gocbcore.HttpRequest, valuePtr interface{}) error {
+func (r *AnalyticsDeferredResultHandle) executeHandle(req *gocbcore.HttpRequest, valuePtr interface{}) error {
 	resp, err := r.provider.DoHttpRequest(req)
 	if err != nil {
 		return err
+	}
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("handle request failed, received http status %d", resp.StatusCode)
 	}
 
 	jsonDec := json.NewDecoder(resp.Body)
