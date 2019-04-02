@@ -144,7 +144,7 @@ func (g *thresholdLogGroup) logRecordedRecords(sampleSize uint32) {
 		logDebugf("Failed to generate threshold logging service JSON: %s", err)
 	}
 
-	logInfof("  %s", jsonBytes)
+	logInfof("Threshold Log: %s", jsonBytes)
 }
 
 // ThresholdLoggingTracer is a specialized Tracer implementation which will automatically
@@ -192,8 +192,6 @@ func (t *ThresholdLoggingTracer) DecRef() int32 {
 }
 
 func (t *ThresholdLoggingTracer) logRecordedRecords() {
-	logInfof("Threshold Log:")
-
 	t.kvGroup.logRecordedRecords(t.SampleSize)
 	t.viewsGroup.logRecordedRecords(t.SampleSize)
 	t.queryGroup.logRecordedRecords(t.SampleSize)
