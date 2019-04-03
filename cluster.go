@@ -42,7 +42,7 @@ type ClusterOptions struct {
 type ClusterCloseOptions struct {
 }
 
-// NewCluster creates and returns a Cluster instance created using the provided options and connection string.
+// Connect creates and returns a Cluster instance created using the provided options and connection string.
 // The connection string properties are copied from (and should stay in sync with) the gocbcore agent.FromConnStr comment.
 // Supported connSpecStr options are:
 //   cacertpath (string) - Path to the CA certificate
@@ -71,10 +71,7 @@ type ClusterCloseOptions struct {
 //   orphaned_response_logging_interval (int) - How often to log orphan responses in ms.
 //   orphaned_response_logging_sample_size (int) - The number of samples to include in each orphaned response log.
 //   operation_tracing (bool) - Whether to enable tracing.
-//   n1ql_timeout (int) - Maximum execution time for n1ql queries in ms.
-//   fts_timeout (int) - Maximum execution time for fts searches in ms.
-//   analytics_timeout (int) - Maximum execution time for analytics queries in ms.
-func NewCluster(connStr string, opts ClusterOptions) (*Cluster, error) {
+func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 	connSpec, err := gocbconnstr.Parse(connStr)
 	if err != nil {
 		return nil, err

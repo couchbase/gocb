@@ -66,7 +66,7 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	cluster, err := NewCluster(connStr, ClusterOptions{Authenticator: PasswordAuthenticator{Username: *user, Password: *password}})
+	cluster, err := Connect(connStr, ClusterOptions{Authenticator: PasswordAuthenticator{Username: *user, Password: *password}})
 
 	if err != nil {
 		panic(err.Error())
