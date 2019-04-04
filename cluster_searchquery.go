@@ -1,10 +1,10 @@
 package gocb
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
@@ -72,49 +72,262 @@ type SearchResultStatus struct {
 	Successful int `json:"successful,omitempty"`
 }
 
-type searchResponse struct {
-	Status    SearchResultStatus           `json:"status,omitempty"`
-	Errors    []string                     `json:"errors,omitempty"`
-	TotalHits int                          `json:"total_hits,omitempty"`
-	Hits      []SearchResultHit            `json:"hits,omitempty"`
-	Facets    map[string]SearchResultFacet `json:"facets,omitempty"`
-	Took      uint                         `json:"took,omitempty"`
-	MaxScore  float64                      `json:"max_score,omitempty"`
+type searchResultStatus struct {
+	Total      int      `json:"total,omitempty"`
+	Failed     int      `json:"failed,omitempty"`
+	Successful int      `json:"successful,omitempty"`
+	Errors     []string `json:"errors,omitempty"`
 }
 
 // SearchResults allows access to the results of a search query.
 type SearchResults struct {
-	data *searchResponse
+	status    SearchResultStatus
+	err       error
+	totalHits int
+	facets    map[string]SearchResultFacet
+	took      uint
+	maxScore  float64
+
+	sourceAddr   string
+	httpStatus   int
+	streamResult *streamingResult
+	strace       opentracing.Span
+	cancel       context.CancelFunc
+}
+
+// Next assigns the next result from the results into the value pointer, returning whether the read was successful.
+func (r *SearchResults) Next(hitPtr *SearchResultHit) bool {
+	if r.err != nil {
+		return false
+	}
+
+	row := r.NextBytes()
+	if row == nil {
+		return false
+	}
+
+	r.err = json.Unmarshal(row, hitPtr)
+	if r.err != nil {
+		return false
+	}
+
+	return true
+}
+
+// NextBytes returns the next result from the results as a byte array.
+func (r *SearchResults) NextBytes() []byte {
+	if r.streamResult.Closed() {
+		return nil
+	}
+
+	raw, err := r.streamResult.NextBytes()
+	if err != nil {
+		r.err = err
+		return nil
+	}
+
+	return raw
+}
+
+// Close marks the results as closed, returning any errors that occurred during reading the results.
+func (r *SearchResults) Close() error {
+	if r.streamResult.Closed() {
+		return r.err
+	}
+
+	err := r.streamResult.Close()
+	if r.strace != nil {
+		r.strace.Finish()
+	}
+	if r.cancel != nil {
+		r.cancel()
+	}
+	if r.err != nil {
+		return r.err
+	}
+	return err
+}
+
+// One assigns the first value from the results into the value pointer.
+// It will close the results but not before iterating through all remaining
+// results, as such this should only be used for very small resultsets - ideally
+// of, at most, length 1.
+func (r *SearchResults) One(hitPtr *SearchResultHit) error {
+	if !r.Next(hitPtr) {
+		err := r.Close()
+		if err != nil {
+			return err
+		}
+		return ErrNoResults // TODO
+	}
+
+	// We have to purge the remaining rows in order to get to the remaining
+	// response attributes
+	for r.NextBytes() != nil {
+	}
+
+	err := r.Close()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Status is the status information for the results.
 func (r SearchResults) Status() SearchResultStatus {
-	return r.data.Status
+	if !r.streamResult.Closed() {
+		panic("Result must be closed before accessing meta-data")
+	}
+
+	return r.status
 }
 
 // TotalHits is the actual number of hits before the limit was applied.
 func (r SearchResults) TotalHits() int {
-	return r.data.TotalHits
-}
+	if !r.streamResult.Closed() {
+		panic("Result must be closed before accessing meta-data")
+	}
 
-// Hits are the matches for the search query.
-func (r SearchResults) Hits() []SearchResultHit {
-	return r.data.Hits
+	return r.totalHits
 }
 
 // Facets contains the information relative to the facets requested in the search query.
 func (r SearchResults) Facets() map[string]SearchResultFacet {
-	return r.data.Facets
+	if !r.streamResult.Closed() {
+		panic("Result must be closed before accessing meta-data")
+	}
+
+	return r.facets
 }
 
 // Took returns the time taken to execute the search.
 func (r SearchResults) Took() time.Duration {
-	return time.Duration(r.data.Took) / time.Nanosecond
+	if !r.streamResult.Closed() {
+		panic("Result must be closed before accessing meta-data")
+	}
+
+	return time.Duration(r.took) / time.Nanosecond
 }
 
 // MaxScore returns the highest score of all documents for this query.
 func (r SearchResults) MaxScore() float64 {
-	return r.data.MaxScore
+	if !r.streamResult.Closed() {
+		panic("Result must be closed before accessing meta-data")
+	}
+
+	return r.maxScore
+}
+
+func (r *SearchResults) readAttribute(decoder *json.Decoder, t json.Token) (bool, error) {
+	switch t {
+	case "status":
+		if r.httpStatus != 200 {
+			// helpfully if the status code is not 200 then the status in the response body is a string not an object
+			var ignore interface{}
+			err := decoder.Decode(&ignore)
+			if err != nil {
+				return false, err
+			}
+			return false, nil
+		}
+
+		var status searchResultStatus
+		err := decoder.Decode(&status)
+		if err != nil {
+			return false, err
+		}
+
+		r.status.Total = status.Total
+		r.status.Successful = status.Successful
+		r.status.Failed = status.Failed
+
+		if len(status.Errors) > 0 {
+			errs := make([]SearchError, len(status.Errors))
+			for _, err := range status.Errors {
+				errs = append(errs, searchError{
+					message: err,
+				})
+			}
+			r.err = searchMultiError{
+				errors:     errs,
+				endpoint:   r.sourceAddr,
+				httpStatus: r.httpStatus,
+			}
+		}
+	case "total_hits":
+		err := decoder.Decode(&r.totalHits)
+		if err != nil {
+			return false, err
+		}
+	case "facets":
+		err := decoder.Decode(&r.facets)
+		if err != nil {
+			return false, err
+		}
+	case "took":
+		err := decoder.Decode(&r.took)
+		if err != nil {
+			return false, err
+		}
+	case "max_score":
+		err := decoder.Decode(&r.maxScore)
+		if err != nil {
+			return false, err
+		}
+	case "errors":
+		var respErrs []searchError
+		err := decoder.Decode(&respErrs)
+		if err != nil {
+			return false, err
+		}
+		if len(respErrs) > 0 {
+			errs := make([]SearchError, len(respErrs))
+			for i, e := range respErrs {
+				errs[i] = e
+			}
+			// this isn't an error that we want to bail on so store it and keep going
+			r.err = searchMultiError{
+				errors:     errs,
+				endpoint:   r.sourceAddr,
+				httpStatus: r.httpStatus,
+			}
+		}
+	case "error":
+		var sErr string
+		err := decoder.Decode(&sErr)
+		if err != nil {
+			return false, err
+		}
+		r.err = searchMultiError{
+			errors: []SearchError{
+				searchError{
+					message: sErr,
+				},
+			},
+			endpoint:   r.sourceAddr,
+			httpStatus: r.httpStatus,
+		}
+	case "hits":
+		// read the opening [, this prevents the decoder from loading the entire results array into memory
+		t, err := decoder.Token()
+		if err != nil {
+			return false, err
+		}
+		if delim, ok := t.(json.Delim); !ok || delim != '[' {
+			return false, errors.New("expected results opening token to be [ but was " + string(delim))
+		}
+
+		return true, nil
+	default:
+		var ignore interface{}
+		err := decoder.Decode(&ignore)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	return false, nil
 }
 
 // SearchQuery performs a n1ql query and returns a list of rows or an error.
@@ -219,20 +432,37 @@ func (c *Cluster) searchQuery(ctx context.Context, traceCtx opentracing.SpanCont
 	}
 
 	var retries uint
+	var res *SearchResults
 	for {
 		retries++
-		var res *SearchResults
 		res, err = c.executeSearchQuery(ctx, traceCtx, queryData, qIndexName, provider)
-		if err == nil {
-			return res, err
+		if err != nil {
+			break
 		}
 
-		if !isRetryableError(err) || c.sb.SearchRetryBehavior == nil || !c.sb.SearchRetryBehavior.CanRetry(retries) {
-			return res, err
+		if !res.streamResult.Closed() {
+			// the stream is open so there's no way we have query errors already
+			break
+		}
+
+		// There were no rows so it's likely there was an error
+		resErr := res.err
+		if resErr == nil {
+			break
+		}
+		if !isRetryableError(resErr) || c.sb.SearchRetryBehavior == nil || !c.sb.SearchRetryBehavior.CanRetry(retries) {
+			break
 		}
 
 		time.Sleep(c.sb.SearchRetryBehavior.NextInterval(retries))
+
 	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.SpanContext, query jsonx.DelayedObject,
@@ -243,69 +473,74 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.S
 		return nil, errors.Wrap(err, "could not parse query options")
 	}
 
+	// we only want ctx to timeout the initial connection rather than the stream
+	reqCtx, reqCancel := context.WithCancel(context.Background())
+	doneChan := make(chan struct{})
+	go c.runContextTimeout(ctx, reqCancel, doneChan)
+
 	req := &gocbcore.HttpRequest{
 		Service: gocbcore.FtsService,
 		Path:    fmt.Sprintf("/api/index/%s/query", qIndexName),
 		Method:  "POST",
-		Context: ctx,
+		Context: reqCtx,
 		Body:    qBytes,
 	}
 
 	dtrace := opentracing.GlobalTracer().StartSpan("dispatch", opentracing.ChildOf(traceCtx))
 
 	resp, err := provider.DoHttpRequest(req)
+	doneChan <- struct{}{}
 	if err != nil {
 		dtrace.Finish()
 		if err == gocbcore.ErrNoFtsService {
 			return nil, serviceNotFoundError{}
 		}
 
-		if err == context.DeadlineExceeded {
+		// as we're effectively manually timing out the request using cancellation we need
+		// to check if the original context has timed out as err itself will only show as canceled
+		if ctx.Err() == context.DeadlineExceeded {
 			return nil, timeoutError{}
-		} // TODO: test this...
-		return nil, errors.Wrap(err, "could not complete query http request")
+		}
+		return nil, errors.Wrap(err, "could not complete search http request")
 	}
 
 	dtrace.Finish()
 
-	strace := opentracing.GlobalTracer().StartSpan("streaming",
-		opentracing.ChildOf(traceCtx))
+	epInfo, err := url.Parse(resp.Endpoint)
+	if err != nil {
+		logWarnf("Failed to parse N1QL source address")
+		epInfo = &url.URL{
+			Host: "",
+		}
+	}
 
-	// TODO : Errors(). Partial search results.
-	ftsResp := searchResponse{}
+	strace := opentracing.GlobalTracer().StartSpan("streaming", opentracing.ChildOf(traceCtx))
+
+	queryResults := &SearchResults{
+		sourceAddr: epInfo.Host,
+		httpStatus: resp.StatusCode,
+	}
+
 	errHandled := false
 	switch resp.StatusCode {
-	case 200:
-		jsonDec := json.NewDecoder(resp.Body)
-		err = jsonDec.Decode(&ftsResp)
-		if err != nil {
-			strace.Finish()
-			return nil, errors.Wrap(err, "failed to decode query response body")
-		}
 	case 400:
-		ftsResp.Status.Total = 1
-		ftsResp.Status.Failed = 1
-		buf := new(bytes.Buffer)
-		_, err := buf.ReadFrom(resp.Body)
-		if err != nil {
-			strace.Finish()
-			return nil, err
-		}
-		ftsResp.Errors = []string{buf.String()}
+		queryResults.status.Total = 1
+		queryResults.status.Failed = 1
 		errHandled = true
 	case 401:
-		ftsResp.Status.Total = 1
-		ftsResp.Status.Failed = 1
-		ftsResp.Errors = []string{"The requested consistency level could not be satisfied before the timeout was reached"}
+		queryResults.status.Total = 1
+		queryResults.status.Failed = 1
+		queryResults.err = searchMultiError{
+			errors: []SearchError{
+				searchError{
+					message: "The requested consistency level could not be satisfied before the timeout was reached",
+				},
+			},
+			endpoint:   epInfo.Host,
+			httpStatus: resp.StatusCode,
+		}
 		errHandled = true
 	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
-	}
-
-	strace.Finish()
 
 	if resp.StatusCode != 200 && !errHandled {
 		errOut := &httpError{
@@ -315,29 +550,41 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.S
 			errOut.isRetryable = true
 		}
 
+		reqCancel()
+		strace.Finish()
 		return nil, errOut
 	}
 
-	var multiErr searchMultiError
-	if len(ftsResp.Errors) > 0 {
-		errs := make([]SearchError, len(ftsResp.Errors))
-		for i, e := range ftsResp.Errors {
-			errs[i] = searchError{
-				message: e,
-			}
-		}
-		multiErr = searchMultiError{
-			errors:     errs,
-			endpoint:   resp.Endpoint,
-			httpStatus: resp.StatusCode,
-			// contextID:  resp.ClientContextID, TODO?
-		}
-		if ftsResp.Status.Failed != ftsResp.Status.Total {
-			multiErr.partial = true
-		}
+	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute, []json.Delim{'{'})
+	if err != nil {
+		reqCancel()
+		strace.Finish()
+		return nil, err
 	}
 
-	return &SearchResults{
-		data: &ftsResp,
-	}, multiErr
+	err = streamResult.readAttributes()
+	if err != nil {
+		bodyErr := streamResult.Close()
+		if bodyErr != nil {
+			logDebugf("Failed to close socket (%s)", bodyErr.Error())
+		}
+		reqCancel()
+		strace.Finish()
+		return nil, err
+	}
+
+	queryResults.streamResult = streamResult
+
+	if streamResult.HasRows() {
+		queryResults.strace = strace
+		queryResults.cancel = reqCancel
+	} else {
+		bodyErr := streamResult.Close()
+		if bodyErr != nil {
+			logDebugf("Failed to close response body, %s", bodyErr.Error())
+		}
+		reqCancel()
+		strace.Finish()
+	}
+	return queryResults, nil
 }
