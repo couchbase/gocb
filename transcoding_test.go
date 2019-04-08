@@ -99,6 +99,11 @@ func TestJsonEncode(t *testing.T) {
 		t.Fatalf("failed to marshal json: %v", err)
 	}
 
+	jsonStringValue, err := json.Marshal(stringValue)
+	if err != nil {
+		t.Fatalf("failed to marshal json: %v", err)
+	}
+
 	tests := []struct {
 		name    string
 		args    interface{}
@@ -123,14 +128,14 @@ func TestJsonEncode(t *testing.T) {
 		{
 			name:    "string",
 			args:    stringValue,
-			value:   []byte(stringValue),
+			value:   jsonStringValue,
 			flags:   gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
 			wantErr: false,
 		},
 		{
 			name:    "string pointer",
 			args:    &stringValue,
-			value:   []byte(stringValue),
+			value:   jsonStringValue,
 			flags:   gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
 			wantErr: false,
 		},
@@ -163,5 +168,54 @@ func TestJsonEncode(t *testing.T) {
 				t.Errorf("DefaultEncode() got1 = %v, want %v", got1, tt.flags)
 			}
 		})
+	}
+}
+
+func TestJsonDecode(t *testing.T) {
+	byteArray := []byte("something")
+	stringValue := "something"
+	type jsonType struct {
+		Name string `json:"name"`
+	}
+	jsonStruct := jsonType{Name: "something"}
+
+	jsonValue, err := json.Marshal(jsonStruct)
+	if err != nil {
+		t.Fatalf("failed to marshal json: %v", err)
+	}
+
+	jsonStringValue, err := json.Marshal(stringValue)
+	if err != nil {
+		t.Fatalf("failed to marshal json: %v", err)
+	}
+
+	var bytesValue []byte
+	err = JSONDecode(byteArray, 0, &bytesValue)
+	if err != nil {
+		t.Errorf("JSONDecode decoding byte array errored: %v", err)
+		return
+	}
+	if !reflect.DeepEqual(bytesValue, byteArray) {
+		t.Errorf("JSONDecode decoding byte array got = %v, want %v", bytesValue, byteArray)
+	}
+
+	var stringResult string
+	err = JSONDecode(jsonStringValue, 0, &stringResult)
+	if err != nil {
+		t.Errorf("JSONDecode decoding string errored: %v", err)
+		return
+	}
+	if !reflect.DeepEqual(stringResult, stringValue) {
+		t.Errorf("JSONDecode decoding string got = %v, want %v", stringResult, stringValue)
+	}
+
+	var jsonResult jsonType
+	err = JSONDecode(jsonValue, 0, &jsonResult)
+	if err != nil {
+		t.Errorf("JSONDecode decoding struct errored: %v", err)
+		return
+	}
+	if !reflect.DeepEqual(jsonResult, jsonStruct) {
+		t.Errorf("JSONDecode decoding struct got = %v, want %v", jsonResult, jsonStruct)
 	}
 }

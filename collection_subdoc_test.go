@@ -58,6 +58,16 @@ func TestInsertLookupIn(t *testing.T) {
 		t.Fatalf("Expected name to be %s but was %s", doc.Name, name)
 	}
 
+	var decodeName string
+	err = result.DecodeAt(0, &decodeName, JSONDecode)
+	if err != nil {
+		t.Fatalf("Failed to decode name from LookupInResult, %v", err)
+	}
+
+	if decodeName != name {
+		t.Fatalf("Expected decodeName to be %s but was %s", name, decodeName)
+	}
+
 	var desc string
 	err = result.ContentAt(1, &desc)
 	if err != nil {
@@ -70,6 +80,16 @@ func TestInsertLookupIn(t *testing.T) {
 
 	var idontexist string
 	err = result.ContentAt(4, &idontexist)
+	if err == nil {
+		t.Fatalf("Expected lookup on a non existent field to return error")
+	}
+
+	if !IsPathNotFoundError(err) {
+		t.Fatalf("Expected error to be path not found but was %v", err)
+	}
+
+	var decodeIdontexist string
+	err = result.DecodeAt(4, &decodeIdontexist, JSONDecode)
 	if err == nil {
 		t.Fatalf("Expected lookup on a non existent field to return error")
 	}
@@ -241,14 +261,14 @@ func TestMutateInLookupInXattr(t *testing.T) {
 	mutSpec := MutateInSpec{}
 	subRes, err := globalCollection.MutateIn("mutateInFullInsertInsertXattr", []MutateInOp{
 		mutSpec.Insert("fish", fishName, &MutateInSpecInsertOptions{IsXattr: true}),
-		mutSpec.UpsertFull(doc),
+		mutSpec.UpsertFull(doc, nil),
 	}, nil)
 	if err != nil {
-		t.Fatalf("Insert failed, error was %v", err)
+		t.Fatalf("MutateIn failed, error was %v", err)
 	}
 
 	if subRes.Cas() == 0 {
-		t.Fatalf("Insert CAS was 0")
+		t.Fatalf("MutateIn CAS was 0")
 	}
 
 	spec := LookupInSpec{}
@@ -294,21 +314,21 @@ func TestInsertLookupInInsertGetFull(t *testing.T) {
 	mutSpec := MutateInSpec{}
 	subRes, err := globalCollection.MutateIn("lookupDocGetFull", []MutateInOp{
 		mutSpec.Insert("xattrpath", "xattrvalue", &MutateInSpecInsertOptions{IsXattr: true}),
-		mutSpec.UpsertFull(doc),
+		mutSpec.UpsertFull(doc, nil),
 	}, &MutateInOptions{UpsertDocument: true, Expiration: 20})
 	if err != nil {
-		t.Fatalf("Upsert failed, error was %v", err)
+		t.Fatalf("MutateIn failed, error was %v", err)
 	}
 
 	if subRes.Cas() == 0 {
-		t.Fatalf("Insert CAS was 0")
+		t.Fatalf("MutateIn CAS was 0")
 	}
 
 	spec := LookupInSpec{}
 
 	result, err := globalCollection.LookupIn("lookupDocGetFull", []LookupInOp{
 		spec.Get("$document.exptime", &LookupInSpecGetOptions{IsXattr: true}),
-		spec.GetFull(),
+		spec.GetFull(nil),
 	}, nil)
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)
@@ -385,7 +405,7 @@ func TestMutateInLookupInCounters(t *testing.T) {
 
 func TestMutateInLookupInMacro(t *testing.T) {
 	if !globalCluster.SupportsFeature(ExpandMacrosFeature) {
-		t.Skip("Skipping test as xattrs not supported")
+		t.Skip("Skipping test as macros not supported")
 	}
 
 	var doc testBeerDocument
@@ -408,11 +428,11 @@ func TestMutateInLookupInMacro(t *testing.T) {
 		mutSpec.Insert("caspath", MutationMacroCAS, nil),
 	}, nil)
 	if err != nil {
-		t.Fatalf("Insert failed, error was %v", err)
+		t.Fatalf("MutateIn failed, error was %v", err)
 	}
 
 	if subRes.Cas() == 0 {
-		t.Fatalf("Insert CAS was 0")
+		t.Fatalf("MutateIn CAS was 0")
 	}
 
 	spec := LookupInSpec{}

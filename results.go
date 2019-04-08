@@ -209,7 +209,7 @@ type lookupInPartial struct {
 	err  error
 }
 
-func (pr *lookupInPartial) as(valuePtr interface{}) error {
+func (pr *lookupInPartial) as(valuePtr interface{}, decoder Decode) error {
 	if pr.err != nil {
 		return pr.err
 	}
@@ -223,18 +223,34 @@ func (pr *lookupInPartial) as(valuePtr interface{}) error {
 		return nil
 	}
 
-	return json.Unmarshal(pr.data, valuePtr)
+	return decoder(pr.data, 0, valuePtr)
 }
 
 func (pr *lookupInPartial) exists() bool {
-	err := pr.as(nil)
+	err := pr.as(nil, nil)
 	return err == nil
 }
 
 // ContentAt retrieves the value of the operation by its index. The index is the position of
 // the operation as it was added to the builder.
 func (lir *LookupInResult) ContentAt(idx int, valuePtr interface{}) error {
-	return lir.contents[idx].as(valuePtr)
+	if idx > len(lir.contents) {
+		return errors.New("the supplied index was invalid")
+	}
+	return lir.contents[idx].as(valuePtr, JSONDecode)
+}
+
+// DecodeAt retrieves the value of the operation by its index. The index is the position of
+// the operation as it was added to the builder. In order to decode the value it will use the
+// support Decode function, by default it will use JSONDecode
+func (lir *LookupInResult) DecodeAt(idx int, valuePtr interface{}, decode Decode) error {
+	if idx > len(lir.contents) {
+		return errors.New("the supplied index was invalid")
+	}
+	if decode == nil {
+		decode = JSONDecode
+	}
+	return lir.contents[idx].as(valuePtr, decode)
 }
 
 // Exists verifies that the item at idx exists.

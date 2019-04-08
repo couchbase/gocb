@@ -58,7 +58,7 @@ func DefaultDecode(bytes []byte, flags uint32, out interface{}) error {
 // DefaultEncode applies the default Couchbase transcoding behaviour to encode a Go type.
 // For a byte array this will return the value supplied with Binary flags.
 // For a string this will return the value supplied with String flags.
-// For aanything else this will try to return the value JSON encoded supplied, with JSON flags.
+// For anything else this will try to return the value JSON encoded supplied, with JSON flags.
 func DefaultEncode(value interface{}) ([]byte, uint32, error) {
 	var bytes []byte
 	var flags uint32
@@ -92,7 +92,7 @@ func DefaultEncode(value interface{}) ([]byte, uint32, error) {
 	return bytes, flags, nil
 }
 
-// JSONEncode applies JSON encoding to a Go type. For strings and byte array data this will just return the value passed
+// JSONEncode applies JSON encoding to a Go type. For byte array data this will just return the value passed
 // to it as bytes with flags set to JSON.
 func JSONEncode(value interface{}) ([]byte, uint32, error) {
 	var bytes []byte
@@ -104,10 +104,6 @@ func JSONEncode(value interface{}) ([]byte, uint32, error) {
 		bytes = typeValue
 	case *[]byte:
 		bytes = *typeValue
-	case string:
-		bytes = []byte(typeValue)
-	case *string:
-		bytes = []byte(*typeValue)
 	case *interface{}:
 		return JSONEncode(*typeValue)
 	default:
@@ -120,4 +116,26 @@ func JSONEncode(value interface{}) ([]byte, uint32, error) {
 	// No compression supported currently
 
 	return bytes, flags, nil
+}
+
+// JSONDecode applies JSON decoding behaviour to decode into a Go type.
+// This function will ignore any flags passed to it, including compression.
+// If a byte array is supplied as the out parameter then it will assign the
+// raw bytes to it.
+// For anything else it will apply JSON Unmarshal.
+func JSONDecode(bytes []byte, _ uint32, out interface{}) error {
+	switch typedOut := out.(type) {
+	case *[]byte:
+		*typedOut = bytes
+		return nil
+	case *interface{}:
+		*typedOut = bytes
+		return nil
+	default:
+		err := json.Unmarshal(bytes, &out)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
 }

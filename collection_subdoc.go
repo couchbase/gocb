@@ -2,7 +2,6 @@ package gocb
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"time"
 
@@ -42,9 +41,14 @@ func (spec LookupInSpec) Get(path string, opts *LookupInSpecGetOptions) LookupIn
 	return spec.getWithFlags(path, opts.IsXattr)
 }
 
+// LookupInSpecGetFullOptions are the options available to LookupIn subdoc GetFull operations.
+// There are currently no options and this is left empty for future extensibility.
+type LookupInSpecGetFullOptions struct {
+}
+
 // GetFull indicates that a full document should be retrieved. This command allows you
 // to do things like combine with Get to fetch a document with certain Xattrs
-func (spec LookupInSpec) GetFull() LookupInOp {
+func (spec LookupInSpec) GetFull(opts *LookupInSpecGetFullOptions) LookupInOp {
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpGetDoc,
 		Flags: gocbcore.SubdocFlag(SubdocFlagNone),
@@ -264,24 +268,8 @@ type MutateInOptions struct {
 	AccessDeleted bool
 }
 
-func (spec *MutateInSpec) marshalValue(value interface{}) ([]byte, error) {
-	if val, ok := value.([]byte); ok {
-		return val, nil
-	}
-
-	if val, ok := value.(*[]byte); ok {
-		return *val, nil
-	}
-
-	bytes, err := json.Marshal(value)
-	if err != nil {
-		return nil, err
-	}
-	return bytes, nil
-}
-
-func (spec *MutateInSpec) marshalArrayMulti(in interface{}) ([]byte, error) {
-	out, err := json.Marshal(in)
+func (spec *MutateInSpec) encodeMultiArray(in interface{}, encoder Encode) ([]byte, error) {
+	out, _, err := encoder(in)
 	if err != nil {
 		return nil, err
 	}
@@ -299,6 +287,7 @@ func (spec *MutateInSpec) marshalArrayMulti(in interface{}) ([]byte, error) {
 type MutateInSpecInsertOptions struct {
 	CreateParents bool
 	IsXattr       bool
+	Encoder       Encode
 }
 
 // Insert inserts a value at the specified path within the document.
@@ -320,10 +309,16 @@ func (spec MutateInSpec) Insert(path string, val interface{}, opts *MutateInSpec
 		flags |= SubdocFlagXattr
 	}
 
-	marshaled, err := spec.marshalValue(val)
+	encoder := opts.Encoder
+	if opts.Encoder == nil {
+		encoder = JSONEncode
+	}
+
+	marshaled, _, err := encoder(val)
 	if err != nil {
 		return MutateInOp{err: err}
 	}
+
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpDictAdd,
 		Path:  path,
@@ -338,6 +333,7 @@ func (spec MutateInSpec) Insert(path string, val interface{}, opts *MutateInSpec
 type MutateInSpecUpsertOptions struct {
 	CreateParents bool
 	IsXattr       bool
+	Encoder       Encode
 }
 
 // Upsert creates a new value at the specified path within the document if it does not exist, if it does exist then it
@@ -360,10 +356,16 @@ func (spec MutateInSpec) Upsert(path string, val interface{}, opts *MutateInSpec
 		flags |= SubdocFlagXattr
 	}
 
-	marshaled, err := spec.marshalValue(val)
+	encoder := opts.Encoder
+	if opts.Encoder == nil {
+		encoder = JSONEncode
+	}
+
+	marshaled, _, err := encoder(val)
 	if err != nil {
 		return MutateInOp{err: err}
 	}
+
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpDictSet,
 		Path:  path,
@@ -374,14 +376,29 @@ func (spec MutateInSpec) Upsert(path string, val interface{}, opts *MutateInSpec
 	return MutateInOp{op: op}
 }
 
+// MutateInSpecUpsertFullOptions are the options available to subdocument UpsertFull operations.
+type MutateInSpecUpsertFullOptions struct {
+	Encoder Encode
+}
+
 // UpsertFull creates a new document if it does not exist, if it does exist then it
 // updates it. This command allows you to do things like updating xattrs whilst upserting
 // a document.
-func (spec MutateInSpec) UpsertFull(val interface{}) MutateInOp {
-	marshaled, err := spec.marshalValue(val)
+func (spec MutateInSpec) UpsertFull(val interface{}, opts *MutateInSpecUpsertFullOptions) MutateInOp {
+	if opts == nil {
+		opts = &MutateInSpecUpsertFullOptions{}
+	}
+
+	encoder := opts.Encoder
+	if opts.Encoder == nil {
+		encoder = JSONEncode
+	}
+
+	marshaled, _, err := encoder(val)
 	if err != nil {
 		return MutateInOp{err: err}
 	}
+
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpSetDoc,
 		Flags: gocbcore.SubdocFlag(SubdocFlagNone),
@@ -394,6 +411,7 @@ func (spec MutateInSpec) UpsertFull(val interface{}) MutateInOp {
 // MutateInSpecReplaceOptions are the options available to subdocument Replace operations.
 type MutateInSpecReplaceOptions struct {
 	IsXattr bool
+	Encoder Encode
 }
 
 // Replace replaces the value of the field at path.
@@ -406,10 +424,16 @@ func (spec MutateInSpec) Replace(path string, val interface{}, opts *MutateInSpe
 		flags |= SubdocFlagXattr
 	}
 
-	marshaled, err := spec.marshalValue(val)
+	encoder := opts.Encoder
+	if opts.Encoder == nil {
+		encoder = JSONEncode
+	}
+
+	marshaled, _, err := encoder(val)
 	if err != nil {
 		return MutateInOp{err: err}
 	}
+
 	op := gocbcore.SubDocOp{
 		Op:    gocbcore.SubDocOpReplace,
 		Path:  path,
@@ -469,6 +493,7 @@ type MutateInSpecArrayAppendOptions struct {
 	// spec.ArrayAppend("path", 2, nil)
 	// spec.ArrayAppend("path", 3, nil)
 	HasMultiple bool
+	Encoder     Encode
 }
 
 // ArrayAppend adds an element(s) to the end (i.e. right) of an array
@@ -482,7 +507,6 @@ func (spec MutateInSpec) ArrayAppend(path string, val interface{}, opts *MutateI
 		flags |= SubdocFlagUseMacros
 		opts.IsXattr = true
 	}
-
 	if opts.CreateParents {
 		flags |= SubdocFlagCreatePath
 	}
@@ -490,12 +514,17 @@ func (spec MutateInSpec) ArrayAppend(path string, val interface{}, opts *MutateI
 		flags |= SubdocFlagXattr
 	}
 
+	encoder := opts.Encoder
+	if opts.Encoder == nil {
+		encoder = JSONEncode
+	}
+
 	var marshaled []byte
 	var err error
 	if opts.HasMultiple {
-		marshaled, err = spec.marshalArrayMulti(val)
+		marshaled, err = spec.encodeMultiArray(val, encoder)
 	} else {
-		marshaled, err = spec.marshalValue(val)
+		marshaled, _, err = encoder(val)
 	}
 
 	if err != nil {
@@ -527,6 +556,7 @@ type MutateInSpecArrayPrependOptions struct {
 	// spec.ArrayPrepend("path", 2, nil)
 	// spec.ArrayPrepend("path", 3, nil)
 	HasMultiple bool
+	Encoder     Encode
 }
 
 // ArrayPrepend adds an element to the beginning (i.e. left) of an array
@@ -540,7 +570,6 @@ func (spec MutateInSpec) ArrayPrepend(path string, val interface{}, opts *Mutate
 		flags |= SubdocFlagUseMacros
 		opts.IsXattr = true
 	}
-
 	if opts.CreateParents {
 		flags |= SubdocFlagCreatePath
 	}
@@ -548,12 +577,17 @@ func (spec MutateInSpec) ArrayPrepend(path string, val interface{}, opts *Mutate
 		flags |= SubdocFlagXattr
 	}
 
+	encoder := opts.Encoder
+	if opts.Encoder == nil {
+		encoder = JSONEncode
+	}
+
 	var marshaled []byte
 	var err error
 	if opts.HasMultiple {
-		marshaled, err = spec.marshalArrayMulti(val)
+		marshaled, err = spec.encodeMultiArray(val, encoder)
 	} else {
-		marshaled, err = spec.marshalValue(val)
+		marshaled, _, err = encoder(val)
 	}
 
 	if err != nil {
@@ -585,6 +619,7 @@ type MutateInSpecArrayInsertOptions struct {
 	// spec.ArrayInsert("path[3]", 2, nil)
 	// spec.ArrayInsert("path[4]", 3, nil)
 	HasMultiple bool
+	Encoder     Encode
 }
 
 // ArrayInsert inserts an element at a given position within an array. The position should be
@@ -599,7 +634,6 @@ func (spec MutateInSpec) ArrayInsert(path string, val interface{}, opts *MutateI
 		flags |= SubdocFlagUseMacros
 		opts.IsXattr = true
 	}
-
 	if opts.CreateParents {
 		flags |= SubdocFlagCreatePath
 	}
@@ -607,12 +641,17 @@ func (spec MutateInSpec) ArrayInsert(path string, val interface{}, opts *MutateI
 		flags |= SubdocFlagXattr
 	}
 
+	encoder := opts.Encoder
+	if opts.Encoder == nil {
+		encoder = JSONEncode
+	}
+
 	var marshaled []byte
 	var err error
 	if opts.HasMultiple {
-		marshaled, err = spec.marshalArrayMulti(val)
+		marshaled, err = spec.encodeMultiArray(val, encoder)
 	} else {
-		marshaled, err = spec.marshalValue(val)
+		marshaled, _, err = encoder(val)
 	}
 
 	if err != nil {
@@ -633,6 +672,7 @@ func (spec MutateInSpec) ArrayInsert(path string, val interface{}, opts *MutateI
 type MutateInSpecArrayAddUniqueOptions struct {
 	CreateParents bool
 	IsXattr       bool
+	Encoder       Encode
 }
 
 // ArrayAddUnique adds an dictionary add unique operation to this mutation operation set.
@@ -654,7 +694,12 @@ func (spec MutateInSpec) ArrayAddUnique(path string, val interface{}, opts *Muta
 		flags |= SubdocFlagXattr
 	}
 
-	marshaled, err := spec.marshalValue(val)
+	encoder := opts.Encoder
+	if opts.Encoder == nil {
+		encoder = JSONEncode
+	}
+
+	marshaled, _, err := encoder(val)
 	if err != nil {
 		return MutateInOp{err: err}
 	}
@@ -673,6 +718,7 @@ func (spec MutateInSpec) ArrayAddUnique(path string, val interface{}, opts *Muta
 type MutateInSpecCounterOptions struct {
 	CreateParents bool
 	IsXattr       bool
+	Encoder       Encode
 }
 
 // Increment adds an increment operation to this mutation operation set.
@@ -688,7 +734,12 @@ func (spec MutateInSpec) Increment(path string, delta int64, opts *MutateInSpecC
 		flags |= SubdocFlagXattr
 	}
 
-	marshaled, err := spec.marshalValue(delta)
+	encoder := opts.Encoder
+	if opts.Encoder == nil {
+		encoder = JSONEncode
+	}
+
+	marshaled, _, err := encoder(delta)
 	if err != nil {
 		return MutateInOp{err: err}
 	}
@@ -715,7 +766,12 @@ func (spec MutateInSpec) Decrement(path string, delta int64, opts *MutateInSpecC
 		flags |= SubdocFlagXattr
 	}
 
-	marshaled, err := spec.marshalValue(-delta)
+	encoder := opts.Encoder
+	if opts.Encoder == nil {
+		encoder = JSONEncode
+	}
+
+	marshaled, _, err := encoder(-delta)
 	if err != nil {
 		return MutateInOp{err: err}
 	}

@@ -135,6 +135,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer650)
 		case SubdocMockBugFeature:
 			supported = true
+		case ExpandMacrosFeature:
+			supported = !c.Version.Lower(srvVer450)
 		case AdjoinFeature:
 			return !c.Version.Equal(srvVer551) && !c.Version.Equal(srvVer552) && !c.Version.Equal(srvVer553)
 		}
