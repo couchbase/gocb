@@ -150,7 +150,12 @@ func testSimpleAnalyticsQuery(t *testing.T) {
 		t.Fatalf("Expected result to contain 10000 documents but had %d", len(samples))
 	}
 
-	if result.RequestID() == "" {
+	metadata, err := result.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 }
@@ -172,7 +177,12 @@ func testSimpleAnalyticsQueryOne(t *testing.T) {
 		t.Fatalf("Expected sample to be not nil")
 	}
 
-	if rows.RequestID() == "" {
+	metadata, err := rows.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 }
@@ -198,7 +208,12 @@ func testSimpleAnalyticsQueryOneNone(t *testing.T) {
 		t.Fatalf("Expected sample to be nil but was %v", sample)
 	}
 
-	if rows.RequestID() == "" {
+	metadata, err := rows.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 }
@@ -225,7 +240,12 @@ func testSimpleAnalyticsQueryOneError(t *testing.T) {
 		t.Fatalf("Expected sample to be nil but was %v", sample)
 	}
 
-	if rows.RequestID() == "" {
+	metadata, err := rows.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 }
@@ -252,7 +272,12 @@ func testSimpleAnalyticsQueryNone(t *testing.T) {
 		t.Fatalf("Expected result to contain 0 documents but had %d", len(samples))
 	}
 
-	if rows.RequestID() == "" {
+	metadata, err := rows.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 }
@@ -284,7 +309,12 @@ func testSimpleAnalyticsQueryError(t *testing.T) {
 		t.Fatalf("Expected result to contain 0 documents but had %d", len(samples))
 	}
 
-	if rows.RequestID() == "" {
+	metadata, err := rows.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 }
@@ -314,7 +344,12 @@ func testAnalyticsQueryNamedParameters(t *testing.T) {
 		t.Fatalf("Expected breweries to contain 1 document but had %d", len(samples))
 	}
 
-	if rows.RequestID() == "" {
+	metadata, err := rows.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 }
@@ -341,7 +376,12 @@ func testAnalyticsQueryPositionalParameters(t *testing.T) {
 		t.Fatalf("Expected breweries to contain 1 document but had %d", len(samples))
 	}
 
-	if rows.RequestID() == "" {
+	metadata, err := rows.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 }
@@ -627,19 +667,24 @@ func testAssertAnalyticsQueryResult(t *testing.T, expectedResult *analyticsRespo
 		}
 	}
 
-	if actualResult.ClientContextID() != expectedResult.ClientContextID {
-		t.Fatalf("Expected ClientContextID to be %s but was %s", expectedResult.ClientContextID, actualResult.ClientContextID())
+	metadata, err := actualResult.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
 	}
 
-	if actualResult.RequestID() != expectedResult.RequestID {
-		t.Fatalf("Expected RequestID to be %s but was %s", expectedResult.RequestID, actualResult.RequestID())
+	if metadata.ClientContextID() != expectedResult.ClientContextID {
+		t.Fatalf("Expected ClientContextID to be %s but was %s", expectedResult.ClientContextID, metadata.ClientContextID())
 	}
 
-	if actualResult.Status() != expectedResult.Status {
-		t.Fatalf("Expected Status to be %s but was %s", expectedResult.Status, actualResult.Status())
+	if metadata.RequestID() != expectedResult.RequestID {
+		t.Fatalf("Expected RequestID to be %s but was %s", expectedResult.RequestID, metadata.RequestID())
 	}
 
-	metrics := actualResult.Metrics()
+	if metadata.Status() != expectedResult.Status {
+		t.Fatalf("Expected Status to be %s but was %s", expectedResult.Status, metadata.Status())
+	}
+
+	metrics := metadata.Metrics()
 	elapsedTime, err := time.ParseDuration(expectedResult.Metrics.ElapsedTime)
 	if err != nil {
 		t.Fatalf("Failed to parse ElapsedTime %v", err)

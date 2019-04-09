@@ -162,7 +162,12 @@ func testSimpleViewQuery(t *testing.T) {
 		t.Fatalf("Expected result to contain 10000 documents but had %d", len(samples))
 	}
 
-	if results.TotalRows() == 0 {
+	metadata, err := results.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata shouldn't have returned error, was %v", err)
+	}
+
+	if metadata.TotalRows() == 0 {
 		t.Fatalf("Expected result TotalRows to be not zero")
 	}
 }
@@ -185,7 +190,12 @@ func testSimpleViewQueryOne(t *testing.T) {
 		t.Fatalf("Expected sample to be not nil")
 	}
 
-	if results.TotalRows() == 0 {
+	metadata, err := results.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata shouldn't have returned error, was %v", err)
+	}
+
+	if metadata.TotalRows() == 0 {
 		t.Fatalf("Expected result TotalRows to be not zero")
 	}
 }
@@ -213,7 +223,12 @@ func testSimpleViewQueryOneNone(t *testing.T) {
 		t.Fatalf("Expected sample to be nil but was %v", sample)
 	}
 
-	if results.TotalRows() == 0 {
+	metadata, err := results.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata shouldn't have returned error, was %v", err)
+	}
+
+	if metadata.TotalRows() == 0 {
 		t.Fatalf("Expected result TotalRows to be not zero")
 	}
 }
@@ -266,7 +281,12 @@ func testSimpleViewQueryNone(t *testing.T) {
 		t.Fatalf("Expected result to contain 0 documents but had %d", len(samples))
 	}
 
-	if results.TotalRows() == 0 {
+	metadata, err := results.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata shouldn't have returned error, was %v", err)
+	}
+
+	if metadata.TotalRows() == 0 {
 		t.Fatalf("Expected result TotalRows to be not zero")
 	}
 }

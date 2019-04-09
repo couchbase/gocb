@@ -55,19 +55,24 @@ type AnalyticsResultMetrics struct {
 	ProcessedObjects uint
 }
 
-// AnalyticsResults allows access to the results of a Analytics query.
-type AnalyticsResults struct {
-	err             error
+// AnalyticsResultsMetadata provides access to the metadata properties of an Analytics query result.
+type AnalyticsResultsMetadata struct {
 	requestID       string
 	clientContextID string
 	status          string
 	warnings        []AnalyticsWarning
 	signature       interface{}
 	metrics         AnalyticsResultMetrics
-	handle          *AnalyticsDeferredResultHandle
 	sourceAddr      string
-	httpStatus      int
+}
 
+// AnalyticsResults allows access to the results of an Analytics query.
+type AnalyticsResults struct {
+	metadata   AnalyticsResultsMetadata
+	err        error
+	httpStatus int
+
+	handle       *AnalyticsDeferredResultHandle
 	streamResult *streamingResult
 	cancel       context.CancelFunc
 	strace       opentracing.Span
@@ -153,57 +158,42 @@ func (r *AnalyticsResults) One(valuePtr interface{}) error {
 	return nil
 }
 
-// Warnings returns any warnings that occurred during query execution.
-func (r *AnalyticsResults) Warnings() []AnalyticsWarning {
+// Metadata returns metadata for this result.
+func (r *AnalyticsResults) Metadata() (*AnalyticsResultsMetadata, error) {
 	if !r.streamResult.Closed() {
-		panic("Result must be closed before accessing meta-data")
+		return nil, errors.New("result must be closed before accessing meta-data")
 	}
 
+	return &r.metadata, nil
+}
+
+// Warnings returns any warnings that occurred during query execution.
+func (r *AnalyticsResultsMetadata) Warnings() []AnalyticsWarning {
 	return r.warnings
 }
 
 // Status returns the status for the results.
-func (r *AnalyticsResults) Status() string {
-	if !r.streamResult.Closed() {
-		panic("Result must be closed before accessing meta-data")
-	}
-
+func (r *AnalyticsResultsMetadata) Status() string {
 	return r.status
 }
 
 // Signature returns TODO
-func (r *AnalyticsResults) Signature() interface{} {
-	if !r.streamResult.Closed() {
-		panic("Result must be closed before accessing meta-data")
-	}
-
+func (r *AnalyticsResultsMetadata) Signature() interface{} {
 	return r.signature
 }
 
 // Metrics returns metrics about execution of this result.
-func (r *AnalyticsResults) Metrics() AnalyticsResultMetrics {
-	if !r.streamResult.Closed() {
-		panic("Result must be closed before accessing meta-data")
-	}
-
+func (r *AnalyticsResultsMetadata) Metrics() AnalyticsResultMetrics {
 	return r.metrics
 }
 
 // RequestID returns the request ID used for this query.
-func (r *AnalyticsResults) RequestID() string {
-	if !r.streamResult.Closed() {
-		panic("Result must be closed before accessing meta-data")
-	}
-
+func (r *AnalyticsResultsMetadata) RequestID() string {
 	return r.requestID
 }
 
 // ClientContextID returns the context ID used for this query.
-func (r *AnalyticsResults) ClientContextID() string {
-	if !r.streamResult.Closed() {
-		panic("Result must be closed before accessing meta-data")
-	}
-
+func (r *AnalyticsResultsMetadata) ClientContextID() string {
 	return r.clientContextID
 }
 
@@ -218,12 +208,12 @@ func (r *AnalyticsResults) Handle() *AnalyticsDeferredResultHandle {
 func (r *AnalyticsResults) readAttribute(decoder *json.Decoder, t json.Token) (bool, error) {
 	switch t {
 	case "requestID":
-		err := decoder.Decode(&r.requestID)
+		err := decoder.Decode(&r.metadata.requestID)
 		if err != nil {
 			return false, err
 		}
 	case "clientContextID":
-		err := decoder.Decode(&r.clientContextID)
+		err := decoder.Decode(&r.metadata.clientContextID)
 		if err != nil {
 			return false, err
 		}
@@ -243,7 +233,7 @@ func (r *AnalyticsResults) readAttribute(decoder *json.Decoder, t json.Token) (b
 			logDebugf("Failed to parse execution time duration (%s)", err)
 		}
 
-		r.metrics = AnalyticsResultMetrics{
+		r.metadata.metrics = AnalyticsResultMetrics{
 			ElapsedTime:      elapsedTime,
 			ExecutionTime:    executionTime,
 			ResultCount:      metrics.ResultCount,
@@ -268,9 +258,9 @@ func (r *AnalyticsResults) readAttribute(decoder *json.Decoder, t json.Token) (b
 			// this isn't an error that we want to bail on so store it and keep going
 			r.err = analyticsQueryMultiError{
 				errors:     errs,
-				endpoint:   r.sourceAddr,
+				endpoint:   r.metadata.sourceAddr,
 				httpStatus: 200, // this can only be 200, for now at least
-				contextID:  r.clientContextID,
+				contextID:  r.metadata.clientContextID,
 			}
 		}
 	case "results":
@@ -285,17 +275,17 @@ func (r *AnalyticsResults) readAttribute(decoder *json.Decoder, t json.Token) (b
 
 		return true, nil
 	case "warnings":
-		err := decoder.Decode(&r.warnings)
+		err := decoder.Decode(&r.metadata.warnings)
 		if err != nil {
 			return false, err
 		}
 	case "signature":
-		err := decoder.Decode(&r.signature)
+		err := decoder.Decode(&r.metadata.signature)
 		if err != nil {
 			return false, err
 		}
 	case "status":
-		err := decoder.Decode(&r.status)
+		err := decoder.Decode(&r.metadata.status)
 		if err != nil {
 			return false, err
 		}
@@ -482,7 +472,9 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracin
 	strace := opentracing.GlobalTracer().StartSpan("streaming", opentracing.ChildOf(traceCtx))
 
 	queryResults := &AnalyticsResults{
-		sourceAddr:   epInfo.Host,
+		metadata: AnalyticsResultsMetadata{
+			sourceAddr: epInfo.Host,
+		},
 		httpStatus:   resp.StatusCode,
 		httpProvider: provider,
 	}
@@ -507,7 +499,7 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracin
 
 	queryResults.streamResult = streamResult
 
-	strace.SetTag("couchbase.operation_id", queryResults.requestID)
+	strace.SetTag("couchbase.operation_id", queryResults.metadata.requestID)
 
 	if streamResult.HasRows() {
 		queryResults.strace = strace

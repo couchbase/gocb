@@ -79,16 +79,21 @@ type searchResultStatus struct {
 	Errors     []string `json:"errors,omitempty"`
 }
 
+// SearchResultsMetadata provides access to the metadata properties of a search query result.
+type SearchResultsMetadata struct {
+	status     SearchResultStatus
+	totalHits  int
+	took       uint
+	maxScore   float64
+	sourceAddr string
+}
+
 // SearchResults allows access to the results of a search query.
 type SearchResults struct {
-	status    SearchResultStatus
-	err       error
-	totalHits int
-	facets    map[string]SearchResultFacet
-	took      uint
-	maxScore  float64
+	metadata SearchResultsMetadata
+	err      error
+	facets   map[string]SearchResultFacet
 
-	sourceAddr   string
 	httpStatus   int
 	streamResult *streamingResult
 	strace       opentracing.Span
@@ -174,48 +179,41 @@ func (r *SearchResults) One(hitPtr *SearchResultHit) error {
 	return nil
 }
 
-// Status is the status information for the results.
-func (r SearchResults) Status() SearchResultStatus {
+// Metadata returns metadata for this result.
+func (r *SearchResults) Metadata() (*SearchResultsMetadata, error) {
 	if !r.streamResult.Closed() {
-		panic("Result must be closed before accessing meta-data")
+		return nil, errors.New("result must be closed before accessing meta-data")
 	}
 
+	return &r.metadata, nil
+}
+
+// Status is the status information for the results.
+func (r SearchResultsMetadata) Status() SearchResultStatus {
 	return r.status
 }
 
 // TotalHits is the actual number of hits before the limit was applied.
-func (r SearchResults) TotalHits() int {
-	if !r.streamResult.Closed() {
-		panic("Result must be closed before accessing meta-data")
-	}
-
+func (r SearchResultsMetadata) TotalHits() int {
 	return r.totalHits
 }
 
 // Facets contains the information relative to the facets requested in the search query.
-func (r SearchResults) Facets() map[string]SearchResultFacet {
+func (r SearchResults) Facets() (map[string]SearchResultFacet, error) {
 	if !r.streamResult.Closed() {
-		panic("Result must be closed before accessing meta-data")
+		return nil, errors.New("result must be closed before accessing meta-data")
 	}
 
-	return r.facets
+	return r.facets, nil
 }
 
 // Took returns the time taken to execute the search.
-func (r SearchResults) Took() time.Duration {
-	if !r.streamResult.Closed() {
-		panic("Result must be closed before accessing meta-data")
-	}
-
+func (r SearchResultsMetadata) Took() time.Duration {
 	return time.Duration(r.took) / time.Nanosecond
 }
 
 // MaxScore returns the highest score of all documents for this query.
-func (r SearchResults) MaxScore() float64 {
-	if !r.streamResult.Closed() {
-		panic("Result must be closed before accessing meta-data")
-	}
-
+func (r SearchResultsMetadata) MaxScore() float64 {
 	return r.maxScore
 }
 
@@ -238,9 +236,9 @@ func (r *SearchResults) readAttribute(decoder *json.Decoder, t json.Token) (bool
 			return false, err
 		}
 
-		r.status.Total = status.Total
-		r.status.Successful = status.Successful
-		r.status.Failed = status.Failed
+		r.metadata.status.Total = status.Total
+		r.metadata.status.Successful = status.Successful
+		r.metadata.status.Failed = status.Failed
 
 		if len(status.Errors) > 0 {
 			errs := make([]SearchError, len(status.Errors))
@@ -251,12 +249,12 @@ func (r *SearchResults) readAttribute(decoder *json.Decoder, t json.Token) (bool
 			}
 			r.err = searchMultiError{
 				errors:     errs,
-				endpoint:   r.sourceAddr,
+				endpoint:   r.metadata.sourceAddr,
 				httpStatus: r.httpStatus,
 			}
 		}
 	case "total_hits":
-		err := decoder.Decode(&r.totalHits)
+		err := decoder.Decode(&r.metadata.totalHits)
 		if err != nil {
 			return false, err
 		}
@@ -266,12 +264,12 @@ func (r *SearchResults) readAttribute(decoder *json.Decoder, t json.Token) (bool
 			return false, err
 		}
 	case "took":
-		err := decoder.Decode(&r.took)
+		err := decoder.Decode(&r.metadata.took)
 		if err != nil {
 			return false, err
 		}
 	case "max_score":
-		err := decoder.Decode(&r.maxScore)
+		err := decoder.Decode(&r.metadata.maxScore)
 		if err != nil {
 			return false, err
 		}
@@ -289,7 +287,7 @@ func (r *SearchResults) readAttribute(decoder *json.Decoder, t json.Token) (bool
 			// this isn't an error that we want to bail on so store it and keep going
 			r.err = searchMultiError{
 				errors:     errs,
-				endpoint:   r.sourceAddr,
+				endpoint:   r.metadata.sourceAddr,
 				httpStatus: r.httpStatus,
 			}
 		}
@@ -305,7 +303,7 @@ func (r *SearchResults) readAttribute(decoder *json.Decoder, t json.Token) (bool
 					message: sErr,
 				},
 			},
-			endpoint:   r.sourceAddr,
+			endpoint:   r.metadata.sourceAddr,
 			httpStatus: r.httpStatus,
 		}
 	case "hits":
@@ -517,19 +515,21 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.S
 	strace := opentracing.GlobalTracer().StartSpan("streaming", opentracing.ChildOf(traceCtx))
 
 	queryResults := &SearchResults{
-		sourceAddr: epInfo.Host,
+		metadata: SearchResultsMetadata{
+			sourceAddr: epInfo.Host,
+		},
 		httpStatus: resp.StatusCode,
 	}
 
 	errHandled := false
 	switch resp.StatusCode {
 	case 400:
-		queryResults.status.Total = 1
-		queryResults.status.Failed = 1
+		queryResults.metadata.status.Total = 1
+		queryResults.metadata.status.Failed = 1
 		errHandled = true
 	case 401:
-		queryResults.status.Total = 1
-		queryResults.status.Failed = 1
+		queryResults.metadata.status.Total = 1
+		queryResults.metadata.status.Failed = 1
 		queryResults.err = searchMultiError{
 			errors: []SearchError{
 				searchError{

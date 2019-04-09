@@ -21,9 +21,14 @@ type viewResponse struct {
 	Errors    []viewError       `json:"errors,omitempty"`
 }
 
+// ViewResultsMetadata provides access to the metadata properties of a view query result.
+type ViewResultsMetadata struct {
+	totalRows int
+}
+
 // ViewResults implements an iterator interface which can be used to iterate over the rows of the query results.
 type ViewResults struct {
-	totalRows  int
+	metadata   ViewResultsMetadata
 	errReason  string
 	errMessage string
 
@@ -103,7 +108,7 @@ func (r *ViewResults) makeError() error {
 func (r *ViewResults) readAttribute(decoder *json.Decoder, t json.Token) (bool, error) {
 	switch t {
 	case "total_rows":
-		err := decoder.Decode(&r.totalRows)
+		err := decoder.Decode(&r.metadata.totalRows)
 		if err != nil {
 			return false, err
 		}
@@ -182,12 +187,17 @@ func (r *ViewResults) One(valuePtr interface{}) error {
 	return nil
 }
 
-// TotalRows returns the total number of rows in the view, can be greater than the number of rows returned.
-func (r *ViewResults) TotalRows() int {
-	if !r.streamResult.Closed() {
-		panic("Result must be closed before accessing meta-data")
+// Metadata returns metadata for this result.
+func (r *ViewResults) Metadata() (*ViewResultsMetadata, error) {
+	if r.streamResult != nil && !r.streamResult.Closed() {
+		return nil, errors.New("result must be closed before accessing meta-data")
 	}
 
+	return &r.metadata, nil
+}
+
+// TotalRows returns the total number of rows in the view, can be greater than the number of rows returned.
+func (r *ViewResultsMetadata) TotalRows() int {
 	return r.totalRows
 }
 

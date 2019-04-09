@@ -57,16 +57,21 @@ type QueryResultMetrics struct {
 	WarningCount  uint
 }
 
-// QueryResults allows access to the results of a N1QL query.
-type QueryResults struct {
+// QueryResultsMetadata provides access to the metadata properties of a N1QL query result.
+type QueryResultsMetadata struct {
 	requestID       string
 	clientContextID string
 	metrics         QueryResultMetrics
 	signature       interface{}
 	warnings        []QueryWarning
 	sourceAddr      string
-	err             error
-	httpStatus      int
+}
+
+// QueryResults allows access to the results of a N1QL query.
+type QueryResults struct {
+	metadata   QueryResultsMetadata
+	err        error
+	httpStatus int
 
 	streamResult *streamingResult
 	strace       opentracing.Span
@@ -152,66 +157,55 @@ func (r *QueryResults) One(valuePtr interface{}) error {
 	return nil
 }
 
+// Metadata returns metadata for this result.
+func (r *QueryResults) Metadata() (*QueryResultsMetadata, error) {
+	if !r.streamResult.Closed() {
+		return nil, errors.New("result must be closed before accessing meta-data")
+	}
+
+	return &r.metadata, nil
+}
+
 // SourceEndpoint returns the endpoint used for execution of this query.
 // VOLATILE
-func (r *QueryResults) SourceEndpoint() string {
+func (r *QueryResultsMetadata) SourceEndpoint() string {
 	return r.sourceAddr
 }
 
 // RequestID returns the request ID used for this query.
-func (r *QueryResults) RequestID() string {
-	if !r.streamResult.Closed() {
-		panic("Result must be closed before accessing meta-data")
-	}
-
+func (r *QueryResultsMetadata) RequestID() string {
 	return r.requestID
 }
 
 // ClientContextID returns the context ID used for this query.
-func (r *QueryResults) ClientContextID() string {
-	if !r.streamResult.Closed() {
-		panic("Result must be closed before accessing meta-data")
-	}
-
+func (r *QueryResultsMetadata) ClientContextID() string {
 	return r.clientContextID
 }
 
 // Metrics returns metrics about execution of this result.
-func (r *QueryResults) Metrics() QueryResultMetrics {
-	if !r.streamResult.Closed() {
-		panic("Result must be closed before accessing meta-data")
-	}
-
+func (r *QueryResultsMetadata) Metrics() QueryResultMetrics {
 	return r.metrics
 }
 
 // Warnings returns any warnings that were generated during execution of the query.
-func (r *QueryResults) Warnings() []QueryWarning {
-	if !r.streamResult.Closed() {
-		panic("Result must be closed before accessing meta-data")
-	}
-
+func (r *QueryResultsMetadata) Warnings() []QueryWarning {
 	return r.warnings
 }
 
 // Signature returns the schema of the results.
-func (r *QueryResults) Signature() interface{} {
-	if !r.streamResult.Closed() {
-		panic("Result must be closed before accessing meta-data")
-	}
-
+func (r *QueryResultsMetadata) Signature() interface{} {
 	return r.signature
 }
 
 func (r *QueryResults) readAttribute(decoder *json.Decoder, t json.Token) (bool, error) {
 	switch t {
 	case "requestID":
-		err := decoder.Decode(&r.requestID)
+		err := decoder.Decode(&r.metadata.requestID)
 		if err != nil {
 			return false, err
 		}
 	case "clientContextID":
-		err := decoder.Decode(&r.clientContextID)
+		err := decoder.Decode(&r.metadata.clientContextID)
 		if err != nil {
 			return false, err
 		}
@@ -231,7 +225,7 @@ func (r *QueryResults) readAttribute(decoder *json.Decoder, t json.Token) (bool,
 			logDebugf("Failed to parse execution time duration (%s)", err)
 		}
 
-		r.metrics = QueryResultMetrics{
+		r.metadata.metrics = QueryResultMetrics{
 			ElapsedTime:   elapsedTime,
 			ExecutionTime: executionTime,
 			ResultCount:   metrics.ResultCount,
@@ -255,9 +249,9 @@ func (r *QueryResults) readAttribute(decoder *json.Decoder, t json.Token) (bool,
 			// this isn't an error that we want to bail on so store it and keep going
 			r.err = queryMultiError{
 				errors:     errs,
-				endpoint:   r.sourceAddr,
+				endpoint:   r.metadata.sourceAddr,
 				httpStatus: r.httpStatus,
-				contextID:  r.clientContextID,
+				contextID:  r.metadata.clientContextID,
 			}
 		}
 	case "results":
@@ -272,12 +266,12 @@ func (r *QueryResults) readAttribute(decoder *json.Decoder, t json.Token) (bool,
 
 		return true, nil
 	case "warnings":
-		err := decoder.Decode(&r.warnings)
+		err := decoder.Decode(&r.metadata.warnings)
 		if err != nil {
 			return false, err
 		}
 	case "signature":
-		err := decoder.Decode(&r.signature)
+		err := decoder.Decode(&r.metadata.signature)
 		if err != nil {
 			return false, err
 		}
@@ -575,7 +569,9 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, traceCtx opentracing.Spa
 	strace := opentracing.GlobalTracer().StartSpan("streaming", opentracing.ChildOf(traceCtx))
 
 	queryResults := &QueryResults{
-		sourceAddr: epInfo.Host,
+		metadata: QueryResultsMetadata{
+			sourceAddr: epInfo.Host,
+		},
 		httpStatus: resp.StatusCode,
 	}
 
@@ -599,7 +595,7 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, traceCtx opentracing.Spa
 
 	queryResults.streamResult = streamResult
 
-	strace.SetTag("couchbase.operation_id", queryResults.requestID)
+	strace.SetTag("couchbase.operation_id", queryResults.metadata.requestID)
 
 	if streamResult.HasRows() {
 		queryResults.strace = strace

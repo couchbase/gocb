@@ -137,7 +137,12 @@ func testSimpleSearchQuery(t *testing.T) {
 		t.Fatalf("Expected result to contain documents but had none")
 	}
 
-	if results.TotalHits() == 0 {
+	metadata, err := results.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.TotalHits() == 0 {
 		t.Fatalf("Expected result TotalRows to be not 0 but was")
 	}
 }
@@ -157,7 +162,12 @@ func testSimpleSearchQueryOne(t *testing.T) {
 		t.Fatalf("One had error: %v", err)
 	}
 
-	if results.TotalHits() == 0 {
+	metadata, err := results.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.TotalHits() == 0 {
 		t.Fatalf("Expected result TotalRows to be not 0 but was")
 	}
 }

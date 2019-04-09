@@ -62,11 +62,16 @@ func testSimpleQuery(t *testing.T) {
 		t.Fatalf("Expected result to contain 10000 documents but had %d", len(samples))
 	}
 
-	if results.RequestID() == "" {
+	metadata, err := results.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 
-	if results.SourceEndpoint() == "" {
+	if metadata.SourceEndpoint() == "" {
 		t.Fatalf("Result should have had non empty SourceEndpoint")
 	}
 }
@@ -97,11 +102,16 @@ func testSimpleQueryStreamTimeout(t *testing.T) {
 		t.Fatalf("Expected error to be timeout but was %v", err)
 	}
 
-	if results.RequestID() == "" {
+	metadata, err := results.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 
-	if results.SourceEndpoint() == "" {
+	if metadata.SourceEndpoint() == "" {
 		t.Fatalf("Result should have had non empty SourceEndpoint")
 	}
 }
@@ -134,11 +144,16 @@ func testSimpleQueryStreamContextTimeout(t *testing.T) {
 		t.Fatalf("Expected error to be timeout but was %v", err)
 	}
 
-	if results.RequestID() == "" {
+	metadata, err := results.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 
-	if results.SourceEndpoint() == "" {
+	if metadata.SourceEndpoint() == "" {
 		t.Fatalf("Result should have had non empty SourceEndpoint")
 	}
 }
@@ -160,11 +175,16 @@ func testSimpleQueryOne(t *testing.T) {
 		t.Fatalf("Expected sample to be not nil")
 	}
 
-	if results.RequestID() == "" {
+	metadata, err := results.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 
-	if results.SourceEndpoint() == "" {
+	if metadata.SourceEndpoint() == "" {
 		t.Fatalf("Result should have had non empty SourceEndpoint")
 	}
 }
@@ -190,11 +210,16 @@ func testSimpleQueryOneNone(t *testing.T) {
 		t.Fatalf("Expected sample to be nil but was %v", sample)
 	}
 
-	if results.RequestID() == "" {
+	metadata, err := results.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 
-	if results.SourceEndpoint() == "" {
+	if metadata.SourceEndpoint() == "" {
 		t.Fatalf("Result should have had non empty SourceEndpoint")
 	}
 }
@@ -221,11 +246,16 @@ func testSimpleQueryOneError(t *testing.T) {
 		t.Fatalf("Expected sample to be nil but was %v", sample)
 	}
 
-	if results.RequestID() == "" {
+	metadata, err := results.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 
-	if results.SourceEndpoint() == "" {
+	if metadata.SourceEndpoint() == "" {
 		t.Fatalf("Result should have had non empty SourceEndpoint")
 	}
 }
@@ -252,11 +282,16 @@ func testSimpleQueryNone(t *testing.T) {
 		t.Fatalf("Expected result to contain 0 documents but had %d", len(samples))
 	}
 
-	if results.RequestID() == "" {
+	metadata, err := results.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 
-	if results.SourceEndpoint() == "" {
+	if metadata.SourceEndpoint() == "" {
 		t.Fatalf("Result should have had non empty SourceEndpoint")
 	}
 }
@@ -288,11 +323,16 @@ func testSimpleQueryError(t *testing.T) {
 		t.Fatalf("Expected result to contain 0 documents but had %d", len(samples))
 	}
 
-	if results.RequestID() == "" {
+	metadata, err := results.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 
-	if results.SourceEndpoint() == "" {
+	if metadata.SourceEndpoint() == "" {
 		t.Fatalf("Result should have had non empty SourceEndpoint")
 	}
 }
@@ -319,11 +359,16 @@ func testPreparedQuery(t *testing.T) {
 		t.Fatalf("Expected result to contain 10000 documents but had %d", len(samples))
 	}
 
-	if results.RequestID() == "" {
+	metadata, err := results.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 
-	if results.SourceEndpoint() == "" {
+	if metadata.SourceEndpoint() == "" {
 		t.Fatalf("Result should have had non empty SourceEndpoint")
 	}
 
@@ -351,11 +396,16 @@ func testPreparedQuery(t *testing.T) {
 		t.Fatalf("Expected result to contain 10000 documents but had %d", len(secondSamples))
 	}
 
-	if results.RequestID() == "" {
+	metadata, err = results.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 
-	if results.SourceEndpoint() == "" {
+	if metadata.SourceEndpoint() == "" {
 		t.Fatalf("Result should have had non empty SourceEndpoint")
 	}
 
@@ -389,11 +439,16 @@ func testQueryNamedParameters(t *testing.T) {
 		t.Fatalf("Expected breweries to contain 1 document but had %d", len(samples))
 	}
 
-	if results.RequestID() == "" {
+	metadata, err := results.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 
-	if results.SourceEndpoint() == "" {
+	if metadata.SourceEndpoint() == "" {
 		t.Fatalf("Result should have had non empty SourceEndpoint")
 	}
 }
@@ -420,11 +475,16 @@ func testQueryPositionalParameters(t *testing.T) {
 		t.Fatalf("Expected breweries to contain 1 document but had %d", len(samples))
 	}
 
-	if results.RequestID() == "" {
+	metadata, err := results.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
+	}
+
+	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 
-	if results.SourceEndpoint() == "" {
+	if metadata.SourceEndpoint() == "" {
 		t.Fatalf("Result should have had non empty SourceEndpoint")
 	}
 }
@@ -853,22 +913,25 @@ func testAssertQueryResult(t *testing.T, expectedResult *n1qlResponse, actualRes
 				t.Fatalf("Docs did not match, expected %v but was %v", doc, breweryDocs[i])
 			}
 		}
-	} else {
-
 	}
 
-	if actualResult.ClientContextID() != expectedResult.ClientContextID {
-		t.Fatalf("Expected ClientContextID to be %s but was %s", expectedResult.ClientContextID, actualResult.ClientContextID())
+	metadata, err := actualResult.Metadata()
+	if err != nil {
+		t.Fatalf("Metadata had error: %v", err)
 	}
 
-	if actualResult.RequestID() != expectedResult.RequestID {
-		t.Fatalf("Expected RequestID to be %s but was %s", expectedResult.RequestID, actualResult.RequestID())
-	}
-	if actualResult.SourceEndpoint() != "localhost:8093" {
-		t.Fatalf("Expected endpoint to be %s but was %s", "localhost:8093", actualResult.SourceEndpoint())
+	if metadata.ClientContextID() != expectedResult.ClientContextID {
+		t.Fatalf("Expected ClientContextID to be %s but was %s", expectedResult.ClientContextID, metadata.ClientContextID())
 	}
 
-	metrics := actualResult.Metrics()
+	if metadata.RequestID() != expectedResult.RequestID {
+		t.Fatalf("Expected RequestID to be %s but was %s", expectedResult.RequestID, metadata.RequestID())
+	}
+	if metadata.SourceEndpoint() != "localhost:8093" {
+		t.Fatalf("Expected endpoint to be %s but was %s", "localhost:8093", metadata.SourceEndpoint())
+	}
+
+	metrics := metadata.Metrics()
 	elapsedTime, err := time.ParseDuration(expectedResult.Metrics.ElapsedTime)
 	if err != nil {
 		t.Fatalf("Failed to parse ElapsedTime %v", err)
