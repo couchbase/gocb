@@ -555,7 +555,7 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.S
 		return nil, errOut
 	}
 
-	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute, []json.Delim{'{'})
+	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)
 	if err != nil {
 		reqCancel()
 		strace.Finish()
