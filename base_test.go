@@ -22,8 +22,6 @@ var globalCollection *Collection
 var globalCluster *testCluster
 
 func TestMain(m *testing.M) {
-	// SetLogger(VerboseStdioLogger())
-
 	server := flag.String("server", "", "The connection string to connect to for a real server")
 	user := flag.String("user", "", "The username to use to authenticate when using a real server")
 	password := flag.String("pass", "", "The password to use to authenticate when using a real server")
@@ -31,7 +29,12 @@ func TestMain(m *testing.M) {
 	// bucketPassword := flag.String("bucket-pass", "", "The bucket password to use when connecting to the bucket")
 	version := flag.String("version", "", "The server or mock version being tested against (major.minor.patch.build_edition)")
 	collectionName := flag.String("collection-name", "", "The name of the collection to use")
+	disableLogger := flag.Bool("disable-logger", false, "Whether to disable the logger")
 	flag.Parse()
+
+	if !*disableLogger {
+		SetLogger(VerboseStdioLogger())
+	}
 
 	var err error
 	var connStr string

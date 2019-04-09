@@ -33,4 +33,7 @@ lint: checkfmt checkerrs checkvet checkiea checkspell
 check: lint
 	go test -short -cover -race ./
 
-.PHONY: all test devsetup fasttest lint cover checkerrs checkfmt checkvet checkiea checkspell check
+bench:
+	go test -bench=. -run=none --disable-logger=true
+
+.PHONY: all test devsetup fasttest lint cover checkerrs checkfmt checkvet checkiea checkspell check bench
