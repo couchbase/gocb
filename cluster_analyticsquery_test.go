@@ -200,7 +200,7 @@ func testSimpleAnalyticsQueryOneNone(t *testing.T) {
 		t.Fatalf("Expected One to return error")
 	}
 
-	if err != ErrNoResults {
+	if !IsNoResultsError(err) {
 		t.Fatalf("Expected error to be no results but was %v", err)
 	}
 

@@ -171,7 +171,7 @@ func (r *ViewResults) One(valuePtr interface{}) error {
 		if err != nil {
 			return err
 		}
-		return ErrNoResults // TODO
+		return noResultsError{}
 	}
 
 	// We have to purge the remaining rows in order to get to the remaining

@@ -300,6 +300,16 @@ func IsDurabilityError(err error) bool {
 	}
 }
 
+// IsNoResultsError verifies whether or not the cause for an error is due no results being available to a query.
+func IsNoResultsError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case NoResultsError:
+		return errType.NoResultsError()
+	default:
+		return false
+	}
+}
+
 type clientError struct {
 	message string
 }
@@ -806,6 +816,24 @@ func ErrorCause(err error) error {
 	return errors.Cause(err)
 }
 
+// NoResultsError occurs when when no results are available to a query.
+type NoResultsError interface {
+	error
+	NoResultsError() bool
+}
+
+type noResultsError struct {
+}
+
+func (e noResultsError) Error() string {
+	return "No results returned."
+}
+
+// NoResultsError indicates whether or not this error is a NoResultsError
+func (e noResultsError) NoResultsError() bool {
+	return true
+}
+
 func isRetryableError(err error) bool {
 	switch errType := errors.Cause(err).(type) {
 	case retryAbleError:
@@ -852,8 +880,6 @@ var (
 	// ErrDurabilityTimeout occurs when the server took too long to meet the specified durability requirements.
 	// ErrDurabilityTimeout = errors.New("Failed to meet durability requirements in time.")
 
-	// ErrNoResults occurs when no results are available to a query.
-	ErrNoResults = errors.New("No results returned.")
 	// ErrNoOpenBuckets occurs when a cluster-level operation is performed before any buckets are opened.
 	ErrNoOpenBuckets = errors.New("You must open a bucket before you can perform cluster level operations.")
 	// ErrIndexInvalidName occurs when an invalid name was specified for an index.
