@@ -434,21 +434,11 @@ func (c *Cluster) searchQuery(ctx context.Context, traceCtx opentracing.SpanCont
 	for {
 		retries++
 		res, err = c.executeSearchQuery(ctx, traceCtx, queryData, qIndexName, provider)
-		if err != nil {
+		if err == nil {
 			break
 		}
 
-		if !res.streamResult.Closed() {
-			// the stream is open so there's no way we have query errors already
-			break
-		}
-
-		// There were no rows so it's likely there was an error
-		resErr := res.err
-		if resErr == nil {
-			break
-		}
-		if !isRetryableError(resErr) || c.sb.SearchRetryBehavior == nil || !c.sb.SearchRetryBehavior.CanRetry(retries) {
+		if !isRetryableError(err) || c.sb.SearchRetryBehavior == nil || !c.sb.SearchRetryBehavior.CanRetry(retries) {
 			break
 		}
 
@@ -543,16 +533,19 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.S
 	}
 
 	if resp.StatusCode != 200 && !errHandled {
-		errOut := &httpError{
-			statusCode: resp.StatusCode,
-		}
-		if resp.StatusCode == 429 {
-			errOut.isRetryable = true
+		err = searchMultiError{
+			errors: []SearchError{
+				searchError{
+					message: "An unknown error occurred",
+				},
+			},
+			endpoint:   epInfo.Host,
+			httpStatus: resp.StatusCode,
 		}
 
 		reqCancel()
 		strace.Finish()
-		return nil, errOut
+		return nil, err
 	}
 
 	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)
@@ -585,6 +578,11 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.S
 		}
 		reqCancel()
 		strace.Finish()
+
+		// There are no rows and there are errors so fast fail
+		if queryResults.err != nil {
+			return nil, queryResults.err
+		}
 	}
 	return queryResults, nil
 }

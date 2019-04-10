@@ -46,7 +46,6 @@ func TestViewQuery(t *testing.T) {
 	t.Run("testSimpleViewQueryNone", testSimpleViewQueryNone)
 	t.Run("testSimpleViewQueryOneNone", testSimpleViewQueryOneNone)
 	t.Run("testSimpleViewQueryError", testSimpleViewQueryError)
-	t.Run("testSimpleViewQueryOneError", testSimpleViewQueryOneError)
 }
 
 func testCreateView(t *testing.T) {
@@ -233,30 +232,6 @@ func testSimpleViewQueryOneNone(t *testing.T) {
 	}
 }
 
-func testSimpleViewQueryOneError(t *testing.T) {
-	results, err := globalTravelBucket.ViewQuery("travel", "sampl", &ViewOptions{
-		Limit: 1,
-	})
-	if err != nil {
-		t.Fatalf("Failed to execute query %v", err)
-	}
-
-	var sample interface{}
-	err = results.One(&sample)
-	if err == nil {
-		t.Fatalf("Expected One to return error")
-	}
-
-	_, ok := err.(ViewQueryErrors)
-	if !ok {
-		t.Fatalf("Expected error to be ViewQueryErrors but was %s", reflect.TypeOf(err).String())
-	}
-
-	if sample != nil {
-		t.Fatalf("Expected sample to be nil but was %v", sample)
-	}
-}
-
 func testSimpleViewQueryNone(t *testing.T) {
 	results, err := globalTravelBucket.ViewQuery("travel", "sample", &ViewOptions{
 		Limit: 10000,
@@ -292,31 +267,11 @@ func testSimpleViewQueryNone(t *testing.T) {
 }
 
 func testSimpleViewQueryError(t *testing.T) {
-	results, err := globalTravelBucket.ViewQuery("travel", "sampl", &ViewOptions{
+	_, err := globalTravelBucket.ViewQuery("travel", "sampl", &ViewOptions{
 		Limit: 1,
 	})
-	if err != nil {
-		t.Fatalf("Failed to execute query %v", err)
-	}
-
-	var samples []interface{}
-	var sample interface{}
-	for results.Next(&sample) {
-		samples = append(samples, sample)
-	}
-
-	err = results.Close()
 	if err == nil {
-		t.Fatalf("Expected results close should to have error")
-	}
-
-	_, ok := err.(ViewQueryErrors)
-	if !ok {
-		t.Fatalf("Expected error to be ViewQueryErrors but was %s", reflect.TypeOf(err).String())
-	}
-
-	if len(samples) != 0 {
-		t.Fatalf("Expected result to contain 0 documents but had %d", len(samples))
+		t.Fatalf("Expected execute query to error")
 	}
 }
 
@@ -339,28 +294,9 @@ func TestViewQuery500Error(t *testing.T) {
 
 	bucket := testGetBucketForHTTP(provider, timeout)
 
-	res, err := bucket.ViewQuery("test", "test", nil)
-	if err != nil {
-		t.Fatalf("Expected query to not return error but was %v", err)
-	}
-
-	if res == nil {
-		t.Fatal("Expected result to be not nil but was")
-	}
-
-	var results []interface{}
-	var row interface{}
-	for res.Next(&row) {
-		results = append(results, row)
-	}
-
-	if len(results) > 0 {
-		t.Fatalf("results should have had length 0 but was %d", len(results))
-	}
-
-	err = res.Close()
+	_, err := bucket.ViewQuery("test", "test", nil)
 	if err == nil {
-		t.Fatalf("results close should have errored")
+		t.Fatalf("Expected query to return error")
 	}
 
 	queryErrs, ok := err.(ViewQueryErrors)

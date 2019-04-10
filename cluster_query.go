@@ -376,21 +376,11 @@ func (c *Cluster) query(ctx context.Context, traceCtx opentracing.SpanContext, s
 			res, err = c.executeN1qlQuery(ctx, traceCtx, queryOpts, provider)
 			etrace.Finish()
 		}
-		if err != nil {
+		if err == nil {
 			break
 		}
 
-		if !res.streamResult.Closed() {
-			// the stream is open so there's no way we have query errors already
-			break
-		}
-
-		// There were no rows so it's likely there was an error
-		resErr := res.err
-		if resErr == nil {
-			break
-		}
-		if !isRetryableError(resErr) || c.sb.N1qlRetryBehavior == nil || !c.sb.N1qlRetryBehavior.CanRetry(retries) {
+		if !isRetryableError(err) || c.sb.N1qlRetryBehavior == nil || !c.sb.N1qlRetryBehavior.CanRetry(retries) {
 			break
 		}
 
@@ -607,6 +597,11 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, traceCtx opentracing.Spa
 		}
 		reqCancel()
 		strace.Finish()
+
+		// There are no rows and there are errors so fast fail
+		if queryResults.err != nil {
+			return nil, queryResults.err
+		}
 	}
 	return queryResults, nil
 }

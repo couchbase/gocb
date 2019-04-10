@@ -347,7 +347,7 @@ func (b *Bucket) executeViewQuery(ctx context.Context, traceCtx opentracing.Span
 			if err != nil {
 				return nil, err
 			}
-			queryResults.err = viewMultiError{
+			err = viewMultiError{
 				errors: []ViewQueryError{
 					viewError{
 						ErrorMessage: errMsg.(string),
@@ -357,6 +357,8 @@ func (b *Bucket) executeViewQuery(ctx context.Context, traceCtx opentracing.Span
 				httpStatus: resp.StatusCode,
 				endpoint:   resp.Endpoint,
 			}
+
+			return nil, err
 		} else if t == '{' {
 			queryResults.streamResult = &streamingResult{
 				decoder:     decoder,
@@ -398,6 +400,12 @@ func (b *Bucket) executeViewQuery(ctx context.Context, traceCtx opentracing.Span
 		}
 		reqCancel()
 		strace.Finish()
+
+		// There are no rows and there are errors so fast fail
+		err = queryResults.makeError()
+		if err != nil {
+			return nil, err
+		}
 	}
 	return queryResults, nil
 }

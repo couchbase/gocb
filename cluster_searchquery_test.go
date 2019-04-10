@@ -3,7 +3,6 @@ package gocb
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"testing"
 	"time"
 
@@ -176,29 +175,9 @@ func testSimpleSearchQueryError(t *testing.T) {
 	indexName := "travel-sample-index-unsored"
 	query := SearchQuery{Name: indexName, Query: NewMatchQuery("swanky")}
 
-	results, err := globalCluster.SearchQuery(query, &SearchQueryOptions{Limit: 1000})
-	if err != nil {
-		t.Fatalf("Failed to execute query %v", err)
-	}
-
-	var samples []SearchResultHit
-	var sample SearchResultHit
-	for results.Next(&sample) {
-		samples = append(samples, sample)
-	}
-
-	err = results.Close()
+	_, err := globalCluster.SearchQuery(query, &SearchQueryOptions{Limit: 1000})
 	if err == nil {
-		t.Fatalf("Expected results close should to have error")
-	}
-
-	_, ok := err.(SearchErrors)
-	if !ok {
-		t.Fatalf("Expected error to be SearchErrors but was %s", reflect.TypeOf(err).String())
-	}
-
-	if len(samples) != 0 {
-		t.Fatalf("Expected result to contain 0 documents but had %d", len(samples))
+		t.Fatalf("Execute query should have errored")
 	}
 }
 
@@ -230,5 +209,40 @@ func TestSearchQueryServiceNotFound(t *testing.T) {
 
 	if !IsServiceNotFoundError(err) {
 		t.Fatalf("Expected error to be ServiceNotFoundError but was %v", err)
+	}
+}
+
+func TestSearchQueryRetries(t *testing.T) {
+	q := SearchQuery{
+		Name:  "test",
+		Query: NewMatchQuery("test"),
+	}
+	timeout := 60 * time.Second
+
+	var retries int
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		retries++
+
+		return &gocbcore.HttpResponse{
+			Endpoint:   "http://localhost:8093",
+			StatusCode: 419,
+		}, nil
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+	}
+
+	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
+	cluster.sb.SearchRetryBehavior = StandardDelayRetryBehavior(3, 1, 100*time.Millisecond, LinearDelayFunction)
+
+	_, err := cluster.SearchQuery(q, nil)
+	if err == nil {
+		t.Fatal("Expected query execution to error")
+	}
+
+	if retries != 3 {
+		t.Fatalf("Expected query to be retried 3 time but ws retried %d times", retries)
 	}
 }

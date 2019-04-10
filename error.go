@@ -220,16 +220,6 @@ func IsTimeoutError(err error) bool {
 	}
 }
 
-// IsPartialResultsError indicates whether or not the response returned error(s) but also contains data.
-func IsPartialResultsError(err error) bool {
-	switch errType := errors.Cause(err).(type) {
-	case PartialResultError:
-		return errType.PartialResults()
-	default:
-		return false
-	}
-}
-
 // IsAuthenticationError verifies whether or not the cause for an error is an authentication error.
 func IsAuthenticationError(err error) bool {
 	cause := errors.Cause(err)
@@ -349,11 +339,6 @@ func (err timeoutError) Error() string {
 
 func (err timeoutError) Timeout() bool {
 	return true
-}
-
-// PartialResultError indicates that an error occurred but that data was also returned.
-type PartialResultError interface {
-	PartialResults() bool
 }
 
 // ServiceNotFoundError is a generic error for HTTP errors.
@@ -748,7 +733,6 @@ type SearchErrors interface {
 	HTTPStatus() int
 	Endpoint() string
 	ContextID() string
-	PartialResults() bool
 }
 
 type searchMultiError struct {
@@ -756,7 +740,6 @@ type searchMultiError struct {
 	httpStatus int
 	endpoint   string
 	contextID  string
-	partial    bool
 }
 
 func (e searchMultiError) Error() string {
@@ -788,8 +771,8 @@ func (e searchMultiError) Errors() []SearchError {
 }
 
 // PartialResults indicates whether or not the operation also yielded results.
-func (e searchMultiError) PartialResults() bool {
-	return e.partial
+func (e searchMultiError) retryable() bool {
+	return e.httpStatus == 419
 }
 
 // ConfigurationError occurs when the client is configured incorrectly.

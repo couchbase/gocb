@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"testing"
 	"time"
 
@@ -46,7 +45,6 @@ func TestAnalyticsQuery(t *testing.T) {
 	t.Run("testSimpleAnalyticsQueryNone", testSimpleAnalyticsQueryNone)
 	t.Run("testSimpleAnalyticsQueryOneNone", testSimpleAnalyticsQueryOneNone)
 	t.Run("testSimpleAnalyticsQueryError", testSimpleAnalyticsQueryError)
-	t.Run("testSimpleAnalyticsQueryOneError", testSimpleAnalyticsQueryOneError)
 	t.Run("testAnalyticsQueryNamedParameters", testAnalyticsQueryNamedParameters)
 	t.Run("testAnalyticsQueryPositionalParameters", testAnalyticsQueryPositionalParameters)
 }
@@ -218,38 +216,6 @@ func testSimpleAnalyticsQueryOneNone(t *testing.T) {
 	}
 }
 
-func testSimpleAnalyticsQueryOneError(t *testing.T) {
-	query := "SELECT `travel-sample`. FROM `travel-sample` LIMIT 10000;"
-	rows, err := globalCluster.AnalyticsQuery(query, nil)
-	if err != nil {
-		t.Fatalf("Failed to execute query %v", err)
-	}
-
-	var sample interface{}
-	err = rows.One(&sample)
-	if err == nil {
-		t.Fatalf("Expected One to return error")
-	}
-
-	_, ok := err.(AnalyticsQueryErrors)
-	if !ok {
-		t.Fatalf("Expected error to be AnalyticsQueryErrors but was %s", reflect.TypeOf(err).String())
-	}
-
-	if sample != nil {
-		t.Fatalf("Expected sample to be nil but was %v", sample)
-	}
-
-	metadata, err := rows.Metadata()
-	if err != nil {
-		t.Fatalf("Metadata had error: %v", err)
-	}
-
-	if metadata.RequestID() == "" {
-		t.Fatalf("Result should have had non empty RequestID")
-	}
-}
-
 func testSimpleAnalyticsQueryNone(t *testing.T) {
 	query := "SELECT `travel-sample`.* FROM `travel-sample` WHERE `name` = \"Idontexist\" LIMIT 10000;"
 	rows, err := globalCluster.AnalyticsQuery(query, nil)
@@ -284,38 +250,9 @@ func testSimpleAnalyticsQueryNone(t *testing.T) {
 
 func testSimpleAnalyticsQueryError(t *testing.T) {
 	query := "SELECT `travel-sample`. FROM `travel-sample` LIMIT 10000;"
-	rows, err := globalCluster.AnalyticsQuery(query, nil)
-	if err != nil {
-		t.Fatalf("Failed to execute query %v", err)
-	}
-
-	var samples []interface{}
-	var sample interface{}
-	for rows.Next(&sample) {
-		samples = append(samples, sample)
-	}
-
-	err = rows.Close()
+	_, err := globalCluster.AnalyticsQuery(query, nil)
 	if err == nil {
-		t.Fatalf("Expected rows close should to have error")
-	}
-
-	_, ok := err.(AnalyticsQueryErrors)
-	if !ok {
-		t.Fatalf("Expected error to be AnalyticsQueryErrors but was %s", reflect.TypeOf(err).String())
-	}
-
-	if len(samples) != 0 {
-		t.Fatalf("Expected result to contain 0 documents but had %d", len(samples))
-	}
-
-	metadata, err := rows.Metadata()
-	if err != nil {
-		t.Fatalf("Metadata had error: %v", err)
-	}
-
-	if metadata.RequestID() == "" {
-		t.Fatalf("Result should have had non empty RequestID")
+		t.Fatalf("Expected execute query to error")
 	}
 }
 
@@ -503,7 +440,7 @@ func TestAnalyticsQueryConnectTimeout(t *testing.T) {
 		ServerSideTimeout: timeout,
 		Context:           ctx,
 	})
-	if err != nil && !IsTimeoutError(err) {
+	if err == nil || !IsTimeoutError(err) {
 		t.Fatal(err)
 	}
 }
@@ -555,7 +492,7 @@ func TestAnalyticsQueryConnectContextTimeout(t *testing.T) {
 		ServerSideTimeout: timeout,
 		Context:           ctx,
 	})
-	if err != nil && !IsTimeoutError(err) {
+	if err == nil || !IsTimeoutError(err) {
 		t.Fatal(err)
 	}
 }
@@ -606,7 +543,7 @@ func TestAnalyticsQueryConnectClusterTimeout(t *testing.T) {
 		ServerSideTimeout: timeout,
 		Context:           ctx,
 	})
-	if err != nil && !IsTimeoutError(err) {
+	if err == nil || !IsTimeoutError(err) {
 		t.Fatal(err)
 	}
 }

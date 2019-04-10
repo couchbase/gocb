@@ -33,7 +33,6 @@ func TestQuery(t *testing.T) {
 	t.Run("testSimpleQueryNone", testSimpleQueryNone)
 	t.Run("testSimpleQueryOneNone", testSimpleQueryOneNone)
 	t.Run("testSimpleQueryError", testSimpleQueryError)
-	t.Run("testSimpleQueryOneError", testSimpleQueryOneError)
 	t.Run("testPreparedQuery", testPreparedQuery)
 	t.Run("testQueryNamedParameters", testQueryNamedParameters)
 	t.Run("testQueryPositionalParameters", testQueryPositionalParameters)
@@ -224,42 +223,6 @@ func testSimpleQueryOneNone(t *testing.T) {
 	}
 }
 
-func testSimpleQueryOneError(t *testing.T) {
-	query := "SELECT `travel-sample`. FROM `travel-sample` LIMIT 10000;"
-	results, err := globalCluster.Query(query, nil)
-	if err != nil {
-		t.Fatalf("Failed to execute query %v", err)
-	}
-
-	var sample interface{}
-	err = results.One(&sample)
-	if err == nil {
-		t.Fatalf("Expected One to return error")
-	}
-
-	_, ok := err.(QueryErrors)
-	if !ok {
-		t.Fatalf("Expected error to be QueryErrors but was %s", reflect.TypeOf(err).String())
-	}
-
-	if sample != nil {
-		t.Fatalf("Expected sample to be nil but was %v", sample)
-	}
-
-	metadata, err := results.Metadata()
-	if err != nil {
-		t.Fatalf("Metadata had error: %v", err)
-	}
-
-	if metadata.RequestID() == "" {
-		t.Fatalf("Result should have had non empty RequestID")
-	}
-
-	if metadata.SourceEndpoint() == "" {
-		t.Fatalf("Result should have had non empty SourceEndpoint")
-	}
-}
-
 func testSimpleQueryNone(t *testing.T) {
 	query := "SELECT `travel-sample`.* FROM `travel-sample` WHERE `name` = \"Idontexist\" LIMIT 10000;"
 	results, err := globalCluster.Query(query, nil)
@@ -298,42 +261,9 @@ func testSimpleQueryNone(t *testing.T) {
 
 func testSimpleQueryError(t *testing.T) {
 	query := "SELECT `travel-sample`. FROM `travel-sample` LIMIT 10000;"
-	results, err := globalCluster.Query(query, nil)
-	if err != nil {
-		t.Fatalf("Failed to execute query %v", err)
-	}
-
-	var samples []interface{}
-	var sample interface{}
-	for results.Next(&sample) {
-		samples = append(samples, sample)
-	}
-
-	err = results.Close()
+	_, err := globalCluster.Query(query, nil)
 	if err == nil {
-		t.Fatalf("Expected results close should to have error")
-	}
-
-	_, ok := err.(QueryErrors)
-	if !ok {
-		t.Fatalf("Expected error to be QueryErrors but was %s", reflect.TypeOf(err).String())
-	}
-
-	if len(samples) != 0 {
-		t.Fatalf("Expected result to contain 0 documents but had %d", len(samples))
-	}
-
-	metadata, err := results.Metadata()
-	if err != nil {
-		t.Fatalf("Metadata had error: %v", err)
-	}
-
-	if metadata.RequestID() == "" {
-		t.Fatalf("Result should have had non empty RequestID")
-	}
-
-	if metadata.SourceEndpoint() == "" {
-		t.Fatalf("Result should have had non empty SourceEndpoint")
+		t.Fatalf("Expected execute query to error")
 	}
 }
 
@@ -615,26 +545,10 @@ func TestQueryError(t *testing.T) {
 
 	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
 
-	res, err := cluster.Query(statement, queryOptions)
-	if err != nil {
-		t.Fatalf("Expected query to not return error but was %v", err)
+	_, err = cluster.Query(statement, queryOptions)
+	if err == nil {
+		t.Fatalf("Expected execute query to error")
 	}
-
-	if res == nil {
-		t.Fatal("Expected result to be not nil but was")
-	}
-
-	var results []interface{}
-	var row interface{}
-	for res.Next(&row) {
-		results = append(results, row)
-	}
-
-	if len(results) > 0 {
-		t.Fatalf("results should have had length 0 but was %d", len(results))
-	}
-
-	err = res.Close()
 
 	queryErrs, ok := err.(QueryErrors)
 	if !ok {
@@ -755,7 +669,7 @@ func TestQueryConnectTimeout(t *testing.T) {
 		Timeout: timeout,
 		Context: ctx,
 	})
-	if err != nil && !IsTimeoutError(err) {
+	if err == nil || !IsTimeoutError(err) {
 		t.Fatal(err)
 	}
 }
@@ -807,7 +721,7 @@ func TestQueryConnectContextTimeout(t *testing.T) {
 		Timeout: timeout,
 		Context: ctx,
 	})
-	if err != nil && !IsTimeoutError(err) {
+	if err == nil || !IsTimeoutError(err) {
 		t.Fatal(err)
 	}
 }
@@ -858,7 +772,7 @@ func TestQueryConnectClusterTimeout(t *testing.T) {
 		Timeout: timeout,
 		Context: ctx,
 	})
-	if err != nil && !IsTimeoutError(err) {
+	if err == nil || !IsTimeoutError(err) {
 		t.Fatal(err)
 	}
 }
@@ -1008,18 +922,13 @@ func TestBasicRetries(t *testing.T) {
 	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
 	cluster.sb.N1qlRetryBehavior = StandardDelayRetryBehavior(3, 1, 100*time.Millisecond, LinearDelayFunction)
 
-	res, err := cluster.Query(statement, nil)
-	if err != nil {
-		t.Fatal(err)
+	_, err = cluster.Query(statement, nil)
+	if err == nil {
+		t.Fatal("Expected query execution to error")
 	}
 
 	if retries != 3 {
 		t.Fatalf("Expected query to be retried 3 time but ws retried %d times", retries)
-	}
-
-	err = res.Close()
-	if err == nil {
-		t.Fatalf("error should not have been nil")
 	}
 }
 
