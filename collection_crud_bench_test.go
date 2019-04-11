@@ -115,7 +115,7 @@ func BenchmarkGetFromReplica(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			_, err = globalCollection.GetFromReplica("upsert-replica-1", 1, nil)
+			_, err = globalCollection.GetAnyReplica("upsert-replica-1", nil)
 			if err != nil {
 				b.Fatalf("failed to get replica %v", err)
 			}

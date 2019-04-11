@@ -1,9 +1,12 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+
+	"github.com/opentracing/opentracing-go"
 
 	"github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
@@ -149,8 +152,6 @@ func (d *GetResult) pathParts(pathStr string) []subdocPath {
 
 	return paths
 }
-
-// thing,false , animals,true , anotherthing,false .thing
 
 func (d *GetResult) set(paths []subdocPath, content interface{}, value interface{}) interface{} {
 	path := paths[0]
@@ -485,4 +486,118 @@ func (r *streamingResult) readAttributes() error {
 	}
 
 	return nil
+}
+
+// GetReplicaResult is the return type of GetReplica operations.
+type GetReplicaResult struct {
+	GetResult
+	isMaster bool
+}
+
+// IsMaster returns whether or not this result came from the active server.
+func (r *GetReplicaResult) IsMaster() bool {
+	return r.isMaster
+}
+
+// GetAllReplicasResult is the return type of GetAllReplica operations.
+type GetAllReplicasResult struct {
+	ctx         context.Context
+	provider    kvProvider
+	trace       opentracing.Span
+	opts        gocbcore.GetOneReplicaOptions
+	err         error
+	closed      bool
+	cancel      context.CancelFunc
+	maxReplicas int
+}
+
+// Next fetches the new replica.
+func (r *GetAllReplicasResult) Next(valuePtr *GetReplicaResult) bool {
+	if r.err != nil || r.closed {
+		return false
+	}
+
+	if r.opts.ReplicaIdx > r.maxReplicas {
+		r.closed = true
+		return false
+	}
+
+	waitCh := make(chan bool)
+	var op gocbcore.PendingOp
+	var err error
+	if r.opts.ReplicaIdx == 0 {
+		op, err = r.provider.GetEx(gocbcore.GetOptions{
+			Key:            r.opts.Key,
+			TraceContext:   r.opts.TraceContext,
+			CollectionName: r.opts.CollectionName,
+			ScopeName:      r.opts.ScopeName,
+		}, func(res *gocbcore.GetResult, err error) {
+			if err != nil {
+				r.err = maybeEnhanceErr(err, string(r.opts.Key))
+				waitCh <- false
+				return
+			}
+			*valuePtr = GetReplicaResult{
+				GetResult: GetResult{
+					Result: Result{
+						cas: Cas(res.Cas),
+					},
+					contents: res.Value,
+					flags:    res.Flags,
+				},
+				isMaster: true,
+			}
+			waitCh <- true
+		})
+	} else {
+		op, err = r.provider.GetOneReplicaEx(r.opts, func(res *gocbcore.GetReplicaResult, err error) {
+			if err != nil {
+				r.err = maybeEnhanceErr(err, string(r.opts.Key))
+				waitCh <- false
+				return
+			}
+			*valuePtr = GetReplicaResult{
+				GetResult: GetResult{
+					Result: Result{
+						cas: Cas(res.Cas),
+					},
+					contents: res.Value,
+					flags:    res.Flags,
+				},
+			}
+			waitCh <- true
+		})
+	}
+	if err != nil {
+		r.err = err
+		return false
+	}
+	r.opts.ReplicaIdx++
+
+	select {
+	case <-r.ctx.Done():
+		if op.Cancel() {
+			ctxErr := r.ctx.Err()
+			if ctxErr == context.DeadlineExceeded {
+				r.err = timeoutError{}
+			} else {
+				r.err = ctxErr
+			}
+			return false
+		}
+
+		return <-waitCh
+	case success := <-waitCh:
+		return success
+	}
+}
+
+// Close ends the stream and returns any errors that occurred.
+func (r *GetAllReplicasResult) Close() error {
+	r.trace.Finish()
+	if r.cancel != nil {
+		r.cancel()
+	}
+	r.closed = true
+	return r.err
 }

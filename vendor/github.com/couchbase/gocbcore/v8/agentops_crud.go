@@ -227,31 +227,36 @@ func (agent *Agent) GetAndLockEx(opts GetAndLockOptions, cb GetAndLockExCallback
 	return agent.dispatchOp(req)
 }
 
-// GetReplicaOptions encapsulates the parameters for a GetReplicaEx operation.
-type GetReplicaOptions struct {
+// GetAnyReplicaOptions encapsulates the parameters for a GetAnyReplicaEx operation.
+type GetAnyReplicaOptions struct {
 	Key            []byte
-	ReplicaIdx     int
 	TraceContext   opentracing.SpanContext
 	CollectionName string
 	ScopeName      string
 }
 
-// GetReplicaResult encapsulates the result of a GetReplicaEx operation.
+// GetOneReplicaOptions encapsulates the parameters for a GetOneReplicaEx operation.
+type GetOneReplicaOptions struct {
+	Key            []byte
+	TraceContext   opentracing.SpanContext
+	CollectionName string
+	ScopeName      string
+	ReplicaIdx     int
+}
+
+// GetReplicaResult encapsulates the result of a GetReplica operation.
 type GetReplicaResult struct {
 	Value    []byte
 	Flags    uint32
 	Datatype uint8
 	Cas      Cas
+	IsActive bool
 }
 
-// GetReplicaExCallback is invoked upon completion of a GetReplicaEx operation.
+// GetReplicaExCallback is invoked upon completion of a GetReplica operation.
 type GetReplicaExCallback func(*GetReplicaResult, error)
 
-func (agent *Agent) getOneReplica(tracer *opTracer, opts GetReplicaOptions, cb GetReplicaExCallback) (PendingOp, error) {
-	if opts.ReplicaIdx <= 0 {
-		return nil, ErrInvalidReplica
-	}
-
+func (agent *Agent) getOneReplica(tracer *opTracer, opts GetOneReplicaOptions, cb GetReplicaExCallback) (PendingOp, error) {
 	handler := func(resp *memdQResponse, _ *memdQRequest, err error) {
 		if err != nil {
 			cb(nil, err)
@@ -293,21 +298,24 @@ func (agent *Agent) getOneReplica(tracer *opTracer, opts GetReplicaOptions, cb G
 	return agent.dispatchOp(req)
 }
 
-// GetReplicaEx retrieves a document from a replica server.
-func (agent *Agent) GetReplicaEx(opts GetReplicaOptions, cb GetReplicaExCallback) (PendingOp, error) {
+// GetOneReplicaEx retrieves a document from a replica server.
+func (agent *Agent) GetOneReplicaEx(opts GetOneReplicaOptions, cb GetReplicaExCallback) (PendingOp, error) {
 	tracer := agent.createOpTrace("GetReplicaEx", opts.TraceContext)
 
-	if opts.ReplicaIdx > 0 {
-		return agent.getOneReplica(tracer, opts, func(resp *GetReplicaResult, err error) {
-			tracer.Finish()
-			cb(resp, err)
-		})
-	}
-
-	if opts.ReplicaIdx < 0 {
+	if opts.ReplicaIdx <= 0 {
 		tracer.Finish()
 		return nil, ErrInvalidReplica
 	}
+
+	return agent.getOneReplica(tracer, opts, func(resp *GetReplicaResult, err error) {
+		tracer.Finish()
+		cb(resp, err)
+	})
+}
+
+// GetAnyReplicaEx retrieves a document from any replica or active server.
+func (agent *Agent) GetAnyReplicaEx(opts GetAnyReplicaOptions, cb GetReplicaExCallback) (PendingOp, error) {
+	tracer := agent.createOpTrace("GetAnyReplicaEx", opts.TraceContext)
 
 	numReplicas := agent.NumReplicas()
 
@@ -320,7 +328,7 @@ func (agent *Agent) GetReplicaEx(opts GetReplicaOptions, cb GetReplicaExCallback
 	var firstResult *GetReplicaResult
 
 	op := new(multiPendingOp)
-	expected := uint32(numReplicas)
+	expected := uint32(numReplicas) + 1
 
 	opHandledLocked := func() {
 		completed := op.IncrementCompletedOps()
@@ -364,9 +372,36 @@ func (agent *Agent) GetReplicaEx(opts GetReplicaOptions, cb GetReplicaExCallback
 		resultLock.Unlock()
 	}
 
+	getOp, err := agent.GetEx(GetOptions{
+		ScopeName:      opts.ScopeName,
+		CollectionName: opts.CollectionName,
+		TraceContext:   opts.TraceContext,
+		Key:            opts.Key,
+	}, func(result *GetResult, err error) {
+		if err != nil {
+			handler(nil, err)
+			return
+		}
+		handler(&GetReplicaResult{
+			Flags:    result.Flags,
+			Value:    result.Value,
+			Cas:      result.Cas,
+			Datatype: result.Datatype,
+			IsActive: true,
+		}, nil)
+	})
+
+	resultLock.Lock()
+	if err == nil {
+		op.ops = append(op.ops, getOp)
+	} else {
+		opHandledLocked()
+	}
+	resultLock.Unlock()
+
 	// Dispatch a getReplica for each replica server
 	for repIdx := 1; repIdx <= numReplicas; repIdx++ {
-		subOp, err := agent.getOneReplica(tracer, GetReplicaOptions{
+		subOp, err := agent.getOneReplica(tracer, GetOneReplicaOptions{
 			Key:            opts.Key,
 			ReplicaIdx:     repIdx,
 			CollectionName: opts.CollectionName,

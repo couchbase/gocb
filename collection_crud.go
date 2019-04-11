@@ -13,7 +13,8 @@ type kvProvider interface {
 	SetEx(opts gocbcore.SetOptions, cb gocbcore.StoreExCallback) (gocbcore.PendingOp, error)
 	ReplaceEx(opts gocbcore.ReplaceOptions, cb gocbcore.StoreExCallback) (gocbcore.PendingOp, error)
 	GetEx(opts gocbcore.GetOptions, cb gocbcore.GetExCallback) (gocbcore.PendingOp, error)
-	GetReplicaEx(opts gocbcore.GetReplicaOptions, cb gocbcore.GetReplicaExCallback) (gocbcore.PendingOp, error)
+	GetAnyReplicaEx(opts gocbcore.GetAnyReplicaOptions, cb gocbcore.GetReplicaExCallback) (gocbcore.PendingOp, error)
+	GetOneReplicaEx(opts gocbcore.GetOneReplicaOptions, cb gocbcore.GetReplicaExCallback) (gocbcore.PendingOp, error)
 	ObserveEx(opts gocbcore.ObserveOptions, cb gocbcore.ObserveExCallback) (gocbcore.PendingOp, error)
 	ObserveVbEx(opts gocbcore.ObserveVbOptions, cb gocbcore.ObserveVbExCallback) (gocbcore.PendingOp, error)
 	DeleteEx(opts gocbcore.DeleteOptions, cb gocbcore.DeleteExCallback) (gocbcore.PendingOp, error)
@@ -585,20 +586,20 @@ func (c *Collection) exists(ctx context.Context, traceCtx opentracing.SpanContex
 	return
 }
 
-// GetFromReplicaOptions are the options available to the GetFromReplica command.
+// GetFromReplicaOptions are the options available to the Get Replica commands.
 type GetFromReplicaOptions struct {
 	ParentSpanContext opentracing.SpanContext
 	Timeout           time.Duration
 	Context           context.Context
 }
 
-// GetFromReplica returns the value of a particular document from a replica server..
-func (c *Collection) GetFromReplica(key string, replicaIdx int, opts *GetFromReplicaOptions) (docOut *GetResult, errOut error) {
+// GetAnyReplica returns the value of a particular document from a replica server.
+func (c *Collection) GetAnyReplica(key string, opts *GetFromReplicaOptions) (docOut *GetReplicaResult, errOut error) {
 	if opts == nil {
 		opts = &GetFromReplicaOptions{}
 	}
 
-	span := c.startKvOpTrace(opts.ParentSpanContext, "GetFromReplica")
+	span := c.startKvOpTrace(opts.ParentSpanContext, "GetAnyReplica")
 	defer span.Finish()
 
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
@@ -606,7 +607,7 @@ func (c *Collection) GetFromReplica(key string, replicaIdx int, opts *GetFromRep
 		defer cancel()
 	}
 
-	res, err := c.getFromReplica(ctx, span.Context(), key, replicaIdx, *opts)
+	res, err := c.getAnyReplica(ctx, span.Context(), key, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -614,17 +615,17 @@ func (c *Collection) GetFromReplica(key string, replicaIdx int, opts *GetFromRep
 	return res, nil
 }
 
-func (c *Collection) getFromReplica(ctx context.Context, traceCtx opentracing.SpanContext, key string, replicaIdx int, opts GetFromReplicaOptions) (docOut *GetResult, errOut error) {
+func (c *Collection) getAnyReplica(ctx context.Context, traceCtx opentracing.SpanContext, key string,
+	opts GetFromReplicaOptions) (docOut *GetReplicaResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
 
 	ctrl := c.newOpManager(ctx)
-	err = ctrl.wait(agent.GetReplicaEx(gocbcore.GetReplicaOptions{
+	err = ctrl.wait(agent.GetAnyReplicaEx(gocbcore.GetAnyReplicaOptions{
 		Key:            []byte(key),
 		TraceContext:   traceCtx,
-		ReplicaIdx:     replicaIdx,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.GetReplicaResult, err error) {
@@ -633,17 +634,17 @@ func (c *Collection) getFromReplica(ctx context.Context, traceCtx opentracing.Sp
 			ctrl.resolve()
 			return
 		}
-		if res != nil {
-			doc := &GetResult{
+
+		doc := &GetReplicaResult{
+			GetResult: GetResult{
 				Result: Result{
 					cas: Cas(res.Cas),
 				},
 				contents: res.Value,
 				flags:    res.Flags,
-			}
-
-			docOut = doc
+			},
 		}
+		docOut = doc
 
 		ctrl.resolve()
 	}))
@@ -652,6 +653,37 @@ func (c *Collection) getFromReplica(ctx context.Context, traceCtx opentracing.Sp
 	}
 
 	return
+}
+
+// GetAllReplicas returns the value of a particular document from all replica servers. This will return an iterable
+// which streams results one at a time.
+func (c *Collection) GetAllReplicas(key string, opts *GetFromReplicaOptions) (docOut *GetAllReplicasResult, errOut error) {
+	if opts == nil {
+		opts = &GetFromReplicaOptions{}
+	}
+
+	span := c.startKvOpTrace(opts.ParentSpanContext, "GetAllReplicas")
+
+	ctx, cancel := c.context(opts.Context, opts.Timeout)
+	agent, err := c.getKvProvider()
+	if err != nil {
+		span.Finish()
+		return nil, err
+	}
+
+	return &GetAllReplicasResult{
+		trace: span,
+		ctx:   ctx,
+		opts: gocbcore.GetOneReplicaOptions{
+			Key:            []byte(key),
+			CollectionName: c.name(),
+			ScopeName:      c.scopeName(),
+			TraceContext:   span.Context(),
+		},
+		provider:    agent,
+		cancel:      cancel,
+		maxReplicas: agent.NumReplicas(),
+	}, nil
 }
 
 // RemoveOptions are the options available to the Remove command.

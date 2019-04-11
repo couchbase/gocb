@@ -1115,7 +1115,7 @@ func TestTouchMissingDocFail(t *testing.T) {
 	}
 }
 
-func TestInsertReplicateToGetFromReplica(t *testing.T) {
+func TestInsertReplicateToGetAnyReplica(t *testing.T) {
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
@@ -1133,7 +1133,7 @@ func TestInsertReplicateToGetFromReplica(t *testing.T) {
 		t.Fatalf("Insert CAS was 0")
 	}
 
-	insertedDoc, err := globalCollection.GetFromReplica("insertReplicaDoc", 1, nil)
+	insertedDoc, err := globalCollection.GetAnyReplica("insertReplicaDoc", nil)
 	if err != nil {
 		t.Fatalf("GetFromReplica failed, error was %v", err)
 	}
@@ -1149,37 +1149,70 @@ func TestInsertReplicateToGetFromReplica(t *testing.T) {
 	}
 }
 
-func TestInsertReplicateToGetFromAnyReplica(t *testing.T) {
+func TestInsertReplicateToGetAllReplicas(t *testing.T) {
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
 		t.Fatalf("Could not read test dataset: %v", err)
 	}
 
-	mutRes, err := globalCollection.Insert("insertAnyReplicaDoc", doc, &InsertOptions{
+	mutRes, err := globalCollection.Upsert("insertAllReplicaDoc", doc, &UpsertOptions{
 		PersistTo: 1,
 	})
 	if err != nil {
-		t.Fatalf("Insert failed, error was %v", err)
+		t.Fatalf("Upsert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
 		t.Fatalf("Insert CAS was 0")
 	}
 
-	insertedDoc, err := globalCollection.GetFromReplica("insertAnyReplicaDoc", 0, nil)
+	stream, err := globalCollection.GetAllReplicas("insertAllReplicaDoc", &GetFromReplicaOptions{
+		Timeout: 25 * time.Second,
+	})
 	if err != nil {
-		t.Fatalf("GetFromReplica failed, error was %v", err)
+		t.Fatalf("GetAllReplicas failed, error was %v", err)
 	}
 
-	var insertedDocContent testBeerDocument
-	err = insertedDoc.Content(&insertedDocContent)
+	agent, err := globalCollection.getKvProvider()
 	if err != nil {
-		t.Fatalf("Content failed, error was %v", err)
+		t.Fatalf("Failed to get kv provider, was %v", err)
 	}
 
-	if doc != insertedDocContent {
-		t.Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
+	expectedReplicas := agent.NumReplicas() + 1
+	actualReplicas := 0
+	numMasters := 0
+
+	var insertedDoc GetReplicaResult
+	for stream.Next(&insertedDoc) {
+		actualReplicas++
+
+		if insertedDoc.IsMaster() {
+			numMasters++
+		}
+
+		var insertedDocContent testBeerDocument
+		err = insertedDoc.Content(&insertedDocContent)
+		if err != nil {
+			t.Fatalf("Content failed, error was %v", err)
+		}
+
+		if doc != insertedDocContent {
+			t.Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
+		}
+	}
+
+	err = stream.Close()
+	if err != nil {
+		t.Fatalf("Expected stream close to not error, was %v", err)
+	}
+
+	if expectedReplicas != actualReplicas {
+		t.Fatalf("Expected replicas to be %d but was %d", expectedReplicas, actualReplicas)
+	}
+
+	if numMasters != 1 {
+		t.Fatalf("Expected number of masters to be 1 but was %d", numMasters)
 	}
 }
 
