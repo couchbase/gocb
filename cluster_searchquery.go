@@ -188,9 +188,14 @@ func (r *SearchResults) Metadata() (*SearchResultsMetadata, error) {
 	return &r.metadata, nil
 }
 
-// Status is the status information for the results.
-func (r SearchResultsMetadata) Status() SearchResultStatus {
-	return r.status
+// SuccessCount is the number of successes for the results.
+func (r SearchResultsMetadata) SuccessCount() int {
+	return r.status.Successful
+}
+
+// ErrorCount is the number of errors for the results.
+func (r SearchResultsMetadata) ErrorCount() int {
+	return r.status.Failed
 }
 
 // TotalHits is the actual number of hits before the limit was applied.
