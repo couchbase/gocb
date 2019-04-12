@@ -653,10 +653,7 @@ func TestQueryConnectTimeout(t *testing.T) {
 			t.Fatalf("Expected timeout to be %s but was %s", timeout.String(), optsTimeout)
 		}
 
-		// we can't use time travel here as we need the context to actually timeout
-		time.Sleep(100 * time.Millisecond)
-
-		return nil, context.Canceled
+		return nil, context.DeadlineExceeded
 	}
 
 	provider := &mockHTTPProvider{
@@ -671,6 +668,73 @@ func TestQueryConnectTimeout(t *testing.T) {
 	})
 	if err == nil || !IsTimeoutError(err) {
 		t.Fatal(err)
+	}
+}
+
+func TestQueryStreamTimeout(t *testing.T) {
+	dataBytes, err := loadRawTestDataset("beer_sample_query_timeout")
+	if err != nil {
+		t.Fatalf("Could not read test dataset: %v", err)
+	}
+
+	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
+	timeout := 20 * time.Millisecond
+	clusterTimeout := 50 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		testAssertQueryRequest(t, req)
+
+		var opts map[string]interface{}
+		err := json.Unmarshal(req.Body, &opts)
+		if err != nil {
+			t.Fatalf("Failed to unmarshal request body %v", err)
+		}
+
+		optsTimeout, ok := opts["timeout"]
+		if !ok {
+			t.Fatalf("Request query options missing timeout")
+		}
+
+		dur, err := time.ParseDuration(optsTimeout.(string))
+		if err != nil {
+			t.Fatalf("Could not parse timeout: %v", err)
+		}
+
+		if dur < (timeout-50*time.Millisecond) || dur > (timeout+50*time.Millisecond) {
+			t.Fatalf("Expected timeout to be %s but was %s", timeout.String(), optsTimeout)
+		}
+
+		resp := &gocbcore.HttpResponse{
+			StatusCode: 200,
+			Body:       &testReadCloser{bytes.NewBuffer(dataBytes), nil},
+		}
+
+		return resp, nil
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+	}
+
+	cluster := testGetClusterForHTTP(provider, clusterTimeout, 0, 0)
+
+	results, err := cluster.Query(statement, &QueryOptions{
+		Timeout: timeout,
+		Context: ctx,
+	})
+	if err != nil {
+		t.Fatalf("Query shouldn't have errored but was %v", err)
+	}
+
+	var ignore interface{}
+	for results.Next(&ignore) {
+	}
+
+	err = results.Close()
+	if err == nil || !IsTimeoutError(err) {
+		t.Fatalf("Error should have been timeout but was %v", err)
 	}
 }
 
@@ -705,10 +769,7 @@ func TestQueryConnectContextTimeout(t *testing.T) {
 			t.Fatalf("Expected timeout to be %s but was %s", ctxTimeout.String(), optsTimeout)
 		}
 
-		// we can't use time travel here as we need the context to actually timeout
-		time.Sleep(100 * time.Millisecond)
-
-		return nil, context.Canceled
+		return nil, context.DeadlineExceeded
 	}
 
 	provider := &mockHTTPProvider{
@@ -756,10 +817,7 @@ func TestQueryConnectClusterTimeout(t *testing.T) {
 			t.Fatalf("Expected timeout to be %s but was %s", clusterTimeout.String(), optsTimeout)
 		}
 
-		// we can't use time travel here as we need the context to actually timeout
-		time.Sleep(100 * time.Millisecond)
-
-		return nil, context.Canceled
+		return nil, context.DeadlineExceeded
 	}
 
 	provider := &mockHTTPProvider{

@@ -538,10 +538,18 @@ func (e analyticsQueryError) Message() string {
 }
 
 func (e analyticsQueryError) retryable() bool {
-	if e.Code() != 21002 && e.Code() != 23000 && e.Code() != 23003 && e.Code() != 23007 {
+	if e.Code() == 21002 || e.Code() == 23000 || e.Code() == 23003 || e.Code() == 23007 {
 		return true
 	}
 
+	return false
+}
+
+// Timeout indicates whether or not this error is a timeout.
+func (e analyticsQueryError) Timeout() bool {
+	if e.ErrorCode == 21002 {
+		return true
+	}
 	return false
 }
 
@@ -600,6 +608,16 @@ func (e analyticsQueryMultiError) Errors() []AnalyticsQueryError {
 	return e.errors
 }
 
+func (e analyticsQueryMultiError) Timeout() bool {
+	for _, aErr := range e.errors {
+		if IsTimeoutError(aErr) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // QueryError occurs for errors created by Couchbase Server during N1ql query execution.
 type QueryError interface {
 	error
@@ -634,6 +652,7 @@ func (e queryError) retryable() bool {
 	return false
 }
 
+// Timeout indicates whether or not this error is a timeout.
 func (e queryError) Timeout() bool {
 	if e.ErrorCode == 1080 {
 		return true

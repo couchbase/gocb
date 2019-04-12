@@ -98,6 +98,7 @@ type SearchResults struct {
 	streamResult *streamingResult
 	strace       opentracing.Span
 	cancel       context.CancelFunc
+	ctx          context.Context
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
@@ -144,8 +145,12 @@ func (r *SearchResults) Close() error {
 	if r.strace != nil {
 		r.strace.Finish()
 	}
+	ctxErr := r.ctx.Err()
 	if r.cancel != nil {
 		r.cancel()
+	}
+	if ctxErr == context.DeadlineExceeded {
+		return timeoutError{}
 	}
 	if r.err != nil {
 		return r.err
@@ -405,32 +410,36 @@ func (c *Cluster) searchQuery(ctx context.Context, traceCtx opentracing.SpanCont
 	d, ok := ctx.Deadline()
 
 	// If we don't need to then we don't touch the original ctx value so that the Done channel is set
-	// in a predictable manner.
+	// in a predictable manner. We don't make the client timeout longer for this as pindexes can timeout
+	// individually rather than the entire connection. Server side timeouts are also hard to detect.
+	var cancel context.CancelFunc
 	if !ok || now.Add(time.Duration(opTimeout)).Before(d) {
-		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(opTimeout))
-		defer cancel()
 	} else {
 		opTimeout = jsonMillisecondDuration(d.Sub(now))
 	}
 
 	err = ctlData.Set("timeout", opTimeout)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
 	err = queryData.Set("ctl", ctlData)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
 	dq, err := q.toSearchQueryData()
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
 	err = queryData.Set("query", dq.Query)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
@@ -438,7 +447,7 @@ func (c *Cluster) searchQuery(ctx context.Context, traceCtx opentracing.SpanCont
 	var res *SearchResults
 	for {
 		retries++
-		res, err = c.executeSearchQuery(ctx, traceCtx, queryData, qIndexName, provider)
+		res, err = c.executeSearchQuery(ctx, traceCtx, queryData, qIndexName, provider, cancel)
 		if err == nil {
 			break
 		}
@@ -452,6 +461,10 @@ func (c *Cluster) searchQuery(ctx context.Context, traceCtx opentracing.SpanCont
 	}
 
 	if err != nil {
+		// only cancel on error, if we cancel when things have gone to plan then we'll prematurely close the stream
+		if cancel != nil {
+			cancel()
+		}
 		return nil, err
 	}
 
@@ -459,30 +472,24 @@ func (c *Cluster) searchQuery(ctx context.Context, traceCtx opentracing.SpanCont
 }
 
 func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.SpanContext, query jsonx.DelayedObject,
-	qIndexName string, provider httpProvider) (*SearchResults, error) {
+	qIndexName string, provider httpProvider, cancel context.CancelFunc) (*SearchResults, error) {
 
 	qBytes, err := json.Marshal(query)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not parse query options")
 	}
 
-	// we only want ctx to timeout the initial connection rather than the stream
-	reqCtx, reqCancel := context.WithCancel(context.Background())
-	doneChan := make(chan struct{})
-	go c.runContextTimeout(ctx, reqCancel, doneChan)
-
 	req := &gocbcore.HttpRequest{
 		Service: gocbcore.FtsService,
 		Path:    fmt.Sprintf("/api/index/%s/query", qIndexName),
 		Method:  "POST",
-		Context: reqCtx,
+		Context: ctx,
 		Body:    qBytes,
 	}
 
 	dtrace := opentracing.GlobalTracer().StartSpan("dispatch", opentracing.ChildOf(traceCtx))
 
 	resp, err := provider.DoHttpRequest(req)
-	doneChan <- struct{}{}
 	if err != nil {
 		dtrace.Finish()
 		if err == gocbcore.ErrNoFtsService {
@@ -548,14 +555,12 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.S
 			httpStatus: resp.StatusCode,
 		}
 
-		reqCancel()
 		strace.Finish()
 		return nil, err
 	}
 
 	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)
 	if err != nil {
-		reqCancel()
 		strace.Finish()
 		return nil, err
 	}
@@ -566,7 +571,6 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.S
 		if bodyErr != nil {
 			logDebugf("Failed to close socket (%s)", bodyErr.Error())
 		}
-		reqCancel()
 		strace.Finish()
 		return nil, err
 	}
@@ -575,13 +579,13 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.S
 
 	if streamResult.HasRows() {
 		queryResults.strace = strace
-		queryResults.cancel = reqCancel
+		queryResults.cancel = cancel
+		queryResults.ctx = ctx
 	} else {
 		bodyErr := streamResult.Close()
 		if bodyErr != nil {
 			logDebugf("Failed to close response body, %s", bodyErr.Error())
 		}
-		reqCancel()
 		strace.Finish()
 
 		// There are no rows and there are errors so fast fail

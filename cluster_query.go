@@ -76,6 +76,7 @@ type QueryResults struct {
 	streamResult *streamingResult
 	strace       opentracing.Span
 	cancel       context.CancelFunc
+	ctx          context.Context
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
@@ -122,8 +123,12 @@ func (r *QueryResults) Close() error {
 	if r.strace != nil {
 		r.strace.Finish()
 	}
+	ctxErr := r.ctx.Err()
 	if r.cancel != nil {
 		r.cancel()
+	}
+	if ctxErr == context.DeadlineExceeded {
+		return timeoutError{}
 	}
 	if r.err != nil {
 		return r.err
@@ -352,11 +357,12 @@ func (c *Cluster) query(ctx context.Context, traceCtx opentracing.SpanContext, s
 	d, ok := ctx.Deadline()
 
 	// If we don't need to then we don't touch the original ctx value so that the Done channel is set
-	// in a predictable manner.
-	if !ok || now.Add(timeout).Before(d) {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, timeout)
-		defer cancel()
+	// in a predictable manner. If we create a context then we need to create it with timeout + 1 second
+	// so that the server closes the connection rather than us. This is just a better user experience.
+	timeoutPlusBuffer := timeout + time.Second
+	var cancel context.CancelFunc
+	if !ok || now.Add(timeoutPlusBuffer).Before(d) {
+		ctx, cancel = context.WithTimeout(ctx, timeoutPlusBuffer)
 	} else {
 		timeout = d.Sub(now)
 	}
@@ -369,11 +375,11 @@ func (c *Cluster) query(ctx context.Context, traceCtx opentracing.SpanContext, s
 		retries++
 		if opts.Prepared {
 			etrace := opentracing.GlobalTracer().StartSpan("execute", opentracing.ChildOf(traceCtx))
-			res, err = c.doPreparedN1qlQuery(ctx, traceCtx, queryOpts, provider)
+			res, err = c.doPreparedN1qlQuery(ctx, traceCtx, queryOpts, provider, cancel)
 			etrace.Finish()
 		} else {
 			etrace := opentracing.GlobalTracer().StartSpan("execute", opentracing.ChildOf(traceCtx))
-			res, err = c.executeN1qlQuery(ctx, traceCtx, queryOpts, provider)
+			res, err = c.executeN1qlQuery(ctx, traceCtx, queryOpts, provider, cancel)
 			etrace.Finish()
 		}
 		if err == nil {
@@ -389,6 +395,10 @@ func (c *Cluster) query(ctx context.Context, traceCtx opentracing.SpanContext, s
 	}
 
 	if err != nil {
+		// only cancel on error, if we cancel when things have gone to plan then we'll prematurely close the stream
+		if cancel != nil {
+			cancel()
+		}
 		return nil, err
 	}
 
@@ -396,7 +406,7 @@ func (c *Cluster) query(ctx context.Context, traceCtx opentracing.SpanContext, s
 }
 
 func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, traceCtx opentracing.SpanContext, queryOpts map[string]interface{},
-	provider httpProvider) (*QueryResults, error) {
+	provider httpProvider, cancel context.CancelFunc) (*QueryResults, error) {
 
 	stmtStr, isStr := queryOpts["statement"].(string)
 	if !isStr {
@@ -415,7 +425,7 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, traceCtx opentracing.
 
 		etrace := opentracing.GlobalTracer().StartSpan("execute", opentracing.ChildOf(traceCtx))
 
-		results, err := c.executeN1qlQuery(ctx, etrace.Context(), queryOpts, provider)
+		results, err := c.executeN1qlQuery(ctx, etrace.Context(), queryOpts, provider, cancel)
 		if err == nil {
 			etrace.Finish()
 			return results, nil
@@ -455,7 +465,7 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, traceCtx opentracing.
 	etrace := opentracing.GlobalTracer().StartSpan("execute", opentracing.ChildOf(traceCtx))
 	defer etrace.Finish()
 
-	return c.executeN1qlQuery(ctx, etrace.Context(), queryOpts, provider)
+	return c.executeN1qlQuery(ctx, etrace.Context(), queryOpts, provider, cancel)
 }
 
 func (c *Cluster) prepareN1qlQuery(ctx context.Context, traceCtx opentracing.SpanContext, opts map[string]interface{},
@@ -467,7 +477,9 @@ func (c *Cluster) prepareN1qlQuery(ctx context.Context, traceCtx opentracing.Spa
 	}
 	prepOpts["statement"] = "PREPARE " + opts["statement"].(string)
 
-	prepRes, err := c.executeN1qlQuery(ctx, traceCtx, prepOpts, provider)
+	// There's no need to pass cancel here, if there's an error then we'll cancel further up the stack
+	// and if there isn't then we run another query later where we will cancel
+	prepRes, err := c.executeN1qlQuery(ctx, traceCtx, prepOpts, provider, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -489,45 +501,29 @@ type n1qlPrepData struct {
 	Name        string `json:"name"`
 }
 
-func (c *Cluster) runContextTimeout(ctx context.Context, reqCancel context.CancelFunc, doneChan chan struct{}) {
-	select {
-	case <-ctx.Done():
-		reqCancel()
-		<-doneChan
-	case <-doneChan:
-
-	}
-}
-
 // Executes the N1QL query (in opts) on the server n1qlEp.
 // This function assumes that `opts` already contains all the required
 // settings. This function will inject any additional connection or request-level
 // settings into the `opts` map.
 func (c *Cluster) executeN1qlQuery(ctx context.Context, traceCtx opentracing.SpanContext, opts map[string]interface{},
-	provider httpProvider) (*QueryResults, error) {
+	provider httpProvider, cancel context.CancelFunc) (*QueryResults, error) {
 
 	reqJSON, err := json.Marshal(opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal query request body")
 	}
 
-	// we only want ctx to timeout the initial connection rather than the stream
-	reqCtx, reqCancel := context.WithCancel(context.Background())
-	doneChan := make(chan struct{})
-	go c.runContextTimeout(ctx, reqCancel, doneChan)
-
 	req := &gocbcore.HttpRequest{
 		Service: gocbcore.N1qlService,
 		Path:    "/query/service",
 		Method:  "POST",
-		Context: reqCtx,
+		Context: ctx,
 		Body:    reqJSON,
 	}
 
 	dtrace := opentracing.GlobalTracer().StartSpan("dispatch", opentracing.ChildOf(traceCtx))
 
 	resp, err := provider.DoHttpRequest(req)
-	doneChan <- struct{}{}
 	if err != nil {
 		dtrace.Finish()
 		if err == gocbcore.ErrNoN1qlService {
@@ -567,7 +563,6 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, traceCtx opentracing.Spa
 
 	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)
 	if err != nil {
-		reqCancel()
 		strace.Finish()
 		return nil, err
 	}
@@ -578,7 +573,6 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, traceCtx opentracing.Spa
 		if bodyErr != nil {
 			logDebugf("Failed to close socket (%s)", bodyErr.Error())
 		}
-		reqCancel()
 		strace.Finish()
 		return nil, err
 	}
@@ -589,13 +583,13 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, traceCtx opentracing.Spa
 
 	if streamResult.HasRows() {
 		queryResults.strace = strace
-		queryResults.cancel = reqCancel
+		queryResults.cancel = cancel
+		queryResults.ctx = ctx
 	} else {
 		bodyErr := streamResult.Close()
 		if bodyErr != nil {
 			logDebugf("Failed to close response body, %s", bodyErr.Error())
 		}
-		reqCancel()
 		strace.Finish()
 
 		// There are no rows and there are errors so fast fail

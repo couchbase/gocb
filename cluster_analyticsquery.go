@@ -77,6 +77,7 @@ type AnalyticsResults struct {
 	cancel       context.CancelFunc
 	strace       opentracing.Span
 	httpProvider httpProvider
+	ctx          context.Context
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
@@ -123,8 +124,12 @@ func (r *AnalyticsResults) Close() error {
 	if r.strace != nil {
 		r.strace.Finish()
 	}
+	ctxErr := r.ctx.Err()
 	if r.cancel != nil {
 		r.cancel()
+	}
+	if ctxErr == context.DeadlineExceeded {
+		return timeoutError{}
 	}
 	if r.err != nil {
 		return r.err
@@ -362,10 +367,13 @@ func (c *Cluster) analyticsQuery(ctx context.Context, traceCtx opentracing.SpanC
 	now := time.Now()
 	d, ok := ctx.Deadline()
 
-	if !ok || now.Add(timeout).Before(d) {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, timeout)
-		defer cancel()
+	// If we don't need to then we don't touch the original ctx value so that the Done channel is set
+	// in a predictable manner. If we create a context then we need to create it with timeout + 1 second
+	// so that the server closes the connection rather than us. This is just a better user experience.
+	timeoutPlusBuffer := timeout + time.Second
+	var cancel context.CancelFunc
+	if !ok || now.Add(timeoutPlusBuffer).Before(d) {
+		ctx, cancel = context.WithTimeout(ctx, timeoutPlusBuffer)
 	} else {
 		timeout = d.Sub(now)
 	}
@@ -379,7 +387,7 @@ func (c *Cluster) analyticsQuery(ctx context.Context, traceCtx opentracing.SpanC
 	for {
 		retries++
 		etrace := opentracing.GlobalTracer().StartSpan("execute", opentracing.ChildOf(traceCtx))
-		res, err = c.executeAnalyticsQuery(ctx, traceCtx, queryOpts, provider)
+		res, err = c.executeAnalyticsQuery(ctx, traceCtx, queryOpts, provider, cancel)
 		etrace.Finish()
 		if err == nil {
 			break
@@ -393,6 +401,10 @@ func (c *Cluster) analyticsQuery(ctx context.Context, traceCtx opentracing.SpanC
 	}
 
 	if err != nil {
+		// only cancel on error, if we cancel when things have gone to plan then we'll prematurely close the stream
+		if cancel != nil {
+			cancel()
+		}
 		return nil, err
 	}
 
@@ -400,7 +412,7 @@ func (c *Cluster) analyticsQuery(ctx context.Context, traceCtx opentracing.SpanC
 }
 
 func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracing.SpanContext, opts map[string]interface{},
-	provider httpProvider) (*AnalyticsResults, error) {
+	provider httpProvider, cancel context.CancelFunc) (*AnalyticsResults, error) {
 
 	// priority is sent as a header not in the body
 	priority, priorityCastOK := opts["priority"].(int)
@@ -413,16 +425,11 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracin
 		return nil, errors.Wrap(err, "failed to marshal query request body")
 	}
 
-	// we only want ctx to timeout the initial connection rather than the stream
-	reqCtx, reqCancel := context.WithCancel(context.Background())
-	doneChan := make(chan struct{})
-	go c.runContextTimeout(ctx, reqCancel, doneChan)
-
 	req := &gocbcore.HttpRequest{
 		Service: gocbcore.CbasService,
 		Path:    "/analytics/service",
 		Method:  "POST",
-		Context: reqCtx,
+		Context: ctx,
 		Body:    reqJSON,
 	}
 
@@ -434,7 +441,6 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracin
 	dtrace := opentracing.GlobalTracer().StartSpan("dispatch", opentracing.ChildOf(traceCtx))
 
 	resp, err := provider.DoHttpRequest(req)
-	doneChan <- struct{}{}
 	if err != nil {
 		dtrace.Finish()
 		if err == gocbcore.ErrNoCbasService {
@@ -471,7 +477,6 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracin
 
 	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)
 	if err != nil {
-		reqCancel()
 		strace.Finish()
 		return nil, err
 	}
@@ -482,7 +487,6 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracin
 		if bodyErr != nil {
 			logDebugf("Failed to close socket (%s)", bodyErr.Error())
 		}
-		reqCancel()
 		strace.Finish()
 		return nil, err
 	}
@@ -493,13 +497,13 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracin
 
 	if streamResult.HasRows() {
 		queryResults.strace = strace
-		queryResults.cancel = reqCancel
+		queryResults.cancel = cancel
+		queryResults.ctx = ctx
 	} else {
 		bodyErr := streamResult.Close()
 		if bodyErr != nil {
 			logDebugf("Failed to close response body, %s", bodyErr.Error())
 		}
-		reqCancel()
 		strace.Finish()
 
 		// There are no rows and there are errors so fast fail

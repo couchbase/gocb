@@ -32,7 +32,7 @@ type ViewResults struct {
 	errReason  string
 	errMessage string
 
-	cancel       context.CancelFunc
+	ctx          context.Context
 	streamResult *streamingResult
 	strace       opentracing.Span
 	err          error
@@ -82,8 +82,8 @@ func (r *ViewResults) Close() error {
 	if r.strace != nil {
 		r.strace.Finish()
 	}
-	if r.cancel != nil {
-		r.cancel()
+	if r.ctx.Err() == context.DeadlineExceeded {
+		return timeoutError{}
 	}
 	if vErr := r.makeError(); vErr != nil {
 		return vErr
@@ -201,16 +201,6 @@ func (r *ViewResultsMetadata) TotalRows() int {
 	return r.totalRows
 }
 
-func (b *Bucket) runContextTimeout(ctx context.Context, reqCancel context.CancelFunc, doneChan chan struct{}) {
-	select {
-	case <-ctx.Done():
-		reqCancel()
-		<-doneChan
-	case <-doneChan:
-
-	}
-}
-
 // ViewQuery performs a view query and returns a list of rows or an error.
 func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions) (*ViewResults, error) {
 	if opts == nil {
@@ -286,17 +276,12 @@ func (b *Bucket) SpatialViewQuery(designDoc string, viewName string, opts *Spati
 func (b *Bucket) executeViewQuery(ctx context.Context, traceCtx opentracing.SpanContext, viewType, ddoc, viewName string,
 	options url.Values, provider httpProvider) (*ViewResults, error) {
 
-	// we only want ctx to timeout the initial connection rather than the stream
-	reqCtx, reqCancel := context.WithCancel(context.Background())
-	doneChan := make(chan struct{})
-	go b.runContextTimeout(ctx, reqCancel, doneChan)
-
 	reqUri := fmt.Sprintf("/_design/%s/%s/%s?%s", ddoc, viewType, viewName, options.Encode())
 	req := &gocbcore.HttpRequest{
 		Service: gocbcore.CapiService,
 		Path:    reqUri,
 		Method:  "GET",
-		Context: reqCtx,
+		Context: ctx,
 	}
 
 	dtrace := opentracing.GlobalTracer().StartSpan("dispatch", opentracing.ChildOf(traceCtx))
@@ -324,7 +309,6 @@ func (b *Bucket) executeViewQuery(ctx context.Context, traceCtx opentracing.Span
 
 	if resp.StatusCode == 500 {
 		// We have to handle the views 500 case as a special case because the body can be of form [] or {}
-		defer reqCancel()
 		defer strace.Finish()
 		defer func() {
 			err := resp.Body.Close()
@@ -372,7 +356,6 @@ func (b *Bucket) executeViewQuery(ctx context.Context, traceCtx opentracing.Span
 
 	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)
 	if err != nil {
-		reqCancel()
 		strace.Finish()
 		return nil, err
 	}
@@ -383,7 +366,6 @@ func (b *Bucket) executeViewQuery(ctx context.Context, traceCtx opentracing.Span
 		if bodyErr != nil {
 			logDebugf("Failed to close socket (%s)", bodyErr.Error())
 		}
-		reqCancel()
 		strace.Finish()
 		return nil, err
 	}
@@ -392,13 +374,12 @@ func (b *Bucket) executeViewQuery(ctx context.Context, traceCtx opentracing.Span
 
 	if streamResult.HasRows() {
 		queryResults.strace = strace
-		queryResults.cancel = reqCancel
+		queryResults.ctx = ctx
 	} else {
 		bodyErr := streamResult.Close()
 		if bodyErr != nil {
 			logDebugf("Failed to close response body, %s", bodyErr.Error())
 		}
-		reqCancel()
 		strace.Finish()
 
 		// There are no rows and there are errors so fast fail

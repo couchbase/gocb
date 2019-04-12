@@ -1,0 +1,22 @@
+{
+  "requestID": "59bf7bff-f190-4132-9e5b-4f4564d9b269",
+  "clientContextID": "9f6b7330-4623-4123-b340-d991594a90af",
+  "signature": {
+    "type":"json"
+  },
+  "results": [
+  ],
+  "errors": [
+    {"code":1080,
+      "msg":"Timeout 50ms exceeded"
+    }
+  ],
+  "status": "timeout",
+  "metrics": {
+    "elapsedTime": "20.323957ms",
+    "executionTime": "20.237546ms",
+    "resultCount": 0,
+    "resultSize": 0,
+    "errorCount": 1
+  }
+}

@@ -52,13 +52,7 @@ func TestAnalyticsQuery(t *testing.T) {
 func testCreateAnalyticsDataset(t *testing.T) {
 	// _p/cbas-admin/analytics/node/agg/stats/remaining
 	query := "CREATE DATASET `travel-sample` ON `travel-sample`;"
-	res, err := globalCluster.AnalyticsQuery(query, nil)
-	if err != nil {
-		t.Fatalf("Failed to create dataset %v", err)
-	}
-
-	// assume there aren't any rows, there shouldn't be any rows
-	err = res.Close()
+	_, err := globalCluster.AnalyticsQuery(query, nil)
 	if err != nil {
 		aErrs, ok := err.(AnalyticsQueryErrors)
 		if !ok {
@@ -74,14 +68,9 @@ func testCreateAnalyticsDataset(t *testing.T) {
 	}
 
 	query = "CONNECT LINK Local;"
-	res, err = globalCluster.AnalyticsQuery(query, nil)
+	_, err = globalCluster.AnalyticsQuery(query, nil)
 	if err != nil {
 		t.Fatalf("Failed to connect link %v", err)
-	}
-
-	err = res.Close()
-	if err != nil {
-		t.Fatalf("Failed to connect link: %v", err)
 	}
 }
 
@@ -394,7 +383,7 @@ func TestAnalyticsQueryServiceNotFound(t *testing.T) {
 	}
 }
 
-func TestAnalyticsQueryConnectTimeout(t *testing.T) {
+func TestAnalyticsQueryClientSideTimeout(t *testing.T) {
 	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
 	timeout := 20 * time.Millisecond
 	clusterTimeout := 50 * time.Second
@@ -427,7 +416,7 @@ func TestAnalyticsQueryConnectTimeout(t *testing.T) {
 		// we can't use time travel here as we need the context to actually timeout
 		time.Sleep(100 * time.Millisecond)
 
-		return nil, context.Canceled
+		return nil, context.DeadlineExceeded
 	}
 
 	provider := &mockHTTPProvider{
@@ -442,6 +431,64 @@ func TestAnalyticsQueryConnectTimeout(t *testing.T) {
 	})
 	if err == nil || !IsTimeoutError(err) {
 		t.Fatal(err)
+	}
+}
+
+func TestAnalyticsQueryStreamTimeout(t *testing.T) {
+	dataBytes, err := loadRawTestDataset("analytics_timeout")
+	if err != nil {
+		t.Fatalf("Could not read test dataset: %v", err)
+	}
+
+	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
+	timeout := 20 * time.Millisecond
+	clusterTimeout := 50 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		testAssertAnalyticsQueryRequest(t, req)
+
+		var opts map[string]interface{}
+		err := json.Unmarshal(req.Body, &opts)
+		if err != nil {
+			t.Fatalf("Failed to unmarshal request body %v", err)
+		}
+
+		optsTimeout, ok := opts["timeout"]
+		if !ok {
+			t.Fatalf("Request query options missing timeout")
+		}
+
+		dur, err := time.ParseDuration(optsTimeout.(string))
+		if err != nil {
+			t.Fatalf("Could not parse timeout: %v", err)
+		}
+
+		if dur < (timeout-50*time.Millisecond) || dur > (timeout+50*time.Millisecond) {
+			t.Fatalf("Expected timeout to be %s but was %s", timeout.String(), optsTimeout)
+		}
+
+		resp := &gocbcore.HttpResponse{
+			StatusCode: 200,
+			Body:       &testReadCloser{bytes.NewBuffer(dataBytes), nil},
+		}
+
+		return resp, nil
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+	}
+
+	cluster := testGetClusterForHTTP(provider, clusterTimeout, 0, 0)
+
+	_, err = cluster.AnalyticsQuery(statement, &AnalyticsQueryOptions{
+		ServerSideTimeout: timeout,
+		Context:           ctx,
+	})
+	if err == nil || !IsTimeoutError(err) {
+		t.Fatalf("Error should have been timeout but was %v", err)
 	}
 }
 
@@ -479,7 +526,7 @@ func TestAnalyticsQueryConnectContextTimeout(t *testing.T) {
 		// we can't use time travel here as we need the context to actually timeout
 		time.Sleep(100 * time.Millisecond)
 
-		return nil, context.Canceled
+		return nil, context.DeadlineExceeded
 	}
 
 	provider := &mockHTTPProvider{
@@ -530,7 +577,7 @@ func TestAnalyticsQueryConnectClusterTimeout(t *testing.T) {
 		// we can't use time travel here as we need the context to actually timeout
 		time.Sleep(100 * time.Millisecond)
 
-		return nil, context.Canceled
+		return nil, context.DeadlineExceeded
 	}
 
 	provider := &mockHTTPProvider{
