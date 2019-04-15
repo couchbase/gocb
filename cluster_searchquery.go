@@ -79,6 +79,15 @@ type searchResultStatus struct {
 	Errors     []string `json:"errors,omitempty"`
 }
 
+// The response from the server can contain errors as either array or object so we use this as an intermediary
+// between response and result.
+type searchResponseStatus struct {
+	Total      int         `json:"total,omitempty"`
+	Failed     int         `json:"failed,omitempty"`
+	Successful int         `json:"successful,omitempty"`
+	Errors     interface{} `json:"errors,omitempty"`
+}
+
 // SearchResultsMetadata provides access to the metadata properties of a search query result.
 type SearchResultsMetadata struct {
 	status     SearchResultStatus
@@ -240,7 +249,7 @@ func (r *SearchResults) readAttribute(decoder *json.Decoder, t json.Token) (bool
 			return false, nil
 		}
 
-		var status searchResultStatus
+		var status searchResponseStatus
 		err := decoder.Decode(&status)
 		if err != nil {
 			return false, err
@@ -250,12 +259,27 @@ func (r *SearchResults) readAttribute(decoder *json.Decoder, t json.Token) (bool
 		r.metadata.status.Successful = status.Successful
 		r.metadata.status.Failed = status.Failed
 
-		if len(status.Errors) > 0 {
-			errs := make([]SearchError, len(status.Errors))
-			for _, err := range status.Errors {
-				errs = append(errs, searchError{
+		var statusErrors []string
+		if statusError, ok := status.Errors.([]string); ok {
+			statusErrors = statusError
+		} else if statusError, ok := status.Errors.(map[string]interface{}); ok {
+			for k, v := range statusError {
+				msg, ok := v.(string)
+				if !ok {
+					return false, errors.New("could not parse errors")
+				}
+				statusErrors = append(statusErrors, fmt.Sprintf("%s-%s", k, msg))
+			}
+		} else {
+			return false, errors.New("could not parse errors")
+		}
+
+		if len(statusErrors) > 0 {
+			errs := make([]SearchError, len(statusErrors))
+			for i, err := range statusErrors {
+				errs[i] = searchError{
 					message: err,
-				})
+				}
 			}
 			r.err = searchMultiError{
 				errors:     errs,
@@ -283,46 +307,19 @@ func (r *SearchResults) readAttribute(decoder *json.Decoder, t json.Token) (bool
 		if err != nil {
 			return false, err
 		}
-	case "errors":
-		var respErrs []searchError
-		err := decoder.Decode(&respErrs)
-		if err != nil {
-			return false, err
-		}
-		if len(respErrs) > 0 {
-			errs := make([]SearchError, len(respErrs))
-			for i, e := range respErrs {
-				errs[i] = e
-			}
-			// this isn't an error that we want to bail on so store it and keep going
-			r.err = searchMultiError{
-				errors:     errs,
-				endpoint:   r.metadata.sourceAddr,
-				httpStatus: r.httpStatus,
-			}
-		}
-	case "error":
-		var sErr string
-		err := decoder.Decode(&sErr)
-		if err != nil {
-			return false, err
-		}
-		r.err = searchMultiError{
-			errors: []SearchError{
-				searchError{
-					message: sErr,
-				},
-			},
-			endpoint:   r.metadata.sourceAddr,
-			httpStatus: r.httpStatus,
-		}
 	case "hits":
 		// read the opening [, this prevents the decoder from loading the entire results array into memory
 		t, err := decoder.Token()
 		if err != nil {
 			return false, err
 		}
-		if delim, ok := t.(json.Delim); !ok || delim != '[' {
+		delim, ok := t.(json.Delim)
+		if !ok {
+			// hits can be null
+			return false, nil
+		}
+
+		if delim != '[' {
 			return false, errors.New("expected results opening token to be [ but was " + string(delim))
 		}
 

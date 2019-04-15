@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -244,5 +245,46 @@ func TestSearchQueryRetries(t *testing.T) {
 
 	if retries != 3 {
 		t.Fatalf("Expected query to be retried 3 time but ws retried %d times", retries)
+	}
+}
+
+func TestSearchQueryObjectError(t *testing.T) {
+	q := SearchQuery{
+		Name:  "test",
+		Query: NewMatchQuery("test"),
+	}
+	timeout := 60 * time.Second
+
+	dataBytes, err := loadRawTestDataset("searchquery_timeout")
+	if err != nil {
+		t.Fatalf("Could not read test dataset: %v", err)
+	}
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		return &gocbcore.HttpResponse{
+			Endpoint:   "http://localhost:8093",
+			StatusCode: 200,
+			Body:       &testReadCloser{bytes.NewBuffer(dataBytes), nil},
+		}, nil
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+	}
+
+	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
+	cluster.sb.SearchRetryBehavior = StandardDelayRetryBehavior(3, 1, 100*time.Millisecond, LinearDelayFunction)
+
+	_, err = cluster.SearchQuery(q, nil)
+	if err == nil {
+		t.Fatal("Expected query execution to error")
+	}
+
+	if searchErr, ok := err.(SearchErrors); ok {
+		if len(searchErr.Errors()) != 6 {
+			t.Fatalf("Expected length of search errors to be 6 but was %d", len(searchErr.Errors()))
+		}
+	} else {
+		t.Fatalf("Expected error to be SearchErrors but was %v", err)
 	}
 }

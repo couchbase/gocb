@@ -1,0 +1,38 @@
+{
+  "status": {
+    "total": 6,
+    "failed": 6,
+    "successful": 0,
+    "errors": {
+      "travel_a464a32f957f35f1_13aa53f3": "context deadline exceeded",
+      "travel_a464a32f957f35f1_18572d87": "context deadline exceeded",
+      "travel_a464a32f957f35f1_54820232": "context deadline exceeded",
+      "travel_a464a32f957f35f1_6ddbfb54": "context deadline exceeded",
+      "travel_a464a32f957f35f1_aa574717": "context deadline exceeded",
+      "travel_a464a32f957f35f1_f4e0a48a": "context deadline exceeded"
+    }
+  },
+  "request": {
+    "query": {
+      "boost": null,
+      "match_all": {}
+    },
+    "size": 1000,
+    "from": 0,
+    "highlight": null,
+    "fields": [
+      "*"
+    ],
+    "facets": null,
+    "explain": false,
+    "sort": [
+      "-_score"
+    ],
+    "includeLocations": false
+  },
+  "hits": null,
+  "total_hits": 0,
+  "max_score": 0,
+  "took": 32464205,
+  "facets": null
+}
