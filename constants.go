@@ -3,7 +3,7 @@ package gocb
 import gocbcore "github.com/couchbase/gocbcore/v8"
 
 const (
-	goCbVersionStr = "v2.0.0-dev"
+	goCbVersionStr = "v2.0.0-alpha.2"
 )
 
 // IndexType provides information on the type of indexer used for an index.
