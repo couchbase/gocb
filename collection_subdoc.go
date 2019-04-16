@@ -285,9 +285,9 @@ func (spec *MutateInSpec) encodeMultiArray(in interface{}, encoder Encode) ([]by
 
 // MutateInSpecInsertOptions are the options available to subdocument Insert operations.
 type MutateInSpecInsertOptions struct {
-	CreateParents bool
-	IsXattr       bool
-	Encoder       Encode
+	CreatePath bool
+	IsXattr    bool
+	Encoder    Encode
 }
 
 // Insert inserts a value at the specified path within the document.
@@ -302,7 +302,7 @@ func (spec MutateInSpec) Insert(path string, val interface{}, opts *MutateInSpec
 		opts.IsXattr = true
 	}
 
-	if opts.CreateParents {
+	if opts.CreatePath {
 		flags |= SubdocFlagCreatePath
 	}
 	if opts.IsXattr {
@@ -331,9 +331,9 @@ func (spec MutateInSpec) Insert(path string, val interface{}, opts *MutateInSpec
 
 // MutateInSpecUpsertOptions are the options available to subdocument Upsert operations.
 type MutateInSpecUpsertOptions struct {
-	CreateParents bool
-	IsXattr       bool
-	Encoder       Encode
+	CreatePath bool
+	IsXattr    bool
+	Encoder    Encode
 }
 
 // Upsert creates a new value at the specified path within the document if it does not exist, if it does exist then it
@@ -349,7 +349,7 @@ func (spec MutateInSpec) Upsert(path string, val interface{}, opts *MutateInSpec
 		opts.IsXattr = true
 	}
 
-	if opts.CreateParents {
+	if opts.CreatePath {
 		flags |= SubdocFlagCreatePath
 	}
 	if opts.IsXattr {
@@ -480,8 +480,8 @@ func (spec MutateInSpec) RemoveFull() (*MutateInOp, error) {
 
 // MutateInSpecArrayAppendOptions are the options available to subdocument ArrayAppend operations.
 type MutateInSpecArrayAppendOptions struct {
-	CreateParents bool
-	IsXattr       bool
+	CreatePath bool
+	IsXattr    bool
 	// HasMultiple adds multiple values as elements to an array.
 	// When used `value` in the spec must be an array type
 	// ArrayAppend("path", []int{1,2,3,4}, MutateInSpecArrayAppendOptions{HasMultiple:true}) =>
@@ -507,7 +507,7 @@ func (spec MutateInSpec) ArrayAppend(path string, val interface{}, opts *MutateI
 		flags |= SubdocFlagUseMacros
 		opts.IsXattr = true
 	}
-	if opts.CreateParents {
+	if opts.CreatePath {
 		flags |= SubdocFlagCreatePath
 	}
 	if opts.IsXattr {
@@ -543,8 +543,8 @@ func (spec MutateInSpec) ArrayAppend(path string, val interface{}, opts *MutateI
 
 // MutateInSpecArrayPrependOptions are the options available to subdocument ArrayPrepend operations.
 type MutateInSpecArrayPrependOptions struct {
-	CreateParents bool
-	IsXattr       bool
+	CreatePath bool
+	IsXattr    bool
 	// HasMultiple adds multiple values as elements to an array.
 	// When used `value` in the spec must be an array type
 	// ArrayPrepend("path", []int{1,2,3,4}, MutateInSpecArrayPrependOptions{HasMultiple:true}) =>
@@ -570,7 +570,7 @@ func (spec MutateInSpec) ArrayPrepend(path string, val interface{}, opts *Mutate
 		flags |= SubdocFlagUseMacros
 		opts.IsXattr = true
 	}
-	if opts.CreateParents {
+	if opts.CreatePath {
 		flags |= SubdocFlagCreatePath
 	}
 	if opts.IsXattr {
@@ -606,8 +606,8 @@ func (spec MutateInSpec) ArrayPrepend(path string, val interface{}, opts *Mutate
 
 // MutateInSpecArrayInsertOptions are the options available to subdocument ArrayInsert operations.
 type MutateInSpecArrayInsertOptions struct {
-	CreateParents bool
-	IsXattr       bool
+	CreatePath bool
+	IsXattr    bool
 	// HasMultiple adds multiple values as elements to an array.
 	// When used `value` in the spec must be an array type
 	// ArrayInsert("path[1]", []int{1,2,3,4}, MutateInSpecArrayInsertOptions{HasMultiple:true}) =>
@@ -634,7 +634,7 @@ func (spec MutateInSpec) ArrayInsert(path string, val interface{}, opts *MutateI
 		flags |= SubdocFlagUseMacros
 		opts.IsXattr = true
 	}
-	if opts.CreateParents {
+	if opts.CreatePath {
 		flags |= SubdocFlagCreatePath
 	}
 	if opts.IsXattr {
@@ -670,9 +670,9 @@ func (spec MutateInSpec) ArrayInsert(path string, val interface{}, opts *MutateI
 
 // MutateInSpecArrayAddUniqueOptions are the options available to subdocument ArrayAddUnique operations.
 type MutateInSpecArrayAddUniqueOptions struct {
-	CreateParents bool
-	IsXattr       bool
-	Encoder       Encode
+	CreatePath bool
+	IsXattr    bool
+	Encoder    Encode
 }
 
 // ArrayAddUnique adds an dictionary add unique operation to this mutation operation set.
@@ -687,7 +687,7 @@ func (spec MutateInSpec) ArrayAddUnique(path string, val interface{}, opts *Muta
 		opts.IsXattr = true
 	}
 
-	if opts.CreateParents {
+	if opts.CreatePath {
 		flags |= SubdocFlagCreatePath
 	}
 	if opts.IsXattr {
@@ -716,9 +716,9 @@ func (spec MutateInSpec) ArrayAddUnique(path string, val interface{}, opts *Muta
 
 // MutateInSpecCounterOptions are the options available to subdocument Increment and Decrement operations.
 type MutateInSpecCounterOptions struct {
-	CreateParents bool
-	IsXattr       bool
-	Encoder       Encode
+	CreatePath bool
+	IsXattr    bool
+	Encoder    Encode
 }
 
 // Increment adds an increment operation to this mutation operation set.
@@ -727,7 +727,7 @@ func (spec MutateInSpec) Increment(path string, delta int64, opts *MutateInSpecC
 		opts = &MutateInSpecCounterOptions{}
 	}
 	var flags SubdocFlag
-	if opts.CreateParents {
+	if opts.CreatePath {
 		flags |= SubdocFlagCreatePath
 	}
 	if opts.IsXattr {
@@ -759,7 +759,7 @@ func (spec MutateInSpec) Decrement(path string, delta int64, opts *MutateInSpecC
 		opts = &MutateInSpecCounterOptions{}
 	}
 	var flags SubdocFlag
-	if opts.CreateParents {
+	if opts.CreatePath {
 		flags |= SubdocFlagCreatePath
 	}
 	if opts.IsXattr {
