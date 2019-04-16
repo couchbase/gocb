@@ -29,22 +29,9 @@ func (c *CollectionBinary) Append(key string, val []byte, opts *AppendOptions) (
 	span := c.startKvOpTrace(opts.ParentSpanContext, "BinaryAppend")
 	defer span.Finish()
 
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
-	d := c.deadline(ctx, time.Now(), opts.Timeout)
-	if currentD, ok := ctx.Deadline(); ok {
-		if d.Before(currentD) {
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithDeadline(ctx, d)
-			defer cancel()
-		}
-	} else {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithDeadline(ctx, d)
+	ctx, cancel := c.context(opts.Context, opts.Timeout)
+	if cancel != nil {
 		defer cancel()
 	}
 
@@ -110,22 +97,9 @@ func (c *CollectionBinary) Prepend(key string, val []byte, opts *PrependOptions)
 	span := c.startKvOpTrace(opts.ParentSpanContext, "BinaryPrepend")
 	defer span.Finish()
 
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
-	d := c.deadline(ctx, time.Now(), opts.Timeout)
-	if currentD, ok := ctx.Deadline(); ok {
-		if d.Before(currentD) {
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithDeadline(ctx, d)
-			defer cancel()
-		}
-	} else {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithDeadline(ctx, d)
+	ctx, cancel := c.context(opts.Context, opts.Timeout)
+	if cancel != nil {
 		defer cancel()
 	}
 
@@ -201,22 +175,9 @@ func (c *CollectionBinary) Increment(key string, opts *CounterOptions) (countOut
 	span := c.startKvOpTrace(opts.ParentSpanContext, "Increment")
 	defer span.Finish()
 
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
-	d := c.deadline(ctx, time.Now(), opts.Timeout)
-	if currentD, ok := ctx.Deadline(); ok {
-		if d.Before(currentD) {
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithDeadline(ctx, d)
-			defer cancel()
-		}
-	} else {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithDeadline(ctx, d)
+	ctx, cancel := c.context(opts.Context, opts.Timeout)
+	if cancel != nil {
 		defer cancel()
 	}
 
@@ -289,22 +250,9 @@ func (c *CollectionBinary) Decrement(key string, opts *CounterOptions) (countOut
 	span := c.startKvOpTrace(opts.ParentSpanContext, "Decrement")
 	defer span.Finish()
 
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
-	d := c.deadline(ctx, time.Now(), opts.Timeout)
-	if currentD, ok := ctx.Deadline(); ok {
-		if d.Before(currentD) {
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithDeadline(ctx, d)
-			defer cancel()
-		}
-	} else {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithDeadline(ctx, d)
+	ctx, cancel := c.context(opts.Context, opts.Timeout)
+	if cancel != nil {
 		defer cancel()
 	}
 

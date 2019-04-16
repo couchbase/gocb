@@ -132,22 +132,9 @@ func (c *Collection) LookupIn(key string, ops []LookupInOp, opts *LookupInOption
 		opts = &LookupInOptions{}
 	}
 
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
-	d := c.deadline(ctx, time.Now(), opts.Timeout)
-	if currentD, ok := ctx.Deadline(); ok {
-		if d.Before(currentD) {
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithDeadline(ctx, d)
-			defer cancel()
-		}
-	} else {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithDeadline(ctx, d)
+	ctx, cancel := c.context(opts.Context, opts.Timeout)
+	if cancel != nil {
 		defer cancel()
 	}
 
@@ -794,22 +781,9 @@ func (c *Collection) MutateIn(key string, ops []MutateInOp, opts *MutateInOption
 	span := c.startKvOpTrace(opts.ParentSpanContext, "MutateIn")
 	defer span.Finish()
 
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
-	d := c.deadline(ctx, time.Now(), opts.Timeout)
-	if currentD, ok := ctx.Deadline(); ok {
-		if d.Before(currentD) {
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithDeadline(ctx, d)
-			defer cancel()
-		}
-	} else {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithDeadline(ctx, d)
+	ctx, cancel := c.context(opts.Context, opts.Timeout)
+	if cancel != nil {
 		defer cancel()
 	}
 

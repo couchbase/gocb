@@ -1334,3 +1334,75 @@ func TestInsertContextTimeout2(t *testing.T) {
 		t.Fatalf("Context error should have been nil")
 	}
 }
+
+func TestCollectionContext(t *testing.T) {
+	type args struct {
+		ctx     context.Context
+		timeout time.Duration
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	defer cancel()
+	tests := []struct {
+		name        string
+		sb          stateBlock
+		args        args
+		wantBetween []time.Duration
+	}{
+		{
+			name:        "No parameters should take cluster level timeout",
+			sb:          stateBlock{KvTimeout: 20 * time.Second},
+			args:        args{ctx: nil, timeout: 0},
+			wantBetween: []time.Duration{19 * time.Second, 20 * time.Second},
+		},
+		{
+			name:        "Timeout parameter only should be timeout",
+			sb:          stateBlock{KvTimeout: 20 * time.Second},
+			args:        args{ctx: nil, timeout: 30 * time.Second},
+			wantBetween: []time.Duration{29 * time.Second, 30 * time.Second},
+		},
+		{
+			name:        "Context parameter only should take cluster timeout",
+			sb:          stateBlock{KvTimeout: 20 * time.Second},
+			args:        args{ctx: ctx, timeout: 0},
+			wantBetween: []time.Duration{19 * time.Second, 20 * time.Second},
+		},
+		{
+			name:        "Context and timeout parameters, lower context should take context",
+			sb:          stateBlock{KvTimeout: 20 * time.Second},
+			args:        args{ctx: ctx, timeout: 30 * time.Second},
+			wantBetween: []time.Duration{24 * time.Second, 25 * time.Second},
+		},
+		{
+			name:        "Context and timeout parameters, lower timeout should take timeout",
+			sb:          stateBlock{KvTimeout: 20 * time.Second},
+			args:        args{ctx: ctx, timeout: 15 * time.Second},
+			wantBetween: []time.Duration{14 * time.Second, 15 * time.Second},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Collection{
+				sb: tt.sb,
+			}
+			ctx, cancel := c.context(tt.args.ctx, tt.args.timeout)
+			d, ok := ctx.Deadline()
+			if ok {
+				timeout := d.Sub(time.Now())
+				if timeout < tt.wantBetween[0] || timeout > tt.wantBetween[1] {
+					t.Errorf(
+						"Expected context to be between %f and %f but was %f",
+						tt.wantBetween[0].Seconds(),
+						tt.wantBetween[1].Seconds(),
+						timeout.Seconds(),
+					)
+				}
+			} else {
+				t.Errorf("Expected context to have deadline, but didn't")
+			}
+
+			if cancel == nil {
+				t.Errorf("Expected cancel func be not nil")
+			}
+		})
+	}
+}

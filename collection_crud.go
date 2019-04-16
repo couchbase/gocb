@@ -30,47 +30,19 @@ type kvProvider interface {
 	NumReplicas() int // UNSURE THIS SHOULDNT BE ON ANOTHER INTERFACE
 }
 
-// shortestTime calculates the shortest of two times, this is used for context deadlines.
-func shortestTime(first, second time.Time) time.Time {
-	if first.IsZero() {
-		return second
-	}
-	if second.IsZero() || first.Before(second) {
-		return first
-	}
-	return second
-}
-
-// deadline calculates the shortest timeout from context, operation timeout and collection level kv timeout.
-func (c *Collection) deadline(ctx context.Context, now time.Time, opTimeout time.Duration) time.Time {
-	var earliest time.Time
-	if opTimeout > 0 {
-		earliest = now.Add(opTimeout)
-	}
-	if d, ok := ctx.Deadline(); ok {
-		earliest = shortestTime(earliest, d)
-	}
-	return shortestTime(earliest, now.Add(c.sb.KvTimeout))
-}
-
 func (c *Collection) context(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if timeout == 0 {
+		// no operation level timeouts set, use cluster level
+		timeout = c.sb.KvTimeout
+	}
+
 	if ctx == nil {
-		ctx = context.Background()
+		// no context provided so just make a new one
+		return context.WithTimeout(context.Background(), timeout)
 	}
 
-	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
-	d := c.deadline(ctx, time.Now(), timeout)
-	if currentD, ok := ctx.Deadline(); ok {
-		if d.Before(currentD) {
-			// the original context has a deadline but one of the timeouts is shorter
-			return context.WithDeadline(ctx, d)
-		}
-	} else {
-		// original context has no deadline so make one
-		return context.WithDeadline(ctx, d)
-	}
-
-	return ctx, nil
+	// a context has been provided so add whatever timeout to it. WithTimeout will pick the shortest anyway.
+	return context.WithTimeout(ctx, timeout)
 }
 
 type opManager struct {

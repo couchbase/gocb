@@ -15,8 +15,9 @@ type Collection struct {
 // CollectionOptions are the options available when opening a collection.
 type CollectionOptions struct {
 	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	// Timeout specifies the amount of time to wait for the collection ID to be fetched.
+	Timeout time.Duration
+	Context context.Context
 }
 
 func newCollection(scope *Scope, collectionName string, opts *CollectionOptions) *Collection {
@@ -33,14 +34,10 @@ func newCollection(scope *Scope, collectionName string, opts *CollectionOptions)
 	span := collection.startKvOpTrace(opts.ParentSpanContext, "GetCollectionID")
 	defer span.Finish()
 
-	deadlinedCtx := opts.Context
-	if deadlinedCtx == nil {
-		deadlinedCtx = context.Background()
+	deadlinedCtx, cancel := collection.context(opts.Context, opts.Timeout)
+	if cancel != nil {
+		defer cancel()
 	}
-
-	d := collection.deadline(deadlinedCtx, time.Now(), opts.Timeout)
-	deadlinedCtx, cancel := context.WithDeadline(deadlinedCtx, d)
-	defer cancel()
 
 	cli := collection.sb.getCachedClient()
 	cli.openCollection(deadlinedCtx, span.Context(), collection.sb.ScopeName, collection.sb.CollectionName)
