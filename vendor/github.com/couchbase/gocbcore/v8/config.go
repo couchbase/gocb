@@ -57,8 +57,8 @@ type cfgNodeServices struct {
 }
 
 type cfgNodeAltAddress struct {
-	Ports    cfgNodeServices `json:"ports"`
-	Hostname string          `json:"hostname"`
+	Ports    *cfgNodeServices `json:"ports,omitempty"`
+	Hostname string           `json:"hostname"`
 }
 type cfgNodeExt struct {
 	Services     cfgNodeServices              `json:"services"`

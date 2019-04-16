@@ -1,5 +1,5 @@
-github.com/couchbase/gocbcore/v8 v8.0.0-alpha.1 h1:WKTB2LtEw1qHcWDcj8PzGTFH6nwSTJ8wyiKnvoWcp4c=
-github.com/couchbase/gocbcore/v8 v8.0.0-alpha.1/go.mod h1:THA8kfi1hYQhfaRJhUfvxZ6wfWoIm1u1nciFtXbjAfQ=
+github.com/couchbase/gocbcore/v8 v8.0.0-alpha.2 h1:Y0lhIRXJ1YDJKRDIDFBch+1qjMGlxqUv4fitB5pfiDU=
+github.com/couchbase/gocbcore/v8 v8.0.0-alpha.2/go.mod h1:THA8kfi1hYQhfaRJhUfvxZ6wfWoIm1u1nciFtXbjAfQ=
 github.com/couchbaselabs/gocbconnstr v1.0.2 h1:R7CNfNcLrRVgkGpwR+TSMLh4V8Ij+Uwt9bCGCHJysRo=
 github.com/couchbaselabs/gocbconnstr v1.0.2/go.mod h1:Mg0VKc6azyPXhSq4b/xwsrW30ORe+H5L5hucCweYhj8=
 github.com/couchbaselabs/gojcbmock v1.0.3 h1:Ueenew8eiSM50pgHWV9+LThTB/aG29M2+LrxdjKasyU=

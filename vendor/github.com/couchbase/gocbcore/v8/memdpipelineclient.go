@@ -155,7 +155,7 @@ func (pipecli *memdPipelineClient) ioLoop(client *memdClient) {
 			}
 
 			// We need to alert the caller that there was a network error
-			req.Callback(nil, req, ErrNetwork)
+			req.tryCallback(nil, ErrNetwork)
 
 			// Stop looping
 			break

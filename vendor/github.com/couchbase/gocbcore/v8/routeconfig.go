@@ -61,7 +61,9 @@ func buildRouteConfig(bk *cfgBucket, useSsl bool, networkType string, firstConne
 			if networkType != "default" {
 				if altAddr, ok := node.AltAddresses[networkType]; ok {
 					hostname = altAddr.Hostname
-					ports = altAddr.Ports
+					if altAddr.Ports != nil {
+						ports = *altAddr.Ports
+					}
 				} else {
 					if !firstConnect {
 						logDebugf("Invalid config network type %s", networkType)
