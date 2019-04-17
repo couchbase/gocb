@@ -789,7 +789,6 @@ func TestQueryConnectContextTimeout(t *testing.T) {
 
 func TestQueryConnectClusterTimeout(t *testing.T) {
 	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
-	timeout := 50 * time.Second
 	clusterTimeout := 10 * time.Millisecond
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -827,7 +826,6 @@ func TestQueryConnectClusterTimeout(t *testing.T) {
 	cluster := testGetClusterForHTTP(provider, clusterTimeout, 0, 0)
 
 	_, err := cluster.Query(statement, &QueryOptions{
-		Timeout: timeout,
 		Context: ctx,
 	})
 	if err == nil || !IsTimeoutError(err) {

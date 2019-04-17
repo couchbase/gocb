@@ -544,9 +544,8 @@ func TestAnalyticsQueryConnectContextTimeout(t *testing.T) {
 	}
 }
 
-func TestAnalyticsQueryConnectClusterTimeout(t *testing.T) {
+func TestAnalyticsQueryConnectClusterTimeoutClusterWins(t *testing.T) {
 	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
-	timeout := 50 * time.Second
 	clusterTimeout := 10 * time.Millisecond
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -587,8 +586,56 @@ func TestAnalyticsQueryConnectClusterTimeout(t *testing.T) {
 	cluster := testGetClusterForHTTP(provider, clusterTimeout, 0, 0)
 
 	_, err := cluster.AnalyticsQuery(statement, &AnalyticsQueryOptions{
-		ServerSideTimeout: timeout,
-		Context:           ctx,
+		Context: ctx,
+	})
+	if err == nil || !IsTimeoutError(err) {
+		t.Fatal(err)
+	}
+}
+
+func TestAnalyticsQueryConnectClusterTimeoutContextWins(t *testing.T) {
+	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
+	clusterTimeout := 40 * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		testAssertAnalyticsQueryRequest(t, req)
+
+		var opts map[string]interface{}
+		err := json.Unmarshal(req.Body, &opts)
+		if err != nil {
+			t.Fatalf("Failed to unmarshal request body %v", err)
+		}
+
+		optsTimeout, ok := opts["timeout"]
+		if !ok {
+			t.Fatalf("Request query options missing timeout")
+		}
+
+		dur, err := time.ParseDuration(optsTimeout.(string))
+		if err != nil {
+			t.Fatalf("Could not parse timeout: %v", err)
+		}
+
+		if dur < (clusterTimeout-50*time.Millisecond) || dur > (clusterTimeout+50*time.Millisecond) {
+			t.Fatalf("Expected timeout to be %s but was %s", clusterTimeout.String(), optsTimeout)
+		}
+
+		// we can't use time travel here as we need the context to actually timeout
+		time.Sleep(100 * time.Millisecond)
+
+		return nil, context.DeadlineExceeded
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+	}
+
+	cluster := testGetClusterForHTTP(provider, clusterTimeout, 0, 0)
+
+	_, err := cluster.AnalyticsQuery(statement, &AnalyticsQueryOptions{
+		Context: ctx,
 	})
 	if err == nil || !IsTimeoutError(err) {
 		t.Fatal(err)

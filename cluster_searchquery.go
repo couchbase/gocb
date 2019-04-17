@@ -398,23 +398,20 @@ func (c *Cluster) searchQuery(ctx context.Context, traceCtx opentracing.SpanCont
 		if err != nil {
 			return nil, err
 		}
-		if opTimeout <= 0 || time.Duration(opTimeout) > timeout {
-			opTimeout = jsonMillisecondDuration(timeout)
-		}
 	}
 
-	now := time.Now()
-	d, ok := ctx.Deadline()
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
-	// If we don't need to then we don't touch the original ctx value so that the Done channel is set
-	// in a predictable manner. We don't make the client timeout longer for this as pindexes can timeout
+	// We don't make the client timeout longer for this as pindexes can timeout
 	// individually rather than the entire connection. Server side timeouts are also hard to detect.
 	var cancel context.CancelFunc
-	if !ok || now.Add(time.Duration(opTimeout)).Before(d) {
-		ctx, cancel = context.WithTimeout(ctx, time.Duration(opTimeout))
-	} else {
-		opTimeout = jsonMillisecondDuration(d.Sub(now))
-	}
+	ctx, cancel = context.WithTimeout(ctx, timeout)
+
+	now := time.Now()
+	d, _ := ctx.Deadline()
+	opTimeout = jsonMillisecondDuration(d.Sub(now))
 
 	err = ctlData.Set("timeout", opTimeout)
 	if err != nil {

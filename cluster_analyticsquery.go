@@ -352,33 +352,35 @@ func (c *Cluster) analyticsQuery(ctx context.Context, traceCtx opentracing.SpanC
 	}
 
 	timeout := c.sb.AnalyticsTimeout
-	var optTimeout time.Duration
 	tmostr, castok := queryOpts["timeout"].(string)
 	if castok {
-		optTimeout, err = time.ParseDuration(tmostr)
+		timeout, err = time.ParseDuration(tmostr)
 		if err != nil {
 			return nil, errors.Wrap(err, "could not parse timeout value")
 		}
 	}
-	if optTimeout > 0 && optTimeout < timeout {
-		timeout = optTimeout
+
+	if ctx == nil {
+		ctx = context.Background()
 	}
 
-	now := time.Now()
-	d, ok := ctx.Deadline()
-
-	// If we don't need to then we don't touch the original ctx value so that the Done channel is set
-	// in a predictable manner. If we create a context then we need to create it with timeout + 1 second
-	// so that the server closes the connection rather than us. This is just a better user experience.
+	// We need to try to create the context with timeout + 1 second so that the server closes the connection rather
+	// than us. This is just a better user experience.
 	timeoutPlusBuffer := timeout + time.Second
 	var cancel context.CancelFunc
-	if !ok || now.Add(timeoutPlusBuffer).Before(d) {
-		ctx, cancel = context.WithTimeout(ctx, timeoutPlusBuffer)
-	} else {
-		timeout = d.Sub(now)
-	}
+	ctx, cancel = context.WithTimeout(ctx, timeoutPlusBuffer)
 
-	queryOpts["timeout"] = timeout.String()
+	now := time.Now()
+	d, _ := ctx.Deadline()
+	newTimeout := d.Sub(now)
+
+	// We need to take the shorter of the timeouts here so that the server can try to timeout first, if the context
+	// already had a shorter deadline then there's not much we can do about it.
+	if newTimeout > timeout {
+		queryOpts["timeout"] = timeout.String()
+	} else {
+		queryOpts["timeout"] = newTimeout.String()
+	}
 
 	// TODO: clientcontextid?
 
