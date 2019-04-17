@@ -411,7 +411,10 @@ type networkError struct {
 }
 
 func (e networkError) Error() string {
-	return fmt.Sprintf("a network error occurred with message: %s", e.message)
+	if e.message == "" {
+		return fmt.Sprintf("a network error occurred with message: %s", e.message)
+	}
+	return fmt.Sprintf("a network error occurred")
 }
 
 // NetworkError returns whether or not the error is a network error.

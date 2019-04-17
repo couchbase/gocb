@@ -1216,6 +1216,43 @@ func TestInsertReplicateToGetAllReplicas(t *testing.T) {
 	}
 }
 
+func TestInsertDurabilityMajorityGetFromAnyReplica(t *testing.T) {
+	if !globalCluster.SupportsFeature(DurabilityFeature) {
+		t.Skip("Skipping test as durability not supported")
+	}
+	var doc testBeerDocument
+	err := loadJSONTestDataset("beer_sample_single", &doc)
+	if err != nil {
+		t.Fatalf("Could not read test dataset: %v", err)
+	}
+
+	mutRes, err := globalCollection.Insert("insertDurabilityMajorityDoc", doc, &InsertOptions{
+		DurabilityLevel: DurabilityLevelMajority,
+	})
+	if err != nil {
+		t.Fatalf("Insert failed, error was %v", err)
+	}
+
+	if mutRes.Cas() == 0 {
+		t.Fatalf("Insert CAS was 0")
+	}
+
+	insertedDoc, err := globalCollection.GetAnyReplica("insertDurabilityMajorityDoc", nil)
+	if err != nil {
+		t.Fatalf("GetFromReplica failed, error was %v", err)
+	}
+
+	var insertedDocContent testBeerDocument
+	err = insertedDoc.Content(&insertedDocContent)
+	if err != nil {
+		t.Fatalf("Content failed, error was %v", err)
+	}
+
+	if doc != insertedDocContent {
+		t.Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
+	}
+}
+
 // In this test it is expected that the operation will timeout and ctx.Err() will be DeadlineExceeded.
 func TestGetContextTimeout1(t *testing.T) {
 	var doc testBreweryDocument
