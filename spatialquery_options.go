@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
@@ -21,6 +22,7 @@ type SpatialViewOptions struct {
 	Custom            map[string]string
 	Context           context.Context
 	ParentSpanContext opentracing.SpanContext
+	Timeout           time.Duration
 }
 
 func (opts *SpatialViewOptions) toURLValues() (*url.Values, error) {

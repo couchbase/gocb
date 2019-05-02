@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -358,6 +359,164 @@ func TestViewServiceNotFound(t *testing.T) {
 
 	if !IsServiceNotFoundError(err) {
 		t.Fatalf("Expected error to be ServiceNotFoundError but was %s", reflect.TypeOf(err).Name())
+	}
+}
+
+func TestViewQueryTimeout(t *testing.T) {
+	timeout := 20 * time.Millisecond
+	clusterTimeout := 50 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		testAssertViewQueryRequest(t, req)
+
+		d, ok := req.Context.Deadline()
+		if !ok {
+			t.Fatal("Expected request to have a deadline")
+		}
+
+		dur := d.Sub(time.Now())
+		if dur < (timeout-50*time.Millisecond) || dur > (timeout+50*time.Millisecond) {
+			t.Fatalf("Expected timeout to be %s but was %s", timeout.String(), dur.String())
+		}
+
+		// we can't use time travel here as we need the context to actually timeout
+		time.Sleep(100 * time.Millisecond)
+
+		return nil, context.DeadlineExceeded
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+	}
+
+	bucket := testGetBucketForHTTP(provider, clusterTimeout)
+
+	_, err := bucket.ViewQuery("test", "test", &ViewOptions{
+		Timeout: timeout,
+		Context: ctx,
+	})
+	if err == nil || !IsTimeoutError(err) {
+		t.Fatal(err)
+	}
+}
+
+func TestViewQueryContextTimeout(t *testing.T) {
+	timeout := 2000 * time.Millisecond
+	clusterTimeout := 50 * time.Second
+	ctxTimeout := 20 * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), ctxTimeout)
+	defer cancel()
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		testAssertViewQueryRequest(t, req)
+
+		d, ok := req.Context.Deadline()
+		if !ok {
+			t.Fatal("Expected request to have a deadline")
+		}
+
+		dur := d.Sub(time.Now())
+		if dur < (ctxTimeout-50*time.Millisecond) || dur > (ctxTimeout+50*time.Millisecond) {
+			t.Fatalf("Expected timeout to be %s but was %s", ctxTimeout.String(), dur.String())
+		}
+
+		// we can't use time travel here as we need the context to actually timeout
+		time.Sleep(100 * time.Millisecond)
+
+		return nil, context.DeadlineExceeded
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+	}
+
+	bucket := testGetBucketForHTTP(provider, clusterTimeout)
+
+	_, err := bucket.ViewQuery("test", "test", &ViewOptions{
+		Timeout: timeout,
+		Context: ctx,
+	})
+	if err == nil || !IsTimeoutError(err) {
+		t.Fatal(err)
+	}
+}
+
+func TestViewQueryContextTimeoutNoTimeoutValue(t *testing.T) {
+	clusterTimeout := 50 * time.Second
+	ctxTimeout := 20 * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), ctxTimeout)
+	defer cancel()
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		testAssertViewQueryRequest(t, req)
+
+		d, ok := req.Context.Deadline()
+		if !ok {
+			t.Fatal("Expected request to have a deadline")
+		}
+
+		dur := d.Sub(time.Now())
+		if dur < (ctxTimeout-50*time.Millisecond) || dur > (ctxTimeout+50*time.Millisecond) {
+			t.Fatalf("Expected timeout to be %s but was %s", ctxTimeout.String(), dur.String())
+		}
+
+		// we can't use time travel here as we need the context to actually timeout
+		time.Sleep(100 * time.Millisecond)
+
+		return nil, context.DeadlineExceeded
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+	}
+
+	bucket := testGetBucketForHTTP(provider, clusterTimeout)
+
+	_, err := bucket.ViewQuery("test", "test", &ViewOptions{
+		Context: ctx,
+	})
+	if err == nil || !IsTimeoutError(err) {
+		t.Fatal(err)
+	}
+}
+
+func TestViewQueryClusterTimeoutNoTimeoutValue(t *testing.T) {
+	clusterTimeout := 20 * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), 2000*time.Millisecond)
+	defer cancel()
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		testAssertViewQueryRequest(t, req)
+
+		d, ok := req.Context.Deadline()
+		if !ok {
+			t.Fatal("Expected request to have a deadline")
+		}
+
+		dur := d.Sub(time.Now())
+		if dur < (clusterTimeout-50*time.Millisecond) || dur > (clusterTimeout+50*time.Millisecond) {
+			t.Fatalf("Expected timeout to be %s but was %s", clusterTimeout.String(), dur.String())
+		}
+
+		// we can't use time travel here as we need the context to actually timeout
+		time.Sleep(100 * time.Millisecond)
+
+		return nil, context.DeadlineExceeded
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+	}
+
+	bucket := testGetBucketForHTTP(provider, clusterTimeout)
+
+	_, err := bucket.ViewQuery("test", "test", &ViewOptions{
+		Context: ctx,
+	})
+	if err == nil || !IsTimeoutError(err) {
+		t.Fatal(err)
 	}
 }
 

@@ -33,6 +33,7 @@ type ViewResults struct {
 	errMessage string
 
 	ctx          context.Context
+	cancel       context.CancelFunc
 	streamResult *streamingResult
 	strace       opentracing.Span
 	err          error
@@ -82,7 +83,11 @@ func (r *ViewResults) Close() error {
 	if r.strace != nil {
 		r.strace.Finish()
 	}
-	if r.ctx.Err() == context.DeadlineExceeded {
+	ctxErr := r.ctx.Err()
+	if r.cancel != nil {
+		r.cancel()
+	}
+	if ctxErr == context.DeadlineExceeded {
 		return timeoutError{}
 	}
 	if vErr := r.makeError(); vErr != nil {
@@ -229,12 +234,29 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 
 	designDoc = b.maybePrefixDevDocument(opts.Development, designDoc)
 
+	timeout := b.sb.ViewTimeout
+	if opts.Timeout > 0 {
+		timeout = opts.Timeout
+	}
+
+	// We don't make the client timeout longer for this as pindexes can timeout
+	// individually rather than the entire connection. Server side timeouts are also hard to detect.
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, timeout)
+
 	urlValues, err := opts.toURLValues()
 	if err != nil {
+		cancel()
 		return nil, errors.Wrap(err, "could not parse query options")
 	}
 
-	return b.executeViewQuery(ctx, span.Context(), "_view", designDoc, viewName, *urlValues, provider)
+	res, err := b.executeViewQuery(ctx, span.Context(), "_view", designDoc, viewName, *urlValues, provider, cancel)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+
+	return res, nil
 }
 
 // SpatialViewQuery performs a spatial query and returns a list of rows or an error.
@@ -265,17 +287,33 @@ func (b *Bucket) SpatialViewQuery(designDoc string, viewName string, opts *Spati
 
 	designDoc = b.maybePrefixDevDocument(opts.Development, designDoc)
 
+	timeout := b.sb.ViewTimeout
+	if opts.Timeout > 0 {
+		timeout = opts.Timeout
+	}
+
+	// We don't make the client timeout longer for this as pindexes can timeout
+	// individually rather than the entire connection. Server side timeouts are also hard to detect.
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, timeout)
+
 	urlValues, err := opts.toURLValues()
 	if err != nil {
+		cancel()
 		return nil, errors.Wrap(err, "could not parse query options")
 	}
 
-	return b.executeViewQuery(ctx, span.Context(), "_spatial", designDoc, viewName, *urlValues, provider)
+	res, err := b.executeViewQuery(ctx, span.Context(), "_spatial", designDoc, viewName, *urlValues, provider, cancel)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (b *Bucket) executeViewQuery(ctx context.Context, traceCtx opentracing.SpanContext, viewType, ddoc, viewName string,
-	options url.Values, provider httpProvider) (*ViewResults, error) {
-
+	options url.Values, provider httpProvider, cancel context.CancelFunc) (*ViewResults, error) {
 	reqUri := fmt.Sprintf("/_design/%s/%s/%s?%s", ddoc, viewType, viewName, options.Encode())
 	req := &gocbcore.HttpRequest{
 		Service: gocbcore.CapiService,
@@ -375,6 +413,7 @@ func (b *Bucket) executeViewQuery(ctx context.Context, traceCtx opentracing.Span
 	if streamResult.HasRows() {
 		queryResults.strace = strace
 		queryResults.ctx = ctx
+		queryResults.cancel = cancel
 	} else {
 		bodyErr := streamResult.Close()
 		if bodyErr != nil {

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
@@ -57,6 +58,7 @@ type ViewOptions struct {
 	Development       bool
 	Custom            map[string]string
 	Context           context.Context
+	Timeout           time.Duration
 	ParentSpanContext opentracing.SpanContext
 }
 
