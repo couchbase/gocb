@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -259,6 +260,10 @@ func (r *SearchResults) readAttribute(decoder *json.Decoder, t json.Token) (bool
 		r.metadata.status.Successful = status.Successful
 		r.metadata.status.Failed = status.Failed
 
+		if status.Errors == nil {
+			return false, nil
+		}
+
 		var statusErrors []string
 		if statusError, ok := status.Errors.([]string); ok {
 			statusErrors = statusError
@@ -510,23 +515,30 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.S
 
 	strace := opentracing.GlobalTracer().StartSpan("streaming", opentracing.ChildOf(traceCtx))
 
-	queryResults := &SearchResults{
-		metadata: SearchResultsMetadata{
-			sourceAddr: epInfo.Host,
-		},
-		httpStatus: resp.StatusCode,
-	}
-
-	errHandled := false
 	switch resp.StatusCode {
 	case 400:
-		queryResults.metadata.status.Total = 1
-		queryResults.metadata.status.Failed = 1
-		errHandled = true
+		// This goes against the FTS RFC but makes a better experience in Go
+		buf := new(bytes.Buffer)
+		_, err := buf.ReadFrom(resp.Body)
+		if err != nil {
+			strace.Finish()
+			return nil, err
+		}
+		respErrs := []string{buf.String()}
+		var errs []SearchError
+		for _, err := range respErrs {
+			errs = append(errs, searchError{
+				message: err,
+			})
+		}
+		return nil, searchMultiError{
+			errors:     errs,
+			endpoint:   epInfo.Host,
+			httpStatus: resp.StatusCode,
+		}
 	case 401:
-		queryResults.metadata.status.Total = 1
-		queryResults.metadata.status.Failed = 1
-		queryResults.err = searchMultiError{
+		// This goes against the FTS RFC but makes a better experience in Go
+		return nil, searchMultiError{
 			errors: []SearchError{
 				searchError{
 					message: "The requested consistency level could not be satisfied before the timeout was reached",
@@ -535,10 +547,9 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.S
 			endpoint:   epInfo.Host,
 			httpStatus: resp.StatusCode,
 		}
-		errHandled = true
 	}
 
-	if resp.StatusCode != 200 && !errHandled {
+	if resp.StatusCode != 200 {
 		err = searchMultiError{
 			errors: []SearchError{
 				searchError{
@@ -551,6 +562,13 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.S
 
 		strace.Finish()
 		return nil, err
+	}
+
+	queryResults := &SearchResults{
+		metadata: SearchResultsMetadata{
+			sourceAddr: epInfo.Host,
+		},
+		httpStatus: resp.StatusCode,
 	}
 
 	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)

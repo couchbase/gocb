@@ -176,9 +176,13 @@ func testSimpleSearchQueryError(t *testing.T) {
 	indexName := "travel-sample-index-unsored"
 	query := SearchQuery{Name: indexName, Query: NewMatchQuery("swanky")}
 
-	_, err := globalCluster.SearchQuery(query, &SearchQueryOptions{Limit: 1000})
+	res, err := globalCluster.SearchQuery(query, &SearchQueryOptions{Limit: 1000})
 	if err == nil {
 		t.Fatalf("Execute query should have errored")
+	}
+
+	if res != nil {
+		t.Fatalf("Expected result to be nil but was %v", res)
 	}
 }
 
@@ -275,7 +279,7 @@ func TestSearchQueryObjectError(t *testing.T) {
 	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
 	cluster.sb.SearchRetryBehavior = StandardDelayRetryBehavior(3, 1, 100*time.Millisecond, LinearDelayFunction)
 
-	_, err = cluster.SearchQuery(q, nil)
+	res, err := cluster.SearchQuery(q, nil)
 	if err == nil {
 		t.Fatal("Expected query execution to error")
 	}
@@ -286,5 +290,107 @@ func TestSearchQueryObjectError(t *testing.T) {
 		}
 	} else {
 		t.Fatalf("Expected error to be SearchErrors but was %v", err)
+	}
+
+	if res != nil {
+		t.Fatalf("Expected result to be nil but was %v", res)
+	}
+}
+
+func TestSearchQuery400Error(t *testing.T) {
+	q := SearchQuery{
+		Name:  "test",
+		Query: NewMatchQuery("test"),
+	}
+	timeout := 60 * time.Second
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		return &gocbcore.HttpResponse{
+			Endpoint:   "http://localhost:8093",
+			StatusCode: 400,
+			Body:       &testReadCloser{bytes.NewBuffer([]byte("an error")), nil},
+		}, nil
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+	}
+
+	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
+
+	res, err := cluster.SearchQuery(q, nil)
+	if err == nil {
+		t.Fatal("Expected query execution to error")
+	}
+
+	if searchErrs, ok := err.(SearchErrors); ok {
+		if len(searchErrs.Errors()) != 1 {
+			t.Fatalf("Expected length of search errors to be 6 but was %d", len(searchErrs.Errors()))
+		}
+
+		if searchErr, ok := searchErrs.Errors()[0].(SearchError); ok {
+			if searchErr.Message() != "an error" {
+				t.Fatalf("Expected error message to be \"an error\" but was %s", searchErr.Message())
+			}
+		} else {
+			t.Fatalf("Expected search error to be SearchError but was %v", err)
+		}
+	} else {
+		t.Fatalf("Expected search errors to be SearchErrors but was %v", err)
+	}
+
+	if res != nil {
+		t.Fatalf("Expected result to be nil but was %v", res)
+	}
+}
+
+func TestSearchQuery401Error(t *testing.T) {
+	q := SearchQuery{
+		Name:  "test",
+		Query: NewMatchQuery("test"),
+	}
+	timeout := 60 * time.Second
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		return &gocbcore.HttpResponse{
+			Endpoint:   "http://localhost:8093",
+			StatusCode: 401,
+		}, nil
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+	}
+
+	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
+
+	res, err := cluster.SearchQuery(q, nil)
+	if err == nil {
+		t.Fatal("Expected query execution to error")
+	}
+
+	if searchErrs, ok := err.(SearchErrors); ok {
+		if len(searchErrs.Errors()) != 1 {
+			t.Fatalf("Expected length of search errors to be 6 but was %d", len(searchErrs.Errors()))
+		}
+
+		if searchErr, ok := searchErrs.Errors()[0].(SearchError); ok {
+			if searchErr.Message() != "The requested consistency level could not be "+
+				"satisfied before the timeout was reached" {
+				t.Fatalf(
+					"Expected error message to be \"The requested consistency level could not be "+
+						"satisfied before the timeout was reached\" but was %s",
+					searchErr.Message(),
+				)
+			}
+		} else {
+			t.Fatalf("Expected search error to be SearchError but was %v", err)
+		}
+	} else {
+		t.Fatalf("Expected search errors to be SearchErrors but was %v", err)
+	}
+
+	if res != nil {
+		t.Fatalf("Expected result to be nil but was %v", res)
 	}
 }
