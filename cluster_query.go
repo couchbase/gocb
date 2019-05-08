@@ -529,7 +529,7 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, traceCtx opentracing.Spa
 	if err != nil {
 		dtrace.Finish()
 		if err == gocbcore.ErrNoN1qlService {
-			return nil, serviceNotFoundError{}
+			return nil, serviceNotAvailableError{message: gocbcore.ErrNoN1qlService.Error()}
 		}
 
 		// as we're effectively manually timing out the request using cancellation we need

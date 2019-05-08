@@ -538,7 +538,7 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.S
 	if err != nil {
 		dtrace.Finish()
 		if err == gocbcore.ErrNoFtsService {
-			return nil, serviceNotFoundError{}
+			return nil, serviceNotAvailableError{message: gocbcore.ErrNoFtsService.Error()}
 		}
 
 		// as we're effectively manually timing out the request using cancellation we need

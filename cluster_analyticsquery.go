@@ -446,7 +446,7 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracin
 	if err != nil {
 		dtrace.Finish()
 		if err == gocbcore.ErrNoCbasService {
-			return nil, serviceNotFoundError{}
+			return nil, serviceNotAvailableError{message: gocbcore.ErrNoCbasService.Error()}
 		}
 
 		// as we're effectively manually timing out the request using cancellation we need

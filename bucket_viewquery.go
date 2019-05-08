@@ -388,7 +388,7 @@ func (b *Bucket) executeViewQuery(ctx context.Context, traceCtx opentracing.Span
 	if err != nil {
 		dtrace.Finish()
 		if err == gocbcore.ErrNoCapiService {
-			return nil, serviceNotFoundError{}
+			return nil, serviceNotAvailableError{message: gocbcore.ErrNoCapiService.Error()}
 		}
 
 		// as we're effectively manually timing out the request using cancellation we need

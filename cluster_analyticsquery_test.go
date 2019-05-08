@@ -385,7 +385,7 @@ func TestAnalyticsQueryServiceNotFound(t *testing.T) {
 		t.Fatalf("Expected result to be nil but was %v", res)
 	}
 
-	if !IsServiceNotFoundError(err) {
+	if !IsServiceNotAvailableError(err) {
 		t.Fatalf("Expected error to be ServiceNotFoundError but was %v", err)
 	}
 }

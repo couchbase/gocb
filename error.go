@@ -19,7 +19,22 @@ type KeyValueError interface {
 	ID() string
 	StatusCode() int // ?
 	Opaque() uint32
-	KVError() bool
+	KeyValueError() bool
+}
+
+// AuthenticationError represents an error caused by an authentication issue.
+type AuthenticationError interface {
+	AuthenticationError() bool
+}
+
+// TemporaryFailureError represents an error that is temporary.
+type TemporaryFailureError interface {
+	TemporaryFailureError() bool
+}
+
+// ServiceNotAvailableError represents that the service used for an operation is not available.
+type ServiceNotAvailableError interface {
+	ServiceNotAvailableError() bool
 }
 
 type kvError struct {
@@ -63,249 +78,30 @@ func (err kvError) Opaque() uint32 {
 	return err.opaque
 }
 
-// KVError specifies whether or not this is a KVError.
-func (err kvError) KVError() bool {
+// KeyValueError specifies whether or not this is a kvError.
+func (err kvError) KeyValueError() bool {
 	return true
 }
 
-// IsScopeMissingError verifies whether or not the cause for an error is scope unknown
-func IsScopeMissingError(err error) bool {
-	cause := errors.Cause(err)
-	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KVError() {
-		return kvErr.StatusCode() == int(gocbcore.StatusScopeUnknown)
-	}
-
-	return false
+// AuthenticationError specifies whether or not this is an authentication error.
+func (err kvError) AuthenticationError() bool {
+	return err.StatusCode() == int(gocbcore.StatusAuthError) ||
+		err.StatusCode() == int(gocbcore.StatusAccessError)
 }
 
-// IsCollectionMissingError verifies whether or not the cause for an error is scope unknown
-func IsCollectionMissingError(err error) bool {
-	cause := errors.Cause(err)
-	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KVError() {
-		return kvErr.StatusCode() == int(gocbcore.StatusCollectionUnknown)
-	}
-
-	return false
-
+// TemporaryFailureError specifies whether or not this is a temporary error.
+func (err kvError) TemporaryFailureError() bool {
+	return err.StatusCode() == int(gocbcore.StatusTmpFail) ||
+		err.StatusCode() == int(gocbcore.StatusOutOfMemory) ||
+		err.StatusCode() == int(gocbcore.StatusBusy)
 }
 
-// IsKeyExistsError indicates whether the passed error is a
-// key-value "Key Already Exists" error.
-func IsKeyExistsError(err error) bool {
-	cause := errors.Cause(err)
-	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KVError() {
-		return kvErr.StatusCode() == int(gocbcore.StatusKeyExists)
-	}
-
-	return false
-}
-
-// IsKeyNotFoundError indicates whether the passed error is a
-// key-value "Key Not Found" error.
-func IsKeyNotFoundError(err error) bool {
-	cause := errors.Cause(err)
-	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KVError() {
-		return kvErr.StatusCode() == int(gocbcore.StatusKeyNotFound)
-	}
-
-	return false
-}
-
-// IsTempFailError indicates whether the passed error is a
-// key-value "temporary failure, try again later" error.
-func IsTempFailError(err error) bool {
-	cause := errors.Cause(err)
-	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KVError() {
-		return kvErr.StatusCode() == int(gocbcore.StatusTmpFail)
-	}
-
-	return false
-}
-
-// IsValueTooBigError indicates whether the passed error is a
-// key-value "document value was too large" error.
-func IsValueTooBigError(err error) bool {
-	cause := errors.Cause(err)
-	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KVError() {
-		return kvErr.StatusCode() == int(gocbcore.StatusTooBig)
-	}
-
-	return false
-}
-
-// IsKeyLockedError indicates whether the passed error is a
-// key-value operation failed due to the document being locked.
-func IsKeyLockedError(err error) bool {
-	cause := errors.Cause(err)
-	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KVError() {
-		return kvErr.StatusCode() == int(gocbcore.StatusLocked)
-	}
-
-	return false
-}
-
-// IsPathNotFoundError indicates whether the passed error is a
-// key-value "sub-document path does not exist" error.
-func IsPathNotFoundError(err error) bool {
-	cause := errors.Cause(err)
-	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KVError() {
-		return kvErr.StatusCode() == int(gocbcore.StatusSubDocPathNotFound)
-	}
-
-	return false
-}
-
-// IsPathExistsError indicates whether the passed error is a
-// key-value "given path already exists in the document" error.
-func IsPathExistsError(err error) bool {
-	cause := errors.Cause(err)
-	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KVError() {
-		return kvErr.StatusCode() == int(gocbcore.StatusSubDocPathExists)
-	}
-
-	return false
-}
-
-// IsInvalidRangeError indicates whether the passed error is a
-// key-value "requested value is outside range" error.
-func IsInvalidRangeError(err error) bool {
-	cause := errors.Cause(err)
-	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KVError() {
-		return kvErr.StatusCode() == int(gocbcore.StatusRangeError)
-	}
-
-	return false
-}
-
-// IsHTTPError indicates whether the passed error is a
-// HTTP error.
-func IsHTTPError(err error) bool {
-	cause := errors.Cause(err)
-	if nErr, ok := cause.(HTTPError); ok {
-		return nErr.HTTPError()
-	}
-
-	return false
-}
-
-// IsNetworkError indicates whether the passed error is a
-// network error.
-func IsNetworkError(err error) bool {
-	cause := errors.Cause(err)
-	if nErr, ok := cause.(NetworkError); ok {
-		return nErr.NetworkError()
-	}
-
-	return false
-}
-
-// IsServiceNotFoundError indicates whether the passed error occurred due to
-// the requested service not being found.
-func IsServiceNotFoundError(err error) bool {
-	cause := errors.Cause(err)
-	if nErr, ok := cause.(ServiceNotFoundError); ok {
-		return nErr.ServiceNotFoundError()
-	}
-
-	return false
-}
-
-// IsTimeoutError verifies whether or not the cause for an error is a timeout.
-func IsTimeoutError(err error) bool {
-	switch errType := errors.Cause(err).(type) {
-	case TimeoutError:
-		return errType.Timeout()
-	default:
-		return false
-	}
-}
-
-// IsAuthenticationError verifies whether or not the cause for an error is an authentication error.
-func IsAuthenticationError(err error) bool {
-	cause := errors.Cause(err)
-	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KVError() {
-		return kvErr.StatusCode() == int(gocbcore.StatusAuthError)
-	}
-
-	return false
-}
-
-// IsBucketMissingError verifies whether or not the cause for an error is a bucket missing error.
-func IsBucketMissingError(err error) bool {
-	cause := errors.Cause(err)
-	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KVError() {
-		return kvErr.StatusCode() == int(gocbcore.StatusNoBucket)
-	}
-
-	return false
-}
-
-// IsAccessError verifies whether or not the cause for an error is an access error.
-func IsAccessError(err error) bool {
-	cause := errors.Cause(err)
-	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KVError() {
-		return kvErr.StatusCode() == int(gocbcore.StatusAccessError)
-	}
-
-	return false
-}
-
-// IsConfigurationError verifies whether or not the cause for an error is a configuration error.
-func IsConfigurationError(err error) bool {
-	switch errType := errors.Cause(err).(type) {
-	case ConfigurationError:
-		return errType.ConfigurationError()
-	default:
-		return false
-	}
-}
-
-// IsSubdocPathNotFoundError verifies whether or not the cause for an error is due to a subdoc operation path not found.
-func IsSubdocPathNotFoundError(err error) bool {
-	cause := errors.Cause(err)
-	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KVError() {
-		return kvErr.StatusCode() == int(gocbcore.StatusSubDocPathNotFound)
-	}
-
-	return false
-}
-
-// IsSubdocPathExistsError verifies whether or not the cause for an error is due to a subdoc operation path exists
-func IsSubdocPathExistsError(err error) bool {
-	cause := errors.Cause(err)
-	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KVError() {
-		return kvErr.StatusCode() == int(gocbcore.StatusSubDocPathExists)
-	}
-
-	return false
-}
-
-// IsDurabilityError verifies whether or not the cause for an error is due to a durability error.
-func IsDurabilityError(err error) bool {
-	switch errType := errors.Cause(err).(type) {
-	case DurabilityError:
-		return errType.DurabilityError()
-	default:
-		return false
-	}
-}
-
-// IsNoResultsError verifies whether or not the cause for an error is due no results being available to a query.
-func IsNoResultsError(err error) bool {
-	switch errType := errors.Cause(err).(type) {
-	case NoResultsError:
-		return errType.NoResultsError()
-	default:
-		return false
-	}
-}
-
-type clientError struct {
-	message string
-}
-
-func (e clientError) Error() string {
-	return e.message
+// DurabilityError specifies whether or not this is a durability related error.
+func (err kvError) DurabilityError() bool {
+	return err.StatusCode() == int(gocbcore.StatusSyncWriteAmbiguous) ||
+		err.StatusCode() == int(gocbcore.StatusSyncWriteInProgress) ||
+		err.StatusCode() == int(gocbcore.StatusDurabilityImpossible) ||
+		err.StatusCode() == int(gocbcore.StatusDurabilityInvalidLevel)
 }
 
 // DurabilityError occurs when an error occurs during performing durability operations.
@@ -341,89 +137,420 @@ func (err timeoutError) Timeout() bool {
 	return true
 }
 
-// ServiceNotFoundError is a generic error for HTTP errors.
-type ServiceNotFoundError interface {
-	error
-	ServiceNotFoundError() bool
+type serviceNotAvailableError struct {
+	message string
 }
 
-type serviceNotFoundError struct {
+func (e serviceNotAvailableError) Error() string {
+	return e.message
 }
 
-func (e serviceNotFoundError) Error() string {
-	return fmt.Sprintf("the service requested is not enabled or cannot be found on the node requested")
-}
-
-// ServiceNotFoundError returns whether or not the error is a service not found error.
-func (e serviceNotFoundError) ServiceNotFoundError() bool {
+// ServiceNotAvailableError returns whether or not the error is a service not available error.
+func (e serviceNotAvailableError) ServiceNotAvailableError() bool {
 	return true
 }
 
-// HTTPError occurs when there is a http error.
-type HTTPError interface {
-	error
-	StatusCode() int
-	HTTPError() bool
-	retryable() bool
-}
+// General Errors
 
-type httpError struct {
-	message     string
-	statusCode  int
-	isRetryable bool
-}
-
-func (e httpError) Error() string {
-	if e.statusCode > 0 && e.message != "" {
-		return fmt.Sprintf("a http error occurred with status code: %d and message: %s", e.statusCode, e.message)
-	} else if e.statusCode > 0 {
-		return fmt.Sprintf("a http error occurred with status code: %d", e.statusCode)
-	} else if e.message != "" {
-		return fmt.Sprintf("a http error occurred with message: %s", e.message)
+// IsTemporaryFailureError indicates whether the passed error is a
+// key-value "temporary failure, try again later" error.
+func IsTemporaryFailureError(err error) bool {
+	cause := errors.Cause(err)
+	if tempErr, ok := cause.(TemporaryFailureError); ok && tempErr.TemporaryFailureError() {
+		return true
 	}
-	return fmt.Sprintf("a http error occurred")
+
+	return false
 }
 
-// StatusCode returns the HTTP status code for the error, only applicable to HTTP services.
-func (e httpError) StatusCode() int {
-	return e.statusCode
-}
-
-// HTTPError returns whether or not the error is a http error.
-func (e httpError) HTTPError() bool {
-	return true
-}
-
-func (e httpError) retryable() bool {
-	return e.isRetryable
-}
-
-// NetworkError occurs when there is a network error.
-type NetworkError interface {
-	error
-	NetworkError() bool
-	retryable() bool
-}
-
-type networkError struct {
-	message     string
-	isRetryable bool
-}
-
-func (e networkError) Error() string {
-	if e.message == "" {
-		return fmt.Sprintf("a network error occurred with message: %s", e.message)
+// IsAuthenticationError verifies whether or not the cause for an error is an authentication error.
+func IsAuthenticationError(err error) bool {
+	cause := errors.Cause(err)
+	if authErr, ok := cause.(AuthenticationError); ok && authErr.AuthenticationError() {
+		return true
 	}
-	return fmt.Sprintf("a network error occurred")
+
+	return false
 }
 
-// NetworkError returns whether or not the error is a network error.
-func (e networkError) NetworkError() bool {
-	return true
+// IsServiceNotAvailableError indicates whether the passed error occurred due to
+// the requested service not being available.
+func IsServiceNotAvailableError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case ServiceNotAvailableError:
+		return errType.ServiceNotAvailableError()
+	default:
+		return false
+	}
 }
 
-func (e networkError) retryable() bool {
-	return e.isRetryable
+// IsTimeoutError verifies whether or not the cause for an error is a timeout.
+func IsTimeoutError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case TimeoutError:
+		return errType.Timeout()
+	default:
+		return false
+	}
+}
+
+// KV Specific Errors
+
+// IsKeyValueError verifies whether or not the cause for an error is a KeyValueError.
+func IsKeyValueError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return true
+	}
+
+	return false
+}
+
+// IsScopeMissingError verifies whether or not the cause for an error is scope unknown.
+func IsScopeMissingError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusScopeUnknown)
+	}
+
+	return false
+}
+
+// IsCollectionMissingError verifies whether or not the cause for an error is scope unknown.
+func IsCollectionMissingError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusCollectionUnknown)
+	}
+
+	return false
+
+}
+
+// IsKeyExistsError indicates whether the passed error is a
+// key-value "Key Already Exists" error.
+func IsKeyExistsError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusKeyExists)
+	}
+
+	return false
+}
+
+// IsKeyNotFoundError indicates whether the passed error is a
+// key-value "Key Not Found" error.
+func IsKeyNotFoundError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusKeyNotFound)
+	}
+
+	return false
+}
+
+// IsValueTooLargeError indicates whether the passed error is a
+// key-value "document value was too large" error.
+func IsValueTooLargeError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusTooBig)
+	}
+
+	return false
+}
+
+// IsKeyLockedError indicates whether the passed error is a
+// key-value operation failed due to the document being locked.
+func IsKeyLockedError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusLocked)
+	}
+
+	return false
+}
+
+// IsInvalidArgumentsError indicates whether the passed error occurred due to
+// // invalid arguments being passed to an operation.
+func IsInvalidArgumentsError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusInvalidArgs)
+	}
+
+	return false
+}
+
+// IsBucketMissingError verifies whether or not the cause for an error is a bucket missing error.
+func IsBucketMissingError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusNoBucket)
+	}
+
+	return false
+}
+
+// IsConfigurationError verifies whether or not the cause for an error is a configuration error.
+func IsConfigurationError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case ConfigurationError:
+		return errType.ConfigurationError()
+	default:
+		return false
+	}
+}
+
+// KV Subdoc Specific Errors
+
+// IsPathNotFoundError indicates whether the passed error is a
+// key-value "sub-document path does not exist" error.
+func IsPathNotFoundError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusSubDocPathNotFound)
+	}
+
+	return false
+}
+
+// IsPathMismatchError indicates whether the passed error occurred because
+// the path component does not match the type of the element requested.
+func IsPathMismatchError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusSubDocPathMismatch)
+	}
+
+	return false
+}
+
+// IsPathInvalidError indicates whether the passed error occurred because
+// the path provided is invalid. For operations requiring an array index,
+// this is returned if the last component of that path isn't an array.
+// Similarly for operations requiring a dictionary, if the last component
+// isn't a dictionary but eg. an array index.
+func IsPathInvalidError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusSubDocPathInvalid)
+	}
+
+	return false
+}
+
+// IsPathTooDeepError indicates whether the passed error occurred because
+// the path is too large (ie. the string is too long) or too deep
+// (more than 32 components).
+func IsPathTooDeepError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusSubDocPathTooBig)
+	}
+
+	return false
+}
+
+// IsDocumentTooDeepError indicates whether the passed error occurred because
+// the target document's level of JSON nesting is too deep to be processed
+// by the subdoc service.
+func IsDocumentTooDeepError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusSubDocDocTooDeep)
+	}
+
+	return false
+}
+
+// IsCannotInsertValueError indicates whether the passed error occurred because
+// the target document is not flagged or recognized as JSON.
+func IsCannotInsertValueError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusSubDocCantInsert)
+	}
+
+	return false
+}
+
+// IsDocumentNotJsonEerror indicates whether the passed error occurred because
+// the existing document is not valid JSON.
+func IsDocumentNotJsonEerror(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusSubDocNotJson)
+	}
+
+	return false
+}
+
+// IsNumRangeError indicates whether the passed error occurred because
+// for arithmetic subdoc operations, the existing number is out of the valid range.
+func IsNumRangeError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusSubDocBadRange)
+	}
+
+	return false
+}
+
+// IsDeltaRangeError indicates whether the passed error occurred because
+// for arithmetic subdoc operations, the operation will make the value out of valid range.
+func IsDeltaRangeError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusSubDocBadDelta)
+	}
+
+	return false
+}
+
+// IsPathExistsError indicates whether the passed error occurred because
+// the last component of the path already exist despite the mutation operation
+// expecting it not to exist (the mutation was expecting to create only the last part
+// of the path and store the fragment there).
+func IsPathExistsError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusSubDocPathExists)
+	}
+
+	return false
+}
+
+// IsSubDocInvalidArgumentsError indicates whether the passed error occurred because
+// in a multi-specification, an invalid combination of commands were specified,
+// including the case where too many paths were specified.
+func IsSubDocInvalidArgumentsError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusSubDocBadCombo)
+	}
+
+	return false
+}
+
+// IsXattrUnknownMacroError indicates whether the passed error occurred because
+// the server has no knowledge of the requested macro.
+func IsXattrUnknownMacroError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusSubDocXattrUnknownMacro)
+	}
+
+	return false
+}
+
+// IsSubdocPathNotFoundError verifies whether or not the cause for an error is due to a subdoc operation path not found.
+func IsSubdocPathNotFoundError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusSubDocPathNotFound)
+	}
+
+	return false
+}
+
+// IsSubdocPathExistsError verifies whether or not the cause for an error is due to a subdoc operation path exists
+func IsSubdocPathExistsError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusSubDocPathExists)
+	}
+
+	return false
+}
+
+// Durability Specific Errors
+
+// IsDurabilityError verifies whether or not the cause for an error is due to a durability error.
+func IsDurabilityError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case DurabilityError:
+		return errType.DurabilityError()
+	default:
+		return false
+	}
+}
+
+// IsDurabilityLevelInvalidError verifies whether or not the cause for an error is because
+// the requested durability level is invalid.
+func IsDurabilityLevelInvalidError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusDurabilityInvalidLevel)
+	}
+
+	return false
+}
+
+// IsDurabilityImpossibleError verifies whether or not the cause for an error is because
+// the requested durability level is impossible given the cluster topology due to insufficient replica servers.
+func IsDurabilityImpossibleError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusDurabilityImpossible)
+	}
+
+	return false
+}
+
+// IsSyncWriteInProgressError verifies whether or not the cause for an error is because of an
+// attempt to mutate a key which has a SyncWrite pending. Client should retry, possibly with backoff.
+func IsSyncWriteInProgressError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusSyncWriteInProgress)
+	}
+
+	return false
+}
+
+// IsSyncWriteAmbiguousError verifies whether or not the cause for an error is because
+// the client could not locate a replica within the cluster map or replica read. The bucket
+// may not be configured to have replicas, which should be checked to ensure replica reads.
+func IsSyncWriteAmbiguousError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
+		return kvErr.StatusCode() == int(gocbcore.StatusSyncWriteAmbiguous)
+	}
+
+	return false
+}
+
+// IsNoReplicasError verifies whether or not the cause for an error is because of an
+// the client could not locate a replica within the cluster map or replica read. The Bucket may not be configured
+// to have replicas, which should be checked to ensure replica reads.
+func IsNoReplicasError(err error) bool {
+	cause := errors.Cause(err)
+	if cause == gocbcore.ErrNoReplicas {
+		return true
+	}
+
+	return false
+}
+
+// Service Specific Errors
+
+// IsNoResultsError verifies whether or not the cause for an error is due no results being available to a query.
+func IsNoResultsError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case NoResultsError:
+		return errType.NoResultsError()
+	default:
+		return false
+	}
+}
+
+type clientError struct {
+	message string
+}
+
+func (e clientError) Error() string {
+	return e.message
 }
 
 // ProjectionErrors is a collection of one or more KeyValueError that occurs during a Get with projections operation.
@@ -865,18 +992,11 @@ func maybeEnhanceErr(err error, key string) error {
 	default:
 	}
 
-	if cause == gocbcore.ErrNetwork {
-		return networkError{}
+	if cause == gocbcore.ErrNoCapiService {
+		return serviceNotAvailableError{}
 	}
 
 	return err
-}
-
-func errIsGocbcoreInvalidService(err error) bool {
-	return err == gocbcore.ErrNoCapiService ||
-		err == gocbcore.ErrNoCbasService ||
-		err == gocbcore.ErrNoFtsService ||
-		err == gocbcore.ErrNoN1qlService
 }
 
 var (
@@ -921,8 +1041,6 @@ var (
 	ErrBadHosts = gocbcore.ErrBadHosts
 	// ErrProtocol occurs when an invalid protocol is specified for bootstrapping.
 	ErrProtocol = gocbcore.ErrProtocol
-	// ErrNoReplicas occurs when an operation expecting replicas is performed, but no replicas are available.
-	ErrNoReplicas = gocbcore.ErrNoReplicas
 	// ErrInvalidServer occurs when a specified server index is invalid.
 	ErrInvalidServer = gocbcore.ErrInvalidServer
 	// ErrInvalidVBucket occurs when a specified vbucket index is invalid.
@@ -938,103 +1056,4 @@ var (
 	ErrShutdown = gocbcore.ErrShutdown
 	// ErrOverload occurs when more operations were dispatched than the client is capable of writing.
 	ErrOverload = gocbcore.ErrOverload
-	// // ErrNetwork occurs when various generic network errors occur.
-	// ErrNetwork = gocbcore.ErrNetwork
-	// // ErrTimeout occurs when an operation times out.
-	// ErrTimeout = gocbcore.ErrTimeout
-	// ErrCliInternalError indicates an internal error occurred within the client.
-	// ErrCliInternalError = gocbcore.ErrCliInternalError
-
-	// // ErrStreamClosed occurs when an error is related to a stream closing.
-	// ErrStreamClosed = gocbcore.ErrStreamClosed
-	// // ErrStreamStateChanged occurs when an error is related to a cluster rebalance.
-	// ErrStreamStateChanged = gocbcore.ErrStreamStateChanged
-	// // ErrStreamDisconnected occurs when a stream is closed due to a connection dropping.
-	// ErrStreamDisconnected = gocbcore.ErrStreamDisconnected
-	// // ErrStreamTooSlow occurs when a stream is closed due to being too slow at consuming data.
-	// ErrStreamTooSlow = gocbcore.ErrStreamTooSlow
-
-	// // ErrKeyNotFound occurs when the key is not found on the server.
-	// ErrKeyNotFound = gocbcore.ErrKeyNotFound
-	// // ErrKeyExists occurs when the key already exists on the server.
-	// ErrKeyExists = gocbcore.ErrKeyExists
-	// // ErrTooBig occurs when the document is too big to be stored.
-	// ErrTooBig = gocbcore.ErrTooBig
-	// // ErrNotStored occurs when an item fails to be stored.  Usually an append/prepend to missing key.
-	// ErrNotStored = gocbcore.ErrNotStored
-	// // ErrAuthError occurs when there is an issue with authentication (bad password?).
-	// ErrAuthError = gocbcore.ErrAuthError
-	// // ErrRangeError occurs when an invalid range is specified.
-	// ErrRangeError = gocbcore.ErrRangeError
-	// // ErrRollback occurs when a server rollback has occurred making the operation no longer valid.
-	// ErrRollback = gocbcore.ErrRollback
-	// // ErrAccessError occurs when you do not have access to the specified resource.
-	// ErrAccessError = gocbcore.ErrAccessError
-	// // ErrOutOfMemory occurs when the server has run out of memory to process requests.
-	// ErrOutOfMemory = gocbcore.ErrOutOfMemory
-	// // ErrNotSupported occurs when an operation is performed which is not supported.
-	// ErrNotSupported = gocbcore.ErrNotSupported
-	// // ErrInternalError occurs when an internal error has prevented an operation from succeeding.
-	// ErrInternalError = gocbcore.ErrInternalError
-	// // ErrBusy occurs when the server is too busy to handle your operation.
-	// ErrBusy = gocbcore.ErrBusy
-	// // ErrTmpFail occurs when the server is not immediately able to handle your request.
-	// ErrTmpFail = gocbcore.ErrTmpFail
-
-	// // ErrSubDocPathNotFound occurs when a sub-document operation targets a path
-	// // which does not exist in the specifie document.
-	// ErrSubDocPathNotFound = gocbcore.ErrSubDocPathNotFound
-	// // ErrSubDocPathMismatch occurs when a sub-document operation specifies a path
-	// // which does not match the document structure (field access on an array).
-	// ErrSubDocPathMismatch = gocbcore.ErrSubDocPathMismatch
-	// // ErrSubDocPathInvalid occurs when a sub-document path could not be parsed.
-	// ErrSubDocPathInvalid = gocbcore.ErrSubDocPathInvalid
-	// // ErrSubDocPathTooBig occurs when a sub-document path is too big.
-	// ErrSubDocPathTooBig = gocbcore.ErrSubDocPathTooBig
-	// // ErrSubDocDocTooDeep occurs when an operation would cause a document to be
-	// // nested beyond the depth limits allowed by the sub-document specification.
-	// ErrSubDocDocTooDeep = gocbcore.ErrSubDocDocTooDeep
-	// // ErrSubDocCantInsert occurs when a sub-document operation could not insert.
-	// ErrSubDocCantInsert = gocbcore.ErrSubDocCantInsert
-	// // ErrSubDocNotJson occurs when a sub-document operation is performed on a
-	// // document which is not JSON.
-	// ErrSubDocNotJson = gocbcore.ErrSubDocNotJson
-	// // ErrSubDocBadRange occurs when a sub-document operation is performed with
-	// // a bad range.
-	// ErrSubDocBadRange = gocbcore.ErrSubDocBadRange
-	// // ErrSubDocBadDelta occurs when a sub-document counter operation is performed
-	// // and the specified delta is not valid.
-	// ErrSubDocBadDelta = gocbcore.ErrSubDocBadDelta
-	// // ErrSubDocPathExists occurs when a sub-document operation expects a path not
-	// // to exists, but the path was found in the document.
-	// ErrSubDocPathExists = gocbcore.ErrSubDocPathExists
-	// // ErrSubDocValueTooDeep occurs when a sub-document operation specifies a value
-	// // which is deeper than the depth limits of the sub-document specification.
-	// ErrSubDocValueTooDeep = gocbcore.ErrSubDocValueTooDeep
-	// // ErrSubDocBadCombo occurs when a multi-operation sub-document operation is
-	// // performed and operations within the package of ops conflict with each other.
-	// ErrSubDocBadCombo = gocbcore.ErrSubDocBadCombo
-	// // ErrSubDocBadMulti occurs when a multi-operation sub-document operation is
-	// // performed and operations within the package of ops conflict with each other.
-	// ErrSubDocBadMulti = gocbcore.ErrSubDocBadMulti
-	// // ErrSubDocSuccessDeleted occurs when a multi-operation sub-document operation
-	// // is performed on a soft-deleted document.
-	// ErrSubDocSuccessDeleted = gocbcore.ErrSubDocSuccessDeleted
-
-	// ErrSubDocXattrInvalidFlagCombo occurs when an invalid set of
-	// extended-attribute flags is passed to a sub-document operation.
-	// ErrSubDocXattrInvalidFlagCombo = gocbcore.ErrSubDocXattrInvalidFlagCombo
-	// // ErrSubDocXattrInvalidKeyCombo occurs when an invalid set of key operations
-	// // are specified for a extended-attribute sub-document operation.
-	// ErrSubDocXattrInvalidKeyCombo = gocbcore.ErrSubDocXattrInvalidKeyCombo
-	// // ErrSubDocXattrUnknownMacro occurs when an invalid macro value is specified.
-	// ErrSubDocXattrUnknownMacro = gocbcore.ErrSubDocXattrUnknownMacro
-	// // ErrSubDocXattrUnknownVAttr occurs when an invalid virtual attribute is specified.
-	// ErrSubDocXattrUnknownVAttr = gocbcore.ErrSubDocXattrUnknownVAttr
-	// // ErrSubDocXattrCannotModifyVAttr occurs when a mutation is attempted upon
-	// // a virtual attribute (which are immutable by definition).
-	// ErrSubDocXattrCannotModifyVAttr = gocbcore.ErrSubDocXattrCannotModifyVAttr
-	// // ErrSubDocMultiPathFailureDeleted occurs when a Multi Path Failure occurs on
-	// // a soft-deleted document.
-	// ErrSubDocMultiPathFailureDeleted = gocbcore.ErrSubDocMultiPathFailureDeleted
 )

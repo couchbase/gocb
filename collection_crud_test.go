@@ -971,7 +971,7 @@ func TestUnlockInvalidCas(t *testing.T) {
 		t.Fatalf("Unlock should have failed")
 	}
 
-	if !IsTempFailError(err) {
+	if !IsTemporaryFailureError(err) {
 		t.Fatalf("Expected error to be TempFailError but was %s", reflect.TypeOf(err).String())
 	}
 }
@@ -1012,7 +1012,7 @@ func TestDoubleLockFail(t *testing.T) {
 		t.Fatalf("Expected GetAndLock to fail")
 	}
 
-	if !IsTempFailError(err) {
+	if !IsTemporaryFailureError(err) {
 		t.Fatalf("Expected error to be TempFailError but was %v", err)
 	}
 }
