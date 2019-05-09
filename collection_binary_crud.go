@@ -18,6 +18,7 @@ type AppendOptions struct {
 	ParentSpanContext opentracing.SpanContext
 	Timeout           time.Duration
 	Context           context.Context
+	DurabilityLevel   DurabilityLevel
 }
 
 // Append appends a byte value to a document.
@@ -51,11 +52,12 @@ func (c *CollectionBinary) append(ctx context.Context, traceCtx opentracing.Span
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.AppendEx(gocbcore.AdjoinOptions{
-		Key:            []byte(key),
-		Value:          val,
-		TraceContext:   traceCtx,
-		CollectionName: c.name(),
-		ScopeName:      c.scopeName(),
+		Key:             []byte(key),
+		Value:           val,
+		TraceContext:    traceCtx,
+		CollectionName:  c.name(),
+		ScopeName:       c.scopeName(),
+		DurabilityLevel: gocbcore.DurabilityLevel(opts.DurabilityLevel),
 	}, func(res *gocbcore.AdjoinResult, err error) {
 		if err != nil {
 			errOut = err
@@ -86,6 +88,7 @@ type PrependOptions struct {
 	ParentSpanContext opentracing.SpanContext
 	Timeout           time.Duration
 	Context           context.Context
+	DurabilityLevel   DurabilityLevel
 }
 
 // Prepend prepends a byte value to a document.
@@ -119,11 +122,12 @@ func (c *CollectionBinary) prepend(ctx context.Context, traceCtx opentracing.Spa
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.PrependEx(gocbcore.AdjoinOptions{
-		Key:            []byte(key),
-		Value:          val,
-		TraceContext:   traceCtx,
-		CollectionName: c.name(),
-		ScopeName:      c.scopeName(),
+		Key:             []byte(key),
+		Value:           val,
+		TraceContext:    traceCtx,
+		CollectionName:  c.name(),
+		ScopeName:       c.scopeName(),
+		DurabilityLevel: gocbcore.DurabilityLevel(opts.DurabilityLevel),
 	}, func(res *gocbcore.AdjoinResult, err error) {
 		if err != nil {
 			errOut = err
@@ -161,7 +165,8 @@ type CounterOptions struct {
 	// If present, this is the value that will be returned by a successful operation.
 	Initial int64
 	// Delta is the value to use for incrementing/decrementing if Initial is not present.
-	Delta uint64
+	Delta           uint64
+	DurabilityLevel DurabilityLevel
 }
 
 // Increment performs an atomic addition for an integer document. Passing a
@@ -202,13 +207,14 @@ func (c *CollectionBinary) increment(ctx context.Context, traceCtx opentracing.S
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.IncrementEx(gocbcore.CounterOptions{
-		Key:            []byte(key),
-		Delta:          opts.Delta,
-		Initial:        realInitial,
-		Expiry:         opts.Expiration,
-		TraceContext:   traceCtx,
-		CollectionName: c.name(),
-		ScopeName:      c.scopeName(),
+		Key:             []byte(key),
+		Delta:           opts.Delta,
+		Initial:         realInitial,
+		Expiry:          opts.Expiration,
+		TraceContext:    traceCtx,
+		CollectionName:  c.name(),
+		ScopeName:       c.scopeName(),
+		DurabilityLevel: gocbcore.DurabilityLevel(opts.DurabilityLevel),
 	}, func(res *gocbcore.CounterResult, err error) {
 		if err != nil {
 			errOut = err
@@ -277,13 +283,14 @@ func (c *CollectionBinary) decrement(ctx context.Context, traceCtx opentracing.S
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.DecrementEx(gocbcore.CounterOptions{
-		Key:            []byte(key),
-		Delta:          opts.Delta,
-		Initial:        realInitial,
-		Expiry:         opts.Expiration,
-		TraceContext:   traceCtx,
-		CollectionName: c.name(),
-		ScopeName:      c.scopeName(),
+		Key:             []byte(key),
+		Delta:           opts.Delta,
+		Initial:         realInitial,
+		Expiry:          opts.Expiration,
+		TraceContext:    traceCtx,
+		CollectionName:  c.name(),
+		ScopeName:       c.scopeName(),
+		DurabilityLevel: gocbcore.DurabilityLevel(opts.DurabilityLevel),
 	}, func(res *gocbcore.CounterResult, err error) {
 		if err != nil {
 			errOut = err

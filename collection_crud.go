@@ -982,6 +982,7 @@ type TouchOptions struct {
 	ParentSpanContext opentracing.SpanContext
 	Timeout           time.Duration
 	Context           context.Context
+	DurabilityLevel   DurabilityLevel
 }
 
 // Touch touches a document, specifying a new expiry time for it.
@@ -1014,11 +1015,12 @@ func (c *Collection) touch(ctx context.Context, traceCtx opentracing.SpanContext
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.TouchEx(gocbcore.TouchOptions{
-		Key:            []byte(key),
-		Expiry:         expiration,
-		TraceContext:   traceCtx,
-		CollectionName: c.name(),
-		ScopeName:      c.scopeName(),
+		Key:             []byte(key),
+		Expiry:          expiration,
+		TraceContext:    traceCtx,
+		CollectionName:  c.name(),
+		ScopeName:       c.scopeName(),
+		DurabilityLevel: gocbcore.DurabilityLevel(opts.DurabilityLevel),
 	}, func(res *gocbcore.TouchResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceErr(err, key)

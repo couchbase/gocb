@@ -653,10 +653,6 @@ func TestUpsertGetRemove(t *testing.T) {
 		t.Fatalf("Remove failed, error was %v", err)
 	}
 
-	if mutRes.Cas() == 0 {
-		t.Fatalf("Remove CAS was 0")
-	}
-
 	existsRes, err = globalCollection.Exists("upsertDoc", nil)
 	if err != nil {
 		t.Fatalf("Exists failed, error was %v", err)
@@ -1216,40 +1212,93 @@ func TestInsertReplicateToGetAllReplicas(t *testing.T) {
 	}
 }
 
-func TestInsertDurabilityMajorityGetFromAnyReplica(t *testing.T) {
+func TestDurabilityGetFromAnyReplica(t *testing.T) {
 	if !globalCluster.SupportsFeature(DurabilityFeature) {
 		t.Skip("Skipping test as durability not supported")
 	}
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
 		t.Fatalf("Could not read test dataset: %v", err)
 	}
 
-	mutRes, err := globalCollection.Insert("insertDurabilityMajorityDoc", doc, &InsertOptions{
-		DurabilityLevel: DurabilityLevelMajority,
-	})
-	if err != nil {
-		t.Fatalf("Insert failed, error was %v", err)
+	type CasResult interface {
+		Cas() Cas
 	}
 
-	if mutRes.Cas() == 0 {
-		t.Fatalf("Insert CAS was 0")
+	type tCase struct {
+		name              string
+		method            string
+		args              []interface{}
+		expectCas         bool
+		expectedError     error
+		expectKeyNotFound bool
 	}
 
-	insertedDoc, err := globalCollection.GetAnyReplica("insertDurabilityMajorityDoc", nil)
-	if err != nil {
-		t.Fatalf("GetFromReplica failed, error was %v", err)
+	testCases := []tCase{
+		{
+			name:   "insertDurabilityMajorityDoc",
+			method: "Insert",
+			args: []interface{}{"insertDurabilityMajorityDoc", doc, &InsertOptions{
+				DurabilityLevel: DurabilityLevelMajority,
+			}},
+			expectCas:         true,
+			expectedError:     nil,
+			expectKeyNotFound: false,
+		},
 	}
 
-	var insertedDocContent testBeerDocument
-	err = insertedDoc.Content(&insertedDocContent)
-	if err != nil {
-		t.Fatalf("Content failed, error was %v", err)
-	}
+	for _, tCase := range testCases {
+		t.Run(tCase.name, func(te *testing.T) {
+			args := make([]reflect.Value, len(tCase.args))
+			for i := range tCase.args {
+				args[i] = reflect.ValueOf(tCase.args[i])
+			}
 
-	if doc != insertedDocContent {
-		t.Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
+			retVals := reflect.ValueOf(globalCollection).MethodByName(tCase.method).Call(args)
+			if len(retVals) != 2 {
+				te.Fatalf("Method call should have returned 2 values but returned %d", len(retVals))
+			}
+
+			var retErr error
+			if retVals[1].Interface() != nil {
+				var ok bool
+				retErr, ok = retVals[1].Interface().(error)
+				if ok {
+					if err != nil {
+						te.Fatalf("Method call returned error: %v", err)
+					}
+				} else {
+					te.Fatalf("Could not type assert second returned value to error")
+				}
+			}
+
+			if retErr != tCase.expectedError {
+				te.Fatalf("Expected error to be %v but was %v", tCase.expectedError, retErr)
+			}
+
+			if tCase.expectCas {
+				if val, ok := retVals[0].Interface().(CasResult); ok {
+					if val.Cas() == 0 {
+						te.Fatalf("CAS value was 0")
+					}
+				} else {
+					te.Fatalf("Could not assert result to CasResult type")
+				}
+			}
+
+			_, err := globalCollection.GetAnyReplica(tCase.name, nil)
+			if tCase.expectKeyNotFound {
+				if !IsKeyNotFoundError(err) {
+					t.Fatalf("Expected GetFromReplica to not find a key but got error %v", err)
+				}
+			} else {
+				if err != nil {
+					te.Fatalf("GetFromReplica failed, error was %v", err)
+				}
+			}
+		})
 	}
 }
 
