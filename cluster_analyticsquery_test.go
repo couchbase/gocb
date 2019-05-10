@@ -52,7 +52,7 @@ func TestAnalyticsQuery(t *testing.T) {
 func testCreateAnalyticsDataset(t *testing.T) {
 	// _p/cbas-admin/analytics/node/agg/stats/remaining
 	query := "CREATE DATASET `travel-sample` ON `travel-sample`;"
-	_, err := globalCluster.AnalyticsQuery(query, nil)
+	res, err := globalCluster.AnalyticsQuery(query, nil)
 	if err != nil {
 		aErrs, ok := err.(AnalyticsQueryErrors)
 		if !ok {
@@ -64,6 +64,13 @@ func testCreateAnalyticsDataset(t *testing.T) {
 			if aErr.Code() == 24040 {
 				break
 			}
+		}
+	}
+
+	if res != nil {
+		err = res.Close()
+		if err != nil {
+			t.Fatalf("Failed to close result: %v", err)
 		}
 	}
 

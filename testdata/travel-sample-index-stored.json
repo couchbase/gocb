@@ -1,5 +1,5 @@
 {
-  "name": "travel-sample-index-unstored",
+  "name": "travel-sample-index-stored",
   "type": "fulltext-index",
   "params": {
     "doc_config": {
@@ -9,8 +9,8 @@
     "mapping": {
       "analysis": {
         "analyzers": {
-          "singleAnalyzer": {
-            "tokenizer": "single",
+          "letterAnalyzer": {
+            "tokenizer": "letter",
             "type": "custom"
           }
         }
@@ -24,7 +24,7 @@
       },
       "default_type": "_default",
       "index_dynamic": true,
-      "store_dynamic": false,
+      "store_dynamic": true,
       "type_field": "type"
     },
     "store": {

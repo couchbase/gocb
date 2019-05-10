@@ -25,7 +25,7 @@ type SearchResultLocation struct {
 // SearchResultHit holds a single hit in a list of search results.
 type SearchResultHit struct {
 	Index       string                                       `json:"index,omitempty"`
-	Id          string                                       `json:"id,omitempty"`
+	ID          string                                       `json:"id,omitempty"`
 	Score       float64                                      `json:"score,omitempty"`
 	Explanation map[string]interface{}                       `json:"explanation,omitempty"`
 	Locations   map[string]map[string][]SearchResultLocation `json:"locations,omitempty"`
@@ -122,9 +122,61 @@ func (r *SearchResults) Next(hitPtr *SearchResultHit) bool {
 		return false
 	}
 
-	r.err = json.Unmarshal(row, hitPtr)
-	if r.err != nil {
-		return false
+	decoder := json.NewDecoder(bytes.NewBuffer(row))
+	for decoder.More() {
+		t, err := decoder.Token()
+		if err != nil {
+			r.err = err
+			return false
+		}
+
+		if t == json.Delim('{') || t == json.Delim('}') {
+			continue
+		}
+
+		switch t {
+		case "index":
+			r.err = decoder.Decode(&hitPtr.Index)
+			if r.err != nil {
+				return false
+			}
+		case "id":
+			r.err = decoder.Decode(&hitPtr.ID)
+			if r.err != nil {
+				return false
+			}
+		case "score":
+			r.err = decoder.Decode(&hitPtr.Score)
+			if r.err != nil {
+				return false
+			}
+		case "explanation":
+			r.err = decoder.Decode(&hitPtr.Explanation)
+			if r.err != nil {
+				return false
+			}
+		case "locations":
+			r.err = decoder.Decode(&hitPtr.Locations)
+			if r.err != nil {
+				return false
+			}
+		case "fragments":
+			r.err = decoder.Decode(&hitPtr.Fragments)
+			if r.err != nil {
+				return false
+			}
+		case "fields":
+			r.err = decoder.Decode(&hitPtr.Fields)
+			if r.err != nil {
+				return false
+			}
+		default:
+			var ignore interface{}
+			err := decoder.Decode(&ignore)
+			if err != nil {
+				return false
+			}
+		}
 	}
 
 	return true

@@ -43,7 +43,7 @@ func TestSearchQuery(t *testing.T) {
 }
 
 func testCreateSearchIndexes(t *testing.T) {
-	testCreateSearchIndex(t, "travel-sample-index-unstored")
+	testCreateSearchIndex(t, "travel-sample-index-stored")
 }
 
 func testCreateSearchIndex(t *testing.T, indexName string) {
@@ -71,7 +71,7 @@ func testCreateSearchIndex(t *testing.T, indexName string) {
 }
 
 func testWaitSearchIndex(errCh chan error) {
-	indexName := "travel-sample-index-unstored"
+	indexName := "travel-sample-index-stored"
 	req := &gocbcore.HttpRequest{
 		Service: gocbcore.MgmtService,
 		Path:    fmt.Sprintf("/_p/fts/api/index/%s/count", indexName),
@@ -114,10 +114,10 @@ func testWaitSearchIndex(errCh chan error) {
 }
 
 func testSimpleSearchQuery(t *testing.T) {
-	indexName := "travel-sample-index-unstored"
-	query := SearchQuery{Name: indexName, Query: NewMatchQuery("swanky")}
+	indexName := "travel-sample-index-stored"
+	query := SearchQuery{Name: indexName, Query: NewMatchQuery("airline_137")}
 
-	results, err := globalCluster.SearchQuery(query, &SearchQueryOptions{Limit: 1000})
+	results, err := globalCluster.SearchQuery(query, &SearchQueryOptions{Limit: 1000, Fields: []string{"*"}})
 	if err != nil {
 		t.Fatalf("Failed to execute query %v", err)
 	}
@@ -126,6 +126,10 @@ func testSimpleSearchQuery(t *testing.T) {
 	var sample SearchResultHit
 	for results.Next(&sample) {
 		samples = append(samples, sample)
+
+		if sample.Fields == nil {
+			t.Fatalf("Expected fields to be not nil")
+		}
 	}
 
 	err = results.Close()
@@ -148,7 +152,7 @@ func testSimpleSearchQuery(t *testing.T) {
 }
 
 func testSimpleSearchQueryOne(t *testing.T) {
-	indexName := "travel-sample-index-unstored"
+	indexName := "travel-sample-index-stored"
 	query := SearchQuery{Name: indexName, Query: NewMatchQuery("swanky")}
 
 	results, err := globalCluster.SearchQuery(query, &SearchQueryOptions{Limit: 1000})

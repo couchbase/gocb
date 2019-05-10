@@ -51,7 +51,7 @@ func TestViewQuery(t *testing.T) {
 
 func testCreateView(t *testing.T) {
 	viewFn := `function (doc, meta) {
-  emit(meta.id, null);
+  emit(meta.id, 1);
 }`
 	reduceFn := `_count`
 	mapStr := map[string]string{
@@ -114,20 +114,16 @@ func testWaitView(errCh chan error) {
 			errCh <- fmt.Errorf("failed to execute query %v", err)
 		}
 
-		countMap := make(map[string]interface{})
-		err = results.One(&countMap)
+		var row ViewRow
+		err = results.One(&row)
 		if err != nil {
 			continue
 		}
 
-		val, ok := countMap["value"]
-		if !ok {
-			errCh <- fmt.Errorf("could not get value from results")
-		}
-
-		count, ok := val.(float64)
-		if !ok {
-			errCh <- fmt.Errorf("could not parse results value as an int")
+		var count int
+		err = row.Value(&count)
+		if err != nil {
+			errCh <- fmt.Errorf("could not get count from results %v", err)
 		}
 
 		// We don't need to wait for all docs to become available
@@ -148,8 +144,16 @@ func testSimpleViewQuery(t *testing.T) {
 	}
 
 	var samples []interface{}
-	var sample interface{}
-	for results.Next(&sample) {
+	var row ViewRow
+	for results.Next(&row) {
+		var sample interface{}
+		err = row.Value(&sample)
+		if err != nil {
+			t.Fatalf("Failed to Value result: %v", err)
+		}
+		if row.ID == "" {
+			t.Fatalf("Metadata ID should not have been empty")
+		}
 		samples = append(samples, sample)
 	}
 
@@ -180,10 +184,19 @@ func testSimpleViewQueryOne(t *testing.T) {
 		t.Fatalf("Failed to execute query %v", err)
 	}
 
-	var sample interface{}
-	err = results.One(&sample)
+	var row ViewRow
+	err = results.One(&row)
 	if err != nil {
 		t.Fatalf("Reading row had error: %v", err)
+	}
+	if row.ID == "" {
+		t.Fatalf("Metadata ID should not have been empty")
+	}
+
+	var sample interface{}
+	err = row.Value(&sample)
+	if err != nil {
+		t.Fatalf("Failed to Value result: %v", err)
 	}
 
 	if sample == nil {
@@ -209,18 +222,14 @@ func testSimpleViewQueryOneNone(t *testing.T) {
 		t.Fatalf("Failed to execute query %v", err)
 	}
 
-	var sample interface{}
-	err = results.One(&sample)
+	var row ViewRow
+	err = results.One(&row)
 	if err == nil {
 		t.Fatalf("Expected One to return error")
 	}
 
 	if !IsNoResultsError(err) {
 		t.Fatalf("Expected error to be no results but was %v", err)
-	}
-
-	if sample != nil {
-		t.Fatalf("Expected sample to be nil but was %v", sample)
 	}
 
 	metadata, err := results.Metadata()
@@ -243,8 +252,16 @@ func testSimpleViewQueryNone(t *testing.T) {
 	}
 
 	var samples []interface{}
-	var sample interface{}
-	for results.Next(&sample) {
+	var row ViewRow
+	for results.Next(&row) {
+		var sample interface{}
+		err = row.Value(&sample)
+		if err != nil {
+			t.Fatalf("Failed to Value result: %v", err)
+		}
+		if row.ID == "" {
+			t.Fatalf("Metadata ID should not have been empty")
+		}
 		samples = append(samples, sample)
 	}
 

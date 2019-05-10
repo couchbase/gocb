@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -19,6 +20,14 @@ type viewResponse struct {
 	Error     string            `json:"error,omitempty"`
 	Reason    string            `json:"reason,omitempty"`
 	Errors    []viewError       `json:"errors,omitempty"`
+}
+
+// ViewRow provides access to a single view query row.
+type ViewRow struct {
+	ID       string
+	Key      interface{}
+	Geometry interface{}
+	value    json.RawMessage
 }
 
 // ViewResultsMetadata provides access to the metadata properties of a view query result.
@@ -40,7 +49,7 @@ type ViewResults struct {
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
-func (r *ViewResults) Next(valuePtr interface{}) bool {
+func (r *ViewResults) Next(rowPtr *ViewRow) bool {
 	if r.err != nil {
 		return false
 	}
@@ -50,12 +59,63 @@ func (r *ViewResults) Next(valuePtr interface{}) bool {
 		return false
 	}
 
-	r.err = json.Unmarshal(row, valuePtr)
-	if r.err != nil {
-		return false
+	decoder := json.NewDecoder(bytes.NewBuffer(row))
+	for decoder.More() {
+		t, err := decoder.Token()
+		if err != nil {
+			r.err = err
+			return false
+		}
+
+		if t == json.Delim('{') || t == json.Delim('}') {
+			continue
+		}
+
+		switch t {
+		case "id":
+			r.err = decoder.Decode(&rowPtr.ID)
+			if r.err != nil {
+				return false
+			}
+		case "key":
+			r.err = decoder.Decode(&rowPtr.Key)
+			if r.err != nil {
+				return false
+			}
+		case "geometry":
+			r.err = decoder.Decode(&rowPtr.Geometry)
+			if r.err != nil {
+				return false
+			}
+		case "value":
+			r.err = decoder.Decode(&rowPtr.value)
+			if r.err != nil {
+				return false
+			}
+		default:
+			var ignore interface{}
+			err := decoder.Decode(&ignore)
+			if err != nil {
+				return false
+			}
+		}
 	}
 
 	return true
+}
+
+// Value assigns the current result value from the results into the value pointer, returning any error that occurred.
+func (r *ViewRow) Value(valuePtr interface{}) error {
+	if r.value == nil {
+		return errors.New("no data to scan")
+	}
+
+	err := json.Unmarshal(r.value, valuePtr)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // NextBytes returns the next result from the results as a byte array.
@@ -170,8 +230,8 @@ func (r *ViewResults) readAttribute(decoder *json.Decoder, t json.Token) (bool, 
 // It will close the results but not before iterating through all remaining
 // results, as such this should only be used for very small resultsets - ideally
 // of, at most, length 1.
-func (r *ViewResults) One(valuePtr interface{}) error {
-	if !r.Next(valuePtr) {
+func (r *ViewResults) One(rowPtr *ViewRow) error {
+	if !r.Next(rowPtr) {
 		err := r.Close()
 		if err != nil {
 			return err

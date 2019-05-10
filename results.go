@@ -378,23 +378,6 @@ func newStreamingResults(stream io.ReadCloser, attributeCb streamingResultCb) (*
 	}, nil
 }
 
-func (r *streamingResult) Next(valuePtr interface{}) (bool, error) {
-	row, err := r.NextBytes()
-	if err != nil {
-		return false, err
-	}
-	if row == nil {
-		return false, nil
-	}
-
-	err = json.Unmarshal(row, valuePtr)
-	if err != nil {
-		return false, err
-	}
-
-	return true, nil
-}
-
 func (r *streamingResult) NextBytes() ([]byte, error) {
 	if !r.hasRows {
 		return nil, nil
