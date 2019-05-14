@@ -426,7 +426,6 @@ func (agent *Agent) GetAnyReplicaEx(opts GetAnyReplicaOptions, cb GetReplicaExCa
 // TouchOptions encapsulates the parameters for a TouchEx operation.
 type TouchOptions struct {
 	Key                    []byte
-	Cas                    Cas
 	Expiry                 uint32
 	TraceContext           opentracing.SpanContext
 	CollectionName         string
@@ -447,10 +446,6 @@ type TouchExCallback func(*TouchResult, error)
 // TouchEx updates the expiry for a document.
 func (agent *Agent) TouchEx(opts TouchOptions, cb TouchExCallback) (PendingOp, error) {
 	tracer := agent.createOpTrace("TouchEx", opts.TraceContext)
-	if opts.Cas != 0 {
-		tracer.Finish()
-		return nil, ErrNonZeroCas
-	}
 
 	handler := func(resp *memdQResponse, req *memdQRequest, err error) {
 		if err != nil {

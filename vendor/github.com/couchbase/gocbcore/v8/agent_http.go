@@ -65,7 +65,7 @@ func (agent *Agent) getMgmtEp() (string, error) {
 func (agent *Agent) getCapiEp() (string, error) {
 	capiEps := agent.CapiEps()
 	if len(capiEps) == 0 {
-		return "", ErrNoMgmtService
+		return "", ErrNoCapiService
 	}
 	return capiEps[rand.Intn(len(capiEps))], nil
 }

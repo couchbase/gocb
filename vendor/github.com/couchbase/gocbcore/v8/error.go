@@ -331,9 +331,6 @@ var (
 	// ErrNoCbasService occurs when no CBAS services are available for a request.
 	ErrNoCbasService = errors.New("No available cbas nodes.")
 
-	// ErrNonZeroCas occurs when an operation that require a CAS value of 0 is used with a non-zero value.
-	ErrNonZeroCas = errors.New("Cas value must be 0.")
-
 	// ErrCollectionsUnsupported occurs when collections are used but either server does not support them or the agent
 	// was created without them enabled.
 	ErrCollectionsUnsupported = errors.New("Collections are not enabled.")
