@@ -933,8 +933,6 @@ var (
 	ErrInvalidCert = gocbcore.ErrInvalidCert
 	// ErrInvalidCredentials is returned when an invalid set of credentials is provided for a service.
 	ErrInvalidCredentials = gocbcore.ErrInvalidCredentials
-	// ErrNonZeroCas occurs when an operation that require a CAS value of 0 is used with a non-zero value.
-	ErrNonZeroCas = gocbcore.ErrNonZeroCas
 
 	// ErrShutdown occurs when an operation is performed on a bucket that has been closed.
 	ErrShutdown = gocbcore.ErrShutdown
