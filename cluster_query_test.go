@@ -1017,6 +1017,349 @@ func TestBasicRetries(t *testing.T) {
 	}
 }
 
+func TestBasicEnhancedPreparedQuery(t *testing.T) {
+	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
+	timeout := 60 * time.Second
+
+	preparedBytes, err := loadRawTestDataset("query_enhanced_statement")
+	if err != nil {
+		t.Fatalf("Could not read test dataset: %v", err)
+	}
+
+	dataBytes, err := loadRawTestDataset("beer_sample_query_dataset")
+	if err != nil {
+		t.Fatalf("Could not read test dataset: %v", err)
+	}
+
+	var retries int
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		testAssertQueryRequest(t, req)
+		retries++
+
+		if retries == 1 {
+			return &gocbcore.HttpResponse{
+				Endpoint:   "http://localhost:8093",
+				StatusCode: 200,
+				Body:       &testReadCloser{bytes.NewBuffer(preparedBytes), nil},
+			}, nil
+		}
+
+		return &gocbcore.HttpResponse{
+			Endpoint:   "http://localhost:8093",
+			StatusCode: 200,
+			Body:       &testReadCloser{bytes.NewBuffer(dataBytes), nil},
+		}, nil
+
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+		supportFn: func(capability gocbcore.ClusterCapability) bool {
+			return true
+		},
+	}
+
+	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
+	cluster.sb.N1qlRetryBehavior = StandardDelayRetryBehavior(3, 1, 100*time.Millisecond, LinearDelayFunction)
+
+	cluster.queryCache = map[string]*n1qlCache{
+		"fake": {
+			name:        "mefake",
+			encodedPlan: "somethingencoded",
+		},
+		"fake2": {
+			name:        "mefake",
+			encodedPlan: "somethingencoded",
+		},
+	}
+
+	_, err = cluster.Query(statement, &QueryOptions{Prepared: true})
+	if err != nil {
+		t.Fatalf("Expected query execution to not error %v", err)
+	}
+
+	if retries != 2 {
+		t.Fatalf("Expected query to be run 2 times but ws run %d times", retries)
+	}
+
+	if len(cluster.queryCache) != 1 {
+		t.Fatalf("Query cache should have contained 1 item but was %v", cluster.queryCache)
+	}
+
+	cache, ok := cluster.queryCache["select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"]
+	if !ok {
+		t.Fatal("Expected query cache to contain query")
+	}
+
+	if cache.name != "[127.0.0.1:8091]32f2405d-5715-5915-b2b2-d2c557da4996" {
+		t.Fatalf("Expected cache name to be [127.0.0.1:8091]32f2405d-5715-5915-b2b2-d2c557da4996 but was %s", cache.name)
+	}
+
+	if cache.encodedPlan != "H4sIAAAAAAAA/wEAAP//AAAAAAAAAAA=" {
+		t.Fatalf("Expected cache name to be H4sIAAAAAAAA/wEAAP//AAAAAAAAAAA= but was %s", cache.encodedPlan)
+	}
+}
+
+func TestBasicEnhancedPreparedQueryAlreadySupported(t *testing.T) {
+	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
+	timeout := 60 * time.Second
+
+	preparedBytes, err := loadRawTestDataset("query_enhanced_statement")
+	if err != nil {
+		t.Fatalf("Could not read test dataset: %v", err)
+	}
+
+	dataBytes, err := loadRawTestDataset("beer_sample_query_dataset")
+	if err != nil {
+		t.Fatalf("Could not read test dataset: %v", err)
+	}
+
+	var retries int
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		testAssertQueryRequest(t, req)
+		retries++
+
+		if retries == 1 {
+			return &gocbcore.HttpResponse{
+				Endpoint:   "http://localhost:8093",
+				StatusCode: 200,
+				Body:       &testReadCloser{bytes.NewBuffer(preparedBytes), nil},
+			}, nil
+		}
+
+		return &gocbcore.HttpResponse{
+			Endpoint:   "http://localhost:8093",
+			StatusCode: 200,
+			Body:       &testReadCloser{bytes.NewBuffer(dataBytes), nil},
+		}, nil
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+		supportFn: func(capability gocbcore.ClusterCapability) bool {
+			return true
+		},
+	}
+
+	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
+	cluster.sb.N1qlRetryBehavior = StandardDelayRetryBehavior(3, 1, 100*time.Millisecond, LinearDelayFunction)
+	cluster.supportsEnhancedStatements = 1
+
+	cluster.queryCache = map[string]*n1qlCache{
+		"fake": {
+			name:        "mefake",
+			encodedPlan: "somethingencoded",
+		},
+		"fake2": {
+			name:        "mefake",
+			encodedPlan: "somethingencoded",
+		},
+	}
+
+	_, err = cluster.Query(statement, &QueryOptions{Prepared: true})
+	if err != nil {
+		t.Fatalf("Expected query execution to not error %v", err)
+	}
+
+	if retries != 2 {
+		t.Fatalf("Expected query to be run 2 times but ws run %d times", retries)
+	}
+
+	if len(cluster.queryCache) != 3 {
+		t.Fatalf("Query cache should have contained 3 items but was %v", cluster.queryCache)
+	}
+}
+
+func TestBasicEnhancedPreparedQueryAlreadyCached(t *testing.T) {
+	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
+	timeout := 60 * time.Second
+
+	dataBytes, err := loadRawTestDataset("beer_sample_query_dataset")
+	if err != nil {
+		t.Fatalf("Could not read test dataset: %v", err)
+	}
+
+	var retries int
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		testAssertQueryRequest(t, req)
+		retries++
+
+		return &gocbcore.HttpResponse{
+			Endpoint:   "http://localhost:8093",
+			StatusCode: 200,
+			Body:       &testReadCloser{bytes.NewBuffer(dataBytes), nil},
+		}, nil
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+		supportFn: func(capability gocbcore.ClusterCapability) bool {
+			return true
+		},
+	}
+
+	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
+	cluster.sb.N1qlRetryBehavior = StandardDelayRetryBehavior(3, 1, 100*time.Millisecond, LinearDelayFunction)
+	cluster.supportsEnhancedStatements = 1
+
+	cluster.queryCache = map[string]*n1qlCache{
+		"fake": {
+			name:        "mefake",
+			encodedPlan: "somethingencoded",
+		},
+		"fake2": {
+			name:        "mefake",
+			encodedPlan: "somethingencoded",
+		},
+		"select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name": {
+			name:        "[127.0.0.1:8091]32f2405d-5715-5915-b2b2-d2c557da4996",
+			encodedPlan: "H4sIAAAAAAAA/wEAAP//AAAAAAAAAAA=",
+		},
+	}
+
+	_, err = cluster.Query(statement, &QueryOptions{Prepared: true})
+	if err != nil {
+		t.Fatalf("Expected query execution to not error %v", err)
+	}
+
+	if retries != 1 {
+		t.Fatalf("Expected query to be run 1 times but ws run %d times", retries)
+	}
+
+	if len(cluster.queryCache) != 3 {
+		t.Fatalf("Query cache should have contained 3 items but was %v", cluster.queryCache)
+	}
+}
+
+func TestBasicRetriesEnhancedPreparedNoRetry(t *testing.T) {
+	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
+	timeout := 60 * time.Second
+
+	dataBytes, err := loadRawTestDataset("beer_sample_query_temp_error")
+	if err != nil {
+		t.Fatalf("Could not read test dataset: %v", err)
+	}
+
+	var expectedResult n1qlResponse
+	err = json.Unmarshal(dataBytes, &expectedResult)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal dataset %v", err)
+	}
+
+	var retries int
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		testAssertQueryRequest(t, req)
+		retries++
+
+		return &gocbcore.HttpResponse{
+			Endpoint:   "http://localhost:8093",
+			StatusCode: 404,
+			Body:       &testReadCloser{bytes.NewBuffer(dataBytes), nil},
+		}, nil
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+		supportFn: func(capability gocbcore.ClusterCapability) bool {
+			return true
+		},
+	}
+
+	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
+	cluster.sb.N1qlRetryBehavior = StandardDelayRetryBehavior(3, 1, 100*time.Millisecond, LinearDelayFunction)
+
+	cluster.queryCache = map[string]*n1qlCache{
+		"fake": {
+			name:        "mefake",
+			encodedPlan: "somethingencoded",
+		},
+		"fake2": {
+			name:        "mefake",
+			encodedPlan: "somethingencoded",
+		},
+	}
+
+	_, err = cluster.Query(statement, &QueryOptions{Prepared: true})
+	if err == nil {
+		t.Fatal("Expected query execution to error")
+	}
+
+	if retries != 1 {
+		t.Fatalf("Expected query to be retried 1 time but ws retried %d times", retries)
+	}
+
+	if len(cluster.queryCache) != 0 {
+		t.Fatalf("Query cache should have been empty but was %v", cluster.queryCache)
+	}
+}
+
+func TestBasicRetriesEnhancedPreparedRetry(t *testing.T) {
+	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
+	timeout := 60 * time.Second
+
+	dataBytes, err := loadRawTestDataset("query_enhanced_statement_temp_error")
+	if err != nil {
+		t.Fatalf("Could not read test dataset: %v", err)
+	}
+
+	var expectedResult n1qlResponse
+	err = json.Unmarshal(dataBytes, &expectedResult)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal dataset %v", err)
+	}
+
+	var retries int
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		testAssertQueryRequest(t, req)
+		retries++
+
+		return &gocbcore.HttpResponse{
+			Endpoint:   "http://localhost:8093",
+			StatusCode: 404,
+			Body:       &testReadCloser{bytes.NewBuffer(dataBytes), nil},
+		}, nil
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+		supportFn: func(capability gocbcore.ClusterCapability) bool {
+			return true
+		},
+	}
+
+	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
+	cluster.sb.N1qlRetryBehavior = StandardDelayRetryBehavior(3, 1, 100*time.Millisecond, LinearDelayFunction)
+
+	cluster.queryCache = map[string]*n1qlCache{
+		"fake": {
+			name:        "mefake",
+			encodedPlan: "somethingencoded",
+		},
+		"fake2": {
+			name:        "mefake",
+			encodedPlan: "somethingencoded",
+		},
+	}
+
+	_, err = cluster.Query(statement, &QueryOptions{Prepared: true})
+	if err == nil {
+		t.Fatal("Expected query execution to error")
+	}
+
+	if retries != 3 {
+		t.Fatalf("Expected query to be retried 3 time but ws retried %d times", retries)
+	}
+
+	if len(cluster.queryCache) != 0 {
+		t.Fatalf("Query cache should have been empty but was %v", cluster.queryCache)
+	}
+}
+
 func testGetClusterForHTTP(provider *mockHTTPProvider, n1qlTimeout, analyticsTimeout, searchTimeout time.Duration) *Cluster {
 	clients := make(map[string]client)
 	cli := &mockClient{

@@ -31,7 +31,8 @@ type mockKvProvider struct {
 }
 
 type mockHTTPProvider struct {
-	doFn func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error)
+	doFn      func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error)
+	supportFn func(capability gocbcore.ClusterCapability) bool
 }
 
 type mockPendingOp struct {
@@ -357,6 +358,10 @@ func (mko *mockKvProvider) NumReplicas() int {
 
 func (p *mockHTTPProvider) DoHttpRequest(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
 	return p.doFn(req)
+}
+
+func (p *mockHTTPProvider) SupportsClusterCapability(capability gocbcore.ClusterCapability) bool {
+	return p.supportFn(capability)
 }
 
 func (mc *mockClient) Hash() string {

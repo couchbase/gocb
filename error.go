@@ -740,11 +740,12 @@ type QueryError interface {
 }
 
 type queryError struct {
-	ErrorCode    uint32 `json:"code"`
-	ErrorMessage string `json:"msg"`
-	httpStatus   int
-	endpoint     string
-	contextID    string
+	ErrorCode             uint32 `json:"code"`
+	ErrorMessage          string `json:"msg"`
+	httpStatus            int
+	endpoint              string
+	contextID             string
+	enhancedStmtSupported bool
 }
 
 func (e queryError) Error() string {
@@ -762,6 +763,13 @@ func (e queryError) Message() string {
 }
 
 func (e queryError) retryable() bool {
+	if e.enhancedStmtSupported {
+		if e.ErrorCode == 4040 {
+			return true
+		}
+
+		return false
+	}
 	if e.ErrorCode == 4050 || e.ErrorCode == 4070 || e.ErrorCode == 5000 {
 		return true
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
@@ -23,6 +24,8 @@ type Cluster struct {
 	queryCache  map[string]*n1qlCache
 
 	sb stateBlock
+
+	supportsEnhancedStatements int32
 }
 
 // ClusterOptions is the set of options available for creating a Cluster.
@@ -268,4 +271,16 @@ func (c *Cluster) getHTTPProvider() (httpProvider, error) {
 	}
 
 	return provider, nil
+}
+
+func (c *Cluster) supportsEnhancedPreparedStatements() bool {
+	return atomic.LoadInt32(&c.supportsEnhancedStatements) > 0
+}
+
+func (c *Cluster) setSupportsEnhancedPreparedStatements(supports bool) {
+	if supports {
+		atomic.StoreInt32(&c.supportsEnhancedStatements, 1)
+	} else {
+		atomic.StoreInt32(&c.supportsEnhancedStatements, 0)
+	}
 }

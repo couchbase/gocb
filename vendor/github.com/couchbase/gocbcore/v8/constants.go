@@ -629,3 +629,11 @@ const (
 	durabilityLevelStatusSupported   = durabilityLevelStatus(0x01)
 	durabilityLevelStatusUnsupported = durabilityLevelStatus(0x02)
 )
+
+// ClusterCapability represents a capability that the cluster supports
+type ClusterCapability uint32
+
+const (
+	// ClusterCapabilityEnhancedPreparedStatements represents that the cluster supports enhanced prepared statements.
+	ClusterCapabilityEnhancedPreparedStatements = ClusterCapability(0x01)
+)

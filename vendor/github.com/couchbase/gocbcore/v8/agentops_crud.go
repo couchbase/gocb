@@ -349,6 +349,7 @@ func (agent *Agent) GetAnyReplicaEx(opts GetAnyReplicaOptions, cb GetReplicaExCa
 
 		if err != nil {
 			opHandledLocked()
+			resultLock.Unlock()
 			return
 		}
 

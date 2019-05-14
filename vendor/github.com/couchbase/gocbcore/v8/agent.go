@@ -79,6 +79,7 @@ type Agent struct {
 	cidMgr *collectionIdManager
 
 	durabilityLevelStatus durabilityLevelStatus
+	clusterCapabilities   uint32
 }
 
 // ServerConnectTimeout gets the timeout for each server connection, including all authentication steps.
@@ -813,7 +814,7 @@ func (agent *Agent) connect(memdAddrs, httpAddrs []string, deadline time.Time) e
 			agent.numVbuckets = 0
 		}
 
-		agent.applyConfig(routeCfg)
+		agent.applyRoutingConfig(routeCfg)
 
 		agent.cccpLooperDoneSig = make(chan struct{})
 		go agent.cccpLooper()
@@ -879,7 +880,7 @@ func (agent *Agent) connect(memdAddrs, httpAddrs []string, deadline time.Time) e
 		agent.numVbuckets = 0
 	}
 
-	agent.applyConfig(routeCfg)
+	agent.applyRoutingConfig(routeCfg)
 
 	return nil
 }
@@ -918,6 +919,15 @@ func (agent *Agent) buildFirstRouteConfig(bk *cfgBucket, srcServer string) *rout
 	// If all else fails, default to the implicit default config
 	agent.networkType = "default"
 	return defaultRouteConfig
+}
+
+func (agent *Agent) updateConfig(bk *cfgBucket) {
+	updated := agent.updateRoutingConfig(bk)
+	if !updated {
+		return
+	}
+
+	agent.updateClusterCapabilities(bk)
 }
 
 // Close shuts down the agent, disconnecting from all servers and failing

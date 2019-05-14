@@ -99,9 +99,11 @@ type cfgBucket struct {
 
 	// These are used for JSON IO, but isn't used for processing
 	// since it needs to be swapped out safely.
-	VBucketServerMap cfgVBucketServerMap `json:"vBucketServerMap"`
-	Nodes            []cfgNode           `json:"nodes"`
-	NodesExt         []cfgNodeExt        `json:"nodesExt,omitempty"`
+	VBucketServerMap       cfgVBucketServerMap `json:"vBucketServerMap"`
+	Nodes                  []cfgNode           `json:"nodes"`
+	NodesExt               []cfgNodeExt        `json:"nodesExt,omitempty"`
+	ClusterCapabilitiesVer []int               `json:"clusterCapabilitiesVer,omitempty"`
+	ClusterCapabilities    map[string][]string `json:"clusterCapabilities,omitempty"`
 }
 
 func (cfg *cfgBucket) supports(needleCap string) bool {

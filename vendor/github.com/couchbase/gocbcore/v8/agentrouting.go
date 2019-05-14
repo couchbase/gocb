@@ -210,11 +210,11 @@ func (list memdQRequestSorter) Swap(i, j int) {
 // Accepts a cfgBucket object representing a cluster configuration and rebuilds the server list
 //  along with any routing information for the Client.  Passing no config will refresh the existing one.
 //  This method MUST NEVER BLOCK due to its use from various contention points.
-func (agent *Agent) applyConfig(cfg *routeConfig) {
+func (agent *Agent) applyRoutingConfig(cfg *routeConfig) bool {
 	// Check some basic things to ensure consistency!
 	if cfg.vbMap != nil && cfg.vbMap.NumVbuckets() != agent.numVbuckets {
 		logErrorf("Received a configuration with a different number of vbuckets.  Ignoring.")
-		return
+		return false
 	}
 
 	// Only a single thing can modify the config at any time
@@ -241,23 +241,23 @@ func (agent *Agent) applyConfig(cfg *routeConfig) {
 
 	oldRouting := agent.routingInfo.Get()
 	if oldRouting == nil {
-		return
+		return false
 	}
 
 	if newRouting.revId == 0 {
 		logDebugf("Unversioned configuration data, ")
 	} else if newRouting.revId == oldRouting.revId {
 		logDebugf("Ignoring configuration with identical revision number")
-		return
+		return false
 	} else if newRouting.revId <= oldRouting.revId {
 		logDebugf("Ignoring new configuration as it has an older revision id")
-		return
+		return false
 	}
 
 	// Attempt to atomically update the routing data
 	if !agent.routingInfo.Update(oldRouting, newRouting) {
 		logErrorf("Someone preempted the config update, skipping update")
-		return
+		return false
 	}
 
 	logDebugf("Switching routing data (update)...")
@@ -285,33 +285,35 @@ func (agent *Agent) applyConfig(cfg *routeConfig) {
 			agent.requeueDirect(req)
 		}
 	}
+
+	return true
 }
 
-func (agent *Agent) updateConfig(bk *cfgBucket) {
+func (agent *Agent) updateRoutingConfig(bk *cfgBucket) bool {
 	if bk == nil {
 		// Use the existing config if none was passed.
 		oldRouting := agent.routingInfo.Get()
 		if oldRouting == nil {
 			// If there is no previous config, we can't do anything
-			return
+			return false
 		}
 
-		agent.applyConfig(oldRouting.source)
-	} else {
-		// Normalize the cfgBucket to a routeConfig and apply it.
-		routeCfg := buildRouteConfig(bk, agent.IsSecure(), agent.networkType, false)
-		if !routeCfg.IsValid() {
-			// We received an invalid configuration, lets shutdown.
-			err := agent.Close()
-			if err != nil {
-				logErrorf("Invalid config caused agent close failure (%s)", err)
-			}
-
-			return
-		}
-
-		agent.applyConfig(routeCfg)
+		return agent.applyRoutingConfig(oldRouting.source)
 	}
+
+	// Normalize the cfgBucket to a routeConfig and apply it.
+	routeCfg := buildRouteConfig(bk, agent.IsSecure(), agent.networkType, false)
+	if !routeCfg.IsValid() {
+		// We received an invalid configuration, lets shutdown.
+		err := agent.Close()
+		if err != nil {
+			logErrorf("Invalid config caused agent close failure (%s)", err)
+		}
+
+		return false
+	}
+
+	return agent.applyRoutingConfig(routeCfg)
 }
 
 func (agent *Agent) routeRequest(req *memdQRequest) (*memdPipeline, error) {
