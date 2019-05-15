@@ -449,26 +449,20 @@ func (c *Cluster) searchQuery(ctx context.Context, traceCtx opentracing.SpanCont
 	}
 
 	timeout := c.sb.SearchTimeout
-	opTimeout := jsonMillisecondDuration(timeout)
 	if ctlData.Has("timeout") {
-		err = ctlData.Get("timeout", &opTimeout)
+		err = ctlData.Get("timeout", &timeout)
 		if err != nil {
 			return nil, err
 		}
 	}
-
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
 	// We don't make the client timeout longer for this as pindexes can timeout
 	// individually rather than the entire connection. Server side timeouts are also hard to detect.
 	var cancel context.CancelFunc
-	ctx, cancel = context.WithTimeout(ctx, timeout)
+	ctx, cancel = context.WithTimeout(ctx, timeout*time.Millisecond)
 
 	now := time.Now()
 	d, _ := ctx.Deadline()
-	opTimeout = jsonMillisecondDuration(d.Sub(now))
+	opTimeout := jsonMillisecondDuration(d.Sub(now))
 
 	err = ctlData.Set("timeout", opTimeout)
 	if err != nil {
