@@ -4,6 +4,8 @@ import gocbcore "github.com/couchbase/gocbcore/v8"
 
 const (
 	goCbVersionStr = "v2.0.0-alpha.3"
+
+	persistenceTimeoutFloor = 1500
 )
 
 // IndexType provides information on the type of indexer used for an index.

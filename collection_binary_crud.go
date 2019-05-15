@@ -50,14 +50,22 @@ func (c *CollectionBinary) append(ctx context.Context, traceCtx opentracing.Span
 		return nil, err
 	}
 
+	durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	if durabilityTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
+		defer cancel()
+	}
+
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.AppendEx(gocbcore.AdjoinOptions{
-		Key:             []byte(key),
-		Value:           val,
-		TraceContext:    traceCtx,
-		CollectionName:  c.name(),
-		ScopeName:       c.scopeName(),
-		DurabilityLevel: gocbcore.DurabilityLevel(opts.DurabilityLevel),
+		Key:                    []byte(key),
+		Value:                  val,
+		TraceContext:           traceCtx,
+		CollectionName:         c.name(),
+		ScopeName:              c.scopeName(),
+		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
+		DurabilityLevelTimeout: durabilityTimeout,
 	}, func(res *gocbcore.AdjoinResult, err error) {
 		if err != nil {
 			errOut = err
@@ -120,14 +128,22 @@ func (c *CollectionBinary) prepend(ctx context.Context, traceCtx opentracing.Spa
 		return nil, err
 	}
 
+	durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	if durabilityTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
+		defer cancel()
+	}
+
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.PrependEx(gocbcore.AdjoinOptions{
-		Key:             []byte(key),
-		Value:           val,
-		TraceContext:    traceCtx,
-		CollectionName:  c.name(),
-		ScopeName:       c.scopeName(),
-		DurabilityLevel: gocbcore.DurabilityLevel(opts.DurabilityLevel),
+		Key:                    []byte(key),
+		Value:                  val,
+		TraceContext:           traceCtx,
+		CollectionName:         c.name(),
+		ScopeName:              c.scopeName(),
+		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
+		DurabilityLevelTimeout: durabilityTimeout,
 	}, func(res *gocbcore.AdjoinResult, err error) {
 		if err != nil {
 			errOut = err
@@ -205,16 +221,24 @@ func (c *CollectionBinary) increment(ctx context.Context, traceCtx opentracing.S
 		return nil, err
 	}
 
+	durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	if durabilityTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
+		defer cancel()
+	}
+
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.IncrementEx(gocbcore.CounterOptions{
-		Key:             []byte(key),
-		Delta:           opts.Delta,
-		Initial:         realInitial,
-		Expiry:          opts.Expiration,
-		TraceContext:    traceCtx,
-		CollectionName:  c.name(),
-		ScopeName:       c.scopeName(),
-		DurabilityLevel: gocbcore.DurabilityLevel(opts.DurabilityLevel),
+		Key:                    []byte(key),
+		Delta:                  opts.Delta,
+		Initial:                realInitial,
+		Expiry:                 opts.Expiration,
+		TraceContext:           traceCtx,
+		CollectionName:         c.name(),
+		ScopeName:              c.scopeName(),
+		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
+		DurabilityLevelTimeout: durabilityTimeout,
 	}, func(res *gocbcore.CounterResult, err error) {
 		if err != nil {
 			errOut = err
@@ -281,16 +305,24 @@ func (c *CollectionBinary) decrement(ctx context.Context, traceCtx opentracing.S
 		realInitial = uint64(opts.Initial)
 	}
 
+	durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	if durabilityTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
+		defer cancel()
+	}
+
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.DecrementEx(gocbcore.CounterOptions{
-		Key:             []byte(key),
-		Delta:           opts.Delta,
-		Initial:         realInitial,
-		Expiry:          opts.Expiration,
-		TraceContext:    traceCtx,
-		CollectionName:  c.name(),
-		ScopeName:       c.scopeName(),
-		DurabilityLevel: gocbcore.DurabilityLevel(opts.DurabilityLevel),
+		Key:                    []byte(key),
+		Delta:                  opts.Delta,
+		Initial:                realInitial,
+		Expiry:                 opts.Expiration,
+		TraceContext:           traceCtx,
+		CollectionName:         c.name(),
+		ScopeName:              c.scopeName(),
+		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
+		DurabilityLevelTimeout: durabilityTimeout,
 	}, func(res *gocbcore.CounterResult, err error) {
 		if err != nil {
 			errOut = err

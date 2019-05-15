@@ -1212,6 +1212,28 @@ func TestInsertReplicateToGetAllReplicas(t *testing.T) {
 	}
 }
 
+func TestDurabilityTimeout(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2000*time.Millisecond)
+	defer cancel()
+	level := DurabilityLevelMajority
+
+	timeout := globalCollection.durabilityTimeout(ctx, level)
+	if timeout != 1799 { // 1800 minus a bit for the time it takes to get to the calculation
+		t.Fatalf("Timeout value should have been %d but was %d", 1799, timeout)
+	}
+}
+
+func TestDurabilityTimeoutCoerce(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
+	defer cancel()
+	level := DurabilityLevelMajority
+
+	timeout := globalCollection.durabilityTimeout(ctx, level)
+	if timeout != persistenceTimeoutFloor {
+		t.Fatalf("Timeout value should have been %d but was %d", persistenceTimeoutFloor, timeout)
+	}
+}
+
 func TestDurabilityGetFromAnyReplica(t *testing.T) {
 	if !globalCluster.SupportsFeature(DurabilityFeature) {
 		t.Skip("Skipping test as durability not supported")

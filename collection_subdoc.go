@@ -834,17 +834,25 @@ func (c *Collection) mutate(ctx context.Context, traceCtx opentracing.SpanContex
 		subdocs = append(subdocs, op.op)
 	}
 
+	durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	if durabilityTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
+		defer cancel()
+	}
+
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.MutateInEx(gocbcore.MutateInOptions{
-		Key:             []byte(key),
-		Flags:           gocbcore.SubdocDocFlag(flags),
-		Cas:             gocbcore.Cas(opts.Cas),
-		Ops:             subdocs,
-		TraceContext:    traceCtx,
-		Expiry:          opts.Expiration,
-		CollectionName:  c.name(),
-		ScopeName:       c.scopeName(),
-		DurabilityLevel: gocbcore.DurabilityLevel(opts.DurabilityLevel),
+		Key:                    []byte(key),
+		Flags:                  gocbcore.SubdocDocFlag(flags),
+		Cas:                    gocbcore.Cas(opts.Cas),
+		Ops:                    subdocs,
+		TraceContext:           traceCtx,
+		Expiry:                 opts.Expiration,
+		CollectionName:         c.name(),
+		ScopeName:              c.scopeName(),
+		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
+		DurabilityLevelTimeout: durabilityTimeout,
 	}, func(res *gocbcore.MutateInResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceErr(err, key)

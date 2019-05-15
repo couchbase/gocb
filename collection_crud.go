@@ -85,6 +85,23 @@ func (ctrl *opManager) wait(op gocbcore.PendingOp, err error) (errOut error) {
 	return
 }
 
+func (c *Collection) durabilityTimeout(ctx context.Context, durabilityLevel DurabilityLevel) uint16 {
+	var durabilityTimeout uint16
+	if durabilityLevel > 0 {
+		d, _ := ctx.Deadline()
+		timeout := d.Sub(time.Now()) / time.Millisecond
+		adjustedTimeout := float32(timeout) * 0.9
+		if adjustedTimeout < persistenceTimeoutFloor {
+			logWarnf("Coercing durability timeout to %d from %d", persistenceTimeoutFloor, adjustedTimeout)
+			adjustedTimeout = persistenceTimeoutFloor
+		}
+
+		durabilityTimeout = uint16(adjustedTimeout)
+	}
+
+	return durabilityTimeout
+}
+
 // Cas represents the specific state of a document on the cluster.
 type Cas gocbcore.Cas
 
@@ -172,16 +189,24 @@ func (c *Collection) insert(ctx context.Context, traceCtx opentracing.SpanContex
 	}
 	encodeSpan.Finish()
 
+	durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	if durabilityTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
+		defer cancel()
+	}
+
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.AddEx(gocbcore.AddOptions{
-		Key:             []byte(key),
-		Value:           bytes,
-		Flags:           flags,
-		Expiry:          opts.Expiration,
-		TraceContext:    traceCtx,
-		CollectionName:  c.name(),
-		ScopeName:       c.scopeName(),
-		DurabilityLevel: gocbcore.DurabilityLevel(opts.DurabilityLevel),
+		Key:                    []byte(key),
+		Value:                  bytes,
+		Flags:                  flags,
+		Expiry:                 opts.Expiration,
+		TraceContext:           traceCtx,
+		CollectionName:         c.name(),
+		ScopeName:              c.scopeName(),
+		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
+		DurabilityLevelTimeout: durabilityTimeout,
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceErr(err, key)
@@ -263,16 +288,24 @@ func (c *Collection) upsert(ctx context.Context, traceCtx opentracing.SpanContex
 	}
 	encodeSpan.Finish()
 
+	durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	if durabilityTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
+		defer cancel()
+	}
+
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.SetEx(gocbcore.SetOptions{
-		Key:             []byte(key),
-		Value:           bytes,
-		Flags:           flags,
-		Expiry:          opts.Expiration,
-		TraceContext:    traceCtx,
-		CollectionName:  c.name(),
-		ScopeName:       c.scopeName(),
-		DurabilityLevel: gocbcore.DurabilityLevel(opts.DurabilityLevel),
+		Key:                    []byte(key),
+		Value:                  bytes,
+		Flags:                  flags,
+		Expiry:                 opts.Expiration,
+		TraceContext:           traceCtx,
+		CollectionName:         c.name(),
+		ScopeName:              c.scopeName(),
+		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
+		DurabilityLevelTimeout: durabilityTimeout,
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceErr(err, key)
@@ -366,17 +399,25 @@ func (c *Collection) replace(ctx context.Context, traceCtx opentracing.SpanConte
 	}
 	encodeSpan.Finish()
 
+	durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	if durabilityTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
+		defer cancel()
+	}
+
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.ReplaceEx(gocbcore.ReplaceOptions{
-		Key:             []byte(key),
-		Value:           bytes,
-		Flags:           flags,
-		Expiry:          opts.Expiration,
-		Cas:             gocbcore.Cas(opts.Cas),
-		TraceContext:    traceCtx,
-		CollectionName:  c.name(),
-		ScopeName:       c.scopeName(),
-		DurabilityLevel: gocbcore.DurabilityLevel(opts.DurabilityLevel),
+		Key:                    []byte(key),
+		Value:                  bytes,
+		Flags:                  flags,
+		Expiry:                 opts.Expiration,
+		Cas:                    gocbcore.Cas(opts.Cas),
+		TraceContext:           traceCtx,
+		CollectionName:         c.name(),
+		ScopeName:              c.scopeName(),
+		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
+		DurabilityLevelTimeout: durabilityTimeout,
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceErr(err, key)
@@ -739,14 +780,22 @@ func (c *Collection) remove(ctx context.Context, traceCtx opentracing.SpanContex
 		return nil, err
 	}
 
+	durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	if durabilityTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
+		defer cancel()
+	}
+
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.DeleteEx(gocbcore.DeleteOptions{
-		Key:             []byte(key),
-		Cas:             gocbcore.Cas(opts.Cas),
-		TraceContext:    traceCtx,
-		CollectionName:  c.name(),
-		ScopeName:       c.scopeName(),
-		DurabilityLevel: gocbcore.DurabilityLevel(opts.DurabilityLevel),
+		Key:                    []byte(key),
+		Cas:                    gocbcore.Cas(opts.Cas),
+		TraceContext:           traceCtx,
+		CollectionName:         c.name(),
+		ScopeName:              c.scopeName(),
+		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
+		DurabilityLevelTimeout: durabilityTimeout,
 	}, func(res *gocbcore.DeleteResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceErr(err, key)
@@ -1013,14 +1062,22 @@ func (c *Collection) touch(ctx context.Context, traceCtx opentracing.SpanContext
 		return nil, err
 	}
 
+	durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	if durabilityTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
+		defer cancel()
+	}
+
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.TouchEx(gocbcore.TouchOptions{
-		Key:             []byte(key),
-		Expiry:          expiration,
-		TraceContext:    traceCtx,
-		CollectionName:  c.name(),
-		ScopeName:       c.scopeName(),
-		DurabilityLevel: gocbcore.DurabilityLevel(opts.DurabilityLevel),
+		Key:                    []byte(key),
+		Expiry:                 expiration,
+		TraceContext:           traceCtx,
+		CollectionName:         c.name(),
+		ScopeName:              c.scopeName(),
+		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
+		DurabilityLevelTimeout: durabilityTimeout,
 	}, func(res *gocbcore.TouchResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceErr(err, key)
