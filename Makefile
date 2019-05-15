@@ -3,6 +3,7 @@ devsetup:
 	go get "golang.org/x/lint/golint"
 	go get "github.com/gordonklaus/ineffassign"
 	go get "github.com/client9/misspell/cmd/misspell"
+	git submodule update --remote --init --recursive
 
 test:
 	go test ./
@@ -36,4 +37,7 @@ check: lint
 bench:
 	go test -bench=. -run=none --disable-logger=true
 
-.PHONY: all test devsetup fasttest lint cover checkerrs checkfmt checkvet checkiea checkspell check bench
+updatetestcases:
+	git submodule update --remote --init --recursive
+
+.PHONY: all test devsetup fasttest lint cover checkerrs checkfmt checkvet checkiea checkspell check bench updatetestcases

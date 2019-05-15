@@ -256,14 +256,14 @@ func TestSearchQueryRetries(t *testing.T) {
 	}
 }
 
-func TestSearchQueryObjectError(t *testing.T) {
+func TestSearchQueryServerObjectError(t *testing.T) {
 	q := SearchQuery{
 		Name:  "test",
 		Query: NewMatchQuery("test"),
 	}
 	timeout := 60 * time.Second
 
-	dataBytes, err := loadRawTestDataset("searchquery_timeout")
+	_, dataBytes, err := loadSDKTestDataset("search/alltimeouts")
 	if err != nil {
 		t.Fatalf("Could not read test dataset: %v", err)
 	}
@@ -281,7 +281,6 @@ func TestSearchQueryObjectError(t *testing.T) {
 	}
 
 	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
-	cluster.sb.SearchRetryBehavior = StandardDelayRetryBehavior(3, 1, 100*time.Millisecond, LinearDelayFunction)
 
 	res, err := cluster.SearchQuery(q, nil)
 	if err == nil {
