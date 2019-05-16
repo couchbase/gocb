@@ -1217,9 +1217,13 @@ func TestDurabilityTimeout(t *testing.T) {
 	defer cancel()
 	level := DurabilityLevelMajority
 
-	timeout := globalCollection.durabilityTimeout(ctx, level)
+	coerced, timeout := globalCollection.durabilityTimeout(ctx, level)
 	if timeout != 1799 { // 1800 minus a bit for the time it takes to get to the calculation
 		t.Fatalf("Timeout value should have been %d but was %d", 1799, timeout)
+	}
+
+	if coerced {
+		t.Fatalf("Expected coerced to be false")
 	}
 }
 
@@ -1228,9 +1232,13 @@ func TestDurabilityTimeoutCoerce(t *testing.T) {
 	defer cancel()
 	level := DurabilityLevelMajority
 
-	timeout := globalCollection.durabilityTimeout(ctx, level)
+	coerced, timeout := globalCollection.durabilityTimeout(ctx, level)
 	if timeout != persistenceTimeoutFloor {
 		t.Fatalf("Timeout value should have been %d but was %d", persistenceTimeoutFloor, timeout)
+	}
+
+	if !coerced {
+		t.Fatalf("Expected coerced to be true")
 	}
 }
 

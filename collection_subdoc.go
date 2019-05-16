@@ -834,8 +834,8 @@ func (c *Collection) mutate(ctx context.Context, traceCtx opentracing.SpanContex
 		subdocs = append(subdocs, op.op)
 	}
 
-	durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
-	if durabilityTimeout > 0 {
+	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	if coerced {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
 		defer cancel()

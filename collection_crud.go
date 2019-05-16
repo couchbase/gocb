@@ -85,8 +85,9 @@ func (ctrl *opManager) wait(op gocbcore.PendingOp, err error) (errOut error) {
 	return
 }
 
-func (c *Collection) durabilityTimeout(ctx context.Context, durabilityLevel DurabilityLevel) uint16 {
+func (c *Collection) durabilityTimeout(ctx context.Context, durabilityLevel DurabilityLevel) (bool, uint16) {
 	var durabilityTimeout uint16
+	var coerced bool
 	if durabilityLevel > 0 {
 		d, _ := ctx.Deadline()
 		timeout := d.Sub(time.Now()) / time.Millisecond
@@ -94,12 +95,13 @@ func (c *Collection) durabilityTimeout(ctx context.Context, durabilityLevel Dura
 		if adjustedTimeout < persistenceTimeoutFloor {
 			logWarnf("Coercing durability timeout to %d from %d", persistenceTimeoutFloor, adjustedTimeout)
 			adjustedTimeout = persistenceTimeoutFloor
+			coerced = true
 		}
 
 		durabilityTimeout = uint16(adjustedTimeout)
 	}
 
-	return durabilityTimeout
+	return coerced, durabilityTimeout
 }
 
 // Cas represents the specific state of a document on the cluster.
@@ -189,8 +191,8 @@ func (c *Collection) insert(ctx context.Context, traceCtx opentracing.SpanContex
 	}
 	encodeSpan.Finish()
 
-	durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
-	if durabilityTimeout > 0 {
+	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	if coerced {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
 		defer cancel()
@@ -288,8 +290,8 @@ func (c *Collection) upsert(ctx context.Context, traceCtx opentracing.SpanContex
 	}
 	encodeSpan.Finish()
 
-	durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
-	if durabilityTimeout > 0 {
+	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	if coerced {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
 		defer cancel()
@@ -399,8 +401,8 @@ func (c *Collection) replace(ctx context.Context, traceCtx opentracing.SpanConte
 	}
 	encodeSpan.Finish()
 
-	durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
-	if durabilityTimeout > 0 {
+	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	if coerced {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
 		defer cancel()
@@ -780,8 +782,8 @@ func (c *Collection) remove(ctx context.Context, traceCtx opentracing.SpanContex
 		return nil, err
 	}
 
-	durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
-	if durabilityTimeout > 0 {
+	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	if coerced {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
 		defer cancel()
@@ -1062,8 +1064,8 @@ func (c *Collection) touch(ctx context.Context, traceCtx opentracing.SpanContext
 		return nil, err
 	}
 
-	durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
-	if durabilityTimeout > 0 {
+	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	if coerced {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
 		defer cancel()

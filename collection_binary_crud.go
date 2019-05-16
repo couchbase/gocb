@@ -50,8 +50,8 @@ func (c *CollectionBinary) append(ctx context.Context, traceCtx opentracing.Span
 		return nil, err
 	}
 
-	durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
-	if durabilityTimeout > 0 {
+	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	if coerced {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
 		defer cancel()
@@ -128,8 +128,8 @@ func (c *CollectionBinary) prepend(ctx context.Context, traceCtx opentracing.Spa
 		return nil, err
 	}
 
-	durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
-	if durabilityTimeout > 0 {
+	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	if coerced {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
 		defer cancel()
@@ -221,8 +221,8 @@ func (c *CollectionBinary) increment(ctx context.Context, traceCtx opentracing.S
 		return nil, err
 	}
 
-	durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
-	if durabilityTimeout > 0 {
+	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	if coerced {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
 		defer cancel()
@@ -305,8 +305,8 @@ func (c *CollectionBinary) decrement(ctx context.Context, traceCtx opentracing.S
 		realInitial = uint64(opts.Initial)
 	}
 
-	durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
-	if durabilityTimeout > 0 {
+	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	if coerced {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
 		defer cancel()
