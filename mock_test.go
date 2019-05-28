@@ -10,12 +10,13 @@ import (
 )
 
 type mockClient struct {
-	bucketName        string
-	useMutationTokens bool
-	collectionId      uint32
-	scopeId           uint32
-	mockKvProvider    kvProvider
-	mockHTTPProvider  httpProvider
+	bucketName              string
+	useMutationTokens       bool
+	collectionId            uint32
+	scopeId                 uint32
+	mockKvProvider          kvProvider
+	mockHTTPProvider        httpProvider
+	mockDiagnosticsProvider diagnosticsProvider
 }
 
 type mockKvOperator struct {
@@ -368,4 +369,8 @@ func (mc *mockClient) getKvProvider() (kvProvider, error) {
 
 func (mc *mockClient) getHTTPProvider() (httpProvider, error) {
 	return mc.mockHTTPProvider, nil
+}
+
+func (mc *mockClient) getDiagnosticsProvider() (diagnosticsProvider, error) {
+	return mc.mockDiagnosticsProvider, nil
 }

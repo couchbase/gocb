@@ -17,6 +17,7 @@ type client interface {
 	openCollection(ctx context.Context, traceCtx opentracing.SpanContext, scopeName string, collectionName string)
 	getKvProvider() (kvProvider, error)
 	getHTTPProvider() (httpProvider, error)
+	getDiagnosticsProvider() (diagnosticsProvider, error)
 	close() error
 }
 
@@ -48,7 +49,7 @@ func (c *stdClient) connect() {
 	auth := c.cluster.auth
 
 	config := &gocbcore.AgentConfig{
-		UserString:           "gocb/" + Version(),
+		UserString:           Identifier(),
 		ConnectTimeout:       c.cluster.sb.ConnectTimeout,
 		UseMutationTokens:    c.state.UseMutationTokens,
 		ServerConnectTimeout: 7000 * time.Millisecond,
@@ -115,6 +116,14 @@ func (c *stdClient) getHTTPProvider() (httpProvider, error) {
 	if c.agent == nil {
 		return nil, errors.New("Cluster not yet connected")
 	}
+	return c.agent, nil
+}
+
+func (c *stdClient) getDiagnosticsProvider() (diagnosticsProvider, error) {
+	if c.bootstrapErr != nil {
+		return nil, c.bootstrapErr
+	}
+
 	return c.agent, nil
 }
 
