@@ -19,7 +19,7 @@ type mockClient struct {
 	mockDiagnosticsProvider diagnosticsProvider
 }
 
-type mockKvOperator struct {
+type mockKvProvider struct {
 	opWait                time.Duration
 	value                 interface{}
 	cas                   gocbcore.Cas
@@ -42,7 +42,7 @@ func (mpo *mockPendingOp) Cancel() bool {
 	return mpo.cancelSuccess
 }
 
-func (mko *mockKvOperator) AddEx(opts gocbcore.AddOptions, cb gocbcore.StoreExCallback) (gocbcore.PendingOp, error) {
+func (mko *mockKvProvider) AddEx(opts gocbcore.AddOptions, cb gocbcore.StoreExCallback) (gocbcore.PendingOp, error) {
 	time.AfterFunc(mko.opWait, func() {
 		if mko.err == nil {
 			cb(&gocbcore.StoreResult{
@@ -57,7 +57,7 @@ func (mko *mockKvOperator) AddEx(opts gocbcore.AddOptions, cb gocbcore.StoreExCa
 	return &mockPendingOp{cancelSuccess: mko.opCancellationSuccess}, nil
 }
 
-func (mko *mockKvOperator) SetEx(opts gocbcore.SetOptions, cb gocbcore.StoreExCallback) (gocbcore.PendingOp, error) {
+func (mko *mockKvProvider) SetEx(opts gocbcore.SetOptions, cb gocbcore.StoreExCallback) (gocbcore.PendingOp, error) {
 	time.AfterFunc(mko.opWait, func() {
 		if mko.err == nil {
 			cb(&gocbcore.StoreResult{
@@ -73,7 +73,7 @@ func (mko *mockKvOperator) SetEx(opts gocbcore.SetOptions, cb gocbcore.StoreExCa
 
 }
 
-func (mko *mockKvOperator) ReplaceEx(opts gocbcore.ReplaceOptions, cb gocbcore.StoreExCallback) (gocbcore.PendingOp, error) {
+func (mko *mockKvProvider) ReplaceEx(opts gocbcore.ReplaceOptions, cb gocbcore.StoreExCallback) (gocbcore.PendingOp, error) {
 	time.AfterFunc(mko.opWait, func() {
 		if mko.err == nil {
 			cb(&gocbcore.StoreResult{
@@ -88,7 +88,7 @@ func (mko *mockKvOperator) ReplaceEx(opts gocbcore.ReplaceOptions, cb gocbcore.S
 	return &mockPendingOp{cancelSuccess: mko.opCancellationSuccess}, nil
 }
 
-func (mko *mockKvOperator) GetEx(opts gocbcore.GetOptions, cb gocbcore.GetExCallback) (gocbcore.PendingOp, error) {
+func (mko *mockKvProvider) GetEx(opts gocbcore.GetOptions, cb gocbcore.GetExCallback) (gocbcore.PendingOp, error) {
 	time.AfterFunc(mko.opWait, func() {
 		if mko.err == nil {
 			cb(&gocbcore.GetResult{
@@ -105,7 +105,7 @@ func (mko *mockKvOperator) GetEx(opts gocbcore.GetOptions, cb gocbcore.GetExCall
 	return &mockPendingOp{cancelSuccess: mko.opCancellationSuccess}, nil
 }
 
-func (mko *mockKvOperator) GetAndTouchEx(opts gocbcore.GetAndTouchOptions, cb gocbcore.GetAndTouchExCallback) (gocbcore.PendingOp, error) {
+func (mko *mockKvProvider) GetAndTouchEx(opts gocbcore.GetAndTouchOptions, cb gocbcore.GetAndTouchExCallback) (gocbcore.PendingOp, error) {
 	time.AfterFunc(mko.opWait, func() {
 		if mko.err == nil {
 			cb(&gocbcore.GetAndTouchResult{
@@ -122,7 +122,7 @@ func (mko *mockKvOperator) GetAndTouchEx(opts gocbcore.GetAndTouchOptions, cb go
 	return &mockPendingOp{cancelSuccess: mko.opCancellationSuccess}, nil
 }
 
-func (mko *mockKvOperator) GetAndLockEx(opts gocbcore.GetAndLockOptions, cb gocbcore.GetAndLockExCallback) (gocbcore.PendingOp, error) {
+func (mko *mockKvProvider) GetAndLockEx(opts gocbcore.GetAndLockOptions, cb gocbcore.GetAndLockExCallback) (gocbcore.PendingOp, error) {
 	time.AfterFunc(mko.opWait, func() {
 		if mko.err == nil {
 			cb(&gocbcore.GetAndLockResult{
@@ -139,7 +139,7 @@ func (mko *mockKvOperator) GetAndLockEx(opts gocbcore.GetAndLockOptions, cb gocb
 	return &mockPendingOp{cancelSuccess: mko.opCancellationSuccess}, nil
 }
 
-func (mko *mockKvOperator) UnlockEx(opts gocbcore.UnlockOptions, cb gocbcore.UnlockExCallback) (gocbcore.PendingOp, error) {
+func (mko *mockKvProvider) UnlockEx(opts gocbcore.UnlockOptions, cb gocbcore.UnlockExCallback) (gocbcore.PendingOp, error) {
 	time.AfterFunc(mko.opWait, func() {
 		if mko.err == nil {
 			cb(&gocbcore.UnlockResult{
@@ -154,7 +154,7 @@ func (mko *mockKvOperator) UnlockEx(opts gocbcore.UnlockOptions, cb gocbcore.Unl
 	return &mockPendingOp{cancelSuccess: mko.opCancellationSuccess}, nil
 }
 
-func (mko *mockKvOperator) TouchEx(opts gocbcore.TouchOptions, cb gocbcore.TouchExCallback) (gocbcore.PendingOp, error) {
+func (mko *mockKvProvider) TouchEx(opts gocbcore.TouchOptions, cb gocbcore.TouchExCallback) (gocbcore.PendingOp, error) {
 	time.AfterFunc(mko.opWait, func() {
 		if mko.err == nil {
 			cb(&gocbcore.TouchResult{
@@ -169,7 +169,7 @@ func (mko *mockKvOperator) TouchEx(opts gocbcore.TouchOptions, cb gocbcore.Touch
 	return &mockPendingOp{cancelSuccess: mko.opCancellationSuccess}, nil
 }
 
-func (mko *mockKvOperator) DeleteEx(opts gocbcore.DeleteOptions, cb gocbcore.DeleteExCallback) (gocbcore.PendingOp, error) {
+func (mko *mockKvProvider) DeleteEx(opts gocbcore.DeleteOptions, cb gocbcore.DeleteExCallback) (gocbcore.PendingOp, error) {
 	time.AfterFunc(mko.opWait, func() {
 		if mko.err == nil {
 			cb(&gocbcore.DeleteResult{
@@ -184,7 +184,7 @@ func (mko *mockKvOperator) DeleteEx(opts gocbcore.DeleteOptions, cb gocbcore.Del
 	return &mockPendingOp{cancelSuccess: mko.opCancellationSuccess}, nil
 }
 
-func (mko *mockKvOperator) IncrementEx(opts gocbcore.CounterOptions, cb gocbcore.CounterExCallback) (gocbcore.PendingOp, error) {
+func (mko *mockKvProvider) IncrementEx(opts gocbcore.CounterOptions, cb gocbcore.CounterExCallback) (gocbcore.PendingOp, error) {
 	time.AfterFunc(mko.opWait, func() {
 		if mko.err == nil {
 			cb(&gocbcore.CounterResult{
@@ -200,7 +200,7 @@ func (mko *mockKvOperator) IncrementEx(opts gocbcore.CounterOptions, cb gocbcore
 	return &mockPendingOp{cancelSuccess: mko.opCancellationSuccess}, nil
 }
 
-func (mko *mockKvOperator) DecrementEx(opts gocbcore.CounterOptions, cb gocbcore.CounterExCallback) (gocbcore.PendingOp, error) {
+func (mko *mockKvProvider) DecrementEx(opts gocbcore.CounterOptions, cb gocbcore.CounterExCallback) (gocbcore.PendingOp, error) {
 	time.AfterFunc(mko.opWait, func() {
 		if mko.err == nil {
 			cb(&gocbcore.CounterResult{
@@ -216,7 +216,7 @@ func (mko *mockKvOperator) DecrementEx(opts gocbcore.CounterOptions, cb gocbcore
 	return &mockPendingOp{cancelSuccess: mko.opCancellationSuccess}, nil
 }
 
-func (mko *mockKvOperator) AppendEx(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinExCallback) (gocbcore.PendingOp, error) {
+func (mko *mockKvProvider) AppendEx(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinExCallback) (gocbcore.PendingOp, error) {
 	time.AfterFunc(mko.opWait, func() {
 		if mko.err == nil {
 			cb(&gocbcore.AdjoinResult{
@@ -231,7 +231,7 @@ func (mko *mockKvOperator) AppendEx(opts gocbcore.AdjoinOptions, cb gocbcore.Adj
 	return &mockPendingOp{cancelSuccess: mko.opCancellationSuccess}, nil
 }
 
-func (mko *mockKvOperator) PrependEx(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinExCallback) (gocbcore.PendingOp, error) {
+func (mko *mockKvProvider) PrependEx(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinExCallback) (gocbcore.PendingOp, error) {
 	time.AfterFunc(mko.opWait, func() {
 		if mko.err == nil {
 			cb(&gocbcore.AdjoinResult{
@@ -246,7 +246,7 @@ func (mko *mockKvOperator) PrependEx(opts gocbcore.AdjoinOptions, cb gocbcore.Ad
 	return &mockPendingOp{cancelSuccess: mko.opCancellationSuccess}, nil
 }
 
-func (mko *mockKvOperator) LookupInEx(opts gocbcore.LookupInOptions, cb gocbcore.LookupInExCallback) (gocbcore.PendingOp, error) {
+func (mko *mockKvProvider) LookupInEx(opts gocbcore.LookupInOptions, cb gocbcore.LookupInExCallback) (gocbcore.PendingOp, error) {
 	time.AfterFunc(mko.opWait, func() {
 		if mko.err == nil {
 			cb(&gocbcore.LookupInResult{
@@ -262,7 +262,7 @@ func (mko *mockKvOperator) LookupInEx(opts gocbcore.LookupInOptions, cb gocbcore
 
 }
 
-func (mko *mockKvOperator) MutateInEx(opts gocbcore.MutateInOptions, cb gocbcore.MutateInExCallback) (gocbcore.PendingOp, error) {
+func (mko *mockKvProvider) MutateInEx(opts gocbcore.MutateInOptions, cb gocbcore.MutateInExCallback) (gocbcore.PendingOp, error) {
 	time.AfterFunc(mko.opWait, func() {
 		if mko.err == nil {
 			cb(&gocbcore.MutateInResult{
@@ -278,7 +278,7 @@ func (mko *mockKvOperator) MutateInEx(opts gocbcore.MutateInOptions, cb gocbcore
 	return &mockPendingOp{cancelSuccess: mko.opCancellationSuccess}, nil
 }
 
-func (mko *mockKvOperator) ObserveEx(opts gocbcore.ObserveOptions, cb gocbcore.ObserveExCallback) (gocbcore.PendingOp, error) {
+func (mko *mockKvProvider) ObserveEx(opts gocbcore.ObserveOptions, cb gocbcore.ObserveExCallback) (gocbcore.PendingOp, error) {
 	time.AfterFunc(mko.opWait, func() {
 		if mko.err == nil {
 			cb(&gocbcore.ObserveResult{
@@ -293,7 +293,7 @@ func (mko *mockKvOperator) ObserveEx(opts gocbcore.ObserveOptions, cb gocbcore.O
 	return &mockPendingOp{cancelSuccess: mko.opCancellationSuccess}, nil
 }
 
-func (mko *mockKvOperator) ObserveVbEx(opts gocbcore.ObserveVbOptions, cb gocbcore.ObserveVbExCallback) (gocbcore.PendingOp, error) {
+func (mko *mockKvProvider) ObserveVbEx(opts gocbcore.ObserveVbOptions, cb gocbcore.ObserveVbExCallback) (gocbcore.PendingOp, error) {
 	time.AfterFunc(mko.opWait, func() {
 		if mko.err == nil {
 			cb(&gocbcore.ObserveVbResult{}, nil)
@@ -305,7 +305,7 @@ func (mko *mockKvOperator) ObserveVbEx(opts gocbcore.ObserveVbOptions, cb gocbco
 	return &mockPendingOp{cancelSuccess: mko.opCancellationSuccess}, nil
 }
 
-func (mko *mockKvOperator) GetAnyReplicaEx(opts gocbcore.GetAnyReplicaOptions, cb gocbcore.GetReplicaExCallback) (gocbcore.PendingOp, error) {
+func (mko *mockKvProvider) GetAnyReplicaEx(opts gocbcore.GetAnyReplicaOptions, cb gocbcore.GetReplicaExCallback) (gocbcore.PendingOp, error) {
 	time.AfterFunc(mko.opWait, func() {
 		if mko.err == nil {
 			cb(&gocbcore.GetReplicaResult{
@@ -322,7 +322,7 @@ func (mko *mockKvOperator) GetAnyReplicaEx(opts gocbcore.GetAnyReplicaOptions, c
 	return &mockPendingOp{cancelSuccess: mko.opCancellationSuccess}, nil
 }
 
-func (mko *mockKvOperator) GetOneReplicaEx(opts gocbcore.GetOneReplicaOptions, cb gocbcore.GetReplicaExCallback) (gocbcore.PendingOp, error) {
+func (mko *mockKvProvider) GetOneReplicaEx(opts gocbcore.GetOneReplicaOptions, cb gocbcore.GetReplicaExCallback) (gocbcore.PendingOp, error) {
 	time.AfterFunc(mko.opWait, func() {
 		if mko.err == nil {
 			cb(&gocbcore.GetReplicaResult{
@@ -339,7 +339,19 @@ func (mko *mockKvOperator) GetOneReplicaEx(opts gocbcore.GetOneReplicaOptions, c
 	return &mockPendingOp{cancelSuccess: mko.opCancellationSuccess}, nil
 }
 
-func (mko *mockKvOperator) NumReplicas() int {
+func (mko *mockKvProvider) PingKvEx(opts gocbcore.PingKvOptions, cb gocbcore.PingKvExCallback) (gocbcore.PendingOp, error) {
+	time.AfterFunc(mko.opWait, func() {
+		if mko.err == nil {
+			cb(mko.value.(*gocbcore.PingKvResult), nil)
+		} else {
+			cb(nil, mko.err)
+		}
+	})
+
+	return &mockPendingOp{cancelSuccess: mko.opCancellationSuccess}, nil
+}
+
+func (mko *mockKvProvider) NumReplicas() int {
 	return 0
 }
 

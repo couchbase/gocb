@@ -1340,7 +1340,7 @@ func TestGetContextTimeout1(t *testing.T) {
 		t.Fatalf("Could not load dataset: %v", err)
 	}
 
-	provider := &mockKvOperator{
+	provider := &mockKvProvider{
 		cas:                   gocbcore.Cas(0),
 		datatype:              1,
 		value:                 nil,
@@ -1375,7 +1375,7 @@ func TestGetContextTimeout2(t *testing.T) {
 		t.Fatalf("Could not load dataset: %v", err)
 	}
 
-	provider := &mockKvOperator{
+	provider := &mockKvProvider{
 		cas:                   gocbcore.Cas(0),
 		datatype:              1,
 		value:                 nil,
@@ -1408,7 +1408,7 @@ func TestGetErrorCollectionUnknown(t *testing.T) {
 		t.Fatalf("Could not load dataset: %v", err)
 	}
 
-	provider := &mockKvOperator{
+	provider := &mockKvProvider{
 		err: &gocbcore.KvError{Code: gocbcore.StatusCollectionUnknown},
 	}
 	col := testGetCollection(t, provider)
@@ -1429,7 +1429,7 @@ func TestGetErrorCollectionUnknown(t *testing.T) {
 
 // In this test it is expected that the operation will timeout and ctx.Err() will be DeadlineExceeded.
 func TestInsertContextTimeout1(t *testing.T) {
-	provider := &mockKvOperator{
+	provider := &mockKvProvider{
 		cas:                   gocbcore.Cas(0),
 		datatype:              1,
 		value:                 nil,
@@ -1458,7 +1458,7 @@ func TestInsertContextTimeout1(t *testing.T) {
 // In this test it is expected that the operation will timeout but ctx.Err() will be nil as it is the timeout value
 // that is hit.
 func TestInsertContextTimeout2(t *testing.T) {
-	provider := &mockKvOperator{
+	provider := &mockKvProvider{
 		cas:                   gocbcore.Cas(0),
 		datatype:              1,
 		value:                 nil,

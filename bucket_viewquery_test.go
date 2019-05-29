@@ -539,7 +539,7 @@ func TestViewQueryClusterTimeoutNoTimeoutValue(t *testing.T) {
 
 func testAssertViewQueryRequest(t *testing.T, req *gocbcore.HttpRequest) {
 	if req.Service != gocbcore.CapiService {
-		t.Fatalf("Service should have been N1qlService but was %d", req.Service)
+		t.Fatalf("Service should have been QueryService but was %d", req.Service)
 	}
 
 	if req.Context == nil {

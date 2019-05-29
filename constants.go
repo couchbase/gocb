@@ -32,14 +32,14 @@ const (
 	// CapiService represents a CouchAPI service (typically for views).
 	CapiService = ServiceType(gocbcore.CapiService)
 
-	// N1qlService represents a N1QL service (typically for query).
-	N1qlService = ServiceType(gocbcore.N1qlService)
+	// QueryService represents a N1QL service (typically for query).
+	QueryService = ServiceType(gocbcore.N1qlService)
 
-	// FtsService represents a full-text-search service.
-	FtsService = ServiceType(gocbcore.FtsService)
+	// SearchService represents a full-text-search service.
+	SearchService = ServiceType(gocbcore.FtsService)
 
-	// CbasService represents an analytics service.
-	CbasService = ServiceType(gocbcore.CbasService)
+	// AnalyticsService represents an analytics service.
+	AnalyticsService = ServiceType(gocbcore.CbasService)
 )
 
 // QueryProfileType specifies the profiling mode to use during a query.

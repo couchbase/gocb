@@ -835,7 +835,7 @@ func TestQueryConnectClusterTimeout(t *testing.T) {
 
 func testAssertQueryRequest(t *testing.T, req *gocbcore.HttpRequest) {
 	if req.Service != gocbcore.N1qlService {
-		t.Fatalf("Service should have been N1qlService but was %d", req.Service)
+		t.Fatalf("Service should have been QueryService but was %d", req.Service)
 	}
 
 	if req.Context == nil {

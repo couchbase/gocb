@@ -28,7 +28,8 @@ type kvProvider interface {
 	DecrementEx(opts gocbcore.CounterOptions, cb gocbcore.CounterExCallback) (gocbcore.PendingOp, error)
 	AppendEx(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinExCallback) (gocbcore.PendingOp, error)
 	PrependEx(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinExCallback) (gocbcore.PendingOp, error)
-	NumReplicas() int // UNSURE THIS SHOULDNT BE ON ANOTHER INTERFACE
+	PingKvEx(opts gocbcore.PingKvOptions, cb gocbcore.PingKvExCallback) (gocbcore.PendingOp, error)
+	NumReplicas() int
 }
 
 func (c *Collection) context(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {

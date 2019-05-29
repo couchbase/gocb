@@ -651,7 +651,7 @@ func TestAnalyticsQueryConnectClusterTimeoutContextWins(t *testing.T) {
 
 func testAssertAnalyticsQueryRequest(t *testing.T, req *gocbcore.HttpRequest) {
 	if req.Service != gocbcore.CbasService {
-		t.Fatalf("Service should have been CbasService but was %d", req.Service)
+		t.Fatalf("Service should have been AnalyticsService but was %d", req.Service)
 	}
 
 	if req.Context == nil {

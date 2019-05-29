@@ -21,11 +21,11 @@ func diagServiceString(service ServiceType) string {
 		return "view"
 	case MgmtService:
 		return "mgmt"
-	case N1qlService:
+	case QueryService:
 		return "n1ql"
-	case FtsService:
+	case SearchService:
 		return "fts"
-	case CbasService:
+	case AnalyticsService:
 		return "cbas"
 	}
 	return ""
@@ -40,11 +40,11 @@ func diagStringService(service string) ServiceType {
 	case "mgmt":
 		return MgmtService
 	case "n1ql":
-		return N1qlService
+		return QueryService
 	case "fts":
-		return FtsService
+		return SearchService
 	case "cbas":
-		return CbasService
+		return AnalyticsService
 	}
 	return ServiceType(0)
 }
