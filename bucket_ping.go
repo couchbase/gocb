@@ -121,9 +121,15 @@ func (b *Bucket) Ping(services []ServiceType) (*PingReport, error) {
 	if services == nil {
 		services = []ServiceType{
 			MemdService,
-			CapiService,
-			N1qlService,
-			FtsService,
+		}
+		if b.client.N1qlEps() != nil {
+			services = append(services, N1qlService)
+		}
+		if b.client.FtsEps() != nil {
+			services = append(services, FtsService)
+		}
+		if b.client.CbasEps() != nil {
+			services = append(services, CbasService)
 		}
 	}
 
