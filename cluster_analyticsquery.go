@@ -256,17 +256,12 @@ func (r *AnalyticsResults) readAttribute(decoder *json.Decoder, t json.Token) (b
 			return false, err
 		}
 		if len(respErrs) > 0 {
-			errs := make([]AnalyticsQueryError, len(respErrs))
-			for i, e := range respErrs {
-				errs[i] = e
-			}
 			// this isn't an error that we want to bail on so store it and keep going
-			r.err = analyticsQueryMultiError{
-				errors:     errs,
-				endpoint:   r.metadata.sourceAddr,
-				httpStatus: 200, // this can only be 200, for now at least
-				contextID:  r.metadata.clientContextID,
-			}
+			respErr := respErrs[0]
+			respErr.endpoint = r.metadata.sourceAddr
+			respErr.httpStatus = 200
+			respErr.contextID = r.metadata.clientContextID
+			r.err = respErr
 		}
 	case "results":
 		// read the opening [, this prevents the decoder from loading the entire results array into memory

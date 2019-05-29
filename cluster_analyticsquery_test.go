@@ -54,16 +54,14 @@ func testCreateAnalyticsDataset(t *testing.T) {
 	query := "CREATE DATASET `travel-sample` ON `travel-sample`;"
 	res, err := globalCluster.AnalyticsQuery(query, nil)
 	if err != nil {
-		aErrs, ok := err.(AnalyticsQueryErrors)
+		aErr, ok := err.(AnalyticsQueryError)
 		if !ok {
 			t.Fatalf("Failed to create dataset: %v", err)
 		}
 
-		for _, aErr := range aErrs.Errors() {
-			// 24040 means that this dataset already exists, which is a-ok
-			if aErr.Code() == 24040 {
-				break
-			}
+		// 24040 means that this dataset already exists, which is a-ok
+		if aErr.Code() != 24040 {
+			t.Fatalf("Failed to create dataset: %v", err)
 		}
 	}
 

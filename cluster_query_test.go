@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -550,48 +549,36 @@ func TestQueryError(t *testing.T) {
 		t.Fatalf("Expected execute query to error")
 	}
 
-	queryErrs, ok := err.(QueryErrors)
+	queryErr, ok := err.(QueryError)
 	if !ok {
 		t.Fatalf("Expected error to be QueryErrors but was %s", reflect.TypeOf(err).String())
 	}
 
-	if queryErrs.Endpoint() != "localhost:8093" {
-		t.Fatalf("Expected error endpoint to be localhost:8093 but was %s", queryErrs.Endpoint())
+	if queryErr.Endpoint() != "localhost:8093" {
+		t.Fatalf("Expected error endpoint to be localhost:8093 but was %s", queryErr.Endpoint())
 	}
 
-	if queryErrs.HTTPStatus() != 400 {
-		t.Fatalf("Expected error HTTP status to be 400 but was %d", queryErrs.HTTPStatus())
+	if queryErr.HTTPStatus() != 400 {
+		t.Fatalf("Expected error HTTP status to be 400 but was %d", queryErr.HTTPStatus())
 	}
 
-	if queryErrs.ContextID() != expectedResult.ClientContextID {
-		t.Fatalf("Expected error ContextID to be %s but was %s", expectedResult.ClientContextID, queryErrs.ContextID())
+	if queryErr.ContextID() != expectedResult.ClientContextID {
+		t.Fatalf("Expected error ContextID to be %s but was %s", expectedResult.ClientContextID, queryErr.ContextID())
 	}
 
-	if len(queryErrs.Errors()) != len(expectedResult.Errors) {
-		t.Fatalf("Expected errors to contain 1 error but contained %d", len(queryErrs.Errors()))
+	expectedErr := expectedResult.Errors[0]
+	msg := fmt.Sprintf("[%d] %s", expectedErr.Code(), expectedErr.Message())
+
+	if queryErr.Code() != expectedErr.ErrorCode {
+		t.Fatalf("Expected error code to be %d but was %d", queryErr.Code(), expectedErr.ErrorCode)
 	}
 
-	var errs []string
-	errors := queryErrs.Errors()
-	for i, err := range expectedResult.Errors {
-		msg := fmt.Sprintf("[%d] %s", err.ErrorCode, err.ErrorMessage)
-		errs = append(errs, msg)
-
-		if errors[i].Code() != err.ErrorCode {
-			t.Fatalf("Expected error code to be %d but was %d", errors[i].Code(), err.ErrorCode)
-		}
-
-		if errors[i].Message() != err.ErrorMessage {
-			t.Fatalf("Expected error message to be %s but was %s", errors[i].Message(), err.ErrorMessage)
-		}
-
-		if errors[i].Error() != msg {
-			t.Fatalf("Expected error Error() to be %s but was %s", errors[i].Error(), msg)
-		}
+	if queryErr.Message() != expectedErr.ErrorMessage {
+		t.Fatalf("Expected error message to be %s but was %s", queryErr.Message(), expectedErr.ErrorMessage)
 	}
-	joinedErrs := strings.Join(errs, ", ")
-	if queryErrs.Error() != joinedErrs {
-		t.Fatalf("Expected error Error() to be %s but was %s", joinedErrs, queryErrs.Error())
+
+	if queryErr.Error() != msg {
+		t.Fatalf("Expected error Error() to be %s but was %s", queryErr.Error(), msg)
 	}
 }
 

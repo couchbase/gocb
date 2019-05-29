@@ -657,11 +657,17 @@ type AnalyticsQueryError interface {
 	error
 	Code() uint32
 	Message() string
+	HTTPStatus() int
+	Endpoint() string
+	ContextID() string
 }
 
 type analyticsQueryError struct {
 	ErrorCode    uint32 `json:"code"`
 	ErrorMessage string `json:"msg"`
+	httpStatus   int
+	endpoint     string
+	contextID    string
 }
 
 func (e analyticsQueryError) Error() string {
@@ -694,69 +700,19 @@ func (e analyticsQueryError) Timeout() bool {
 	return false
 }
 
-// AnalyticsQueryErrors is a collection of one or more AnalyticsQueryError that occurs for errors created by Couchbase Server
-// during Analytics query execution.
-type AnalyticsQueryErrors interface {
-	error
-	Errors() []AnalyticsQueryError
-	HTTPStatus() int
-	Endpoint() string
-	ContextID() string
-}
-
-type analyticsQueryMultiError struct {
-	errors     []AnalyticsQueryError
-	httpStatus int
-	endpoint   string
-	contextID  string
-}
-
-func (e analyticsQueryMultiError) retryable() bool {
-	for _, aErr := range e.errors {
-		if isRetryableError(aErr) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (e analyticsQueryMultiError) Error() string {
-	var errs []string
-	for _, err := range e.errors {
-		errs = append(errs, err.Error())
-	}
-	return strings.Join(errs, ", ")
-}
-
 // HTTPStatus returns the HTTP status code for the operation.
-func (e analyticsQueryMultiError) HTTPStatus() int {
+func (e analyticsQueryError) HTTPStatus() int {
 	return e.httpStatus
 }
 
 // Endpoint returns the endpoint that was used for the operation.
-func (e analyticsQueryMultiError) Endpoint() string {
+func (e analyticsQueryError) Endpoint() string {
 	return e.endpoint
 }
 
 // ContextID returns the context ID that was used for the operation.
-func (e analyticsQueryMultiError) ContextID() string {
+func (e analyticsQueryError) ContextID() string {
 	return e.contextID
-}
-
-// Errors returns the list of AnalyticsQueryErrors.
-func (e analyticsQueryMultiError) Errors() []AnalyticsQueryError {
-	return e.errors
-}
-
-func (e analyticsQueryMultiError) Timeout() bool {
-	for _, aErr := range e.errors {
-		if IsTimeoutError(aErr) {
-			return true
-		}
-	}
-
-	return false
 }
 
 // QueryError occurs for errors created by Couchbase Server during N1ql query execution.
@@ -764,11 +720,17 @@ type QueryError interface {
 	error
 	Code() uint32
 	Message() string
+	HTTPStatus() int
+	Endpoint() string
+	ContextID() string
 }
 
 type queryError struct {
 	ErrorCode    uint32 `json:"code"`
 	ErrorMessage string `json:"msg"`
+	httpStatus   int
+	endpoint     string
+	contextID    string
 }
 
 func (e queryError) Error() string {
@@ -801,69 +763,19 @@ func (e queryError) Timeout() bool {
 	return false
 }
 
-// QueryErrors is a collection of one or more QueryError that occurs for errors created by Couchbase Server
-// during N1ql query execution.
-type QueryErrors interface {
-	error
-	Errors() []QueryError
-	HTTPStatus() int
-	Endpoint() string
-	ContextID() string
-}
-
-type queryMultiError struct {
-	errors     []QueryError
-	httpStatus int
-	endpoint   string
-	contextID  string
-}
-
-func (e queryMultiError) retryable() bool {
-	for _, n1qlErr := range e.errors {
-		if isRetryableError(n1qlErr) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (e queryMultiError) Timeout() bool {
-	for _, n1qlErr := range e.errors {
-		if IsTimeoutError(n1qlErr) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (e queryMultiError) Error() string {
-	var errs []string
-	for _, err := range e.errors {
-		errs = append(errs, err.Error())
-	}
-	return strings.Join(errs, ", ")
-}
-
 // HTTPStatus returns the HTTP status code for the operation.
-func (e queryMultiError) HTTPStatus() int {
+func (e queryError) HTTPStatus() int {
 	return e.httpStatus
 }
 
 // Endpoint returns the endpoint that was used for the operation.
-func (e queryMultiError) Endpoint() string {
+func (e queryError) Endpoint() string {
 	return e.endpoint
 }
 
 // ContextID returns the context ID that was used for the operation.
-func (e queryMultiError) ContextID() string {
+func (e queryError) ContextID() string {
 	return e.contextID
-}
-
-// Errors returns the list of AnalyticsQueryErrors.
-func (e queryMultiError) Errors() []QueryError {
-	return e.errors
 }
 
 // SearchError occurs for errors created by Couchbase Server during Search query execution.
