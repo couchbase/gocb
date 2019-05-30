@@ -36,6 +36,7 @@ type ClusterOptions struct {
 	SearchTimeout     time.Duration
 	ManagementTimeout time.Duration
 	EnableTracing     bool
+	Transcoder        Transcoder
 }
 
 // ClusterCloseOptions is the set of options available when disconnecting from a Cluster.
@@ -101,6 +102,9 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 	if opts.SearchTimeout > 0 {
 		searchTimeout = opts.SearchTimeout
 	}
+	if opts.Transcoder == nil {
+		opts.Transcoder = NewDefaultTranscoder()
+	}
 
 	cluster := &Cluster{
 		cSpec:       connSpec,
@@ -118,6 +122,7 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 			KvTimeout:              kvTimeout,
 			DuraTimeout:            40000 * time.Millisecond,
 			DuraPollTimeout:        100 * time.Millisecond,
+			Transcoder:             opts.Transcoder,
 		},
 
 		queryCache: make(map[string]*n1qlCache),

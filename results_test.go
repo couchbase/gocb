@@ -60,7 +60,8 @@ func TestGetResultContent(t *testing.T) {
 	}
 
 	res := GetResult{
-		contents: dataset,
+		contents:   dataset,
+		transcoder: NewDefaultTranscoder(),
 	}
 
 	var doc testBeerDocument
@@ -88,7 +89,8 @@ func TestGetResultFromSubDoc(t *testing.T) {
 	}
 
 	results := &LookupInResult{
-		contents: make([]lookupInPartial, 3),
+		contents:   make([]lookupInPartial, 3),
+		serializer: NewDefaultTranscoder().Serializer(),
 	}
 
 	var err error
@@ -117,7 +119,7 @@ func TestGetResultFromSubDoc(t *testing.T) {
 		Address address `json:"address"`
 	}
 	var doc person
-	var getResult GetResult
+	getResult := GetResult{transcoder: NewDefaultTranscoder()}
 	err = getResult.fromSubDoc([]LookupInOp{
 		{op: ops[0]},
 		{op: ops[1]},
@@ -227,6 +229,7 @@ func TestLookupInResultContentAt(t *testing.T) {
 				err: errors.New("error"),
 			},
 		},
+		serializer: NewDefaultTranscoder().Serializer(),
 	}
 
 	var name string
@@ -279,114 +282,6 @@ func TestLookupInResultContentAt(t *testing.T) {
 
 	if res.Exists(3) {
 		t.Fatalf("Content value at 3 shouldn't have existed")
-	}
-}
-
-func TestLookupInResultDecodeAt(t *testing.T) {
-	var dataset testBeerDocument
-	err := loadJSONTestDataset("beer_sample_single", &dataset)
-	if err != nil {
-		t.Fatalf("Failed to load dataset: %v", err)
-	}
-
-	contents1, err := json.Marshal(dataset.Name)
-	if err != nil {
-		t.Fatalf("Failed to marshal data, %v", err)
-	}
-
-	contents2, err := json.Marshal(dataset.Description)
-	if err != nil {
-		t.Fatalf("Failed to marshal data, %v", err)
-	}
-
-	type fakeBeer struct {
-		Name string `json:"name"`
-	}
-	contentAsStruct := fakeBeer{
-		"beer",
-	}
-	contents3, err := json.Marshal(contentAsStruct)
-	if err != nil {
-		t.Fatalf("Failed to marshal data, %v", err)
-	}
-
-	res := LookupInResult{
-		contents: []lookupInPartial{
-			{
-				data: contents1,
-			},
-			{
-				data: contents2,
-			},
-			{
-				data: contents3,
-			},
-			{
-				err: errors.New("error"),
-			},
-		},
-	}
-
-	var name string
-	err = res.DecodeAt(0, &name, JSONDecode)
-	if err != nil {
-		t.Fatalf("Failed to get decodeat: %v", err)
-	}
-
-	if name != dataset.Name {
-		t.Fatalf("Name value should have been %s but was %s", dataset.Name, name)
-	}
-
-	if !res.Exists(0) {
-		t.Fatalf("Decode value at 0 should have existed but didn't")
-	}
-
-	var description string
-	err = res.DecodeAt(1, &description, DefaultDecode)
-	if err != nil {
-		t.Fatalf("Failed to get decodeat: %v", err)
-	}
-
-	if description != dataset.Description {
-		t.Fatalf("Name value should have been %s but was %s", dataset.Description, description)
-	}
-
-	if !res.Exists(1) {
-		t.Fatalf("Decode value at 1 should have existed but didn't")
-	}
-
-	var fake fakeBeer
-	err = res.DecodeAt(2, &fake, JSONDecode)
-	if err != nil {
-		t.Fatalf("Failed to get decodeat: %v", err)
-	}
-
-	if fake != contentAsStruct {
-		t.Fatalf("Struct value should have been %v but was %v", contentAsStruct, fake)
-	}
-
-	if !res.Exists(2) {
-		t.Fatalf("Decode value at 2 should have existed but didn't")
-	}
-
-	var fake2 fakeBeer
-	err = res.DecodeAt(2, &fake2, DefaultDecode)
-	if err != nil {
-		t.Fatalf("Failed to get decodeat: %v", err)
-	}
-
-	if fake2 != contentAsStruct {
-		t.Fatalf("Struct value should have been %v but was %v", contentAsStruct, fake2)
-	}
-
-	var shouldFail string
-	err = res.DecodeAt(3, &shouldFail, JSONDecode)
-	if err == nil {
-		t.Fatalf("DecodeAt should have failed")
-	}
-
-	if res.Exists(3) {
-		t.Fatalf("Decode value at 3 shouldn't have existed")
 	}
 }
 

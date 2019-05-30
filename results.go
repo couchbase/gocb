@@ -37,22 +37,14 @@ func (d *Result) Expiration() uint32 {
 // GetResult is the return type of Get operations.
 type GetResult struct {
 	Result
-	flags    uint32
-	contents []byte
+	transcoder Transcoder
+	flags      uint32
+	contents   []byte
 }
 
 // Content assigns the value of the result into the valuePtr using default decoding.
 func (d *GetResult) Content(valuePtr interface{}) error {
-	return DefaultDecode(d.contents, d.flags, valuePtr)
-}
-
-// Decode assigns the value of the result into the valuePtr using the decode function
-// specified.
-func (d *GetResult) Decode(valuePtr interface{}, decode Decode) error {
-	if decode == nil {
-		decode = DefaultDecode
-	}
-	return decode(d.contents, d.flags, valuePtr)
+	return d.transcoder.Decode(d.contents, d.flags, valuePtr)
 }
 
 func (d *GetResult) fromSubDoc(ops []LookupInOp, result *LookupInResult, ignorePathErrors bool) error {
@@ -201,8 +193,9 @@ func (d *GetResult) set(paths []subdocPath, content interface{}, value interface
 // LookupInResult is the return type for LookupIn.
 type LookupInResult struct {
 	Result
-	contents []lookupInPartial
-	pathMap  map[string]int
+	serializer Serializer
+	contents   []lookupInPartial
+	pathMap    map[string]int
 }
 
 type lookupInPartial struct {
@@ -210,7 +203,7 @@ type lookupInPartial struct {
 	err  error
 }
 
-func (pr *lookupInPartial) as(valuePtr interface{}, decoder Decode) error {
+func (pr *lookupInPartial) as(valuePtr interface{}, serializer Serializer) error {
 	if pr.err != nil {
 		return pr.err
 	}
@@ -224,7 +217,7 @@ func (pr *lookupInPartial) as(valuePtr interface{}, decoder Decode) error {
 		return nil
 	}
 
-	return decoder(pr.data, 0, valuePtr)
+	return serializer.Deserialize(pr.data, valuePtr)
 }
 
 func (pr *lookupInPartial) exists() bool {
@@ -238,20 +231,7 @@ func (lir *LookupInResult) ContentAt(idx int, valuePtr interface{}) error {
 	if idx > len(lir.contents) {
 		return errors.New("the supplied index was invalid")
 	}
-	return lir.contents[idx].as(valuePtr, JSONDecode)
-}
-
-// DecodeAt retrieves the value of the operation by its index. The index is the position of
-// the operation as it was added to the builder. In order to decode the value it will use the
-// support Decode function, by default it will use JSONDecode
-func (lir *LookupInResult) DecodeAt(idx int, valuePtr interface{}, decode Decode) error {
-	if idx > len(lir.contents) {
-		return errors.New("the supplied index was invalid")
-	}
-	if decode == nil {
-		decode = JSONDecode
-	}
-	return lir.contents[idx].as(valuePtr, decode)
+	return lir.contents[idx].as(valuePtr, lir.serializer)
 }
 
 // Exists verifies that the item at idx exists.
@@ -492,6 +472,7 @@ type GetAllReplicasResult struct {
 	closed      bool
 	cancel      context.CancelFunc
 	maxReplicas int
+	transcoder  Transcoder
 }
 
 // Next fetches the new replica.
@@ -525,8 +506,9 @@ func (r *GetAllReplicasResult) Next(valuePtr *GetReplicaResult) bool {
 					Result: Result{
 						cas: Cas(res.Cas),
 					},
-					contents: res.Value,
-					flags:    res.Flags,
+					transcoder: r.transcoder,
+					contents:   res.Value,
+					flags:      res.Flags,
 				},
 				isMaster: true,
 			}
@@ -544,8 +526,9 @@ func (r *GetAllReplicasResult) Next(valuePtr *GetReplicaResult) bool {
 					Result: Result{
 						cas: Cas(res.Cas),
 					},
-					contents: res.Value,
-					flags:    res.Flags,
+					transcoder: r.transcoder,
+					contents:   res.Value,
+					flags:      res.Flags,
 				},
 			}
 			waitCh <- true

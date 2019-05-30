@@ -43,6 +43,8 @@ type stateBlock struct {
 	useMutationTokens bool
 
 	client func(*clientStateBlock) client
+
+	Transcoder Transcoder
 }
 
 func (sb *stateBlock) getCachedClient() client {

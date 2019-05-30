@@ -6,14 +6,46 @@ import (
 	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
-// Decode retrieved bytes into a Go type.
-type Decode func([]byte, uint32, interface{}) error
+// Transcoder provides an interface for transforming Go values to and
+// from raw bytes for storage and retreival from Couchbase data storage.
+type Transcoder interface {
+	// Decodes retrieved bytes into a Go type.
+	Decode([]byte, uint32, interface{}) error
 
-// Encode a Go type into bytes for storage.
-type Encode func(interface{}) ([]byte, uint32, error)
+	// Encodes a Go type into bytes for storage.
+	Encode(interface{}) ([]byte, uint32, error)
 
-// DefaultDecode applies the default Couchbase transcoding behaviour to decode into a Go type.
-func DefaultDecode(bytes []byte, flags uint32, out interface{}) error {
+	// SetSerializer sets the Serializer to be used by the Transcoder.
+	SetSerializer(serializer Serializer)
+
+	// Serializer returns the Serializer being used by the Transcoder.
+	Serializer() Serializer
+}
+
+// Serializer is used a Transcoder for serialization/deserialization of JSON datatype values.
+type Serializer interface {
+	// Serialize serializes an interface into bytes.
+	Serialize(value interface{}) ([]byte, error)
+
+	// Deserialize deserializes json bytes into an interface.
+	Deserialize(bytes []byte, out interface{}) error
+}
+
+// DefaultTranscoder implements the default transcoding behaviour of
+// all Couchbase SDKs.
+type DefaultTranscoder struct {
+	serializer Serializer
+}
+
+// NewDefaultTranscoder returns a new DefaultTranscoder initialized to use DefaultSerializer.
+func NewDefaultTranscoder() *DefaultTranscoder {
+	return &DefaultTranscoder{
+		serializer: &DefaultSerializer{},
+	}
+}
+
+// Decode applies the default Couchbase transcoding behaviour to decode into a Go type.
+func (t *DefaultTranscoder) Decode(bytes []byte, flags uint32, out interface{}) error {
 	valueType, compression := gocbcore.DecodeCommonFlags(flags)
 
 	// Make sure compression is disabled
@@ -45,7 +77,7 @@ func DefaultDecode(bytes []byte, flags uint32, out interface{}) error {
 			return clientError{"You must encode a string in a string or interface"}
 		}
 	} else if valueType == gocbcore.JsonType {
-		err := json.Unmarshal(bytes, &out)
+		err := t.serializer.Deserialize(bytes, &out)
 		if err != nil {
 			return err
 		}
@@ -55,11 +87,8 @@ func DefaultDecode(bytes []byte, flags uint32, out interface{}) error {
 	return clientError{"Unexpected flags value"}
 }
 
-// DefaultEncode applies the default Couchbase transcoding behaviour to encode a Go type.
-// For a byte array this will return the value supplied with Binary flags.
-// For a string this will return the value supplied with String flags.
-// For anything else this will try to return the value JSON encoded supplied, with JSON flags.
-func DefaultEncode(value interface{}) ([]byte, uint32, error) {
+// Encode applies the default Couchbase transcoding behaviour to encode a Go type.
+func (t *DefaultTranscoder) Encode(value interface{}) ([]byte, uint32, error) {
 	var bytes []byte
 	var flags uint32
 	var err error
@@ -78,9 +107,9 @@ func DefaultEncode(value interface{}) ([]byte, uint32, error) {
 		bytes = []byte(*typeValue)
 		flags = gocbcore.EncodeCommonFlags(gocbcore.StringType, gocbcore.NoCompression)
 	case *interface{}:
-		return DefaultEncode(*typeValue)
+		return t.Encode(*typeValue)
 	default:
-		bytes, err = json.Marshal(value)
+		bytes, err = t.serializer.Serialize(value)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -92,50 +121,36 @@ func DefaultEncode(value interface{}) ([]byte, uint32, error) {
 	return bytes, flags, nil
 }
 
-// JSONEncode applies JSON encoding to a Go type. For byte array data this will just return the value passed
-// to it as bytes with flags set to JSON.
-func JSONEncode(value interface{}) ([]byte, uint32, error) {
-	var bytes []byte
-	flags := gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression)
-	var err error
-
-	switch typeValue := value.(type) {
-	case []byte:
-		bytes = typeValue
-	case *[]byte:
-		bytes = *typeValue
-	case *interface{}:
-		return JSONEncode(*typeValue)
-	default:
-		bytes, err = json.Marshal(value)
-		if err != nil {
-			return nil, 0, err
-		}
-	}
-
-	// No compression supported currently
-
-	return bytes, flags, nil
+// Serializer returns the current serializer being used by the Transcoder.
+func (t *DefaultTranscoder) Serializer() Serializer {
+	return t.serializer
 }
 
-// JSONDecode applies JSON decoding behaviour to decode into a Go type.
-// This function will ignore any flags passed to it, including compression.
-// If a byte array is supplied as the out parameter then it will assign the
-// raw bytes to it.
-// For anything else it will apply JSON Unmarshal.
-func JSONDecode(bytes []byte, _ uint32, out interface{}) error {
-	switch typedOut := out.(type) {
-	case *[]byte:
-		*typedOut = bytes
-		return nil
-	case *interface{}:
-		*typedOut = bytes
-		return nil
-	default:
-		err := json.Unmarshal(bytes, &out)
-		if err != nil {
-			return err
-		}
-		return nil
+// SetSerializer set the current serializer to be used by the Transcoder.
+func (t *DefaultTranscoder) SetSerializer(serializer Serializer) {
+	t.serializer = serializer
+}
+
+// DefaultSerializer implements the Serializer interface using json.Marshal/Unmarshal.
+type DefaultSerializer struct {
+}
+
+// Serialize applies the json.Marshal behaviour to serialize a Go type
+func (s *DefaultSerializer) Serialize(value interface{}) ([]byte, error) {
+	bytes, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
 	}
+
+	return bytes, nil
+}
+
+// Deserialize applies the json.Unmarshal behaviour to deserialize into a Go type
+func (s *DefaultSerializer) Deserialize(bytes []byte, out interface{}) error {
+	err := json.Unmarshal(bytes, &out)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

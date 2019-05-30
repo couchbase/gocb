@@ -120,7 +120,7 @@ type UpsertOptions struct {
 	PersistTo       uint
 	ReplicateTo     uint
 	DurabilityLevel DurabilityLevel
-	Encoder         Encode
+	Transcoder      Transcoder
 }
 
 // InsertOptions are options that can be applied to an Insert operation.
@@ -133,7 +133,7 @@ type InsertOptions struct {
 	PersistTo       uint
 	ReplicateTo     uint
 	DurabilityLevel DurabilityLevel
-	Encoder         Encode
+	Transcoder      Transcoder
 }
 
 // Insert creates a new document in the Collection.
@@ -179,13 +179,13 @@ func (c *Collection) insert(ctx context.Context, traceCtx opentracing.SpanContex
 		return
 	}
 
-	encoder := opts.Encoder
-	if opts.Encoder == nil {
-		encoder = DefaultEncode
+	transcoder := opts.Transcoder
+	if transcoder == nil {
+		transcoder = c.sb.Transcoder
 	}
 
 	encodeSpan := opentracing.GlobalTracer().StartSpan("Encoding", opentracing.ChildOf(traceCtx))
-	bytes, flags, err := encoder(val)
+	bytes, flags, err := transcoder.Encode(val)
 	if err != nil {
 		errOut = err
 		return
@@ -278,13 +278,13 @@ func (c *Collection) upsert(ctx context.Context, traceCtx opentracing.SpanContex
 		return
 	}
 
-	encoder := opts.Encoder
-	if opts.Encoder == nil {
-		encoder = DefaultEncode
+	transcoder := opts.Transcoder
+	if transcoder == nil {
+		transcoder = c.sb.Transcoder
 	}
 
 	encodeSpan := opentracing.GlobalTracer().StartSpan("Encoding", opentracing.ChildOf(traceCtx))
-	bytes, flags, err := encoder(val)
+	bytes, flags, err := transcoder.Encode(val)
 	if err != nil {
 		errOut = err
 		return
@@ -344,7 +344,7 @@ type ReplaceOptions struct {
 	PersistTo         uint
 	ReplicateTo       uint
 	DurabilityLevel   DurabilityLevel
-	Encoder           Encode
+	Transcoder        Transcoder
 }
 
 // Replace updates a document in the collection.
@@ -389,13 +389,13 @@ func (c *Collection) replace(ctx context.Context, traceCtx opentracing.SpanConte
 		return nil, err
 	}
 
-	encoder := opts.Encoder
-	if opts.Encoder == nil {
-		encoder = DefaultEncode
+	transcoder := opts.Transcoder
+	if transcoder == nil {
+		transcoder = c.sb.Transcoder
 	}
 
 	encodeSpan := opentracing.GlobalTracer().StartSpan("Encoding", opentracing.ChildOf(traceCtx))
-	bytes, flags, err := encoder(val)
+	bytes, flags, err := transcoder.Encode(val)
 	if err != nil {
 		errOut = err
 		return
@@ -455,7 +455,8 @@ type GetOptions struct {
 	// Project causes the Get operation to only fetch the fields indicated
 	// by the paths. The result of the operation is then treated as a
 	// standard GetResult.
-	Project *ProjectOptions
+	Project    *ProjectOptions
+	Transcoder Transcoder
 }
 
 // ProjectOptions are the options for using projections as a part of a Get request.
@@ -478,6 +479,10 @@ func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOu
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
+	}
+
+	if opts.Transcoder == nil {
+		opts.Transcoder = c.sb.Transcoder
 	}
 
 	if (opts.Project == nil || (opts.Project != nil && len(opts.Project.Fields) > 16)) && !opts.WithExpiry {
@@ -508,6 +513,7 @@ func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOu
 	}
 
 	doc := &GetResult{}
+	doc.transcoder = opts.Transcoder
 	doc.withExpiration = result.withExpiration
 	doc.expiration = result.expiration
 	doc.cas = result.cas
@@ -546,8 +552,9 @@ func (c *Collection) get(ctx context.Context, traceCtx opentracing.SpanContext, 
 				Result: Result{
 					cas: Cas(res.Cas),
 				},
-				contents: res.Value,
-				flags:    res.Flags,
+				transcoder: opts.Transcoder,
+				contents:   res.Value,
+				flags:      res.Flags,
 			}
 
 			docOut = doc
@@ -635,6 +642,7 @@ type GetFromReplicaOptions struct {
 	ParentSpanContext opentracing.SpanContext
 	Timeout           time.Duration
 	Context           context.Context
+	Transcoder        Transcoder
 }
 
 // GetAnyReplica returns the value of a particular document from a replica server.
@@ -666,6 +674,10 @@ func (c *Collection) getAnyReplica(ctx context.Context, traceCtx opentracing.Spa
 		return nil, err
 	}
 
+	if opts.Transcoder == nil {
+		opts.Transcoder = c.sb.Transcoder
+	}
+
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.GetAnyReplicaEx(gocbcore.GetAnyReplicaOptions{
 		Key:            []byte(key),
@@ -684,8 +696,9 @@ func (c *Collection) getAnyReplica(ctx context.Context, traceCtx opentracing.Spa
 				Result: Result{
 					cas: Cas(res.Cas),
 				},
-				contents: res.Value,
-				flags:    res.Flags,
+				transcoder: opts.Transcoder,
+				contents:   res.Value,
+				flags:      res.Flags,
 			},
 		}
 		docOut = doc
@@ -715,6 +728,10 @@ func (c *Collection) GetAllReplicas(key string, opts *GetFromReplicaOptions) (do
 		return nil, err
 	}
 
+	if opts.Transcoder == nil {
+		opts.Transcoder = c.sb.Transcoder
+	}
+
 	return &GetAllReplicasResult{
 		trace: span,
 		ctx:   ctx,
@@ -724,6 +741,7 @@ func (c *Collection) GetAllReplicas(key string, opts *GetFromReplicaOptions) (do
 			ScopeName:      c.scopeName(),
 			TraceContext:   span.Context(),
 		},
+		transcoder:  opts.Transcoder,
 		provider:    agent,
 		cancel:      cancel,
 		maxReplicas: agent.NumReplicas(),
@@ -829,6 +847,7 @@ type GetAndTouchOptions struct {
 	ParentSpanContext opentracing.SpanContext
 	Timeout           time.Duration
 	Context           context.Context
+	Transcoder        Transcoder
 }
 
 // GetAndTouch retrieves a document and simultaneously updates its expiry time.
@@ -859,6 +878,10 @@ func (c *Collection) getAndTouch(ctx context.Context, traceCtx opentracing.SpanC
 		return nil, err
 	}
 
+	if opts.Transcoder == nil {
+		opts.Transcoder = c.sb.Transcoder
+	}
+
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.GetAndTouchEx(gocbcore.GetAndTouchOptions{
 		Key:            []byte(key),
@@ -877,8 +900,9 @@ func (c *Collection) getAndTouch(ctx context.Context, traceCtx opentracing.SpanC
 				Result: Result{
 					cas: Cas(res.Cas),
 				},
-				contents: res.Value,
-				flags:    res.Flags,
+				transcoder: opts.Transcoder,
+				contents:   res.Value,
+				flags:      res.Flags,
 			}
 
 			docOut = doc
@@ -898,6 +922,7 @@ type GetAndLockOptions struct {
 	ParentSpanContext opentracing.SpanContext
 	Timeout           time.Duration
 	Context           context.Context
+	Transcoder        Transcoder
 }
 
 // GetAndLock locks a document for a period of time, providing exclusive RW access to it.
@@ -927,6 +952,10 @@ func (c *Collection) getAndLock(ctx context.Context, traceCtx opentracing.SpanCo
 		return nil, err
 	}
 
+	if opts.Transcoder == nil {
+		opts.Transcoder = c.sb.Transcoder
+	}
+
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.GetAndLockEx(gocbcore.GetAndLockOptions{
 		Key:            []byte(key),
@@ -945,8 +974,9 @@ func (c *Collection) getAndLock(ctx context.Context, traceCtx opentracing.SpanCo
 				Result: Result{
 					cas: Cas(res.Cas),
 				},
-				contents: res.Value,
-				flags:    res.Flags,
+				transcoder: opts.Transcoder,
+				contents:   res.Value,
+				flags:      res.Flags,
 			}
 
 			docOut = doc

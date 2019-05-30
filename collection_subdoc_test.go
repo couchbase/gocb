@@ -58,16 +58,6 @@ func TestInsertLookupIn(t *testing.T) {
 		t.Fatalf("Expected name to be %s but was %s", doc.Name, name)
 	}
 
-	var decodeName string
-	err = result.DecodeAt(0, &decodeName, JSONDecode)
-	if err != nil {
-		t.Fatalf("Failed to decode name from LookupInResult, %v", err)
-	}
-
-	if decodeName != name {
-		t.Fatalf("Expected decodeName to be %s but was %s", name, decodeName)
-	}
-
 	var desc string
 	err = result.ContentAt(1, &desc)
 	if err != nil {
@@ -80,16 +70,6 @@ func TestInsertLookupIn(t *testing.T) {
 
 	var idontexist string
 	err = result.ContentAt(4, &idontexist)
-	if err == nil {
-		t.Fatalf("Expected lookup on a non existent field to return error")
-	}
-
-	if !IsPathNotFoundError(err) {
-		t.Fatalf("Expected error to be path not found but was %v", err)
-	}
-
-	var decodeIdontexist string
-	err = result.DecodeAt(4, &decodeIdontexist, JSONDecode)
 	if err == nil {
 		t.Fatalf("Expected lookup on a non existent field to return error")
 	}

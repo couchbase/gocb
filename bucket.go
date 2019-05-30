@@ -27,6 +27,8 @@ func newBucket(sb *stateBlock, bucketName string, opts BucketOptions) *Bucket {
 			DuraPollTimeout:  sb.DuraPollTimeout,
 
 			client: sb.client,
+
+			Transcoder: sb.Transcoder,
 		},
 	}
 }
