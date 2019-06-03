@@ -211,7 +211,7 @@ func (c *Collection) insert(ctx context.Context, traceCtx opentracing.SpanContex
 		DurabilityLevelTimeout: durabilityTimeout,
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceErr(err, key)
+			errOut = maybeEnhanceKVErr(err, key, true)
 			ctrl.resolve()
 			return
 		}
@@ -310,7 +310,7 @@ func (c *Collection) upsert(ctx context.Context, traceCtx opentracing.SpanContex
 		DurabilityLevelTimeout: durabilityTimeout,
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceErr(err, key)
+			errOut = maybeEnhanceKVErr(err, key, false)
 			ctrl.resolve()
 			return
 		}
@@ -422,7 +422,7 @@ func (c *Collection) replace(ctx context.Context, traceCtx opentracing.SpanConte
 		DurabilityLevelTimeout: durabilityTimeout,
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceErr(err, key)
+			errOut = maybeEnhanceKVErr(err, key, false)
 			ctrl.resolve()
 			return
 		}
@@ -536,7 +536,7 @@ func (c *Collection) get(ctx context.Context, traceCtx opentracing.SpanContext, 
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.GetResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceErr(err, key)
+			errOut = maybeEnhanceKVErr(err, key, false)
 			ctrl.resolve()
 			return
 		}
@@ -605,7 +605,7 @@ func (c *Collection) exists(ctx context.Context, traceCtx opentracing.SpanContex
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.ObserveResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceErr(err, key)
+			errOut = maybeEnhanceKVErr(err, key, false)
 			ctrl.resolve()
 			return
 		}
@@ -673,7 +673,7 @@ func (c *Collection) getAnyReplica(ctx context.Context, traceCtx opentracing.Spa
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.GetReplicaResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceErr(err, key)
+			errOut = maybeEnhanceKVErr(err, key, false)
 			ctrl.resolve()
 			return
 		}
@@ -800,7 +800,7 @@ func (c *Collection) remove(ctx context.Context, traceCtx opentracing.SpanContex
 		DurabilityLevelTimeout: durabilityTimeout,
 	}, func(res *gocbcore.DeleteResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceErr(err, key)
+			errOut = maybeEnhanceKVErr(err, key, false)
 			ctrl.resolve()
 			return
 		}
@@ -867,7 +867,7 @@ func (c *Collection) getAndTouch(ctx context.Context, traceCtx opentracing.SpanC
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.GetAndTouchResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceErr(err, key)
+			errOut = maybeEnhanceKVErr(err, key, false)
 			ctrl.resolve()
 			return
 		}
@@ -935,7 +935,7 @@ func (c *Collection) getAndLock(ctx context.Context, traceCtx opentracing.SpanCo
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.GetAndLockResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceErr(err, key)
+			errOut = maybeEnhanceKVErr(err, key, false)
 			ctrl.resolve()
 			return
 		}
@@ -1005,7 +1005,7 @@ func (c *Collection) unlock(ctx context.Context, traceCtx opentracing.SpanContex
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.UnlockResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceErr(err, key)
+			errOut = maybeEnhanceKVErr(err, key, false)
 			ctrl.resolve()
 			return
 		}
@@ -1082,7 +1082,7 @@ func (c *Collection) touch(ctx context.Context, traceCtx opentracing.SpanContext
 		DurabilityLevelTimeout: durabilityTimeout,
 	}, func(res *gocbcore.TouchResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceErr(err, key)
+			errOut = maybeEnhanceKVErr(err, key, false)
 			ctrl.resolve()
 			return
 		}

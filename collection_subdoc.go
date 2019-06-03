@@ -187,7 +187,7 @@ func (c *Collection) lookupIn(ctx context.Context, traceCtx opentracing.SpanCont
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.LookupInResult, err error) {
 		if err != nil && !gocbcore.IsErrorStatus(err, gocbcore.StatusSubDocBadMulti) {
-			errOut = maybeEnhanceErr(err, key)
+			errOut = maybeEnhanceKVErr(err, key, false)
 			ctrl.resolve()
 			return
 		}
@@ -199,7 +199,7 @@ func (c *Collection) lookupIn(ctx context.Context, traceCtx opentracing.SpanCont
 
 			for i, opRes := range res.Ops {
 				// resSet.contents[i].path = opts.spec.ops[i].Path
-				resSet.contents[i].err = maybeEnhanceErr(opRes.Err, key)
+				resSet.contents[i].err = maybeEnhanceKVErr(opRes.Err, key, false)
 				if opRes.Value != nil {
 					resSet.contents[i].data = append([]byte(nil), opRes.Value...)
 				}
@@ -815,9 +815,11 @@ func (c *Collection) mutate(ctx context.Context, traceCtx opentracing.SpanContex
 		return nil, err
 	}
 
+	var isInsertDocument bool
 	var flags SubdocDocFlag
 	if opts.InsertDocument {
 		flags |= SubdocDocFlagMkDoc
+		isInsertDocument = true
 	}
 	if opts.UpsertDocument {
 		flags |= SubdocDocFlagReplaceDoc
@@ -855,7 +857,7 @@ func (c *Collection) mutate(ctx context.Context, traceCtx opentracing.SpanContex
 		DurabilityLevelTimeout: durabilityTimeout,
 	}, func(res *gocbcore.MutateInResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceErr(err, key)
+			errOut = maybeEnhanceKVErr(err, key, isInsertDocument)
 			ctrl.resolve()
 			return
 		}

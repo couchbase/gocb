@@ -516,7 +516,7 @@ func (r *GetAllReplicasResult) Next(valuePtr *GetReplicaResult) bool {
 			ScopeName:      r.opts.ScopeName,
 		}, func(res *gocbcore.GetResult, err error) {
 			if err != nil {
-				r.err = maybeEnhanceErr(err, string(r.opts.Key))
+				r.err = maybeEnhanceKVErr(err, string(r.opts.Key), false)
 				waitCh <- false
 				return
 			}
@@ -535,7 +535,7 @@ func (r *GetAllReplicasResult) Next(valuePtr *GetReplicaResult) bool {
 	} else {
 		op, err = r.provider.GetOneReplicaEx(r.opts, func(res *gocbcore.GetReplicaResult, err error) {
 			if err != nil {
-				r.err = maybeEnhanceErr(err, string(r.opts.Key))
+				r.err = maybeEnhanceKVErr(err, string(r.opts.Key), false)
 				waitCh <- false
 				return
 			}

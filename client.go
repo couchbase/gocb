@@ -90,7 +90,7 @@ func (c *stdClient) connect() {
 
 	agent, err := gocbcore.CreateAgent(config)
 	if err != nil {
-		c.bootstrapErr = maybeEnhanceErr(err, "")
+		c.bootstrapErr = maybeEnhanceKVErr(err, "", false)
 	}
 
 	c.agent = agent

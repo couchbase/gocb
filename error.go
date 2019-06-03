@@ -45,6 +45,7 @@ type kvError struct {
 	context     string
 	ref         string
 	name        string
+	isInsertOp  bool
 }
 
 func (err kvError) Error() string {
@@ -300,6 +301,16 @@ func IsConfigurationError(err error) bool {
 	default:
 		return false
 	}
+}
+
+// IsCasMismatchError verifies whether or not the cause for an error is a cas mismatch.
+func IsCasMismatchError(err error) bool {
+	cause := errors.Cause(err)
+	if kvErr, ok := cause.(kvError); ok && kvErr.KeyValueError() {
+		return kvErr.status == gocbcore.StatusKeyExists && kvErr.isInsertOp
+	}
+
+	return false
 }
 
 // KV Subdoc Specific Errors
@@ -975,7 +986,7 @@ func isRetryableError(err error) bool {
 	}
 }
 
-func maybeEnhanceErr(err error, key string) error {
+func maybeEnhanceKVErr(err error, key string, isInsertOp bool) error {
 	cause := errors.Cause(err)
 
 	switch errType := cause.(type) {
@@ -988,6 +999,7 @@ func maybeEnhanceErr(err error, key string) error {
 			context:     errType.Context,
 			ref:         errType.Ref,
 			name:        errType.Name,
+			isInsertOp:  isInsertOp,
 		}
 	default:
 	}
