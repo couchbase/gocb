@@ -216,7 +216,9 @@ func (c *Cluster) randomClient() (client, error) {
 	c.connectionsLock.RLock()
 	if len(c.connections) == 0 {
 		c.connectionsLock.RUnlock()
-		return nil, nil // TODO: return an error
+		return nil, configurationError{
+			message: "not connected to cluster",
+		}
 	}
 	var randomClient client
 	for _, c := range c.connections { // This is ugly
