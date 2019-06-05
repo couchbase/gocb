@@ -383,7 +383,7 @@ func (c *Cluster) query(ctx context.Context, traceCtx opentracing.SpanContext, s
 			break
 		}
 
-		if !isRetryableError(err) || c.sb.N1qlRetryBehavior == nil || !c.sb.N1qlRetryBehavior.CanRetry(retries) {
+		if !IsRetryableError(err) || c.sb.N1qlRetryBehavior == nil || !c.sb.N1qlRetryBehavior.CanRetry(retries) {
 			break
 		}
 
@@ -432,7 +432,7 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, traceCtx opentracing.
 
 		// If we get error 4050, 4070 or 5000, we should attempt
 		//   to re-prepare the statement immediately before failing.
-		if !isRetryableError(err) {
+		if !IsRetryableError(err) {
 			return nil, err
 		}
 	}

@@ -497,7 +497,7 @@ func (c *Cluster) searchQuery(ctx context.Context, traceCtx opentracing.SpanCont
 			break
 		}
 
-		if !isRetryableError(err) || c.sb.SearchRetryBehavior == nil || !c.sb.SearchRetryBehavior.CanRetry(retries) {
+		if !IsRetryableError(err) || c.sb.SearchRetryBehavior == nil || !c.sb.SearchRetryBehavior.CanRetry(retries) {
 			break
 		}
 

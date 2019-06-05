@@ -30,3 +30,41 @@ func TestIsCasMismatchError(t *testing.T) {
 		t.Fatalf("Error should not have been cas mismatch")
 	}
 }
+
+func TestKVIsRetryable(t *testing.T) {
+	err := &gocbcore.KvError{
+		Code: gocbcore.StatusTmpFail,
+	}
+
+	enhancedErr := maybeEnhanceKVErr(err, "myfakekey", false)
+	if !IsRetryableError(enhancedErr) {
+		t.Fatalf("StatusTmpFail error should have been retryable")
+	}
+
+	err = &gocbcore.KvError{
+		Code: gocbcore.StatusOutOfMemory,
+	}
+
+	enhancedErr = maybeEnhanceKVErr(err, "myfakekey", false)
+	if !IsRetryableError(enhancedErr) {
+		t.Fatalf("StatusOutOfMemory error should have been retryable")
+	}
+
+	err = &gocbcore.KvError{
+		Code: gocbcore.StatusBusy,
+	}
+
+	enhancedErr = maybeEnhanceKVErr(err, "myfakekey", false)
+	if !IsRetryableError(enhancedErr) {
+		t.Fatalf("StatusBusy error should have been retryable")
+	}
+
+	err = &gocbcore.KvError{
+		Code: gocbcore.StatusTooBig,
+	}
+
+	enhancedErr = maybeEnhanceKVErr(err, "myfakekey", false)
+	if IsRetryableError(enhancedErr) {
+		t.Fatalf("StatusTooBig error should not have been retryable")
+	}
+}

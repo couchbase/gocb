@@ -390,7 +390,7 @@ func (c *Cluster) analyticsQuery(ctx context.Context, traceCtx opentracing.SpanC
 			break
 		}
 
-		if !isRetryableError(err) || c.sb.AnalyticsRetryBehavior == nil || !c.sb.AnalyticsRetryBehavior.CanRetry(retries) {
+		if !IsRetryableError(err) || c.sb.AnalyticsRetryBehavior == nil || !c.sb.AnalyticsRetryBehavior.CanRetry(retries) {
 			break
 		}
 

@@ -105,6 +105,10 @@ func (err kvError) DurabilityError() bool {
 		err.StatusCode() == int(gocbcore.StatusDurabilityInvalidLevel)
 }
 
+func (err kvError) retryable() bool {
+	return err.TemporaryFailureError()
+}
+
 // DurabilityError occurs when an error occurs during performing durability operations.
 type DurabilityError interface {
 	DurabilityError() bool
@@ -190,6 +194,16 @@ func IsTimeoutError(err error) bool {
 	switch errType := errors.Cause(err).(type) {
 	case TimeoutError:
 		return errType.Timeout()
+	default:
+		return false
+	}
+}
+
+// IsRetryableError indicates that the operation should be retried.
+func IsRetryableError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case retryAbleError:
+		return errType.retryable()
 	default:
 		return false
 	}
@@ -887,15 +901,6 @@ func (e noResultsError) Error() string {
 // NoResultsError indicates whether or not this error is a NoResultsError
 func (e noResultsError) NoResultsError() bool {
 	return true
-}
-
-func isRetryableError(err error) bool {
-	switch errType := errors.Cause(err).(type) {
-	case retryAbleError:
-		return errType.retryable()
-	default:
-		return false
-	}
 }
 
 func maybeEnhanceKVErr(err error, key string, isInsertOp bool) error {
