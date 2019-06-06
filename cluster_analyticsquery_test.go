@@ -360,6 +360,48 @@ func TestBasicAnalyticsQuery(t *testing.T) {
 	testAssertAnalyticsQueryResult(t, &expectedResult, res, true)
 }
 
+func TestBasicAnalyticsQuerySerializer(t *testing.T) {
+	dataBytes, err := loadRawTestDataset("beer_sample_analytics_dataset")
+	if err != nil {
+		t.Fatalf("Could not read test dataset: %v", err)
+	}
+
+	var expectedResult analyticsResponse
+	err = json.Unmarshal(dataBytes, &expectedResult)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal dataset %v", err)
+	}
+
+	queryOptions := &AnalyticsQueryOptions{
+		PositionalParameters: []interface{}{"brewery"},
+		Serializer:           &DefaultSerializer{},
+	}
+
+	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
+	timeout := 60 * time.Second
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		return &gocbcore.HttpResponse{
+			Endpoint:   "http://localhost:8095",
+			StatusCode: 200,
+			Body:       &testReadCloser{bytes.NewBuffer(dataBytes), nil},
+		}, nil
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+	}
+
+	cluster := testGetClusterForHTTP(provider, 0, timeout, 0)
+
+	res, err := cluster.AnalyticsQuery(statement, queryOptions)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testAssertAnalyticsQueryResult(t, &expectedResult, res, true)
+}
+
 func TestAnalyticsQueryServiceNotFound(t *testing.T) {
 	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
 		return nil, gocbcore.ErrNoCbasService

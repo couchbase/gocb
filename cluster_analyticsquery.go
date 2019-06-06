@@ -78,6 +78,8 @@ type AnalyticsResults struct {
 	strace       opentracing.Span
 	httpProvider httpProvider
 	ctx          context.Context
+
+	serializer Serializer
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
@@ -379,12 +381,16 @@ func (c *Cluster) analyticsQuery(ctx context.Context, traceCtx opentracing.SpanC
 
 	// TODO: clientcontextid?
 
+	if opts.Serializer == nil {
+		opts.Serializer = c.sb.Transcoder.Serializer()
+	}
+
 	var retries uint
 	var res *AnalyticsResults
 	for {
 		retries++
 		etrace := opentracing.GlobalTracer().StartSpan("execute", opentracing.ChildOf(traceCtx))
-		res, err = c.executeAnalyticsQuery(ctx, traceCtx, queryOpts, provider, cancel)
+		res, err = c.executeAnalyticsQuery(ctx, traceCtx, queryOpts, provider, cancel, opts.Serializer)
 		etrace.Finish()
 		if err == nil {
 			break
@@ -409,7 +415,7 @@ func (c *Cluster) analyticsQuery(ctx context.Context, traceCtx opentracing.SpanC
 }
 
 func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracing.SpanContext, opts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc) (*AnalyticsResults, error) {
+	provider httpProvider, cancel context.CancelFunc, serializer Serializer) (*AnalyticsResults, error) {
 
 	// priority is sent as a header not in the body
 	priority, priorityCastOK := opts["priority"].(int)
@@ -470,6 +476,7 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracin
 		},
 		httpStatus:   resp.StatusCode,
 		httpProvider: provider,
+		serializer:   serializer,
 	}
 
 	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)

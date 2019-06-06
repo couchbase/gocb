@@ -51,7 +51,9 @@ type QueryOptions struct {
 	Context           context.Context
 	ParentSpanContext opentracing.SpanContext
 	// Custom allows specifying custom query options.
-	Custom     map[string]interface{}
+	Custom map[string]interface{}
+
+	// Serializer is used to deserialize each row in the result. This should be a JSON deserializer as results are JSON.
 	Serializer Serializer
 }
 
