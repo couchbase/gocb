@@ -237,3 +237,14 @@ func TestEncodeString(t *testing.T) {
 	}
 	testBytesEqual(t, bytes, jsonStrStr)
 }
+
+type MockSerializer struct {
+}
+
+func (s *MockSerializer) Serialize(value interface{}) ([]byte, error) {
+	return json.Marshal(value)
+}
+
+func (s *MockSerializer) Deserialize(bytes []byte, out interface{}) error {
+	return json.Unmarshal(bytes, out)
+}

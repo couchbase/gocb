@@ -77,6 +77,8 @@ type QueryResults struct {
 	strace       opentracing.Span
 	cancel       context.CancelFunc
 	ctx          context.Context
+
+	serializer Serializer
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
@@ -90,7 +92,7 @@ func (r *QueryResults) Next(valuePtr interface{}) bool {
 		return false
 	}
 
-	r.err = json.Unmarshal(row, valuePtr)
+	r.err = r.serializer.Deserialize(row, valuePtr)
 	if r.err != nil {
 		return false
 	}
@@ -366,17 +368,21 @@ func (c *Cluster) query(ctx context.Context, traceCtx opentracing.SpanContext, s
 		queryOpts["timeout"] = newTimeout.String()
 	}
 
+	if opts.Serializer == nil {
+		opts.Serializer = c.sb.Transcoder.Serializer()
+	}
+
 	var retries uint
 	var res *QueryResults
 	for {
 		retries++
 		if opts.Prepared {
 			etrace := opentracing.GlobalTracer().StartSpan("execute", opentracing.ChildOf(traceCtx))
-			res, err = c.doPreparedN1qlQuery(ctx, traceCtx, queryOpts, provider, cancel)
+			res, err = c.doPreparedN1qlQuery(ctx, traceCtx, queryOpts, provider, cancel, opts.Serializer)
 			etrace.Finish()
 		} else {
 			etrace := opentracing.GlobalTracer().StartSpan("execute", opentracing.ChildOf(traceCtx))
-			res, err = c.executeN1qlQuery(ctx, traceCtx, queryOpts, provider, cancel)
+			res, err = c.executeN1qlQuery(ctx, traceCtx, queryOpts, provider, cancel, opts.Serializer)
 			etrace.Finish()
 		}
 		if err == nil {
@@ -403,7 +409,7 @@ func (c *Cluster) query(ctx context.Context, traceCtx opentracing.SpanContext, s
 }
 
 func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, traceCtx opentracing.SpanContext, queryOpts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc) (*QueryResults, error) {
+	provider httpProvider, cancel context.CancelFunc, serializer Serializer) (*QueryResults, error) {
 
 	stmtStr, isStr := queryOpts["statement"].(string)
 	if !isStr {
@@ -422,7 +428,7 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, traceCtx opentracing.
 
 		etrace := opentracing.GlobalTracer().StartSpan("execute", opentracing.ChildOf(traceCtx))
 
-		results, err := c.executeN1qlQuery(ctx, etrace.Context(), queryOpts, provider, cancel)
+		results, err := c.executeN1qlQuery(ctx, etrace.Context(), queryOpts, provider, cancel, serializer)
 		if err == nil {
 			etrace.Finish()
 			return results, nil
@@ -462,7 +468,7 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, traceCtx opentracing.
 	etrace := opentracing.GlobalTracer().StartSpan("execute", opentracing.ChildOf(traceCtx))
 	defer etrace.Finish()
 
-	return c.executeN1qlQuery(ctx, etrace.Context(), queryOpts, provider, cancel)
+	return c.executeN1qlQuery(ctx, etrace.Context(), queryOpts, provider, cancel, serializer)
 }
 
 func (c *Cluster) prepareN1qlQuery(ctx context.Context, traceCtx opentracing.SpanContext, opts map[string]interface{},
@@ -476,7 +482,7 @@ func (c *Cluster) prepareN1qlQuery(ctx context.Context, traceCtx opentracing.Spa
 
 	// There's no need to pass cancel here, if there's an error then we'll cancel further up the stack
 	// and if there isn't then we run another query later where we will cancel
-	prepRes, err := c.executeN1qlQuery(ctx, traceCtx, prepOpts, provider, nil)
+	prepRes, err := c.executeN1qlQuery(ctx, traceCtx, prepOpts, provider, nil, &DefaultSerializer{})
 	if err != nil {
 		return nil, err
 	}
@@ -503,7 +509,7 @@ type n1qlPrepData struct {
 // settings. This function will inject any additional connection or request-level
 // settings into the `opts` map.
 func (c *Cluster) executeN1qlQuery(ctx context.Context, traceCtx opentracing.SpanContext, opts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc) (*QueryResults, error) {
+	provider httpProvider, cancel context.CancelFunc, serializer Serializer) (*QueryResults, error) {
 
 	reqJSON, err := json.Marshal(opts)
 	if err != nil {
@@ -556,6 +562,7 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, traceCtx opentracing.Spa
 			sourceAddr: epInfo.Host,
 		},
 		httpStatus: resp.StatusCode,
+		serializer: serializer,
 	}
 
 	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)

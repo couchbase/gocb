@@ -51,7 +51,8 @@ type QueryOptions struct {
 	Context           context.Context
 	ParentSpanContext opentracing.SpanContext
 	// Custom allows specifying custom query options.
-	Custom map[string]interface{}
+	Custom     map[string]interface{}
+	Serializer Serializer
 }
 
 func (opts *QueryOptions) toMap(statement string) (map[string]interface{}, error) {

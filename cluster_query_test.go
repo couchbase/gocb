@@ -509,6 +509,48 @@ func TestBasicQuery(t *testing.T) {
 	testAssertQueryResult(t, &expectedResult, res, true)
 }
 
+func TestBasicQuerySerializer(t *testing.T) {
+	dataBytes, err := loadRawTestDataset("beer_sample_query_dataset")
+	if err != nil {
+		t.Fatalf("Could not read test dataset: %v", err)
+	}
+
+	var expectedResult n1qlResponse
+	err = json.Unmarshal(dataBytes, &expectedResult)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal dataset %v", err)
+	}
+
+	queryOptions := &QueryOptions{
+		PositionalParameters: []interface{}{"brewery"},
+		Serializer:           &MockSerializer{},
+	}
+
+	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
+	timeout := 60 * time.Second
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		return &gocbcore.HttpResponse{
+			Endpoint:   "http://localhost:8093",
+			StatusCode: 200,
+			Body:       &testReadCloser{bytes.NewBuffer(dataBytes), nil},
+		}, nil
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+	}
+
+	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
+
+	res, err := cluster.Query(statement, queryOptions)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testAssertQueryResult(t, &expectedResult, res, true)
+}
+
 func TestQueryError(t *testing.T) {
 	dataBytes, err := loadRawTestDataset("beer_sample_query_error")
 	if err != nil {
@@ -991,6 +1033,8 @@ func testGetClusterForHTTP(provider *mockHTTPProvider, n1qlTimeout, analyticsTim
 	c.sb.QueryTimeout = n1qlTimeout
 	c.sb.AnalyticsTimeout = analyticsTimeout
 	c.sb.SearchTimeout = searchTimeout
+
+	c.sb.Transcoder = NewDefaultTranscoder()
 
 	return c
 }
