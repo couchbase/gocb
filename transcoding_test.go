@@ -78,7 +78,7 @@ func TestDefaultEncode(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, err := NewDefaultTranscoder().Encode(tt.args)
+			got, got1, err := NewDefaultTranscoder(&DefaultJSONSerializer{}).Encode(tt.args)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DefaultEncode() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -107,14 +107,14 @@ func testBytesEqual(t *testing.T, left, right []byte) {
 }
 
 func testDecode(t *testing.T, bytes []byte, flags uint32, out interface{}) {
-	err := NewDefaultTranscoder().Decode(bytes, flags, out)
+	err := NewDefaultTranscoder(&DefaultJSONSerializer{}).Decode(bytes, flags, out)
 	if err != nil {
 		t.Errorf("Failed to decode %v", err)
 	}
 }
 
 func testEncode(t *testing.T, in interface{}) ([]byte, uint32) {
-	bytes, flags, err := NewDefaultTranscoder().Encode(in)
+	bytes, flags, err := NewDefaultTranscoder(&DefaultJSONSerializer{}).Encode(in)
 	if err != nil {
 		t.Errorf("Failed to decode %v", err)
 	}
@@ -165,7 +165,7 @@ func TestDecodeString(t *testing.T) {
 
 func TestDecodeBadType(t *testing.T) {
 	var testOut string
-	err := NewDefaultTranscoder().Decode(jsonNumStr, 0x2000000, &testOut)
+	err := NewDefaultTranscoder(&DefaultJSONSerializer{}).Decode(jsonNumStr, 0x2000000, &testOut)
 	if err == nil {
 		t.Errorf("Decoding succeeded but should have failed")
 	}

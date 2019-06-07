@@ -75,7 +75,7 @@ type QueryResults struct {
 	ctx                context.Context
 	enhancedStatements bool
 
-	serializer Serializer
+	serializer JSONSerializer
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
@@ -356,7 +356,7 @@ func (c *Cluster) query(ctx context.Context, statement string, opts *QueryOption
 	}
 
 	if opts.Serializer == nil {
-		opts.Serializer = c.sb.Transcoder.Serializer()
+		opts.Serializer = c.sb.Serializer
 	}
 
 	var res *QueryResults
@@ -378,7 +378,7 @@ func (c *Cluster) query(ctx context.Context, statement string, opts *QueryOption
 }
 
 func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc, serializer Serializer) (*QueryResults, error) {
+	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer) (*QueryResults, error) {
 
 	if capabilitySupporter, ok := provider.(clusterCapabilityProvider); ok {
 		if !c.supportsEnhancedPreparedStatements() &&
@@ -449,7 +449,7 @@ func (c *Cluster) prepareN1qlQuery(ctx context.Context, opts map[string]interfac
 
 	// There's no need to pass cancel here, if there's an error then we'll cancel further up the stack
 	// and if there isn't then we run another query later where we will cancel
-	prepRes, err := c.doRetryableQuery(ctx, prepOpts, provider, nil, &DefaultSerializer{})
+	prepRes, err := c.doRetryableQuery(ctx, prepOpts, provider, nil, &DefaultJSONSerializer{})
 	if err != nil {
 		return nil, err
 	}
@@ -467,7 +467,7 @@ func (c *Cluster) prepareN1qlQuery(ctx context.Context, opts map[string]interfac
 }
 
 func (c *Cluster) doRetryableQuery(ctx context.Context, queryOpts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc, serializer Serializer) (*QueryResults, error) {
+	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer) (*QueryResults, error) {
 	var res *QueryResults
 	var err error
 	var retries uint
@@ -507,8 +507,7 @@ type n1qlPrepData struct {
 // settings. This function will inject any additional connection or request-level
 // settings into the `opts` map.
 func (c *Cluster) executeN1qlQuery(ctx context.Context, opts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc, endpoint string, serializer Serializer) (*QueryResults, error) {
-
+	provider httpProvider, cancel context.CancelFunc, endpoint string, serializer JSONSerializer) (*QueryResults, error) {
 	reqJSON, err := json.Marshal(opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal query request body")

@@ -61,7 +61,7 @@ func TestGetResultContent(t *testing.T) {
 
 	res := GetResult{
 		contents:   dataset,
-		transcoder: NewDefaultTranscoder(),
+		transcoder: NewDefaultTranscoder(&DefaultJSONSerializer{}),
 	}
 
 	var doc testBeerDocument
@@ -90,7 +90,7 @@ func TestGetResultFromSubDoc(t *testing.T) {
 
 	results := &LookupInResult{
 		contents:   make([]lookupInPartial, 3),
-		serializer: NewDefaultTranscoder().Serializer(),
+		serializer: &DefaultJSONSerializer{},
 	}
 
 	var err error
@@ -119,7 +119,7 @@ func TestGetResultFromSubDoc(t *testing.T) {
 		Address address `json:"address"`
 	}
 	var doc person
-	getResult := GetResult{transcoder: NewDefaultTranscoder()}
+	getResult := GetResult{transcoder: NewDefaultTranscoder(&DefaultJSONSerializer{})}
 	err = getResult.fromSubDoc([]LookupInOp{
 		{op: ops[0]},
 		{op: ops[1]},
@@ -229,7 +229,7 @@ func TestLookupInResultContentAt(t *testing.T) {
 				err: errors.New("error"),
 			},
 		},
-		serializer: NewDefaultTranscoder().Serializer(),
+		serializer: &DefaultJSONSerializer{},
 	}
 
 	var name string

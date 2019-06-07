@@ -38,7 +38,11 @@ type ClusterOptions struct {
 	SearchTimeout     time.Duration
 	ManagementTimeout time.Duration
 	EnableTracing     bool
-	Transcoder        Transcoder
+	// Transcoder is used for trancoding data used in KV operations.
+	Transcoder Transcoder
+	// Serializer is used for deserialization of data used in query, analytics, view and search operations. This
+	// will default to DefaultJSONSerializer. NOTE: This is entirely independent of Transcoder.
+	Serializer JSONSerializer
 }
 
 // ClusterCloseOptions is the set of options available when disconnecting from a Cluster.
@@ -104,7 +108,10 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 		searchTimeout = opts.SearchTimeout
 	}
 	if opts.Transcoder == nil {
-		opts.Transcoder = NewDefaultTranscoder()
+		opts.Transcoder = NewDefaultTranscoder(&DefaultJSONSerializer{})
+	}
+	if opts.Serializer == nil {
+		opts.Serializer = &DefaultJSONSerializer{}
 	}
 
 	cluster := &Cluster{
@@ -124,6 +131,7 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 			DuraTimeout:            40000 * time.Millisecond,
 			DuraPollTimeout:        100 * time.Millisecond,
 			Transcoder:             opts.Transcoder,
+			Serializer:             opts.Serializer,
 		},
 
 		queryCache: make(map[string]*n1qlCache),

@@ -1377,7 +1377,8 @@ func testGetClusterForHTTP(provider *mockHTTPProvider, n1qlTimeout, analyticsTim
 	c.sb.AnalyticsTimeout = analyticsTimeout
 	c.sb.SearchTimeout = searchTimeout
 
-	c.sb.Transcoder = NewDefaultTranscoder()
+	c.sb.Transcoder = NewDefaultTranscoder(&DefaultJSONSerializer{})
+	c.sb.Serializer = &DefaultJSONSerializer{}
 
 	return c
 }

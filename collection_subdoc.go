@@ -22,7 +22,7 @@ type LookupInOptions struct {
 	Context    context.Context
 	Timeout    time.Duration
 	WithExpiry bool
-	Transcoder Transcoder
+	Serializer JSONSerializer
 }
 
 // LookupInSpecGetOptions are the options available to LookupIn subdoc Get operations.
@@ -171,9 +171,9 @@ func (c *Collection) lookupIn(ctx context.Context, key string, ops []LookupInOp,
 		return nil, errors.New("too many lookupIn ops specified, maximum 16")
 	}
 
-	transcoder := opts.Transcoder
-	if transcoder == nil {
-		transcoder = c.sb.Transcoder
+	serializer := opts.Serializer
+	if serializer == nil {
+		serializer = &DefaultJSONSerializer{}
 	}
 
 	ctrl := c.newOpManager(ctx)
@@ -191,7 +191,7 @@ func (c *Collection) lookupIn(ctx context.Context, key string, ops []LookupInOp,
 
 		if res != nil {
 			resSet := &LookupInResult{}
-			resSet.serializer = transcoder.Serializer()
+			resSet.serializer = serializer
 			resSet.cas = Cas(res.Cas)
 			resSet.contents = make([]lookupInPartial, len(subdocs))
 
@@ -255,12 +255,12 @@ type MutateInOptions struct {
 	DurabilityLevel DurabilityLevel
 	InsertDocument  bool
 	UpsertDocument  bool
-	Transcoder      Transcoder
+	Serializer      JSONSerializer
 	// Internal: This should never be used and is not supported.
 	AccessDeleted bool
 }
 
-func (c *Collection) encodeMultiArray(in interface{}, serializer Serializer) ([]byte, error) {
+func (c *Collection) encodeMultiArray(in interface{}, serializer JSONSerializer) ([]byte, error) {
 	out, err := serializer.Serialize(in)
 	if err != nil {
 		return nil, err
@@ -710,9 +710,9 @@ func (c *Collection) mutate(ctx context.Context, key string, ops []MutateInOp, o
 		flags |= SubdocDocFlagAccessDeleted
 	}
 
-	transcoder := opts.Transcoder
-	if transcoder == nil {
-		transcoder = c.sb.Transcoder
+	serializer := opts.Serializer
+	if serializer == nil {
+		serializer = &DefaultJSONSerializer{}
 	}
 
 	var subdocs []gocbcore.SubDocOp
@@ -730,9 +730,9 @@ func (c *Collection) mutate(ctx context.Context, key string, ops []MutateInOp, o
 		var marshaled []byte
 		var err error
 		if op.op.MultiValue {
-			marshaled, err = c.encodeMultiArray(op.op.Value, transcoder.Serializer())
+			marshaled, err = c.encodeMultiArray(op.op.Value, serializer)
 		} else {
-			marshaled, err = transcoder.Serializer().Serialize(op.op.Value)
+			marshaled, err = serializer.Serialize(op.op.Value)
 		}
 		if err != nil {
 			return nil, err

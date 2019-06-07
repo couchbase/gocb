@@ -29,6 +29,7 @@ func newBucket(sb *stateBlock, bucketName string, opts BucketOptions) *Bucket {
 			client: sb.client,
 
 			Transcoder: sb.Transcoder,
+			Serializer: sb.Serializer,
 		},
 	}
 }

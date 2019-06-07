@@ -191,7 +191,7 @@ func (d *GetResult) set(paths []subdocPath, content interface{}, value interface
 // LookupInResult is the return type for LookupIn.
 type LookupInResult struct {
 	Result
-	serializer Serializer
+	serializer JSONSerializer
 	contents   []lookupInPartial
 	pathMap    map[string]int
 }
@@ -201,7 +201,7 @@ type lookupInPartial struct {
 	err  error
 }
 
-func (pr *lookupInPartial) as(valuePtr interface{}, serializer Serializer) error {
+func (pr *lookupInPartial) as(valuePtr interface{}, serializer JSONSerializer) error {
 	if pr.err != nil {
 		return pr.err
 	}

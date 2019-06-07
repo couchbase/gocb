@@ -374,7 +374,7 @@ func TestBasicAnalyticsQuerySerializer(t *testing.T) {
 
 	queryOptions := &AnalyticsQueryOptions{
 		PositionalParameters: []interface{}{"brewery"},
-		Serializer:           &DefaultSerializer{},
+		Serializer:           &DefaultJSONSerializer{},
 	}
 
 	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"

@@ -52,8 +52,9 @@ type QueryOptions struct {
 	// Custom allows specifying custom query options.
 	Custom map[string]interface{}
 
-	// Serializer is used to deserialize each row in the result. This should be a JSON deserializer as results are JSON.
-	Serializer Serializer
+	// JSONSerializer is used to deserialize each row in the result. This should be a JSON deserializer as results are JSON.
+	// NOTE: if not set then query will always default to DefaultJSONSerializer.
+	Serializer JSONSerializer
 }
 
 func (opts *QueryOptions) toMap(statement string) (map[string]interface{}, error) {

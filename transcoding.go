@@ -14,16 +14,10 @@ type Transcoder interface {
 
 	// Encodes a Go type into bytes for storage.
 	Encode(interface{}) ([]byte, uint32, error)
-
-	// SetSerializer sets the Serializer to be used by the Transcoder.
-	SetSerializer(serializer Serializer)
-
-	// Serializer returns the Serializer being used by the Transcoder.
-	Serializer() Serializer
 }
 
-// Serializer is used a Transcoder for serialization/deserialization of JSON datatype values.
-type Serializer interface {
+// JSONSerializer is used a Transcoder for serialization/deserialization of JSON datatype values.
+type JSONSerializer interface {
 	// Serialize serializes an interface into bytes.
 	Serialize(value interface{}) ([]byte, error)
 
@@ -34,13 +28,13 @@ type Serializer interface {
 // DefaultTranscoder implements the default transcoding behaviour of
 // all Couchbase SDKs.
 type DefaultTranscoder struct {
-	serializer Serializer
+	serializer JSONSerializer
 }
 
-// NewDefaultTranscoder returns a new DefaultTranscoder initialized to use DefaultSerializer.
-func NewDefaultTranscoder() *DefaultTranscoder {
+// NewDefaultTranscoder returns a new DefaultTranscoder initialized to use DefaultSerializer.∂
+func NewDefaultTranscoder(serializer JSONSerializer) *DefaultTranscoder {
 	return &DefaultTranscoder{
-		serializer: &DefaultSerializer{},
+		serializer: &DefaultJSONSerializer{},
 	}
 }
 
@@ -121,22 +115,12 @@ func (t *DefaultTranscoder) Encode(value interface{}) ([]byte, uint32, error) {
 	return bytes, flags, nil
 }
 
-// Serializer returns the current serializer being used by the Transcoder.
-func (t *DefaultTranscoder) Serializer() Serializer {
-	return t.serializer
-}
-
-// SetSerializer set the current serializer to be used by the Transcoder.
-func (t *DefaultTranscoder) SetSerializer(serializer Serializer) {
-	t.serializer = serializer
-}
-
-// DefaultSerializer implements the Serializer interface using json.Marshal/Unmarshal.
-type DefaultSerializer struct {
+// DefaultJSONSerializer implements the JSONSerializer interface using json.Marshal/Unmarshal.
+type DefaultJSONSerializer struct {
 }
 
 // Serialize applies the json.Marshal behaviour to serialize a Go type
-func (s *DefaultSerializer) Serialize(value interface{}) ([]byte, error) {
+func (s *DefaultJSONSerializer) Serialize(value interface{}) ([]byte, error) {
 	bytes, err := json.Marshal(value)
 	if err != nil {
 		return nil, err
@@ -146,7 +130,7 @@ func (s *DefaultSerializer) Serialize(value interface{}) ([]byte, error) {
 }
 
 // Deserialize applies the json.Unmarshal behaviour to deserialize into a Go type
-func (s *DefaultSerializer) Deserialize(bytes []byte, out interface{}) error {
+func (s *DefaultJSONSerializer) Deserialize(bytes []byte, out interface{}) error {
 	err := json.Unmarshal(bytes, &out)
 	if err != nil {
 		return err

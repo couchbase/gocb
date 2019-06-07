@@ -45,6 +45,7 @@ type stateBlock struct {
 	client func(*clientStateBlock) client
 
 	Transcoder Transcoder
+	Serializer JSONSerializer
 }
 
 func (sb *stateBlock) getCachedClient() client {

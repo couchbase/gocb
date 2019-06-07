@@ -77,7 +77,7 @@ type AnalyticsResults struct {
 	httpProvider httpProvider
 	ctx          context.Context
 
-	serializer Serializer
+	serializer JSONSerializer
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
@@ -367,7 +367,7 @@ func (c *Cluster) analyticsQuery(ctx context.Context, statement string, opts *An
 	// TODO: clientcontextid?
 
 	if opts.Serializer == nil {
-		opts.Serializer = c.sb.Transcoder.Serializer()
+		opts.Serializer = c.sb.Serializer
 	}
 
 	var retries uint
@@ -398,8 +398,7 @@ func (c *Cluster) analyticsQuery(ctx context.Context, statement string, opts *An
 }
 
 func (c *Cluster) executeAnalyticsQuery(ctx context.Context, opts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc, serializer Serializer) (*AnalyticsResults, error) {
-
+	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer) (*AnalyticsResults, error) {
 	// priority is sent as a header not in the body
 	priority, priorityCastOK := opts["priority"].(int)
 	if priorityCastOK {
