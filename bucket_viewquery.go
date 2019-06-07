@@ -24,10 +24,9 @@ type viewResponse struct {
 
 // ViewRow provides access to a single view query row.
 type ViewRow struct {
-	ID       string
-	Key      interface{}
-	Geometry interface{}
-	value    json.RawMessage
+	ID    string
+	Key   interface{}
+	value json.RawMessage
 }
 
 // ViewResultsMetadata provides access to the metadata properties of a view query result.
@@ -79,11 +78,6 @@ func (r *ViewResults) Next(rowPtr *ViewRow) bool {
 			}
 		case "key":
 			r.err = decoder.Decode(&rowPtr.Key)
-			if r.err != nil {
-				return false
-			}
-		case "geometry":
-			r.err = decoder.Decode(&rowPtr.Geometry)
 			if r.err != nil {
 				return false
 			}
@@ -311,59 +305,6 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 	}
 
 	res, err := b.executeViewQuery(ctx, span.Context(), "_view", designDoc, viewName, *urlValues, provider, cancel)
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-
-	return res, nil
-}
-
-// SpatialViewQuery performs a spatial query and returns a list of rows or an error.
-func (b *Bucket) SpatialViewQuery(designDoc string, viewName string, opts *SpatialViewOptions) (*ViewResults, error) {
-	if opts == nil {
-		opts = &SpatialViewOptions{}
-	}
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	var span opentracing.Span
-	if opts.ParentSpanContext == nil {
-		span = opentracing.GlobalTracer().StartSpan("ExecuteSpatialQuery",
-			opentracing.Tag{Key: "couchbase.service", Value: "views"})
-	} else {
-		span = opentracing.GlobalTracer().StartSpan("ExecuteSpatialQuery",
-			opentracing.Tag{Key: "couchbase.service", Value: "views"}, opentracing.ChildOf(opts.ParentSpanContext))
-	}
-	defer span.Finish()
-
-	cli := b.sb.getCachedClient()
-	provider, err := cli.getHTTPProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	designDoc = b.maybePrefixDevDocument(opts.Development, designDoc)
-
-	timeout := b.sb.ViewTimeout
-	if opts.Timeout > 0 {
-		timeout = opts.Timeout
-	}
-
-	// We don't make the client timeout longer for this as pindexes can timeout
-	// individually rather than the entire connection. Server side timeouts are also hard to detect.
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithTimeout(ctx, timeout)
-
-	urlValues, err := opts.toURLValues()
-	if err != nil {
-		cancel()
-		return nil, errors.Wrap(err, "could not parse query options")
-	}
-
-	res, err := b.executeViewQuery(ctx, span.Context(), "_spatial", designDoc, viewName, *urlValues, provider, cancel)
 	if err != nil {
 		cancel()
 		return nil, err
