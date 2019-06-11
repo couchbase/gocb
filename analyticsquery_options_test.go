@@ -41,12 +41,6 @@ func TestAnalyticsQueryOptionsToMap(t *testing.T) {
 			testAssertOption(t, nil, "priority", optMap)
 		}
 
-		if opts.Pretty {
-			testAssertOption(t, true, "pretty", optMap)
-		} else {
-			testAssertOption(t, nil, "pretty", optMap)
-		}
-
 		if opts.ServerSideTimeout == 0 {
 			testAssertOption(t, nil, "timeout", optMap)
 		} else {
@@ -120,11 +114,6 @@ func testCreateAnalyticsQueryOptions(seed int64) *AnalyticsQueryOptions {
 	randVal = rand.Intn(2)
 	if randVal == 1 {
 		opts.Priority = true
-	}
-
-	randVal = rand.Intn(2)
-	if randVal == 1 {
-		opts.Pretty = true
 	}
 
 	randVal = rand.Intn(2)

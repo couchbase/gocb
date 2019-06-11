@@ -18,7 +18,6 @@ type AnalyticsQueryOptions struct {
 	// and used to timeout the results stream.
 	Context              context.Context
 	ParentSpanContext    opentracing.SpanContext
-	Pretty               bool
 	ClientContextID      string
 	RawParam             map[string]interface{}
 	Priority             bool
@@ -38,10 +37,6 @@ func (opts *AnalyticsQueryOptions) toMap(statement string) (map[string]interface
 
 	if opts.ServerSideTimeout != 0 {
 		execOpts["timeout"] = opts.ServerSideTimeout.String()
-	}
-
-	if opts.Pretty {
-		execOpts["pretty"] = opts.Pretty
 	}
 
 	if opts.ClientContextID == "" {
