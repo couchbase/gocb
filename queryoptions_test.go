@@ -131,6 +131,19 @@ func TestQueryOptionsToMap(t *testing.T) {
 				}
 			}
 		}
+
+		if opts.ClientContextID == "" {
+			val, ok := optMap["client_context_id"]
+			if !ok {
+				t.Fatalf("Expected client_context_id to be non nil")
+			}
+
+			if val == "" {
+				t.Fatalf("Expected client_context_id to be non empty")
+			}
+		} else {
+			testAssertOption(t, opts.ClientContextID, "client_context_id", optMap)
+		}
 	}
 }
 

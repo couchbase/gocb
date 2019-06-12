@@ -9,7 +9,6 @@ import (
 	"github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
 
-	"github.com/google/uuid"
 	"github.com/opentracing/opentracing-go"
 )
 
@@ -329,11 +328,6 @@ func (c *Cluster) query(ctx context.Context, traceCtx opentracing.SpanContext, s
 	queryOpts, err := opts.toMap(statement)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not parse query options")
-	}
-
-	_, castok := queryOpts["client_context_id"]
-	if !castok {
-		queryOpts["client_context_id"] = uuid.New()
 	}
 
 	// Work out which timeout to use, the cluster level default or query specific one

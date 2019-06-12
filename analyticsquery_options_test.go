@@ -87,6 +87,19 @@ func TestAnalyticsQueryOptionsToMap(t *testing.T) {
 				}
 			}
 		}
+
+		if opts.ClientContextID == "" {
+			val, ok := optMap["client_context_id"]
+			if !ok {
+				t.Fatalf("Expected client_context_id to be non nil")
+			}
+
+			if val == "" {
+				t.Fatalf("Expected client_context_id to be non empty")
+			}
+		} else {
+			testAssertOption(t, opts.ClientContextID, "client_context_id", optMap)
+		}
 	}
 }
 
@@ -96,7 +109,7 @@ func testCreateAnalyticsQueryOptions(seed int64) *AnalyticsQueryOptions {
 
 	randVal := rand.Intn(2)
 	if randVal == 1 {
-		opts.ContextID = "62d29101-0c9f-400d-af2b-9bd44a557a7c"
+		opts.ClientContextID = "62d29101-0c9f-400d-af2b-9bd44a557a7c"
 	}
 
 	randVal = rand.Intn(2)

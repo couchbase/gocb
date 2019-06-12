@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 )
@@ -18,7 +19,7 @@ type AnalyticsQueryOptions struct {
 	Context              context.Context
 	ParentSpanContext    opentracing.SpanContext
 	Pretty               bool
-	ContextID            string
+	ClientContextID      string
 	RawParam             map[string]interface{}
 	Priority             bool
 	PositionalParameters []interface{}
@@ -43,8 +44,10 @@ func (opts *AnalyticsQueryOptions) toMap(statement string) (map[string]interface
 		execOpts["pretty"] = opts.Pretty
 	}
 
-	if opts.ContextID != "" {
-		execOpts["client_context_id"] = opts.ContextID
+	if opts.ClientContextID == "" {
+		execOpts["client_context_id"] = uuid.New()
+	} else {
+		execOpts["client_context_id"] = opts.ClientContextID
 	}
 
 	if opts.Priority {

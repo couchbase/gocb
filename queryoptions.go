@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 )
@@ -128,7 +130,9 @@ func (opts *QueryOptions) toMap(statement string) (map[string]interface{}, error
 		}
 	}
 
-	if opts.ClientContextID != "" {
+	if opts.ClientContextID == "" {
+		execOpts["client_context_id"] = uuid.New()
+	} else {
 		execOpts["client_context_id"] = opts.ClientContextID
 	}
 
