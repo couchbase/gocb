@@ -80,9 +80,10 @@ type SearchResultFacet struct {
 
 // SearchResultStatus holds the status information for an executed search query.
 type SearchResultStatus struct {
-	Total      int `json:"total,omitempty"`
-	Failed     int `json:"failed,omitempty"`
-	Successful int `json:"successful,omitempty"`
+	Total      int         `json:"total,omitempty"`
+	Failed     int         `json:"failed,omitempty"`
+	Successful int         `json:"successful,omitempty"`
+	Errors     interface{} `json:"errors,omitempty"`
 }
 
 // SearchResults allows access to the results of a search query.
@@ -98,7 +99,6 @@ type SearchResults interface {
 
 type searchResponse struct {
 	Status    SearchResultStatus           `json:"status,omitempty"`
-	Errors    []string                     `json:"errors,omitempty"`
 	TotalHits int                          `json:"total_hits,omitempty"`
 	Hits      []searchResultHit            `json:"hits,omitempty"`
 	Facets    map[string]SearchResultFacet `json:"facets,omitempty"`
@@ -114,7 +114,21 @@ func (r searchResults) Status() SearchResultStatus {
 	return r.data.Status
 }
 func (r searchResults) Errors() []string {
-	return r.data.Errors
+	var statusErrors []string
+	if statusError, ok := r.data.Status.Errors.([]string); ok {
+		statusErrors = statusError
+	} else if statusError, ok := r.data.Status.Errors.(map[string]interface{}); ok {
+		for k, v := range statusError {
+			msg, ok := v.(string)
+			if !ok {
+				return []string{"could not parse errors"}
+			}
+			statusErrors = append(statusErrors, fmt.Sprintf("%s-%s", k, msg))
+		}
+	} else {
+		return []string{"could not parse errors"}
+	}
+	return statusErrors
 }
 func (r searchResults) TotalHits() int {
 	return r.data.TotalHits
@@ -362,12 +376,12 @@ func (c *Cluster) executeSearchQuery(tracectx opentracing.SpanContext, ftsEp str
 			strace.Finish()
 			return nil, err
 		}
-		ftsResp.Errors = []string{buf.String()}
+		ftsResp.Status.Errors = []string{buf.String()}
 		errHandled = true
 	case 401:
 		ftsResp.Status.Total = 1
 		ftsResp.Status.Failed = 1
-		ftsResp.Errors = []string{"The requested consistency level could not be satisfied before the timeout was reached"}
+		ftsResp.Status.Errors = []string{"The requested consistency level could not be satisfied before the timeout was reached"}
 		errHandled = true
 	}
 
