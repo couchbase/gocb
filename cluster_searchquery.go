@@ -113,22 +113,27 @@ type searchResults struct {
 func (r searchResults) Status() SearchResultStatus {
 	return r.data.Status
 }
+
+// Errors returns any errors from the server, as strings. If there were
+// no errors then it returns nil.
 func (r searchResults) Errors() []string {
-	var statusErrors []string
-	if statusError, ok := r.data.Status.Errors.([]string); ok {
-		statusErrors = statusError
-	} else if statusError, ok := r.data.Status.Errors.(map[string]interface{}); ok {
-		for k, v := range statusError {
-			msg, ok := v.(string)
-			if !ok {
-				return []string{"could not parse errors"}
-			}
-			statusErrors = append(statusErrors, fmt.Sprintf("%s-%s", k, msg))
+	switch errs := r.data.Status.Errors.(type) {
+	case nil:
+		return nil
+	case string:
+		return []string{errs}
+	case []string:
+		return errs
+	case map[string]interface{}:
+		var statusErrors []string
+		for k, v := range errs {
+			statusErrors = append(statusErrors, fmt.Sprintf("%s-%v", k, v))
 		}
-	} else {
+
+		return statusErrors
+	default:
 		return []string{"could not parse errors"}
 	}
-	return statusErrors
 }
 func (r searchResults) TotalHits() int {
 	return r.data.TotalHits
