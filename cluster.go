@@ -284,3 +284,15 @@ func (c *Cluster) setSupportsEnhancedPreparedStatements(supports bool) {
 		atomic.StoreInt32(&c.supportsEnhancedStatements, 0)
 	}
 }
+
+// Users returns a UserManager for managing users.
+func (c *Cluster) Users() (*UserManager, error) {
+	provider, err := c.getHTTPProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return &UserManager{
+		httpClient: provider,
+	}, nil
+}
