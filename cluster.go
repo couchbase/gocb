@@ -296,3 +296,15 @@ func (c *Cluster) Users() (*UserManager, error) {
 		httpClient: provider,
 	}, nil
 }
+
+// Buckets returns a BucketManager for managing buckets.
+func (c *Cluster) Buckets() (*BucketManager, error) {
+	provider, err := c.getHTTPProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return &BucketManager{
+		httpClient: provider,
+	}, nil
+}

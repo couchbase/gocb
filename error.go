@@ -600,6 +600,26 @@ func IsDesignDocumentPublishDropFailError(err error) bool {
 	}
 }
 
+// IsBucketManagerBucketNotFoundError occurs when a specific bucket could not be found.
+func IsBucketManagerBucketNotFoundError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case BucketManagerError:
+		return errType.BucketNotFoundError()
+	default:
+		return false
+	}
+}
+
+// IsBucketManagerBucketExistsError occurs when a specific bucket already exists.
+func IsBucketManagerBucketExistsError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case BucketManagerError:
+		return errType.BucketExistsError()
+	default:
+		return false
+	}
+}
+
 // HTTPError indicates that an error occurred with a valid HTTP response for an operation.
 type HTTPError interface {
 	HTTPStatus() int
@@ -985,6 +1005,40 @@ func (e viewIndexError) DesignDocumentExistsError() bool {
 // DesignDocumentPublishDropFailError indicates dropping a development view failed during publish.
 func (e viewIndexError) DesignDocumentPublishDropFailError() bool {
 	return e.publishDropFail
+}
+
+// BucketManagerError occurs for errors created By Couchbase Server when performing bucket management.
+type BucketManagerError interface {
+	error
+	HTTPStatus() int
+	BucketNotFoundError() bool
+	BucketExistsError() bool
+}
+
+type bucketManagerError struct {
+	statusCode    int
+	message       string
+	bucketMissing bool
+	bucketExists  bool
+}
+
+func (e bucketManagerError) Error() string {
+	return e.message
+}
+
+// HTTPStatus returns the HTTP status code for the operation.
+func (e bucketManagerError) HTTPStatus() int {
+	return e.statusCode
+}
+
+// BucketNotFoundError indicates that a bucket could not be found.
+func (e bucketManagerError) BucketNotFoundError() bool {
+	return e.bucketMissing
+}
+
+// BucketExistsError indicates that a bucket already exists.
+func (e bucketManagerError) BucketExistsError() bool {
+	return e.bucketExists
 }
 
 func maybeEnhanceKVErr(err error, key string, isInsertOp bool) error {
