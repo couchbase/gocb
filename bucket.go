@@ -71,3 +71,16 @@ func (b *Bucket) DefaultCollection(opts *CollectionOptions) *Collection {
 func (b *Bucket) stateBlock() stateBlock {
 	return b.sb
 }
+
+// ViewIndexes returns a ViewIndexManager instance for managing views.
+func (b *Bucket) ViewIndexes() (*ViewIndexManager, error) {
+	provider, err := b.sb.getCachedClient().getHTTPProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return &ViewIndexManager{
+		bucketName: b.Name(),
+		httpClient: provider,
+	}, nil
+}

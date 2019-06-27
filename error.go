@@ -570,6 +570,41 @@ func IsNoResultsError(err error) bool {
 	}
 }
 
+// IsDesignDocumentNotFoundError occurs when a specific design document could not be found.
+func IsDesignDocumentNotFoundError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case ViewIndexesError:
+		return errType.DesignDocumentNotFoundError()
+	default:
+		return false
+	}
+}
+
+// IsDesignDocumentExistsError occurs when a specific design document already exists.
+func IsDesignDocumentExistsError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case ViewIndexesError:
+		return errType.DesignDocumentExistsError()
+	default:
+		return false
+	}
+}
+
+// IsDesignDocumentPublishDropFailError occurs when dropping a design document already exists.
+func IsDesignDocumentPublishDropFailError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case ViewIndexesError:
+		return errType.DesignDocumentPublishDropFailError()
+	default:
+		return false
+	}
+}
+
+// HTTPError indicates that an error occurred with a valid HTTP response for an operation.
+type HTTPError interface {
+	HTTPStatus() int
+}
+
 type clientError struct {
 	message string
 }
@@ -909,6 +944,47 @@ func (e noResultsError) Error() string {
 // NoResultsError indicates whether or not this error is a NoResultsError
 func (e noResultsError) NoResultsError() bool {
 	return true
+}
+
+// ViewIndexesError occurs for errors created By Couchbase Server when performing index management.
+type ViewIndexesError interface {
+	error
+	HTTPStatus() int
+	DesignDocumentNotFoundError() bool
+	DesignDocumentExistsError() bool
+	DesignDocumentPublishDropFailError() bool
+}
+
+type viewIndexError struct {
+	statusCode      int
+	message         string
+	indexMissing    bool
+	indexExists     bool
+	publishDropFail bool
+}
+
+func (e viewIndexError) Error() string {
+	return e.message
+}
+
+// HTTPStatus returns the HTTP status code for the operation.
+func (e viewIndexError) HTTPStatus() int {
+	return e.statusCode
+}
+
+// DesignDocumentNotFoundError indicates that a design document could not be found.
+func (e viewIndexError) DesignDocumentNotFoundError() bool {
+	return e.indexMissing
+}
+
+// DesignDocumentExistsError indicates that a design document already exists.
+func (e viewIndexError) DesignDocumentExistsError() bool {
+	return e.indexExists
+}
+
+// DesignDocumentPublishDropFailError indicates dropping a development view failed during publish.
+func (e viewIndexError) DesignDocumentPublishDropFailError() bool {
+	return e.publishDropFail
 }
 
 func maybeEnhanceKVErr(err error, key string, isInsertOp bool) error {
