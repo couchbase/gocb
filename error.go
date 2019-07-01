@@ -209,6 +209,19 @@ func IsRetryableError(err error) bool {
 	}
 }
 
+// IsInvalidArgumentsError indicates whether the passed error occurred due to
+// invalid arguments being passed to an operation.
+func IsInvalidArgumentsError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case KeyValueError:
+		return errType.KeyValueError() && errType.StatusCode() == int(gocbcore.StatusInvalidArgs)
+	case InvalidArgumentsError:
+		return errType.InvalidArgumentsError()
+	}
+
+	return false
+}
+
 // KV Specific Errors
 
 // IsKeyValueError verifies whether or not the cause for an error is a KeyValueError.
@@ -281,17 +294,6 @@ func IsKeyLockedError(err error) bool {
 	cause := errors.Cause(err)
 	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
 		return kvErr.StatusCode() == int(gocbcore.StatusLocked)
-	}
-
-	return false
-}
-
-// IsInvalidArgumentsError indicates whether the passed error occurred due to
-// // invalid arguments being passed to an operation.
-func IsInvalidArgumentsError(err error) bool {
-	cause := errors.Cause(err)
-	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
-		return kvErr.StatusCode() == int(gocbcore.StatusInvalidArgs)
 	}
 
 	return false
@@ -620,9 +622,69 @@ func IsBucketManagerBucketExistsError(err error) bool {
 	}
 }
 
+// IsQueryIndexInvalidNameError verifies that an index was attempted to be created without an invalid name.
+func IsQueryIndexInvalidNameError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case QueryIndexesError:
+		return errType.QueryIndexInvalidNameError()
+	default:
+		return false
+	}
+}
+
+// IsQueryIndexNoFieldsError verifies that an index was attempted to be created without any fields.
+func IsQueryIndexNoFieldsError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case QueryIndexesError:
+		return errType.QueryIndexNoFieldsError()
+	default:
+		return false
+	}
+}
+
+// IsQueryIndexAlreadyExists verifies that an index already exists.
+func IsQueryIndexAlreadyExists(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case QueryIndexesError:
+		return errType.QueryIndexExistsError()
+	default:
+		return false
+	}
+}
+
+// IsQueryIndexNotFound verifies that an index could not be found.
+func IsQueryIndexNotFound(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case QueryIndexesError:
+		return errType.QueryIndexNotFoundError()
+	default:
+		return false
+	}
+}
+
 // HTTPError indicates that an error occurred with a valid HTTP response for an operation.
 type HTTPError interface {
+	error
 	HTTPStatus() int
+}
+
+// InvalidArgumentsError indicates that invalid arguments were provided to an operation.
+type InvalidArgumentsError interface {
+	error
+	InvalidArgumentsError() bool
+}
+
+type invalidArgumentsError struct {
+	message string
+}
+
+func (e invalidArgumentsError) Error() string {
+	return e.message
+}
+
+// InvalidArgumentsError indicates that invalid arguments were provided to an operation.
+func (e invalidArgumentsError) InvalidArgumentsError() bool {
+	return true
 }
 
 type clientError struct {
@@ -1041,6 +1103,42 @@ func (e bucketManagerError) BucketExistsError() bool {
 	return e.bucketExists
 }
 
+// QueryIndexesError occurs for errors created By Couchbase Server when performing query index management.
+type QueryIndexesError interface {
+	error
+	HTTPStatus() int
+	QueryIndexNotFoundError() bool
+	QueryIndexExistsError() bool
+	QueryIndexNoFieldsError() bool
+	QueryIndexInvalidNameError() bool
+}
+
+type queryIndexError struct {
+	statusCode   int
+	message      string
+	indexMissing bool
+	indexExists  bool
+}
+
+func (e queryIndexError) Error() string {
+	return e.message
+}
+
+// HTTPStatus returns the HTTP status code for the operation.
+func (e queryIndexError) HTTPStatus() int {
+	return e.statusCode
+}
+
+// QueryIndexNotFoundError indicates that an index could not be found.
+func (e queryIndexError) QueryIndexNotFoundError() bool {
+	return e.indexMissing
+}
+
+// QueryIndexExistsError indicates that an index already exists.
+func (e queryIndexError) QueryIndexExistsError() bool {
+	return e.indexExists
+}
+
 func maybeEnhanceKVErr(err error, key string, isInsertOp bool) error {
 	cause := errors.Cause(err)
 
@@ -1074,14 +1172,6 @@ var (
 
 	// ErrNoOpenBuckets occurs when a cluster-level operation is performed before any buckets are opened.
 	ErrNoOpenBuckets = errors.New("You must open a bucket before you can perform cluster level operations.")
-	// ErrIndexInvalidName occurs when an invalid name was specified for an index.
-	ErrIndexInvalidName = errors.New("An invalid index name was specified.")
-	// ErrIndexNoFields occurs when an index with no fields is created.
-	ErrIndexNoFields = errors.New("You must specify at least one field to index.")
-	// ErrIndexNotFound occurs when an operation expects an index but it was not found.
-	ErrIndexNotFound = errors.New("The index specified does not exist.")
-	// ErrIndexAlreadyExists occurs when an operation expects an index not to exist, but it was found.
-	ErrIndexAlreadyExists = errors.New("The index specified already exists.")
 	// ErrFacetNoRanges occurs when a range-based facet is specified but no ranges were indicated.
 	ErrFacetNoRanges = errors.New("At least one range must be specified on a facet.")
 

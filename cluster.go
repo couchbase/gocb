@@ -308,3 +308,10 @@ func (c *Cluster) Buckets() (*BucketManager, error) {
 		httpClient: provider,
 	}, nil
 }
+
+// QueryIndexes returns a QueryIndexManager for managing N1QL indexes.
+func (c *Cluster) QueryIndexes() (*QueryIndexManager, error) {
+	return &QueryIndexManager{
+		executeQuery: c.Query,
+	}, nil
+}
