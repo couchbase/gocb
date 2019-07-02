@@ -630,28 +630,8 @@ func IsBucketExistsError(err error) bool {
 	}
 }
 
-// IsQueryIndexInvalidNameError verifies that an index was attempted to be created without an invalid name.
-func IsQueryIndexInvalidNameError(err error) bool {
-	switch errType := errors.Cause(err).(type) {
-	case QueryIndexesError:
-		return errType.QueryIndexInvalidNameError()
-	default:
-		return false
-	}
-}
-
-// IsQueryIndexNoFieldsError verifies that an index was attempted to be created without any fields.
-func IsQueryIndexNoFieldsError(err error) bool {
-	switch errType := errors.Cause(err).(type) {
-	case QueryIndexesError:
-		return errType.QueryIndexNoFieldsError()
-	default:
-		return false
-	}
-}
-
-// IsQueryIndexAlreadyExists verifies that an index already exists.
-func IsQueryIndexAlreadyExists(err error) bool {
+// IsQueryIndexAlreadyExistsError verifies that an index already exists.
+func IsQueryIndexAlreadyExistsError(err error) bool {
 	switch errType := errors.Cause(err).(type) {
 	case QueryIndexesError:
 		return errType.QueryIndexExistsError()
@@ -660,11 +640,61 @@ func IsQueryIndexAlreadyExists(err error) bool {
 	}
 }
 
-// IsQueryIndexNotFound verifies that an index could not be found.
-func IsQueryIndexNotFound(err error) bool {
+// IsQueryIndexNotFoundError verifies that an index could not be found.
+func IsQueryIndexNotFoundError(err error) bool {
 	switch errType := errors.Cause(err).(type) {
 	case QueryIndexesError:
 		return errType.QueryIndexNotFoundError()
+	default:
+		return false
+	}
+}
+
+// IsAnalyticsIndexAlreadyExistsError verifies that an analytics index already exists.
+func IsAnalyticsIndexAlreadyExistsError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case AnalyticsIndexesError:
+		return errType.AnalyticsIndexExistsError()
+	default:
+		return false
+	}
+}
+
+// IsAnalyticsIndexNotFoundError verifies that an analytics index could not be found.
+func IsAnalyticsIndexNotFoundError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case AnalyticsIndexesError:
+		return errType.AnalyticsIndexNotFoundError()
+	default:
+		return false
+	}
+}
+
+// IsAnalyticsDatasetAlreadyExistsError verifies that an analytics dataset already exists.
+func IsAnalyticsDatasetAlreadyExistsError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case AnalyticsIndexesError:
+		return errType.AnalyticsDatasetExistsError()
+	default:
+		return false
+	}
+}
+
+// IsAnalyticsDatasetNotFoundError verifies that an analytics dataset could not be found.
+func IsAnalyticsDatasetNotFoundError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case AnalyticsIndexesError:
+		return errType.AnalyticsDatasetNotFoundError()
+	default:
+		return false
+	}
+}
+
+// IsAnalyticsLinkNotFoundError verifies that an analytics link could not be found.
+func IsAnalyticsLinkNotFoundError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case AnalyticsIndexesError:
+		return errType.AnalyticsLinkNotFoundError()
 	default:
 		return false
 	}
@@ -1147,8 +1177,6 @@ type QueryIndexesError interface {
 	HTTPStatus() int
 	QueryIndexNotFoundError() bool
 	QueryIndexExistsError() bool
-	QueryIndexNoFieldsError() bool
-	QueryIndexInvalidNameError() bool
 }
 
 type queryIndexError struct {
@@ -1164,6 +1192,11 @@ func (e queryIndexError) Error() string {
 
 // HTTPStatus returns the HTTP status code for the operation.
 func (e queryIndexError) HTTPStatus() int {
+	return e.statusCode
+}
+
+// Code returns the analytics error for the error.
+func (e queryIndexError) Code() int {
 	return e.statusCode
 }
 
@@ -1193,7 +1226,6 @@ func (e userManagerError) Error() string {
 	return e.message
 }
 
-// HTTPStatus returns the HTTP status code for the operation.
 func (e userManagerError) HTTPStatus() int {
 	return e.statusCode
 }
@@ -1203,6 +1235,79 @@ func (e userManagerError) UserNotFoundError() bool {
 	if strings.Contains(strings.ToLower(e.message), "unknown user") ||
 		strings.Contains(strings.ToLower(e.message), "not found") {
 		return true
+	}
+
+	return false
+}
+
+// AnalyticsIndexesError occurs for errors created By Couchbase Server when performing analytics index management.
+type AnalyticsIndexesError interface {
+	error
+	HTTPStatus() int
+	AnalyticsIndexNotFoundError() bool
+	AnalyticsIndexExistsError() bool
+	AnalyticsDatasetNotFoundError() bool
+	AnalyticsDatasetExistsError() bool
+	AnalyticsLinkNotFoundError() bool
+}
+
+type analyticsIndexesError struct {
+	statusCode    int
+	analyticsCode uint32
+	message       string
+}
+
+func (e analyticsIndexesError) Error() string {
+	return e.message
+}
+
+// HTTPStatus returns the HTTP status code for the operation.
+func (e analyticsIndexesError) HTTPStatus() int {
+	return e.statusCode
+}
+
+// AnalyticsIndexNotFoundError indicates that a specified analytics index could not be found.
+func (e analyticsIndexesError) AnalyticsIndexNotFoundError() bool {
+	if strings.Contains(strings.ToLower(e.message), "cannot find index") {
+		return true
+	}
+
+	return false
+}
+
+// AnalyticsIndexExistsError indicates that a specified analytics index already exists.
+func (e analyticsIndexesError) AnalyticsIndexExistsError() bool {
+	if e.analyticsCode == 24048 {
+		return true
+	}
+
+	return false
+}
+
+// AnalyticsDatasetNotFoundError indicates that a specified analytics dataset could not be found.
+func (e analyticsIndexesError) AnalyticsDatasetNotFoundError() bool {
+	if strings.Contains(strings.ToLower(e.message), "cannot find dataset") {
+		return true
+	}
+
+	return false
+}
+
+// AnalyticsDatasetExistsError indicates that a specified analytics dataset already exists.
+func (e analyticsIndexesError) AnalyticsDatasetExistsError() bool {
+	if e.analyticsCode == 24040 {
+		return true
+	}
+
+	return false
+}
+
+// AnalyticsLinkNotFoundError indicates that a specified analytics link could not be found.
+func (e analyticsIndexesError) AnalyticsLinkNotFoundError() bool {
+	if strings.Contains(strings.ToLower(e.message), "not exist") {
+		if strings.Contains(strings.ToLower(e.message), "link") {
+			return true
+		}
 	}
 
 	return false
@@ -1254,17 +1359,6 @@ func (e collectionMgrError) Error() string {
 
 func (e collectionMgrError) HTTPStatus() int {
 	return e.statusCode
-}
-
-// AnalyticsIndexesError occurs for errors created By Couchbase Server when performing analytics index management.
-type AnalyticsIndexesError interface {
-	error
-	HTTPStatus() int
-	AnalyticsIndexNotFoundError() bool
-	AnalyticsIndexExistsError() bool
-	DatasetExistsError() bool
-	DatasetNotFoundError() bool
-	LinkNotFoundError() bool
 }
 
 // CollectionNotFoundError indicates that a given collection could not be found.

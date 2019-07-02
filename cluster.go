@@ -309,6 +309,19 @@ func (c *Cluster) Buckets() (*BucketManager, error) {
 	}, nil
 }
 
+// AnalyticsIndexes returns an AnalyticsIndexManager for managing analytics indexes.
+// Volatile: This API is subject to change at any time.
+func (c *Cluster) AnalyticsIndexes() (*AnalyticsIndexManager, error) {
+	provider, err := c.getHTTPProvider()
+	if err != nil {
+		return nil, err
+	}
+	return &AnalyticsIndexManager{
+		httpClient:   provider,
+		executeQuery: c.AnalyticsQuery,
+	}, nil
+}
+
 // QueryIndexes returns a QueryIndexManager for managing N1QL indexes.
 func (c *Cluster) QueryIndexes() (*QueryIndexManager, error) {
 	return &QueryIndexManager{
