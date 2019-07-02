@@ -241,7 +241,7 @@ func testCreate(name, scopeName string, bucket *Bucket, cli client) (*Collection
 			col := bucket.Collection(scopeName, name, nil)
 			_, err := col.Get("test", nil)
 			if err != nil {
-				if IsCollectionMissingError(err) {
+				if IsCollectionNotFoundError(err) {
 					time.Sleep(100 * time.Millisecond)
 					continue
 				}

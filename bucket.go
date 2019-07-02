@@ -84,3 +84,16 @@ func (b *Bucket) ViewIndexes() (*ViewIndexManager, error) {
 		httpClient: provider,
 	}, nil
 }
+
+// CollectionManager provides functions for managing collections.
+func (b *Bucket) CollectionManager() (*CollectionManager, error) {
+	provider, err := b.sb.getCachedClient().getHTTPProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return &CollectionManager{
+		httpClient: provider,
+		bucketName: b.Name(),
+	}, nil
+}

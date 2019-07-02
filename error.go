@@ -222,6 +222,30 @@ func IsInvalidArgumentsError(err error) bool {
 	return false
 }
 
+// IsScopeNotFoundError verifies whether or not the cause for an error is scope unknown.
+func IsScopeNotFoundError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case KeyValueError:
+		return errType.KeyValueError() && errType.StatusCode() == int(gocbcore.StatusScopeUnknown)
+	case CollectionManagerError:
+		return errType.ScopeNotFoundError()
+	}
+
+	return false
+}
+
+// IsCollectionNotFoundError verifies whether or not the cause for an error is scope unknown.
+func IsCollectionNotFoundError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case KeyValueError:
+		return errType.KeyValueError() && errType.StatusCode() == int(gocbcore.StatusCollectionUnknown)
+	case CollectionManagerError:
+		return errType.CollectionNotFoundError()
+	}
+
+	return false
+}
+
 // KV Specific Errors
 
 // IsKeyValueError verifies whether or not the cause for an error is a KeyValueError.
@@ -232,27 +256,6 @@ func IsKeyValueError(err error) bool {
 	}
 
 	return false
-}
-
-// IsScopeMissingError verifies whether or not the cause for an error is scope unknown.
-func IsScopeMissingError(err error) bool {
-	cause := errors.Cause(err)
-	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
-		return kvErr.StatusCode() == int(gocbcore.StatusScopeUnknown)
-	}
-
-	return false
-}
-
-// IsCollectionMissingError verifies whether or not the cause for an error is scope unknown.
-func IsCollectionMissingError(err error) bool {
-	cause := errors.Cause(err)
-	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
-		return kvErr.StatusCode() == int(gocbcore.StatusCollectionUnknown)
-	}
-
-	return false
-
 }
 
 // IsKeyExistsError indicates whether the passed error is a
@@ -562,6 +565,11 @@ func IsNoReplicasError(err error) bool {
 
 // Service Specific Errors
 
+// CollectionNotFoundError returns whether or not an error occurred because a collection could not be found.
+type CollectionNotFoundError interface {
+	CollectionNotFound() bool
+}
+
 // IsNoResultsError verifies whether or not the cause for an error is due no results being available to a query.
 func IsNoResultsError(err error) bool {
 	switch errType := errors.Cause(err).(type) {
@@ -602,8 +610,8 @@ func IsDesignDocumentPublishDropFailError(err error) bool {
 	}
 }
 
-// IsBucketManagerBucketNotFoundError occurs when a specific bucket could not be found.
-func IsBucketManagerBucketNotFoundError(err error) bool {
+// IsBucketNotFoundError occurs when a specific bucket could not be found.
+func IsBucketNotFoundError(err error) bool {
 	switch errType := errors.Cause(err).(type) {
 	case BucketManagerError:
 		return errType.BucketNotFoundError()
@@ -612,8 +620,8 @@ func IsBucketManagerBucketNotFoundError(err error) bool {
 	}
 }
 
-// IsBucketManagerBucketExistsError occurs when a specific bucket already exists.
-func IsBucketManagerBucketExistsError(err error) bool {
+// IsBucketExistsError occurs when a specific bucket already exists.
+func IsBucketExistsError(err error) bool {
 	switch errType := errors.Cause(err).(type) {
 	case BucketManagerError:
 		return errType.BucketExistsError()
@@ -657,6 +665,26 @@ func IsQueryIndexNotFound(err error) bool {
 	switch errType := errors.Cause(err).(type) {
 	case QueryIndexesError:
 		return errType.QueryIndexNotFoundError()
+	default:
+		return false
+	}
+}
+
+// IsCollectionExistsError occurs when a specific collection already exists.
+func IsCollectionExistsError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case CollectionManagerError:
+		return errType.CollectionExistsError()
+	default:
+		return false
+	}
+}
+
+// IsScopeExistsError occurs when a specific scope already exists.
+func IsScopeExistsError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case CollectionManagerError:
+		return errType.ScopeExistsError()
 	default:
 		return false
 	}
@@ -1162,6 +1190,88 @@ func maybeEnhanceKVErr(err error, key string, isInsertOp bool) error {
 	}
 
 	return err
+}
+
+// CollectionManagerError occurs for errors created By Couchbase Server when performing collection management.
+type CollectionManagerError interface {
+	error
+	HTTPStatus() int
+	CollectionNotFoundError() bool
+	CollectionExistsError() bool
+	ScopeNotFoundError() bool
+	ScopeExistsError() bool
+}
+
+type collectionMgrError struct {
+	statusCode int
+	message    string
+}
+
+func (e collectionMgrError) Error() string {
+	return e.message
+}
+
+func (e collectionMgrError) HTTPStatus() int {
+	return e.statusCode
+}
+
+// AnalyticsIndexesError occurs for errors created By Couchbase Server when performing analytics index management.
+type AnalyticsIndexesError interface {
+	error
+	HTTPStatus() int
+	AnalyticsIndexNotFoundError() bool
+	AnalyticsIndexExistsError() bool
+	DatasetExistsError() bool
+	DatasetNotFoundError() bool
+	LinkNotFoundError() bool
+}
+
+// CollectionNotFoundError indicates that a given collection could not be found.
+func (e collectionMgrError) CollectionNotFoundError() bool {
+	if e.statusCode == 404 {
+		if strings.Contains(e.message, "not found") {
+			if strings.Contains(strings.ToLower(e.message), "collection") {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// CollectionExistsError indicates that a given collection already exists.
+func (e collectionMgrError) CollectionExistsError() bool {
+	if strings.Contains(e.message, "already exist") {
+		if strings.Contains(strings.ToLower(e.message), "collection") {
+			return true
+		}
+	}
+
+	return false
+}
+
+// ScopeNotFoundError indicates that a given scope could not be found.
+func (e collectionMgrError) ScopeNotFoundError() bool {
+	if e.statusCode == 404 {
+		if strings.Contains(e.message, "not found") {
+			if strings.Contains(strings.ToLower(e.message), "scope") {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// CollectionExistsError indicates that a given scope already exists.
+func (e collectionMgrError) ScopeExistsError() bool {
+	if strings.Contains(e.message, "already exist") {
+		if strings.Contains(strings.ToLower(e.message), "scope") {
+			return true
+		}
+	}
+
+	return false
 }
 
 var (

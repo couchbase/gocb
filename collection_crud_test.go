@@ -1422,7 +1422,7 @@ func TestGetErrorCollectionUnknown(t *testing.T) {
 		t.Fatalf("Result should have been nil")
 	}
 
-	if !IsCollectionMissingError(err) {
+	if !IsCollectionNotFoundError(err) {
 		t.Fatalf("Error should have been collection missing but was %v", err)
 	}
 }
