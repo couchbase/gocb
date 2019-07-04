@@ -690,6 +690,16 @@ func IsScopeExistsError(err error) bool {
 	}
 }
 
+// IsUserNotFoundError verifies that a user could not be found.
+func IsUserNotFoundError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case UserManagerError:
+		return errType.UserNotFoundError()
+	default:
+		return false
+	}
+}
+
 // HTTPError indicates that an error occurred with a valid HTTP response for an operation.
 type HTTPError interface {
 	error
@@ -1165,6 +1175,37 @@ func (e queryIndexError) QueryIndexNotFoundError() bool {
 // QueryIndexExistsError indicates that an index already exists.
 func (e queryIndexError) QueryIndexExistsError() bool {
 	return e.indexExists
+}
+
+// UserManagerError occurs for errors created By Couchbase Server when performing user management.
+type UserManagerError interface {
+	error
+	HTTPStatus() int
+	UserNotFoundError() bool
+}
+
+type userManagerError struct {
+	statusCode int
+	message    string
+}
+
+func (e userManagerError) Error() string {
+	return e.message
+}
+
+// HTTPStatus returns the HTTP status code for the operation.
+func (e userManagerError) HTTPStatus() int {
+	return e.statusCode
+}
+
+// UserNotFoundError indicates that a specified user could not be found.
+func (e userManagerError) UserNotFoundError() bool {
+	if strings.Contains(strings.ToLower(e.message), "unknown user") ||
+		strings.Contains(strings.ToLower(e.message), "not found") {
+		return true
+	}
+
+	return false
 }
 
 func maybeEnhanceKVErr(err error, key string, isInsertOp bool) error {

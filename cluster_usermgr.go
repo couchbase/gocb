@@ -89,24 +89,11 @@ func (um *UserManager) GetAll(opts *GetAllUsersOptions) ([]*User, error) {
 		opts.DomainName = string(LocalDomain)
 	}
 
-	var span opentracing.Span
-	if opts.ParentSpanContext == nil {
-		span = opentracing.GlobalTracer().StartSpan("GetAll",
-			opentracing.Tag{Key: "couchbase.service", Value: "usermgr"})
-	} else {
-		span = opentracing.GlobalTracer().StartSpan("GetAll",
-			opentracing.Tag{Key: "couchbase.service", Value: "usermgr"}, opentracing.ChildOf(opts.ParentSpanContext))
-	}
+	span := startSpan(opts.ParentSpanContext, "GetAll", "usermgr")
 	defer span.Finish()
 
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	if opts.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	if cancel != nil {
 		defer cancel()
 	}
 
@@ -131,7 +118,7 @@ func (um *UserManager) GetAll(opts *GetAllUsersOptions) ([]*User, error) {
 		if err != nil {
 			logDebugf("Failed to close socket (%s)", err)
 		}
-		return nil, clientError{message: string(data)} // TODO: proper error
+		return nil, userManagerError{statusCode: resp.StatusCode, message: string(data)}
 	}
 
 	var usersData []*userJson
@@ -169,24 +156,11 @@ func (um *UserManager) Get(name string, opts *GetUserOptions) (*User, error) {
 		opts.DomainName = string(LocalDomain)
 	}
 
-	var span opentracing.Span
-	if opts.ParentSpanContext == nil {
-		span = opentracing.GlobalTracer().StartSpan("Get",
-			opentracing.Tag{Key: "couchbase.service", Value: "usermgr"})
-	} else {
-		span = opentracing.GlobalTracer().StartSpan("Get",
-			opentracing.Tag{Key: "couchbase.service", Value: "usermgr"}, opentracing.ChildOf(opts.ParentSpanContext))
-	}
+	span := startSpan(opts.ParentSpanContext, "Get", "usermgr")
 	defer span.Finish()
 
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	if opts.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	if cancel != nil {
 		defer cancel()
 	}
 
@@ -211,7 +185,7 @@ func (um *UserManager) Get(name string, opts *GetUserOptions) (*User, error) {
 		if err != nil {
 			logDebugf("Failed to close socket (%s)", err)
 		}
-		return nil, clientError{message: string(data)} // TODO: proper error
+		return nil, userManagerError{statusCode: resp.StatusCode, message: string(data)}
 	}
 
 	var userData userJson
@@ -244,24 +218,11 @@ func (um *UserManager) Upsert(name string, password string, roles []UserRole, op
 		opts.DomainName = string(LocalDomain)
 	}
 
-	var span opentracing.Span
-	if opts.ParentSpanContext == nil {
-		span = opentracing.GlobalTracer().StartSpan("Upsert",
-			opentracing.Tag{Key: "couchbase.service", Value: "usermgr"})
-	} else {
-		span = opentracing.GlobalTracer().StartSpan("Upsert",
-			opentracing.Tag{Key: "couchbase.service", Value: "usermgr"}, opentracing.ChildOf(opts.ParentSpanContext))
-	}
+	span := startSpan(opts.ParentSpanContext, "Upsert", "usermgr")
 	defer span.Finish()
 
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	if opts.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	if cancel != nil {
 		defer cancel()
 	}
 
@@ -298,14 +259,14 @@ func (um *UserManager) Upsert(name string, password string, roles []UserRole, op
 		if err != nil {
 			logDebugf("Failed to close socket (%s)", err)
 		}
-		return clientError{message: string(data)} // TODO: proper error
+		return userManagerError{statusCode: resp.StatusCode, message: string(data)}
 	}
 
 	return nil
 }
 
-// RemoveUserOptions is the set of options available to the user manager Remove operation.
-type RemoveUserOptions struct {
+// DropUserOptions is the set of options available to the user manager Drop operation.
+type DropUserOptions struct {
 	ParentSpanContext opentracing.SpanContext
 	Timeout           time.Duration
 	Context           context.Context
@@ -313,34 +274,21 @@ type RemoveUserOptions struct {
 	DomainName string
 }
 
-// Remove removes a built-in RBAC user on the cluster.
-func (um *UserManager) Remove(name string, opts *RemoveUserOptions) error {
+// Drop removes a built-in RBAC user on the cluster.
+func (um *UserManager) Drop(name string, opts *DropUserOptions) error {
 	if opts == nil {
-		opts = &RemoveUserOptions{}
+		opts = &DropUserOptions{}
 	}
 
 	if opts.DomainName == "" {
 		opts.DomainName = string(LocalDomain)
 	}
 
-	var span opentracing.Span
-	if opts.ParentSpanContext == nil {
-		span = opentracing.GlobalTracer().StartSpan("Remove",
-			opentracing.Tag{Key: "couchbase.service", Value: "usermgr"})
-	} else {
-		span = opentracing.GlobalTracer().StartSpan("Remove",
-			opentracing.Tag{Key: "couchbase.service", Value: "usermgr"}, opentracing.ChildOf(opts.ParentSpanContext))
-	}
+	span := startSpan(opts.ParentSpanContext, "Remove", "usermgr")
 	defer span.Finish()
 
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	if opts.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	if cancel != nil {
 		defer cancel()
 	}
 
@@ -365,7 +313,7 @@ func (um *UserManager) Remove(name string, opts *RemoveUserOptions) error {
 		if err != nil {
 			logDebugf("Failed to close socket (%s)", err)
 		}
-		return clientError{message: string(data)} // TODO: proper error
+		return userManagerError{statusCode: resp.StatusCode, message: string(data)}
 	}
 
 	return nil
