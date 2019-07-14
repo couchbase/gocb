@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/opentracing/opentracing-go"
-
 	"github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
 )
@@ -466,7 +464,6 @@ func (r *GetReplicaResult) IsMaster() bool {
 type GetAllReplicasResult struct {
 	ctx         context.Context
 	provider    kvProvider
-	trace       opentracing.Span
 	opts        gocbcore.GetOneReplicaOptions
 	err         error
 	closed      bool
@@ -492,7 +489,6 @@ func (r *GetAllReplicasResult) Next(valuePtr *GetReplicaResult) bool {
 	if r.opts.ReplicaIdx == 0 {
 		op, err = r.provider.GetEx(gocbcore.GetOptions{
 			Key:            r.opts.Key,
-			TraceContext:   r.opts.TraceContext,
 			CollectionName: r.opts.CollectionName,
 			ScopeName:      r.opts.ScopeName,
 		}, func(res *gocbcore.GetResult, err error) {
@@ -560,7 +556,6 @@ func (r *GetAllReplicasResult) Next(valuePtr *GetReplicaResult) bool {
 
 // Close ends the stream and returns any errors that occurred.
 func (r *GetAllReplicasResult) Close() error {
-	r.trace.Finish()
 	if r.cancel != nil {
 		r.cancel()
 	}

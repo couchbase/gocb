@@ -6,7 +6,6 @@ import (
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
-	"github.com/opentracing/opentracing-go"
 
 	"github.com/pkg/errors"
 )
@@ -14,7 +13,7 @@ import (
 type client interface {
 	Hash() string
 	connect()
-	openCollection(ctx context.Context, traceCtx opentracing.SpanContext, scopeName string, collectionName string)
+	openCollection(ctx context.Context, scopeName string, collectionName string)
 	getKvProvider() (kvProvider, error)
 	getHTTPProvider() (httpProvider, error)
 	getDiagnosticsProvider() (diagnosticsProvider, error)
@@ -56,7 +55,6 @@ func (c *stdClient) connect() {
 		NmvRetryDelay:        100 * time.Millisecond,
 		UseKvErrorMaps:       true,
 		UseDurations:         true,
-		NoRootTraceSpans:     true,
 		UseCollections:       true,
 		UseEnhancedErrors:    true,
 	}
@@ -127,7 +125,7 @@ func (c *stdClient) getDiagnosticsProvider() (diagnosticsProvider, error) {
 	return c.agent, nil
 }
 
-func (c *stdClient) openCollection(ctx context.Context, traceCtx opentracing.SpanContext, scopeName string, collectionName string) {
+func (c *stdClient) openCollection(ctx context.Context, scopeName string, collectionName string) {
 	if scopeName == "_default" && collectionName == "_default" {
 		return
 	}
@@ -146,16 +144,15 @@ func (c *stdClient) openCollection(ctx context.Context, traceCtx opentracing.Spa
 	waitCh := make(chan struct{})
 	var colErr error
 
-	op, err := c.agent.GetCollectionID(scopeName, collectionName,
-		gocbcore.GetCollectionIDOptions{TraceContext: traceCtx}, func(manifestID uint64, cid uint32, err error) {
-			if err != nil {
-				colErr = err
-				waitCh <- struct{}{}
-				return
-			}
-
+	op, err := c.agent.GetCollectionID(scopeName, collectionName, gocbcore.GetCollectionIDOptions{}, func(manifestID uint64, cid uint32, err error) {
+		if err != nil {
+			colErr = err
 			waitCh <- struct{}{}
-		})
+			return
+		}
+
+		waitCh <- struct{}{}
+	})
 	if err != nil {
 		c.bootstrapErr = err
 	}

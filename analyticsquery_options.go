@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 )
 
@@ -17,7 +16,6 @@ type AnalyticsQueryOptions struct {
 	// If a timeout value is supplied with the context then that value will be propagated to the server
 	// and used to timeout the results stream.
 	Context              context.Context
-	ParentSpanContext    opentracing.SpanContext
 	ClientContextID      string
 	RawParam             map[string]interface{}
 	Priority             bool

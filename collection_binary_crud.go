@@ -5,7 +5,6 @@ import (
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
-	"github.com/opentracing/opentracing-go"
 )
 
 // CollectionBinary is a set of binary operations.
@@ -15,10 +14,9 @@ type CollectionBinary struct {
 
 // AppendOptions are the options available to the Append operation.
 type AppendOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
-	DurabilityLevel   DurabilityLevel
+	Timeout         time.Duration
+	Context         context.Context
+	DurabilityLevel DurabilityLevel
 }
 
 // Append appends a byte value to a document.
@@ -27,16 +25,13 @@ func (c *CollectionBinary) Append(key string, val []byte, opts *AppendOptions) (
 		opts = &AppendOptions{}
 	}
 
-	span := c.startKvOpTrace(opts.ParentSpanContext, "BinaryAppend")
-	defer span.Finish()
-
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.append(ctx, span.Context(), key, val, *opts)
+	res, err := c.append(ctx, key, val, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +39,7 @@ func (c *CollectionBinary) Append(key string, val []byte, opts *AppendOptions) (
 	return res, nil
 }
 
-func (c *CollectionBinary) append(ctx context.Context, traceCtx opentracing.SpanContext, key string, val []byte, opts AppendOptions) (mutOut *MutationResult, errOut error) {
+func (c *CollectionBinary) append(ctx context.Context, key string, val []byte, opts AppendOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -61,7 +56,6 @@ func (c *CollectionBinary) append(ctx context.Context, traceCtx opentracing.Span
 	err = ctrl.wait(agent.AppendEx(gocbcore.AdjoinOptions{
 		Key:                    []byte(key),
 		Value:                  val,
-		TraceContext:           traceCtx,
 		CollectionName:         c.name(),
 		ScopeName:              c.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
@@ -93,10 +87,9 @@ func (c *CollectionBinary) append(ctx context.Context, traceCtx opentracing.Span
 
 // PrependOptions are the options available to the Prepend operation.
 type PrependOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
-	DurabilityLevel   DurabilityLevel
+	Timeout         time.Duration
+	Context         context.Context
+	DurabilityLevel DurabilityLevel
 }
 
 // Prepend prepends a byte value to a document.
@@ -105,16 +98,13 @@ func (c *CollectionBinary) Prepend(key string, val []byte, opts *PrependOptions)
 		opts = &PrependOptions{}
 	}
 
-	span := c.startKvOpTrace(opts.ParentSpanContext, "BinaryPrepend")
-	defer span.Finish()
-
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.prepend(ctx, span.Context(), key, val, *opts)
+	res, err := c.prepend(ctx, key, val, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +112,7 @@ func (c *CollectionBinary) Prepend(key string, val []byte, opts *PrependOptions)
 	return res, nil
 }
 
-func (c *CollectionBinary) prepend(ctx context.Context, traceCtx opentracing.SpanContext, key string, val []byte, opts PrependOptions) (mutOut *MutationResult, errOut error) {
+func (c *CollectionBinary) prepend(ctx context.Context, key string, val []byte, opts PrependOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -139,7 +129,6 @@ func (c *CollectionBinary) prepend(ctx context.Context, traceCtx opentracing.Spa
 	err = ctrl.wait(agent.PrependEx(gocbcore.AdjoinOptions{
 		Key:                    []byte(key),
 		Value:                  val,
-		TraceContext:           traceCtx,
 		CollectionName:         c.name(),
 		ScopeName:              c.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
@@ -171,9 +160,8 @@ func (c *CollectionBinary) prepend(ctx context.Context, traceCtx opentracing.Spa
 
 // CounterOptions are the options available to the Counter operation.
 type CounterOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 	// Expiration is the length of time in seconds that the document will be stored in Couchbase.
 	// A value of 0 will set the document to never expire.
 	Expiration uint32
@@ -193,16 +181,13 @@ func (c *CollectionBinary) Increment(key string, opts *CounterOptions) (countOut
 		opts = &CounterOptions{}
 	}
 
-	span := c.startKvOpTrace(opts.ParentSpanContext, "Increment")
-	defer span.Finish()
-
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.increment(ctx, span.Context(), key, *opts)
+	res, err := c.increment(ctx, key, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +195,7 @@ func (c *CollectionBinary) Increment(key string, opts *CounterOptions) (countOut
 	return res, nil
 }
 
-func (c *CollectionBinary) increment(ctx context.Context, traceCtx opentracing.SpanContext, key string, opts CounterOptions) (countOut *CounterResult, errOut error) {
+func (c *CollectionBinary) increment(ctx context.Context, key string, opts CounterOptions) (countOut *CounterResult, errOut error) {
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
 	if opts.Initial >= 0 {
 		realInitial = uint64(opts.Initial)
@@ -234,7 +219,6 @@ func (c *CollectionBinary) increment(ctx context.Context, traceCtx opentracing.S
 		Delta:                  opts.Delta,
 		Initial:                realInitial,
 		Expiry:                 opts.Expiration,
-		TraceContext:           traceCtx,
 		CollectionName:         c.name(),
 		ScopeName:              c.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
@@ -277,16 +261,13 @@ func (c *CollectionBinary) Decrement(key string, opts *CounterOptions) (countOut
 		opts = &CounterOptions{}
 	}
 
-	span := c.startKvOpTrace(opts.ParentSpanContext, "Decrement")
-	defer span.Finish()
-
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.decrement(ctx, span.Context(), key, *opts)
+	res, err := c.decrement(ctx, key, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -294,7 +275,7 @@ func (c *CollectionBinary) Decrement(key string, opts *CounterOptions) (countOut
 	return res, nil
 }
 
-func (c *CollectionBinary) decrement(ctx context.Context, traceCtx opentracing.SpanContext, key string, opts CounterOptions) (countOut *CounterResult, errOut error) {
+func (c *CollectionBinary) decrement(ctx context.Context, key string, opts CounterOptions) (countOut *CounterResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -318,7 +299,6 @@ func (c *CollectionBinary) decrement(ctx context.Context, traceCtx opentracing.S
 		Delta:                  opts.Delta,
 		Initial:                realInitial,
 		Expiry:                 opts.Expiration,
-		TraceContext:           traceCtx,
 		CollectionName:         c.name(),
 		ScopeName:              c.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),

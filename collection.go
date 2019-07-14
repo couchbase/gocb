@@ -3,8 +3,6 @@ package gocb
 import (
 	"context"
 	"time"
-
-	"github.com/opentracing/opentracing-go"
 )
 
 // Collection represents a single collection.
@@ -14,7 +12,6 @@ type Collection struct {
 
 // CollectionOptions are the options available when opening a collection.
 type CollectionOptions struct {
-	ParentSpanContext opentracing.SpanContext
 	// Timeout specifies the amount of time to wait for the collection ID to be fetched.
 	Timeout time.Duration
 	Context context.Context
@@ -31,16 +28,13 @@ func newCollection(scope *Scope, collectionName string, opts *CollectionOptions)
 	collection.sb.CollectionName = collectionName
 	collection.sb.cacheClient()
 
-	span := collection.startKvOpTrace(opts.ParentSpanContext, "GetCollectionID")
-	defer span.Finish()
-
 	deadlinedCtx, cancel := collection.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
 	cli := collection.sb.getCachedClient()
-	cli.openCollection(deadlinedCtx, span.Context(), collection.sb.ScopeName, collection.sb.CollectionName)
+	cli.openCollection(deadlinedCtx, collection.sb.ScopeName, collection.sb.CollectionName)
 
 	return collection
 }
@@ -66,21 +60,4 @@ func (c *Collection) getKvProvider() (kvProvider, error) {
 	}
 
 	return agent, nil
-}
-
-// startKvOpTrace starts a new span for a given operationName. If parentSpanCtx is not nil then the span will be a
-// ChildOf that span context.
-func (c *Collection) startKvOpTrace(parentSpanCtx opentracing.SpanContext, operationName string) opentracing.Span {
-	var span opentracing.Span
-	if parentSpanCtx == nil {
-		span = opentracing.GlobalTracer().StartSpan(operationName,
-			opentracing.Tag{Key: "couchbase.collection", Value: c.sb.CollectionName},
-			opentracing.Tag{Key: "couchbase.service", Value: "kv"})
-	} else {
-		span = opentracing.GlobalTracer().StartSpan(operationName,
-			opentracing.Tag{Key: "couchbase.collection", Value: c.sb.CollectionName},
-			opentracing.Tag{Key: "couchbase.service", Value: "kv"}, opentracing.ChildOf(parentSpanCtx))
-	}
-
-	return span
 }

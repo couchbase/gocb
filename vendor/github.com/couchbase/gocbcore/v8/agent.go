@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/couchbaselabs/gocbconnstr"
-	"github.com/opentracing/opentracing-go"
 	"golang.org/x/net/http2"
 )
 
@@ -49,9 +48,6 @@ type Agent struct {
 	routingInfo routeDataPtr
 	kvErrorMap  kvErrorMapPtr
 	numVbuckets int
-
-	tracer           opentracing.Tracer
-	noRootTraceSpans bool
 
 	serverFailuresLock sync.Mutex
 	serverFailures     map[string]time.Time
@@ -142,8 +138,6 @@ type AgentConfig struct {
 	HttpMaxIdleConnsPerHost int
 	HttpIdleConnTimeout     time.Duration
 
-	Tracer                 opentracing.Tracer
-	NoRootTraceSpans       bool
 	UseZombieLogger        bool
 	ZombieLoggerInterval   time.Duration
 	ZombieLoggerSampleSize int
@@ -608,11 +602,6 @@ func createAgent(config *AgentConfig, initFn memdInitFunc) (*Agent, error) {
 		logDebugf("failed to configure http2: %s", err)
 	}
 
-	tracer := config.Tracer
-	if tracer == nil {
-		tracer = opentracing.NoopTracer{}
-	}
-
 	maxQueueSize := 2048
 
 	c := &Agent{
@@ -628,7 +617,6 @@ func createAgent(config *AgentConfig, initFn memdInitFunc) (*Agent, error) {
 		},
 		closeNotify:           make(chan struct{}),
 		useZombieLogger:       config.UseZombieLogger,
-		tracer:                tracer,
 		useMutationTokens:     config.UseMutationTokens,
 		useKvErrorMaps:        config.UseKvErrorMaps,
 		useEnhancedErrors:     config.UseEnhancedErrors,
@@ -636,7 +624,6 @@ func createAgent(config *AgentConfig, initFn memdInitFunc) (*Agent, error) {
 		compressionMinSize:    32,
 		compressionMinRatio:   0.83,
 		useDurations:          config.UseDurations,
-		noRootTraceSpans:      config.NoRootTraceSpans,
 		useCollections:        config.UseCollections,
 		serverFailures:        make(map[string]time.Time),
 		serverConnectTimeout:  7000 * time.Millisecond,

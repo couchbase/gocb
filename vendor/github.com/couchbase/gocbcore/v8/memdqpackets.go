@@ -5,8 +5,6 @@ import (
 	"sync/atomic"
 	"time"
 	"unsafe"
-
-	"github.com/opentracing/opentracing-go"
 )
 
 // The data for a response from a server.  This includes the
@@ -67,22 +65,17 @@ type memdQRequest struct {
 	// algorithms.
 	retryCount uint32
 
-	RootTraceContext opentracing.SpanContext
-	cmdTraceSpan     opentracing.Span
-	netTraceSpan     opentracing.Span
-
 	CollectionName string
 	ScopeName      string
 }
 
 func (req *memdQRequest) cloneNew() *memdQRequest {
 	return &memdQRequest{
-		memdPacket:       req.memdPacket,
-		ReplicaIdx:       req.ReplicaIdx,
-		Callback:         req.Callback,
-		Persistent:       req.Persistent,
-		owner:            req.owner,
-		RootTraceContext: req.RootTraceContext,
+		memdPacket: req.memdPacket,
+		ReplicaIdx: req.ReplicaIdx,
+		Callback:   req.Callback,
+		Persistent: req.Persistent,
+		owner:      req.owner,
 	}
 }
 
@@ -125,7 +118,6 @@ func (req *memdQRequest) Cancel() bool {
 		waitingIn.CancelRequest(req)
 	}
 
-	req.owner.cancelReqTrace(req, ErrCancelled)
 	req.processingLock.Unlock()
 	return true
 }

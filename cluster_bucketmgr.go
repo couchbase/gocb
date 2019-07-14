@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/couchbase/gocbcore/v8"
-	"github.com/opentracing/opentracing-go"
 )
 
 // BucketManager provides methods for performing bucket management operations.
@@ -154,9 +153,8 @@ func bucketDataInToSettings(bucketData *bucketDataIn) (string, BucketSettings) {
 
 // GetBucketOptions is the set of options available to the bucket manager Get operation.
 type GetBucketOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 }
 
 func contextFromMaybeTimeout(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
@@ -177,9 +175,6 @@ func (bm *BucketManager) Get(bucketName string, opts *GetBucketOptions) (*Bucket
 	if opts == nil {
 		opts = &GetBucketOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "Get", "bucketmgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
@@ -229,9 +224,8 @@ func (bm *BucketManager) Get(bucketName string, opts *GetBucketOptions) (*Bucket
 
 // GetAllBucketOptions is the set of options available to the bucket manager GetAll operation.
 type GetAllBucketOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 }
 
 // GetAll returns a list of all active buckets on the cluster.
@@ -239,9 +233,6 @@ func (bm *BucketManager) GetAll(opts *GetAllBucketOptions) (map[string]BucketSet
 	if opts == nil {
 		opts = &GetAllBucketOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "GetAll", "bucketmgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
@@ -295,9 +286,8 @@ func (bm *BucketManager) GetAll(opts *GetAllBucketOptions) (map[string]BucketSet
 
 // CreateBucketOptions is the set of options available to the bucket manager Create operation.
 type CreateBucketOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 }
 
 // Create creates a bucket on the cluster.
@@ -305,9 +295,6 @@ func (bm *BucketManager) Create(settings BucketSettings, opts *CreateBucketOptio
 	if opts == nil {
 		opts = &CreateBucketOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "Create", "bucketmgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
@@ -360,9 +347,8 @@ func (bm *BucketManager) Create(settings BucketSettings, opts *CreateBucketOptio
 
 // UpsertBucketOptions is the set of options available to the bucket manager Upsert operation.
 type UpsertBucketOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 }
 
 // Upsert creates or updates a bucket on the cluster.
@@ -370,9 +356,6 @@ func (bm *BucketManager) Upsert(settings BucketSettings, opts *UpsertBucketOptio
 	if opts == nil {
 		opts = &UpsertBucketOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "Upsert", "bucketmgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
@@ -420,9 +403,8 @@ func (bm *BucketManager) Upsert(settings BucketSettings, opts *UpsertBucketOptio
 
 // DropBucketOptions is the set of options available to the bucket manager Drop operation.
 type DropBucketOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 }
 
 // Drop will delete a bucket from the cluster by name.
@@ -430,9 +412,6 @@ func (bm *BucketManager) Drop(name string, opts *DropBucketOptions) error {
 	if opts == nil {
 		opts = &DropBucketOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "Drop", "bucketmgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
@@ -473,9 +452,8 @@ func (bm *BucketManager) Drop(name string, opts *DropBucketOptions) error {
 
 // FlushBucketOptions is the set of options available to the bucket manager Flush operation.
 type FlushBucketOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 }
 
 // Flush will delete all the of the data from a bucket.
@@ -484,9 +462,6 @@ func (bm *BucketManager) Flush(name string, opts *FlushBucketOptions) error {
 	if opts == nil {
 		opts = &FlushBucketOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "Flush", "bucketmgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {

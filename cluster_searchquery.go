@@ -10,7 +10,6 @@ import (
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/couchbaselabs/jsonx"
-	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 )
 
@@ -106,7 +105,6 @@ type SearchResults struct {
 
 	httpStatus   int
 	streamResult *streamingResult
-	strace       opentracing.Span
 	cancel       context.CancelFunc
 	ctx          context.Context
 }
@@ -204,9 +202,6 @@ func (r *SearchResults) Close() error {
 	}
 
 	err := r.streamResult.Close()
-	if r.strace != nil {
-		r.strace.Finish()
-	}
 	ctxErr := r.ctx.Err()
 	if r.cancel != nil {
 		r.cancel()
@@ -402,25 +397,15 @@ func (c *Cluster) SearchQuery(q SearchQuery, opts *SearchQueryOptions) (*SearchR
 		ctx = context.Background()
 	}
 
-	var span opentracing.Span
-	if opts.ParentSpanContext == nil {
-		span = opentracing.GlobalTracer().StartSpan("ExecuteSearchQuery",
-			opentracing.Tag{Key: "couchbase.service", Value: "fts"})
-	} else {
-		span = opentracing.GlobalTracer().StartSpan("ExecuteSearchQuery",
-			opentracing.Tag{Key: "couchbase.service", Value: "fts"}, opentracing.ChildOf(opts.ParentSpanContext))
-	}
-	defer span.Finish()
-
 	provider, err := c.getHTTPProvider()
 	if err != nil {
 		return nil, err
 	}
 
-	return c.searchQuery(ctx, span.Context(), q, opts, provider)
+	return c.searchQuery(ctx, q, opts, provider)
 }
 
-func (c *Cluster) searchQuery(ctx context.Context, traceCtx opentracing.SpanContext, q SearchQuery, opts *SearchQueryOptions,
+func (c *Cluster) searchQuery(ctx context.Context, q SearchQuery, opts *SearchQueryOptions,
 	provider httpProvider) (*SearchResults, error) {
 
 	qIndexName := q.indexName()
@@ -492,7 +477,7 @@ func (c *Cluster) searchQuery(ctx context.Context, traceCtx opentracing.SpanCont
 	var res *SearchResults
 	for {
 		retries++
-		res, err = c.executeSearchQuery(ctx, traceCtx, queryData, qIndexName, provider, cancel)
+		res, err = c.executeSearchQuery(ctx, queryData, qIndexName, provider, cancel)
 		if err == nil {
 			break
 		}
@@ -516,7 +501,7 @@ func (c *Cluster) searchQuery(ctx context.Context, traceCtx opentracing.SpanCont
 	return res, nil
 }
 
-func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.SpanContext, query jsonx.DelayedObject,
+func (c *Cluster) executeSearchQuery(ctx context.Context, query jsonx.DelayedObject,
 	qIndexName string, provider httpProvider, cancel context.CancelFunc) (*SearchResults, error) {
 
 	qBytes, err := json.Marshal(query)
@@ -532,11 +517,8 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.S
 		Body:    qBytes,
 	}
 
-	dtrace := opentracing.GlobalTracer().StartSpan("dispatch", opentracing.ChildOf(traceCtx))
-
 	resp, err := provider.DoHttpRequest(req)
 	if err != nil {
-		dtrace.Finish()
 		if err == gocbcore.ErrNoFtsService {
 			return nil, serviceNotAvailableError{message: gocbcore.ErrNoFtsService.Error()}
 		}
@@ -549,8 +531,6 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.S
 		return nil, errors.Wrap(err, "could not complete search http request")
 	}
 
-	dtrace.Finish()
-
 	epInfo, err := url.Parse(resp.Endpoint)
 	if err != nil {
 		logWarnf("Failed to parse N1QL source address")
@@ -559,15 +539,12 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.S
 		}
 	}
 
-	strace := opentracing.GlobalTracer().StartSpan("streaming", opentracing.ChildOf(traceCtx))
-
 	switch resp.StatusCode {
 	case 400:
 		// This goes against the FTS RFC but makes a better experience in Go
 		buf := new(bytes.Buffer)
 		_, err := buf.ReadFrom(resp.Body)
 		if err != nil {
-			strace.Finish()
 			return nil, err
 		}
 		respErrs := []string{buf.String()}
@@ -606,7 +583,6 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.S
 			httpStatus: resp.StatusCode,
 		}
 
-		strace.Finish()
 		return nil, err
 	}
 
@@ -619,7 +595,6 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.S
 
 	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)
 	if err != nil {
-		strace.Finish()
 		return nil, err
 	}
 
@@ -629,14 +604,12 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.S
 		if bodyErr != nil {
 			logDebugf("Failed to close socket (%s)", bodyErr.Error())
 		}
-		strace.Finish()
 		return nil, err
 	}
 
 	queryResults.streamResult = streamResult
 
 	if streamResult.HasRows() {
-		queryResults.strace = strace
 		queryResults.cancel = cancel
 		queryResults.ctx = ctx
 	} else {
@@ -644,7 +617,6 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, traceCtx opentracing.S
 		if bodyErr != nil {
 			logDebugf("Failed to close response body, %s", bodyErr.Error())
 		}
-		strace.Finish()
 
 		// There are no rows and there are errors so fast fail
 		if queryResults.err != nil {

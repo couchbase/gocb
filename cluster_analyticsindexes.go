@@ -9,7 +9,6 @@ import (
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
-	opentracing "github.com/opentracing/opentracing-go"
 )
 
 // AnalyticsIndexManager provides methods for performing Couchbase Analytics index management.
@@ -37,9 +36,8 @@ type AnalyticsIndex struct {
 
 // CreateAnalyticsDatasetOptions is the set of options available to the AnalyticsManager CreateDataset operation.
 type CreateAnalyticsDatasetOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 
 	IgnoreIfExists bool
 	// Condition can be used to set the WHERE clause for the dataset creation.
@@ -57,9 +55,6 @@ func (am *AnalyticsIndexManager) CreateDataset(bucketName, datasetName string, o
 	if opts == nil {
 		opts = &CreateAnalyticsDatasetOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "CreateDataset", "analyticsidxmgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
@@ -81,8 +76,7 @@ func (am *AnalyticsIndexManager) CreateDataset(bucketName, datasetName string, o
 
 	q := fmt.Sprintf("CREATE DATASET %s `%s` ON `%s` %s", ignoreStr, datasetName, bucketName, where)
 	result, err := am.executeQuery(q, &AnalyticsQueryOptions{
-		Context:           ctx,
-		ParentSpanContext: span.Context(),
+		Context: ctx,
 	})
 	if err != nil {
 		aErr, ok := err.(AnalyticsQueryError)
@@ -101,9 +95,8 @@ func (am *AnalyticsIndexManager) CreateDataset(bucketName, datasetName string, o
 
 // DropAnalyticsDatasetOptions is the set of options available to the AnalyticsManager DropDataset operation.
 type DropAnalyticsDatasetOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 
 	IgnoreIfNotExists bool
 }
@@ -113,9 +106,6 @@ func (am *AnalyticsIndexManager) DropDataset(datasetName string, opts *DropAnaly
 	if opts == nil {
 		opts = &DropAnalyticsDatasetOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "DropDataset", "analyticsidxmgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
@@ -129,8 +119,7 @@ func (am *AnalyticsIndexManager) DropDataset(datasetName string, opts *DropAnaly
 
 	q := fmt.Sprintf("DROP DATASET %s %s", datasetName, ignoreStr)
 	result, err := am.executeQuery(q, &AnalyticsQueryOptions{
-		Context:           ctx,
-		ParentSpanContext: span.Context(),
+		Context: ctx,
 	})
 	if err != nil {
 		aErr, ok := err.(AnalyticsQueryError)
@@ -149,9 +138,8 @@ func (am *AnalyticsIndexManager) DropDataset(datasetName string, opts *DropAnaly
 
 // GetAllAnalyticsDatasetsOptions is the set of options available to the AnalyticsManager GetAllDatasets operation.
 type GetAllAnalyticsDatasetsOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 }
 
 // GetAllDatasets gets all analytics datasets.
@@ -159,9 +147,6 @@ func (am *AnalyticsIndexManager) GetAllDatasets(opts *GetAllAnalyticsDatasetsOpt
 	if opts == nil {
 		opts = &GetAllAnalyticsDatasetsOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "GetAllDatasets", "analyticsidxmgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
@@ -171,8 +156,7 @@ func (am *AnalyticsIndexManager) GetAllDatasets(opts *GetAllAnalyticsDatasetsOpt
 	result, err := am.executeQuery(
 		"SELECT d.* FROM Metadata.`Dataset` d WHERE d.DataverseName <> \"Metadata\"",
 		&AnalyticsQueryOptions{
-			Context:           ctx,
-			ParentSpanContext: span.Context(),
+			Context: ctx,
 		})
 	if err != nil {
 		aErr, ok := err.(AnalyticsQueryError)
@@ -202,9 +186,8 @@ func (am *AnalyticsIndexManager) GetAllDatasets(opts *GetAllAnalyticsDatasetsOpt
 
 // CreateAnalyticsIndexOptions is the set of options available to the AnalyticsManager CreateIndex operation.
 type CreateAnalyticsIndexOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 
 	IgnoreIfExists bool
 }
@@ -226,9 +209,6 @@ func (am *AnalyticsIndexManager) CreateIndex(datasetName string, indexName strin
 		opts = &CreateAnalyticsIndexOptions{}
 	}
 
-	span := startSpan(opts.ParentSpanContext, "CreateIndex", "analyticsidxmgr")
-	defer span.Finish()
-
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
@@ -246,8 +226,7 @@ func (am *AnalyticsIndexManager) CreateIndex(datasetName string, indexName strin
 
 	q := fmt.Sprintf("CREATE INDEX `%s` %s ON `%s` (%s)", indexName, ignoreStr, datasetName, strings.Join(indexFields, ","))
 	result, err := am.executeQuery(q, &AnalyticsQueryOptions{
-		Context:           ctx,
-		ParentSpanContext: span.Context(),
+		Context: ctx,
 	})
 	if err != nil {
 		aErr, ok := err.(AnalyticsQueryError)
@@ -266,9 +245,8 @@ func (am *AnalyticsIndexManager) CreateIndex(datasetName string, indexName strin
 
 // DropAnalyticsIndexOptions is the set of options available to the AnalyticsManager DropIndex operation.
 type DropAnalyticsIndexOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 
 	IgnoreIfNotExists bool
 }
@@ -278,9 +256,6 @@ func (am *AnalyticsIndexManager) DropIndex(datasetName, indexName string, opts *
 	if opts == nil {
 		opts = &DropAnalyticsIndexOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "DropIndex", "analyticsidxmgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
@@ -294,8 +269,7 @@ func (am *AnalyticsIndexManager) DropIndex(datasetName, indexName string, opts *
 
 	q := fmt.Sprintf("DROP INDEX %s.%s %s", datasetName, indexName, ignoreStr)
 	result, err := am.executeQuery(q, &AnalyticsQueryOptions{
-		Context:           ctx,
-		ParentSpanContext: span.Context(),
+		Context: ctx,
 	})
 	if err != nil {
 		aErr, ok := err.(AnalyticsQueryError)
@@ -314,9 +288,8 @@ func (am *AnalyticsIndexManager) DropIndex(datasetName, indexName string, opts *
 
 // GetAllAnalyticsIndexesOptions is the set of options available to the AnalyticsManager GetAllIndexes operation.
 type GetAllAnalyticsIndexesOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 }
 
 // GetAllIndexes gets all analytics indexes.
@@ -324,9 +297,6 @@ func (am *AnalyticsIndexManager) GetAllIndexes(opts *GetAllAnalyticsIndexesOptio
 	if opts == nil {
 		opts = &GetAllAnalyticsIndexesOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "DropIndex", "analyticsidxmgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
@@ -336,8 +306,7 @@ func (am *AnalyticsIndexManager) GetAllIndexes(opts *GetAllAnalyticsIndexesOptio
 	result, err := am.executeQuery(
 		"SELECT d.* FROM Metadata.`Index` d WHERE d.DataverseName <> \"Metadata\"",
 		&AnalyticsQueryOptions{
-			Context:           ctx,
-			ParentSpanContext: span.Context(),
+			Context: ctx,
 		})
 	if err != nil {
 		aErr, ok := err.(AnalyticsQueryError)
@@ -367,9 +336,8 @@ func (am *AnalyticsIndexManager) GetAllIndexes(opts *GetAllAnalyticsIndexesOptio
 
 // ConnectAnalyticsLinkOptions is the set of options available to the AnalyticsManager ConnectLink operation.
 type ConnectAnalyticsLinkOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 }
 
 // ConnectLink connects an analytics link.
@@ -384,9 +352,6 @@ func (am *AnalyticsIndexManager) ConnectLink(linkName string, opts *ConnectAnaly
 		opts = &ConnectAnalyticsLinkOptions{}
 	}
 
-	span := startSpan(opts.ParentSpanContext, "ConnectLink", "analyticsidxmgr")
-	defer span.Finish()
-
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
@@ -395,8 +360,7 @@ func (am *AnalyticsIndexManager) ConnectLink(linkName string, opts *ConnectAnaly
 	result, err := am.executeQuery(
 		fmt.Sprintf("CONNECT LINK %s", linkName),
 		&AnalyticsQueryOptions{
-			Context:           ctx,
-			ParentSpanContext: span.Context(),
+			Context: ctx,
 		})
 	if err != nil {
 		aErr, ok := err.(AnalyticsQueryError)
@@ -415,9 +379,8 @@ func (am *AnalyticsIndexManager) ConnectLink(linkName string, opts *ConnectAnaly
 
 // DisconnectAnalyticsLinkOptions is the set of options available to the AnalyticsManager DisconnectLink operation.
 type DisconnectAnalyticsLinkOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 }
 
 // DisconnectLink disconnects an analytics link.
@@ -425,9 +388,6 @@ func (am *AnalyticsIndexManager) DisconnectLink(linkName string, opts *Disconnec
 	if opts == nil {
 		opts = &DisconnectAnalyticsLinkOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "DisconnectLink", "analyticsidxmgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
@@ -437,8 +397,7 @@ func (am *AnalyticsIndexManager) DisconnectLink(linkName string, opts *Disconnec
 	result, err := am.executeQuery(
 		fmt.Sprintf("DISCONNECT LINK %s", linkName),
 		&AnalyticsQueryOptions{
-			Context:           ctx,
-			ParentSpanContext: span.Context(),
+			Context: ctx,
 		})
 	if err != nil {
 		aErr, ok := err.(AnalyticsQueryError)
@@ -457,9 +416,8 @@ func (am *AnalyticsIndexManager) DisconnectLink(linkName string, opts *Disconnec
 
 // GetPendingMutationsAnalyticsOptions is the set of options available to the user manager GetPendingMutations operation.
 type GetPendingMutationsAnalyticsOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 }
 
 // GetPendingMutations returns the number of pending mutations for all indexes in the form of dataverse.dataset:mutations.
@@ -467,9 +425,6 @@ func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAn
 	if opts == nil {
 		opts = &GetPendingMutationsAnalyticsOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "GetPendingMutations", "analyticsidxmgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {

@@ -7,9 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	"github.com/couchbase/gocbcore/v8"
 	"github.com/couchbaselabs/gocbconnstr"
-	"github.com/opentracing/opentracing-go"
 )
 
 // Cluster represents a connection to a specific Couchbase cluster.
@@ -74,7 +73,6 @@ type ClusterCloseOptions struct {
 //   orphaned_response_logging (bool) - Whether to enable orphan response logging.
 //   orphaned_response_logging_interval (int) - How often to log orphan responses in ms.
 //   orphaned_response_logging_sample_size (int) - The number of samples to include in each orphaned response log.
-//   operation_tracing (bool) - Whether to enable tracing.
 func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 	connSpec, err := gocbconnstr.Parse(connStr)
 	if err != nil {
@@ -136,11 +134,6 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 	err = cluster.parseExtraConnStrOptions(connSpec)
 	if err != nil {
 		return nil, err
-	}
-
-	if !opentracing.IsGlobalTracerRegistered() && opts.EnableTracing {
-		// TODO: we'd add threshold logging here
-		opentracing.SetGlobalTracer(opentracing.NoopTracer{})
 	}
 
 	return cluster, nil

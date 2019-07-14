@@ -4,10 +4,9 @@ import (
 	"context"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
-	"github.com/opentracing/opentracing-go"
 )
 
-func (c *Collection) observeOnceCas(tracectx opentracing.SpanContext, key []byte, cas Cas, forDelete bool,
+func (c *Collection) observeOnceCas(key []byte, cas Cas, forDelete bool,
 	replicaIdx int, commCh chan uint, scopeName, collectionName string) (pendingOp, error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
@@ -17,7 +16,6 @@ func (c *Collection) observeOnceCas(tracectx opentracing.SpanContext, key []byte
 	return agent.ObserveEx(gocbcore.ObserveOptions{
 		Key:            key,
 		ReplicaIdx:     replicaIdx,
-		TraceContext:   tracectx,
 		ScopeName:      scopeName,
 		CollectionName: collectionName,
 	}, func(res *gocbcore.ObserveResult, err error) {
@@ -68,17 +66,16 @@ func (c *Collection) observeOnceCas(tracectx opentracing.SpanContext, key []byte
 	})
 }
 
-func (c *Collection) observeOnceSeqNo(tracectx opentracing.SpanContext, mt MutationToken, replicaIdx int, commCh chan uint) (pendingOp, error) {
+func (c *Collection) observeOnceSeqNo(mt MutationToken, replicaIdx int, commCh chan uint) (pendingOp, error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
 
 	return agent.ObserveVbEx(gocbcore.ObserveVbOptions{
-		VbId:         mt.token.VbId,
-		VbUuid:       mt.token.VbUuid,
-		ReplicaIdx:   replicaIdx,
-		TraceContext: tracectx,
+		VbId:       mt.token.VbId,
+		VbUuid:     mt.token.VbUuid,
+		ReplicaIdx: replicaIdx,
 	}, func(res *gocbcore.ObserveVbResult, err error) {
 		if err != nil || res == nil {
 			commCh <- 0
@@ -99,13 +96,13 @@ func (c *Collection) observeOnceSeqNo(tracectx opentracing.SpanContext, mt Mutat
 	})
 }
 
-func (c *Collection) observeOne(ctx context.Context, tracectx opentracing.SpanContext, key []byte, mt MutationToken,
+func (c *Collection) observeOne(ctx context.Context, key []byte, mt MutationToken,
 	cas Cas, forDelete bool, replicaIdx int, replicaCh, persistCh chan bool, scopeName, collectionName string) {
 	observeOnce := func(commCh chan uint) (pendingOp, error) {
 		if mt.token.VbUuid != 0 && mt.token.SeqNo != 0 {
-			return c.observeOnceSeqNo(tracectx, mt, replicaIdx, commCh)
+			return c.observeOnceSeqNo(mt, replicaIdx, commCh)
 		}
-		return c.observeOnceCas(tracectx, key, cas, forDelete, replicaIdx, commCh, scopeName, collectionName)
+		return c.observeOnceCas(key, cas, forDelete, replicaIdx, commCh, scopeName, collectionName)
 	}
 
 	sentReplicated := false
@@ -175,7 +172,6 @@ func (c *Collection) observeOne(ctx context.Context, tracectx opentracing.SpanCo
 
 type durabilitySettings struct {
 	ctx            context.Context
-	tracectx       opentracing.SpanContext
 	key            string
 	cas            Cas
 	mt             MutationToken
@@ -208,7 +204,7 @@ func (c *Collection) durability(settings durabilitySettings) error {
 	persistCh := make(chan bool, numServers)
 
 	for replicaIdx := 0; replicaIdx < numServers; replicaIdx++ {
-		go c.observeOne(settings.ctx, settings.tracectx, keyBytes, settings.mt, settings.cas, settings.forDelete,
+		go c.observeOne(settings.ctx, keyBytes, settings.mt, settings.cas, settings.forDelete,
 			replicaIdx, replicaCh, persistCh, settings.scopeName, settings.collectionName)
 	}
 

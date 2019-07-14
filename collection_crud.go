@@ -5,7 +5,6 @@ import (
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
-	"github.com/opentracing/opentracing-go"
 )
 
 type kvProvider interface {
@@ -112,9 +111,8 @@ type pendingOp gocbcore.PendingOp
 
 // UpsertOptions are options that can be applied to an Upsert operation.
 type UpsertOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 	// The expiration length in seconds
 	Expiration      uint32
 	PersistTo       uint
@@ -125,9 +123,8 @@ type UpsertOptions struct {
 
 // InsertOptions are options that can be applied to an Insert operation.
 type InsertOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 	// The expiration length in seconds
 	Expiration      uint32
 	PersistTo       uint
@@ -142,15 +139,12 @@ func (c *Collection) Insert(key string, val interface{}, opts *InsertOptions) (m
 		opts = &InsertOptions{}
 	}
 
-	span := c.startKvOpTrace(opts.ParentSpanContext, "Insert")
-	defer span.Finish()
-
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.insert(ctx, span.Context(), key, val, *opts)
+	res, err := c.insert(ctx, key, val, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +154,6 @@ func (c *Collection) Insert(key string, val interface{}, opts *InsertOptions) (m
 	}
 	return res, c.durability(durabilitySettings{
 		ctx:            opts.Context,
-		tracectx:       span.Context(),
 		key:            key,
 		cas:            res.Cas(),
 		mt:             res.MutationToken(),
@@ -172,7 +165,7 @@ func (c *Collection) Insert(key string, val interface{}, opts *InsertOptions) (m
 	})
 }
 
-func (c *Collection) insert(ctx context.Context, traceCtx opentracing.SpanContext, key string, val interface{}, opts InsertOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) insert(ctx context.Context, key string, val interface{}, opts InsertOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		errOut = err
@@ -184,13 +177,11 @@ func (c *Collection) insert(ctx context.Context, traceCtx opentracing.SpanContex
 		transcoder = c.sb.Transcoder
 	}
 
-	encodeSpan := opentracing.GlobalTracer().StartSpan("Encoding", opentracing.ChildOf(traceCtx))
 	bytes, flags, err := transcoder.Encode(val)
 	if err != nil {
 		errOut = err
 		return
 	}
-	encodeSpan.Finish()
 
 	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
 	if coerced {
@@ -205,7 +196,6 @@ func (c *Collection) insert(ctx context.Context, traceCtx opentracing.SpanContex
 		Value:                  bytes,
 		Flags:                  flags,
 		Expiry:                 opts.Expiration,
-		TraceContext:           traceCtx,
 		CollectionName:         c.name(),
 		ScopeName:              c.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
@@ -241,15 +231,12 @@ func (c *Collection) Upsert(key string, val interface{}, opts *UpsertOptions) (m
 		opts = &UpsertOptions{}
 	}
 
-	span := c.startKvOpTrace(opts.ParentSpanContext, "Upsert")
-	defer span.Finish()
-
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.upsert(ctx, span.Context(), key, val, *opts)
+	res, err := c.upsert(ctx, key, val, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -259,7 +246,6 @@ func (c *Collection) Upsert(key string, val interface{}, opts *UpsertOptions) (m
 	}
 	return res, c.durability(durabilitySettings{
 		ctx:            opts.Context,
-		tracectx:       span.Context(),
 		key:            key,
 		cas:            res.Cas(),
 		mt:             res.MutationToken(),
@@ -271,7 +257,7 @@ func (c *Collection) Upsert(key string, val interface{}, opts *UpsertOptions) (m
 	})
 }
 
-func (c *Collection) upsert(ctx context.Context, traceCtx opentracing.SpanContext, key string, val interface{}, opts UpsertOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) upsert(ctx context.Context, key string, val interface{}, opts UpsertOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		errOut = err
@@ -283,13 +269,11 @@ func (c *Collection) upsert(ctx context.Context, traceCtx opentracing.SpanContex
 		transcoder = c.sb.Transcoder
 	}
 
-	encodeSpan := opentracing.GlobalTracer().StartSpan("Encoding", opentracing.ChildOf(traceCtx))
 	bytes, flags, err := transcoder.Encode(val)
 	if err != nil {
 		errOut = err
 		return
 	}
-	encodeSpan.Finish()
 
 	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
 	if coerced {
@@ -304,7 +288,6 @@ func (c *Collection) upsert(ctx context.Context, traceCtx opentracing.SpanContex
 		Value:                  bytes,
 		Flags:                  flags,
 		Expiry:                 opts.Expiration,
-		TraceContext:           traceCtx,
 		CollectionName:         c.name(),
 		ScopeName:              c.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
@@ -336,15 +319,14 @@ func (c *Collection) upsert(ctx context.Context, traceCtx opentracing.SpanContex
 
 // ReplaceOptions are the options available to a Replace operation.
 type ReplaceOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
-	Expiration        uint32
-	Cas               Cas
-	PersistTo         uint
-	ReplicateTo       uint
-	DurabilityLevel   DurabilityLevel
-	Transcoder        Transcoder
+	Timeout         time.Duration
+	Context         context.Context
+	Expiration      uint32
+	Cas             Cas
+	PersistTo       uint
+	ReplicateTo     uint
+	DurabilityLevel DurabilityLevel
+	Transcoder      Transcoder
 }
 
 // Replace updates a document in the collection.
@@ -353,15 +335,12 @@ func (c *Collection) Replace(key string, val interface{}, opts *ReplaceOptions) 
 		opts = &ReplaceOptions{}
 	}
 
-	span := c.startKvOpTrace(opts.ParentSpanContext, "Replace")
-	defer span.Finish()
-
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.replace(ctx, span.Context(), key, val, *opts)
+	res, err := c.replace(ctx, key, val, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -371,7 +350,6 @@ func (c *Collection) Replace(key string, val interface{}, opts *ReplaceOptions) 
 	}
 	return res, c.durability(durabilitySettings{
 		ctx:            opts.Context,
-		tracectx:       span.Context(),
 		key:            key,
 		cas:            res.Cas(),
 		mt:             res.MutationToken(),
@@ -383,7 +361,7 @@ func (c *Collection) Replace(key string, val interface{}, opts *ReplaceOptions) 
 	})
 }
 
-func (c *Collection) replace(ctx context.Context, traceCtx opentracing.SpanContext, key string, val interface{}, opts ReplaceOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) replace(ctx context.Context, key string, val interface{}, opts ReplaceOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -394,13 +372,11 @@ func (c *Collection) replace(ctx context.Context, traceCtx opentracing.SpanConte
 		transcoder = c.sb.Transcoder
 	}
 
-	encodeSpan := opentracing.GlobalTracer().StartSpan("Encoding", opentracing.ChildOf(traceCtx))
 	bytes, flags, err := transcoder.Encode(val)
 	if err != nil {
 		errOut = err
 		return
 	}
-	encodeSpan.Finish()
 
 	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
 	if coerced {
@@ -416,7 +392,6 @@ func (c *Collection) replace(ctx context.Context, traceCtx opentracing.SpanConte
 		Flags:                  flags,
 		Expiry:                 opts.Expiration,
 		Cas:                    gocbcore.Cas(opts.Cas),
-		TraceContext:           traceCtx,
 		CollectionName:         c.name(),
 		ScopeName:              c.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
@@ -448,10 +423,9 @@ func (c *Collection) replace(ctx context.Context, traceCtx opentracing.SpanConte
 
 // GetOptions are the options available to a Get operation.
 type GetOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
-	WithExpiry        bool
+	Timeout    time.Duration
+	Context    context.Context
+	WithExpiry bool
 	// Project causes the Get operation to only fetch the fields indicated
 	// by the paths. The result of the operation is then treated as a
 	// standard GetResult.
@@ -473,9 +447,6 @@ func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOu
 		opts = &GetOptions{}
 	}
 
-	span := c.startKvOpTrace(opts.ParentSpanContext, "Get")
-	defer span.Finish()
-
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
@@ -487,7 +458,7 @@ func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOu
 
 	if (opts.Project == nil || (opts.Project != nil && len(opts.Project.Fields) > 16)) && !opts.WithExpiry {
 		// Standard fulldoc
-		doc, err := c.get(ctx, span.Context(), key, opts)
+		doc, err := c.get(ctx, key, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -507,7 +478,7 @@ func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOu
 		}
 	}
 
-	result, err := c.lookupIn(ctx, span.Context(), key, ops, lookupOpts)
+	result, err := c.lookupIn(ctx, key, ops, lookupOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -526,10 +497,7 @@ func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOu
 }
 
 // get performs a full document fetch against the collection
-func (c *Collection) get(ctx context.Context, traceCtx opentracing.SpanContext, key string, opts *GetOptions) (docOut *GetResult, errOut error) {
-	span := c.startKvOpTrace(traceCtx, "get")
-	defer span.Finish()
-
+func (c *Collection) get(ctx context.Context, key string, opts *GetOptions) (docOut *GetResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -538,7 +506,6 @@ func (c *Collection) get(ctx context.Context, traceCtx opentracing.SpanContext, 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.GetEx(gocbcore.GetOptions{
 		Key:            []byte(key),
-		TraceContext:   traceCtx,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.GetResult, err error) {
@@ -571,9 +538,8 @@ func (c *Collection) get(ctx context.Context, traceCtx opentracing.SpanContext, 
 
 // ExistsOptions are the options available to the Exists command.
 type ExistsOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 }
 
 // Exists checks if a document exists for the given key.
@@ -582,15 +548,12 @@ func (c *Collection) Exists(key string, opts *ExistsOptions) (docOut *ExistsResu
 		opts = &ExistsOptions{}
 	}
 
-	span := c.startKvOpTrace(opts.ParentSpanContext, "Exists")
-	defer span.Finish()
-
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.exists(ctx, span.Context(), key, *opts)
+	res, err := c.exists(ctx, key, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -598,7 +561,7 @@ func (c *Collection) Exists(key string, opts *ExistsOptions) (docOut *ExistsResu
 	return res, nil
 }
 
-func (c *Collection) exists(ctx context.Context, traceCtx opentracing.SpanContext, key string, opts ExistsOptions) (docOut *ExistsResult, errOut error) {
+func (c *Collection) exists(ctx context.Context, key string, opts ExistsOptions) (docOut *ExistsResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -607,7 +570,6 @@ func (c *Collection) exists(ctx context.Context, traceCtx opentracing.SpanContex
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.ObserveEx(gocbcore.ObserveOptions{
 		Key:            []byte(key),
-		TraceContext:   traceCtx,
 		ReplicaIdx:     0,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
@@ -639,10 +601,9 @@ func (c *Collection) exists(ctx context.Context, traceCtx opentracing.SpanContex
 
 // GetFromReplicaOptions are the options available to the Get Replica commands.
 type GetFromReplicaOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
-	Transcoder        Transcoder
+	Timeout    time.Duration
+	Context    context.Context
+	Transcoder Transcoder
 }
 
 // GetAnyReplica returns the value of a particular document from a replica server.
@@ -651,15 +612,12 @@ func (c *Collection) GetAnyReplica(key string, opts *GetFromReplicaOptions) (doc
 		opts = &GetFromReplicaOptions{}
 	}
 
-	span := c.startKvOpTrace(opts.ParentSpanContext, "GetAnyReplica")
-	defer span.Finish()
-
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.getAnyReplica(ctx, span.Context(), key, *opts)
+	res, err := c.getAnyReplica(ctx, key, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -667,7 +625,7 @@ func (c *Collection) GetAnyReplica(key string, opts *GetFromReplicaOptions) (doc
 	return res, nil
 }
 
-func (c *Collection) getAnyReplica(ctx context.Context, traceCtx opentracing.SpanContext, key string,
+func (c *Collection) getAnyReplica(ctx context.Context, key string,
 	opts GetFromReplicaOptions) (docOut *GetReplicaResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
@@ -681,7 +639,6 @@ func (c *Collection) getAnyReplica(ctx context.Context, traceCtx opentracing.Spa
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.GetAnyReplicaEx(gocbcore.GetAnyReplicaOptions{
 		Key:            []byte(key),
-		TraceContext:   traceCtx,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.GetReplicaResult, err error) {
@@ -719,12 +676,9 @@ func (c *Collection) GetAllReplicas(key string, opts *GetFromReplicaOptions) (do
 		opts = &GetFromReplicaOptions{}
 	}
 
-	span := c.startKvOpTrace(opts.ParentSpanContext, "GetAllReplicas")
-
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	agent, err := c.getKvProvider()
 	if err != nil {
-		span.Finish()
 		return nil, err
 	}
 
@@ -733,13 +687,11 @@ func (c *Collection) GetAllReplicas(key string, opts *GetFromReplicaOptions) (do
 	}
 
 	return &GetAllReplicasResult{
-		trace: span,
-		ctx:   ctx,
+		ctx: ctx,
 		opts: gocbcore.GetOneReplicaOptions{
 			Key:            []byte(key),
 			CollectionName: c.name(),
 			ScopeName:      c.scopeName(),
-			TraceContext:   span.Context(),
 		},
 		transcoder:  opts.Transcoder,
 		provider:    agent,
@@ -750,13 +702,12 @@ func (c *Collection) GetAllReplicas(key string, opts *GetFromReplicaOptions) (do
 
 // RemoveOptions are the options available to the Remove command.
 type RemoveOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
-	Cas               Cas
-	PersistTo         uint
-	ReplicateTo       uint
-	DurabilityLevel   DurabilityLevel
+	Timeout         time.Duration
+	Context         context.Context
+	Cas             Cas
+	PersistTo       uint
+	ReplicateTo     uint
+	DurabilityLevel DurabilityLevel
 }
 
 // Remove removes a document from the collection.
@@ -765,15 +716,12 @@ func (c *Collection) Remove(key string, opts *RemoveOptions) (mutOut *MutationRe
 		opts = &RemoveOptions{}
 	}
 
-	span := c.startKvOpTrace(opts.ParentSpanContext, "Remove")
-	defer span.Finish()
-
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.remove(ctx, span.Context(), key, *opts)
+	res, err := c.remove(ctx, key, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -783,7 +731,6 @@ func (c *Collection) Remove(key string, opts *RemoveOptions) (mutOut *MutationRe
 	}
 	return res, c.durability(durabilitySettings{
 		ctx:            opts.Context,
-		tracectx:       span.Context(),
 		key:            key,
 		cas:            res.Cas(),
 		mt:             res.MutationToken(),
@@ -795,7 +742,7 @@ func (c *Collection) Remove(key string, opts *RemoveOptions) (mutOut *MutationRe
 	})
 }
 
-func (c *Collection) remove(ctx context.Context, traceCtx opentracing.SpanContext, key string, opts RemoveOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) remove(ctx context.Context, key string, opts RemoveOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -812,7 +759,6 @@ func (c *Collection) remove(ctx context.Context, traceCtx opentracing.SpanContex
 	err = ctrl.wait(agent.DeleteEx(gocbcore.DeleteOptions{
 		Key:                    []byte(key),
 		Cas:                    gocbcore.Cas(opts.Cas),
-		TraceContext:           traceCtx,
 		CollectionName:         c.name(),
 		ScopeName:              c.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
@@ -844,10 +790,9 @@ func (c *Collection) remove(ctx context.Context, traceCtx opentracing.SpanContex
 
 // GetAndTouchOptions are the options available to the GetAndTouch operation.
 type GetAndTouchOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
-	Transcoder        Transcoder
+	Timeout    time.Duration
+	Context    context.Context
+	Transcoder Transcoder
 }
 
 // GetAndTouch retrieves a document and simultaneously updates its expiry time.
@@ -856,15 +801,12 @@ func (c *Collection) GetAndTouch(key string, expiration uint32, opts *GetAndTouc
 		opts = &GetAndTouchOptions{}
 	}
 
-	span := c.startKvOpTrace(opts.ParentSpanContext, "GetAndTouch")
-	defer span.Finish()
-
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.getAndTouch(ctx, span.Context(), key, expiration, *opts)
+	res, err := c.getAndTouch(ctx, key, expiration, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -872,7 +814,7 @@ func (c *Collection) GetAndTouch(key string, expiration uint32, opts *GetAndTouc
 	return res, nil
 }
 
-func (c *Collection) getAndTouch(ctx context.Context, traceCtx opentracing.SpanContext, key string, expiration uint32, opts GetAndTouchOptions) (docOut *GetResult, errOut error) {
+func (c *Collection) getAndTouch(ctx context.Context, key string, expiration uint32, opts GetAndTouchOptions) (docOut *GetResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -886,7 +828,6 @@ func (c *Collection) getAndTouch(ctx context.Context, traceCtx opentracing.SpanC
 	err = ctrl.wait(agent.GetAndTouchEx(gocbcore.GetAndTouchOptions{
 		Key:            []byte(key),
 		Expiry:         expiration,
-		TraceContext:   traceCtx,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.GetAndTouchResult, err error) {
@@ -919,10 +860,9 @@ func (c *Collection) getAndTouch(ctx context.Context, traceCtx opentracing.SpanC
 
 // GetAndLockOptions are the options available to the GetAndLock operation.
 type GetAndLockOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
-	Transcoder        Transcoder
+	Timeout    time.Duration
+	Context    context.Context
+	Transcoder Transcoder
 }
 
 // GetAndLock locks a document for a period of time, providing exclusive RW access to it.
@@ -931,22 +871,19 @@ func (c *Collection) GetAndLock(key string, expiration uint32, opts *GetAndLockO
 		opts = &GetAndLockOptions{}
 	}
 
-	span := c.startKvOpTrace(opts.ParentSpanContext, "GetAndLock")
-	defer span.Finish()
-
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.getAndLock(ctx, span.Context(), key, expiration, *opts)
+	res, err := c.getAndLock(ctx, key, expiration, *opts)
 	if err != nil {
 		return nil, err
 	}
 
 	return res, nil
 }
-func (c *Collection) getAndLock(ctx context.Context, traceCtx opentracing.SpanContext, key string, expiration uint32, opts GetAndLockOptions) (docOut *GetResult, errOut error) {
+func (c *Collection) getAndLock(ctx context.Context, key string, expiration uint32, opts GetAndLockOptions) (docOut *GetResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -960,7 +897,6 @@ func (c *Collection) getAndLock(ctx context.Context, traceCtx opentracing.SpanCo
 	err = ctrl.wait(agent.GetAndLockEx(gocbcore.GetAndLockOptions{
 		Key:            []byte(key),
 		LockTime:       expiration,
-		TraceContext:   traceCtx,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.GetAndLockResult, err error) {
@@ -993,10 +929,9 @@ func (c *Collection) getAndLock(ctx context.Context, traceCtx opentracing.SpanCo
 
 // UnlockOptions are the options available to the GetAndLock operation.
 type UnlockOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
-	Cas               Cas
+	Timeout time.Duration
+	Context context.Context
+	Cas     Cas
 }
 
 // Unlock unlocks a document which was locked with GetAndLock.
@@ -1005,15 +940,12 @@ func (c *Collection) Unlock(key string, opts *UnlockOptions) (mutOut *MutationRe
 		opts = &UnlockOptions{}
 	}
 
-	span := c.startKvOpTrace(opts.ParentSpanContext, "Unlock")
-	defer span.Finish()
-
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.unlock(ctx, span.Context(), key, *opts)
+	res, err := c.unlock(ctx, key, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -1021,7 +953,7 @@ func (c *Collection) Unlock(key string, opts *UnlockOptions) (mutOut *MutationRe
 	return res, nil
 }
 
-func (c *Collection) unlock(ctx context.Context, traceCtx opentracing.SpanContext, key string, opts UnlockOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) unlock(ctx context.Context, key string, opts UnlockOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -1031,7 +963,6 @@ func (c *Collection) unlock(ctx context.Context, traceCtx opentracing.SpanContex
 	err = ctrl.wait(agent.UnlockEx(gocbcore.UnlockOptions{
 		Key:            []byte(key),
 		Cas:            gocbcore.Cas(opts.Cas),
-		TraceContext:   traceCtx,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.UnlockResult, err error) {
@@ -1061,10 +992,9 @@ func (c *Collection) unlock(ctx context.Context, traceCtx opentracing.SpanContex
 
 // TouchOptions are the options available to the Touch operation.
 type TouchOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
-	DurabilityLevel   DurabilityLevel
+	Timeout         time.Duration
+	Context         context.Context
+	DurabilityLevel DurabilityLevel
 }
 
 // Touch touches a document, specifying a new expiry time for it.
@@ -1073,15 +1003,12 @@ func (c *Collection) Touch(key string, expiration uint32, opts *TouchOptions) (m
 		opts = &TouchOptions{}
 	}
 
-	span := c.startKvOpTrace(opts.ParentSpanContext, "Touch")
-	defer span.Finish()
-
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.touch(ctx, span.Context(), key, expiration, *opts)
+	res, err := c.touch(ctx, key, expiration, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -1089,7 +1016,7 @@ func (c *Collection) Touch(key string, expiration uint32, opts *TouchOptions) (m
 	return res, nil
 }
 
-func (c *Collection) touch(ctx context.Context, traceCtx opentracing.SpanContext, key string, expiration uint32, opts TouchOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) touch(ctx context.Context, key string, expiration uint32, opts TouchOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -1106,7 +1033,6 @@ func (c *Collection) touch(ctx context.Context, traceCtx opentracing.SpanContext
 	err = ctrl.wait(agent.TouchEx(gocbcore.TouchOptions{
 		Key:                    []byte(key),
 		Expiry:                 expiration,
-		TraceContext:           traceCtx,
 		CollectionName:         c.name(),
 		ScopeName:              c.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),

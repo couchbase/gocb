@@ -8,8 +8,6 @@ import (
 
 	"github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
-
-	"github.com/opentracing/opentracing-go"
 )
 
 type n1qlCache struct {
@@ -73,7 +71,6 @@ type QueryResults struct {
 	httpStatus int
 
 	streamResult       *streamingResult
-	strace             opentracing.Span
 	cancel             context.CancelFunc
 	ctx                context.Context
 	enhancedStatements bool
@@ -122,9 +119,6 @@ func (r *QueryResults) Close() error {
 	}
 
 	err := r.streamResult.Close()
-	if r.strace != nil {
-		r.strace.Finish()
-	}
 	ctxErr := r.ctx.Err()
 	if r.cancel != nil {
 		r.cancel()
@@ -297,7 +291,7 @@ type clusterCapabilityProvider interface {
 	SupportsClusterCapability(capability gocbcore.ClusterCapability) bool
 }
 
-type doQueryFn func(ctx context.Context, traceCtx opentracing.SpanContext, opts map[string]interface{},
+type doQueryFn func(ctx context.Context, opts map[string]interface{},
 	provider httpProvider, cancel context.CancelFunc) (*QueryResults, error)
 
 // Query executes the N1QL query statement on the server n1qlEp.
@@ -313,25 +307,15 @@ func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResults, er
 		ctx = context.Background()
 	}
 
-	var span opentracing.Span
-	if opts.ParentSpanContext == nil {
-		span = opentracing.GlobalTracer().StartSpan("ExecuteN1QLQuery",
-			opentracing.Tag{Key: "couchbase.service", Value: "n1ql"})
-	} else {
-		span = opentracing.GlobalTracer().StartSpan("ExecuteN1QLQuery",
-			opentracing.Tag{Key: "couchbase.service", Value: "n1ql"}, opentracing.ChildOf(opts.ParentSpanContext))
-	}
-	defer span.Finish()
-
 	provider, err := c.getHTTPProvider()
 	if err != nil {
 		return nil, err
 	}
 
-	return c.query(ctx, span.Context(), statement, opts, provider)
+	return c.query(ctx, statement, opts, provider)
 }
 
-func (c *Cluster) query(ctx context.Context, traceCtx opentracing.SpanContext, statement string, opts *QueryOptions,
+func (c *Cluster) query(ctx context.Context, statement string, opts *QueryOptions,
 	provider httpProvider) (*QueryResults, error) {
 
 	queryOpts, err := opts.toMap(statement)
@@ -377,13 +361,9 @@ func (c *Cluster) query(ctx context.Context, traceCtx opentracing.SpanContext, s
 
 	var res *QueryResults
 	if opts.Prepared {
-		etrace := opentracing.GlobalTracer().StartSpan("execute", opentracing.ChildOf(traceCtx))
-		res, err = c.doPreparedN1qlQuery(ctx, traceCtx, queryOpts, provider, cancel, opts.Serializer)
-		etrace.Finish()
+		res, err = c.doPreparedN1qlQuery(ctx, queryOpts, provider, cancel, opts.Serializer)
 	} else {
-		etrace := opentracing.GlobalTracer().StartSpan("execute", opentracing.ChildOf(traceCtx))
-		res, err = c.doRetryableQuery(ctx, traceCtx, queryOpts, provider, cancel, opts.Serializer)
-		etrace.Finish()
+		res, err = c.doRetryableQuery(ctx, queryOpts, provider, cancel, opts.Serializer)
 	}
 
 	if err != nil {
@@ -397,7 +377,7 @@ func (c *Cluster) query(ctx context.Context, traceCtx opentracing.SpanContext, s
 	return res, nil
 }
 
-func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, traceCtx opentracing.SpanContext, queryOpts map[string]interface{},
+func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]interface{},
 	provider httpProvider, cancel context.CancelFunc, serializer Serializer) (*QueryResults, error) {
 
 	if capabilitySupporter, ok := provider.(clusterCapabilityProvider); ok {
@@ -425,15 +405,10 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, traceCtx opentracing.
 		queryOpts["prepared"] = cachedStmt.name
 		queryOpts["encoded_plan"] = cachedStmt.encodedPlan
 
-		etrace := opentracing.GlobalTracer().StartSpan("execute", opentracing.ChildOf(traceCtx))
-
-		results, err := c.doRetryableQuery(ctx, etrace.Context(), queryOpts, provider, cancel, serializer)
+		results, err := c.doRetryableQuery(ctx, queryOpts, provider, cancel, serializer)
 		if err == nil {
-			etrace.Finish()
 			return results, nil
 		}
-
-		etrace.Finish()
 
 		// If we get error 4050, 4070 or 5000, we should attempt
 		//   to re-prepare the statement immediately before failing.
@@ -443,16 +418,12 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, traceCtx opentracing.
 	}
 
 	// Prepare the query
-	ptrace := opentracing.GlobalTracer().StartSpan("prepare", opentracing.ChildOf(traceCtx))
 
 	var err error
-	cachedStmt, err = c.prepareN1qlQuery(ctx, ptrace.Context(), queryOpts, provider)
+	cachedStmt, err = c.prepareN1qlQuery(ctx, queryOpts, provider)
 	if err != nil {
-		ptrace.Finish()
 		return nil, err
 	}
-
-	ptrace.Finish()
 
 	// Save new cached statement
 	c.clusterLock.Lock()
@@ -464,13 +435,10 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, traceCtx opentracing.
 	queryOpts["prepared"] = cachedStmt.name
 	queryOpts["encoded_plan"] = cachedStmt.encodedPlan
 
-	etrace := opentracing.GlobalTracer().StartSpan("execute", opentracing.ChildOf(traceCtx))
-	defer etrace.Finish()
-
-	return c.doRetryableQuery(ctx, etrace.Context(), queryOpts, provider, cancel, serializer)
+	return c.doRetryableQuery(ctx, queryOpts, provider, cancel, serializer)
 }
 
-func (c *Cluster) prepareN1qlQuery(ctx context.Context, traceCtx opentracing.SpanContext, opts map[string]interface{},
+func (c *Cluster) prepareN1qlQuery(ctx context.Context, opts map[string]interface{},
 	provider httpProvider) (*n1qlCache, error) {
 
 	prepOpts := make(map[string]interface{})
@@ -481,7 +449,7 @@ func (c *Cluster) prepareN1qlQuery(ctx context.Context, traceCtx opentracing.Spa
 
 	// There's no need to pass cancel here, if there's an error then we'll cancel further up the stack
 	// and if there isn't then we run another query later where we will cancel
-	prepRes, err := c.doRetryableQuery(ctx, traceCtx, prepOpts, provider, nil, &DefaultSerializer{})
+	prepRes, err := c.doRetryableQuery(ctx, prepOpts, provider, nil, &DefaultSerializer{})
 	if err != nil {
 		return nil, err
 	}
@@ -498,7 +466,7 @@ func (c *Cluster) prepareN1qlQuery(ctx context.Context, traceCtx opentracing.Spa
 	}, nil
 }
 
-func (c *Cluster) doRetryableQuery(ctx context.Context, traceCtx opentracing.SpanContext, queryOpts map[string]interface{},
+func (c *Cluster) doRetryableQuery(ctx context.Context, queryOpts map[string]interface{},
 	provider httpProvider, cancel context.CancelFunc, serializer Serializer) (*QueryResults, error) {
 	var res *QueryResults
 	var err error
@@ -507,9 +475,7 @@ func (c *Cluster) doRetryableQuery(ctx context.Context, traceCtx opentracing.Spa
 	enhancedStatements := c.supportsEnhancedPreparedStatements()
 	for {
 		retries++
-		etrace := opentracing.GlobalTracer().StartSpan("execute", opentracing.ChildOf(traceCtx))
-		res, err = c.executeN1qlQuery(ctx, traceCtx, queryOpts, provider, cancel, endpoint, serializer)
-		etrace.Finish()
+		res, err = c.executeN1qlQuery(ctx, queryOpts, provider, cancel, endpoint, serializer)
 		if err == nil {
 			break
 		}
@@ -540,7 +506,7 @@ type n1qlPrepData struct {
 // This function assumes that `opts` already contains all the required
 // settings. This function will inject any additional connection or request-level
 // settings into the `opts` map.
-func (c *Cluster) executeN1qlQuery(ctx context.Context, traceCtx opentracing.SpanContext, opts map[string]interface{},
+func (c *Cluster) executeN1qlQuery(ctx context.Context, opts map[string]interface{},
 	provider httpProvider, cancel context.CancelFunc, endpoint string, serializer Serializer) (*QueryResults, error) {
 
 	reqJSON, err := json.Marshal(opts)
@@ -557,11 +523,8 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, traceCtx opentracing.Spa
 		Endpoint: endpoint,
 	}
 
-	dtrace := opentracing.GlobalTracer().StartSpan("dispatch", opentracing.ChildOf(traceCtx))
-
 	resp, err := provider.DoHttpRequest(req)
 	if err != nil {
-		dtrace.Finish()
 		if err == gocbcore.ErrNoN1qlService {
 			return nil, serviceNotAvailableError{message: gocbcore.ErrNoN1qlService.Error()}
 		}
@@ -574,12 +537,6 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, traceCtx opentracing.Spa
 		return nil, errors.Wrap(err, "could not complete query http request")
 	}
 
-	dtrace.Finish()
-
-	// TODO(brett19): place the server_duration in the right place...
-	// srvDuration, _ := time.ParseDuration(n1qlResp.Metrics.ExecutionTime)
-	// strace.SetTag("server_duration", srvDuration)
-
 	epInfo, err := url.Parse(resp.Endpoint)
 	if err != nil {
 		logWarnf("Failed to parse N1QL source address")
@@ -587,8 +544,6 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, traceCtx opentracing.Spa
 			Host: "",
 		}
 	}
-
-	strace := opentracing.GlobalTracer().StartSpan("streaming", opentracing.ChildOf(traceCtx))
 
 	queryResults := &QueryResults{
 		metadata: QueryResultsMetadata{
@@ -601,7 +556,6 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, traceCtx opentracing.Spa
 
 	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)
 	if err != nil {
-		strace.Finish()
 		return nil, err
 	}
 
@@ -611,16 +565,12 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, traceCtx opentracing.Spa
 		if bodyErr != nil {
 			logDebugf("Failed to close socket (%s)", bodyErr.Error())
 		}
-		strace.Finish()
 		return nil, err
 	}
 
 	queryResults.streamResult = streamResult
 
-	strace.SetTag("couchbase.operation_id", queryResults.metadata.requestID)
-
 	if streamResult.HasRows() {
-		queryResults.strace = strace
 		queryResults.cancel = cancel
 		queryResults.ctx = ctx
 	} else {
@@ -628,7 +578,6 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, traceCtx opentracing.Spa
 		if bodyErr != nil {
 			logDebugf("Failed to close response body, %s", bodyErr.Error())
 		}
-		strace.Finish()
 
 		// There are no rows and there are errors so fast fail
 		if queryResults.err != nil {

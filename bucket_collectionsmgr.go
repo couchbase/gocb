@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/couchbase/gocbcore/v8"
-	"github.com/opentracing/opentracing-go"
 )
 
 // CollectionManager provides methods for performing collections management.
@@ -19,9 +18,8 @@ type CollectionManager struct {
 
 // CreateCollectionOptions is the set of options available to the CreateCollection operation.
 type CreateCollectionOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 }
 
 // CreateCollection creates a new collection on the bucket.
@@ -35,9 +33,6 @@ func (cm *CollectionManager) CreateCollection(scopeName, collectionName string, 
 	if opts == nil {
 		opts = &CreateCollectionOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "CreateCollection", "collectionmgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
@@ -87,9 +82,8 @@ func (cm *CollectionManager) CreateCollection(scopeName, collectionName string, 
 
 // DropCollectionOptions is the set of options available to the DropCollection operation.
 type DropCollectionOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 }
 
 // DropCollection removes a collection.
@@ -97,9 +91,6 @@ func (cm *CollectionManager) DropCollection(scopeName, collectionName string, op
 	if opts == nil {
 		opts = &DropCollectionOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "DropCollection", "collectionmgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
@@ -144,9 +135,8 @@ func (cm *CollectionManager) DropCollection(scopeName, collectionName string, op
 
 // CreateScopeOptions is the set of options available to the CreateScope operation.
 type CreateScopeOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 }
 
 // CreateScope creates a new scope on the bucket.
@@ -160,9 +150,6 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 	if opts == nil {
 		opts = &CreateScopeOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "CreateScope", "collectionmgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
@@ -212,9 +199,8 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 
 // DropScopeOptions is the set of options available to the DropScope operation.
 type DropScopeOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 }
 
 // DropScope removes a scope.
@@ -222,9 +208,6 @@ func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions)
 	if opts == nil {
 		opts = &DropScopeOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "DropScope", "collectionmgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {

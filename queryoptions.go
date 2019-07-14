@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 )
 
@@ -50,8 +49,7 @@ type QueryOptions struct {
 	// If Context is used then cancellation will only be applicable during initial http connect.
 	// If a timeout value is supplied with the context then that value will be propagated to the server
 	// and used to timeout the results stream.
-	Context           context.Context
-	ParentSpanContext opentracing.SpanContext
+	Context context.Context
 	// Custom allows specifying custom query options.
 	Custom map[string]interface{}
 

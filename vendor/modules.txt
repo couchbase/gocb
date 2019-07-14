@@ -1,4 +1,4 @@
-# github.com/couchbase/gocbcore/v8 v8.0.0-alpha.3.0.20190516084934-47c41d6c5106
+# github.com/couchbase/gocbcore/v8 v8.0.0-alpha.3.0.20190718141655-8dc893f4d0b9
 github.com/couchbase/gocbcore/v8
 # github.com/couchbaselabs/gocbconnstr v1.0.2
 github.com/couchbaselabs/gocbconnstr
@@ -10,9 +10,6 @@ github.com/couchbaselabs/jsonx
 github.com/golang/snappy
 # github.com/google/uuid v1.1.1
 github.com/google/uuid
-# github.com/opentracing/opentracing-go v1.0.3-0.20190218023034-25a84ff92183
-github.com/opentracing/opentracing-go
-github.com/opentracing/opentracing-go/log
 # github.com/pkg/errors v0.8.1
 github.com/pkg/errors
 # golang.org/x/net v0.0.0-20190311183353-d8887717615a

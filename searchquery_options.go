@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 )
 
@@ -53,18 +52,17 @@ type SearchHighlightOptions struct {
 
 // SearchQueryOptions represents a pending search query.
 type SearchQueryOptions struct {
-	Limit             int
-	Skip              int
-	Explain           bool
-	Highlight         *SearchHighlightOptions
-	Fields            []string
-	Sort              []interface{}
-	Facets            map[string]interface{}
-	Timeout           time.Duration
-	Consistency       ConsistencyMode
-	ConsistentWith    *MutationState
-	Context           context.Context
-	ParentSpanContext opentracing.SpanContext
+	Limit          int
+	Skip           int
+	Explain        bool
+	Highlight      *SearchHighlightOptions
+	Fields         []string
+	Sort           []interface{}
+	Facets         map[string]interface{}
+	Timeout        time.Duration
+	Consistency    ConsistencyMode
+	ConsistentWith *MutationState
+	Context        context.Context
 }
 
 func (opts *SearchQueryOptions) toOptionsData() (*searchQueryOptionsData, error) {

@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
-	"github.com/opentracing/opentracing-go"
+	"github.com/couchbase/gocbcore/v8"
 )
 
 type mockClient struct {
@@ -377,7 +376,7 @@ func (mc *mockClient) close() error {
 	return nil
 }
 
-func (mc *mockClient) openCollection(ctx context.Context, traceCtx opentracing.SpanContext, scopeName string, collectionName string) {
+func (mc *mockClient) openCollection(ctx context.Context, scopeName string, collectionName string) {
 }
 
 func (mc *mockClient) getKvProvider() (kvProvider, error) {

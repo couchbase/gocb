@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/couchbase/gocbcore/v8"
-	"github.com/opentracing/opentracing-go"
 )
 
 // UserManager provides methods for performing Couchbase user management.
@@ -72,9 +71,8 @@ func transformUserJson(userData *userJson) User {
 
 // GetAllUsersOptions is the set of options available to the user manager GetAll operation.
 type GetAllUsersOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 
 	DomainName string
 }
@@ -88,9 +86,6 @@ func (um *UserManager) GetAll(opts *GetAllUsersOptions) ([]*User, error) {
 	if opts.DomainName == "" {
 		opts.DomainName = string(LocalDomain)
 	}
-
-	span := startSpan(opts.ParentSpanContext, "GetAll", "usermgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
@@ -139,9 +134,8 @@ func (um *UserManager) GetAll(opts *GetAllUsersOptions) ([]*User, error) {
 
 // GetUserOptions is the set of options available to the user manager Get operation.
 type GetUserOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 
 	DomainName string
 }
@@ -155,9 +149,6 @@ func (um *UserManager) Get(name string, opts *GetUserOptions) (*User, error) {
 	if opts.DomainName == "" {
 		opts.DomainName = string(LocalDomain)
 	}
-
-	span := startSpan(opts.ParentSpanContext, "Get", "usermgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
@@ -201,9 +192,8 @@ func (um *UserManager) Get(name string, opts *GetUserOptions) (*User, error) {
 
 // UpsertUserOptions is the set of options available to the user manager Upsert operation.
 type UpsertUserOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 
 	DomainName string
 }
@@ -217,9 +207,6 @@ func (um *UserManager) Upsert(name string, password string, roles []UserRole, op
 	if opts.DomainName == "" {
 		opts.DomainName = string(LocalDomain)
 	}
-
-	span := startSpan(opts.ParentSpanContext, "Upsert", "usermgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
@@ -267,9 +254,8 @@ func (um *UserManager) Upsert(name string, password string, roles []UserRole, op
 
 // DropUserOptions is the set of options available to the user manager Drop operation.
 type DropUserOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 
 	DomainName string
 }
@@ -283,9 +269,6 @@ func (um *UserManager) Drop(name string, opts *DropUserOptions) error {
 	if opts.DomainName == "" {
 		opts.DomainName = string(LocalDomain)
 	}
-
-	span := startSpan(opts.ParentSpanContext, "Remove", "usermgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {

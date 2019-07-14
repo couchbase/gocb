@@ -4,8 +4,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/opentracing/opentracing-go"
 )
 
 // PingResult contains the results of a ping to a single server.
@@ -55,7 +53,6 @@ func (pop *pingOp) handledOneLocked() {
 
 // PingKvOptions encapsulates the parameters for a PingKvEx operation.
 type PingKvOptions struct {
-	TraceContext opentracing.SpanContext
 }
 
 // PingKvResult encapsulates the result of a PingKvEx operation.

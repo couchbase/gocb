@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 )
 
@@ -43,23 +42,22 @@ type Range struct {
 
 // ViewOptions represents the options available when executing view query.
 type ViewOptions struct {
-	Stale             StaleMode
-	Skip              uint
-	Limit             uint
-	Order             SortOrder
-	Reduce            bool
-	Group             bool
-	GroupLevel        uint
-	Key               interface{}
-	Keys              []interface{}
-	Range             *Range
-	IDRangeStart      string
-	IDRangeEnd        string
-	Development       bool
-	Custom            map[string]string
-	Context           context.Context
-	Timeout           time.Duration
-	ParentSpanContext opentracing.SpanContext
+	Stale        StaleMode
+	Skip         uint
+	Limit        uint
+	Order        SortOrder
+	Reduce       bool
+	Group        bool
+	GroupLevel   uint
+	Key          interface{}
+	Keys         []interface{}
+	Range        *Range
+	IDRangeStart string
+	IDRangeEnd   string
+	Development  bool
+	Custom       map[string]string
+	Context      context.Context
+	Timeout      time.Duration
 }
 
 func (opts *ViewOptions) toURLValues() (*url.Values, error) {

@@ -2,14 +2,11 @@ package gocbcore
 
 import (
 	"encoding/binary"
-
-	"github.com/opentracing/opentracing-go"
 )
 
 // GetMetaOptions encapsulates the parameters for a GetMetaEx operation.
 type GetMetaOptions struct {
 	Key            []byte
-	TraceContext   opentracing.SpanContext
 	CollectionName string
 	ScopeName      string
 }
@@ -30,17 +27,13 @@ type GetMetaExCallback func(*GetMetaResult, error)
 
 // GetMetaEx retrieves a document along with some internal Couchbase meta-data.
 func (agent *Agent) GetMetaEx(opts GetMetaOptions, cb GetMetaExCallback) (PendingOp, error) {
-	tracer := agent.createOpTrace("GetMetaEx", nil)
-
 	handler := func(resp *memdQResponse, req *memdQRequest, err error) {
 		if err != nil {
-			tracer.Finish()
 			cb(nil, err)
 			return
 		}
 
 		if len(resp.Extras) != 21 {
-			tracer.Finish()
 			cb(nil, ErrProtocol)
 			return
 		}
@@ -51,7 +44,6 @@ func (agent *Agent) GetMetaEx(opts GetMetaOptions, cb GetMetaExCallback) (Pendin
 		seqNo := SeqNo(binary.BigEndian.Uint64(resp.Extras[12:]))
 		dataType := resp.Extras[20]
 
-		tracer.Finish()
 		cb(&GetMetaResult{
 			Value:    resp.Value,
 			Flags:    flags,
@@ -76,10 +68,9 @@ func (agent *Agent) GetMetaEx(opts GetMetaOptions, cb GetMetaExCallback) (Pendin
 			Key:      opts.Key,
 			Value:    nil,
 		},
-		Callback:         handler,
-		RootTraceContext: tracer.RootContext(),
-		CollectionName:   opts.CollectionName,
-		ScopeName:        opts.ScopeName,
+		Callback:       handler,
+		CollectionName: opts.CollectionName,
+		ScopeName:      opts.ScopeName,
 	}
 
 	return agent.dispatchOp(req)
@@ -96,7 +87,6 @@ type SetMetaOptions struct {
 	Expiry         uint32
 	Cas            Cas
 	RevNo          uint64
-	TraceContext   opentracing.SpanContext
 	CollectionName string
 	ScopeName      string
 }
@@ -112,11 +102,8 @@ type SetMetaExCallback func(*SetMetaResult, error)
 
 // SetMetaEx stores a document along with setting some internal Couchbase meta-data.
 func (agent *Agent) SetMetaEx(opts SetMetaOptions, cb SetMetaExCallback) (PendingOp, error) {
-	tracer := agent.createOpTrace("GetMetaEx", nil)
-
 	handler := func(resp *memdQResponse, req *memdQRequest, err error) {
 		if err != nil {
-			tracer.Finish()
 			cb(nil, err)
 			return
 		}
@@ -128,7 +115,6 @@ func (agent *Agent) SetMetaEx(opts SetMetaOptions, cb SetMetaExCallback) (Pendin
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
 
-		tracer.Finish()
 		cb(&SetMetaResult{
 			Cas:           Cas(resp.Cas),
 			MutationToken: mutToken,
@@ -153,10 +139,9 @@ func (agent *Agent) SetMetaEx(opts SetMetaOptions, cb SetMetaExCallback) (Pendin
 			Key:      opts.Key,
 			Value:    opts.Value,
 		},
-		Callback:         handler,
-		RootTraceContext: tracer.RootContext(),
-		CollectionName:   opts.CollectionName,
-		ScopeName:        opts.ScopeName,
+		Callback:       handler,
+		CollectionName: opts.CollectionName,
+		ScopeName:      opts.ScopeName,
 	}
 
 	return agent.dispatchOp(req)
@@ -173,7 +158,6 @@ type DeleteMetaOptions struct {
 	Expiry         uint32
 	Cas            Cas
 	RevNo          uint64
-	TraceContext   opentracing.SpanContext
 	CollectionName string
 	ScopeName      string
 }
@@ -189,11 +173,8 @@ type DeleteMetaExCallback func(*DeleteMetaResult, error)
 
 // DeleteMetaEx deletes a document along with setting some internal Couchbase meta-data.
 func (agent *Agent) DeleteMetaEx(opts DeleteMetaOptions, cb DeleteMetaExCallback) (PendingOp, error) {
-	tracer := agent.createOpTrace("GetMetaEx", nil)
-
 	handler := func(resp *memdQResponse, req *memdQRequest, err error) {
 		if err != nil {
-			tracer.Finish()
 			cb(nil, err)
 			return
 		}
@@ -205,7 +186,6 @@ func (agent *Agent) DeleteMetaEx(opts DeleteMetaOptions, cb DeleteMetaExCallback
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
 
-		tracer.Finish()
 		cb(&DeleteMetaResult{
 			Cas:           Cas(resp.Cas),
 			MutationToken: mutToken,
@@ -230,10 +210,9 @@ func (agent *Agent) DeleteMetaEx(opts DeleteMetaOptions, cb DeleteMetaExCallback
 			Key:      opts.Key,
 			Value:    opts.Value,
 		},
-		Callback:         handler,
-		RootTraceContext: tracer.RootContext(),
-		CollectionName:   opts.CollectionName,
-		ScopeName:        opts.ScopeName,
+		Callback:       handler,
+		CollectionName: opts.CollectionName,
+		ScopeName:      opts.ScopeName,
 	}
 
 	return agent.dispatchOp(req)

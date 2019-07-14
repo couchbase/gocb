@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
-
-	"github.com/opentracing/opentracing-go"
 )
 
 const (
@@ -132,14 +130,11 @@ type CollectionIdCallback func(manifestID uint64, collectionID uint32, err error
 
 // GetCollectionIDOptions are the options available to the GetCollectionID command.
 type GetCollectionIDOptions struct {
-	TraceContext opentracing.SpanContext
 }
 
 // GetCollectionID fetches the collection id and manifest id that the collection belongs to, given a scope name
 // and collection name. This function will also prime the client's collection id cache.
 func (agent *Agent) GetCollectionID(scopeName string, collectionName string, opts GetCollectionIDOptions, cb CollectionIdCallback) (PendingOp, error) {
-	tracer := agent.createOpTrace("GetCollectionID", opts.TraceContext)
-
 	handler := func(resp *memdQResponse, req *memdQRequest, err error) {
 		cidCache, ok := agent.cidMgr.Get(scopeName, collectionName)
 		if !ok {
@@ -153,7 +148,6 @@ func (agent *Agent) GetCollectionID(scopeName string, collectionName string, opt
 			cidCache.err = err
 			cidCache.lock.Unlock()
 
-			tracer.Finish()
 			cb(0, 0, err)
 			return
 		}
@@ -165,7 +159,6 @@ func (agent *Agent) GetCollectionID(scopeName string, collectionName string, opt
 		cidCache.id = collectionID
 		cidCache.lock.Unlock()
 
-		tracer.Finish()
 		cb(manifestID, collectionID, nil)
 	}
 
@@ -180,8 +173,7 @@ func (agent *Agent) GetCollectionID(scopeName string, collectionName string, opt
 			Value:    nil,
 			Vbucket:  0,
 		},
-		RootTraceContext: opts.TraceContext,
-		ReplicaIdx:       -1,
+		ReplicaIdx: -1,
 	}
 
 	req.Callback = handler
@@ -272,7 +264,7 @@ func (cid *collectionIdCache) refreshCid(req *memdQRequest) error {
 	if err != nil {
 		return err
 	}
-	_, err = cid.agent.GetCollectionID(req.ScopeName, req.CollectionName, GetCollectionIDOptions{TraceContext: req.RootTraceContext},
+	_, err = cid.agent.GetCollectionID(req.ScopeName, req.CollectionName, GetCollectionIDOptions{},
 		func(manifestID uint64, collectionID uint32, err error) {
 			// GetCollectionID will handle updating the id cache so we don't need to do it here
 			if err != nil {

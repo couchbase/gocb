@@ -11,7 +11,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/couchbase/gocbcore/v8"
-	"github.com/opentracing/opentracing-go"
 )
 
 type viewResponse struct {
@@ -43,7 +42,6 @@ type ViewResults struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
 	streamResult *streamingResult
-	strace       opentracing.Span
 	err          error
 }
 
@@ -134,9 +132,6 @@ func (r *ViewResults) Close() error {
 	}
 
 	err := r.streamResult.Close()
-	if r.strace != nil {
-		r.strace.Finish()
-	}
 	ctxErr := r.ctx.Err()
 	if r.cancel != nil {
 		r.cancel()
@@ -270,16 +265,6 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 		ctx = context.Background()
 	}
 
-	var span opentracing.Span
-	if opts.ParentSpanContext == nil {
-		span = opentracing.GlobalTracer().StartSpan("ExecuteViewQuery",
-			opentracing.Tag{Key: "couchbase.service", Value: "views"})
-	} else {
-		span = opentracing.GlobalTracer().StartSpan("ExecuteViewQuery",
-			opentracing.Tag{Key: "couchbase.service", Value: "views"}, opentracing.ChildOf(opts.ParentSpanContext))
-	}
-	defer span.Finish()
-
 	cli := b.sb.getCachedClient()
 	provider, err := cli.getHTTPProvider()
 	if err != nil {
@@ -304,7 +289,7 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 		return nil, errors.Wrap(err, "could not parse query options")
 	}
 
-	res, err := b.executeViewQuery(ctx, span.Context(), "_view", designDoc, viewName, *urlValues, provider, cancel)
+	res, err := b.executeViewQuery(ctx, "_view", designDoc, viewName, *urlValues, provider, cancel)
 	if err != nil {
 		cancel()
 		return nil, err
@@ -313,7 +298,7 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 	return res, nil
 }
 
-func (b *Bucket) executeViewQuery(ctx context.Context, traceCtx opentracing.SpanContext, viewType, ddoc, viewName string,
+func (b *Bucket) executeViewQuery(ctx context.Context, viewType, ddoc, viewName string,
 	options url.Values, provider httpProvider, cancel context.CancelFunc) (*ViewResults, error) {
 	reqUri := fmt.Sprintf("/_design/%s/%s/%s?%s", ddoc, viewType, viewName, options.Encode())
 	req := &gocbcore.HttpRequest{
@@ -323,11 +308,8 @@ func (b *Bucket) executeViewQuery(ctx context.Context, traceCtx opentracing.Span
 		Context: ctx,
 	}
 
-	dtrace := opentracing.GlobalTracer().StartSpan("dispatch", opentracing.ChildOf(traceCtx))
-
 	resp, err := provider.DoHttpRequest(req)
 	if err != nil {
-		dtrace.Finish()
 		if err == gocbcore.ErrNoCapiService {
 			return nil, serviceNotAvailableError{message: gocbcore.ErrNoCapiService.Error()}
 		}
@@ -340,15 +322,10 @@ func (b *Bucket) executeViewQuery(ctx context.Context, traceCtx opentracing.Span
 		return nil, errors.Wrap(err, "could not complete query http request")
 	}
 
-	dtrace.Finish()
-
 	queryResults := &ViewResults{}
-
-	strace := opentracing.GlobalTracer().StartSpan("streaming", opentracing.ChildOf(traceCtx))
 
 	if resp.StatusCode == 500 {
 		// We have to handle the views 500 case as a special case because the body can be of form [] or {}
-		defer strace.Finish()
 		defer func() {
 			err := resp.Body.Close()
 			if err != nil {
@@ -395,7 +372,6 @@ func (b *Bucket) executeViewQuery(ctx context.Context, traceCtx opentracing.Span
 
 	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)
 	if err != nil {
-		strace.Finish()
 		return nil, err
 	}
 
@@ -405,14 +381,12 @@ func (b *Bucket) executeViewQuery(ctx context.Context, traceCtx opentracing.Span
 		if bodyErr != nil {
 			logDebugf("Failed to close socket (%s)", bodyErr.Error())
 		}
-		strace.Finish()
 		return nil, err
 	}
 
 	queryResults.streamResult = streamResult
 
 	if streamResult.HasRows() {
-		queryResults.strace = strace
 		queryResults.ctx = ctx
 		queryResults.cancel = cancel
 	} else {
@@ -420,7 +394,6 @@ func (b *Bucket) executeViewQuery(ctx context.Context, traceCtx opentracing.Span
 		if bodyErr != nil {
 			logDebugf("Failed to close response body, %s", bodyErr.Error())
 		}
-		strace.Finish()
 
 		// There are no rows and there are errors so fast fail
 		err = queryResults.makeError()

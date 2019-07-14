@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/couchbase/gocbcore/v8"
-	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 )
 
@@ -75,7 +74,6 @@ type AnalyticsResults struct {
 	handle       *AnalyticsDeferredResultHandle
 	streamResult *streamingResult
 	cancel       context.CancelFunc
-	strace       opentracing.Span
 	httpProvider httpProvider
 	ctx          context.Context
 
@@ -123,9 +121,6 @@ func (r *AnalyticsResults) Close() error {
 	}
 
 	err := r.streamResult.Close()
-	if r.strace != nil {
-		r.strace.Finish()
-	}
 	ctxErr := r.ctx.Err()
 	if r.cancel != nil {
 		r.cancel()
@@ -322,25 +317,15 @@ func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsQueryOptions) 
 		ctx = context.Background()
 	}
 
-	var span opentracing.Span
-	if opts.ParentSpanContext == nil {
-		span = opentracing.GlobalTracer().StartSpan("ExecuteAnalyticsQuery",
-			opentracing.Tag{Key: "couchbase.service", Value: "cbas"})
-	} else {
-		span = opentracing.GlobalTracer().StartSpan("ExecuteAnalyticsQuery",
-			opentracing.Tag{Key: "couchbase.service", Value: "cbas"}, opentracing.ChildOf(opts.ParentSpanContext))
-	}
-	defer span.Finish()
-
 	provider, err := c.getHTTPProvider()
 	if err != nil {
 		return nil, err
 	}
 
-	return c.analyticsQuery(ctx, span.Context(), statement, opts, provider)
+	return c.analyticsQuery(ctx, statement, opts, provider)
 }
 
-func (c *Cluster) analyticsQuery(ctx context.Context, traceCtx opentracing.SpanContext, statement string, opts *AnalyticsQueryOptions,
+func (c *Cluster) analyticsQuery(ctx context.Context, statement string, opts *AnalyticsQueryOptions,
 	provider httpProvider) (*AnalyticsResults, error) {
 
 	queryOpts, err := opts.toMap(statement)
@@ -389,9 +374,7 @@ func (c *Cluster) analyticsQuery(ctx context.Context, traceCtx opentracing.SpanC
 	var res *AnalyticsResults
 	for {
 		retries++
-		etrace := opentracing.GlobalTracer().StartSpan("execute", opentracing.ChildOf(traceCtx))
-		res, err = c.executeAnalyticsQuery(ctx, traceCtx, queryOpts, provider, cancel, opts.Serializer)
-		etrace.Finish()
+		res, err = c.executeAnalyticsQuery(ctx, queryOpts, provider, cancel, opts.Serializer)
 		if err == nil {
 			break
 		}
@@ -414,7 +397,7 @@ func (c *Cluster) analyticsQuery(ctx context.Context, traceCtx opentracing.SpanC
 	return res, nil
 }
 
-func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracing.SpanContext, opts map[string]interface{},
+func (c *Cluster) executeAnalyticsQuery(ctx context.Context, opts map[string]interface{},
 	provider httpProvider, cancel context.CancelFunc, serializer Serializer) (*AnalyticsResults, error) {
 
 	// priority is sent as a header not in the body
@@ -441,11 +424,8 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracin
 		req.Headers["Analytics-Priority"] = strconv.Itoa(priority)
 	}
 
-	dtrace := opentracing.GlobalTracer().StartSpan("dispatch", opentracing.ChildOf(traceCtx))
-
 	resp, err := provider.DoHttpRequest(req)
 	if err != nil {
-		dtrace.Finish()
 		if err == gocbcore.ErrNoCbasService {
 			return nil, serviceNotAvailableError{message: gocbcore.ErrNoCbasService.Error()}
 		}
@@ -458,8 +438,6 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracin
 		return nil, errors.Wrap(err, "could not complete analytics http request")
 	}
 
-	dtrace.Finish()
-
 	epInfo, err := url.Parse(resp.Endpoint)
 	if err != nil {
 		logWarnf("Failed to parse N1QL source address")
@@ -467,8 +445,6 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracin
 			Host: "",
 		}
 	}
-
-	strace := opentracing.GlobalTracer().StartSpan("streaming", opentracing.ChildOf(traceCtx))
 
 	queryResults := &AnalyticsResults{
 		metadata: AnalyticsResultsMetadata{
@@ -481,7 +457,6 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracin
 
 	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)
 	if err != nil {
-		strace.Finish()
 		return nil, err
 	}
 
@@ -491,16 +466,12 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracin
 		if bodyErr != nil {
 			logDebugf("Failed to close socket (%s)", bodyErr.Error())
 		}
-		strace.Finish()
 		return nil, err
 	}
 
 	queryResults.streamResult = streamResult
 
-	strace.SetTag("couchbase.operation_id", queryResults.metadata.requestID)
-
 	if streamResult.HasRows() {
-		queryResults.strace = strace
 		queryResults.cancel = cancel
 		queryResults.ctx = ctx
 	} else {
@@ -508,7 +479,6 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, traceCtx opentracin
 		if bodyErr != nil {
 			logDebugf("Failed to close response body, %s", bodyErr.Error())
 		}
-		strace.Finish()
 
 		// There are no rows and there are errors so fast fail
 		if queryResults.err != nil {

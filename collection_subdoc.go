@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/couchbase/gocbcore/v8"
-	"github.com/opentracing/opentracing-go"
 )
 
 // LookupInSpec provides a way to create LookupInOps.
@@ -20,11 +19,10 @@ type LookupInOp struct {
 
 // LookupInOptions are the set of options available to LookupIn.
 type LookupInOptions struct {
-	Context           context.Context
-	Timeout           time.Duration
-	ParentSpanContext opentracing.SpanContext
-	WithExpiry        bool
-	Transcoder        Transcoder
+	Context    context.Context
+	Timeout    time.Duration
+	WithExpiry bool
+	Transcoder Transcoder
 }
 
 // LookupInSpecGetOptions are the options available to LookupIn subdoc Get operations.
@@ -139,10 +137,7 @@ func (c *Collection) LookupIn(key string, ops []LookupInOp, opts *LookupInOption
 		defer cancel()
 	}
 
-	span := c.startKvOpTrace(opts.ParentSpanContext, "LookupIn")
-	defer span.Finish()
-
-	res, err := c.lookupIn(ctx, span.Context(), key, ops, *opts)
+	res, err := c.lookupIn(ctx, key, ops, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -150,10 +145,7 @@ func (c *Collection) LookupIn(key string, ops []LookupInOp, opts *LookupInOption
 	return res, nil
 }
 
-func (c *Collection) lookupIn(ctx context.Context, traceCtx opentracing.SpanContext, key string, ops []LookupInOp, opts LookupInOptions) (docOut *LookupInResult, errOut error) {
-	span := c.startKvOpTrace(traceCtx, "lookupIn")
-	defer span.Finish()
-
+func (c *Collection) lookupIn(ctx context.Context, key string, ops []LookupInOp, opts LookupInOptions) (docOut *LookupInResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -188,7 +180,6 @@ func (c *Collection) lookupIn(ctx context.Context, traceCtx opentracing.SpanCont
 	err = ctrl.wait(agent.LookupInEx(gocbcore.LookupInOptions{
 		Key:            []byte(key),
 		Ops:            subdocs,
-		TraceContext:   traceCtx,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.LookupInResult, err error) {
@@ -255,17 +246,16 @@ type MutateInOp struct {
 
 // MutateInOptions are the set of options available to MutateIn.
 type MutateInOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
-	Expiration        uint32
-	Cas               Cas
-	PersistTo         uint
-	ReplicateTo       uint
-	DurabilityLevel   DurabilityLevel
-	InsertDocument    bool
-	UpsertDocument    bool
-	Transcoder        Transcoder
+	Timeout         time.Duration
+	Context         context.Context
+	Expiration      uint32
+	Cas             Cas
+	PersistTo       uint
+	ReplicateTo     uint
+	DurabilityLevel DurabilityLevel
+	InsertDocument  bool
+	UpsertDocument  bool
+	Transcoder      Transcoder
 	// Internal: This should never be used and is not supported.
 	AccessDeleted bool
 }
@@ -674,16 +664,13 @@ func (c *Collection) MutateIn(key string, ops []MutateInOp, opts *MutateInOption
 		opts = &MutateInOptions{}
 	}
 
-	span := c.startKvOpTrace(opts.ParentSpanContext, "MutateIn")
-	defer span.Finish()
-
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.mutate(ctx, span.Context(), key, ops, *opts)
+	res, err := c.mutate(ctx, key, ops, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -693,7 +680,6 @@ func (c *Collection) MutateIn(key string, ops []MutateInOp, opts *MutateInOption
 	}
 	return res, c.durability(durabilitySettings{
 		ctx:            opts.Context,
-		tracectx:       span.Context(),
 		key:            key,
 		cas:            res.Cas(),
 		mt:             res.MutationToken(),
@@ -705,7 +691,7 @@ func (c *Collection) MutateIn(key string, ops []MutateInOp, opts *MutateInOption
 	})
 }
 
-func (c *Collection) mutate(ctx context.Context, traceCtx opentracing.SpanContext, key string, ops []MutateInOp, opts MutateInOptions) (mutOut *MutateInResult, errOut error) {
+func (c *Collection) mutate(ctx context.Context, key string, ops []MutateInOp, opts MutateInOptions) (mutOut *MutateInResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -773,7 +759,6 @@ func (c *Collection) mutate(ctx context.Context, traceCtx opentracing.SpanContex
 		Flags:                  gocbcore.SubdocDocFlag(flags),
 		Cas:                    gocbcore.Cas(opts.Cas),
 		Ops:                    subdocs,
-		TraceContext:           traceCtx,
 		Expiry:                 opts.Expiration,
 		CollectionName:         c.name(),
 		ScopeName:              c.scopeName(),

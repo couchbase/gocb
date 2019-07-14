@@ -4,8 +4,6 @@ import (
 	"context"
 	"strings"
 	"time"
-
-	opentracing "github.com/opentracing/opentracing-go"
 )
 
 // QueryIndexManager provides methods for performing Couchbase N1ql index management.
@@ -25,8 +23,7 @@ type QueryIndex struct {
 }
 
 type createQueryIndexOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Context           context.Context
+	Context context.Context
 
 	IgnoreIfExists bool
 	Deferred       bool
@@ -59,8 +56,7 @@ func (qm *QueryIndexManager) createIndex(bucketName, indexName string, fields []
 	}
 
 	rows, err := qm.executeQuery(qs, &QueryOptions{
-		Context:           opts.Context,
-		ParentSpanContext: opts.ParentSpanContext,
+		Context: opts.Context,
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "already exist") {
@@ -80,9 +76,8 @@ func (qm *QueryIndexManager) createIndex(bucketName, indexName string, fields []
 
 // CreateQueryIndexOptions is the set of options available to the query indexes Create operation.
 type CreateQueryIndexOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 
 	IgnoreIfExists bool
 	Deferred       bool
@@ -105,27 +100,22 @@ func (qm *QueryIndexManager) Create(bucketName, indexName string, fields []strin
 		opts = &CreateQueryIndexOptions{}
 	}
 
-	span := startSpan(opts.ParentSpanContext, "Create", "queryidxmgr")
-	defer span.Finish()
-
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
 	return qm.createIndex(bucketName, indexName, fields, createQueryIndexOptions{
-		IgnoreIfExists:    opts.IgnoreIfExists,
-		Deferred:          opts.Deferred,
-		Context:           ctx,
-		ParentSpanContext: span.Context(),
+		IgnoreIfExists: opts.IgnoreIfExists,
+		Deferred:       opts.Deferred,
+		Context:        ctx,
 	})
 }
 
 // CreatePrimaryQueryIndexOptions is the set of options available to the query indexes CreatePrimary operation.
 type CreatePrimaryQueryIndexOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 
 	IgnoreIfExists bool
 	Deferred       bool
@@ -138,25 +128,20 @@ func (qm *QueryIndexManager) CreatePrimary(bucketName string, opts *CreatePrimar
 		opts = &CreatePrimaryQueryIndexOptions{}
 	}
 
-	span := startSpan(opts.ParentSpanContext, "CreatePrimary", "queryidxmgr")
-	defer span.Finish()
-
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
 	return qm.createIndex(bucketName, opts.CustomName, nil, createQueryIndexOptions{
-		IgnoreIfExists:    opts.IgnoreIfExists,
-		Deferred:          opts.Deferred,
-		Context:           ctx,
-		ParentSpanContext: span.Context(),
+		IgnoreIfExists: opts.IgnoreIfExists,
+		Deferred:       opts.Deferred,
+		Context:        ctx,
 	})
 }
 
 type dropQueryIndexOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Context           context.Context
+	Context context.Context
 
 	IgnoreIfNotExists bool
 }
@@ -171,8 +156,7 @@ func (qm *QueryIndexManager) dropIndex(bucketName, indexName string, opts dropQu
 	}
 
 	rows, err := qm.executeQuery(qs, &QueryOptions{
-		Context:           opts.Context,
-		ParentSpanContext: opts.ParentSpanContext,
+		Context: opts.Context,
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
@@ -192,9 +176,8 @@ func (qm *QueryIndexManager) dropIndex(bucketName, indexName string, opts dropQu
 
 // DropQueryIndexOptions is the set of options available to the query indexes Drop operation.
 type DropQueryIndexOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 
 	IgnoreIfNotExists bool
 }
@@ -211,9 +194,6 @@ func (qm *QueryIndexManager) Drop(bucketName, indexName string, opts *DropQueryI
 		opts = &DropQueryIndexOptions{}
 	}
 
-	span := startSpan(opts.ParentSpanContext, "Drop", "queryidxmgr")
-	defer span.Finish()
-
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
@@ -221,16 +201,14 @@ func (qm *QueryIndexManager) Drop(bucketName, indexName string, opts *DropQueryI
 
 	return qm.dropIndex(bucketName, indexName, dropQueryIndexOptions{
 		Context:           ctx,
-		ParentSpanContext: span.Context(),
 		IgnoreIfNotExists: opts.IgnoreIfNotExists,
 	})
 }
 
 // DropPrimaryQueryIndexOptions is the set of options available to the query indexes DropPrimary operation.
 type DropPrimaryQueryIndexOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 
 	IgnoreIfNotExists bool
 	CustomName        string
@@ -242,9 +220,6 @@ func (qm *QueryIndexManager) DropPrimary(bucketName string, opts *DropPrimaryQue
 		opts = &DropPrimaryQueryIndexOptions{}
 	}
 
-	span := startSpan(opts.ParentSpanContext, "DropPrimary", "queryidxmgr")
-	defer span.Finish()
-
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
@@ -253,15 +228,13 @@ func (qm *QueryIndexManager) DropPrimary(bucketName string, opts *DropPrimaryQue
 	return qm.dropIndex(bucketName, opts.CustomName, dropQueryIndexOptions{
 		IgnoreIfNotExists: opts.IgnoreIfNotExists,
 		Context:           ctx,
-		ParentSpanContext: opts.ParentSpanContext,
 	})
 }
 
 // GetAllQueryIndexesOptions is the set of options available to the query indexes GetAll operation.
 type GetAllQueryIndexesOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 }
 
 // GetAll returns a list of all currently registered indexes.
@@ -269,9 +242,6 @@ func (qm *QueryIndexManager) GetAll(bucketName string, opts *GetAllQueryIndexesO
 	if opts == nil {
 		opts = &GetAllQueryIndexesOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "GetAll", "queryidxmgr")
-	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
@@ -281,7 +251,6 @@ func (qm *QueryIndexManager) GetAll(bucketName string, opts *GetAllQueryIndexesO
 	q := "SELECT `indexes`.* FROM system:indexes WHERE keyspace_id=?"
 	queryOpts := &QueryOptions{
 		Context:              ctx,
-		ParentSpanContext:    span.Context(),
 		PositionalParameters: []interface{}{bucketName},
 	}
 
@@ -305,9 +274,8 @@ func (qm *QueryIndexManager) GetAll(bucketName string, opts *GetAllQueryIndexesO
 
 // BuildDeferredQueryIndexOptions is the set of options available to the query indexes BuildDeferred operation.
 type BuildDeferredQueryIndexOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 }
 
 // BuildDeferred builds all indexes which are currently in deferred state.
@@ -316,17 +284,13 @@ func (qm *QueryIndexManager) BuildDeferred(bucketName string, opts *BuildDeferre
 		opts = &BuildDeferredQueryIndexOptions{}
 	}
 
-	span := startSpan(opts.ParentSpanContext, "BuildDeferred", "queryidxmgr")
-	defer span.Finish()
-
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
 	indexList, err := qm.GetAll(bucketName, &GetAllQueryIndexesOptions{
-		Context:           ctx,
-		ParentSpanContext: span.Context(),
+		Context: ctx,
 	})
 	if err != nil {
 		return nil, err
@@ -356,8 +320,7 @@ func (qm *QueryIndexManager) BuildDeferred(bucketName string, opts *BuildDeferre
 	qs += ")"
 
 	rows, err := qm.executeQuery(qs, &QueryOptions{
-		Context:           ctx,
-		ParentSpanContext: span.Context(),
+		Context: ctx,
 	})
 	if err != nil {
 		return nil, err
@@ -400,8 +363,6 @@ func checkIndexesActive(indexes []QueryIndex, checkList []string) (bool, error) 
 
 // WatchQueryIndexOptions is the set of options available to the query indexes Watch operation.
 type WatchQueryIndexOptions struct {
-	ParentSpanContext opentracing.SpanContext
-
 	WatchPrimary bool
 }
 
@@ -423,9 +384,6 @@ func (qm *QueryIndexManager) Watch(bucketName string, watchList []string, timeou
 		opts = &WatchQueryIndexOptions{}
 	}
 
-	span := startSpan(opts.ParentSpanContext, "Watch", "queryidxmgr")
-	defer span.Finish()
-
 	ctx, cancel := contextFromMaybeTimeout(timeout.Context, timeout.Timeout)
 	if cancel != nil {
 		defer cancel()
@@ -438,8 +396,7 @@ func (qm *QueryIndexManager) Watch(bucketName string, watchList []string, timeou
 	curInterval := 50 * time.Millisecond
 	for {
 		indexes, err := qm.GetAll(bucketName, &GetAllQueryIndexesOptions{
-			Context:           ctx,
-			ParentSpanContext: span.Context(),
+			Context: ctx,
 		})
 		if err != nil {
 			return err

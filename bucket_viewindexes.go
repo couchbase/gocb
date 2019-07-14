@@ -11,7 +11,6 @@ import (
 	"github.com/pkg/errors"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
-	opentracing "github.com/opentracing/opentracing-go"
 )
 
 // ViewIndexManager provides methods for performing View management.
@@ -38,9 +37,8 @@ type DesignDocument struct {
 
 // GetViewIndexOptions is the set of options available to the ViewIndexManager Get operation.
 type GetViewIndexOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 
 	IsProduction bool
 }
@@ -64,9 +62,6 @@ func (vm *ViewIndexManager) Get(name string, opts *GetViewIndexOptions) (*Design
 	if opts == nil {
 		opts = &GetViewIndexOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "Get", "viewindexes")
-	defer span.Finish()
 
 	ctx := opts.Context
 	if ctx == nil {
@@ -123,9 +118,8 @@ func (vm *ViewIndexManager) Get(name string, opts *GetViewIndexOptions) (*Design
 
 // GetAllViewIndexOptions is the set of options available to the ViewIndexManager GetAll operation.
 type GetAllViewIndexOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 }
 
 // GetAll will retrieve all design documents for the given bucket.
@@ -133,9 +127,6 @@ func (vm *ViewIndexManager) GetAll(opts *GetAllViewIndexOptions) ([]*DesignDocum
 	if opts == nil {
 		opts = &GetAllViewIndexOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "GetAll", "viewindexes")
-	defer span.Finish()
 
 	ctx := opts.Context
 	if ctx == nil {
@@ -200,9 +191,8 @@ func (vm *ViewIndexManager) GetAll(opts *GetAllViewIndexOptions) ([]*DesignDocum
 
 // CreateViewIndexOptions is the set of options available to the ViewIndexManager Create operation.
 type CreateViewIndexOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 
 	IsProduction bool
 }
@@ -212,9 +202,6 @@ func (vm *ViewIndexManager) Create(ddoc DesignDocument, opts *CreateViewIndexOpt
 	if opts == nil {
 		opts = &CreateViewIndexOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "Create", "viewindexes")
-	defer span.Finish()
 
 	ctx := opts.Context
 	if ctx == nil {
@@ -228,9 +215,8 @@ func (vm *ViewIndexManager) Create(ddoc DesignDocument, opts *CreateViewIndexOpt
 	}
 
 	_, err := vm.Get(ddoc.Name, &GetViewIndexOptions{
-		Context:           ctx,
-		ParentSpanContext: span.Context(),
-		IsProduction:      opts.IsProduction,
+		Context:      ctx,
+		IsProduction: opts.IsProduction,
 	})
 	if err == nil {
 		// If there's no error then design doc exists.
@@ -248,17 +234,15 @@ func (vm *ViewIndexManager) Create(ddoc DesignDocument, opts *CreateViewIndexOpt
 	}
 
 	return vm.Upsert(ddoc, &UpsertViewIndexOptions{
-		Context:           ctx,
-		ParentSpanContext: span.Context(),
-		IsProduction:      opts.IsProduction,
+		Context:      ctx,
+		IsProduction: opts.IsProduction,
 	})
 }
 
 // UpsertViewIndexOptions is the set of options available to the ViewIndexManager Upsert operation.
 type UpsertViewIndexOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 
 	IsProduction bool
 }
@@ -269,9 +253,6 @@ func (vm *ViewIndexManager) Upsert(ddoc DesignDocument, opts *UpsertViewIndexOpt
 	if opts == nil {
 		opts = &UpsertViewIndexOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "Upsert", "viewindexes")
-	defer span.Finish()
 
 	ctx := opts.Context
 	if ctx == nil {
@@ -321,9 +302,8 @@ func (vm *ViewIndexManager) Upsert(ddoc DesignDocument, opts *UpsertViewIndexOpt
 
 // DropViewIndexOptions is the set of options available to the ViewIndexManager Upsert operation.
 type DropViewIndexOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 
 	IsProduction bool
 }
@@ -333,9 +313,6 @@ func (vm *ViewIndexManager) Drop(name string, opts *DropViewIndexOptions) error 
 	if opts == nil {
 		opts = &DropViewIndexOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "Drop", "viewindexes")
-	defer span.Finish()
 
 	ctx := opts.Context
 	if ctx == nil {
@@ -383,9 +360,8 @@ func (vm *ViewIndexManager) Drop(name string, opts *DropViewIndexOptions) error 
 
 // PublishViewIndexOptions is the set of options available to the ViewIndexManager Publish operation.
 type PublishViewIndexOptions struct {
-	ParentSpanContext opentracing.SpanContext
-	Timeout           time.Duration
-	Context           context.Context
+	Timeout time.Duration
+	Context context.Context
 }
 
 // Publish publishes a design document to the given bucket.
@@ -393,9 +369,6 @@ func (vm *ViewIndexManager) Publish(name string, opts *PublishViewIndexOptions) 
 	if opts == nil {
 		opts = &PublishViewIndexOptions{}
 	}
-
-	span := startSpan(opts.ParentSpanContext, "Publish", "viewindexes")
-	defer span.Finish()
 
 	ctx := opts.Context
 	if ctx == nil {
@@ -409,9 +382,8 @@ func (vm *ViewIndexManager) Publish(name string, opts *PublishViewIndexOptions) 
 	}
 
 	devdoc, err := vm.Get(name, &GetViewIndexOptions{
-		Context:           ctx,
-		ParentSpanContext: span.Context(),
-		IsProduction:      false,
+		Context:      ctx,
+		IsProduction: false,
 	})
 	if err != nil {
 		indexErr, ok := err.(viewIndexError)
@@ -424,18 +396,16 @@ func (vm *ViewIndexManager) Publish(name string, opts *PublishViewIndexOptions) 
 	}
 
 	err = vm.Upsert(*devdoc, &UpsertViewIndexOptions{
-		Context:           ctx,
-		ParentSpanContext: span.Context(),
-		IsProduction:      true,
+		Context:      ctx,
+		IsProduction: true,
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to create ")
 	}
 
 	err = vm.Drop(devdoc.Name, &DropViewIndexOptions{
-		Context:           ctx,
-		ParentSpanContext: span.Context(),
-		IsProduction:      false,
+		Context:      ctx,
+		IsProduction: false,
 	})
 	if err != nil {
 		return viewIndexError{message: fmt.Sprintf("failed to drop development index: %v", err), publishDropFail: true}

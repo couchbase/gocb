@@ -2,8 +2,6 @@ package gocbcore
 
 import (
 	"encoding/binary"
-
-	"github.com/opentracing/opentracing-go"
 )
 
 // SubDocResult encapsulates the results from a single sub-document operation.
@@ -19,7 +17,6 @@ type GetInOptions struct {
 	Flags          SubdocFlag
 	CollectionName string
 	ScopeName      string
-	TraceContext   opentracing.SpanContext
 }
 
 // GetInResult encapsulates the result of a GetInEx operation.
@@ -33,16 +30,12 @@ type GetInExCallback func(*GetInResult, error)
 
 // GetInEx retrieves the value at a particular path within a JSON document.
 func (agent *Agent) GetInEx(opts GetInOptions, cb GetInExCallback) (PendingOp, error) {
-	tracer := agent.createOpTrace("GetInEx", nil)
-
 	handler := func(resp *memdQResponse, _ *memdQRequest, err error) {
 		if err != nil {
-			tracer.Finish()
 			cb(nil, err)
 			return
 		}
 
-		tracer.Finish()
 		cb(&GetInResult{
 			Value: resp.Value,
 			Cas:   Cas(resp.Cas),
@@ -65,10 +58,9 @@ func (agent *Agent) GetInEx(opts GetInOptions, cb GetInExCallback) (PendingOp, e
 			Key:      opts.Key,
 			Value:    pathBytes,
 		},
-		Callback:         handler,
-		RootTraceContext: tracer.RootContext(),
-		CollectionName:   opts.CollectionName,
-		ScopeName:        opts.ScopeName,
+		Callback:       handler,
+		CollectionName: opts.CollectionName,
+		ScopeName:      opts.ScopeName,
 	}
 
 	return agent.dispatchOp(req)
@@ -81,7 +73,6 @@ type ExistsInOptions struct {
 	Flags          SubdocFlag
 	CollectionName string
 	ScopeName      string
-	TraceContext   opentracing.SpanContext
 }
 
 // ExistsInResult encapsulates the result of a ExistsInEx operation.
@@ -94,16 +85,12 @@ type ExistsInExCallback func(*ExistsInResult, error)
 
 // ExistsInEx returns whether a particular path exists within a document.
 func (agent *Agent) ExistsInEx(opts ExistsInOptions, cb ExistsInExCallback) (PendingOp, error) {
-	tracer := agent.createOpTrace("ExistsInEx", nil)
-
 	handler := func(resp *memdQResponse, _ *memdQRequest, err error) {
 		if err != nil {
-			tracer.Finish()
 			cb(nil, err)
 			return
 		}
 
-		tracer.Finish()
 		cb(&ExistsInResult{
 			Cas: Cas(resp.Cas),
 		}, nil)
@@ -125,10 +112,9 @@ func (agent *Agent) ExistsInEx(opts ExistsInOptions, cb ExistsInExCallback) (Pen
 			Key:      opts.Key,
 			Value:    pathBytes,
 		},
-		Callback:         handler,
-		RootTraceContext: tracer.RootContext(),
-		CollectionName:   opts.CollectionName,
-		ScopeName:        opts.ScopeName,
+		Callback:       handler,
+		CollectionName: opts.CollectionName,
+		ScopeName:      opts.ScopeName,
 	}
 
 	return agent.dispatchOp(req)
@@ -145,7 +131,6 @@ type StoreInOptions struct {
 	Expiry                 uint32
 	CollectionName         string
 	ScopeName              string
-	TraceContext           opentracing.SpanContext
 	DurabilityLevel        DurabilityLevel
 	DurabilityLevelTimeout uint16
 }
@@ -163,11 +148,8 @@ type StoreInResult struct {
 type StoreInExCallback func(*StoreInResult, error)
 
 func (agent *Agent) storeInEx(opName string, opcode commandCode, opts StoreInOptions, cb StoreInExCallback) (PendingOp, error) {
-	tracer := agent.createOpTrace(opName, nil)
-
 	handler := func(resp *memdQResponse, req *memdQRequest, err error) {
 		if err != nil {
-			tracer.Finish()
 			cb(nil, err)
 			return
 		}
@@ -179,7 +161,6 @@ func (agent *Agent) storeInEx(opName string, opcode commandCode, opts StoreInOpt
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
 
-		tracer.Finish()
 		cb(&StoreInResult{
 			Cas:           Cas(resp.Cas),
 			MutationToken: mutToken,
@@ -224,10 +205,9 @@ func (agent *Agent) storeInEx(opName string, opcode commandCode, opts StoreInOpt
 			Value:       valueBuf,
 			FrameExtras: flexibleFrameExtras,
 		},
-		Callback:         handler,
-		RootTraceContext: tracer.RootContext(),
-		CollectionName:   opts.CollectionName,
-		ScopeName:        opts.ScopeName,
+		Callback:       handler,
+		CollectionName: opts.CollectionName,
+		ScopeName:      opts.ScopeName,
 	}
 
 	return agent.dispatchOp(req)
@@ -287,11 +267,8 @@ type CounterInExCallback func(*CounterInResult, error)
 
 // CounterInEx performs an arithmetic add or subtract on a value at a path in the document.
 func (agent *Agent) CounterInEx(opts CounterInOptions, cb CounterInExCallback) (PendingOp, error) {
-	tracer := agent.createOpTrace("CounterInEx", nil)
-
 	handler := func(resp *memdQResponse, req *memdQRequest, err error) {
 		if err != nil {
-			tracer.Finish()
 			cb(nil, err)
 			return
 		}
@@ -303,7 +280,6 @@ func (agent *Agent) CounterInEx(opts CounterInOptions, cb CounterInExCallback) (
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
 
-		tracer.Finish()
 		cb(&CounterInResult{
 			Value:         resp.Value,
 			Cas:           Cas(resp.Cas),
@@ -349,10 +325,9 @@ func (agent *Agent) CounterInEx(opts CounterInOptions, cb CounterInExCallback) (
 			Value:       valueBuf,
 			FrameExtras: flexibleFrameExtras,
 		},
-		Callback:         handler,
-		RootTraceContext: tracer.RootContext(),
-		CollectionName:   opts.CollectionName,
-		ScopeName:        opts.ScopeName,
+		Callback:       handler,
+		CollectionName: opts.CollectionName,
+		ScopeName:      opts.ScopeName,
 	}
 
 	return agent.dispatchOp(req)
@@ -369,7 +344,6 @@ type DeleteInOptions struct {
 	ScopeName              string
 	DurabilityLevel        DurabilityLevel
 	DurabilityLevelTimeout uint16
-	TraceContext           opentracing.SpanContext
 }
 
 // DeleteInResult encapsulates the result of a DeleteInEx operation.
@@ -383,11 +357,8 @@ type DeleteInExCallback func(*DeleteInResult, error)
 
 // DeleteInEx removes the value at a path within the document.
 func (agent *Agent) DeleteInEx(opts DeleteInOptions, cb DeleteInExCallback) (PendingOp, error) {
-	tracer := agent.createOpTrace("DeleteInEx", nil)
-
 	handler := func(resp *memdQResponse, req *memdQRequest, err error) {
 		if err != nil {
-			tracer.Finish()
 			cb(nil, err)
 			return
 		}
@@ -399,7 +370,6 @@ func (agent *Agent) DeleteInEx(opts DeleteInOptions, cb DeleteInExCallback) (Pen
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
 
-		tracer.Finish()
 		cb(&DeleteInResult{
 			Cas:           Cas(resp.Cas),
 			MutationToken: mutToken,
@@ -440,10 +410,9 @@ func (agent *Agent) DeleteInEx(opts DeleteInOptions, cb DeleteInExCallback) (Pen
 			Value:       pathBytes,
 			FrameExtras: flexibleFrameExtras,
 		},
-		Callback:         handler,
-		RootTraceContext: tracer.RootContext(),
-		CollectionName:   opts.CollectionName,
-		ScopeName:        opts.ScopeName,
+		Callback:       handler,
+		CollectionName: opts.CollectionName,
+		ScopeName:      opts.ScopeName,
 	}
 
 	return agent.dispatchOp(req)
@@ -465,7 +434,6 @@ type LookupInOptions struct {
 	Ops            []SubDocOp
 	CollectionName string
 	ScopeName      string
-	TraceContext   opentracing.SpanContext
 }
 
 // LookupInResult encapsulates the result of a LookupInEx operation.
@@ -479,8 +447,6 @@ type LookupInExCallback func(*LookupInResult, error)
 
 // LookupInEx performs a multiple-lookup sub-document operation on a document.
 func (agent *Agent) LookupInEx(opts LookupInOptions, cb LookupInExCallback) (PendingOp, error) {
-	tracer := agent.createOpTrace("LookupInEx", opts.TraceContext)
-
 	results := make([]SubDocResult, len(opts.Ops))
 
 	handler := func(resp *memdQResponse, _ *memdQRequest, err error) {
@@ -488,7 +454,6 @@ func (agent *Agent) LookupInEx(opts LookupInOptions, cb LookupInExCallback) (Pen
 			!IsErrorStatus(err, StatusSubDocMultiPathFailureDeleted) &&
 			!IsErrorStatus(err, StatusSubDocSuccessDeleted) &&
 			!IsErrorStatus(err, StatusSubDocBadMulti) {
-			tracer.Finish()
 			cb(nil, err)
 			return
 		}
@@ -496,7 +461,6 @@ func (agent *Agent) LookupInEx(opts LookupInOptions, cb LookupInExCallback) (Pen
 		respIter := 0
 		for i := range results {
 			if respIter+6 > len(resp.Value) {
-				tracer.Finish()
 				cb(nil, ErrProtocol)
 				return
 			}
@@ -505,7 +469,6 @@ func (agent *Agent) LookupInEx(opts LookupInOptions, cb LookupInExCallback) (Pen
 			resValueLen := int(binary.BigEndian.Uint32(resp.Value[respIter+2:]))
 
 			if respIter+6+resValueLen > len(resp.Value) {
-				tracer.Finish()
 				cb(nil, ErrProtocol)
 				return
 			}
@@ -515,7 +478,6 @@ func (agent *Agent) LookupInEx(opts LookupInOptions, cb LookupInExCallback) (Pen
 			respIter += 6 + resValueLen
 		}
 
-		tracer.Finish()
 		cb(&LookupInResult{
 			Cas: Cas(resp.Cas),
 			Ops: results,
@@ -567,10 +529,9 @@ func (agent *Agent) LookupInEx(opts LookupInOptions, cb LookupInExCallback) (Pen
 			Key:      opts.Key,
 			Value:    valueBuf,
 		},
-		Callback:         handler,
-		RootTraceContext: tracer.RootContext(),
-		CollectionName:   opts.CollectionName,
-		ScopeName:        opts.ScopeName,
+		Callback:       handler,
+		CollectionName: opts.CollectionName,
+		ScopeName:      opts.ScopeName,
 	}
 
 	return agent.dispatchOp(req)
@@ -587,7 +548,6 @@ type MutateInOptions struct {
 	ScopeName              string
 	DurabilityLevel        DurabilityLevel
 	DurabilityLevelTimeout uint16
-	TraceContext           opentracing.SpanContext
 }
 
 // MutateInResult encapsulates the result of a MutateInEx operation.
@@ -602,22 +562,18 @@ type MutateInExCallback func(*MutateInResult, error)
 
 // MutateInEx performs a multiple-mutation sub-document operation on a document.
 func (agent *Agent) MutateInEx(opts MutateInOptions, cb MutateInExCallback) (PendingOp, error) {
-	tracer := agent.createOpTrace("MutateInEx", opts.TraceContext)
-
 	results := make([]SubDocResult, len(opts.Ops))
 
 	handler := func(resp *memdQResponse, req *memdQRequest, err error) {
 		if err != nil &&
 			!IsErrorStatus(err, StatusSubDocSuccessDeleted) &&
 			!IsErrorStatus(err, StatusSubDocBadMulti) {
-			tracer.Finish()
 			cb(nil, err)
 			return
 		}
 
 		if IsErrorStatus(err, StatusSubDocBadMulti) {
 			if len(resp.Value) != 3 {
-				tracer.Finish()
 				cb(nil, ErrProtocol)
 				return
 			}
@@ -629,7 +585,6 @@ func (agent *Agent) MutateInEx(opts MutateInOptions, cb MutateInExCallback) (Pen
 				Err:     agent.makeBasicMemdError(resError, resp.Opaque),
 				OpIndex: opIndex,
 			}
-			tracer.Finish()
 			cb(nil, err)
 			return
 		}
@@ -654,7 +609,6 @@ func (agent *Agent) MutateInEx(opts MutateInOptions, cb MutateInExCallback) (Pen
 			mutToken.SeqNo = SeqNo(binary.BigEndian.Uint64(resp.Extras[8:]))
 		}
 
-		tracer.Finish()
 		cb(&MutateInResult{
 			Cas:           Cas(resp.Cas),
 			MutationToken: mutToken,
@@ -731,10 +685,9 @@ func (agent *Agent) MutateInEx(opts MutateInOptions, cb MutateInExCallback) (Pen
 			Value:       valueBuf,
 			FrameExtras: flexibleFrameExtras,
 		},
-		Callback:         handler,
-		RootTraceContext: tracer.RootContext(),
-		CollectionName:   opts.CollectionName,
-		ScopeName:        opts.ScopeName,
+		Callback:       handler,
+		CollectionName: opts.CollectionName,
+		ScopeName:      opts.ScopeName,
 	}
 
 	return agent.dispatchOp(req)
