@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/couchbase/gocbcore/v8"
@@ -23,36 +22,25 @@ type BucketManager struct {
 type BucketType string
 
 const (
-	// Couchbase indicates a Couchbase bucket type.
-	Couchbase = BucketType("couchbase")
+	// CouchbaseBucketType indicates a Couchbase bucket type.
+	CouchbaseBucketType = BucketType("membase")
 
-	// Memcached indicates a Memcached bucket type.
-	Memcached = BucketType("memcached")
+	// MemcachedBucketType indicates a Memcached bucket type.
+	MemcachedBucketType = BucketType("memcached")
 
-	// Ephemeral indicates an Ephemeral bucket type.
-	Ephemeral = BucketType("ephemeral")
-)
-
-// AuthType specifies the kind of auth to use for a bucket.
-type AuthType string
-
-const (
-	// AuthTypeNone disables authentication.
-	AuthTypeNone = AuthType("none")
-
-	// AuthTypeSasl specifies to use sasl authentication.
-	AuthTypeSasl = AuthType("sasl")
+	// EphemeralBucketType indicates an Ephemeral bucket type.
+	EphemeralBucketType = BucketType("ephemeral")
 )
 
 // ConflictResolutionType specifies the kind of conflict resolution to use for a bucket.
 type ConflictResolutionType string
 
 const (
-	// ConflictResolutionTypeLww speficies to use lww conflict resolution on the bucket.
-	ConflictResolutionTypeLww = ConflictResolutionType("lww")
+	// ConflictResolutionTypeTimestamp specifies to use timestamp conflict resolution on the bucket.
+	ConflictResolutionTypeTimestamp = ConflictResolutionType("lww")
 
-	// ConflictResolutionTypeSeqNo speficies to use seqno conflict resolution on the bucket.
-	ConflictResolutionTypeSeqNo = ConflictResolutionType("seqno")
+	// ConflictResolutionTypeSequenceNumber specifies to use sequence number conflict resolution on the bucket.
+	ConflictResolutionTypeSequenceNumber = ConflictResolutionType("seqno")
 )
 
 // EvictionPolicyType specifies the kind of eviction policy to use for a bucket.
@@ -60,10 +48,10 @@ type EvictionPolicyType string
 
 const (
 	// EvictionPolicyTypeFull specifies to use full eviction for a bucket.
-	EvictionPolicyTypeFull = ConflictResolutionType("fullEviction")
+	EvictionPolicyTypeFull = EvictionPolicyType("fullEviction")
 
 	// EvictionPolicyTypeValueOnly specifies to use value only eviction for a bucket.
-	EvictionPolicyTypeValueOnly = ConflictResolutionType("valueOnly")
+	EvictionPolicyTypeValueOnly = EvictionPolicyType("valueOnly")
 )
 
 // CompressionMode specifies the kind of compression to use for a bucket.
@@ -71,19 +59,18 @@ type CompressionMode string
 
 const (
 	// CompressionModeOff specifies to use no compression for a bucket.
-	CompressionModeOff = ConflictResolutionType("off")
+	CompressionModeOff = CompressionMode("off")
 
 	// CompressionModePassive specifies to use passive compression for a bucket.
-	CompressionModePassive = ConflictResolutionType("passive")
+	CompressionModePassive = CompressionMode("passive")
 
 	// CompressionModeActive specifies to use active compression for a bucket.
-	CompressionModeActive = ConflictResolutionType("active")
+	CompressionModeActive = CompressionMode("active")
 )
 
 type bucketDataIn struct {
-	Name         string `json:"name"`
-	SaslPassword string `json:"saslPassword"`
-	Controllers  struct {
+	Name        string `json:"name"`
+	Controllers struct {
 		Flush string `json:"flush"`
 	} `json:"controllers"`
 	ReplicaIndex bool `json:"replicaIndex"`
@@ -93,69 +80,67 @@ type bucketDataIn struct {
 	} `json:"quota"`
 	ReplicaNumber          int    `json:"replicaNumber"`
 	BucketType             string `json:"bucketType"`
-	AuthType               string `json:"authType"`
 	ConflictResolutionType string `json:"conflictResolutionType"`
 	EvictionPolicy         string `json:"evictionPolicy"`
 	MaxTTL                 int    `json:"maxTTL"`
 	CompressionMode        string `json:"compressionMode"`
-	ProxyPort              int    `json:"proxyPort"`
 }
 
 // BucketSettings holds information about the settings for a bucket.
 type BucketSettings struct {
-	Name                   string
-	Password               string
-	FlushEnabled           bool
-	ReplicaIndexDisabled   bool // inverted so that zero value matches server default.
-	RAMQuotaMB             int
-	NumReplicas            int
-	BucketType             BucketType
-	AuthType               AuthType
+	// Name is the name of the bucket and is required.
+	Name string
+	// FlushEnabled specifies whether or not to enable flush on the bucket.
+	FlushEnabled bool
+	// ReplicaIndexDisabled specifies whether or not to disable replica index.
+	ReplicaIndexDisabled bool // inverted so that zero value matches server default.
+	//  is the memory quota to assign to the bucket and is required.
+	RAMQuotaMB int
+	// NumReplicas is the number of replicas servers per vbucket and is required.
+	// NOTE: If not set this will set 0 replicas.
+	NumReplicas int
+	// BucketType is the type of bucket this is. Defaults to CouchbaseBucketType.
+	BucketType      BucketType
+	EvictionPolicy  EvictionPolicyType
+	MaxTTL          int
+	CompressionMode CompressionMode
+}
+
+// CreateBucketSettings are the settings available when creating a bucket.
+type CreateBucketSettings struct {
+	BucketSettings
 	ConflictResolutionType ConflictResolutionType
-	EvictionPolicy         EvictionPolicyType
-	MaxTTL                 int
-	CompressionMode        CompressionMode
-	ProxyPort              int
 }
 
 func bucketDataInToSettings(bucketData *bucketDataIn) (string, BucketSettings) {
 	settings := BucketSettings{
-		Name:                   bucketData.Name,
-		Password:               bucketData.SaslPassword,
-		FlushEnabled:           bucketData.Controllers.Flush != "",
-		ReplicaIndexDisabled:   !bucketData.ReplicaIndex,
-		RAMQuotaMB:             bucketData.Quota.Ram,
-		NumReplicas:            bucketData.ReplicaNumber,
-		AuthType:               AuthType(bucketData.AuthType),
-		ConflictResolutionType: ConflictResolutionType(bucketData.ConflictResolutionType),
-		EvictionPolicy:         EvictionPolicyType(bucketData.EvictionPolicy),
-		MaxTTL:                 bucketData.MaxTTL,
-		CompressionMode:        CompressionMode(bucketData.CompressionMode),
-		ProxyPort:              bucketData.ProxyPort,
+		Name: bucketData.Name,
+		// Password:               bucketData.SaslPassword,
+		FlushEnabled:         bucketData.Controllers.Flush != "",
+		ReplicaIndexDisabled: !bucketData.ReplicaIndex,
+		RAMQuotaMB:           bucketData.Quota.RawRam,
+		NumReplicas:          bucketData.ReplicaNumber,
+		EvictionPolicy:       EvictionPolicyType(bucketData.EvictionPolicy),
+		MaxTTL:               bucketData.MaxTTL,
+		CompressionMode:      CompressionMode(bucketData.CompressionMode),
+	}
+
+	if settings.RAMQuotaMB > 0 {
+		settings.RAMQuotaMB = settings.RAMQuotaMB / 1024 / 1024
 	}
 
 	switch bucketData.BucketType {
 	case "membase":
-		settings.BucketType = Couchbase
+		settings.BucketType = CouchbaseBucketType
 	case "memcached":
-		settings.BucketType = Memcached
+		settings.BucketType = MemcachedBucketType
 	case "ephemeral":
-		settings.BucketType = Ephemeral
+		settings.BucketType = EphemeralBucketType
 	default:
-		// LogDebugf("Unrecognized bucket type string.") TODO: log something here
-	}
-
-	if bucketData.AuthType != string(AuthTypeSasl) {
-		settings.Password = ""
+		logDebugf("Unrecognized bucket type string.")
 	}
 
 	return bucketData.Name, settings
-}
-
-// GetBucketOptions is the set of options available to the bucket manager Get operation.
-type GetBucketOptions struct {
-	Timeout time.Duration
-	Context context.Context
 }
 
 func contextFromMaybeTimeout(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
@@ -171,8 +156,14 @@ func contextFromMaybeTimeout(ctx context.Context, timeout time.Duration) (contex
 	return ctx, cancel
 }
 
-// Get returns settings for a bucket on the cluster.
-func (bm *BucketManager) Get(bucketName string, opts *GetBucketOptions) (*BucketSettings, error) {
+// GetBucketOptions is the set of options available to the bucket manager GetBucket operation.
+type GetBucketOptions struct {
+	Timeout time.Duration
+	Context context.Context
+}
+
+// GetBucket returns settings for a bucket on the cluster.
+func (bm *BucketManager) GetBucket(bucketName string, opts *GetBucketOptions) (*BucketSettings, error) {
 	if opts == nil {
 		opts = &GetBucketOptions{}
 	}
@@ -182,6 +173,10 @@ func (bm *BucketManager) Get(bucketName string, opts *GetBucketOptions) (*Bucket
 		defer cancel()
 	}
 
+	return bm.get(ctx, bucketName)
+}
+
+func (bm *BucketManager) get(ctx context.Context, bucketName string) (*BucketSettings, error) {
 	req := &gocbcore.HttpRequest{
 		Service: gocbcore.ServiceType(MgmtService),
 		Path:    fmt.Sprintf("/pools/default/buckets/%s", bucketName),
@@ -203,7 +198,7 @@ func (bm *BucketManager) Get(bucketName string, opts *GetBucketOptions) (*Bucket
 		if err != nil {
 			logDebugf("Failed to close socket (%s)", err)
 		}
-		return nil, bucketManagerError{message: string(data), statusCode: resp.StatusCode, bucketMissing: resp.StatusCode == 404}
+		return nil, bucketManagerError{message: string(data), statusCode: resp.StatusCode}
 	}
 
 	var bucketData *bucketDataIn
@@ -223,16 +218,16 @@ func (bm *BucketManager) Get(bucketName string, opts *GetBucketOptions) (*Bucket
 	return &settings, nil
 }
 
-// GetAllBucketOptions is the set of options available to the bucket manager GetAll operation.
-type GetAllBucketOptions struct {
+// GetAllBucketsOptions is the set of options available to the bucket manager GetAll operation.
+type GetAllBucketsOptions struct {
 	Timeout time.Duration
 	Context context.Context
 }
 
-// GetAll returns a list of all active buckets on the cluster.
-func (bm *BucketManager) GetAll(opts *GetAllBucketOptions) (map[string]BucketSettings, error) {
+// GetAllBuckets returns a list of all active buckets on the cluster.
+func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]BucketSettings, error) {
 	if opts == nil {
-		opts = &GetAllBucketOptions{}
+		opts = &GetAllBucketsOptions{}
 	}
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
@@ -285,14 +280,14 @@ func (bm *BucketManager) GetAll(opts *GetAllBucketOptions) (map[string]BucketSet
 	return buckets, nil
 }
 
-// CreateBucketOptions is the set of options available to the bucket manager Create operation.
+// CreateBucketOptions is the set of options available to the bucket manager CreateBucket operation.
 type CreateBucketOptions struct {
 	Timeout time.Duration
 	Context context.Context
 }
 
-// Create creates a bucket on the cluster.
-func (bm *BucketManager) Create(settings BucketSettings, opts *CreateBucketOptions) error {
+// CreateBucket creates a bucket on the cluster.
+func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *CreateBucketOptions) error {
 	if opts == nil {
 		opts = &CreateBucketOptions{}
 	}
@@ -302,16 +297,20 @@ func (bm *BucketManager) Create(settings BucketSettings, opts *CreateBucketOptio
 		defer cancel()
 	}
 
-	data, err := bm.settingsToPostData(&settings)
+	posts, err := bm.settingsToPostData(&settings.BucketSettings)
 	if err != nil {
 		return err
+	}
+
+	if settings.ConflictResolutionType != "" {
+		posts.Add("conflictResolutionType", string(settings.ConflictResolutionType))
 	}
 
 	req := &gocbcore.HttpRequest{
 		Service:     gocbcore.ServiceType(MgmtService),
 		Path:        "/pools/default/buckets",
 		Method:      "POST",
-		Body:        data,
+		Body:        []byte(posts.Encode()),
 		ContentType: "application/x-www-form-urlencoded",
 		Context:     ctx,
 	}
@@ -332,9 +331,8 @@ func (bm *BucketManager) Create(settings BucketSettings, opts *CreateBucketOptio
 		}
 		bodyMessage := string(data)
 		return bucketManagerError{
-			message:      bodyMessage,
-			statusCode:   resp.StatusCode,
-			bucketExists: strings.Contains(bodyMessage, "already exist"),
+			message:    bodyMessage,
+			statusCode: resp.StatusCode,
 		}
 	}
 
@@ -346,16 +344,16 @@ func (bm *BucketManager) Create(settings BucketSettings, opts *CreateBucketOptio
 	return nil
 }
 
-// UpsertBucketOptions is the set of options available to the bucket manager Upsert operation.
-type UpsertBucketOptions struct {
+// UpdateBucketOptions is the set of options available to the bucket manager UpdateBucket operation.
+type UpdateBucketOptions struct {
 	Timeout time.Duration
 	Context context.Context
 }
 
-// Upsert creates or updates a bucket on the cluster.
-func (bm *BucketManager) Upsert(settings BucketSettings, opts *UpsertBucketOptions) error {
+// UpdateBucket updates a bucket on the cluster.
+func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucketOptions) error {
 	if opts == nil {
-		opts = &UpsertBucketOptions{}
+		opts = &UpdateBucketOptions{}
 	}
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
@@ -363,7 +361,7 @@ func (bm *BucketManager) Upsert(settings BucketSettings, opts *UpsertBucketOptio
 		defer cancel()
 	}
 
-	data, err := bm.settingsToPostData(&settings)
+	posts, err := bm.settingsToPostData(&settings)
 	if err != nil {
 		return err
 	}
@@ -372,7 +370,7 @@ func (bm *BucketManager) Upsert(settings BucketSettings, opts *UpsertBucketOptio
 		Service:     gocbcore.ServiceType(MgmtService),
 		Path:        fmt.Sprintf("/pools/default/buckets/%s", settings.Name),
 		Method:      "POST",
-		Body:        data,
+		Body:        []byte(posts.Encode()),
 		ContentType: "application/x-www-form-urlencoded",
 		Context:     ctx,
 	}
@@ -402,14 +400,14 @@ func (bm *BucketManager) Upsert(settings BucketSettings, opts *UpsertBucketOptio
 	return nil
 }
 
-// DropBucketOptions is the set of options available to the bucket manager Drop operation.
+// DropBucketOptions is the set of options available to the bucket manager DropBucket operation.
 type DropBucketOptions struct {
 	Timeout time.Duration
 	Context context.Context
 }
 
-// Drop will delete a bucket from the cluster by name.
-func (bm *BucketManager) Drop(name string, opts *DropBucketOptions) error {
+// DropBucket will delete a bucket from the cluster by name.
+func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error {
 	if opts == nil {
 		opts = &DropBucketOptions{}
 	}
@@ -440,7 +438,7 @@ func (bm *BucketManager) Drop(name string, opts *DropBucketOptions) error {
 		if err != nil {
 			logDebugf("Failed to close socket (%s)", err)
 		}
-		return bucketManagerError{message: string(data), statusCode: resp.StatusCode, bucketMissing: resp.StatusCode == 404}
+		return bucketManagerError{message: string(data), statusCode: resp.StatusCode}
 	}
 
 	err = resp.Body.Close()
@@ -451,15 +449,15 @@ func (bm *BucketManager) Drop(name string, opts *DropBucketOptions) error {
 	return nil
 }
 
-// FlushBucketOptions is the set of options available to the bucket manager Flush operation.
+// FlushBucketOptions is the set of options available to the bucket manager FlushBucket operation.
 type FlushBucketOptions struct {
 	Timeout time.Duration
 	Context context.Context
 }
 
-// Flush will delete all the of the data from a bucket.
+// FlushBucket will delete all the of the data from a bucket.
 // Keep in mind that you must have flushing enabled in the buckets configuration.
-func (bm *BucketManager) Flush(name string, opts *FlushBucketOptions) error {
+func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) error {
 	if opts == nil {
 		opts = &FlushBucketOptions{}
 	}
@@ -490,7 +488,7 @@ func (bm *BucketManager) Flush(name string, opts *FlushBucketOptions) error {
 		if err != nil {
 			logDebugf("Failed to close socket (%s)", err)
 		}
-		return bucketManagerError{message: string(data), statusCode: resp.StatusCode, bucketMissing: resp.StatusCode == 404}
+		return bucketManagerError{message: string(data), statusCode: resp.StatusCode}
 	}
 
 	err = resp.Body.Close()
@@ -501,11 +499,19 @@ func (bm *BucketManager) Flush(name string, opts *FlushBucketOptions) error {
 	return nil
 }
 
-func (bm *BucketManager) settingsToPostData(settings *BucketSettings) ([]byte, error) {
+func (bm *BucketManager) settingsToPostData(settings *BucketSettings) (url.Values, error) {
 	posts := url.Values{}
 
+	if settings.Name == "" {
+		return nil, configurationError{message: "Name invalid, must be set."}
+	}
+
+	if settings.RAMQuotaMB < 100 {
+		return nil, configurationError{message: "Memory quota invalid, must be greater than 100MB"}
+	}
+
 	posts.Add("name", settings.Name)
-	posts.Add("saslPassword", settings.Password)
+	// posts.Add("saslPassword", settings.Password)
 
 	if settings.FlushEnabled {
 		posts.Add("flushEnabled", "1")
@@ -519,34 +525,20 @@ func (bm *BucketManager) settingsToPostData(settings *BucketSettings) ([]byte, e
 		posts.Add("replicaIndex", "1")
 	}
 
-	if settings.RAMQuotaMB == 0 {
-		return nil, bucketManagerError{message: "Memory quota invalid"}
-	}
-
 	posts.Add("replicaNumber", fmt.Sprintf("%d", settings.NumReplicas))
 
 	switch settings.BucketType {
-	case Couchbase:
-		posts.Add("bucketType", "couchbase")
-	case Memcached:
-		posts.Add("bucketType", "memcached")
-	case Ephemeral:
-		posts.Add("bucketType", "ephemeral")
+	case CouchbaseBucketType:
+		posts.Add("bucketType", string(settings.BucketType))
+	case MemcachedBucketType:
+		posts.Add("bucketType", string(settings.BucketType))
+	case EphemeralBucketType:
+		posts.Add("bucketType", string(settings.BucketType))
 	default:
 		return nil, bucketManagerError{message: "Unrecognized bucket type"}
 	}
 
-	if settings.AuthType == "" {
-		posts.Add("authType", "sasl")
-	} else {
-		posts.Add("authType", string(settings.AuthType))
-	}
-
 	posts.Add("ramQuotaMB", fmt.Sprintf("%d", settings.RAMQuotaMB))
-
-	if settings.ConflictResolutionType != "" {
-		posts.Add("conflictResolutionType", string(settings.ConflictResolutionType))
-	}
 
 	if settings.EvictionPolicy != "" {
 		posts.Add("evictionPolicy", string(settings.EvictionPolicy))
@@ -560,9 +552,5 @@ func (bm *BucketManager) settingsToPostData(settings *BucketSettings) ([]byte, e
 		posts.Add("compressionMode", string(settings.CompressionMode))
 	}
 
-	if settings.ProxyPort > 0 {
-		posts.Add("proxyPort", fmt.Sprintf("%d", settings.ProxyPort))
-	}
-
-	return []byte(posts.Encode()), nil
+	return posts, nil
 }

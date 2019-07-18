@@ -60,6 +60,7 @@ var (
 	UserGroupFeature         = FeatureCode(23)
 	UserManagerFeature       = FeatureCode(24)
 	AnalyticsIndexFeature    = FeatureCode(25)
+	BucketMgrFeature         = FeatureCode(26)
 )
 
 type testCluster struct {
@@ -106,6 +107,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case AnalyticsIndexFeature:
 			supported = false
+		case BucketMgrFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -150,7 +153,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case ExpandMacrosFeature:
 			supported = !c.Version.Lower(srvVer450)
 		case AdjoinFeature:
-			return !c.Version.Equal(srvVer551) && !c.Version.Equal(srvVer552) && !c.Version.Equal(srvVer553)
+			supported = !c.Version.Equal(srvVer551) && !c.Version.Equal(srvVer552) && !c.Version.Equal(srvVer553)
 		case DurabilityFeature:
 			supported = !c.Version.Lower(srvVer650)
 		case UserGroupFeature:
@@ -159,6 +162,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer500)
 		case AnalyticsIndexFeature:
 			supported = !c.Version.Lower(srvVer600)
+		case BucketMgrFeature:
+			supported = true
 		}
 	}
 
