@@ -56,8 +56,9 @@ type ViewOptions struct {
 	IDRangeEnd   string
 	Development  bool
 	Custom       map[string]string
-	Context      context.Context
-	Timeout      time.Duration
+	// Timeout and context are used to control cancellation of the data stream.
+	Context context.Context
+	Timeout time.Duration
 }
 
 func (opts *ViewOptions) toURLValues() (*url.Values, error) {

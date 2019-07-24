@@ -52,17 +52,19 @@ type SearchHighlightOptions struct {
 
 // SearchQueryOptions represents a pending search query.
 type SearchQueryOptions struct {
-	Limit          int
-	Skip           int
-	Explain        bool
-	Highlight      *SearchHighlightOptions
-	Fields         []string
-	Sort           []interface{}
-	Facets         map[string]interface{}
+	Limit     int
+	Skip      int
+	Explain   bool
+	Highlight *SearchHighlightOptions
+	Fields    []string
+	Sort      []interface{}
+	Facets    map[string]interface{}
+	// Timeout and context are used to control cancellation of the data stream. Any timeout or deadline will also be
+	// propagated to the server.
 	Timeout        time.Duration
+	Context        context.Context
 	Consistency    ConsistencyMode
 	ConsistentWith *MutationState
-	Context        context.Context
 }
 
 func (opts *SearchQueryOptions) toOptionsData() (*searchQueryOptionsData, error) {

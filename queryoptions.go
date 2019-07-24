@@ -41,15 +41,14 @@ type QueryOptions struct {
 	PipelineCap int
 	// ReadOnly controls whether a query can change a resulting recordset.  If
 	// readonly is true, then only SELECT statements are permitted.
-	ReadOnly             bool
-	ClientContextID      string
+	ReadOnly        bool
+	ClientContextID string
+	// Timeout and context are used to control cancellation of the data stream. Any timeout or deadline will also be
+	// propagated to the server.
 	Timeout              time.Duration
+	Context              context.Context
 	PositionalParameters []interface{}
 	NamedParameters      map[string]interface{}
-	// If Context is used then cancellation will only be applicable during initial http connect.
-	// If a timeout value is supplied with the context then that value will be propagated to the server
-	// and used to timeout the results stream.
-	Context context.Context
 	// Custom allows specifying custom query options.
 	Custom map[string]interface{}
 

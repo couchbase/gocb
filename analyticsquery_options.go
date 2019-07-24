@@ -11,10 +11,9 @@ import (
 
 // AnalyticsQueryOptions is the set of options available to an Analytics query.
 type AnalyticsQueryOptions struct {
-	ServerSideTimeout time.Duration
-	// If Context is used then cancellation will only be applicable during initial http connect.
-	// If a timeout value is supplied with the context then that value will be propagated to the server
-	// and used to timeout the results stream.
+	// Timeout and context are used to control cancellation of the data stream. Any timeout or deadline will also be
+	// propagated to the server.
+	ServerSideTimeout    time.Duration
 	Context              context.Context
 	ClientContextID      string
 	RawParam             map[string]interface{}
