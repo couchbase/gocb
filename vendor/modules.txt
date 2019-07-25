@@ -1,4 +1,4 @@
-# github.com/couchbase/gocbcore/v8 v8.0.0-alpha.3.0.20190718141655-8dc893f4d0b9
+# github.com/couchbase/gocbcore/v8 v8.0.0-alpha.4
 github.com/couchbase/gocbcore/v8
 # github.com/couchbaselabs/gocbconnstr v1.0.2
 github.com/couchbaselabs/gocbconnstr
