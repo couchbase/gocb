@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -239,12 +240,26 @@ func TestEncodeString(t *testing.T) {
 }
 
 type MockSerializer struct {
+	serializeResult []byte
+	err             error
 }
 
 func (s *MockSerializer) Serialize(value interface{}) ([]byte, error) {
-	return json.Marshal(value)
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.serializeResult, nil
 }
 
 func (s *MockSerializer) Deserialize(bytes []byte, out interface{}) error {
-	return json.Unmarshal(bytes, out)
+	if s.err != nil {
+		return s.err
+	}
+
+	switch typedOut := out.(type) {
+	case *[]byte:
+		*typedOut = bytes
+		return nil
+	}
+	return errors.New("MockSerializer expects an out value of []byte")
 }

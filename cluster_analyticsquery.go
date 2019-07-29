@@ -91,7 +91,7 @@ func (r *AnalyticsResults) Next(valuePtr interface{}) bool {
 		return false
 	}
 
-	r.err = json.Unmarshal(row, valuePtr)
+	r.err = r.serializer.Deserialize(row, valuePtr)
 	if r.err != nil {
 		return false
 	}
@@ -363,8 +363,6 @@ func (c *Cluster) analyticsQuery(ctx context.Context, statement string, opts *An
 	} else {
 		queryOpts["timeout"] = newTimeout.String()
 	}
-
-	// TODO: clientcontextid?
 
 	if opts.Serializer == nil {
 		opts.Serializer = c.sb.Serializer

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/couchbase/gocbcore/v8"
+	"github.com/pkg/errors"
 )
 
 // If the travel-sample dataset is not created up front then this can be a very slow test
@@ -361,7 +362,7 @@ func TestBasicAnalyticsQuery(t *testing.T) {
 }
 
 func TestBasicAnalyticsQuerySerializer(t *testing.T) {
-	dataBytes, err := loadRawTestDataset("beer_sample_analytics_dataset")
+	dataBytes, err := loadRawTestDataset("beer_sample_query_dataset")
 	if err != nil {
 		t.Fatalf("Could not read test dataset: %v", err)
 	}
@@ -374,7 +375,7 @@ func TestBasicAnalyticsQuerySerializer(t *testing.T) {
 
 	queryOptions := &AnalyticsQueryOptions{
 		PositionalParameters: []interface{}{"brewery"},
-		Serializer:           &DefaultJSONSerializer{},
+		Serializer:           &MockSerializer{},
 	}
 
 	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
@@ -399,7 +400,65 @@ func TestBasicAnalyticsQuerySerializer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	testAssertAnalyticsQueryResult(t, &expectedResult, res, true)
+	var actual []byte
+	var i int
+	for res.Next(&actual) {
+		if string(actual) != string(expectedResult.Results[i]) {
+			t.Fatalf("Results did not match: expected %s but was %s", string(expectedResult.Results[i]), string(actual))
+		}
+		i++
+	}
+
+	err = res.Close()
+	if err != nil {
+		t.Fatalf("Expected error to be nil but was %v", err)
+	}
+}
+
+func TestBasicAnalyticsQuerySerializerError(t *testing.T) {
+	dataBytes, err := loadRawTestDataset("beer_sample_query_dataset")
+	if err != nil {
+		t.Fatalf("Could not read test dataset: %v", err)
+	}
+
+	queryOptions := &AnalyticsQueryOptions{
+		PositionalParameters: []interface{}{"brewery"},
+		Serializer: &MockSerializer{
+			err: errors.New("test error"),
+		},
+	}
+
+	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
+	timeout := 60 * time.Second
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		return &gocbcore.HttpResponse{
+			Endpoint:   "http://localhost:8095",
+			StatusCode: 200,
+			Body:       &testReadCloser{bytes.NewBuffer(dataBytes), nil},
+		}, nil
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+	}
+
+	cluster := testGetClusterForHTTP(provider, 0, timeout, 0)
+
+	res, err := cluster.AnalyticsQuery(statement, queryOptions)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var actual []byte
+	for res.Next(&actual) {
+		t.Fatalf("Expected no rows to be accessible")
+	}
+
+	err = res.Close()
+	if err == nil {
+		t.Fatalf("Expected error to be not nil")
+	}
 }
 
 func TestAnalyticsQueryServiceNotFound(t *testing.T) {

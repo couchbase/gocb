@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/couchbase/gocbcore/v8"
 )
 
@@ -548,7 +550,65 @@ func TestBasicQuerySerializer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	testAssertQueryResult(t, &expectedResult, res, true)
+	var actual []byte
+	var i int
+	for res.Next(&actual) {
+		if string(actual) != string(expectedResult.Results[i]) {
+			t.Fatalf("Results did not match: expected %s but was %s", string(expectedResult.Results[i]), string(actual))
+		}
+		i++
+	}
+
+	err = res.Close()
+	if err != nil {
+		t.Fatalf("Expected error to be nil but was %v", err)
+	}
+}
+
+func TestBasicQuerySerializerError(t *testing.T) {
+	dataBytes, err := loadRawTestDataset("beer_sample_query_dataset")
+	if err != nil {
+		t.Fatalf("Could not read test dataset: %v", err)
+	}
+
+	queryOptions := &QueryOptions{
+		PositionalParameters: []interface{}{"brewery"},
+		Serializer: &MockSerializer{
+			err: errors.New("test error"),
+		},
+	}
+
+	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
+	timeout := 60 * time.Second
+
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		return &gocbcore.HttpResponse{
+			Endpoint:   "http://localhost:8093",
+			StatusCode: 200,
+			Body:       &testReadCloser{bytes.NewBuffer(dataBytes), nil},
+		}, nil
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+	}
+
+	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
+
+	res, err := cluster.Query(statement, queryOptions)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var actual []byte
+	for res.Next(&actual) {
+		t.Fatalf("Expected no rows to be accessible")
+	}
+
+	err = res.Close()
+	if err == nil {
+		t.Fatalf("Expected error to be not nil")
+	}
 }
 
 func TestQueryError(t *testing.T) {
