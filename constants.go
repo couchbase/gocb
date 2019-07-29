@@ -3,7 +3,7 @@ package gocb
 import gocbcore "github.com/couchbase/gocbcore/v8"
 
 const (
-	goCbVersionStr = "v2.0.0-alpha.4"
+	goCbVersionStr = "v2.0.0-alpha.5"
 
 	persistenceTimeoutFloor = 1500
 )
