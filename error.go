@@ -730,6 +730,16 @@ func IsUserNotFoundError(err error) bool {
 	}
 }
 
+// IsSearchIndexNotFoundError verifies that an index could not be found.
+func IsSearchIndexNotFoundError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case SearchIndexesError:
+		return errType.SearchIndexNotFoundError()
+	default:
+		return false
+	}
+}
+
 // HTTPError indicates that an error occurred with a valid HTTP response for an operation.
 type HTTPError interface {
 	error
@@ -1308,6 +1318,41 @@ func (e analyticsIndexesError) AnalyticsLinkNotFoundError() bool {
 		if strings.Contains(strings.ToLower(e.message), "link") {
 			return true
 		}
+	}
+
+	return false
+}
+
+// SearchIndexesError occurs for errors created By Couchbase Server when performing search index management.
+type SearchIndexesError interface {
+	error
+	HTTPStatus() int
+	SearchIndexNotFoundError() bool
+}
+
+type searchIndexError struct {
+	statusCode int
+	message    string
+}
+
+func (e searchIndexError) Error() string {
+	return e.message
+}
+
+// HTTPStatus returns the HTTP status code for the operation.
+func (e searchIndexError) HTTPStatus() int {
+	return e.statusCode
+}
+
+// Code returns the analytics error for the error.
+func (e searchIndexError) Code() int {
+	return e.statusCode
+}
+
+// SearchIndexNotFoundError indicates that an index could not be found.
+func (e searchIndexError) SearchIndexNotFoundError() bool {
+	if strings.Contains(strings.ToLower(e.message), "not found") {
+		return true
 	}
 
 	return false

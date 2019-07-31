@@ -329,3 +329,14 @@ func (c *Cluster) QueryIndexes() (*QueryIndexManager, error) {
 		executeQuery: c.Query,
 	}, nil
 }
+
+// SearchIndexes returns a SearchIndexManager for managing Search indexes.
+func (c *Cluster) SearchIndexes() (*SearchIndexManager, error) {
+	provider, err := c.getHTTPProvider()
+	if err != nil {
+		return nil, err
+	}
+	return &SearchIndexManager{
+		httpClient: provider,
+	}, nil
+}
