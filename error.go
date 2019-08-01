@@ -730,6 +730,16 @@ func IsUserNotFoundError(err error) bool {
 	}
 }
 
+// IsGroupNotFoundError verifies that a group could not be found.
+func IsGroupNotFoundError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case UserManagerError:
+		return errType.GroupNotFoundError()
+	default:
+		return false
+	}
+}
+
 // IsSearchIndexNotFoundError verifies that an index could not be found.
 func IsSearchIndexNotFoundError(err error) bool {
 	switch errType := errors.Cause(err).(type) {
@@ -1225,6 +1235,7 @@ type UserManagerError interface {
 	error
 	HTTPStatus() int
 	UserNotFoundError() bool
+	GroupNotFoundError() bool
 }
 
 type userManagerError struct {
@@ -1244,6 +1255,15 @@ func (e userManagerError) HTTPStatus() int {
 func (e userManagerError) UserNotFoundError() bool {
 	if strings.Contains(strings.ToLower(e.message), "unknown user") ||
 		strings.Contains(strings.ToLower(e.message), "not found") {
+		return true
+	}
+
+	return false
+}
+
+// GroupNotFoundError indicates that a specified group could not be found.
+func (e userManagerError) GroupNotFoundError() bool {
+	if strings.Contains(strings.ToLower(e.message), "not found") {
 		return true
 	}
 

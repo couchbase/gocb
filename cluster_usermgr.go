@@ -19,8 +19,8 @@ type UserManager struct {
 
 // UserRole represents a role for a particular user on the server.
 type UserRole struct {
-	Role       string
-	BucketName string
+	Role       string `json:"role"`
+	BucketName string `json:"bucket_name"`
 }
 
 // User represents a user which was retrieved from the server.
@@ -29,6 +29,14 @@ type User struct {
 	Name  string
 	Type  string
 	Roles []UserRole
+}
+
+// Group represents a user group on the server.
+type Group struct {
+	Name               string     `json:"id"`
+	Description        string     `json:"description"`
+	Roles              []UserRole `json:"roles"`
+	LDAPGroupReference string     `json:"ldap_group_ref"`
 }
 
 // AuthDomain specifies the user domain of a specific user
@@ -77,8 +85,8 @@ type GetAllUsersOptions struct {
 	DomainName string
 }
 
-// GetAll returns a list of all the users from the cluster.
-func (um *UserManager) GetAll(opts *GetAllUsersOptions) ([]*User, error) {
+// GetAllUsers returns a list of all the users from the cluster.
+func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]*User, error) {
 	if opts == nil {
 		opts = &GetAllUsersOptions{}
 	}
@@ -140,8 +148,8 @@ type GetUserOptions struct {
 	DomainName string
 }
 
-// Get returns the data for a particular user
-func (um *UserManager) Get(name string, opts *GetUserOptions) (*User, error) {
+// GetUser returns the data for a particular user
+func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*User, error) {
 	if opts == nil {
 		opts = &GetUserOptions{}
 	}
@@ -198,8 +206,8 @@ type UpsertUserOptions struct {
 	DomainName string
 }
 
-// Upsert updates a built-in RBAC user on the cluster.
-func (um *UserManager) Upsert(name string, password string, roles []UserRole, opts *UpsertUserOptions) error {
+// UpsertUser updates a built-in RBAC user on the cluster.
+func (um *UserManager) UpsertUser(name string, password string, roles []UserRole, opts *UpsertUserOptions) error {
 	if opts == nil {
 		opts = &UpsertUserOptions{}
 	}
@@ -260,8 +268,8 @@ type DropUserOptions struct {
 	DomainName string
 }
 
-// Drop removes a built-in RBAC user on the cluster.
-func (um *UserManager) Drop(name string, opts *DropUserOptions) error {
+// DropUser removes a built-in RBAC user on the cluster.
+func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 	if opts == nil {
 		opts = &DropUserOptions{}
 	}
@@ -279,6 +287,222 @@ func (um *UserManager) Drop(name string, opts *DropUserOptions) error {
 		Service: gocbcore.ServiceType(MgmtService),
 		Method:  "DELETE",
 		Path:    fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, name),
+		Context: ctx,
+	}
+
+	resp, err := um.httpClient.DoHttpRequest(req)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		data, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		err = resp.Body.Close()
+		if err != nil {
+			logDebugf("Failed to close socket (%s)", err)
+		}
+		return userManagerError{statusCode: resp.StatusCode, message: string(data)}
+	}
+
+	return nil
+}
+
+// GetGroupOptions is the set of options available to the group manager Get operation.
+type GetGroupOptions struct {
+	Timeout time.Duration
+	Context context.Context
+}
+
+// GetGroup fetches a single group from the server.
+func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group, error) {
+	if groupName == "" {
+		return nil, invalidArgumentsError{message: "groupName cannot be empty"}
+	}
+	if opts == nil {
+		opts = &GetGroupOptions{}
+	}
+
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	if cancel != nil {
+		defer cancel()
+	}
+
+	req := &gocbcore.HttpRequest{
+		Service: gocbcore.ServiceType(MgmtService),
+		Method:  "GET",
+		Path:    fmt.Sprintf("/settings/rbac/groups/%s", groupName),
+		Context: ctx,
+	}
+
+	resp, err := um.httpClient.DoHttpRequest(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		data, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		err = resp.Body.Close()
+		if err != nil {
+			logDebugf("Failed to close socket (%s)", err)
+		}
+		return nil, userManagerError{statusCode: resp.StatusCode, message: string(data)}
+	}
+
+	var group Group
+	jsonDec := json.NewDecoder(resp.Body)
+	err = jsonDec.Decode(&group)
+	if err != nil {
+		return nil, err
+	}
+
+	return &group, nil
+}
+
+// GetAllGroupsOptions is the set of options available to the group manager GetAll operation.
+type GetAllGroupsOptions struct {
+	Timeout time.Duration
+	Context context.Context
+}
+
+// GetAllGroups fetches all groups from the server.
+func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) {
+	if opts == nil {
+		opts = &GetAllGroupsOptions{}
+	}
+
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	if cancel != nil {
+		defer cancel()
+	}
+
+	req := &gocbcore.HttpRequest{
+		Service: gocbcore.ServiceType(MgmtService),
+		Method:  "GET",
+		Path:    "/settings/rbac/groups",
+		Context: ctx,
+	}
+
+	resp, err := um.httpClient.DoHttpRequest(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		data, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		err = resp.Body.Close()
+		if err != nil {
+			logDebugf("Failed to close socket (%s)", err)
+		}
+		return nil, userManagerError{statusCode: resp.StatusCode, message: string(data)}
+	}
+
+	var groups []Group
+	jsonDec := json.NewDecoder(resp.Body)
+	err = jsonDec.Decode(&groups)
+	if err != nil {
+		return nil, err
+	}
+
+	return groups, nil
+}
+
+// UpsertGroupOptions is the set of options available to the group manager Upsert operation.
+type UpsertGroupOptions struct {
+	Timeout time.Duration
+	Context context.Context
+}
+
+// UpsertGroup creates, or updates, a group on the server.
+func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error {
+	if group.Name == "" {
+		return invalidArgumentsError{message: "group name cannot be empty"}
+	}
+	if opts == nil {
+		opts = &UpsertGroupOptions{}
+	}
+
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	if cancel != nil {
+		defer cancel()
+	}
+
+	var reqRoleStrs []string
+	for _, roleData := range group.Roles {
+		if roleData.BucketName == "" {
+			reqRoleStrs = append(reqRoleStrs, fmt.Sprintf("%s", roleData.Role))
+		} else {
+			reqRoleStrs = append(reqRoleStrs, fmt.Sprintf("%s[%s]", roleData.Role, roleData.BucketName))
+		}
+	}
+
+	reqForm := make(url.Values)
+	reqForm.Add("description", group.Description)
+	reqForm.Add("ldap_group_ref", group.LDAPGroupReference)
+	reqForm.Add("roles", strings.Join(reqRoleStrs, ","))
+
+	req := &gocbcore.HttpRequest{
+		Service:     gocbcore.ServiceType(MgmtService),
+		Method:      "PUT",
+		Path:        fmt.Sprintf("/settings/rbac/groups/%s", group.Name),
+		Body:        []byte(reqForm.Encode()),
+		ContentType: "application/x-www-form-urlencoded",
+		Context:     ctx,
+	}
+
+	resp, err := um.httpClient.DoHttpRequest(req)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		data, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		err = resp.Body.Close()
+		if err != nil {
+			logDebugf("Failed to close socket (%s)", err)
+		}
+		return userManagerError{statusCode: resp.StatusCode, message: string(data)}
+	}
+
+	return nil
+}
+
+// DropGroupOptions is the set of options available to the group manager Drop operation.
+type DropGroupOptions struct {
+	Timeout time.Duration
+	Context context.Context
+}
+
+// DropGroup removes a group from the server.
+func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error {
+	if groupName == "" {
+		return invalidArgumentsError{message: "groupName cannot be empty"}
+	}
+
+	if opts == nil {
+		opts = &DropGroupOptions{}
+	}
+
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	if cancel != nil {
+		defer cancel()
+	}
+
+	req := &gocbcore.HttpRequest{
+		Service: gocbcore.ServiceType(MgmtService),
+		Method:  "DELETE",
+		Path:    fmt.Sprintf("/settings/rbac/groups/%s", groupName),
 		Context: ctx,
 	}
 

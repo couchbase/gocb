@@ -57,6 +57,7 @@ var (
 	AdjoinFeature            = FeatureCode(20)
 	ExpandMacrosFeature      = FeatureCode(21)
 	DurabilityFeature        = FeatureCode(22)
+	UserGroupFeature         = FeatureCode(23)
 )
 
 type testCluster struct {
@@ -96,6 +97,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case ExpandMacrosFeature:
 			supported = false
 		case DurabilityFeature:
+			supported = false
+		case UserGroupFeature:
 			supported = false
 		}
 	} else {
@@ -143,6 +146,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case AdjoinFeature:
 			return !c.Version.Equal(srvVer551) && !c.Version.Equal(srvVer552) && !c.Version.Equal(srvVer553)
 		case DurabilityFeature:
+			supported = !c.Version.Lower(srvVer650)
+		case UserGroupFeature:
 			supported = !c.Version.Lower(srvVer650)
 		}
 	}
