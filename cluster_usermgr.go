@@ -13,6 +13,7 @@ import (
 )
 
 // UserManager provides methods for performing Couchbase user management.
+// Volatile: This API is subject to change at any time.
 type UserManager struct {
 	httpClient httpProvider
 }

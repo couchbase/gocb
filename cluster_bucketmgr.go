@@ -14,6 +14,7 @@ import (
 
 // BucketManager provides methods for performing bucket management operations.
 // See BucketManager for methods that allow creating and removing buckets themselves.
+// Volatile: This API is subject to change at any time.
 type BucketManager struct {
 	httpClient httpProvider
 }

@@ -14,6 +14,7 @@ import (
 )
 
 // ViewIndexManager provides methods for performing View management.
+// Volatile: This API is subject to change at any time.
 type ViewIndexManager struct {
 	bucketName string
 	httpClient httpProvider

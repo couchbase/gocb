@@ -12,7 +12,7 @@ import (
 )
 
 // AnalyticsIndexManager provides methods for performing Couchbase Analytics index management.
-// Experimental: This API is subject to change at any time.
+// Volatile: This API is subject to change at any time.
 type AnalyticsIndexManager struct {
 	httpClient   httpProvider
 	executeQuery func(statement string, opts *AnalyticsQueryOptions) (*AnalyticsResults, error)

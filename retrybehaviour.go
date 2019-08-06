@@ -6,6 +6,7 @@ import (
 )
 
 // RetryBehavior defines the behavior to be used for retries
+// Volatile: This API is subject to change at any time.
 type RetryBehavior interface {
 	NextInterval(retries uint) time.Duration
 	CanRetry(retries uint) bool

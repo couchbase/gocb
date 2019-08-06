@@ -11,6 +11,7 @@ import (
 )
 
 // CollectionManager provides methods for performing collections management.
+// Volatile: This API is subject to change at any time.
 type CollectionManager struct {
 	httpClient httpProvider
 	bucketName string

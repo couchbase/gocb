@@ -20,6 +20,7 @@ func (s *Scope) clone() *Scope {
 }
 
 // Collection returns an instance of a collection.
+// Volatile: This API is subject to change at any time.
 func (s *Scope) Collection(collectionName string, opts *CollectionOptions) *Collection {
 	return newCollection(s, collectionName, opts)
 }

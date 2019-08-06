@@ -12,7 +12,7 @@ import (
 
 // AnalyticsDeferredResultHandle allows access to the handle of a deferred Analytics query.
 //
-// Experimental: This API is subject to change at any time.
+// Volatile: This API is subject to change at any time.
 type AnalyticsDeferredResultHandle struct {
 	handleUri string
 	status    string

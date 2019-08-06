@@ -51,6 +51,7 @@ func (b *Bucket) Name() string {
 }
 
 // Scope returns an instance of a Scope.
+// Volatile: This API is subject to change at any time.
 func (b *Bucket) Scope(scopeName string) *Scope {
 	return newScope(b, scopeName)
 }
@@ -60,6 +61,7 @@ func (b *Bucket) defaultScope() *Scope {
 }
 
 // Collection returns an instance of a collection.
+// Volatile: This API is subject to change at any time.
 func (b *Bucket) Collection(scopeName string, collectionName string, opts *CollectionOptions) *Collection {
 	return b.Scope(scopeName).Collection(collectionName, opts)
 }
@@ -74,6 +76,7 @@ func (b *Bucket) stateBlock() stateBlock {
 }
 
 // ViewIndexes returns a ViewIndexManager instance for managing views.
+// Volatile: This API is subject to change at any time.
 func (b *Bucket) ViewIndexes() (*ViewIndexManager, error) {
 	provider, err := b.sb.getCachedClient().getHTTPProvider()
 	if err != nil {
@@ -87,6 +90,7 @@ func (b *Bucket) ViewIndexes() (*ViewIndexManager, error) {
 }
 
 // CollectionManager provides functions for managing collections.
+// Volatile: This API is subject to change at any time.
 func (b *Bucket) CollectionManager() (*CollectionManager, error) {
 	provider, err := b.sb.getCachedClient().getHTTPProvider()
 	if err != nil {
