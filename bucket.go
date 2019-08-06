@@ -26,18 +26,18 @@ func newBucket(sb *stateBlock, bucketName string, opts BucketOptions) *Bucket {
 			DuraTimeout:      sb.DuraTimeout,
 			DuraPollTimeout:  sb.DuraPollTimeout,
 
-			client: sb.client,
-
 			Transcoder: sb.Transcoder,
 			Serializer: sb.Serializer,
 		},
 	}
 }
 
-func (b *Bucket) connect() {
-	b.sb.cacheClient()
-	cli := b.sb.getCachedClient()
-	cli.connect()
+func (b *Bucket) hash() string {
+	return b.sb.Hash()
+}
+
+func (b *Bucket) cacheClient(cli client) {
+	b.sb.cacheClient(cli)
 }
 
 func (b *Bucket) clone() *Bucket {

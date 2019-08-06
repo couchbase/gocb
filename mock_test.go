@@ -369,7 +369,8 @@ func (mc *mockClient) Hash() string {
 		mc.useMutationTokens)
 }
 
-func (mc *mockClient) connect() {
+func (mc *mockClient) connect() error {
+	return nil
 }
 
 func (mc *mockClient) close() error {

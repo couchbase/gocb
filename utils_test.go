@@ -111,23 +111,22 @@ func (trc *testReadCloser) Close() error {
 // Not a test, just gets a collection instance.
 func testGetCollection(t *testing.T, provider *mockKvProvider) *Collection {
 	clients := make(map[string]client)
-	clients["mock-false"] = &mockClient{
+	cli := &mockClient{
 		bucketName:        "mock",
 		collectionId:      0,
 		scopeId:           0,
 		useMutationTokens: false,
 		mockKvProvider:    provider,
 	}
-	c := &Cluster{
-		connections: clients,
-	}
+	clients["mock-false"] = cli
+
 	b := &Bucket{
 		sb: stateBlock{
 			clientStateBlock: clientStateBlock{
 				BucketName: "mock",
 			},
 
-			client:           c.getClient,
+			cachedClient:     cli,
 			AnalyticsTimeout: 75000 * time.Millisecond,
 			QueryTimeout:     75000 * time.Millisecond,
 			SearchTimeout:    75000 * time.Millisecond,

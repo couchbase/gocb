@@ -12,7 +12,7 @@ import (
 
 type client interface {
 	Hash() string
-	connect()
+	connect() error
 	openCollection(ctx context.Context, scopeName string, collectionName string)
 	getKvProvider() (kvProvider, error)
 	getHTTPProvider() (httpProvider, error)
@@ -41,7 +41,7 @@ func (c *stdClient) Hash() string {
 }
 
 // TODO: This probably needs to be deadlined...
-func (c *stdClient) connect() {
+func (c *stdClient) connect() error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -62,22 +62,26 @@ func (c *stdClient) connect() {
 	err := config.FromConnStr(c.cluster.connSpec().String())
 	if err != nil {
 		c.bootstrapErr = err
+		return c.bootstrapErr
 	}
 
 	useCertificates := config.TlsConfig != nil && len(config.TlsConfig.Certificates) > 0
 	if useCertificates {
 		if auth == nil {
 			c.bootstrapErr = configurationError{message: "invalid mixed authentication configuration, client certificate and CertAuthenticator must be used together"}
+			return c.bootstrapErr
 		}
 		_, ok := auth.(CertAuthenticator)
 		if !ok {
 			c.bootstrapErr = configurationError{message: "invalid mixed authentication configuration, client certificate and CertAuthenticator must be used together"}
+			return c.bootstrapErr
 		}
 	}
 
 	_, ok := auth.(CertAuthenticator)
 	if ok && !useCertificates {
 		c.bootstrapErr = configurationError{message: "invalid mixed authentication configuration, client certificate and CertAuthenticator must be used together"}
+		return c.bootstrapErr
 	}
 
 	config.BucketName = c.state.BucketName
@@ -90,9 +94,11 @@ func (c *stdClient) connect() {
 	agent, err := gocbcore.CreateAgent(config)
 	if err != nil {
 		c.bootstrapErr = maybeEnhanceKVErr(err, "", false)
+		return c.bootstrapErr
 	}
 
 	c.agent = agent
+	return nil
 }
 
 func (c *stdClient) getKvProvider() (kvProvider, error) {

@@ -95,7 +95,6 @@ func TestPingAll(t *testing.T) {
 				BucketName: "mock",
 			},
 
-			client:           c.getClient,
 			KvTimeout:        c.sb.KvTimeout,
 			AnalyticsTimeout: c.sb.AnalyticsTimeout,
 			QueryTimeout:     c.sb.QueryTimeout,
@@ -225,7 +224,6 @@ func TestPingTimeoutQueryOnly(t *testing.T) {
 				BucketName: "mock",
 			},
 
-			client:           c.getClient,
 			AnalyticsTimeout: c.sb.AnalyticsTimeout,
 			QueryTimeout:     c.sb.QueryTimeout,
 			SearchTimeout:    c.sb.SearchTimeout,

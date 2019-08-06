@@ -10,7 +10,6 @@ func newScope(bucket *Bucket, scopeName string) *Scope {
 		sb: bucket.stateBlock(),
 	}
 	scope.sb.ScopeName = scopeName
-	scope.sb.cacheClient()
 	return scope
 }
 

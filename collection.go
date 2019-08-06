@@ -26,7 +26,6 @@ func newCollection(scope *Scope, collectionName string, opts *CollectionOptions)
 		sb: scope.stateBlock(),
 	}
 	collection.sb.CollectionName = collectionName
-	collection.sb.cacheClient()
 
 	deadlinedCtx, cancel := collection.context(opts.Context, opts.Timeout)
 	if cancel != nil {

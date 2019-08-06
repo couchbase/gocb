@@ -42,8 +42,6 @@ type stateBlock struct {
 
 	useMutationTokens bool
 
-	client func(*clientStateBlock) client
-
 	Transcoder Transcoder
 	Serializer JSONSerializer
 }
@@ -56,6 +54,6 @@ func (sb *stateBlock) getCachedClient() client {
 	return sb.cachedClient
 }
 
-func (sb *stateBlock) cacheClient() {
-	sb.cachedClient = sb.client(&sb.clientStateBlock)
+func (sb *stateBlock) cacheClient(cli client) {
+	sb.cachedClient = cli
 }

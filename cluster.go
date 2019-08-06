@@ -137,8 +137,6 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 		queryCache: make(map[string]*n1qlCache),
 	}
 
-	cluster.sb.client = cluster.getClient
-
 	err = cluster.parseExtraConnStrOptions(connSpec)
 	if err != nil {
 		return nil, err
@@ -197,21 +195,30 @@ func (c *Cluster) Bucket(bucketName string, opts *BucketOptions) *Bucket {
 		opts = &BucketOptions{}
 	}
 	b := newBucket(&c.sb, bucketName, *opts)
-	b.connect()
+	cli := c.getClient(&b.sb.clientStateBlock)
+	b.cacheClient(cli)
+	err := cli.connect()
+	if err == nil {
+		// Only cache this connection if there isn't an error on connecting
+		c.connectionsLock.Lock()
+		c.connections[b.hash()] = cli
+		c.connectionsLock.Unlock()
+	}
+
 	return b
 }
 
 func (c *Cluster) getClient(sb *clientStateBlock) client {
 	c.connectionsLock.Lock()
-	defer c.connectionsLock.Unlock()
 
 	hash := sb.Hash()
 	if cli, ok := c.connections[hash]; ok {
+		c.connectionsLock.Unlock()
 		return cli
 	}
+	c.connectionsLock.Unlock()
 
 	cli := newClient(c, sb)
-	c.connections[hash] = cli
 
 	return cli
 }
@@ -231,6 +238,16 @@ func (c *Cluster) randomClient() (client, error) {
 	}
 	c.connectionsLock.RUnlock()
 	return randomClient, nil
+}
+
+func (c *Cluster) dropClient(hash string) {
+	c.clusterLock.Lock()
+	_, ok := c.connections[hash]
+	if !ok {
+		logWarnf("hash for client not found in connections, %s", hash)
+	}
+	delete(c.connections, hash)
+	c.clusterLock.Unlock()
 }
 
 func (c *Cluster) authenticator() Authenticator {
