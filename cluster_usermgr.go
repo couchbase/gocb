@@ -18,26 +18,61 @@ type UserManager struct {
 	httpClient httpProvider
 }
 
-// UserRole represents a role for a particular user on the server.
-type UserRole struct {
-	Role       string `json:"role"`
-	BucketName string `json:"bucket_name"`
+// Role represents a specific permission.
+type Role struct {
+	Name   string `json:"role"`
+	Bucket string `json:"bucket_name"`
+}
+
+// RoleAndDescription represents a role with its display name and description.
+type RoleAndDescription struct {
+	Role        Role
+	DisplayName string
+	Description string
+}
+
+// Origin indicates why a user has a specific role. Is the Origin Type is "user" then the role is assigned
+// directly to the user. If the type is "group" then it means that the role has been inherited from the group
+// identified by the Name field.
+type Origin struct {
+	Type string `json:"type"`
+	Name string `json:"name"`
+}
+
+// RoleAndOrigins associates a role with its origins.
+type RoleAndOrigins struct {
+	Role    Role
+	Origins []Origin
 }
 
 // User represents a user which was retrieved from the server.
 type User struct {
-	ID    string
-	Name  string
-	Type  string
-	Roles []UserRole
+	Username    string
+	DisplayName string
+	// Roles are the roles assigned to the user that are of type "user".
+	Roles    []Role
+	Groups   []string
+	Password string
+}
+
+// UserAndMetadata represents a user and user metadata from the server.
+type UserAndMetadata struct {
+	Domain AuthDomain
+	User   User
+	// EffectiveRoles are all of the user's roles, regardless of origin.
+	EffectiveRoles []Role
+	// EffectiveRolesAndOrigins is the same as EffectiveRoles but with origin information included.
+	EffectiveRolesAndOrigins []RoleAndOrigins
+	ExternalGroups           []string
+	PasswordChanged          time.Time
 }
 
 // Group represents a user group on the server.
 type Group struct {
-	Name               string     `json:"id"`
-	Description        string     `json:"description"`
-	Roles              []UserRole `json:"roles"`
-	LDAPGroupReference string     `json:"ldap_group_ref"`
+	Name               string `json:"id"`
+	Description        string `json:"description"`
+	Roles              []Role `json:"roles"`
+	LDAPGroupReference string `json:"ldap_group_ref"`
 }
 
 // AuthDomain specifies the user domain of a specific user
@@ -49,32 +84,66 @@ const (
 
 	// ExternalDomain specifies users that are externally stored
 	// (in LDAP for instance).
-	ExternalDomain = "external"
+	ExternalDomain AuthDomain = "external"
 )
 
-type userRoleJson struct {
-	Role       string `json:"role"`
+type roleDescriptionsJson struct {
+	Role        string `json:"role"`
+	BucketName  string `json:"bucket_name"`
+	Name        string `json:"string"`
+	Description string `json:"desc"`
+}
+
+type roleOriginsJson struct {
+	RoleName   string `json:"role"`
 	BucketName string `json:"bucket_name"`
+	Origins    []Origin
 }
 
-type userJson struct {
-	ID    string         `json:"id"`
-	Name  string         `json:"name"`
-	Type  string         `json:"type"`
-	Roles []userRoleJson `json:"roles"`
+type userMetadataJson struct {
+	ID              string            `json:"id"`
+	Name            string            `json:"name"`
+	Roles           []roleOriginsJson `json:"roles"`
+	Groups          []string          `json:"groups"`
+	Domain          AuthDomain        `json:"domain"`
+	ExternalGroups  []string          `json:"external_groups"`
+	PasswordChanged time.Time         `json:"password_change_date"`
 }
 
-func transformUserJson(userData *userJson) User {
-	var user User
-	user.ID = userData.ID
-	user.Name = userData.Name
-	user.Type = userData.Type
+func transformUserMetadataJson(userData *userMetadataJson) UserAndMetadata {
+	var user UserAndMetadata
+	user.User.Username = userData.ID
+	user.User.DisplayName = userData.Name
+	user.User.Groups = userData.Groups
+
+	user.ExternalGroups = userData.ExternalGroups
+	user.Domain = userData.Domain
+	user.PasswordChanged = userData.PasswordChanged
+
+	var roles []Role
+	var effectiveRoles []Role
+	var effectiveRolesAndOrigins []RoleAndOrigins
 	for _, roleData := range userData.Roles {
-		user.Roles = append(user.Roles, UserRole{
-			Role:       roleData.Role,
-			BucketName: roleData.BucketName,
+		role := Role{
+			Name:   roleData.RoleName,
+			Bucket: roleData.BucketName,
+		}
+		effectiveRoles = append(effectiveRoles, role)
+		effectiveRolesAndOrigins = append(effectiveRolesAndOrigins, RoleAndOrigins{
+			Role:    role,
+			Origins: roleData.Origins,
 		})
+		for _, origin := range roleData.Origins {
+			if origin.Type == "user" {
+				roles = append(roles, role)
+				break
+			}
+		}
 	}
+	user.EffectiveRoles = effectiveRoles
+	user.EffectiveRolesAndOrigins = effectiveRolesAndOrigins
+	user.User.Roles = roles
+
 	return user
 }
 
@@ -87,7 +156,7 @@ type GetAllUsersOptions struct {
 }
 
 // GetAllUsers returns a list of all the users from the cluster.
-func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]*User, error) {
+func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata, error) {
 	if opts == nil {
 		opts = &GetAllUsersOptions{}
 	}
@@ -125,17 +194,17 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]*User, error) {
 		return nil, userManagerError{statusCode: resp.StatusCode, message: string(data)}
 	}
 
-	var usersData []*userJson
+	var usersData []userMetadataJson
 	jsonDec := json.NewDecoder(resp.Body)
 	err = jsonDec.Decode(&usersData)
 	if err != nil {
 		return nil, err
 	}
 
-	var users []*User
+	var users []UserAndMetadata
 	for _, userData := range usersData {
-		user := transformUserJson(userData)
-		users = append(users, &user)
+		user := transformUserMetadataJson(&userData)
+		users = append(users, user)
 	}
 
 	return users, nil
@@ -150,7 +219,7 @@ type GetUserOptions struct {
 }
 
 // GetUser returns the data for a particular user
-func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*User, error) {
+func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetadata, error) {
 	if opts == nil {
 		opts = &GetUserOptions{}
 	}
@@ -188,14 +257,14 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*User, error)
 		return nil, userManagerError{statusCode: resp.StatusCode, message: string(data)}
 	}
 
-	var userData userJson
+	var userData userMetadataJson
 	jsonDec := json.NewDecoder(resp.Body)
 	err = jsonDec.Decode(&userData)
 	if err != nil {
 		return nil, err
 	}
 
-	user := transformUserJson(&userData)
+	user := transformUserMetadataJson(&userData)
 	return &user, nil
 }
 
@@ -208,7 +277,7 @@ type UpsertUserOptions struct {
 }
 
 // UpsertUser updates a built-in RBAC user on the cluster.
-func (um *UserManager) UpsertUser(name string, password string, roles []UserRole, opts *UpsertUserOptions) error {
+func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 	if opts == nil {
 		opts = &UpsertUserOptions{}
 	}
@@ -223,19 +292,24 @@ func (um *UserManager) UpsertUser(name string, password string, roles []UserRole
 	}
 
 	var reqRoleStrs []string
-	for _, roleData := range roles {
-		reqRoleStrs = append(reqRoleStrs, fmt.Sprintf("%s[%s]", roleData.Role, roleData.BucketName))
+	for _, roleData := range user.Roles {
+		reqRoleStrs = append(reqRoleStrs, fmt.Sprintf("%s[%s]", roleData.Name, roleData.Bucket))
 	}
 
 	reqForm := make(url.Values)
-	reqForm.Add("name", name)
-	reqForm.Add("password", password)
+	reqForm.Add("name", user.DisplayName)
+	if user.Password != "" {
+		reqForm.Add("password", user.Password)
+	}
+	if len(user.Groups) > 0 {
+		reqForm.Add("groups", strings.Join(user.Groups, ","))
+	}
 	reqForm.Add("roles", strings.Join(reqRoleStrs, ","))
 
 	req := &gocbcore.HttpRequest{
 		Service:     gocbcore.ServiceType(MgmtService),
 		Method:      "PUT",
-		Path:        fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, name),
+		Path:        fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, user.Username),
 		Body:        []byte(reqForm.Encode()),
 		ContentType: "application/x-www-form-urlencoded",
 		Context:     ctx,
@@ -309,6 +383,71 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 	}
 
 	return nil
+}
+
+// AvailableRolesOptions is the set of options available to the user manager AvailableRoles operation.
+type AvailableRolesOptions struct {
+	Timeout time.Duration
+	Context context.Context
+}
+
+// AvailableRoles lists the roles supported by the cluster.
+func (um *UserManager) AvailableRoles(opts *AvailableRolesOptions) ([]RoleAndDescription, error) {
+	if opts == nil {
+		opts = &AvailableRolesOptions{}
+	}
+
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	if cancel != nil {
+		defer cancel()
+	}
+
+	req := &gocbcore.HttpRequest{
+		Service: gocbcore.ServiceType(MgmtService),
+		Method:  "GET",
+		Path:    "/settings/rbac/roles",
+		Context: ctx,
+	}
+
+	resp, err := um.httpClient.DoHttpRequest(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		data, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		err = resp.Body.Close()
+		if err != nil {
+			logDebugf("Failed to close socket (%s)", err)
+		}
+		return nil, userManagerError{statusCode: resp.StatusCode, message: string(data)}
+	}
+
+	var roleDatas []roleDescriptionsJson
+	jsonDec := json.NewDecoder(resp.Body)
+	err = jsonDec.Decode(&roleDatas)
+	if err != nil {
+		return nil, err
+	}
+
+	var roles []RoleAndDescription
+	for _, roleData := range roleDatas {
+		role := RoleAndDescription{
+			Role: Role{
+				Name:   roleData.Role,
+				Bucket: roleData.BucketName,
+			},
+			DisplayName: roleData.Name,
+			Description: roleData.Description,
+		}
+
+		roles = append(roles, role)
+	}
+
+	return roles, nil
 }
 
 // GetGroupOptions is the set of options available to the group manager Get operation.
@@ -438,10 +577,10 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 
 	var reqRoleStrs []string
 	for _, roleData := range group.Roles {
-		if roleData.BucketName == "" {
-			reqRoleStrs = append(reqRoleStrs, fmt.Sprintf("%s", roleData.Role))
+		if roleData.Bucket == "" {
+			reqRoleStrs = append(reqRoleStrs, fmt.Sprintf("%s", roleData.Name))
 		} else {
-			reqRoleStrs = append(reqRoleStrs, fmt.Sprintf("%s[%s]", roleData.Role, roleData.BucketName))
+			reqRoleStrs = append(reqRoleStrs, fmt.Sprintf("%s[%s]", roleData.Name, roleData.Bucket))
 		}
 	}
 
