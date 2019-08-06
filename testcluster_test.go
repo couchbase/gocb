@@ -58,7 +58,8 @@ var (
 	ExpandMacrosFeature      = FeatureCode(21)
 	DurabilityFeature        = FeatureCode(22)
 	UserGroupFeature         = FeatureCode(23)
-	UserManagerFeature       = FeatureCode(23)
+	UserManagerFeature       = FeatureCode(24)
+	AnalyticsIndexFeature    = FeatureCode(25)
 )
 
 type testCluster struct {
@@ -102,6 +103,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case UserGroupFeature:
 			supported = false
 		case UserManagerFeature:
+			supported = false
+		case AnalyticsIndexFeature:
 			supported = false
 		}
 	} else {
@@ -154,6 +157,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer650)
 		case UserManagerFeature:
 			supported = !c.Version.Lower(srvVer500)
+		case AnalyticsIndexFeature:
+			supported = !c.Version.Lower(srvVer600)
 		}
 	}
 

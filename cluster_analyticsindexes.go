@@ -34,6 +34,98 @@ type AnalyticsIndex struct {
 	IsPrimary     bool   `json:"IsPrimary"`
 }
 
+// CreateAnalyticsDataverseOptions is the set of options available to the AnalyticsManager CreateDataverse operation.
+type CreateAnalyticsDataverseOptions struct {
+	Timeout time.Duration
+	Context context.Context
+
+	IgnoreIfExists bool
+}
+
+// CreateDataverse creates a new analytics dataset.
+func (am *AnalyticsIndexManager) CreateDataverse(dataverseName string, opts *CreateAnalyticsDataverseOptions) error {
+	if dataverseName == "" {
+		return invalidArgumentsError{
+			message: "dataset name cannot be empty",
+		}
+	}
+
+	if opts == nil {
+		opts = &CreateAnalyticsDataverseOptions{}
+	}
+
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	if cancel != nil {
+		defer cancel()
+	}
+
+	var ignoreStr string
+	if opts.IgnoreIfExists {
+		ignoreStr = "IF NOT EXISTS"
+	}
+
+	q := fmt.Sprintf("CREATE DATAVERSE `%s` %s", dataverseName, ignoreStr)
+	result, err := am.executeQuery(q, &AnalyticsQueryOptions{
+		Context: ctx,
+	})
+	if err != nil {
+		aErr, ok := err.(AnalyticsQueryError)
+		if ok {
+			return analyticsIndexesError{
+				statusCode:    aErr.HTTPStatus(),
+				message:       aErr.Message(),
+				analyticsCode: aErr.Code(),
+			}
+		}
+		return err
+	}
+
+	return result.Close()
+}
+
+// DropAnalyticsDataverseOptions is the set of options available to the AnalyticsManager DropDataverse operation.
+type DropAnalyticsDataverseOptions struct {
+	Timeout time.Duration
+	Context context.Context
+
+	IgnoreIfNotExists bool
+}
+
+// DropDataverse drops an analytics dataset.
+func (am *AnalyticsIndexManager) DropDataverse(dataverseName string, opts *DropAnalyticsDataverseOptions) error {
+	if opts == nil {
+		opts = &DropAnalyticsDataverseOptions{}
+	}
+
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	if cancel != nil {
+		defer cancel()
+	}
+
+	var ignoreStr string
+	if opts.IgnoreIfNotExists {
+		ignoreStr = "IF EXISTS"
+	}
+
+	q := fmt.Sprintf("DROP DATAVERSE %s %s", dataverseName, ignoreStr)
+	result, err := am.executeQuery(q, &AnalyticsQueryOptions{
+		Context: ctx,
+	})
+	if err != nil {
+		aErr, ok := err.(AnalyticsQueryError)
+		if ok {
+			return analyticsIndexesError{
+				statusCode:    aErr.HTTPStatus(),
+				message:       aErr.Message(),
+				analyticsCode: aErr.Code(),
+			}
+		}
+		return err
+	}
+
+	return result.Close()
+}
+
 // CreateAnalyticsDatasetOptions is the set of options available to the AnalyticsManager CreateDataset operation.
 type CreateAnalyticsDatasetOptions struct {
 	Timeout time.Duration
@@ -41,11 +133,12 @@ type CreateAnalyticsDatasetOptions struct {
 
 	IgnoreIfExists bool
 	// Condition can be used to set the WHERE clause for the dataset creation.
-	Condition string
+	Condition     string
+	DataverseName string
 }
 
 // CreateDataset creates a new analytics dataset.
-func (am *AnalyticsIndexManager) CreateDataset(bucketName, datasetName string, opts *CreateAnalyticsDatasetOptions) error {
+func (am *AnalyticsIndexManager) CreateDataset(datasetName, bucketName string, opts *CreateAnalyticsDatasetOptions) error {
 	if datasetName == "" {
 		return invalidArgumentsError{
 			message: "dataset name cannot be empty",
@@ -74,7 +167,13 @@ func (am *AnalyticsIndexManager) CreateDataset(bucketName, datasetName string, o
 		where += opts.Condition
 	}
 
-	q := fmt.Sprintf("CREATE DATASET %s `%s` ON `%s` %s", ignoreStr, datasetName, bucketName, where)
+	if opts.DataverseName == "" {
+		datasetName = fmt.Sprintf("`%s`", datasetName)
+	} else {
+		datasetName = fmt.Sprintf("`%s`.`%s`", opts.DataverseName, datasetName)
+	}
+
+	q := fmt.Sprintf("CREATE DATASET %s %s ON `%s` %s", ignoreStr, datasetName, bucketName, where)
 	result, err := am.executeQuery(q, &AnalyticsQueryOptions{
 		Context: ctx,
 	})
@@ -99,6 +198,7 @@ type DropAnalyticsDatasetOptions struct {
 	Context context.Context
 
 	IgnoreIfNotExists bool
+	DataverseName     string
 }
 
 // DropDataset drops an analytics dataset.
@@ -115,6 +215,12 @@ func (am *AnalyticsIndexManager) DropDataset(datasetName string, opts *DropAnaly
 	var ignoreStr string
 	if opts.IgnoreIfNotExists {
 		ignoreStr = "IF EXISTS"
+	}
+
+	if opts.DataverseName == "" {
+		datasetName = fmt.Sprintf("`%s`", datasetName)
+	} else {
+		datasetName = fmt.Sprintf("`%s`.`%s`", opts.DataverseName, datasetName)
 	}
 
 	q := fmt.Sprintf("DROP DATASET %s %s", datasetName, ignoreStr)
@@ -190,10 +296,11 @@ type CreateAnalyticsIndexOptions struct {
 	Context context.Context
 
 	IgnoreIfExists bool
+	DataverseName  string
 }
 
 // CreateIndex creates a new analytics dataset.
-func (am *AnalyticsIndexManager) CreateIndex(datasetName string, indexName string, fields map[string]string, opts *CreateAnalyticsIndexOptions) error {
+func (am *AnalyticsIndexManager) CreateIndex(datasetName, indexName string, fields map[string]string, opts *CreateAnalyticsIndexOptions) error {
 	if indexName == "" {
 		return invalidArgumentsError{
 			message: "index name cannot be empty",
@@ -224,7 +331,13 @@ func (am *AnalyticsIndexManager) CreateIndex(datasetName string, indexName strin
 		indexFields = append(indexFields, name+":"+typ)
 	}
 
-	q := fmt.Sprintf("CREATE INDEX `%s` %s ON `%s` (%s)", indexName, ignoreStr, datasetName, strings.Join(indexFields, ","))
+	if opts.DataverseName == "" {
+		datasetName = fmt.Sprintf("`%s`", datasetName)
+	} else {
+		datasetName = fmt.Sprintf("`%s`.`%s`", opts.DataverseName, datasetName)
+	}
+
+	q := fmt.Sprintf("CREATE INDEX `%s` %s ON %s (%s)", indexName, ignoreStr, datasetName, strings.Join(indexFields, ","))
 	result, err := am.executeQuery(q, &AnalyticsQueryOptions{
 		Context: ctx,
 	})
@@ -249,6 +362,7 @@ type DropAnalyticsIndexOptions struct {
 	Context context.Context
 
 	IgnoreIfNotExists bool
+	DataverseName     string
 }
 
 // DropIndex drops an analytics index.
@@ -265,6 +379,12 @@ func (am *AnalyticsIndexManager) DropIndex(datasetName, indexName string, opts *
 	var ignoreStr string
 	if opts.IgnoreIfNotExists {
 		ignoreStr = "IF EXISTS"
+	}
+
+	if opts.DataverseName == "" {
+		datasetName = fmt.Sprintf("`%s`", datasetName)
+	} else {
+		datasetName = fmt.Sprintf("`%s`.`%s`", opts.DataverseName, datasetName)
 	}
 
 	q := fmt.Sprintf("DROP INDEX %s.%s %s", datasetName, indexName, ignoreStr)

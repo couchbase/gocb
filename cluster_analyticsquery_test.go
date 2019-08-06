@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"testing"
 	"time"
 
@@ -27,19 +26,13 @@ func TestAnalyticsQuery(t *testing.T) {
 		t.Skip("Skipping test as no travel-sample bucket")
 	}
 
-	testCreateAnalyticsDataset(t)
-	errCh := make(chan error)
-	timer := time.NewTimer(30 * time.Second)
-	go testWaitAnalyticsDataset(errCh)
-
-	select {
-	case <-timer.C:
-		t.Fatalf("Wait time for analytics dataset to become ready expired")
-	case err := <-errCh:
-		if err != nil {
-			t.Fatalf("Failed to wait for analytics dataset to become ready: %v", err)
-		}
+	mgr, err := globalCluster.AnalyticsIndexes()
+	if err != nil {
+		t.Fatalf("Failed to get analytics index manager %v", err)
 	}
+
+	testCreateAnalyticsDataset(t, mgr)
+	go testWaitAnalyticsDataset(t, mgr)
 
 	t.Run("testSimpleAnalyticsQuery", testSimpleAnalyticsQuery)
 	t.Run("testSimpleAnalyticsQueryOne", testSimpleAnalyticsQueryOne)
@@ -50,74 +43,44 @@ func TestAnalyticsQuery(t *testing.T) {
 	t.Run("testAnalyticsQueryPositionalParameters", testAnalyticsQueryPositionalParameters)
 }
 
-func testCreateAnalyticsDataset(t *testing.T) {
-	// _p/cbas-admin/analytics/node/agg/stats/remaining
-	query := "CREATE DATASET `travel-sample` ON `travel-sample`;"
-	res, err := globalCluster.AnalyticsQuery(query, nil)
+func testCreateAnalyticsDataset(t *testing.T, mgr *AnalyticsIndexManager) {
+	err := mgr.CreateDataset("travel-sample", "travel-sample", &CreateAnalyticsDatasetOptions{
+		IgnoreIfExists: true,
+		Timeout:        1 * time.Second,
+	})
 	if err != nil {
-		aErr, ok := err.(AnalyticsQueryError)
-		if !ok {
-			t.Fatalf("Failed to create dataset: %v", err)
-		}
-
-		// 24040 means that this dataset already exists, which is a-ok
-		if aErr.Code() != 24040 {
-			t.Fatalf("Failed to create dataset: %v", err)
-		}
+		t.Fatalf("Failed to create dataset %v", err)
 	}
 
-	if res != nil {
-		err = res.Close()
-		if err != nil {
-			t.Fatalf("Failed to close result: %v", err)
-		}
-	}
-
-	query = "CONNECT LINK Local;"
-	_, err = globalCluster.AnalyticsQuery(query, nil)
+	err = mgr.ConnectLink("Local", &ConnectAnalyticsLinkOptions{
+		Timeout: 1 * time.Second,
+	})
 	if err != nil {
 		t.Fatalf("Failed to connect link %v", err)
 	}
 }
 
-func testWaitAnalyticsDataset(errCh chan error) {
-	req := &gocbcore.HttpRequest{
-		Service: gocbcore.MgmtService,
-		Path:    "/_p/cbas-admin/analytics/node/agg/stats/remaining",
-		Method:  "GET",
-	}
-
-	agent, err := globalCluster.getHTTPProvider()
-	if err != nil {
-		errCh <- fmt.Errorf("failed to get HTTP provider: %v", err)
-	}
-
+func testWaitAnalyticsDataset(t *testing.T, mgr *AnalyticsIndexManager) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	for {
-		time.Sleep(250 * time.Millisecond)
-
-		res, err := agent.DoHttpRequest(req)
+		time.Sleep(500 * time.Millisecond)
+		pending, err := mgr.GetPendingMutations(&GetPendingMutationsAnalyticsOptions{
+			Context: ctx,
+		})
 		if err != nil {
-			errCh <- fmt.Errorf("failed to execute HTTP request: %v", err)
+			t.Fatalf("Failed to get pending mutations %v", err)
 		}
 
-		decoder := json.NewDecoder(res.Body)
-		var indexRemaining map[string]int
-		err = decoder.Decode(&indexRemaining)
-		if err != nil {
-			errCh <- fmt.Errorf("failed to decode response: %v", err)
-		}
-
-		remaining, ok := indexRemaining["Default.travel-sample"]
+		remaining, ok := pending["Default.travel-sample"]
 		if !ok {
-			errCh <- fmt.Errorf("missing Default.travel-sample entry from index remaining")
+			t.Fatalf("missing Default.travel-sample entry from index remaining")
 		}
 
 		if remaining == 0 {
 			break
 		}
 	}
-
-	errCh <- nil
 }
 
 // In these tests use a large enough limit to force streaming to occur.

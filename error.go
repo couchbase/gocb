@@ -696,6 +696,26 @@ func IsAnalyticsDatasetNotFoundError(err error) bool {
 	}
 }
 
+// IsAnalyticsDataverseAlreadyExistsError verifies that an analytics dataverse already exists.
+func IsAnalyticsDataverseAlreadyExistsError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case AnalyticsIndexesError:
+		return errType.AnalyticsDataverseExistsError()
+	default:
+		return false
+	}
+}
+
+// IsAnalyticsDataverseNotFoundError verifies that an analytics dataverse could not be found.
+func IsAnalyticsDataverseNotFoundError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case AnalyticsIndexesError:
+		return errType.AnalyticsDataverseNotFoundError()
+	default:
+		return false
+	}
+}
+
 // IsAnalyticsLinkNotFoundError verifies that an analytics link could not be found.
 func IsAnalyticsLinkNotFoundError(err error) bool {
 	switch errType := errors.Cause(err).(type) {
@@ -1284,6 +1304,8 @@ type AnalyticsIndexesError interface {
 	AnalyticsIndexExistsError() bool
 	AnalyticsDatasetNotFoundError() bool
 	AnalyticsDatasetExistsError() bool
+	AnalyticsDataverseExistsError() bool
+	AnalyticsDataverseNotFoundError() bool
 	AnalyticsLinkNotFoundError() bool
 }
 
@@ -1332,6 +1354,24 @@ func (e analyticsIndexesError) AnalyticsDatasetNotFoundError() bool {
 // AnalyticsDatasetExistsError indicates that a specified analytics dataset already exists.
 func (e analyticsIndexesError) AnalyticsDatasetExistsError() bool {
 	if e.analyticsCode == 24040 {
+		return true
+	}
+
+	return false
+}
+
+// AnalyticsDataverseExistsError indicates that a specified analytics dataverse already exists.
+func (e analyticsIndexesError) AnalyticsDataverseExistsError() bool {
+	if e.analyticsCode == 24039 {
+		return true
+	}
+
+	return false
+}
+
+// AnalyticsDataverseNotFoundError indicates that a specified analytics dataverse could not be found.
+func (e analyticsIndexesError) AnalyticsDataverseNotFoundError() bool {
+	if e.analyticsCode == 24034 {
 		return true
 	}
 
