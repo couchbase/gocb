@@ -31,6 +31,13 @@ func TestIsCasMismatchError(t *testing.T) {
 	}
 }
 
+func TestNilEnhanceError(t *testing.T) {
+	enhancedErr := maybeEnhanceKVErr(nil, "myfakekey", false)
+	if enhancedErr != nil {
+		t.Fatalf("Expected enhanced error to be nil but was %v", enhancedErr)
+	}
+}
+
 func TestKVIsRetryable(t *testing.T) {
 	err := &gocbcore.KvError{
 		Code: gocbcore.StatusTmpFail,
