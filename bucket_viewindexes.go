@@ -36,8 +36,8 @@ type DesignDocument struct {
 	Views map[string]View `json:"views,omitempty"`
 }
 
-// GetViewIndexOptions is the set of options available to the ViewIndexManager Get operation.
-type GetViewIndexOptions struct {
+// GetDesignDocumentOptions is the set of options available to the ViewIndexManager GetDesignDocument operation.
+type GetDesignDocumentOptions struct {
 	Timeout time.Duration
 	Context context.Context
 
@@ -58,10 +58,10 @@ func (vm *ViewIndexManager) ddocName(name string, isProd bool) string {
 	return name
 }
 
-// Get retrieves a single design document for the given bucket.
-func (vm *ViewIndexManager) Get(name string, opts *GetViewIndexOptions) (*DesignDocument, error) {
+// GetDesignDocument retrieves a single design document for the given bucket.
+func (vm *ViewIndexManager) GetDesignDocument(name string, opts *GetDesignDocumentOptions) (*DesignDocument, error) {
 	if opts == nil {
-		opts = &GetViewIndexOptions{}
+		opts = &GetDesignDocumentOptions{}
 	}
 
 	ctx := opts.Context
@@ -117,16 +117,16 @@ func (vm *ViewIndexManager) Get(name string, opts *GetViewIndexOptions) (*Design
 	return &ddocObj, nil
 }
 
-// GetAllViewIndexOptions is the set of options available to the ViewIndexManager GetAll operation.
-type GetAllViewIndexOptions struct {
+// GetAllDesignDocumentsOptions is the set of options available to the ViewIndexManager GetAllDesignDocuments operation.
+type GetAllDesignDocumentsOptions struct {
 	Timeout time.Duration
 	Context context.Context
 }
 
-// GetAll will retrieve all design documents for the given bucket.
-func (vm *ViewIndexManager) GetAll(opts *GetAllViewIndexOptions) ([]*DesignDocument, error) {
+// GetAllDesignDocuments will retrieve all design documents for the given bucket.
+func (vm *ViewIndexManager) GetAllDesignDocuments(opts *GetAllDesignDocumentsOptions) ([]*DesignDocument, error) {
 	if opts == nil {
-		opts = &GetAllViewIndexOptions{}
+		opts = &GetAllDesignDocumentsOptions{}
 	}
 
 	ctx := opts.Context
@@ -190,69 +190,19 @@ func (vm *ViewIndexManager) GetAll(opts *GetAllViewIndexOptions) ([]*DesignDocum
 	return ddocs, nil
 }
 
-// CreateViewIndexOptions is the set of options available to the ViewIndexManager Create operation.
-type CreateViewIndexOptions struct {
+// UpsertDesignDocumentOptions is the set of options available to the ViewIndexManager UpsertDesignDocument operation.
+type UpsertDesignDocumentOptions struct {
 	Timeout time.Duration
 	Context context.Context
 
 	IsProduction bool
 }
 
-// Create inserts a design document to the given bucket.
-func (vm *ViewIndexManager) Create(ddoc DesignDocument, opts *CreateViewIndexOptions) error {
-	if opts == nil {
-		opts = &CreateViewIndexOptions{}
-	}
-
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	if opts.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
-		defer cancel()
-	}
-
-	_, err := vm.Get(ddoc.Name, &GetViewIndexOptions{
-		Context:      ctx,
-		IsProduction: opts.IsProduction,
-	})
-	if err == nil {
-		// If there's no error then design doc exists.
-		return viewIndexError{message: "Design document already exists", indexExists: true}
-	}
-	indexErr, ok := err.(viewIndexError)
-	if ok {
-		if !indexErr.indexMissing {
-			// If the error isn't index missing then it's an actual error.
-			return viewIndexError{message: "Design document already exists", indexExists: true}
-		}
-	} else {
-		// If the error isn't a view index error then it's an actual error.
-		return err
-	}
-
-	return vm.Upsert(ddoc, &UpsertViewIndexOptions{
-		Context:      ctx,
-		IsProduction: opts.IsProduction,
-	})
-}
-
-// UpsertViewIndexOptions is the set of options available to the ViewIndexManager Upsert operation.
-type UpsertViewIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
-
-	IsProduction bool
-}
-
-// Upsert will insert a design document to the given bucket, or update
+// UpsertDesignDocument will insert a design document to the given bucket, or update
 // an existing design document with the same name.
-func (vm *ViewIndexManager) Upsert(ddoc DesignDocument, opts *UpsertViewIndexOptions) error {
+func (vm *ViewIndexManager) UpsertDesignDocument(ddoc DesignDocument, opts *UpsertDesignDocumentOptions) error {
 	if opts == nil {
-		opts = &UpsertViewIndexOptions{}
+		opts = &UpsertDesignDocumentOptions{}
 	}
 
 	ctx := opts.Context
@@ -301,18 +251,18 @@ func (vm *ViewIndexManager) Upsert(ddoc DesignDocument, opts *UpsertViewIndexOpt
 	return nil
 }
 
-// DropViewIndexOptions is the set of options available to the ViewIndexManager Upsert operation.
-type DropViewIndexOptions struct {
+// DropDesignDocumentOptions is the set of options available to the ViewIndexManager Upsert operation.
+type DropDesignDocumentOptions struct {
 	Timeout time.Duration
 	Context context.Context
 
 	IsProduction bool
 }
 
-// Drop will remove a design document from the given bucket.
-func (vm *ViewIndexManager) Drop(name string, opts *DropViewIndexOptions) error {
+// DropDesignDocument will remove a design document from the given bucket.
+func (vm *ViewIndexManager) DropDesignDocument(name string, opts *DropDesignDocumentOptions) error {
 	if opts == nil {
-		opts = &DropViewIndexOptions{}
+		opts = &DropDesignDocumentOptions{}
 	}
 
 	ctx := opts.Context
@@ -359,16 +309,16 @@ func (vm *ViewIndexManager) Drop(name string, opts *DropViewIndexOptions) error 
 	return nil
 }
 
-// PublishViewIndexOptions is the set of options available to the ViewIndexManager Publish operation.
-type PublishViewIndexOptions struct {
+// PublishDesignDocumentOptions is the set of options available to the ViewIndexManager PublishDesignDocument operation.
+type PublishDesignDocumentOptions struct {
 	Timeout time.Duration
 	Context context.Context
 }
 
-// Publish publishes a design document to the given bucket.
-func (vm *ViewIndexManager) Publish(name string, opts *PublishViewIndexOptions) error {
+// PublishDesignDocument publishes a design document to the given bucket.
+func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesignDocumentOptions) error {
 	if opts == nil {
-		opts = &PublishViewIndexOptions{}
+		opts = &PublishDesignDocumentOptions{}
 	}
 
 	ctx := opts.Context
@@ -382,7 +332,7 @@ func (vm *ViewIndexManager) Publish(name string, opts *PublishViewIndexOptions) 
 		defer cancel()
 	}
 
-	devdoc, err := vm.Get(name, &GetViewIndexOptions{
+	devdoc, err := vm.GetDesignDocument(name, &GetDesignDocumentOptions{
 		Context:      ctx,
 		IsProduction: false,
 	})
@@ -396,7 +346,7 @@ func (vm *ViewIndexManager) Publish(name string, opts *PublishViewIndexOptions) 
 		return err
 	}
 
-	err = vm.Upsert(*devdoc, &UpsertViewIndexOptions{
+	err = vm.UpsertDesignDocument(*devdoc, &UpsertDesignDocumentOptions{
 		Context:      ctx,
 		IsProduction: true,
 	})
@@ -404,7 +354,7 @@ func (vm *ViewIndexManager) Publish(name string, opts *PublishViewIndexOptions) 
 		return errors.Wrap(err, "failed to create ")
 	}
 
-	err = vm.Drop(devdoc.Name, &DropViewIndexOptions{
+	err = vm.DropDesignDocument(devdoc.Name, &DropDesignDocumentOptions{
 		Context:      ctx,
 		IsProduction: false,
 	})

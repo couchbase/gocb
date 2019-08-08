@@ -3,10 +3,7 @@ package gocb
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"reflect"
 	"testing"
 	"time"
@@ -27,7 +24,7 @@ func TestViewQuery(t *testing.T) {
 		t.Skip("Skipping test as no travel-sample bucket")
 	}
 
-	testCreateView(t)
+	testCreateView(t, 30*time.Second)
 	errCh := make(chan error)
 	timer := time.NewTimer(30 * time.Second)
 	go testWaitView(errCh)
@@ -49,52 +46,32 @@ func TestViewQuery(t *testing.T) {
 	t.Run("testSimpleViewQueryError", testSimpleViewQueryError)
 }
 
-func testCreateView(t *testing.T) {
+func testCreateView(t *testing.T, timeout time.Duration) {
 	viewFn := `function (doc, meta) {
   emit(meta.id, 1);
 }`
 	reduceFn := `_count`
-	mapStr := map[string]string{
-		"map":    viewFn,
-		"reduce": reduceFn,
+	view := View{
+		Map:    viewFn,
+		Reduce: reduceFn,
 	}
-	views := map[string]map[string]string{
-		"sample": mapStr,
-	}
-	ddoc := map[string]map[string]map[string]string{
-		"views": views,
+	views := map[string]View{
+		"sample": view,
 	}
 
-	b, err := json.Marshal(ddoc)
+	mgr, err := globalTravelBucket.ViewIndexes()
 	if err != nil {
-		t.Fatalf("failed to marshal view: %v", err)
+		t.Fatalf("Failed to get view index manager: %v", err)
 	}
 
-	req := &gocbcore.HttpRequest{
-		Service: gocbcore.CapiService,
-		Path:    "/_design/travel",
-		Method:  "PUT",
-		Body:    b,
-	}
-
-	cli := globalTravelBucket.sb.getCachedClient()
-
-	agent, err := cli.getHTTPProvider()
+	err = mgr.UpsertDesignDocument(DesignDocument{
+		Views: views,
+		Name:  "travel",
+	}, &UpsertDesignDocumentOptions{
+		Timeout: timeout,
+	})
 	if err != nil {
-		t.Fatalf("failed to get HTTP provider: %v", err)
-	}
-
-	res, err := agent.DoHttpRequest(req)
-	if err != nil {
-		t.Fatalf("failed to execute HTTP request: %v", err)
-	}
-
-	if res.StatusCode != http.StatusCreated {
-		data, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			t.Fatalf("failed to create view and couldn't read resp body: %v", err)
-		}
-		t.Fatalf("failed to create view: %s", string(data))
+		t.Fatalf("Failed to create design document: %v", err)
 	}
 }
 
