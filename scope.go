@@ -24,11 +24,6 @@ func (s *Scope) Collection(collectionName string, opts *CollectionOptions) *Coll
 	return newCollection(s, collectionName, opts)
 }
 
-// DefaultCollection returns an instance of the default collection.
-func (s *Scope) DefaultCollection(opts *CollectionOptions) *Collection {
-	return s.Collection("_default", opts)
-}
-
 func (s *Scope) stateBlock() stateBlock {
 	return s.sb
 }

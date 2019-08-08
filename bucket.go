@@ -68,7 +68,7 @@ func (b *Bucket) Collection(scopeName string, collectionName string, opts *Colle
 
 // DefaultCollection returns an instance of the default collection.
 func (b *Bucket) DefaultCollection(opts *CollectionOptions) *Collection {
-	return b.defaultScope().DefaultCollection(opts)
+	return b.defaultScope().Collection("_default", opts)
 }
 
 func (b *Bucket) stateBlock() stateBlock {
