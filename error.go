@@ -332,6 +332,12 @@ func IsCasMismatchError(err error) bool {
 	return false
 }
 
+// IsQueueOverloadError verifies that the cause for an error is that more operations were dispatched than the client
+// is capable of writing.
+func IsQueueOverloadError(err error) bool {
+	return errors.Cause(err) == gocbcore.ErrOverload
+}
+
 // KV Subdoc Specific Errors
 
 // IsPathNotFoundError indicates whether the passed error is a
@@ -1521,6 +1527,4 @@ var (
 
 	// ErrShutdown occurs when an operation is performed on a bucket that has been closed.
 	ErrShutdown = gocbcore.ErrShutdown
-	// ErrOverload occurs when more operations were dispatched than the client is capable of writing.
-	ErrOverload = gocbcore.ErrOverload
 )
