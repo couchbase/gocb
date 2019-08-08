@@ -75,7 +75,7 @@ func (qm *QueryIndexManager) createIndex(bucketName, indexName string, fields []
 	return rows.Close()
 }
 
-// CreateQueryIndexOptions is the set of options available to the query indexes Create operation.
+// CreateQueryIndexOptions is the set of options available to the query indexes CreateIndex operation.
 type CreateQueryIndexOptions struct {
 	Timeout time.Duration
 	Context context.Context
@@ -84,8 +84,8 @@ type CreateQueryIndexOptions struct {
 	Deferred       bool
 }
 
-// Create creates an index over the specified fields.
-func (qm *QueryIndexManager) Create(bucketName, indexName string, fields []string, opts *CreateQueryIndexOptions) error {
+// CreateIndex creates an index over the specified fields.
+func (qm *QueryIndexManager) CreateIndex(bucketName, indexName string, fields []string, opts *CreateQueryIndexOptions) error {
 	if indexName == "" {
 		return invalidArgumentsError{
 			message: "an invalid index name was specified",
@@ -113,7 +113,7 @@ func (qm *QueryIndexManager) Create(bucketName, indexName string, fields []strin
 	})
 }
 
-// CreatePrimaryQueryIndexOptions is the set of options available to the query indexes CreatePrimary operation.
+// CreatePrimaryQueryIndexOptions is the set of options available to the query indexes CreatePrimaryIndex operation.
 type CreatePrimaryQueryIndexOptions struct {
 	Timeout time.Duration
 	Context context.Context
@@ -123,8 +123,8 @@ type CreatePrimaryQueryIndexOptions struct {
 	CustomName     string
 }
 
-// CreatePrimary creates a primary index.  An empty customName uses the default naming.
-func (qm *QueryIndexManager) CreatePrimary(bucketName string, opts *CreatePrimaryQueryIndexOptions) error {
+// CreatePrimaryIndex creates a primary index.  An empty customName uses the default naming.
+func (qm *QueryIndexManager) CreatePrimaryIndex(bucketName string, opts *CreatePrimaryQueryIndexOptions) error {
 	if opts == nil {
 		opts = &CreatePrimaryQueryIndexOptions{}
 	}
@@ -175,7 +175,7 @@ func (qm *QueryIndexManager) dropIndex(bucketName, indexName string, opts dropQu
 	return rows.Close()
 }
 
-// DropQueryIndexOptions is the set of options available to the query indexes Drop operation.
+// DropQueryIndexOptions is the set of options available to the query indexes DropIndex operation.
 type DropQueryIndexOptions struct {
 	Timeout time.Duration
 	Context context.Context
@@ -183,8 +183,8 @@ type DropQueryIndexOptions struct {
 	IgnoreIfNotExists bool
 }
 
-// Drop drops a specific index by name.
-func (qm *QueryIndexManager) Drop(bucketName, indexName string, opts *DropQueryIndexOptions) error {
+// DropIndex drops a specific index by name.
+func (qm *QueryIndexManager) DropIndex(bucketName, indexName string, opts *DropQueryIndexOptions) error {
 	if indexName == "" {
 		return invalidArgumentsError{
 			message: "an invalid index name was specified",
@@ -206,7 +206,7 @@ func (qm *QueryIndexManager) Drop(bucketName, indexName string, opts *DropQueryI
 	})
 }
 
-// DropPrimaryQueryIndexOptions is the set of options available to the query indexes DropPrimary operation.
+// DropPrimaryQueryIndexOptions is the set of options available to the query indexes DropPrimaryIndex operation.
 type DropPrimaryQueryIndexOptions struct {
 	Timeout time.Duration
 	Context context.Context
@@ -215,8 +215,8 @@ type DropPrimaryQueryIndexOptions struct {
 	CustomName        string
 }
 
-// DropPrimary drops the primary index.  Pass an empty customName for unnamed primary indexes.
-func (qm *QueryIndexManager) DropPrimary(bucketName string, opts *DropPrimaryQueryIndexOptions) error {
+// DropPrimaryIndex drops the primary index.  Pass an empty customName for unnamed primary indexes.
+func (qm *QueryIndexManager) DropPrimaryIndex(bucketName string, opts *DropPrimaryQueryIndexOptions) error {
 	if opts == nil {
 		opts = &DropPrimaryQueryIndexOptions{}
 	}
@@ -232,14 +232,14 @@ func (qm *QueryIndexManager) DropPrimary(bucketName string, opts *DropPrimaryQue
 	})
 }
 
-// GetAllQueryIndexesOptions is the set of options available to the query indexes GetAll operation.
+// GetAllQueryIndexesOptions is the set of options available to the query indexes GetAllIndexes operation.
 type GetAllQueryIndexesOptions struct {
 	Timeout time.Duration
 	Context context.Context
 }
 
-// GetAll returns a list of all currently registered indexes.
-func (qm *QueryIndexManager) GetAll(bucketName string, opts *GetAllQueryIndexesOptions) ([]QueryIndex, error) {
+// GetAllIndexes returns a list of all currently registered indexes.
+func (qm *QueryIndexManager) GetAllIndexes(bucketName string, opts *GetAllQueryIndexesOptions) ([]QueryIndex, error) {
 	if opts == nil {
 		opts = &GetAllQueryIndexesOptions{}
 	}
@@ -273,14 +273,14 @@ func (qm *QueryIndexManager) GetAll(bucketName string, opts *GetAllQueryIndexesO
 	return indexes, nil
 }
 
-// BuildDeferredQueryIndexOptions is the set of options available to the query indexes BuildDeferred operation.
+// BuildDeferredQueryIndexOptions is the set of options available to the query indexes BuildDeferredIndexes operation.
 type BuildDeferredQueryIndexOptions struct {
 	Timeout time.Duration
 	Context context.Context
 }
 
-// BuildDeferred builds all indexes which are currently in deferred state.
-func (qm *QueryIndexManager) BuildDeferred(bucketName string, opts *BuildDeferredQueryIndexOptions) ([]string, error) {
+// BuildDeferredIndexes builds all indexes which are currently in deferred state.
+func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *BuildDeferredQueryIndexOptions) ([]string, error) {
 	if opts == nil {
 		opts = &BuildDeferredQueryIndexOptions{}
 	}
@@ -290,7 +290,7 @@ func (qm *QueryIndexManager) BuildDeferred(bucketName string, opts *BuildDeferre
 		defer cancel()
 	}
 
-	indexList, err := qm.GetAll(bucketName, &GetAllQueryIndexesOptions{
+	indexList, err := qm.GetAllIndexes(bucketName, &GetAllQueryIndexesOptions{
 		Context: ctx,
 	})
 	if err != nil {
@@ -367,14 +367,14 @@ type WatchQueryIndexOptions struct {
 	WatchPrimary bool
 }
 
-// WatchQueryIndexTimeout is used for setting a timeout value for the query indexes Watch operation.
+// WatchQueryIndexTimeout is used for setting a timeout value for the query indexes WatchIndexes operation.
 type WatchQueryIndexTimeout struct {
 	Timeout time.Duration
 	Context context.Context
 }
 
-// Watch waits for a set of indexes to come online.
-func (qm *QueryIndexManager) Watch(bucketName string, watchList []string, timeout WatchQueryIndexTimeout, opts *WatchQueryIndexOptions) error {
+// WatchIndexes waits for a set of indexes to come online.
+func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string, timeout WatchQueryIndexTimeout, opts *WatchQueryIndexOptions) error {
 	if timeout.Context == nil && timeout.Timeout == 0 {
 		return invalidArgumentsError{
 			message: "either a context or a timeout value must be supplied to watch",
@@ -396,7 +396,7 @@ func (qm *QueryIndexManager) Watch(bucketName string, watchList []string, timeou
 
 	curInterval := 50 * time.Millisecond
 	for {
-		indexes, err := qm.GetAll(bucketName, &GetAllQueryIndexesOptions{
+		indexes, err := qm.GetAllIndexes(bucketName, &GetAllQueryIndexesOptions{
 			Context: ctx,
 		})
 		if err != nil {
