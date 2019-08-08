@@ -85,6 +85,23 @@ func TestSearchIndexesCrud(t *testing.T) {
 		t.Fatalf("Expected GetAll to return more than 0 indexes")
 	}
 
+	if globalCluster.SupportsFeature(FtsAnalyzeFeature) {
+		analysis, err := mgr.AnalyzeDoc("test", struct {
+			Field1 string
+			Field2 string
+		}{
+			Field1: "test",
+			Field2: "imaginative field value",
+		}, nil)
+		if err != nil {
+			t.Fatalf("Expected AnalyzeDoc err to be nil but was %v", err)
+		}
+
+		if analysis == nil {
+			t.Fatalf("Expected analysis to be not nil")
+		}
+	}
+
 	err = mgr.DropIndex("test", nil)
 	if err != nil {
 		t.Fatalf("Expected DropIndex err to be nil but was %v", err)

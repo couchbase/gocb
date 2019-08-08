@@ -287,6 +287,71 @@ func (sim *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndex
 	return nil
 }
 
+// AnalyzeDocOptions is the set of options available to the search index AnalyzeDoc operation.
+type AnalyzeDocOptions struct {
+	Timeout time.Duration
+	Context context.Context
+}
+
+// AnalyzeDoc returns how a doc is analyzed against a specific index.
+func (sim *SearchIndexManager) AnalyzeDoc(indexName string, doc interface{}, opts *AnalyzeDocOptions) (interface{}, error) {
+	if indexName == "" {
+		return nil, invalidArgumentsError{"indexName cannot be empty"}
+	}
+
+	if opts == nil {
+		opts = &AnalyzeDocOptions{}
+	}
+
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	if cancel != nil {
+		defer cancel()
+	}
+
+	b, err := json.Marshal(doc)
+	if err != nil {
+		return nil, err
+	}
+
+	req := &gocbcore.HttpRequest{
+		Service: gocbcore.ServiceType(SearchService),
+		Method:  "POST",
+		Path:    fmt.Sprintf("/api/index/%s/analyzeDoc", indexName),
+		Context: ctx,
+		Body:    b,
+	}
+	res, err := sim.httpClient.DoHttpRequest(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode != 200 {
+		data, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return nil, err
+		}
+		err = res.Body.Close()
+		if err != nil {
+			logDebugf("Failed to close socket (%s)", err)
+		}
+		return nil, searchIndexError{message: string(data), statusCode: res.StatusCode}
+	}
+
+	var analysis interface{}
+	jsonDec := json.NewDecoder(res.Body)
+	err = jsonDec.Decode(&analysis)
+	if err != nil {
+		return nil, err
+	}
+
+	err = res.Body.Close()
+	if err != nil {
+		logDebugf("Failed to close socket (%s)", err)
+	}
+
+	return analysis, nil
+}
+
 // GetIndexedDocumentsCountOptions is the set of options available to the search index GetIndexedDocumentsCount operation.
 type GetIndexedDocumentsCountOptions struct {
 	Timeout time.Duration

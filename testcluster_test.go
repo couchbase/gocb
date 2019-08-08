@@ -61,6 +61,7 @@ var (
 	UserManagerFeature       = FeatureCode(24)
 	AnalyticsIndexFeature    = FeatureCode(25)
 	BucketMgrFeature         = FeatureCode(26)
+	FtsAnalyzeFeature        = FeatureCode(27)
 )
 
 type testCluster struct {
@@ -108,6 +109,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case AnalyticsIndexFeature:
 			supported = false
 		case BucketMgrFeature:
+			supported = false
+		case FtsAnalyzeFeature:
 			supported = false
 		}
 	} else {
@@ -164,6 +167,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer600)
 		case BucketMgrFeature:
 			supported = true
+		case FtsAnalyzeFeature:
+			supported = !c.Version.Lower(srvVer650)
 		}
 	}
 
