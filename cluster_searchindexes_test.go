@@ -14,17 +14,17 @@ func TestSearchIndexesCrud(t *testing.T) {
 		t.Fatalf("Expected err to be nil but was %v", err)
 	}
 
-	err = mgr.Upsert(SearchIndex{
+	err = mgr.UpsertIndex(SearchIndex{
 		Name:       "test",
 		Type:       "fulltext-index",
 		SourceType: "couchbase",
 		SourceName: globalBucket.Name(),
 	}, nil)
 	if err != nil {
-		t.Fatalf("Expected Upsert err to be nil but was %v", err)
+		t.Fatalf("Expected UpsertIndex err to be nil but was %v", err)
 	}
 
-	err = mgr.Upsert(SearchIndex{
+	err = mgr.UpsertIndex(SearchIndex{
 		Name:       "test2",
 		Type:       "fulltext-index",
 		SourceType: "couchbase",
@@ -40,10 +40,10 @@ func TestSearchIndexesCrud(t *testing.T) {
 		},
 	}, nil)
 	if err != nil {
-		t.Fatalf("Expected Upsert err to be nil but was %v", err)
+		t.Fatalf("Expected UpsertIndex err to be nil but was %v", err)
 	}
 
-	err = mgr.Upsert(SearchIndex{
+	err = mgr.UpsertIndex(SearchIndex{
 		Name:       "testAlias",
 		Type:       "fulltext-alias",
 		SourceType: "nil",
@@ -55,12 +55,12 @@ func TestSearchIndexesCrud(t *testing.T) {
 		},
 	}, nil)
 	if err != nil {
-		t.Fatalf("Expected UpsertAlias err to be nil but was %v", err)
+		t.Fatalf("Expected UpsertIndexAlias err to be nil but was %v", err)
 	}
 
-	index, err := mgr.Get("test", nil)
+	index, err := mgr.GetIndex("test", nil)
 	if err != nil {
-		t.Fatalf("Expected Get err to be nil but was %v", err)
+		t.Fatalf("Expected GetIndex err to be nil but was %v", err)
 	}
 
 	if index.Name != "test" {
@@ -71,12 +71,12 @@ func TestSearchIndexesCrud(t *testing.T) {
 		t.Fatalf("Index type was not equal, expected fulltext-index but was %v", index.Type)
 	}
 
-	err = mgr.Upsert(*index, &UpsertSearchIndexOptions{})
+	err = mgr.UpsertIndex(*index, &UpsertSearchIndexOptions{})
 	if err != nil {
-		t.Fatalf("Expected Upsert err to be nil but was %v", err)
+		t.Fatalf("Expected UpsertIndex err to be nil but was %v", err)
 	}
 
-	indexes, err := mgr.GetAll(nil)
+	indexes, err := mgr.GetAllIndexes(nil)
 	if err != nil {
 		t.Fatalf("Expected GetAll err to be nil but was %v", err)
 	}
@@ -85,49 +85,49 @@ func TestSearchIndexesCrud(t *testing.T) {
 		t.Fatalf("Expected GetAll to return more than 0 indexes")
 	}
 
-	err = mgr.Drop("test", nil)
+	err = mgr.DropIndex("test", nil)
 	if err != nil {
-		t.Fatalf("Expected Drop err to be nil but was %v", err)
+		t.Fatalf("Expected DropIndex err to be nil but was %v", err)
 	}
 
-	err = mgr.Drop("test2", nil)
+	err = mgr.DropIndex("test2", nil)
 	if err != nil {
-		t.Fatalf("Expected Drop err to be nil but was %v", err)
+		t.Fatalf("Expected DropIndex err to be nil but was %v", err)
 	}
 
-	err = mgr.Drop("testAlias", nil)
+	err = mgr.DropIndex("testAlias", nil)
 	if err != nil {
-		t.Fatalf("Expected Drop err to be nil but was %v", err)
+		t.Fatalf("Expected DropIndex err to be nil but was %v", err)
 	}
 
-	_, err = mgr.Get("newTest", nil)
+	_, err = mgr.GetIndex("newTest", nil)
 	if err == nil {
-		t.Fatalf("Expected Get err to be not nil but was")
+		t.Fatalf("Expected GetIndex err to be not nil but was")
 	}
 
 	if !IsSearchIndexNotFoundError(err) {
-		t.Fatalf("Expected Get to return a not found error but was %v", err)
+		t.Fatalf("Expected GetIndex to return a not found error but was %v", err)
 	}
 
-	_, err = mgr.Get("test2", nil)
+	_, err = mgr.GetIndex("test2", nil)
 	if err == nil {
-		t.Fatalf("Expected Get err to be not nil but was")
+		t.Fatalf("Expected GetIndex err to be not nil but was")
 	}
 
 	if !IsSearchIndexNotFoundError(err) {
-		t.Fatalf("Expected Get to return a not found error but was %v", err)
+		t.Fatalf("Expected GetIndex to return a not found error but was %v", err)
 	}
 }
 
-func TestSearchIndexesUpsertNoName(t *testing.T) {
+func TestSearchIndexesUpsertIndexNoName(t *testing.T) {
 	mgr, err := globalCluster.SearchIndexes()
 	if err != nil {
 		t.Fatalf("Expected err to be nil but was %v", err)
 	}
 
-	err = mgr.Upsert(SearchIndex{}, nil)
+	err = mgr.UpsertIndex(SearchIndex{}, nil)
 	if err == nil {
-		t.Fatalf("Expected Upsert err to be not nil but was")
+		t.Fatalf("Expected UpsertIndex err to be not nil but was")
 	}
 
 	if !IsInvalidArgumentsError(err) {
@@ -145,17 +145,17 @@ func TestSearchIndexesIngestControl(t *testing.T) {
 		t.Fatalf("Expected err to be nil but was %v", err)
 	}
 
-	err = mgr.Upsert(SearchIndex{
+	err = mgr.UpsertIndex(SearchIndex{
 		Name:       "test",
 		Type:       "fulltext-index",
 		SourceType: "couchbase",
 		SourceName: globalBucket.Name(),
 	}, nil)
 	if err != nil {
-		t.Fatalf("Expected Upsert err to be nil but was %v", err)
+		t.Fatalf("Expected UpsertIndex err to be nil but was %v", err)
 	}
 
-	defer mgr.Drop("test", nil)
+	defer mgr.DropIndex("test", nil)
 
 	err = mgr.PauseIngest("test", nil)
 	if err != nil {
@@ -178,17 +178,17 @@ func TestSearchIndexesQueryControl(t *testing.T) {
 		t.Fatalf("Expected err to be nil but was %v", err)
 	}
 
-	err = mgr.Upsert(SearchIndex{
+	err = mgr.UpsertIndex(SearchIndex{
 		Name:       "test",
 		Type:       "fulltext-index",
 		SourceType: "couchbase",
 		SourceName: globalBucket.Name(),
 	}, nil)
 	if err != nil {
-		t.Fatalf("Expected Upsert err to be nil but was %v", err)
+		t.Fatalf("Expected UpsertIndex err to be nil but was %v", err)
 	}
 
-	defer mgr.Drop("test", nil)
+	defer mgr.DropIndex("test", nil)
 
 	err = mgr.DisallowQuerying("test", nil)
 	if err != nil {
@@ -211,17 +211,17 @@ func TestSearchIndexesPartitionControl(t *testing.T) {
 		t.Fatalf("Expected err to be nil but was %v", err)
 	}
 
-	err = mgr.Upsert(SearchIndex{
+	err = mgr.UpsertIndex(SearchIndex{
 		Name:       "test",
 		Type:       "fulltext-index",
 		SourceType: "couchbase",
 		SourceName: globalBucket.Name(),
 	}, nil)
 	if err != nil {
-		t.Fatalf("Expected Upsert err to be nil but was %v", err)
+		t.Fatalf("Expected UpsertIndex err to be nil but was %v", err)
 	}
 
-	defer mgr.Drop("test", nil)
+	defer mgr.DropIndex("test", nil)
 
 	err = mgr.FreezePlan("test", nil)
 	if err != nil {

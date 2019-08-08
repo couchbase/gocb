@@ -31,14 +31,14 @@ type searchIndexesResp struct {
 	IndexDefs searchIndexDefs `json:"indexDefs,omitempty"`
 }
 
-// GetAllSearchIndexOptions is the set of options available to the search indexes GetAll operation.
+// GetAllSearchIndexOptions is the set of options available to the search indexes GetAllIndexes operation.
 type GetAllSearchIndexOptions struct {
 	Timeout time.Duration
 	Context context.Context
 }
 
-// GetAll retrieves all of the search indexes for the cluster.
-func (sim *SearchIndexManager) GetAll(opts *GetAllSearchIndexOptions) ([]SearchIndex, error) {
+// GetAllIndexes retrieves all of the search indexes for the cluster.
+func (sim *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]SearchIndex, error) {
 	if opts == nil {
 		opts = &GetAllSearchIndexOptions{}
 	}
@@ -93,14 +93,14 @@ func (sim *SearchIndexManager) GetAll(opts *GetAllSearchIndexOptions) ([]SearchI
 	return indexes, nil
 }
 
-// GetSearchIndexOptions is the set of options available to the search indexes Get operation.
+// GetSearchIndexOptions is the set of options available to the search indexes GetIndex operation.
 type GetSearchIndexOptions struct {
 	Timeout time.Duration
 	Context context.Context
 }
 
-// Get retrieves a specific search index by name.
-func (sim *SearchIndexManager) Get(indexName string, opts *GetSearchIndexOptions) (*SearchIndex, error) {
+// GetIndex retrieves a specific search index by name.
+func (sim *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOptions) (*SearchIndex, error) {
 	if opts == nil {
 		opts = &GetSearchIndexOptions{}
 	}
@@ -148,7 +148,7 @@ func (sim *SearchIndexManager) Get(indexName string, opts *GetSearchIndexOptions
 	return indexResp.IndexDef, nil
 }
 
-// UpsertSearchIndexOptions is the set of options available to the search index manager Upsert operation.
+// UpsertSearchIndexOptions is the set of options available to the search index manager UpsertIndex operation.
 type UpsertSearchIndexOptions struct {
 	Timeout time.Duration
 	Context context.Context
@@ -177,8 +177,8 @@ type SearchIndex struct {
 	PlanParams map[string]interface{} `json:"planParams,omitempty"`
 }
 
-// Upsert creates or updates a search index.
-func (sim *SearchIndexManager) Upsert(indexDefinition SearchIndex, opts *UpsertSearchIndexOptions) error {
+// UpsertIndex creates or updates a search index.
+func (sim *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *UpsertSearchIndexOptions) error {
 	if indexDefinition.Name == "" {
 		return invalidArgumentsError{"index name cannot be empty"}
 	}
@@ -235,14 +235,14 @@ func (sim *SearchIndexManager) Upsert(indexDefinition SearchIndex, opts *UpsertS
 	return nil
 }
 
-// DropSearchIndexOptions is the set of options available to the search index Drop operation.
+// DropSearchIndexOptions is the set of options available to the search index DropIndex operation.
 type DropSearchIndexOptions struct {
 	Timeout time.Duration
 	Context context.Context
 }
 
-// Drop removes the search index with the specific name.
-func (sim *SearchIndexManager) Drop(indexName string, opts *DropSearchIndexOptions) error {
+// DropIndex removes the search index with the specific name.
+func (sim *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndexOptions) error {
 	if indexName == "" {
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
