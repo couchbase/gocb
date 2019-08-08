@@ -251,6 +251,8 @@ func (e streamEndError) Error() string {
 		return "disconnected"
 	case streamEndTooSlow:
 		return "too slow"
+	case streamEndFilterEmpty:
+		return "filter empty"
 	default:
 		return fmt.Sprintf("stream closed for unknown reason (%d)", e.code)
 	}
@@ -270,6 +272,9 @@ func (e streamEndError) Disconnected() bool {
 }
 func (e streamEndError) TooSlow() bool {
 	return e.code == streamEndTooSlow
+}
+func (e streamEndError) FilterEmpty() bool {
+	return e.code == streamEndFilterEmpty
 }
 
 var (
@@ -550,6 +555,8 @@ func getStreamEndError(code streamEndStatus) error {
 		return ErrStreamDisconnected
 	case streamEndTooSlow:
 		return ErrStreamTooSlow
+	case streamEndFilterEmpty:
+		return ErrStreamFilterEmpty
 	default:
 		return &streamEndError{code}
 	}

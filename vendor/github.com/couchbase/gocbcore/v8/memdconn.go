@@ -309,6 +309,8 @@ func (s *memdTcpConn) ReadPacket(resp *memdPacket) error {
 		var n uint8
 		// Some operations do not encode the cid in the key
 		switch resp.Opcode {
+		case cmdStat:
+			break
 		case cmdDcpEvent:
 			break
 		default:

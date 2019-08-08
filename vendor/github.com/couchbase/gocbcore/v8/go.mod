@@ -1,7 +1,7 @@
 module github.com/couchbase/gocbcore/v8
 
 require (
-	github.com/couchbaselabs/gocbconnstr v1.0.2
+	github.com/couchbaselabs/gocbconnstr v1.0.3
 	github.com/couchbaselabs/gojcbmock v1.0.3
 	github.com/golang/snappy v0.0.1
 	github.com/pkg/errors v0.8.1

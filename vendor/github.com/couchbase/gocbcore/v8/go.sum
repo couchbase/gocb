@@ -1,5 +1,5 @@
-github.com/couchbaselabs/gocbconnstr v1.0.2 h1:R7CNfNcLrRVgkGpwR+TSMLh4V8Ij+Uwt9bCGCHJysRo=
-github.com/couchbaselabs/gocbconnstr v1.0.2/go.mod h1:Mg0VKc6azyPXhSq4b/xwsrW30ORe+H5L5hucCweYhj8=
+github.com/couchbaselabs/gocbconnstr v1.0.3 h1:rkHC5N0ecbZ1NU7671ubApRdhSVc4rsulTEQ0W8O1uw=
+github.com/couchbaselabs/gocbconnstr v1.0.3/go.mod h1:Mg0VKc6azyPXhSq4b/xwsrW30ORe+H5L5hucCweYhj8=
 github.com/couchbaselabs/gojcbmock v1.0.3 h1:Ueenew8eiSM50pgHWV9+LThTB/aG29M2+LrxdjKasyU=
 github.com/couchbaselabs/gojcbmock v1.0.3/go.mod h1:Nc79KNEoRYsg4JELLhXzs89rTlEKO8lFrwOWxP31xKc=
 github.com/golang/snappy v0.0.1 h1:Qgr9rKW7uDUkrbSmQeiDsGa8SjGyCOGtuasMWwvp2P4=

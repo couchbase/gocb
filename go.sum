@@ -1,7 +1,7 @@
-github.com/couchbase/gocbcore/v8 v8.0.0-alpha.4 h1:QMA8gl4LyMZAigcF+xDa8UjOSMBolOWhmGILxvD3C5g=
-github.com/couchbase/gocbcore/v8 v8.0.0-alpha.4/go.mod h1:SLe+Jbtbwt9pJ7qDIDWmQP/LvsMA38SvwtmVAk3xLC4=
-github.com/couchbaselabs/gocbconnstr v1.0.2 h1:R7CNfNcLrRVgkGpwR+TSMLh4V8Ij+Uwt9bCGCHJysRo=
-github.com/couchbaselabs/gocbconnstr v1.0.2/go.mod h1:Mg0VKc6azyPXhSq4b/xwsrW30ORe+H5L5hucCweYhj8=
+github.com/couchbase/gocbcore/v8 v8.0.0-alpha.5 h1:IYlcn8ZoiVv5ik6Vg5LF6D7A4F7yIY9iiEuNxzwlHLE=
+github.com/couchbase/gocbcore/v8 v8.0.0-alpha.5/go.mod h1:ffhLs3F/rbsp3S5L4C8vOGixYWbDYivgokZ+vTZivOo=
+github.com/couchbaselabs/gocbconnstr v1.0.3 h1:rkHC5N0ecbZ1NU7671ubApRdhSVc4rsulTEQ0W8O1uw=
+github.com/couchbaselabs/gocbconnstr v1.0.3/go.mod h1:Mg0VKc6azyPXhSq4b/xwsrW30ORe+H5L5hucCweYhj8=
 github.com/couchbaselabs/gojcbmock v1.0.3 h1:Ueenew8eiSM50pgHWV9+LThTB/aG29M2+LrxdjKasyU=
 github.com/couchbaselabs/gojcbmock v1.0.3/go.mod h1:Nc79KNEoRYsg4JELLhXzs89rTlEKO8lFrwOWxP31xKc=
 github.com/couchbaselabs/jsonx v1.0.0 h1:HARrAleRQAR/8AUkgR+oU9/u2DcomPlzxVxwukvph9s=

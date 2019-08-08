@@ -7,13 +7,27 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 const (
 	DefaultHttpPort    = 8091
+	DefaultSslHttpPort = 18091
 	DefaultMemdPort    = 11210
 	DefaultSslMemdPort = 11207
 )
+
+func hostIsIpAddress(host string) bool {
+	if strings.HasPrefix(host, "[") {
+		// This is an IPv6 address
+		return true
+	}
+	if net.ParseIP(host) != nil {
+		// This is an IPv4 address
+		return true
+	}
+	return false
+}
 
 type Address struct {
 	Host string
@@ -27,18 +41,31 @@ type ConnSpec struct {
 	Options   map[string][]string
 }
 
-func (spec ConnSpec) SrvRecordName() (recordName string) {
+func (spec ConnSpec) srvRecord() (string, string, string, bool) {
 	// Only `couchbase`-type schemes allow SRV records
 	if spec.Scheme != "couchbase" && spec.Scheme != "couchbases" {
-		return ""
+		return "", "", "", false
 	}
 
 	// Must have only a single host, with no port specified
 	if len(spec.Addresses) != 1 || spec.Addresses[0].Port != 0 {
+		return "", "", "", false
+	}
+
+	if hostIsIpAddress(spec.Addresses[0].Host) {
+		return "", "", "", false
+	}
+
+	return spec.Scheme, "_tcp", spec.Addresses[0].Host, true
+}
+
+func (spec ConnSpec) SrvRecordName() (recordName string) {
+	scheme, proto, host, isValid := spec.srvRecord()
+	if !isValid {
 		return ""
 	}
 
-	return fmt.Sprintf("_%s._tcp.%s", spec.Scheme, spec.Addresses[0].Host)
+	return fmt.Sprintf("_%s.%s.%s", scheme, proto, host)
 }
 
 func (spec ConnSpec) GetOption(name string) []string {
@@ -183,9 +210,9 @@ func Resolve(connSpec ConnSpec) (out ResolvedConnSpec, err error) {
 	}
 
 	var srvRecords []*net.SRV
-	if !isHttpScheme && len(connSpec.Addresses) == 1 && connSpec.Addresses[0].Port == -1 {
-		srvHostname := connSpec.Addresses[0].Host
-		_, addrs, err := net.LookupSRV(connSpec.Scheme, "tcp", srvHostname)
+	srvScheme, srvProto, srvHost, srvIsValid := connSpec.srvRecord()
+	if srvIsValid {
+		_, addrs, err := net.LookupSRV(srvScheme, srvProto, srvHost)
 		if err == nil && len(addrs) > 0 {
 			srvRecords = addrs
 		}
@@ -203,6 +230,10 @@ func Resolve(connSpec ConnSpec) (out ResolvedConnSpec, err error) {
 			out.MemdHosts = append(out.MemdHosts, Address{
 				Host: "127.0.0.1",
 				Port: DefaultSslMemdPort,
+			})
+			out.HttpHosts = append(out.HttpHosts, Address{
+				Host: "127.0.0.1",
+				Port: DefaultSslHttpPort,
 			})
 		} else {
 			out.MemdHosts = append(out.MemdHosts, Address{
@@ -233,6 +264,10 @@ func Resolve(connSpec ConnSpec) (out ResolvedConnSpec, err error) {
 					out.MemdHosts = append(out.MemdHosts, Address{
 						Host: address.Host,
 						Port: DefaultSslMemdPort,
+					})
+					out.HttpHosts = append(out.HttpHosts, Address{
+						Host: address.Host,
+						Port: DefaultSslHttpPort,
 					})
 				} else {
 					out.MemdHosts = append(out.MemdHosts, Address{
