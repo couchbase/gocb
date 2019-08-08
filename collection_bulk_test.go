@@ -1,10 +1,8 @@
 package gocb
 
 import (
-	"context"
 	"fmt"
 	"testing"
-	"time"
 )
 
 func TestUpsertGetBulk(t *testing.T) {
@@ -71,91 +69,6 @@ func TestUpsertGetBulk(t *testing.T) {
 
 		if val != "test" {
 			t.Fatalf("Expected GetOp value to be test but was %s", val)
-		}
-	}
-}
-
-func TestBulkUpsertTimeout(t *testing.T) {
-	var ops []BulkOp
-	for i := 0; i < 20; i++ {
-		ops = append(ops, &UpsertOp{
-			Key:    fmt.Sprintf("%d", i),
-			Value:  "test",
-			Expiry: 20,
-		})
-	}
-
-	err := globalCollection.Do(ops, &BulkOpOptions{
-		Timeout: 50 * time.Microsecond,
-	})
-	if err == nil {
-		t.Fatalf("Expected Do to error for upserts")
-	}
-
-	if !IsTimeoutError(err) {
-		t.Fatalf("Expected Do error to be timeout but was %v", err)
-	}
-
-	for _, op := range ops {
-		upsertOp, ok := op.(*UpsertOp)
-		if !ok {
-			t.Fatalf("Could not type assert BulkOp into UpsertOp")
-		}
-
-		if upsertOp.Err == nil {
-			t.Fatalf("Expected UpsertOp Err to be not nil")
-		}
-
-		if !IsTimeoutError(upsertOp.Err) {
-			t.Fatalf("Expected UpsertOp error to be timeout but was %v", upsertOp.Err)
-		}
-
-		if upsertOp.Result != nil {
-			t.Fatalf("Expected UpsertOp Result to be nil")
-		}
-	}
-}
-
-func TestBulkUpsertContextTimeout(t *testing.T) {
-	var ops []BulkOp
-	for i := 0; i < 20; i++ {
-		ops = append(ops, &UpsertOp{
-			Key:    fmt.Sprintf("%d", i),
-			Value:  "test",
-			Expiry: 20,
-		})
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Microsecond)
-	defer cancel()
-
-	err := globalCollection.Do(ops, &BulkOpOptions{
-		Context: ctx,
-	})
-	if err == nil {
-		t.Fatalf("Expected Do to error for upserts")
-	}
-
-	if !IsTimeoutError(err) {
-		t.Fatalf("Expected Do error to be timeout but was %v", err)
-	}
-
-	for _, op := range ops {
-		upsertOp, ok := op.(*UpsertOp)
-		if !ok {
-			t.Fatalf("Could not type assert BulkOp into UpsertOp")
-		}
-
-		if upsertOp.Err == nil {
-			t.Fatalf("Expected UpsertOp Err to be not nil")
-		}
-
-		if !IsTimeoutError(upsertOp.Err) {
-			t.Fatalf("Expected UpsertOp error to be timeout but was %v", upsertOp.Err)
-		}
-
-		if upsertOp.Result != nil {
-			t.Fatalf("Expected UpsertOp Result to be nil")
 		}
 	}
 }
