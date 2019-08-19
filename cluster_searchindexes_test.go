@@ -86,7 +86,7 @@ func TestSearchIndexesCrud(t *testing.T) {
 	}
 
 	if globalCluster.SupportsFeature(FtsAnalyzeFeature) {
-		analysis, err := mgr.AnalyzeDoc("test", struct {
+		analysis, err := mgr.AnalyzeDocument("test", struct {
 			Field1 string
 			Field2 string
 		}{
@@ -94,12 +94,14 @@ func TestSearchIndexesCrud(t *testing.T) {
 			Field2: "imaginative field value",
 		}, nil)
 		if err != nil {
-			t.Fatalf("Expected AnalyzeDoc err to be nil but was %v", err)
+			t.Fatalf("Expected AnalyzeDocument err to be nil but was %v", err)
 		}
 
-		if analysis == nil {
+		if analysis == nil || len(analysis) == 0 {
 			t.Fatalf("Expected analysis to be not nil")
 		}
+	} else {
+		t.Log("Skipping AnalyzeDocument feature as not supported.")
 	}
 
 	err = mgr.DropIndex("test", nil)

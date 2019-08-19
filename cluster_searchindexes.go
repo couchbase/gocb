@@ -287,20 +287,20 @@ func (sim *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndex
 	return nil
 }
 
-// AnalyzeDocOptions is the set of options available to the search index AnalyzeDoc operation.
-type AnalyzeDocOptions struct {
+// AnalyzeDocumentOptions is the set of options available to the search index AnalyzeDocument operation.
+type AnalyzeDocumentOptions struct {
 	Timeout time.Duration
 	Context context.Context
 }
 
-// AnalyzeDoc returns how a doc is analyzed against a specific index.
-func (sim *SearchIndexManager) AnalyzeDoc(indexName string, doc interface{}, opts *AnalyzeDocOptions) (interface{}, error) {
+// AnalyzeDocument returns how a doc is analyzed against a specific index.
+func (sim *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{}, opts *AnalyzeDocumentOptions) ([]interface{}, error) {
 	if indexName == "" {
 		return nil, invalidArgumentsError{"indexName cannot be empty"}
 	}
 
 	if opts == nil {
-		opts = &AnalyzeDocOptions{}
+		opts = &AnalyzeDocumentOptions{}
 	}
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
@@ -337,7 +337,10 @@ func (sim *SearchIndexManager) AnalyzeDoc(indexName string, doc interface{}, opt
 		return nil, searchIndexError{message: string(data), statusCode: res.StatusCode}
 	}
 
-	var analysis interface{}
+	var analysis struct {
+		Status   string        `json:"status"`
+		Analyzed []interface{} `json:"analyzed"`
+	}
 	jsonDec := json.NewDecoder(res.Body)
 	err = jsonDec.Decode(&analysis)
 	if err != nil {
@@ -349,7 +352,7 @@ func (sim *SearchIndexManager) AnalyzeDoc(indexName string, doc interface{}, opt
 		logDebugf("Failed to close socket (%s)", err)
 	}
 
-	return analysis, nil
+	return analysis.Analyzed, nil
 }
 
 // GetIndexedDocumentsCountOptions is the set of options available to the search index GetIndexedDocumentsCount operation.
