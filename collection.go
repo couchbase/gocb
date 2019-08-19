@@ -60,3 +60,8 @@ func (c *Collection) getKvProvider() (kvProvider, error) {
 
 	return agent, nil
 }
+
+// Name returns the name of the collection.
+func (c *Collection) Name() string {
+	return c.sb.CollectionName
+}

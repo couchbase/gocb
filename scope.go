@@ -18,6 +18,11 @@ func (s *Scope) clone() *Scope {
 	return &newS
 }
 
+// Name returns the name of the scope.
+func (s *Scope) Name() string {
+	return s.sb.ScopeName
+}
+
 // Collection returns an instance of a collection.
 // Volatile: This API is subject to change at any time.
 func (s *Scope) Collection(collectionName string, opts *CollectionOptions) *Collection {
