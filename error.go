@@ -787,6 +787,24 @@ func IsSearchIndexNotFoundError(err error) bool {
 	}
 }
 
+// IsServiceNotConfiguredError verifies that no nodes could be found for the specified service.
+func IsServiceNotConfiguredError(err error) bool {
+	switch errors.Cause(err) {
+	case gocbcore.ErrNoN1qlService:
+		return true
+	case gocbcore.ErrNoCbasService:
+		return true
+	case gocbcore.ErrNoCapiService:
+		return true
+	case gocbcore.ErrNoFtsService:
+		return true
+	case gocbcore.ErrNoMgmtService:
+		return true
+	default:
+		return false
+	}
+}
+
 // HTTPError indicates that an error occurred with a valid HTTP response for an operation.
 type HTTPError interface {
 	error
@@ -1530,52 +1548,3 @@ func (e collectionMgrError) ScopeExistsError() bool {
 
 	return false
 }
-
-var (
-	// ErrNotEnoughReplicas occurs when not enough replicas exist to match the specified durability requirements.
-	// ErrNotEnoughReplicas = errors.New("Not enough replicas to match durability requirements.")
-	// ErrDurabilityTimeout occurs when the server took too long to meet the specified durability requirements.
-	// ErrDurabilityTimeout = errors.New("Failed to meet durability requirements in time.")
-
-	// ErrNoOpenBuckets occurs when a cluster-level operation is performed before any buckets are opened.
-	ErrNoOpenBuckets = errors.New("You must open a bucket before you can perform cluster level operations.")
-	// ErrFacetNoRanges occurs when a range-based facet is specified but no ranges were indicated.
-	ErrFacetNoRanges = errors.New("At least one range must be specified on a facet.")
-
-	// ErrSearchIndexInvalidName occurs when an invalid name was specified for a search index.
-	ErrSearchIndexInvalidName = errors.New("An invalid search index name was specified.")
-	// ErrSearchIndexMissingType occurs when no type was specified for a search index.
-	ErrSearchIndexMissingType = errors.New("No search index type was specified.")
-	// ErrSearchIndexInvalidSourceType occurs when an invalid source type was specific for a search index.
-	ErrSearchIndexInvalidSourceType = errors.New("An invalid search index source type was specified.")
-	// ErrSearchIndexInvalidSourceName occurs when an invalid source name was specific for a search index.
-	ErrSearchIndexInvalidSourceName = errors.New("An invalid search index source name was specified.")
-	// ErrSearchIndexAlreadyExists occurs when an invalid source name was specific for a search index.
-	ErrSearchIndexAlreadyExists = errors.New("The search index specified already exists.")
-	// ErrSearchIndexInvalidIngestControlOp occurs when an invalid ingest control op was specific for a search index.
-	ErrSearchIndexInvalidIngestControlOp = errors.New("An invalid search index ingest control op was specified.")
-	// ErrSearchIndexInvalidQueryControlOp occurs when an invalid query control op was specific for a search index.
-	ErrSearchIndexInvalidQueryControlOp = errors.New("An invalid search index query control op was specified.")
-	// ErrSearchIndexInvalidPlanFreezeControlOp occurs when an invalid plan freeze control op was specific for a search index.
-	ErrSearchIndexInvalidPlanFreezeControlOp = errors.New("An invalid search index plan freeze control op was specified.")
-
-	// ErrDispatchFail occurs when we failed to execute an operation due to internal routing issues.
-	ErrDispatchFail = gocbcore.ErrDispatchFail
-	// ErrBadHosts occurs when an invalid list of hosts is specified for bootstrapping.
-	ErrBadHosts = gocbcore.ErrBadHosts
-	// ErrProtocol occurs when an invalid protocol is specified for bootstrapping.
-	ErrProtocol = gocbcore.ErrProtocol
-	// ErrInvalidServer occurs when a specified server index is invalid.
-	ErrInvalidServer = gocbcore.ErrInvalidServer
-	// ErrInvalidVBucket occurs when a specified vbucket index is invalid.
-	ErrInvalidVBucket = gocbcore.ErrInvalidVBucket
-	// ErrInvalidReplica occurs when a specified replica index is invalid.
-	ErrInvalidReplica = gocbcore.ErrInvalidReplica
-	// ErrInvalidCert occurs when the specified certificate is not valid.
-	ErrInvalidCert = gocbcore.ErrInvalidCert
-	// ErrInvalidCredentials is returned when an invalid set of credentials is provided for a service.
-	ErrInvalidCredentials = gocbcore.ErrInvalidCredentials
-
-	// ErrShutdown occurs when an operation is performed on a bucket that has been closed.
-	ErrShutdown = gocbcore.ErrShutdown
-)
