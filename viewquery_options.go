@@ -54,7 +54,7 @@ type ViewOptions struct {
 	Range        *Range
 	IDRangeStart string
 	IDRangeEnd   string
-	Development  bool
+	Namespace    DesignDocumentNamespace
 	Custom       map[string]string
 	// Timeout and context are used to control cancellation of the data stream.
 	Context context.Context

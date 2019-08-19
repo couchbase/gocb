@@ -13,6 +13,17 @@ import (
 	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
+// DesignDocumentNamespace represents which namespace a design document resides in.
+type DesignDocumentNamespace bool
+
+const (
+	// ProductionDesignDocumentNamespace means that a design document resides in the production namespace.
+	ProductionDesignDocumentNamespace = true
+
+	// DevelopmentDesignDocumentNamespace means that a design document resides in the development namespace.
+	DevelopmentDesignDocumentNamespace = false
+)
+
 // ViewIndexManager provides methods for performing View management.
 // Volatile: This API is subject to change at any time.
 type ViewIndexManager struct {
@@ -40,11 +51,9 @@ type DesignDocument struct {
 type GetDesignDocumentOptions struct {
 	Timeout time.Duration
 	Context context.Context
-
-	IsProduction bool
 }
 
-func (vm *ViewIndexManager) ddocName(name string, isProd bool) string {
+func (vm *ViewIndexManager) ddocName(name string, isProd DesignDocumentNamespace) string {
 	if isProd {
 		if strings.HasPrefix(name, "dev_") {
 			name = strings.TrimLeft(name, "dev_")
@@ -59,7 +68,7 @@ func (vm *ViewIndexManager) ddocName(name string, isProd bool) string {
 }
 
 // GetDesignDocument retrieves a single design document for the given bucket.
-func (vm *ViewIndexManager) GetDesignDocument(name string, opts *GetDesignDocumentOptions) (*DesignDocument, error) {
+func (vm *ViewIndexManager) GetDesignDocument(name string, namespace DesignDocumentNamespace, opts *GetDesignDocumentOptions) (*DesignDocument, error) {
 	if opts == nil {
 		opts = &GetDesignDocumentOptions{}
 	}
@@ -75,7 +84,7 @@ func (vm *ViewIndexManager) GetDesignDocument(name string, opts *GetDesignDocume
 		defer cancel()
 	}
 
-	name = vm.ddocName(name, opts.IsProduction)
+	name = vm.ddocName(name, namespace)
 
 	req := &gocbcore.HttpRequest{
 		Service: gocbcore.ServiceType(CapiService),
@@ -113,7 +122,7 @@ func (vm *ViewIndexManager) GetDesignDocument(name string, opts *GetDesignDocume
 		return nil, err
 	}
 
-	ddocObj.Name = name
+	ddocObj.Name = strings.TrimPrefix(name, "dev_")
 	return &ddocObj, nil
 }
 
@@ -124,7 +133,7 @@ type GetAllDesignDocumentsOptions struct {
 }
 
 // GetAllDesignDocuments will retrieve all design documents for the given bucket.
-func (vm *ViewIndexManager) GetAllDesignDocuments(opts *GetAllDesignDocumentsOptions) ([]*DesignDocument, error) {
+func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamespace, opts *GetAllDesignDocumentsOptions) ([]*DesignDocument, error) {
 	if opts == nil {
 		opts = &GetAllDesignDocumentsOptions{}
 	}
@@ -183,8 +192,11 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(opts *GetAllDesignDocumentsOpt
 	var ddocs []*DesignDocument
 	for index, ddocData := range ddocsObj.Rows {
 		ddoc := &ddocsObj.Rows[index].Doc.Json
-		ddoc.Name = ddocData.Doc.Meta.Id[8:]
-		ddocs = append(ddocs, ddoc)
+		isProd := !strings.HasPrefix(ddoc.Name, "dev_")
+		if isProd == bool(namespace) {
+			ddoc.Name = strings.TrimPrefix(ddocData.Doc.Meta.Id[8:], "dev_")
+			ddocs = append(ddocs, ddoc)
+		}
 	}
 
 	return ddocs, nil
@@ -194,13 +206,11 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(opts *GetAllDesignDocumentsOpt
 type UpsertDesignDocumentOptions struct {
 	Timeout time.Duration
 	Context context.Context
-
-	IsProduction bool
 }
 
 // UpsertDesignDocument will insert a design document to the given bucket, or update
 // an existing design document with the same name.
-func (vm *ViewIndexManager) UpsertDesignDocument(ddoc DesignDocument, opts *UpsertDesignDocumentOptions) error {
+func (vm *ViewIndexManager) UpsertDesignDocument(ddoc DesignDocument, namespace DesignDocumentNamespace, opts *UpsertDesignDocumentOptions) error {
 	if opts == nil {
 		opts = &UpsertDesignDocumentOptions{}
 	}
@@ -221,7 +231,7 @@ func (vm *ViewIndexManager) UpsertDesignDocument(ddoc DesignDocument, opts *Upse
 		return err
 	}
 
-	ddoc.Name = vm.ddocName(ddoc.Name, opts.IsProduction)
+	ddoc.Name = vm.ddocName(ddoc.Name, namespace)
 
 	req := &gocbcore.HttpRequest{
 		Service: gocbcore.ServiceType(CapiService),
@@ -255,12 +265,10 @@ func (vm *ViewIndexManager) UpsertDesignDocument(ddoc DesignDocument, opts *Upse
 type DropDesignDocumentOptions struct {
 	Timeout time.Duration
 	Context context.Context
-
-	IsProduction bool
 }
 
 // DropDesignDocument will remove a design document from the given bucket.
-func (vm *ViewIndexManager) DropDesignDocument(name string, opts *DropDesignDocumentOptions) error {
+func (vm *ViewIndexManager) DropDesignDocument(name string, namespace DesignDocumentNamespace, opts *DropDesignDocumentOptions) error {
 	if opts == nil {
 		opts = &DropDesignDocumentOptions{}
 	}
@@ -276,7 +284,7 @@ func (vm *ViewIndexManager) DropDesignDocument(name string, opts *DropDesignDocu
 		defer cancel()
 	}
 
-	name = vm.ddocName(name, opts.IsProduction)
+	name = vm.ddocName(name, namespace)
 
 	req := &gocbcore.HttpRequest{
 		Service: gocbcore.ServiceType(CapiService),
@@ -332,9 +340,8 @@ func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesi
 		defer cancel()
 	}
 
-	devdoc, err := vm.GetDesignDocument(name, &GetDesignDocumentOptions{
-		Context:      ctx,
-		IsProduction: false,
+	devdoc, err := vm.GetDesignDocument(name, false, &GetDesignDocumentOptions{
+		Context: ctx,
 	})
 	if err != nil {
 		indexErr, ok := err.(viewIndexError)
@@ -346,17 +353,15 @@ func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesi
 		return err
 	}
 
-	err = vm.UpsertDesignDocument(*devdoc, &UpsertDesignDocumentOptions{
-		Context:      ctx,
-		IsProduction: true,
+	err = vm.UpsertDesignDocument(*devdoc, true, &UpsertDesignDocumentOptions{
+		Context: ctx,
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to create ")
 	}
 
-	err = vm.DropDesignDocument(devdoc.Name, &DropDesignDocumentOptions{
-		Context:      ctx,
-		IsProduction: false,
+	err = vm.DropDesignDocument(devdoc.Name, false, &DropDesignDocumentOptions{
+		Context: ctx,
 	})
 	if err != nil {
 		return viewIndexError{message: fmt.Sprintf("failed to drop development index: %v", err), publishDropFail: true}

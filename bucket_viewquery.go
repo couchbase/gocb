@@ -271,7 +271,7 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 		return nil, err
 	}
 
-	designDoc = b.maybePrefixDevDocument(opts.Development, designDoc)
+	designDoc = b.maybePrefixDevDocument(opts.Namespace, designDoc)
 
 	timeout := b.sb.ViewTimeout
 	if opts.Timeout > 0 {
@@ -404,14 +404,14 @@ func (b *Bucket) executeViewQuery(ctx context.Context, viewType, ddoc, viewName 
 	return queryResults, nil
 }
 
-func (b *Bucket) maybePrefixDevDocument(val bool, ddoc string) string {
+func (b *Bucket) maybePrefixDevDocument(namespace DesignDocumentNamespace, ddoc string) string {
 	designDoc := ddoc
-	if val {
+	if namespace {
+		designDoc = strings.TrimPrefix(ddoc, "dev_")
+	} else {
 		if !strings.HasPrefix(ddoc, "dev_") {
 			designDoc = "dev_" + ddoc
 		}
-	} else {
-		designDoc = strings.TrimPrefix(ddoc, "dev_")
 	}
 
 	return designDoc

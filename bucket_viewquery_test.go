@@ -67,7 +67,7 @@ func testCreateView(t *testing.T, timeout time.Duration) {
 	err = mgr.UpsertDesignDocument(DesignDocument{
 		Views: views,
 		Name:  "travel",
-	}, &UpsertDesignDocumentOptions{
+	}, DevelopmentDesignDocumentNamespace, &UpsertDesignDocumentOptions{
 		Timeout: timeout,
 	})
 	if err != nil {
