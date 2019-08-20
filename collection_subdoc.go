@@ -253,7 +253,6 @@ type MutateInOptions struct {
 	PersistTo       uint
 	ReplicateTo     uint
 	DurabilityLevel DurabilityLevel
-	InsertDocument  bool
 	UpsertDocument  bool
 	Serializer      JSONSerializer
 	// Internal: This should never be used and is not supported.
@@ -708,12 +707,8 @@ func (c *Collection) mutate(ctx context.Context, key string, ops []MutateInOp, o
 
 	var isInsertDocument bool
 	var flags SubdocDocFlag
-	if opts.InsertDocument {
-		flags |= SubdocDocFlagMkDoc
-		isInsertDocument = true
-	}
 	if opts.UpsertDocument {
-		flags |= SubdocDocFlagReplaceDoc
+		flags |= SubdocDocFlagMkDoc
 	}
 	if opts.AccessDeleted {
 		flags |= SubdocDocFlagAccessDeleted
