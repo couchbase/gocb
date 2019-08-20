@@ -11,6 +11,7 @@ import (
 )
 
 type n1qlCache struct {
+	enhanced    bool
 	name        string
 	encodedPlan string
 }
@@ -66,9 +67,10 @@ type QueryResultsMetadata struct {
 
 // QueryResults allows access to the results of a N1QL query.
 type QueryResults struct {
-	metadata   QueryResultsMetadata
-	err        error
-	httpStatus int
+	metadata     QueryResultsMetadata
+	preparedName string
+	err          error
+	httpStatus   int
 
 	streamResult       *streamingResult
 	cancel             context.CancelFunc
@@ -207,6 +209,11 @@ func (r *QueryResults) readAttribute(decoder *json.Decoder, t json.Token) (bool,
 		}
 	case "clientContextID":
 		err := decoder.Decode(&r.metadata.clientContextID)
+		if err != nil {
+			return false, err
+		}
+	case "prepared":
+		err := decoder.Decode(&r.preparedName)
 		if err != nil {
 			return false, err
 		}
@@ -379,7 +386,6 @@ func (c *Cluster) query(ctx context.Context, statement string, opts *QueryOption
 
 func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]interface{},
 	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer) (*QueryResults, error) {
-
 	if capabilitySupporter, ok := provider.(clusterCapabilityProvider); ok {
 		if !c.supportsEnhancedPreparedStatements() &&
 			capabilitySupporter.SupportsClusterCapability(gocbcore.ClusterCapabilityEnhancedPreparedStatements) {
@@ -403,7 +409,9 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]
 		// Attempt to execute our cached query plan
 		delete(queryOpts, "statement")
 		queryOpts["prepared"] = cachedStmt.name
-		queryOpts["encoded_plan"] = cachedStmt.encodedPlan
+		if !cachedStmt.enhanced {
+			queryOpts["encoded_plan"] = cachedStmt.encodedPlan
+		}
 
 		results, err := c.doRetryableQuery(ctx, queryOpts, provider, cancel, serializer)
 		if err == nil {
@@ -418,6 +426,18 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]
 	}
 
 	// Prepare the query
+	if c.supportsEnhancedPreparedStatements() {
+		results, err := c.prepareEnhancedN1qlQuery(ctx, queryOpts, provider, cancel, serializer)
+		if err != nil {
+			return nil, err
+		}
+
+		c.clusterLock.Lock()
+		c.queryCache[stmtStr] = &n1qlCache{enhanced: true, name: results.preparedName}
+		c.clusterLock.Unlock()
+
+		return results, nil
+	}
 
 	var err error
 	cachedStmt, err = c.prepareN1qlQuery(ctx, queryOpts, provider)
@@ -436,6 +456,19 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]
 	queryOpts["encoded_plan"] = cachedStmt.encodedPlan
 
 	return c.doRetryableQuery(ctx, queryOpts, provider, cancel, serializer)
+}
+
+func (c *Cluster) prepareEnhancedN1qlQuery(ctx context.Context, opts map[string]interface{},
+	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer) (*QueryResults, error) {
+
+	prepOpts := make(map[string]interface{})
+	for k, v := range opts {
+		prepOpts[k] = v
+	}
+	prepOpts["statement"] = "PREPARE " + opts["statement"].(string)
+	prepOpts["auto_execute"] = true
+
+	return c.doRetryableQuery(ctx, prepOpts, provider, cancel, serializer)
 }
 
 func (c *Cluster) prepareN1qlQuery(ctx context.Context, opts map[string]interface{},

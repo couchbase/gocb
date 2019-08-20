@@ -588,10 +588,10 @@ func createAgent(config *AgentConfig, initFn memdInitFunc) (*Agent, error) {
 
 	httpTransport := &http.Transport{
 		TLSClientConfig: config.TlsConfig,
-		Dial: (&net.Dialer{
+		DialContext: (&net.Dialer{
 			Timeout:   30 * time.Second,
 			KeepAlive: 30 * time.Second,
-		}).Dial,
+		}).DialContext,
 		TLSHandshakeTimeout: 10 * time.Second,
 		MaxIdleConns:        config.HttpMaxIdleConns,
 		MaxIdleConnsPerHost: config.HttpMaxIdleConnsPerHost,
@@ -784,6 +784,7 @@ func (agent *Agent) connect(memdAddrs, httpAddrs []string, deadline time.Time) e
 			continue
 		}
 
+		agent.updateClusterCapabilities(bk)
 		logDebugf("Successfully connected")
 
 		// Build some fake routing data, this is used to indicate that
@@ -851,6 +852,7 @@ func (agent *Agent) connect(memdAddrs, httpAddrs []string, deadline time.Time) e
 			return false
 		}
 
+		agent.updateClusterCapabilities(cfg)
 		routeCfg = newRouteCfg
 		signal <- nil
 		return true

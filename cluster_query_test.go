@@ -1081,12 +1081,7 @@ func TestBasicEnhancedPreparedQuery(t *testing.T) {
 	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
 	timeout := 60 * time.Second
 
-	preparedBytes, err := loadRawTestDataset("query_enhanced_statement")
-	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
-	}
-
-	dataBytes, err := loadRawTestDataset("beer_sample_query_dataset")
+	dataBytes, err := loadRawTestDataset("enhanced_beer_sample_query_dataset")
 	if err != nil {
 		t.Fatalf("Could not read test dataset: %v", err)
 	}
@@ -1096,14 +1091,6 @@ func TestBasicEnhancedPreparedQuery(t *testing.T) {
 	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
 		testAssertQueryRequest(t, req)
 		retries++
-
-		if retries == 1 {
-			return &gocbcore.HttpResponse{
-				Endpoint:   "http://localhost:8093",
-				StatusCode: 200,
-				Body:       &testReadCloser{bytes.NewBuffer(preparedBytes), nil},
-			}, nil
-		}
 
 		return &gocbcore.HttpResponse{
 			Endpoint:   "http://localhost:8093",
@@ -1139,8 +1126,8 @@ func TestBasicEnhancedPreparedQuery(t *testing.T) {
 		t.Fatalf("Expected query execution to not error %v", err)
 	}
 
-	if retries != 2 {
-		t.Fatalf("Expected query to be run 2 times but ws run %d times", retries)
+	if retries != 1 {
+		t.Fatalf("Expected query to be run 1 time but was run %d times", retries)
 	}
 
 	if len(cluster.queryCache) != 1 {
@@ -1152,12 +1139,12 @@ func TestBasicEnhancedPreparedQuery(t *testing.T) {
 		t.Fatal("Expected query cache to contain query")
 	}
 
-	if cache.name != "[127.0.0.1:8091]32f2405d-5715-5915-b2b2-d2c557da4996" {
-		t.Fatalf("Expected cache name to be [127.0.0.1:8091]32f2405d-5715-5915-b2b2-d2c557da4996 but was %s", cache.name)
+	if cache.name != "[127.0.0.1:8091]adbf974b-9aed-5d37-9c89-3c86b69f9bd4" {
+		t.Fatalf("Expected cache name to be [127.0.0.1:8091]adbf974b-9aed-5d37-9c89-3c86b69f9bd4 but was %s", cache.name)
 	}
 
-	if cache.encodedPlan != "H4sIAAAAAAAA/wEAAP//AAAAAAAAAAA=" {
-		t.Fatalf("Expected cache name to be H4sIAAAAAAAA/wEAAP//AAAAAAAAAAA= but was %s", cache.encodedPlan)
+	if cache.encodedPlan != "" {
+		t.Fatalf("Expected cache name to be empty but was %s", cache.encodedPlan)
 	}
 }
 
@@ -1165,12 +1152,7 @@ func TestBasicEnhancedPreparedQueryAlreadySupported(t *testing.T) {
 	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
 	timeout := 60 * time.Second
 
-	preparedBytes, err := loadRawTestDataset("query_enhanced_statement")
-	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
-	}
-
-	dataBytes, err := loadRawTestDataset("beer_sample_query_dataset")
+	dataBytes, err := loadRawTestDataset("enhanced_beer_sample_query_dataset")
 	if err != nil {
 		t.Fatalf("Could not read test dataset: %v", err)
 	}
@@ -1180,14 +1162,6 @@ func TestBasicEnhancedPreparedQueryAlreadySupported(t *testing.T) {
 	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
 		testAssertQueryRequest(t, req)
 		retries++
-
-		if retries == 1 {
-			return &gocbcore.HttpResponse{
-				Endpoint:   "http://localhost:8093",
-				StatusCode: 200,
-				Body:       &testReadCloser{bytes.NewBuffer(preparedBytes), nil},
-			}, nil
-		}
 
 		return &gocbcore.HttpResponse{
 			Endpoint:   "http://localhost:8093",
@@ -1223,8 +1197,8 @@ func TestBasicEnhancedPreparedQueryAlreadySupported(t *testing.T) {
 		t.Fatalf("Expected query execution to not error %v", err)
 	}
 
-	if retries != 2 {
-		t.Fatalf("Expected query to be run 2 times but ws run %d times", retries)
+	if retries != 1 {
+		t.Fatalf("Expected query to be run 1 time but was run %d times", retries)
 	}
 
 	if len(cluster.queryCache) != 3 {
@@ -1275,8 +1249,7 @@ func TestBasicEnhancedPreparedQueryAlreadyCached(t *testing.T) {
 			encodedPlan: "somethingencoded",
 		},
 		"select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name": {
-			name:        "[127.0.0.1:8091]32f2405d-5715-5915-b2b2-d2c557da4996",
-			encodedPlan: "H4sIAAAAAAAA/wEAAP//AAAAAAAAAAA=",
+			name: "[127.0.0.1:8091]32f2405d-5715-5915-b2b2-d2c557da4996",
 		},
 	}
 
@@ -1349,7 +1322,7 @@ func TestBasicRetriesEnhancedPreparedNoRetry(t *testing.T) {
 	}
 
 	if retries != 1 {
-		t.Fatalf("Expected query to be retried 1 time but ws retried %d times", retries)
+		t.Fatalf("Expected query to be retried 1 time but was retried %d times", retries)
 	}
 
 	if len(cluster.queryCache) != 0 {
