@@ -6,66 +6,6 @@ import (
 	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
-func (c *Collection) observeOnceCas(key []byte, cas Cas, forDelete bool,
-	replicaIdx int, commCh chan uint, scopeName, collectionName string) (pendingOp, error) {
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return agent.ObserveEx(gocbcore.ObserveOptions{
-		Key:            key,
-		ReplicaIdx:     replicaIdx,
-		ScopeName:      scopeName,
-		CollectionName: collectionName,
-	}, func(res *gocbcore.ObserveResult, err error) {
-		if err != nil || res == nil {
-			commCh <- 0
-			return
-		}
-
-		didReplicate := false
-		didPersist := false
-
-		if res.KeyState == gocbcore.KeyStatePersisted {
-			if !forDelete {
-				if Cas(res.Cas) == cas {
-					if replicaIdx != 0 {
-						didReplicate = true
-					}
-					didPersist = true
-				}
-			}
-		} else if res.KeyState == gocbcore.KeyStateNotPersisted {
-			if !forDelete {
-				if Cas(res.Cas) == cas {
-					if replicaIdx != 0 {
-						didReplicate = true
-					}
-				}
-			}
-		} else if res.KeyState == gocbcore.KeyStateDeleted {
-			if forDelete {
-				didReplicate = true
-			}
-		} else {
-			if forDelete {
-				didReplicate = true
-				didPersist = true
-			}
-		}
-
-		var out uint
-		if didReplicate {
-			out |= 1
-		}
-		if didPersist {
-			out |= 2
-		}
-		commCh <- out
-	})
-}
-
 func (c *Collection) observeOnceSeqNo(mt MutationToken, replicaIdx int, commCh chan uint) (pendingOp, error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
@@ -98,12 +38,6 @@ func (c *Collection) observeOnceSeqNo(mt MutationToken, replicaIdx int, commCh c
 
 func (c *Collection) observeOne(ctx context.Context, key []byte, mt MutationToken,
 	cas Cas, forDelete bool, replicaIdx int, replicaCh, persistCh chan bool, scopeName, collectionName string) {
-	observeOnce := func(commCh chan uint) (pendingOp, error) {
-		if mt.token.VbUuid != 0 && mt.token.SeqNo != 0 {
-			return c.observeOnceSeqNo(mt, replicaIdx, commCh)
-		}
-		return c.observeOnceCas(key, cas, forDelete, replicaIdx, commCh, scopeName, collectionName)
-	}
 
 	sentReplicated := false
 	sentPersisted := false
@@ -127,7 +61,7 @@ func (c *Collection) observeOne(ctx context.Context, key []byte, mt MutationToke
 
 	commCh := make(chan uint)
 	for {
-		op, err := observeOnce(commCh)
+		op, err := c.observeOnceSeqNo(mt, replicaIdx, commCh)
 		if err != nil {
 			failMe()
 			return

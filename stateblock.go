@@ -40,8 +40,6 @@ type stateBlock struct {
 	SearchTimeout    time.Duration
 	ViewTimeout      time.Duration
 
-	useMutationTokens bool
-
 	Transcoder Transcoder
 	Serializer JSONSerializer
 }

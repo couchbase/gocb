@@ -87,7 +87,7 @@ func TestMain(m *testing.M) {
 
 	globalCluster = &testCluster{Cluster: cluster, Mock: mock, Version: nodeVersion}
 
-	globalBucket = globalCluster.Bucket(*bucketName, &BucketOptions{UseMutationTokens: true})
+	globalBucket = globalCluster.Bucket(*bucketName, nil)
 
 	if *collectionName != "" {
 		globalCollection = globalBucket.Collection("_default", *collectionName, nil)
@@ -95,7 +95,7 @@ func TestMain(m *testing.M) {
 		globalCollection = globalBucket.DefaultCollection(nil)
 	}
 
-	globalTravelBucket = globalCluster.Bucket("travel-sample", &BucketOptions{UseMutationTokens: true})
+	globalTravelBucket = globalCluster.Bucket("travel-sample", nil)
 	_, err = globalTravelBucket.DefaultCollection(nil).Get("invalid", nil)
 	if !(err == nil || IsKeyNotFoundError(err)) {
 		globalTravelBucket = nil

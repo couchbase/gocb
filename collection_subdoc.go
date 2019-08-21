@@ -697,6 +697,10 @@ func (c *Collection) mutate(ctx context.Context, key string, ops []MutateInOp, o
 		return nil, err
 	}
 
+	if (opts.PersistTo != 0 || opts.ReplicateTo != 0) && !c.sb.clientStateBlock.UseMutationTokens {
+		return nil, configurationError{"cannot use observe based durability without mutation tokens"}
+	}
+
 	var isInsertDocument bool
 	var flags SubdocDocFlag
 	if opts.InsertDocument {

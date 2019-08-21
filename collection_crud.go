@@ -139,6 +139,10 @@ func (c *Collection) Insert(key string, val interface{}, opts *InsertOptions) (m
 		opts = &InsertOptions{}
 	}
 
+	if (opts.PersistTo != 0 || opts.ReplicateTo != 0) && !c.sb.clientStateBlock.UseMutationTokens {
+		return nil, configurationError{"cannot use observe based durability without mutation tokens"}
+	}
+
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
@@ -229,6 +233,10 @@ func (c *Collection) insert(ctx context.Context, key string, val interface{}, op
 func (c *Collection) Upsert(key string, val interface{}, opts *UpsertOptions) (mutOut *MutationResult, errOut error) {
 	if opts == nil {
 		opts = &UpsertOptions{}
+	}
+
+	if (opts.PersistTo != 0 || opts.ReplicateTo != 0) && !c.sb.clientStateBlock.UseMutationTokens {
+		return nil, configurationError{"cannot use observe based durability without mutation tokens"}
 	}
 
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
@@ -333,6 +341,10 @@ type ReplaceOptions struct {
 func (c *Collection) Replace(key string, val interface{}, opts *ReplaceOptions) (mutOut *MutationResult, errOut error) {
 	if opts == nil {
 		opts = &ReplaceOptions{}
+	}
+
+	if (opts.PersistTo != 0 || opts.ReplicateTo != 0) && !c.sb.clientStateBlock.UseMutationTokens {
+		return nil, configurationError{"cannot use observe based durability without mutation tokens"}
 	}
 
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
@@ -714,6 +726,10 @@ type RemoveOptions struct {
 func (c *Collection) Remove(key string, opts *RemoveOptions) (mutOut *MutationResult, errOut error) {
 	if opts == nil {
 		opts = &RemoveOptions{}
+	}
+
+	if (opts.PersistTo != 0 || opts.ReplicateTo != 0) && !c.sb.clientStateBlock.UseMutationTokens {
+		return nil, configurationError{"cannot use observe based durability without mutation tokens"}
 	}
 
 	ctx, cancel := c.context(opts.Context, opts.Timeout)

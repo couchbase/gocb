@@ -534,10 +534,10 @@ func testGetBucketForHTTP(provider *mockHTTPProvider, viewTimeout time.Duration)
 		bucketName:        "mock",
 		collectionId:      0,
 		scopeId:           0,
-		useMutationTokens: false,
+		useMutationTokens: true,
 		mockHTTPProvider:  provider,
 	}
-	clients["mock-false"] = cli
+	clients["mock-true"] = cli
 	c, _ := Connect("couchbase://localhost", ClusterOptions{
 		ViewTimeout: viewTimeout,
 	})

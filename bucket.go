@@ -7,7 +7,7 @@ type Bucket struct {
 
 // BucketOptions are the options available when connecting to a Bucket.
 type BucketOptions struct {
-	UseMutationTokens bool
+	DisableMutationTokens bool
 }
 
 func newBucket(sb *stateBlock, bucketName string, opts BucketOptions) *Bucket {
@@ -15,7 +15,7 @@ func newBucket(sb *stateBlock, bucketName string, opts BucketOptions) *Bucket {
 		sb: stateBlock{
 			clientStateBlock: clientStateBlock{
 				BucketName:        bucketName,
-				UseMutationTokens: opts.UseMutationTokens,
+				UseMutationTokens: !opts.DisableMutationTokens,
 			},
 			QueryTimeout:     sb.QueryTimeout,
 			SearchTimeout:    sb.SearchTimeout,
