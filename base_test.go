@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/couchbaselabs/gojcbmock"
@@ -52,13 +53,19 @@ func TestMain(m *testing.M) {
 			{Name: "memd", Type: gojcbmock.BCouchbase},
 		}...)
 
+		mock.Control(gojcbmock.NewCommand(gojcbmock.CSetCCCP, map[string]interface{}{"enabled": true}))
+
 		if err != nil {
 			panic(err.Error())
 		}
 
 		*version = mock.Version()
 
-		connStr = fmt.Sprintf("http://127.0.0.1:%d", mock.EntryPort)
+		var addrs []string
+		for _, mcport := range mock.MemcachedPorts() {
+			addrs = append(addrs, fmt.Sprintf("127.0.0.1:%d", mcport))
+		}
+		connStr = fmt.Sprintf("couchbase://%s", strings.Join(addrs, ","))
 	} else {
 		connStr = *server
 
