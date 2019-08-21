@@ -133,6 +133,9 @@ func transformUserMetadataJson(userData *userMetadataJson) UserAndMetadata {
 			Role:    role,
 			Origins: roleData.Origins,
 		})
+		if roleData.Origins == nil {
+			roles = append(roles, role)
+		}
 		for _, origin := range roleData.Origins {
 			if origin.Type == "user" {
 				roles = append(roles, role)

@@ -70,9 +70,9 @@ func TestUserManagerGroupCrud(t *testing.T) {
 	}
 }
 
-func TestUserManagerCrud(t *testing.T) {
-	if !globalCluster.SupportsFeature(UserManagerFeature) {
-		t.Skip("Skipping test as rbac not supported.")
+func TestUserManagerWithGroupsCrud(t *testing.T) {
+	if !globalCluster.SupportsFeature(UserGroupFeature) {
+		t.Skip("Skipping test as groups not supported.")
 	}
 
 	mgr, err := globalCluster.Users()
@@ -97,7 +97,7 @@ func TestUserManagerCrud(t *testing.T) {
 		t.Fatalf("Expected UpsertGroup to not error: %v", err)
 	}
 
-	err = mgr.UpsertUser(User{
+	expectedUser := User{
 		Username:    "barry",
 		DisplayName: "sheen",
 		Password:    "bangbang!",
@@ -108,7 +108,9 @@ func TestUserManagerCrud(t *testing.T) {
 			},
 		},
 		Groups: []string{"test"},
-	}, nil)
+	}
+
+	err = mgr.UpsertUser(expectedUser, nil)
 	if err != nil {
 		t.Fatalf("Expected UpsertUser to not error: %v", err)
 	}
@@ -118,43 +120,69 @@ func TestUserManagerCrud(t *testing.T) {
 		t.Fatalf("Expected GetUser to not error: %v", err)
 	}
 
-	if user.User.Username != "barry" {
-		t.Fatalf("Expected user Username to be barry but was %s", user.User.Username)
+	expectedUserAndMeta := &UserAndMetadata{
+		Domain: "local",
+		User:   expectedUser,
+		EffectiveRoles: []Role{
+			{
+				Name:   "bucket_admin",
+				Bucket: globalBucket.Name(),
+			},
+			{
+				Name:   "replication_target",
+				Bucket: globalBucket.Name(),
+			},
+			{
+				Name: "security_admin",
+			},
+		},
+		EffectiveRolesAndOrigins: []RoleAndOrigins{
+			{
+				Role: Role{
+					Name:   "bucket_admin",
+					Bucket: globalBucket.Name(),
+				},
+				Origins: []Origin{
+					{
+						Type: "user",
+					},
+				},
+			},
+			{
+				Role: Role{
+					Name:   "replication_target",
+					Bucket: globalBucket.Name(),
+				},
+				Origins: []Origin{
+					{
+						Type: "group",
+						Name: "test",
+					},
+				},
+			},
+			{
+				Role: Role{
+					Name: "security_admin",
+				},
+				Origins: []Origin{
+					{
+						Type: "group",
+						Name: "test",
+					},
+				},
+			},
+		},
 	}
-
-	if len(user.User.Groups) != 1 {
-		t.Fatalf("Expected user Groups to be length 1 but was %v", user.User.Groups)
-	}
-
-	if user.User.Groups[0] != "test" {
-		t.Fatalf("Expected user Groups 0 to be test but was %s", user.User.Groups[0])
-	}
-
-	if len(user.User.Roles) != 1 {
-		t.Fatalf("Expected user Roles to be length 1 but was %v", user.User.Roles)
-	}
-
-	if user.User.DisplayName != "sheen" {
-		t.Fatalf("Expected user DisplayName to be sheen but was %s", user.User.DisplayName)
-	}
-
-	if user.Domain != "local" {
-		t.Fatalf("Expected user Domain to be local but was %s", user.Domain)
-	}
-
-	if len(user.EffectiveRoles) != 3 {
-		t.Fatalf("Expected user EffectiveRoles to be length 3 but was %v", user.EffectiveRoles)
-	}
-
-	if len(user.EffectiveRolesAndOrigins) != 3 {
-		t.Fatalf("Expected user EffectiveRolesAndOrigins to be length 3 but was %v", user.EffectiveRolesAndOrigins)
-	}
+	assertUser(t, user, expectedUserAndMeta)
 
 	user.User.DisplayName = "barries"
 	err = mgr.UpsertUser(user.User, nil)
 	if err != nil {
 		t.Fatalf("Expected UpsertUser to not error: %v", err)
 	}
+
+	expectedUserAndMeta.User.DisplayName = "barries"
+	assertUser(t, user, expectedUserAndMeta)
 
 	users, err := mgr.GetAllUsers(nil)
 	if err != nil {
@@ -185,6 +213,94 @@ func TestUserManagerCrud(t *testing.T) {
 	}
 }
 
+func TestUserManagerCrud(t *testing.T) {
+	if !globalCluster.SupportsFeature(UserManagerFeature) {
+		t.Skip("Skipping test as rbac not supported.")
+	}
+
+	mgr, err := globalCluster.Users()
+	if err != nil {
+		t.Fatalf("Expected Users to not error: %v", err)
+	}
+
+	expectedUser := User{
+		Username:    "barry",
+		DisplayName: "sheen",
+		Password:    "bangbang!",
+		Roles: []Role{
+			{
+				Name:   "bucket_admin",
+				Bucket: globalBucket.Name(),
+			},
+		},
+	}
+	err = mgr.UpsertUser(expectedUser, nil)
+	if err != nil {
+		t.Fatalf("Expected UpsertUser to not error: %v", err)
+	}
+
+	user, err := mgr.GetUser("barry", nil)
+	if err != nil {
+		t.Fatalf("Expected GetUser to not error: %v", err)
+	}
+
+	expectedUserAndMeta := &UserAndMetadata{
+		Domain: "local",
+		User:   expectedUser,
+		EffectiveRoles: []Role{
+			{
+				Name:   "bucket_admin",
+				Bucket: globalBucket.Name(),
+			},
+		},
+		EffectiveRolesAndOrigins: []RoleAndOrigins{
+			{
+				Role: Role{
+					Name:   "bucket_admin",
+					Bucket: globalBucket.Name(),
+				},
+			},
+		},
+	}
+	assertUser(t, user, expectedUserAndMeta)
+
+	user.User.DisplayName = "barries"
+	err = mgr.UpsertUser(user.User, nil)
+	if err != nil {
+		t.Fatalf("Expected UpsertUser to not error: %v", err)
+	}
+
+	users, err := mgr.GetAllUsers(nil)
+	if err != nil {
+		t.Fatalf("Expected GetAllUsers to not error: %v", err)
+	}
+
+	if len(users) == 0 {
+		t.Fatalf("Expected users length to be greater than 0")
+	}
+
+	user, err = mgr.GetUser("barry", nil)
+	if err != nil {
+		t.Fatalf("Expected GetUser to not error: %v", err)
+	}
+	expectedUserAndMeta.User.DisplayName = "barries"
+	assertUser(t, user, expectedUserAndMeta)
+
+	err = mgr.DropUser("barry", nil)
+	if err != nil {
+		t.Fatalf("Expected DropUser to not error: %v", err)
+	}
+
+	_, err = mgr.GetUser("barry", nil)
+	if err == nil {
+		t.Fatalf("Expected GetUser to error")
+	}
+
+	if !IsUserNotFoundError(err) {
+		t.Fatalf("Expected error to be user not found but was %v", err)
+	}
+}
+
 func TestUserManagerAvailableRoles(t *testing.T) {
 	if !globalCluster.SupportsFeature(UserManagerFeature) {
 		t.Skip("Skipping test as rbac not supported.")
@@ -202,5 +318,41 @@ func TestUserManagerAvailableRoles(t *testing.T) {
 
 	if len(roles) == 0 {
 		t.Fatalf("Expected roles to have entries")
+	}
+}
+
+func assertUser(t *testing.T, user *UserAndMetadata, expected *UserAndMetadata) {
+	if user.User.Username != expected.User.Username {
+		t.Fatalf("Expected user Username to be %s but was %s", expected.User.Username, user.User.Username)
+	}
+
+	if len(user.User.Groups) != len(expected.User.Groups) {
+		t.Fatalf("Expected user Groups to be length %v but was %v", expected.User.Groups, user.User.Groups)
+	}
+
+	for i, group := range user.User.Groups {
+		if group != expected.User.Groups[i] {
+			t.Fatalf("Expected user Groups 0 to be %s but was %s", expected.User.Groups[i], group)
+		}
+	}
+
+	if len(user.User.Roles) != len(expected.User.Roles) {
+		t.Fatalf("Expected user Roles to be length %v but was %v", expected.User.Roles, user.User.Roles)
+	}
+
+	if user.User.DisplayName != expected.User.DisplayName {
+		t.Fatalf("Expected user DisplayName to be %s but was %s", expected.User.DisplayName, user.User.DisplayName)
+	}
+
+	if user.Domain != expected.Domain {
+		t.Fatalf("Expected user Domain to be %s but was %s", expected.Domain, user.Domain)
+	}
+
+	if len(user.EffectiveRoles) != len(expected.EffectiveRoles) {
+		t.Fatalf("Expected user EffectiveRoles to be length %v but was %v", expected.EffectiveRoles, user.EffectiveRoles)
+	}
+
+	if len(user.EffectiveRolesAndOrigins) != len(expected.EffectiveRolesAndOrigins) {
+		t.Fatalf("Expected user EffectiveRolesAndOrigins to be length %v but was %v", expected.EffectiveRolesAndOrigins, user.EffectiveRolesAndOrigins)
 	}
 }
