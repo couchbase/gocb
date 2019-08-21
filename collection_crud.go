@@ -109,6 +109,14 @@ type Cas gocbcore.Cas
 
 type pendingOp gocbcore.PendingOp
 
+func (c *Collection) verifyObserveOptions(persistTo, replicateTo uint, durabilityLevel DurabilityLevel) error {
+	if (persistTo != 0 || replicateTo != 0) && durabilityLevel > 0 {
+		return configurationError{message: "cannot mix observe based durability and synchronous durability"}
+	}
+
+	return nil
+}
+
 // UpsertOptions are options that can be applied to an Upsert operation.
 type UpsertOptions struct {
 	Timeout time.Duration
@@ -146,6 +154,11 @@ func (c *Collection) Insert(key string, val interface{}, opts *InsertOptions) (m
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
+	}
+
+	err := c.verifyObserveOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
+	if err != nil {
+		return nil, err
 	}
 
 	res, err := c.insert(ctx, key, val, *opts)
@@ -242,6 +255,11 @@ func (c *Collection) Upsert(key string, val interface{}, opts *UpsertOptions) (m
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
+	}
+
+	err := c.verifyObserveOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
+	if err != nil {
+		return nil, err
 	}
 
 	res, err := c.upsert(ctx, key, val, *opts)
@@ -350,6 +368,11 @@ func (c *Collection) Replace(key string, val interface{}, opts *ReplaceOptions) 
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
+	}
+
+	err := c.verifyObserveOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
+	if err != nil {
+		return nil, err
 	}
 
 	res, err := c.replace(ctx, key, val, *opts)
@@ -735,6 +758,11 @@ func (c *Collection) Remove(key string, opts *RemoveOptions) (mutOut *MutationRe
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
+	}
+
+	err := c.verifyObserveOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
+	if err != nil {
+		return nil, err
 	}
 
 	res, err := c.remove(ctx, key, *opts)

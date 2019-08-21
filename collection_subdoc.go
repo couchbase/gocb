@@ -670,6 +670,11 @@ func (c *Collection) MutateIn(key string, ops []MutateInOp, opts *MutateInOption
 		defer cancel()
 	}
 
+	err := c.verifyObserveOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
+	if err != nil {
+		return nil, err
+	}
+
 	res, err := c.mutate(ctx, key, ops, *opts)
 	if err != nil {
 		return nil, err
