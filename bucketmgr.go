@@ -110,10 +110,17 @@ func (bm *BucketManager) Flush() error {
 		if err != nil {
 			return err
 		}
+
 		err = resp.Body.Close()
 		if err != nil {
 			logDebugf("Failed to close socket (%s)", err)
 		}
+
+		// handles responses like unauthorized which does not returns any error or data
+		if len(data) == 0 {
+			return clientError{resp.Status}
+		}
+
 		return clientError{string(data)}
 	}
 	return nil
