@@ -110,11 +110,18 @@ func (bm *BucketManager) Flush() error {
 		if err != nil {
 			return err
 		}
+
 		err = resp.Body.Close()
 		if err != nil {
 			logDebugf("Failed to close socket (%s)", err)
 		}
-		return clientError{string(data)}
+
+		// handles responses like unauthorized which does not returns any error or data
+		if len(data) == 0 {
+			return clientError{message: fmt.Sprintf("Status Code: %d", resp.StatusCode)}
+		}
+
+		return clientError{message: fmt.Sprintf("Message: %s. Status Code: %d", string(data), resp.StatusCode)}
 	}
 	return nil
 }
@@ -137,7 +144,13 @@ func (bm *BucketManager) GetDesignDocument(name string) (*DesignDocument, error)
 		if err != nil {
 			logDebugf("Failed to close socket (%s)", err)
 		}
-		return nil, clientError{string(data)}
+
+		// handles responses like unauthorized which does not returns any error or data
+		if len(data) == 0 {
+			return nil, clientError{message: fmt.Sprintf("Status Code: %d", resp.StatusCode)}
+		}
+
+		return nil, clientError{message: fmt.Sprintf("Message: %s. Status Code: %d", string(data), resp.StatusCode)}
 	}
 
 	ddocObj := DesignDocument{}
@@ -169,7 +182,13 @@ func (bm *BucketManager) GetDesignDocuments() ([]*DesignDocument, error) {
 		if err != nil {
 			logDebugf("Failed to close socket (%s)", err)
 		}
-		return nil, clientError{string(data)}
+
+		// handles responses like unauthorized which does not returns any error or data
+		if len(data) == 0 {
+			return nil, clientError{message: fmt.Sprintf("Status Code: %d", resp.StatusCode)}
+		}
+
+		return nil, clientError{message: fmt.Sprintf("Message: %s. Status Code: %d", string(data), resp.StatusCode)}
 	}
 
 	var ddocsObj struct {
@@ -231,7 +250,13 @@ func (bm *BucketManager) UpsertDesignDocument(ddoc *DesignDocument) error {
 		if err != nil {
 			logDebugf("Failed to close socket (%s)", err)
 		}
-		return clientError{string(data)}
+
+		// handles responses like unauthorized which does not returns any error or data
+		if len(data) == 0 {
+			return clientError{message: fmt.Sprintf("Status Code: %d", resp.StatusCode)}
+		}
+
+		return clientError{message: fmt.Sprintf("Message: %s. Status Code: %d", string(data), resp.StatusCode)}
 	}
 
 	return nil
@@ -255,7 +280,13 @@ func (bm *BucketManager) RemoveDesignDocument(name string) error {
 		if err != nil {
 			logDebugf("Failed to close socket (%s)", err)
 		}
-		return clientError{string(data)}
+
+		// handles responses like unauthorized which does not returns any error or data
+		if len(data) == 0 {
+			return clientError{message: fmt.Sprintf("Status Code: %d", resp.StatusCode)}
+		}
+
+		return clientError{message: fmt.Sprintf("Message: %s. Status Code: %d", string(data), resp.StatusCode)}
 	}
 
 	return nil
