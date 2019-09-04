@@ -6,7 +6,7 @@ import (
 	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
-func (c *Collection) observeOnceSeqNo(mt MutationToken, replicaIdx int, commCh chan uint) (pendingOp, error) {
+func (c *Collection) observeOnceSeqNo(ctx context.Context, mt MutationToken, replicaIdx int, commCh chan uint) (pendingOp, error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -61,7 +61,7 @@ func (c *Collection) observeOne(ctx context.Context, key []byte, mt MutationToke
 
 	commCh := make(chan uint)
 	for {
-		op, err := c.observeOnceSeqNo(mt, replicaIdx, commCh)
+		op, err := c.observeOnceSeqNo(ctx, mt, replicaIdx, commCh)
 		if err != nil {
 			failMe()
 			return

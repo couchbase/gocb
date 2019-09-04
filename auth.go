@@ -6,8 +6,7 @@ import gocbcore "github.com/couchbase/gocbcore/v8"
 type UserPassPair gocbcore.UserPassPair
 
 type coreAuthWrapper struct {
-	auth       Authenticator
-	bucketName string
+	auth Authenticator
 }
 
 // Credentials returns the credentials for a particular service.
@@ -15,7 +14,6 @@ func (auth *coreAuthWrapper) Credentials(req gocbcore.AuthCredsRequest) ([]gocbc
 	creds, err := auth.auth.Credentials(AuthCredsRequest{
 		Service:  ServiceType(req.Service),
 		Endpoint: req.Endpoint,
-		Bucket:   auth.bucketName,
 	})
 	if err != nil {
 		return nil, err
@@ -34,7 +32,6 @@ func (auth *coreAuthWrapper) Credentials(req gocbcore.AuthCredsRequest) ([]gocbc
 type AuthCredsRequest struct {
 	Service  ServiceType
 	Endpoint string
-	Bucket   string
 }
 
 func getSingleCredential(auth Authenticator, req AuthCredsRequest) (UserPassPair, error) {

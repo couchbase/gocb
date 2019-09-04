@@ -14,17 +14,17 @@ func newBucket(sb *stateBlock, bucketName string, opts BucketOptions) *Bucket {
 	return &Bucket{
 		sb: stateBlock{
 			clientStateBlock: clientStateBlock{
-				BucketName:        bucketName,
-				UseMutationTokens: !opts.DisableMutationTokens,
+				BucketName: bucketName,
 			},
-			QueryTimeout:     sb.QueryTimeout,
-			SearchTimeout:    sb.SearchTimeout,
-			AnalyticsTimeout: sb.AnalyticsTimeout,
-			KvTimeout:        sb.KvTimeout,
-			ViewTimeout:      sb.ViewTimeout,
-			ConnectTimeout:   sb.ConnectTimeout,
-			DuraTimeout:      sb.DuraTimeout,
-			DuraPollTimeout:  sb.DuraPollTimeout,
+			QueryTimeout:      sb.QueryTimeout,
+			SearchTimeout:     sb.SearchTimeout,
+			AnalyticsTimeout:  sb.AnalyticsTimeout,
+			KvTimeout:         sb.KvTimeout,
+			ViewTimeout:       sb.ViewTimeout,
+			ConnectTimeout:    sb.ConnectTimeout,
+			DuraTimeout:       sb.DuraTimeout,
+			DuraPollTimeout:   sb.DuraPollTimeout,
+			UseMutationTokens: sb.UseMutationTokens,
 
 			Transcoder: sb.Transcoder,
 			Serializer: sb.Serializer,

@@ -38,6 +38,7 @@ func TestMain(m *testing.M) {
 	var err error
 	var connStr string
 	var mock *gojcbmock.Mock
+	var auth PasswordAuthenticator
 	if *server == "" {
 		if *version != "" {
 			panic("version cannot be specified with mock")
@@ -50,7 +51,6 @@ func TestMain(m *testing.M) {
 
 		mock, err = gojcbmock.NewMock(mpath, 4, 1, 64, []gojcbmock.BucketSpec{
 			{Name: "default", Type: gojcbmock.BCouchbase},
-			{Name: "memd", Type: gojcbmock.BCouchbase},
 		}...)
 
 		mock.Control(gojcbmock.NewCommand(gojcbmock.CSetCCCP, map[string]interface{}{"enabled": true}))
@@ -66,15 +66,24 @@ func TestMain(m *testing.M) {
 			addrs = append(addrs, fmt.Sprintf("127.0.0.1:%d", mcport))
 		}
 		connStr = fmt.Sprintf("couchbase://%s", strings.Join(addrs, ","))
+		auth = PasswordAuthenticator{
+			Username: "default",
+			Password: "",
+		}
 	} else {
 		connStr = *server
+
+		auth = PasswordAuthenticator{
+			Username: *user,
+			Password: *password,
+		}
 
 		if *version == "" {
 			*version = defaultServerVersion
 		}
 	}
 
-	cluster, err := Connect(connStr, ClusterOptions{Authenticator: PasswordAuthenticator{Username: *user, Password: *password}})
+	cluster, err := Connect(connStr, ClusterOptions{Authenticator: auth})
 
 	if err != nil {
 		panic(err.Error())

@@ -200,7 +200,7 @@ func (r *AnalyticsResultsMetadata) ClientContextID() string {
 }
 
 // Handle returns a deferred result handle. This can be polled to verify whether
-// the result is ready to be read.
+// the result is bucketReady to be read.
 //
 // Experimental: This API is subject to change at any time.
 func (r *AnalyticsResult) Handle() *AnalyticsDeferredResultHandle {

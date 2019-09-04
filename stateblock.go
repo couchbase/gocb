@@ -6,14 +6,11 @@ import (
 )
 
 type clientStateBlock struct {
-	BucketName        string
-	UseMutationTokens bool
+	BucketName string
 }
 
 func (sb *clientStateBlock) Hash() string {
-	return fmt.Sprintf("%s-%t",
-		sb.BucketName,
-		sb.UseMutationTokens)
+	return fmt.Sprintf("%s", sb.BucketName)
 }
 
 type stateBlock struct {
@@ -39,6 +36,8 @@ type stateBlock struct {
 	AnalyticsTimeout time.Duration
 	SearchTimeout    time.Duration
 	ViewTimeout      time.Duration
+
+	UseMutationTokens bool
 
 	Transcoder Transcoder
 	Serializer JSONSerializer

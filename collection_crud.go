@@ -110,7 +110,7 @@ type Cas gocbcore.Cas
 type pendingOp gocbcore.PendingOp
 
 func (c *Collection) verifyObserveOptions(persistTo, replicateTo uint, durabilityLevel DurabilityLevel) error {
-	if (persistTo != 0 || replicateTo != 0) && !c.sb.clientStateBlock.UseMutationTokens {
+	if (persistTo != 0 || replicateTo != 0) && !c.sb.UseMutationTokens {
 		return configurationError{"cannot use observe based durability without mutation tokens"}
 	}
 

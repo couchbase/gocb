@@ -18,6 +18,7 @@ type Cluster struct {
 
 	connectionsLock sync.RWMutex
 	connections     map[string]client
+	clusterClient   client
 
 	clusterLock sync.RWMutex
 	queryCache  map[string]*n1qlCache
@@ -25,6 +26,8 @@ type Cluster struct {
 	sb stateBlock
 
 	supportsEnhancedStatements int32
+
+	supportsGCCCP bool
 }
 
 // ClusterOptions is the set of options available for creating a Cluster.
@@ -42,7 +45,8 @@ type ClusterOptions struct {
 	Transcoder Transcoder
 	// Serializer is used for deserialization of data used in query, analytics, view and search operations. This
 	// will default to DefaultJSONSerializer. NOTE: This is entirely independent of Transcoder.
-	Serializer JSONSerializer
+	Serializer            JSONSerializer
+	DisableMutationTokens bool
 }
 
 // ClusterCloseOptions is the set of options available when disconnecting from a Cluster.
@@ -132,6 +136,7 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 			DuraPollTimeout:        100 * time.Millisecond,
 			Transcoder:             opts.Transcoder,
 			Serializer:             opts.Serializer,
+			UseMutationTokens:      !opts.DisableMutationTokens,
 		},
 
 		queryCache: make(map[string]*n1qlCache),
@@ -141,6 +146,22 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	csb := &clientStateBlock{
+		BucketName: "",
+	}
+	cli := newClient(cluster, csb)
+	err = cli.buildConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	err = cli.connect()
+	if err != nil {
+		return nil, err
+	}
+	cluster.clusterClient = cli
+	cluster.supportsGCCCP = cli.supportsGCCCP()
 
 	return cluster, nil
 }
@@ -195,17 +216,45 @@ func (c *Cluster) Bucket(bucketName string, opts *BucketOptions) *Bucket {
 		opts = &BucketOptions{}
 	}
 	b := newBucket(&c.sb, bucketName, *opts)
-	cli := c.getClient(&b.sb.clientStateBlock)
-	b.cacheClient(cli)
-	err := cli.connect()
-	if err == nil {
-		// Only cache this connection if there isn't an error on connecting
-		c.connectionsLock.Lock()
-		c.connections[b.hash()] = cli
-		c.connectionsLock.Unlock()
+	cli := c.takeClusterClient()
+	if cli == nil {
+		// We've already taken the cluster client for a different bucket or something like that so
+		// we need to connect a new client.
+		cli = c.getClient(&b.sb.clientStateBlock)
+		err := cli.buildConfig()
+		if err == nil {
+			err = cli.connect()
+			if err != nil {
+				cli.setBootstrapError(err)
+			}
+		} else {
+			cli.setBootstrapError(err)
+		}
+	} else {
+		err := cli.selectBucket(bucketName)
+		if err != nil {
+			cli.setBootstrapError(err)
+		}
 	}
+	c.connectionsLock.Lock()
+	c.connections[b.hash()] = cli
+	c.connectionsLock.Unlock()
+	b.cacheClient(cli)
 
 	return b
+}
+
+func (c *Cluster) takeClusterClient() client {
+	c.connectionsLock.Lock()
+	defer c.connectionsLock.Unlock()
+
+	if c.clusterClient != nil {
+		cli := c.clusterClient
+		c.clusterClient = nil
+		return cli
+	}
+
+	return nil
 }
 
 func (c *Cluster) getClient(sb *clientStateBlock) client {
@@ -232,22 +281,27 @@ func (c *Cluster) randomClient() (client, error) {
 		}
 	}
 	var randomClient client
+	var firstError error
 	for _, c := range c.connections { // This is ugly
-		randomClient = c
-		break
+		if c.connected() {
+			randomClient = c
+			break
+		} else if firstError == nil {
+			firstError = c.getBootstrapError()
+		}
 	}
 	c.connectionsLock.RUnlock()
-	return randomClient, nil
-}
+	if randomClient == nil {
+		if firstError == nil {
+			return nil, configurationError{
+				message: "not connected to cluster",
+			}
+		}
 
-func (c *Cluster) dropClient(hash string) {
-	c.clusterLock.Lock()
-	_, ok := c.connections[hash]
-	if !ok {
-		logWarnf("hash for client not found in connections, %s", hash)
+		return nil, firstError
 	}
-	delete(c.connections, hash)
-	c.clusterLock.Unlock()
+
+	return randomClient, nil
 }
 
 func (c *Cluster) authenticator() Authenticator {
@@ -272,18 +326,39 @@ func (c *Cluster) Close(opts *ClusterCloseOptions) error {
 
 		delete(c.connections, key)
 	}
+	if c.clusterClient != nil {
+		err := c.clusterClient.close()
+		if err != nil && gocbcore.ErrorCause(err) != gocbcore.ErrShutdown {
+			logWarnf("Failed to close cluster client in cluster close: %s", err)
+			overallErr = err
+		}
+	}
 	c.clusterLock.Unlock()
 
 	return overallErr
 }
 
 func (c *Cluster) getHTTPProvider() (httpProvider, error) {
-	client, err := c.randomClient()
-	if err != nil {
-		return nil, err
+	var cli client
+	c.connectionsLock.RLock()
+	if c.clusterClient == nil {
+		c.connectionsLock.RUnlock()
+		var err error
+		cli, err = c.randomClient()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		cli = c.clusterClient
+		c.connectionsLock.RUnlock()
+		if !cli.supportsGCCCP() {
+			return nil, configurationError{
+				message: "cluster level operations not supported by cluster version",
+			}
+		}
 	}
 
-	provider, err := client.getHTTPProvider()
+	provider, err := cli.getHTTPProvider()
 	if err != nil {
 		return nil, err
 	}

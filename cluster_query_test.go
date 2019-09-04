@@ -1353,13 +1353,12 @@ func TestBasicRetriesEnhancedPreparedRetry(t *testing.T) {
 func testGetClusterForHTTP(provider *mockHTTPProvider, n1qlTimeout, analyticsTimeout, searchTimeout time.Duration) *Cluster {
 	clients := make(map[string]client)
 	cli := &mockClient{
-		bucketName:        "mock",
 		collectionId:      0,
 		scopeId:           0,
-		useMutationTokens: false,
+		useMutationTokens: true,
 		mockHTTPProvider:  provider,
 	}
-	clients["mock-false"] = cli
+	clients[""] = cli
 	c := &Cluster{
 		connections: clients,
 	}

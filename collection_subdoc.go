@@ -701,7 +701,7 @@ func (c *Collection) mutate(ctx context.Context, key string, ops []MutateInOp, o
 		return nil, err
 	}
 
-	if (opts.PersistTo != 0 || opts.ReplicateTo != 0) && !c.sb.clientStateBlock.UseMutationTokens {
+	if (opts.PersistTo != 0 || opts.ReplicateTo != 0) && !c.sb.UseMutationTokens {
 		return nil, configurationError{"cannot use observe based durability without mutation tokens"}
 	}
 

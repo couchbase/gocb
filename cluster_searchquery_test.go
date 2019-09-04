@@ -30,10 +30,10 @@ func TestSearchQuery(t *testing.T) {
 
 	select {
 	case <-timer.C:
-		t.Fatalf("Wait time for analytics dataset to become ready expired")
+		t.Fatalf("Wait time for analytics dataset to become bucketReady expired")
 	case err := <-errCh:
 		if err != nil {
-			t.Fatalf("Failed to wait for analytics dataset to become ready: %v", err)
+			t.Fatalf("Failed to wait for analytics dataset to become bucketReady: %v", err)
 		}
 	}
 

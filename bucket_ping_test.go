@@ -84,7 +84,7 @@ func TestPingAll(t *testing.T) {
 		mockKvProvider:    kvProvider,
 		mockHTTPProvider:  httpProvider,
 	}
-	clients["mock-false"] = cli
+	clients["mock"] = cli
 	c := &Cluster{
 		connections: clients,
 	}

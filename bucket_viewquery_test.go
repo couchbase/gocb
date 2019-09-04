@@ -31,11 +31,11 @@ func TestViewQuery(t *testing.T) {
 
 	select {
 	case <-timer.C:
-		t.Fatalf("Wait time for views to become ready expired")
+		t.Fatalf("Wait time for views to become bucketReady expired")
 		close(errCh)
 	case err := <-errCh:
 		if err != nil {
-			t.Fatalf("Failed to wait for views to become ready: %v", err)
+			t.Fatalf("Failed to wait for views to become bucketReady: %v", err)
 		}
 	}
 
@@ -537,12 +537,13 @@ func testGetBucketForHTTP(provider *mockHTTPProvider, viewTimeout time.Duration)
 		useMutationTokens: true,
 		mockHTTPProvider:  provider,
 	}
-	clients["mock-true"] = cli
-	c, _ := Connect("couchbase://localhost", ClusterOptions{
-		ViewTimeout: viewTimeout,
-	})
-	c.connections = clients
-	b := c.Bucket("mock", nil)
+	clients["mock"] = cli
+	b := &Bucket{
+		sb: stateBlock{
+			Transcoder:   NewDefaultTranscoder(&DefaultJSONSerializer{}),
+			cachedClient: cli,
+		},
+	}
 	b.sb.ViewTimeout = viewTimeout
 
 	return b

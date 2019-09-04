@@ -139,6 +139,10 @@ func TestSearchIndexesCrud(t *testing.T) {
 }
 
 func TestSearchIndexesUpsertIndexNoName(t *testing.T) {
+	if !globalCluster.SupportsFeature(FtsIndexFeature) {
+		t.Skip("Skipping test as search indexes not supported")
+	}
+
 	mgr, err := globalCluster.SearchIndexes()
 	if err != nil {
 		t.Fatalf("Expected err to be nil but was %v", err)

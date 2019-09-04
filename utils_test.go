@@ -115,10 +115,10 @@ func testGetCollection(t *testing.T, provider *mockKvProvider) *Collection {
 		bucketName:        "mock",
 		collectionId:      0,
 		scopeId:           0,
-		useMutationTokens: false,
+		useMutationTokens: true,
 		mockKvProvider:    provider,
 	}
-	clients["mock-false"] = cli
+	clients["mock"] = cli
 
 	b := &Bucket{
 		sb: stateBlock{

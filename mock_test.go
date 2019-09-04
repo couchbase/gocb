@@ -373,11 +373,37 @@ func (mc *mockClient) connect() error {
 	return nil
 }
 
+func (mc *mockClient) buildConfig() error {
+	return nil
+}
+
 func (mc *mockClient) close() error {
 	return nil
 }
 
 func (mc *mockClient) openCollection(ctx context.Context, scopeName string, collectionName string) {
+}
+
+func (mc *mockClient) selectBucket(bucketName string) error {
+	return nil
+}
+
+func (mc *mockClient) setBootstrapError(err error) {
+}
+
+func (mc *mockClient) getBootstrapError() error {
+	return nil
+}
+
+func (mc *mockClient) supportsGCCCP() bool {
+	return true
+}
+
+func (mc *mockClient) connected() bool {
+	return true
+}
+
+func (mc *mockClient) markBucketReady() {
 }
 
 func (mc *mockClient) getKvProvider() (kvProvider, error) {

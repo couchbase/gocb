@@ -13,11 +13,17 @@ import (
 type client interface {
 	Hash() string
 	connect() error
+	buildConfig() error
 	openCollection(ctx context.Context, scopeName string, collectionName string)
 	getKvProvider() (kvProvider, error)
 	getHTTPProvider() (httpProvider, error)
 	getDiagnosticsProvider() (diagnosticsProvider, error)
 	close() error
+	setBootstrapError(err error)
+	selectBucket(bucketName string) error
+	supportsGCCCP() bool
+	connected() bool
+	getBootstrapError() error
 }
 
 type stdClient struct {
@@ -26,6 +32,8 @@ type stdClient struct {
 	lock         sync.Mutex
 	agent        *gocbcore.Agent
 	bootstrapErr error
+	isConnected  bool
+	config       *gocbcore.AgentConfig
 }
 
 func newClient(cluster *Cluster, sb *clientStateBlock) *stdClient {
@@ -40,8 +48,7 @@ func (c *stdClient) Hash() string {
 	return c.state.Hash()
 }
 
-// TODO: This probably needs to be deadlined...
-func (c *stdClient) connect() error {
+func (c *stdClient) buildConfig() error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -50,55 +57,67 @@ func (c *stdClient) connect() error {
 	config := &gocbcore.AgentConfig{
 		UserString:           Identifier(),
 		ConnectTimeout:       c.cluster.sb.ConnectTimeout,
-		UseMutationTokens:    c.state.UseMutationTokens,
+		UseMutationTokens:    c.cluster.sb.UseMutationTokens,
 		ServerConnectTimeout: 7000 * time.Millisecond,
 		NmvRetryDelay:        100 * time.Millisecond,
 		UseKvErrorMaps:       true,
 		UseDurations:         true,
 		UseCollections:       true,
 		UseEnhancedErrors:    true,
+		BucketName:           c.state.BucketName,
+		AuthMechanisms: []gocbcore.AuthMechanism{
+			gocbcore.ScramSha512AuthMechanism, gocbcore.ScramSha256AuthMechanism, gocbcore.ScramSha1AuthMechanism, gocbcore.PlainAuthMechanism,
+		},
 	}
 
 	err := config.FromConnStr(c.cluster.connSpec().String())
 	if err != nil {
-		c.bootstrapErr = err
-		return c.bootstrapErr
+		return err
 	}
 
 	useCertificates := config.TlsConfig != nil && len(config.TlsConfig.Certificates) > 0
 	if useCertificates {
 		if auth == nil {
-			c.bootstrapErr = configurationError{message: "invalid mixed authentication configuration, client certificate and CertAuthenticator must be used together"}
-			return c.bootstrapErr
+			return configurationError{message: "invalid mixed authentication configuration, client certificate and CertAuthenticator must be used together"}
 		}
 		_, ok := auth.(CertAuthenticator)
 		if !ok {
-			c.bootstrapErr = configurationError{message: "invalid mixed authentication configuration, client certificate and CertAuthenticator must be used together"}
-			return c.bootstrapErr
+			return configurationError{message: "invalid mixed authentication configuration, client certificate and CertAuthenticator must be used together"}
 		}
 	}
 
 	_, ok := auth.(CertAuthenticator)
 	if ok && !useCertificates {
-		c.bootstrapErr = configurationError{message: "invalid mixed authentication configuration, client certificate and CertAuthenticator must be used together"}
-		return c.bootstrapErr
+		return configurationError{message: "invalid mixed authentication configuration, client certificate and CertAuthenticator must be used together"}
 	}
 
-	config.BucketName = c.state.BucketName
-	config.UseMutationTokens = c.state.UseMutationTokens
 	config.Auth = &coreAuthWrapper{
-		auth:       c.cluster.authenticator(),
-		bucketName: c.state.BucketName,
+		auth: c.cluster.authenticator(),
 	}
 
-	agent, err := gocbcore.CreateAgent(config)
+	c.config = config
+	return nil
+}
+
+func (c *stdClient) connect() error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	agent, err := gocbcore.CreateAgent(c.config)
 	if err != nil {
-		c.bootstrapErr = maybeEnhanceKVErr(err, "", false)
-		return c.bootstrapErr
+		return maybeEnhanceKVErr(err, "", false)
 	}
 
 	c.agent = agent
+	c.isConnected = true
 	return nil
+}
+
+func (c *stdClient) setBootstrapError(err error) {
+	c.bootstrapErr = err
+}
+
+func (c *stdClient) getBootstrapError() error {
+	return c.bootstrapErr
 }
 
 func (c *stdClient) getKvProvider() (kvProvider, error) {
@@ -161,6 +180,7 @@ func (c *stdClient) openCollection(ctx context.Context, scopeName string, collec
 	})
 	if err != nil {
 		c.bootstrapErr = err
+		return
 	}
 
 	select {
@@ -180,9 +200,25 @@ func (c *stdClient) openCollection(ctx context.Context, scopeName string, collec
 	c.bootstrapErr = colErr
 }
 
+func (c *stdClient) connected() bool {
+	return c.isConnected
+}
+
+func (c *stdClient) selectBucket(bucketName string) error {
+	return c.agent.SelectBucket(bucketName, time.Now().Add(c.cluster.sb.ConnectTimeout))
+}
+
+func (c *stdClient) supportsGCCCP() bool {
+	return c.agent.UsingGCCCP()
+}
+
 func (c *stdClient) close() error {
+	c.lock.Lock()
 	if c.agent == nil {
+		c.lock.Unlock()
 		return errors.New("Cluster not yet connected")
 	}
+	c.isConnected = false
+	c.lock.Unlock()
 	return c.agent.Close()
 }
