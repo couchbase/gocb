@@ -144,6 +144,10 @@ func (bm *BucketManager) GetDesignDocument(name string) (*DesignDocument, error)
 		if err != nil {
 			logDebugf("Failed to close socket (%s)", err)
 		}
+		// handles responses like unauthorized which does not returns any error or data
+		if len(data) == 0 {
+			return nil, clientError{resp.Status}
+		}
 		return nil, clientError{string(data)}
 	}
 
@@ -175,6 +179,10 @@ func (bm *BucketManager) GetDesignDocuments() ([]*DesignDocument, error) {
 		err = resp.Body.Close()
 		if err != nil {
 			logDebugf("Failed to close socket (%s)", err)
+		}
+		// handles responses like unauthorized which does not returns any error or data
+		if len(data) == 0 {
+			return nil, clientError{resp.Status}
 		}
 		return nil, clientError{string(data)}
 	}
@@ -238,6 +246,10 @@ func (bm *BucketManager) UpsertDesignDocument(ddoc *DesignDocument) error {
 		if err != nil {
 			logDebugf("Failed to close socket (%s)", err)
 		}
+		// handles responses like unauthorized which does not returns any error or data
+		if len(data) == 0 {
+			return clientError{resp.Status}
+		}
 		return clientError{string(data)}
 	}
 
@@ -261,6 +273,10 @@ func (bm *BucketManager) RemoveDesignDocument(name string) error {
 		err = resp.Body.Close()
 		if err != nil {
 			logDebugf("Failed to close socket (%s)", err)
+		}
+		// handles responses like unauthorized which does not returns any error or data
+		if len(data) == 0 {
+			return clientError{resp.Status}
 		}
 		return clientError{string(data)}
 	}
