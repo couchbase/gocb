@@ -97,8 +97,8 @@ func TestAnalyticsQueryOptionsToMap(t *testing.T) {
 	}
 }
 
-func testCreateAnalyticsQueryOptions(seed int64) *AnalyticsQueryOptions {
-	opts := &AnalyticsQueryOptions{}
+func testCreateAnalyticsQueryOptions(seed int64) *AnalyticsOptions {
+	opts := &AnalyticsOptions{}
 	rand.Seed(seed)
 
 	randVal := rand.Intn(2)

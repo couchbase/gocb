@@ -219,7 +219,7 @@ func testAnalyticsQueryNamedParameters(t *testing.T) {
 	params := make(map[string]interface{}, 1)
 	params["t"] = "hotel"
 	params["$name"] = "Medway Youth Hostel"
-	rows, err := globalCluster.AnalyticsQuery(query, &AnalyticsQueryOptions{NamedParameters: params})
+	rows, err := globalCluster.AnalyticsQuery(query, &AnalyticsOptions{NamedParameters: params})
 	if err != nil {
 		t.Fatalf("Failed to execute query %v", err)
 	}
@@ -251,7 +251,7 @@ func testAnalyticsQueryNamedParameters(t *testing.T) {
 
 func testAnalyticsQueryPositionalParameters(t *testing.T) {
 	query := "SELECT `travel-sample`.* FROM `travel-sample` where `type`=? AND `name`=? LIMIT 10000;"
-	rows, err := globalCluster.AnalyticsQuery(query, &AnalyticsQueryOptions{PositionalParameters: []interface{}{"hotel", "Medway Youth Hostel"}})
+	rows, err := globalCluster.AnalyticsQuery(query, &AnalyticsOptions{PositionalParameters: []interface{}{"hotel", "Medway Youth Hostel"}})
 	if err != nil {
 		t.Fatalf("Failed to execute query %v", err)
 	}
@@ -293,7 +293,7 @@ func TestBasicAnalyticsQuery(t *testing.T) {
 		t.Fatalf("Failed to unmarshal dataset %v", err)
 	}
 
-	queryOptions := &AnalyticsQueryOptions{
+	queryOptions := &AnalyticsOptions{
 		PositionalParameters: []interface{}{"brewery"},
 	}
 
@@ -336,7 +336,7 @@ func TestBasicAnalyticsQuerySerializer(t *testing.T) {
 		t.Fatalf("Failed to unmarshal dataset %v", err)
 	}
 
-	queryOptions := &AnalyticsQueryOptions{
+	queryOptions := &AnalyticsOptions{
 		PositionalParameters: []interface{}{"brewery"},
 		Serializer:           &MockSerializer{},
 	}
@@ -384,7 +384,7 @@ func TestBasicAnalyticsQuerySerializerError(t *testing.T) {
 		t.Fatalf("Could not read test dataset: %v", err)
 	}
 
-	queryOptions := &AnalyticsQueryOptions{
+	queryOptions := &AnalyticsOptions{
 		PositionalParameters: []interface{}{"brewery"},
 		Serializer: &MockSerializer{
 			err: errors.New("test error"),
@@ -494,7 +494,7 @@ func TestAnalyticsQueryClientSideTimeout(t *testing.T) {
 
 	cluster := testGetClusterForHTTP(provider, clusterTimeout, 0, 0)
 
-	_, err := cluster.AnalyticsQuery(statement, &AnalyticsQueryOptions{
+	_, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		ServerSideTimeout: timeout,
 		Context:           ctx,
 	})
@@ -552,7 +552,7 @@ func TestAnalyticsQueryStreamTimeout(t *testing.T) {
 
 	cluster := testGetClusterForHTTP(provider, clusterTimeout, 0, 0)
 
-	_, err = cluster.AnalyticsQuery(statement, &AnalyticsQueryOptions{
+	_, err = cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		ServerSideTimeout: timeout,
 		Context:           ctx,
 	})
@@ -604,7 +604,7 @@ func TestAnalyticsQueryConnectContextTimeout(t *testing.T) {
 
 	cluster := testGetClusterForHTTP(provider, clusterTimeout, 0, 0)
 
-	_, err := cluster.AnalyticsQuery(statement, &AnalyticsQueryOptions{
+	_, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		ServerSideTimeout: timeout,
 		Context:           ctx,
 	})
@@ -654,7 +654,7 @@ func TestAnalyticsQueryConnectClusterTimeoutClusterWins(t *testing.T) {
 
 	cluster := testGetClusterForHTTP(provider, clusterTimeout, 0, 0)
 
-	_, err := cluster.AnalyticsQuery(statement, &AnalyticsQueryOptions{
+	_, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		Context: ctx,
 	})
 	if err == nil || !IsTimeoutError(err) {
@@ -703,7 +703,7 @@ func TestAnalyticsQueryConnectClusterTimeoutContextWins(t *testing.T) {
 
 	cluster := testGetClusterForHTTP(provider, clusterTimeout, 0, 0)
 
-	_, err := cluster.AnalyticsQuery(statement, &AnalyticsQueryOptions{
+	_, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		Context: ctx,
 	})
 	if err == nil || !IsTimeoutError(err) {

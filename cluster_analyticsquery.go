@@ -308,9 +308,9 @@ func (r *AnalyticsResults) readAttribute(decoder *json.Decoder, t json.Token) (b
 }
 
 // AnalyticsQuery performs an analytics query and returns a list of rows or an error.
-func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsQueryOptions) (*AnalyticsResults, error) {
+func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*AnalyticsResults, error) {
 	if opts == nil {
-		opts = &AnalyticsQueryOptions{}
+		opts = &AnalyticsOptions{}
 	}
 	ctx := opts.Context
 	if ctx == nil {
@@ -325,7 +325,7 @@ func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsQueryOptions) 
 	return c.analyticsQuery(ctx, statement, opts, provider)
 }
 
-func (c *Cluster) analyticsQuery(ctx context.Context, statement string, opts *AnalyticsQueryOptions,
+func (c *Cluster) analyticsQuery(ctx context.Context, statement string, opts *AnalyticsOptions,
 	provider httpProvider) (*AnalyticsResults, error) {
 
 	queryOpts, err := opts.toMap(statement)

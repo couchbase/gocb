@@ -9,8 +9,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// AnalyticsQueryOptions is the set of options available to an Analytics query.
-type AnalyticsQueryOptions struct {
+// AnalyticsOptions is the set of options available to an Analytics query.
+type AnalyticsOptions struct {
 	// Timeout and context are used to control cancellation of the data stream. Any timeout or deadline will also be
 	// propagated to the server.
 	ServerSideTimeout    time.Duration
@@ -29,7 +29,7 @@ type AnalyticsQueryOptions struct {
 	Serializer JSONSerializer
 }
 
-func (opts *AnalyticsQueryOptions) toMap(statement string) (map[string]interface{}, error) {
+func (opts *AnalyticsOptions) toMap(statement string) (map[string]interface{}, error) {
 	execOpts := make(map[string]interface{})
 	execOpts["statement"] = statement
 

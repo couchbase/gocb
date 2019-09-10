@@ -15,7 +15,7 @@ import (
 // Volatile: This API is subject to change at any time.
 type AnalyticsIndexManager struct {
 	httpClient   httpProvider
-	executeQuery func(statement string, opts *AnalyticsQueryOptions) (*AnalyticsResults, error)
+	executeQuery func(statement string, opts *AnalyticsOptions) (*AnalyticsResults, error)
 }
 
 // AnalyticsDataset contains information about an analytics dataset,
@@ -65,7 +65,7 @@ func (am *AnalyticsIndexManager) CreateDataverse(dataverseName string, opts *Cre
 	}
 
 	q := fmt.Sprintf("CREATE DATAVERSE `%s` %s", dataverseName, ignoreStr)
-	result, err := am.executeQuery(q, &AnalyticsQueryOptions{
+	result, err := am.executeQuery(q, &AnalyticsOptions{
 		Context: ctx,
 	})
 	if err != nil {
@@ -108,7 +108,7 @@ func (am *AnalyticsIndexManager) DropDataverse(dataverseName string, opts *DropA
 	}
 
 	q := fmt.Sprintf("DROP DATAVERSE %s %s", dataverseName, ignoreStr)
-	result, err := am.executeQuery(q, &AnalyticsQueryOptions{
+	result, err := am.executeQuery(q, &AnalyticsOptions{
 		Context: ctx,
 	})
 	if err != nil {
@@ -174,7 +174,7 @@ func (am *AnalyticsIndexManager) CreateDataset(datasetName, bucketName string, o
 	}
 
 	q := fmt.Sprintf("CREATE DATASET %s %s ON `%s` %s", ignoreStr, datasetName, bucketName, where)
-	result, err := am.executeQuery(q, &AnalyticsQueryOptions{
+	result, err := am.executeQuery(q, &AnalyticsOptions{
 		Context: ctx,
 	})
 	if err != nil {
@@ -224,7 +224,7 @@ func (am *AnalyticsIndexManager) DropDataset(datasetName string, opts *DropAnaly
 	}
 
 	q := fmt.Sprintf("DROP DATASET %s %s", datasetName, ignoreStr)
-	result, err := am.executeQuery(q, &AnalyticsQueryOptions{
+	result, err := am.executeQuery(q, &AnalyticsOptions{
 		Context: ctx,
 	})
 	if err != nil {
@@ -261,7 +261,7 @@ func (am *AnalyticsIndexManager) GetAllDatasets(opts *GetAllAnalyticsDatasetsOpt
 
 	result, err := am.executeQuery(
 		"SELECT d.* FROM Metadata.`Dataset` d WHERE d.DataverseName <> \"Metadata\"",
-		&AnalyticsQueryOptions{
+		&AnalyticsOptions{
 			Context: ctx,
 		})
 	if err != nil {
@@ -338,7 +338,7 @@ func (am *AnalyticsIndexManager) CreateIndex(datasetName, indexName string, fiel
 	}
 
 	q := fmt.Sprintf("CREATE INDEX `%s` %s ON %s (%s)", indexName, ignoreStr, datasetName, strings.Join(indexFields, ","))
-	result, err := am.executeQuery(q, &AnalyticsQueryOptions{
+	result, err := am.executeQuery(q, &AnalyticsOptions{
 		Context: ctx,
 	})
 	if err != nil {
@@ -388,7 +388,7 @@ func (am *AnalyticsIndexManager) DropIndex(datasetName, indexName string, opts *
 	}
 
 	q := fmt.Sprintf("DROP INDEX %s.%s %s", datasetName, indexName, ignoreStr)
-	result, err := am.executeQuery(q, &AnalyticsQueryOptions{
+	result, err := am.executeQuery(q, &AnalyticsOptions{
 		Context: ctx,
 	})
 	if err != nil {
@@ -425,7 +425,7 @@ func (am *AnalyticsIndexManager) GetAllIndexes(opts *GetAllAnalyticsIndexesOptio
 
 	result, err := am.executeQuery(
 		"SELECT d.* FROM Metadata.`Index` d WHERE d.DataverseName <> \"Metadata\"",
-		&AnalyticsQueryOptions{
+		&AnalyticsOptions{
 			Context: ctx,
 		})
 	if err != nil {
@@ -479,7 +479,7 @@ func (am *AnalyticsIndexManager) ConnectLink(linkName string, opts *ConnectAnaly
 
 	result, err := am.executeQuery(
 		fmt.Sprintf("CONNECT LINK %s", linkName),
-		&AnalyticsQueryOptions{
+		&AnalyticsOptions{
 			Context: ctx,
 		})
 	if err != nil {
@@ -516,7 +516,7 @@ func (am *AnalyticsIndexManager) DisconnectLink(linkName string, opts *Disconnec
 
 	result, err := am.executeQuery(
 		fmt.Sprintf("DISCONNECT LINK %s", linkName),
-		&AnalyticsQueryOptions{
+		&AnalyticsOptions{
 			Context: ctx,
 		})
 	if err != nil {
