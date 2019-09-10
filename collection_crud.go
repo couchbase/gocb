@@ -975,11 +975,10 @@ func (c *Collection) getAndLock(ctx context.Context, key string, expiration uint
 type UnlockOptions struct {
 	Timeout time.Duration
 	Context context.Context
-	Cas     Cas
 }
 
 // Unlock unlocks a document which was locked with GetAndLock.
-func (c *Collection) Unlock(key string, opts *UnlockOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) Unlock(key string, cas Cas, opts *UnlockOptions) (mutOut *MutationResult, errOut error) {
 	if opts == nil {
 		opts = &UnlockOptions{}
 	}
@@ -989,7 +988,7 @@ func (c *Collection) Unlock(key string, opts *UnlockOptions) (mutOut *MutationRe
 		defer cancel()
 	}
 
-	res, err := c.unlock(ctx, key, *opts)
+	res, err := c.unlock(ctx, key, cas, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -997,7 +996,7 @@ func (c *Collection) Unlock(key string, opts *UnlockOptions) (mutOut *MutationRe
 	return res, nil
 }
 
-func (c *Collection) unlock(ctx context.Context, key string, opts UnlockOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) unlock(ctx context.Context, key string, cas Cas, opts UnlockOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -1006,7 +1005,7 @@ func (c *Collection) unlock(ctx context.Context, key string, opts UnlockOptions)
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.UnlockEx(gocbcore.UnlockOptions{
 		Key:            []byte(key),
-		Cas:            gocbcore.Cas(opts.Cas),
+		Cas:            gocbcore.Cas(cas),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.UnlockResult, err error) {

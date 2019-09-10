@@ -920,7 +920,7 @@ func TestUnlock(t *testing.T) {
 		t.Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
 	}
 
-	_, err = globalCollection.Unlock("unlock", &UnlockOptions{Cas: lockedDoc.Cas()})
+	_, err = globalCollection.Unlock("unlock", lockedDoc.Cas(), nil)
 	if err != nil {
 		t.Fatalf("Unlock failed, error was %v", err)
 	}
@@ -966,7 +966,7 @@ func TestUnlockInvalidCas(t *testing.T) {
 		t.Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
 	}
 
-	_, err = globalCollection.Unlock("unlockInvalidCas", &UnlockOptions{Cas: lockedDoc.Cas() + 1})
+	_, err = globalCollection.Unlock("unlockInvalidCas", lockedDoc.Cas()+1, nil)
 	if err == nil {
 		t.Fatalf("Unlock should have failed")
 	}
@@ -1018,7 +1018,7 @@ func TestDoubleLockFail(t *testing.T) {
 }
 
 func TestUnlockMissingDocFail(t *testing.T) {
-	_, err := globalCollection.Unlock("unlockMissing", &UnlockOptions{Cas: 123})
+	_, err := globalCollection.Unlock("unlockMissing", 123, nil)
 	if err == nil {
 		t.Fatalf("Expected Unlock to fail")
 	}
