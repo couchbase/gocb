@@ -1106,7 +1106,7 @@ func (c *Collection) touch(ctx context.Context, key string, expiration uint32, o
 	return
 }
 
-// Binary creates and returns a CollectionBinary object.
-func (c *Collection) Binary() *CollectionBinary {
-	return &CollectionBinary{c}
+// Binary creates and returns a BinaryCollection object.
+func (c *Collection) Binary() *BinaryCollection {
+	return &BinaryCollection{c}
 }

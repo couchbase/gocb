@@ -7,8 +7,8 @@ import (
 	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
-// CollectionBinary is a set of binary operations.
-type CollectionBinary struct {
+// BinaryCollection is a set of binary operations.
+type BinaryCollection struct {
 	*Collection
 }
 
@@ -20,7 +20,7 @@ type AppendOptions struct {
 }
 
 // Append appends a byte value to a document.
-func (c *CollectionBinary) Append(key string, val []byte, opts *AppendOptions) (mutOut *MutationResult, errOut error) {
+func (c *BinaryCollection) Append(key string, val []byte, opts *AppendOptions) (mutOut *MutationResult, errOut error) {
 	if opts == nil {
 		opts = &AppendOptions{}
 	}
@@ -39,7 +39,7 @@ func (c *CollectionBinary) Append(key string, val []byte, opts *AppendOptions) (
 	return res, nil
 }
 
-func (c *CollectionBinary) append(ctx context.Context, key string, val []byte, opts AppendOptions) (mutOut *MutationResult, errOut error) {
+func (c *BinaryCollection) append(ctx context.Context, key string, val []byte, opts AppendOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -93,7 +93,7 @@ type PrependOptions struct {
 }
 
 // Prepend prepends a byte value to a document.
-func (c *CollectionBinary) Prepend(key string, val []byte, opts *PrependOptions) (mutOut *MutationResult, errOut error) {
+func (c *BinaryCollection) Prepend(key string, val []byte, opts *PrependOptions) (mutOut *MutationResult, errOut error) {
 	if opts == nil {
 		opts = &PrependOptions{}
 	}
@@ -112,7 +112,7 @@ func (c *CollectionBinary) Prepend(key string, val []byte, opts *PrependOptions)
 	return res, nil
 }
 
-func (c *CollectionBinary) prepend(ctx context.Context, key string, val []byte, opts PrependOptions) (mutOut *MutationResult, errOut error) {
+func (c *BinaryCollection) prepend(ctx context.Context, key string, val []byte, opts PrependOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -176,7 +176,7 @@ type CounterOptions struct {
 // Increment performs an atomic addition for an integer document. Passing a
 // non-negative `initial` value will cause the document to be created if it did not
 // already exist.
-func (c *CollectionBinary) Increment(key string, opts *CounterOptions) (countOut *CounterResult, errOut error) {
+func (c *BinaryCollection) Increment(key string, opts *CounterOptions) (countOut *CounterResult, errOut error) {
 	if opts == nil {
 		opts = &CounterOptions{}
 	}
@@ -195,7 +195,7 @@ func (c *CollectionBinary) Increment(key string, opts *CounterOptions) (countOut
 	return res, nil
 }
 
-func (c *CollectionBinary) increment(ctx context.Context, key string, opts CounterOptions) (countOut *CounterResult, errOut error) {
+func (c *BinaryCollection) increment(ctx context.Context, key string, opts CounterOptions) (countOut *CounterResult, errOut error) {
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
 	if opts.Initial >= 0 {
 		realInitial = uint64(opts.Initial)
@@ -256,7 +256,7 @@ func (c *CollectionBinary) increment(ctx context.Context, key string, opts Count
 // Decrement performs an atomic subtraction for an integer document. Passing a
 // non-negative `initial` value will cause the document to be created if it did not
 // already exist.
-func (c *CollectionBinary) Decrement(key string, opts *CounterOptions) (countOut *CounterResult, errOut error) {
+func (c *BinaryCollection) Decrement(key string, opts *CounterOptions) (countOut *CounterResult, errOut error) {
 	if opts == nil {
 		opts = &CounterOptions{}
 	}
@@ -275,7 +275,7 @@ func (c *CollectionBinary) Decrement(key string, opts *CounterOptions) (countOut
 	return res, nil
 }
 
-func (c *CollectionBinary) decrement(ctx context.Context, key string, opts CounterOptions) (countOut *CounterResult, errOut error) {
+func (c *BinaryCollection) decrement(ctx context.Context, key string, opts CounterOptions) (countOut *CounterResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
