@@ -97,8 +97,8 @@ type SearchResultsMetadata struct {
 	sourceAddr string
 }
 
-// SearchResults allows access to the results of a search query.
-type SearchResults struct {
+// SearchResult allows access to the results of a search query.
+type SearchResult struct {
 	metadata SearchResultsMetadata
 	err      error
 	facets   map[string]SearchResultFacet
@@ -110,7 +110,7 @@ type SearchResults struct {
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
-func (r *SearchResults) Next(hitPtr *SearchResultHit) bool {
+func (r *SearchResult) Next(hitPtr *SearchResultHit) bool {
 	if r.err != nil {
 		return false
 	}
@@ -181,7 +181,7 @@ func (r *SearchResults) Next(hitPtr *SearchResultHit) bool {
 }
 
 // NextBytes returns the next result from the results as a byte array.
-func (r *SearchResults) NextBytes() []byte {
+func (r *SearchResult) NextBytes() []byte {
 	if r.streamResult.Closed() {
 		return nil
 	}
@@ -196,7 +196,7 @@ func (r *SearchResults) NextBytes() []byte {
 }
 
 // Close marks the results as closed, returning any errors that occurred during reading the results.
-func (r *SearchResults) Close() error {
+func (r *SearchResult) Close() error {
 	if r.streamResult.Closed() {
 		return r.err
 	}
@@ -219,7 +219,7 @@ func (r *SearchResults) Close() error {
 // It will close the results but not before iterating through all remaining
 // results, as such this should only be used for very small resultsets - ideally
 // of, at most, length 1.
-func (r *SearchResults) One(hitPtr *SearchResultHit) error {
+func (r *SearchResult) One(hitPtr *SearchResultHit) error {
 	if !r.Next(hitPtr) {
 		err := r.Close()
 		if err != nil {
@@ -242,7 +242,7 @@ func (r *SearchResults) One(hitPtr *SearchResultHit) error {
 }
 
 // Metadata returns metadata for this result.
-func (r *SearchResults) Metadata() (*SearchResultsMetadata, error) {
+func (r *SearchResult) Metadata() (*SearchResultsMetadata, error) {
 	if !r.streamResult.Closed() {
 		return nil, errors.New("result must be closed before accessing meta-data")
 	}
@@ -266,7 +266,7 @@ func (r SearchResultsMetadata) TotalHits() int {
 }
 
 // Facets contains the information relative to the facets requested in the search query.
-func (r SearchResults) Facets() (map[string]SearchResultFacet, error) {
+func (r SearchResult) Facets() (map[string]SearchResultFacet, error) {
 	if !r.streamResult.Closed() {
 		return nil, errors.New("result must be closed before accessing meta-data")
 	}
@@ -284,7 +284,7 @@ func (r SearchResultsMetadata) MaxScore() float64 {
 	return r.maxScore
 }
 
-func (r *SearchResults) readAttribute(decoder *json.Decoder, t json.Token) (bool, error) {
+func (r *SearchResult) readAttribute(decoder *json.Decoder, t json.Token) (bool, error) {
 	switch t {
 	case "status":
 		if r.httpStatus != 200 {
@@ -388,7 +388,7 @@ func (r *SearchResults) readAttribute(decoder *json.Decoder, t json.Token) (bool
 }
 
 // SearchQuery performs a n1ql query and returns a list of rows or an error.
-func (c *Cluster) SearchQuery(q SearchQuery, opts *SearchQueryOptions) (*SearchResults, error) {
+func (c *Cluster) SearchQuery(q SearchQuery, opts *SearchQueryOptions) (*SearchResult, error) {
 	if opts == nil {
 		opts = &SearchQueryOptions{}
 	}
@@ -406,7 +406,7 @@ func (c *Cluster) SearchQuery(q SearchQuery, opts *SearchQueryOptions) (*SearchR
 }
 
 func (c *Cluster) searchQuery(ctx context.Context, q SearchQuery, opts *SearchQueryOptions,
-	provider httpProvider) (*SearchResults, error) {
+	provider httpProvider) (*SearchResult, error) {
 
 	qIndexName := q.indexName()
 	optsData, err := opts.toOptionsData()
@@ -474,7 +474,7 @@ func (c *Cluster) searchQuery(ctx context.Context, q SearchQuery, opts *SearchQu
 	}
 
 	var retries uint
-	var res *SearchResults
+	var res *SearchResult
 	for {
 		retries++
 		res, err = c.executeSearchQuery(ctx, queryData, qIndexName, provider, cancel)
@@ -502,7 +502,7 @@ func (c *Cluster) searchQuery(ctx context.Context, q SearchQuery, opts *SearchQu
 }
 
 func (c *Cluster) executeSearchQuery(ctx context.Context, query jsonx.DelayedObject,
-	qIndexName string, provider httpProvider, cancel context.CancelFunc) (*SearchResults, error) {
+	qIndexName string, provider httpProvider, cancel context.CancelFunc) (*SearchResult, error) {
 
 	qBytes, err := json.Marshal(query)
 	if err != nil {
@@ -586,7 +586,7 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, query jsonx.DelayedObj
 		return nil, err
 	}
 
-	queryResults := &SearchResults{
+	queryResults := &SearchResult{
 		metadata: SearchResultsMetadata{
 			sourceAddr: epInfo.Host,
 		},

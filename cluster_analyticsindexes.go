@@ -15,7 +15,7 @@ import (
 // Volatile: This API is subject to change at any time.
 type AnalyticsIndexManager struct {
 	httpClient   httpProvider
-	executeQuery func(statement string, opts *AnalyticsOptions) (*AnalyticsResults, error)
+	executeQuery func(statement string, opts *AnalyticsOptions) (*AnalyticsResult, error)
 }
 
 // AnalyticsDataset contains information about an analytics dataset,

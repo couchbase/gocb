@@ -33,8 +33,8 @@ type ViewResultsMetadata struct {
 	totalRows int
 }
 
-// ViewResults implements an iterator interface which can be used to iterate over the rows of the query results.
-type ViewResults struct {
+// ViewResult implements an iterator interface which can be used to iterate over the rows of the query results.
+type ViewResult struct {
 	metadata   ViewResultsMetadata
 	errReason  string
 	errMessage string
@@ -46,7 +46,7 @@ type ViewResults struct {
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
-func (r *ViewResults) Next(rowPtr *ViewRow) bool {
+func (r *ViewResult) Next(rowPtr *ViewRow) bool {
 	if r.err != nil {
 		return false
 	}
@@ -111,7 +111,7 @@ func (r *ViewRow) Value(valuePtr interface{}) error {
 }
 
 // NextBytes returns the next result from the results as a byte array.
-func (r *ViewResults) NextBytes() []byte {
+func (r *ViewResult) NextBytes() []byte {
 	if r.streamResult == nil || r.streamResult.Closed() {
 		return nil
 	}
@@ -126,7 +126,7 @@ func (r *ViewResults) NextBytes() []byte {
 }
 
 // Close marks the results as closed, returning any errors that occurred during reading the results.
-func (r *ViewResults) Close() error {
+func (r *ViewResult) Close() error {
 	if r.streamResult == nil || r.streamResult.Closed() {
 		return r.makeError()
 	}
@@ -145,7 +145,7 @@ func (r *ViewResults) Close() error {
 	return err
 }
 
-func (r *ViewResults) makeError() error {
+func (r *ViewResult) makeError() error {
 	if r.errReason != "" || r.errMessage != "" {
 		err := viewError{
 			ErrorMessage: r.errMessage,
@@ -159,7 +159,7 @@ func (r *ViewResults) makeError() error {
 	return r.err
 }
 
-func (r *ViewResults) readAttribute(decoder *json.Decoder, t json.Token) (bool, error) {
+func (r *ViewResult) readAttribute(decoder *json.Decoder, t json.Token) (bool, error) {
 	switch t {
 	case "total_rows":
 		err := decoder.Decode(&r.metadata.totalRows)
@@ -219,7 +219,7 @@ func (r *ViewResults) readAttribute(decoder *json.Decoder, t json.Token) (bool, 
 // It will close the results but not before iterating through all remaining
 // results, as such this should only be used for very small resultsets - ideally
 // of, at most, length 1.
-func (r *ViewResults) One(rowPtr *ViewRow) error {
+func (r *ViewResult) One(rowPtr *ViewRow) error {
 	if !r.Next(rowPtr) {
 		err := r.Close()
 		if err != nil {
@@ -242,7 +242,7 @@ func (r *ViewResults) One(rowPtr *ViewRow) error {
 }
 
 // Metadata returns metadata for this result.
-func (r *ViewResults) Metadata() (*ViewResultsMetadata, error) {
+func (r *ViewResult) Metadata() (*ViewResultsMetadata, error) {
 	if r.streamResult != nil && !r.streamResult.Closed() {
 		return nil, errors.New("result must be closed before accessing meta-data")
 	}
@@ -256,7 +256,7 @@ func (r *ViewResultsMetadata) TotalRows() int {
 }
 
 // ViewQuery performs a view query and returns a list of rows or an error.
-func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions) (*ViewResults, error) {
+func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions) (*ViewResult, error) {
 	if opts == nil {
 		opts = &ViewOptions{}
 	}
@@ -299,7 +299,7 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 }
 
 func (b *Bucket) executeViewQuery(ctx context.Context, viewType, ddoc, viewName string,
-	options url.Values, provider httpProvider, cancel context.CancelFunc) (*ViewResults, error) {
+	options url.Values, provider httpProvider, cancel context.CancelFunc) (*ViewResult, error) {
 	reqUri := fmt.Sprintf("/_design/%s/%s/%s?%s", ddoc, viewType, viewName, options.Encode())
 	req := &gocbcore.HttpRequest{
 		Service: gocbcore.CapiService,
@@ -322,7 +322,7 @@ func (b *Bucket) executeViewQuery(ctx context.Context, viewType, ddoc, viewName 
 		return nil, errors.Wrap(err, "could not complete query http request")
 	}
 
-	queryResults := &ViewResults{}
+	queryResults := &ViewResult{}
 
 	if resp.StatusCode == 500 {
 		// We have to handle the views 500 case as a special case because the body can be of form [] or {}

@@ -65,8 +65,8 @@ type QueryResultsMetadata struct {
 	sourceAddr      string
 }
 
-// QueryResults allows access to the results of a N1QL query.
-type QueryResults struct {
+// QueryResult allows access to the results of a N1QL query.
+type QueryResult struct {
 	metadata     QueryResultsMetadata
 	preparedName string
 	err          error
@@ -81,7 +81,7 @@ type QueryResults struct {
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
-func (r *QueryResults) Next(valuePtr interface{}) bool {
+func (r *QueryResult) Next(valuePtr interface{}) bool {
 	if r.err != nil {
 		return false
 	}
@@ -100,7 +100,7 @@ func (r *QueryResults) Next(valuePtr interface{}) bool {
 }
 
 // NextBytes returns the next result from the results as a byte array.
-func (r *QueryResults) NextBytes() []byte {
+func (r *QueryResult) NextBytes() []byte {
 	if r.streamResult.Closed() {
 		return nil
 	}
@@ -115,7 +115,7 @@ func (r *QueryResults) NextBytes() []byte {
 }
 
 // Close marks the results as closed, returning any errors that occurred during reading the results.
-func (r *QueryResults) Close() error {
+func (r *QueryResult) Close() error {
 	if r.streamResult.Closed() {
 		return r.err
 	}
@@ -138,7 +138,7 @@ func (r *QueryResults) Close() error {
 // It will close the results but not before iterating through all remaining
 // results, as such this should only be used for very small resultsets - ideally
 // of, at most, length 1.
-func (r *QueryResults) One(valuePtr interface{}) error {
+func (r *QueryResult) One(valuePtr interface{}) error {
 	if !r.Next(valuePtr) {
 		err := r.Close()
 		if err != nil {
@@ -161,7 +161,7 @@ func (r *QueryResults) One(valuePtr interface{}) error {
 }
 
 // Metadata returns metadata for this result.
-func (r *QueryResults) Metadata() (*QueryResultsMetadata, error) {
+func (r *QueryResult) Metadata() (*QueryResultsMetadata, error) {
 	if !r.streamResult.Closed() {
 		return nil, errors.New("result must be closed before accessing meta-data")
 	}
@@ -200,7 +200,7 @@ func (r *QueryResultsMetadata) Signature() interface{} {
 	return r.signature
 }
 
-func (r *QueryResults) readAttribute(decoder *json.Decoder, t json.Token) (bool, error) {
+func (r *QueryResult) readAttribute(decoder *json.Decoder, t json.Token) (bool, error) {
 	switch t {
 	case "requestID":
 		err := decoder.Decode(&r.metadata.requestID)
@@ -299,13 +299,13 @@ type clusterCapabilityProvider interface {
 }
 
 type doQueryFn func(ctx context.Context, opts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc) (*QueryResults, error)
+	provider httpProvider, cancel context.CancelFunc) (*QueryResult, error)
 
 // Query executes the N1QL query statement on the server n1qlEp.
 // This function assumes that `opts` already contains all the required
 // settings. This function will inject any additional connection or request-level
 // settings into the `opts` map (currently this is only the timeout).
-func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResults, error) {
+func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResult, error) {
 	if opts == nil {
 		opts = &QueryOptions{}
 	}
@@ -323,7 +323,7 @@ func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResults, er
 }
 
 func (c *Cluster) query(ctx context.Context, statement string, opts *QueryOptions,
-	provider httpProvider) (*QueryResults, error) {
+	provider httpProvider) (*QueryResult, error) {
 
 	queryOpts, err := opts.toMap(statement)
 	if err != nil {
@@ -366,7 +366,7 @@ func (c *Cluster) query(ctx context.Context, statement string, opts *QueryOption
 		opts.Serializer = c.sb.Serializer
 	}
 
-	var res *QueryResults
+	var res *QueryResult
 	if opts.Prepared {
 		res, err = c.doPreparedN1qlQuery(ctx, queryOpts, provider, cancel, opts.Serializer)
 	} else {
@@ -385,7 +385,7 @@ func (c *Cluster) query(ctx context.Context, statement string, opts *QueryOption
 }
 
 func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer) (*QueryResults, error) {
+	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer) (*QueryResult, error) {
 	if capabilitySupporter, ok := provider.(clusterCapabilityProvider); ok {
 		if !c.supportsEnhancedPreparedStatements() &&
 			capabilitySupporter.SupportsClusterCapability(gocbcore.ClusterCapabilityEnhancedPreparedStatements) {
@@ -459,7 +459,7 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]
 }
 
 func (c *Cluster) prepareEnhancedN1qlQuery(ctx context.Context, opts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer) (*QueryResults, error) {
+	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer) (*QueryResult, error) {
 
 	prepOpts := make(map[string]interface{})
 	for k, v := range opts {
@@ -500,8 +500,8 @@ func (c *Cluster) prepareN1qlQuery(ctx context.Context, opts map[string]interfac
 }
 
 func (c *Cluster) doRetryableQuery(ctx context.Context, queryOpts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer) (*QueryResults, error) {
-	var res *QueryResults
+	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer) (*QueryResult, error) {
+	var res *QueryResult
 	var err error
 	var retries uint
 	var endpoint string
@@ -540,7 +540,7 @@ type n1qlPrepData struct {
 // settings. This function will inject any additional connection or request-level
 // settings into the `opts` map.
 func (c *Cluster) executeN1qlQuery(ctx context.Context, opts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc, endpoint string, serializer JSONSerializer) (*QueryResults, error) {
+	provider httpProvider, cancel context.CancelFunc, endpoint string, serializer JSONSerializer) (*QueryResult, error) {
 	reqJSON, err := json.Marshal(opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal query request body")
@@ -577,7 +577,7 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, opts map[string]interfac
 		}
 	}
 
-	queryResults := &QueryResults{
+	queryResults := &QueryResult{
 		metadata: QueryResultsMetadata{
 			sourceAddr: epInfo.Host,
 		},

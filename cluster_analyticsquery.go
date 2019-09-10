@@ -65,8 +65,8 @@ type AnalyticsResultsMetadata struct {
 	sourceAddr      string
 }
 
-// AnalyticsResults allows access to the results of an Analytics query.
-type AnalyticsResults struct {
+// AnalyticsResult allows access to the results of an Analytics query.
+type AnalyticsResult struct {
 	metadata   AnalyticsResultsMetadata
 	err        error
 	httpStatus int
@@ -81,7 +81,7 @@ type AnalyticsResults struct {
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
-func (r *AnalyticsResults) Next(valuePtr interface{}) bool {
+func (r *AnalyticsResult) Next(valuePtr interface{}) bool {
 	if r.err != nil {
 		return false
 	}
@@ -100,7 +100,7 @@ func (r *AnalyticsResults) Next(valuePtr interface{}) bool {
 }
 
 // NextBytes returns the next result from the results as a byte array.
-func (r *AnalyticsResults) NextBytes() []byte {
+func (r *AnalyticsResult) NextBytes() []byte {
 	if r.streamResult.Closed() {
 		return nil
 	}
@@ -115,7 +115,7 @@ func (r *AnalyticsResults) NextBytes() []byte {
 }
 
 // Close marks the results as closed, returning any errors that occurred during reading the results.
-func (r *AnalyticsResults) Close() error {
+func (r *AnalyticsResult) Close() error {
 	if r.streamResult.Closed() {
 		return r.err
 	}
@@ -138,7 +138,7 @@ func (r *AnalyticsResults) Close() error {
 // It will close the results but not before iterating through all remaining
 // results, as such this should only be used for very small resultsets - ideally
 // of, at most, length 1.
-func (r *AnalyticsResults) One(valuePtr interface{}) error {
+func (r *AnalyticsResult) One(valuePtr interface{}) error {
 	if !r.Next(valuePtr) {
 		err := r.Close()
 		if err != nil {
@@ -161,7 +161,7 @@ func (r *AnalyticsResults) One(valuePtr interface{}) error {
 }
 
 // Metadata returns metadata for this result.
-func (r *AnalyticsResults) Metadata() (*AnalyticsResultsMetadata, error) {
+func (r *AnalyticsResult) Metadata() (*AnalyticsResultsMetadata, error) {
 	if !r.streamResult.Closed() {
 		return nil, errors.New("result must be closed before accessing meta-data")
 	}
@@ -203,11 +203,11 @@ func (r *AnalyticsResultsMetadata) ClientContextID() string {
 // the result is ready to be read.
 //
 // Experimental: This API is subject to change at any time.
-func (r *AnalyticsResults) Handle() *AnalyticsDeferredResultHandle {
+func (r *AnalyticsResult) Handle() *AnalyticsDeferredResultHandle {
 	return r.handle
 }
 
-func (r *AnalyticsResults) readAttribute(decoder *json.Decoder, t json.Token) (bool, error) {
+func (r *AnalyticsResult) readAttribute(decoder *json.Decoder, t json.Token) (bool, error) {
 	switch t {
 	case "requestID":
 		err := decoder.Decode(&r.metadata.requestID)
@@ -308,7 +308,7 @@ func (r *AnalyticsResults) readAttribute(decoder *json.Decoder, t json.Token) (b
 }
 
 // AnalyticsQuery performs an analytics query and returns a list of rows or an error.
-func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*AnalyticsResults, error) {
+func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*AnalyticsResult, error) {
 	if opts == nil {
 		opts = &AnalyticsOptions{}
 	}
@@ -326,7 +326,7 @@ func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*Ana
 }
 
 func (c *Cluster) analyticsQuery(ctx context.Context, statement string, opts *AnalyticsOptions,
-	provider httpProvider) (*AnalyticsResults, error) {
+	provider httpProvider) (*AnalyticsResult, error) {
 
 	queryOpts, err := opts.toMap(statement)
 	if err != nil {
@@ -369,7 +369,7 @@ func (c *Cluster) analyticsQuery(ctx context.Context, statement string, opts *An
 	}
 
 	var retries uint
-	var res *AnalyticsResults
+	var res *AnalyticsResult
 	for {
 		retries++
 		res, err = c.executeAnalyticsQuery(ctx, queryOpts, provider, cancel, opts.Serializer)
@@ -396,7 +396,7 @@ func (c *Cluster) analyticsQuery(ctx context.Context, statement string, opts *An
 }
 
 func (c *Cluster) executeAnalyticsQuery(ctx context.Context, opts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer) (*AnalyticsResults, error) {
+	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer) (*AnalyticsResult, error) {
 	// priority is sent as a header not in the body
 	priority, priorityCastOK := opts["priority"].(int)
 	if priorityCastOK {
@@ -443,7 +443,7 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, opts map[string]int
 		}
 	}
 
-	queryResults := &AnalyticsResults{
+	queryResults := &AnalyticsResult{
 		metadata: AnalyticsResultsMetadata{
 			sourceAddr: epInfo.Host,
 		},

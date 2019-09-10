@@ -940,7 +940,7 @@ func testAssertQueryRequest(t *testing.T, req *gocbcore.HttpRequest) {
 	}
 }
 
-func testAssertQueryResult(t *testing.T, expectedResult *n1qlResponse, actualResult *QueryResults, expectData bool) {
+func testAssertQueryResult(t *testing.T, expectedResult *n1qlResponse, actualResult *QueryResult, expectData bool) {
 	var breweryDocs []testBreweryDocument
 	var resDoc testBreweryDocument
 	for actualResult.Next(&resDoc) {
