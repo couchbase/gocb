@@ -898,7 +898,7 @@ type GetAndLockOptions struct {
 }
 
 // GetAndLock locks a document for a period of time, providing exclusive RW access to it.
-func (c *Collection) GetAndLock(key string, expiration uint32, opts *GetAndLockOptions) (docOut *GetResult, errOut error) {
+func (c *Collection) GetAndLock(key string, lockTime uint32, opts *GetAndLockOptions) (docOut *GetResult, errOut error) {
 	if opts == nil {
 		opts = &GetAndLockOptions{}
 	}
@@ -908,14 +908,14 @@ func (c *Collection) GetAndLock(key string, expiration uint32, opts *GetAndLockO
 		defer cancel()
 	}
 
-	res, err := c.getAndLock(ctx, key, expiration, *opts)
+	res, err := c.getAndLock(ctx, key, lockTime, *opts)
 	if err != nil {
 		return nil, err
 	}
 
 	return res, nil
 }
-func (c *Collection) getAndLock(ctx context.Context, key string, expiration uint32, opts GetAndLockOptions) (docOut *GetResult, errOut error) {
+func (c *Collection) getAndLock(ctx context.Context, key string, lockTime uint32, opts GetAndLockOptions) (docOut *GetResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -928,7 +928,7 @@ func (c *Collection) getAndLock(ctx context.Context, key string, expiration uint
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.GetAndLockEx(gocbcore.GetAndLockOptions{
 		Key:            []byte(key),
-		LockTime:       expiration,
+		LockTime:       lockTime,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.GetAndLockResult, err error) {
