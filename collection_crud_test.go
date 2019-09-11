@@ -1163,7 +1163,7 @@ func TestInsertReplicateToGetAllReplicas(t *testing.T) {
 		t.Fatalf("Insert CAS was 0")
 	}
 
-	stream, err := globalCollection.GetAllReplicas("insertAllReplicaDoc", &GetFromReplicaOptions{
+	stream, err := globalCollection.GetAllReplicas("insertAllReplicaDoc", &GetAllReplicaOptions{
 		Timeout: 25 * time.Second,
 	})
 	if err != nil {

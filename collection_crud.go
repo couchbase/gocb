@@ -626,17 +626,17 @@ func (c *Collection) exists(ctx context.Context, key string, opts ExistsOptions)
 	return
 }
 
-// GetFromReplicaOptions are the options available to the Get Replica commands.
-type GetFromReplicaOptions struct {
+// GetAnyReplicaOptions are the options available to the GetAnyReplica command.
+type GetAnyReplicaOptions struct {
 	Timeout    time.Duration
 	Context    context.Context
 	Transcoder Transcoder
 }
 
 // GetAnyReplica returns the value of a particular document from a replica server.
-func (c *Collection) GetAnyReplica(key string, opts *GetFromReplicaOptions) (docOut *GetReplicaResult, errOut error) {
+func (c *Collection) GetAnyReplica(key string, opts *GetAnyReplicaOptions) (docOut *GetReplicaResult, errOut error) {
 	if opts == nil {
-		opts = &GetFromReplicaOptions{}
+		opts = &GetAnyReplicaOptions{}
 	}
 
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
@@ -653,7 +653,7 @@ func (c *Collection) GetAnyReplica(key string, opts *GetFromReplicaOptions) (doc
 }
 
 func (c *Collection) getAnyReplica(ctx context.Context, key string,
-	opts GetFromReplicaOptions) (docOut *GetReplicaResult, errOut error) {
+	opts GetAnyReplicaOptions) (docOut *GetReplicaResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -696,11 +696,18 @@ func (c *Collection) getAnyReplica(ctx context.Context, key string,
 	return
 }
 
+// GetAllReplicaOptions are the options available to the GetAllReplicas command.
+type GetAllReplicaOptions struct {
+	Timeout    time.Duration
+	Context    context.Context
+	Transcoder Transcoder
+}
+
 // GetAllReplicas returns the value of a particular document from all replica servers. This will return an iterable
 // which streams results one at a time.
-func (c *Collection) GetAllReplicas(key string, opts *GetFromReplicaOptions) (docOut *GetAllReplicasResult, errOut error) {
+func (c *Collection) GetAllReplicas(key string, opts *GetAllReplicaOptions) (docOut *GetAllReplicasResult, errOut error) {
 	if opts == nil {
-		opts = &GetFromReplicaOptions{}
+		opts = &GetAllReplicaOptions{}
 	}
 
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
