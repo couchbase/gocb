@@ -50,8 +50,8 @@ type SearchHighlightOptions struct {
 	Fields []string
 }
 
-// SearchQueryOptions represents a pending search query.
-type SearchQueryOptions struct {
+// SearchOptions represents a pending search query.
+type SearchOptions struct {
 	Limit     int
 	Skip      int
 	Explain   bool
@@ -67,7 +67,7 @@ type SearchQueryOptions struct {
 	ConsistentWith *MutationState
 }
 
-func (opts *SearchQueryOptions) toOptionsData() (*searchQueryOptionsData, error) {
+func (opts *SearchOptions) toOptionsData() (*searchQueryOptionsData, error) {
 	data := &searchQueryOptionsData{}
 
 	data.Size = opts.Limit

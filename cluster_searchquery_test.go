@@ -115,9 +115,9 @@ func testWaitSearchIndex(errCh chan error) {
 
 func testSimpleSearchQuery(t *testing.T) {
 	indexName := "travel-sample-index-stored"
-	query := SearchQuery{Name: indexName, Query: NewMatchQuery("airline_137")}
+	query := SearchQuery{Query: NewMatchQuery("airline_137")}
 
-	results, err := globalCluster.SearchQuery(query, &SearchQueryOptions{Limit: 1000, Fields: []string{"*"}})
+	results, err := globalCluster.SearchQuery(indexName, query, &SearchOptions{Limit: 1000, Fields: []string{"*"}})
 	if err != nil {
 		t.Fatalf("Failed to execute query %v", err)
 	}
@@ -153,9 +153,9 @@ func testSimpleSearchQuery(t *testing.T) {
 
 func testSimpleSearchQueryOne(t *testing.T) {
 	indexName := "travel-sample-index-stored"
-	query := SearchQuery{Name: indexName, Query: NewMatchQuery("swanky")}
+	query := SearchQuery{Query: NewMatchQuery("swanky")}
 
-	results, err := globalCluster.SearchQuery(query, &SearchQueryOptions{Limit: 1000})
+	results, err := globalCluster.SearchQuery(indexName, query, &SearchOptions{Limit: 1000})
 	if err != nil {
 		t.Fatalf("Failed to execute query %v", err)
 	}
@@ -178,9 +178,9 @@ func testSimpleSearchQueryOne(t *testing.T) {
 
 func testSimpleSearchQueryError(t *testing.T) {
 	indexName := "travel-sample-index-unsored"
-	query := SearchQuery{Name: indexName, Query: NewMatchQuery("swanky")}
+	query := SearchQuery{Query: NewMatchQuery("swanky")}
 
-	res, err := globalCluster.SearchQuery(query, &SearchQueryOptions{Limit: 1000})
+	res, err := globalCluster.SearchQuery(indexName, query, &SearchOptions{Limit: 1000})
 	if err == nil {
 		t.Fatalf("Execute query should have errored")
 	}
@@ -200,14 +200,13 @@ func TestSearchQueryServiceNotFound(t *testing.T) {
 	}
 
 	q := SearchQuery{
-		Name:  "test",
 		Query: NewMatchQuery("test"),
 	}
 	timeout := 60 * time.Second
 
 	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
 
-	res, err := cluster.SearchQuery(q, nil)
+	res, err := cluster.SearchQuery("test", q, nil)
 	if err == nil {
 		t.Fatal("Expected query to return error")
 	}
@@ -223,7 +222,6 @@ func TestSearchQueryServiceNotFound(t *testing.T) {
 
 func TestSearchQueryRetries(t *testing.T) {
 	q := SearchQuery{
-		Name:  "test",
 		Query: NewMatchQuery("test"),
 	}
 	timeout := 60 * time.Second
@@ -246,7 +244,7 @@ func TestSearchQueryRetries(t *testing.T) {
 	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
 	cluster.sb.SearchRetryBehavior = StandardDelayRetryBehavior(3, 1, 100*time.Millisecond, LinearDelayFunction)
 
-	_, err := cluster.SearchQuery(q, nil)
+	_, err := cluster.SearchQuery("test", q, nil)
 	if err == nil {
 		t.Fatal("Expected query execution to error")
 	}
@@ -258,7 +256,6 @@ func TestSearchQueryRetries(t *testing.T) {
 
 func TestSearchQueryServerObjectError(t *testing.T) {
 	q := SearchQuery{
-		Name:  "test",
 		Query: NewMatchQuery("test"),
 	}
 	timeout := 60 * time.Second
@@ -282,7 +279,7 @@ func TestSearchQueryServerObjectError(t *testing.T) {
 
 	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
 
-	res, err := cluster.SearchQuery(q, nil)
+	res, err := cluster.SearchQuery("test", q, nil)
 	if err == nil {
 		t.Fatal("Expected query execution to error")
 	}
@@ -302,7 +299,6 @@ func TestSearchQueryServerObjectError(t *testing.T) {
 
 func TestSearchQuery400Error(t *testing.T) {
 	q := SearchQuery{
-		Name:  "test",
 		Query: NewMatchQuery("test"),
 	}
 	timeout := 60 * time.Second
@@ -321,7 +317,7 @@ func TestSearchQuery400Error(t *testing.T) {
 
 	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
 
-	res, err := cluster.SearchQuery(q, nil)
+	res, err := cluster.SearchQuery("test", q, nil)
 	if err == nil {
 		t.Fatal("Expected query execution to error")
 	}
@@ -349,7 +345,6 @@ func TestSearchQuery400Error(t *testing.T) {
 
 func TestSearchQuery401Error(t *testing.T) {
 	q := SearchQuery{
-		Name:  "test",
 		Query: NewMatchQuery("test"),
 	}
 	timeout := 60 * time.Second
@@ -367,7 +362,7 @@ func TestSearchQuery401Error(t *testing.T) {
 
 	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
 
-	res, err := cluster.SearchQuery(q, nil)
+	res, err := cluster.SearchQuery("test", q, nil)
 	if err == nil {
 		t.Fatal("Expected query execution to error")
 	}

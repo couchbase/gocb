@@ -388,9 +388,9 @@ func (r *SearchResult) readAttribute(decoder *json.Decoder, t json.Token) (bool,
 }
 
 // SearchQuery performs a n1ql query and returns a list of rows or an error.
-func (c *Cluster) SearchQuery(q SearchQuery, opts *SearchQueryOptions) (*SearchResult, error) {
+func (c *Cluster) SearchQuery(indexName string, q SearchQuery, opts *SearchOptions) (*SearchResult, error) {
 	if opts == nil {
-		opts = &SearchQueryOptions{}
+		opts = &SearchOptions{}
 	}
 	ctx := opts.Context
 	if ctx == nil {
@@ -402,13 +402,12 @@ func (c *Cluster) SearchQuery(q SearchQuery, opts *SearchQueryOptions) (*SearchR
 		return nil, err
 	}
 
-	return c.searchQuery(ctx, q, opts, provider)
+	return c.searchQuery(ctx, indexName, q, opts, provider)
 }
 
-func (c *Cluster) searchQuery(ctx context.Context, q SearchQuery, opts *SearchQueryOptions,
+func (c *Cluster) searchQuery(ctx context.Context, qIndexName string, q SearchQuery, opts *SearchOptions,
 	provider httpProvider) (*SearchResult, error) {
 
-	qIndexName := q.indexName()
 	optsData, err := opts.toOptionsData()
 	if err != nil {
 		return nil, err

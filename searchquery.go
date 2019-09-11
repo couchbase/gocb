@@ -625,12 +625,7 @@ type searchQueryData struct {
 
 // SearchQuery represents a pending search query.
 type SearchQuery struct {
-	Name  string
 	Query interface{}
-}
-
-func (sq *SearchQuery) indexName() string {
-	return sq.Name
 }
 
 func (sq *SearchQuery) toSearchQueryData() (*searchQueryData, error) {
