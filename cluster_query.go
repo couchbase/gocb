@@ -63,6 +63,7 @@ type QueryResultsMetadata struct {
 	signature       interface{}
 	warnings        []QueryWarning
 	sourceAddr      string
+	profile         interface{}
 }
 
 // QueryResult allows access to the results of a N1QL query.
@@ -169,15 +170,14 @@ func (r *QueryResult) Metadata() (*QueryResultsMetadata, error) {
 	return &r.metadata, nil
 }
 
-// SourceEndpoint returns the endpoint used for execution of this query.
-// VOLATILE
-func (r *QueryResultsMetadata) SourceEndpoint() string {
-	return r.sourceAddr
-}
-
 // RequestID returns the request ID used for this query.
 func (r *QueryResultsMetadata) RequestID() string {
 	return r.requestID
+}
+
+// Profile returns the profile generated for this query.
+func (r *QueryResultsMetadata) Profile() interface{} {
+	return r.profile
 }
 
 // ClientContextID returns the context ID used for this query.
@@ -276,6 +276,11 @@ func (r *QueryResult) readAttribute(decoder *json.Decoder, t json.Token) (bool, 
 		}
 	case "signature":
 		err := decoder.Decode(&r.metadata.signature)
+		if err != nil {
+			return false, err
+		}
+	case "profile":
+		err := decoder.Decode(&r.metadata.profile)
 		if err != nil {
 			return false, err
 		}

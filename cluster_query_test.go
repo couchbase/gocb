@@ -70,10 +70,6 @@ func testSimpleQuery(t *testing.T) {
 	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
-
-	if metadata.SourceEndpoint() == "" {
-		t.Fatalf("Result should have had non empty SourceEndpoint")
-	}
 }
 
 func testSimpleQueryStreamTimeout(t *testing.T) {
@@ -109,10 +105,6 @@ func testSimpleQueryStreamTimeout(t *testing.T) {
 
 	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
-	}
-
-	if metadata.SourceEndpoint() == "" {
-		t.Fatalf("Result should have had non empty SourceEndpoint")
 	}
 }
 
@@ -152,10 +144,6 @@ func testSimpleQueryStreamContextTimeout(t *testing.T) {
 	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
-
-	if metadata.SourceEndpoint() == "" {
-		t.Fatalf("Result should have had non empty SourceEndpoint")
-	}
 }
 
 func testSimpleQueryOne(t *testing.T) {
@@ -182,10 +170,6 @@ func testSimpleQueryOne(t *testing.T) {
 
 	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
-	}
-
-	if metadata.SourceEndpoint() == "" {
-		t.Fatalf("Result should have had non empty SourceEndpoint")
 	}
 }
 
@@ -218,10 +202,6 @@ func testSimpleQueryOneNone(t *testing.T) {
 	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
-
-	if metadata.SourceEndpoint() == "" {
-		t.Fatalf("Result should have had non empty SourceEndpoint")
-	}
 }
 
 func testSimpleQueryNone(t *testing.T) {
@@ -253,10 +233,6 @@ func testSimpleQueryNone(t *testing.T) {
 
 	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
-	}
-
-	if metadata.SourceEndpoint() == "" {
-		t.Fatalf("Result should have had non empty SourceEndpoint")
 	}
 }
 
@@ -299,10 +275,6 @@ func testPreparedQuery(t *testing.T) {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
 
-	if metadata.SourceEndpoint() == "" {
-		t.Fatalf("Result should have had non empty SourceEndpoint")
-	}
-
 	if globalCluster.queryCache[query] == nil {
 		t.Fatalf("Query should have been in query cache after prepared statement execution")
 	}
@@ -334,10 +306,6 @@ func testPreparedQuery(t *testing.T) {
 
 	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
-	}
-
-	if metadata.SourceEndpoint() == "" {
-		t.Fatalf("Result should have had non empty SourceEndpoint")
 	}
 
 	if globalCluster.queryCache[query] == nil {
@@ -378,10 +346,6 @@ func testQueryNamedParameters(t *testing.T) {
 	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
 	}
-
-	if metadata.SourceEndpoint() == "" {
-		t.Fatalf("Result should have had non empty SourceEndpoint")
-	}
 }
 
 func testQueryPositionalParameters(t *testing.T) {
@@ -413,10 +377,6 @@ func testQueryPositionalParameters(t *testing.T) {
 
 	if metadata.RequestID() == "" {
 		t.Fatalf("Result should have had non empty RequestID")
-	}
-
-	if metadata.SourceEndpoint() == "" {
-		t.Fatalf("Result should have had non empty SourceEndpoint")
 	}
 }
 
@@ -985,9 +945,6 @@ func testAssertQueryResult(t *testing.T, expectedResult *n1qlResponse, actualRes
 
 	if metadata.RequestID() != expectedResult.RequestID {
 		t.Fatalf("Expected RequestID to be %s but was %s", expectedResult.RequestID, metadata.RequestID())
-	}
-	if metadata.SourceEndpoint() != "localhost:8093" {
-		t.Fatalf("Expected endpoint to be %s but was %s", "localhost:8093", metadata.SourceEndpoint())
 	}
 
 	metrics := metadata.Metrics()
