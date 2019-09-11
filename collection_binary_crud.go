@@ -19,6 +19,7 @@ type AppendOptions struct {
 	DurabilityLevel DurabilityLevel
 	PersistTo       uint
 	ReplicateTo     uint
+	Cas             Cas
 }
 
 // Append appends a byte value to a document.
@@ -80,6 +81,7 @@ func (c *BinaryCollection) append(ctx context.Context, key string, val []byte, o
 		ScopeName:              c.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
+		Cas:                    gocbcore.Cas(opts.Cas),
 	}, func(res *gocbcore.AdjoinResult, err error) {
 		if err != nil {
 			errOut = err
@@ -112,6 +114,7 @@ type PrependOptions struct {
 	DurabilityLevel DurabilityLevel
 	PersistTo       uint
 	ReplicateTo     uint
+	Cas             Cas
 }
 
 // Prepend prepends a byte value to a document.
@@ -173,6 +176,7 @@ func (c *BinaryCollection) prepend(ctx context.Context, key string, val []byte, 
 		ScopeName:              c.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
+		Cas:                    gocbcore.Cas(opts.Cas),
 	}, func(res *gocbcore.AdjoinResult, err error) {
 		if err != nil {
 			errOut = err
@@ -213,6 +217,7 @@ type CounterOptions struct {
 	DurabilityLevel DurabilityLevel
 	PersistTo       uint
 	ReplicateTo     uint
+	Cas             Cas
 }
 
 // Increment performs an atomic addition for an integer document. Passing a
@@ -278,6 +283,7 @@ func (c *BinaryCollection) increment(ctx context.Context, key string, opts Count
 		ScopeName:              c.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
+		Cas:                    gocbcore.Cas(opts.Cas),
 	}, func(res *gocbcore.CounterResult, err error) {
 		if err != nil {
 			errOut = err
@@ -376,6 +382,7 @@ func (c *BinaryCollection) decrement(ctx context.Context, key string, opts Count
 		ScopeName:              c.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
+		Cas:                    gocbcore.Cas(opts.Cas),
 	}, func(res *gocbcore.CounterResult, err error) {
 		if err != nil {
 			errOut = err
