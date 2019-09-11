@@ -115,8 +115,8 @@ func (b *Bucket) pingKv(provider kvProvider) (pingsOut []gocbcore.PingResult, er
 
 // PingOptions are the options available to the Ping operation.
 type PingOptions struct {
-	Services []ServiceType
-	ReportID string
+	ServiceTypes []ServiceType
+	ReportID     string
 }
 
 // Ping will ping a list of services and verify they are active and
@@ -132,7 +132,7 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingReport, error) {
 	waitCh := make(chan error, 10)
 	report := &PingReport{}
 	var reportLock sync.Mutex
-	services := opts.Services
+	services := opts.ServiceTypes
 
 	report.ID = opts.ReportID
 	if report.ID == "" {

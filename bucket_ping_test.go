@@ -231,7 +231,7 @@ func TestPingTimeoutQueryOnly(t *testing.T) {
 		},
 	}
 
-	report, err := b.Ping(&PingOptions{Services: []ServiceType{QueryService}, ReportID: "myreportid"})
+	report, err := b.Ping(&PingOptions{ServiceTypes: []ServiceType{QueryService}, ReportID: "myreportid"})
 	if err != nil {
 		t.Fatalf("Expected ping to not return error but was %v", err)
 	}
