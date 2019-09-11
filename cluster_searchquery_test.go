@@ -122,8 +122,8 @@ func testSimpleSearchQuery(t *testing.T) {
 		t.Fatalf("Failed to execute query %v", err)
 	}
 
-	var samples []SearchResultHit
-	var sample SearchResultHit
+	var samples []SearchResultRow
+	var sample SearchResultRow
 	for results.Next(&sample) {
 		samples = append(samples, sample)
 
@@ -146,7 +146,7 @@ func testSimpleSearchQuery(t *testing.T) {
 		t.Fatalf("Metadata had error: %v", err)
 	}
 
-	if metadata.TotalHits() == 0 {
+	if metadata.TotalRows() == 0 {
 		t.Fatalf("Expected result TotalRows to be not 0 but was")
 	}
 }
@@ -160,7 +160,7 @@ func testSimpleSearchQueryOne(t *testing.T) {
 		t.Fatalf("Failed to execute query %v", err)
 	}
 
-	sample := SearchResultHit{}
+	sample := SearchResultRow{}
 	err = results.One(&sample)
 	if err != nil {
 		t.Fatalf("One had error: %v", err)
@@ -171,7 +171,7 @@ func testSimpleSearchQueryOne(t *testing.T) {
 		t.Fatalf("Metadata had error: %v", err)
 	}
 
-	if metadata.TotalHits() == 0 {
+	if metadata.TotalRows() == 0 {
 		t.Fatalf("Expected result TotalRows to be not 0 but was")
 	}
 }

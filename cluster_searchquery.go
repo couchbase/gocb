@@ -21,8 +21,8 @@ type SearchResultLocation struct {
 	ArrayPositions []uint `json:"array_positions,omitempty"`
 }
 
-// SearchResultHit holds a single hit in a list of search results.
-type SearchResultHit struct {
+// SearchResultRow holds a single hit in a list of search results.
+type SearchResultRow struct {
 	Index       string                                       `json:"index,omitempty"`
 	ID          string                                       `json:"id,omitempty"`
 	Score       float64                                      `json:"score,omitempty"`
@@ -110,7 +110,7 @@ type SearchResult struct {
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
-func (r *SearchResult) Next(hitPtr *SearchResultHit) bool {
+func (r *SearchResult) Next(rowPtr *SearchResultRow) bool {
 	if r.err != nil {
 		return false
 	}
@@ -134,37 +134,37 @@ func (r *SearchResult) Next(hitPtr *SearchResultHit) bool {
 
 		switch t {
 		case "index":
-			r.err = decoder.Decode(&hitPtr.Index)
+			r.err = decoder.Decode(&rowPtr.Index)
 			if r.err != nil {
 				return false
 			}
 		case "id":
-			r.err = decoder.Decode(&hitPtr.ID)
+			r.err = decoder.Decode(&rowPtr.ID)
 			if r.err != nil {
 				return false
 			}
 		case "score":
-			r.err = decoder.Decode(&hitPtr.Score)
+			r.err = decoder.Decode(&rowPtr.Score)
 			if r.err != nil {
 				return false
 			}
 		case "explanation":
-			r.err = decoder.Decode(&hitPtr.Explanation)
+			r.err = decoder.Decode(&rowPtr.Explanation)
 			if r.err != nil {
 				return false
 			}
 		case "locations":
-			r.err = decoder.Decode(&hitPtr.Locations)
+			r.err = decoder.Decode(&rowPtr.Locations)
 			if r.err != nil {
 				return false
 			}
 		case "fragments":
-			r.err = decoder.Decode(&hitPtr.Fragments)
+			r.err = decoder.Decode(&rowPtr.Fragments)
 			if r.err != nil {
 				return false
 			}
 		case "fields":
-			r.err = decoder.Decode(&hitPtr.Fields)
+			r.err = decoder.Decode(&rowPtr.Fields)
 			if r.err != nil {
 				return false
 			}
@@ -218,9 +218,8 @@ func (r *SearchResult) Close() error {
 // One assigns the first value from the results into the value pointer.
 // It will close the results but not before iterating through all remaining
 // results, as such this should only be used for very small resultsets - ideally
-// of, at most, length 1.
-func (r *SearchResult) One(hitPtr *SearchResultHit) error {
-	if !r.Next(hitPtr) {
+func (r *SearchResult) One(rowPtr *SearchResultRow) error {
+	if !r.Next(rowPtr) {
 		err := r.Close()
 		if err != nil {
 			return err
@@ -260,8 +259,8 @@ func (r SearchResultsMetadata) ErrorCount() int {
 	return r.status.Failed
 }
 
-// TotalHits is the actual number of hits before the limit was applied.
-func (r SearchResultsMetadata) TotalHits() int {
+// TotalRows is the actual number of rows before the limit was applied.
+func (r SearchResultsMetadata) TotalRows() int {
 	return r.totalHits
 }
 
