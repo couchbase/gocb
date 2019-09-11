@@ -9,7 +9,7 @@ import (
 
 // BinaryCollection is a set of binary operations.
 type BinaryCollection struct {
-	*Collection
+	collection *Collection
 }
 
 // AppendOptions are the options available to the Append operation.
@@ -29,12 +29,12 @@ func (c *BinaryCollection) Append(key string, val []byte, opts *AppendOptions) (
 	}
 
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
-	ctx, cancel := c.context(opts.Context, opts.Timeout)
+	ctx, cancel := c.collection.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	err := c.verifyObserveOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
+	err := c.collection.verifyObserveOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func (c *BinaryCollection) Append(key string, val []byte, opts *AppendOptions) (
 	if opts.PersistTo == 0 && opts.ReplicateTo == 0 {
 		return res, nil
 	}
-	return res, c.durability(durabilitySettings{
+	return res, c.collection.durability(durabilitySettings{
 		ctx:            opts.Context,
 		key:            key,
 		cas:            res.Cas(),
@@ -55,30 +55,30 @@ func (c *BinaryCollection) Append(key string, val []byte, opts *AppendOptions) (
 		replicaTo:      opts.ReplicateTo,
 		persistTo:      opts.PersistTo,
 		forDelete:      true,
-		scopeName:      c.scopeName(),
-		collectionName: c.name(),
+		scopeName:      c.collection.scopeName(),
+		collectionName: c.collection.name(),
 	})
 }
 
 func (c *BinaryCollection) append(ctx context.Context, key string, val []byte, opts AppendOptions) (mutOut *MutationResult, errOut error) {
-	agent, err := c.getKvProvider()
+	agent, err := c.collection.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
 
-	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	coerced, durabilityTimeout := c.collection.durabilityTimeout(ctx, opts.DurabilityLevel)
 	if coerced {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
 		defer cancel()
 	}
 
-	ctrl := c.newOpManager(ctx)
+	ctrl := c.collection.newOpManager(ctx)
 	err = ctrl.wait(agent.AppendEx(gocbcore.AdjoinOptions{
 		Key:                    []byte(key),
 		Value:                  val,
-		CollectionName:         c.name(),
-		ScopeName:              c.scopeName(),
+		CollectionName:         c.collection.name(),
+		ScopeName:              c.collection.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
 		Cas:                    gocbcore.Cas(opts.Cas),
@@ -91,7 +91,7 @@ func (c *BinaryCollection) append(ctx context.Context, key string, val []byte, o
 
 		mutTok := MutationToken{
 			token:      res.MutationToken,
-			bucketName: c.sb.BucketName,
+			bucketName: c.collection.sb.BucketName,
 		}
 		mutOut = &MutationResult{
 			mt: mutTok,
@@ -124,12 +124,12 @@ func (c *BinaryCollection) Prepend(key string, val []byte, opts *PrependOptions)
 	}
 
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
-	ctx, cancel := c.context(opts.Context, opts.Timeout)
+	ctx, cancel := c.collection.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	err := c.verifyObserveOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
+	err := c.collection.verifyObserveOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func (c *BinaryCollection) Prepend(key string, val []byte, opts *PrependOptions)
 	if opts.PersistTo == 0 && opts.ReplicateTo == 0 {
 		return res, nil
 	}
-	return res, c.durability(durabilitySettings{
+	return res, c.collection.durability(durabilitySettings{
 		ctx:            opts.Context,
 		key:            key,
 		cas:            res.Cas(),
@@ -150,30 +150,30 @@ func (c *BinaryCollection) Prepend(key string, val []byte, opts *PrependOptions)
 		replicaTo:      opts.ReplicateTo,
 		persistTo:      opts.PersistTo,
 		forDelete:      true,
-		scopeName:      c.scopeName(),
-		collectionName: c.name(),
+		scopeName:      c.collection.scopeName(),
+		collectionName: c.collection.name(),
 	})
 }
 
 func (c *BinaryCollection) prepend(ctx context.Context, key string, val []byte, opts PrependOptions) (mutOut *MutationResult, errOut error) {
-	agent, err := c.getKvProvider()
+	agent, err := c.collection.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
 
-	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	coerced, durabilityTimeout := c.collection.durabilityTimeout(ctx, opts.DurabilityLevel)
 	if coerced {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
 		defer cancel()
 	}
 
-	ctrl := c.newOpManager(ctx)
+	ctrl := c.collection.newOpManager(ctx)
 	err = ctrl.wait(agent.PrependEx(gocbcore.AdjoinOptions{
 		Key:                    []byte(key),
 		Value:                  val,
-		CollectionName:         c.name(),
-		ScopeName:              c.scopeName(),
+		CollectionName:         c.collection.name(),
+		ScopeName:              c.collection.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
 		Cas:                    gocbcore.Cas(opts.Cas),
@@ -186,7 +186,7 @@ func (c *BinaryCollection) prepend(ctx context.Context, key string, val []byte, 
 
 		mutTok := MutationToken{
 			token:      res.MutationToken,
-			bucketName: c.sb.BucketName,
+			bucketName: c.collection.sb.BucketName,
 		}
 		mutOut = &MutationResult{
 			mt: mutTok,
@@ -229,7 +229,7 @@ func (c *BinaryCollection) Increment(key string, opts *CounterOptions) (countOut
 	}
 
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
-	ctx, cancel := c.context(opts.Context, opts.Timeout)
+	ctx, cancel := c.collection.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -242,7 +242,7 @@ func (c *BinaryCollection) Increment(key string, opts *CounterOptions) (countOut
 	if opts.PersistTo == 0 && opts.ReplicateTo == 0 {
 		return res, nil
 	}
-	return res, c.durability(durabilitySettings{
+	return res, c.collection.durability(durabilitySettings{
 		ctx:            opts.Context,
 		key:            key,
 		cas:            res.Cas(),
@@ -250,8 +250,8 @@ func (c *BinaryCollection) Increment(key string, opts *CounterOptions) (countOut
 		replicaTo:      opts.ReplicateTo,
 		persistTo:      opts.PersistTo,
 		forDelete:      true,
-		scopeName:      c.scopeName(),
-		collectionName: c.name(),
+		scopeName:      c.collection.scopeName(),
+		collectionName: c.collection.name(),
 	})
 }
 
@@ -261,26 +261,26 @@ func (c *BinaryCollection) increment(ctx context.Context, key string, opts Count
 		realInitial = uint64(opts.Initial)
 	}
 
-	agent, err := c.getKvProvider()
+	agent, err := c.collection.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
 
-	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	coerced, durabilityTimeout := c.collection.durabilityTimeout(ctx, opts.DurabilityLevel)
 	if coerced {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
 		defer cancel()
 	}
 
-	ctrl := c.newOpManager(ctx)
+	ctrl := c.collection.newOpManager(ctx)
 	err = ctrl.wait(agent.IncrementEx(gocbcore.CounterOptions{
 		Key:                    []byte(key),
 		Delta:                  opts.Delta,
 		Initial:                realInitial,
 		Expiry:                 opts.Expiration,
-		CollectionName:         c.name(),
-		ScopeName:              c.scopeName(),
+		CollectionName:         c.collection.name(),
+		ScopeName:              c.collection.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
 		Cas:                    gocbcore.Cas(opts.Cas),
@@ -293,7 +293,7 @@ func (c *BinaryCollection) increment(ctx context.Context, key string, opts Count
 
 		mutTok := MutationToken{
 			token:      res.MutationToken,
-			bucketName: c.sb.BucketName,
+			bucketName: c.collection.sb.BucketName,
 		}
 		countOut = &CounterResult{
 			MutationResult: MutationResult{
@@ -323,12 +323,12 @@ func (c *BinaryCollection) Decrement(key string, opts *CounterOptions) (countOut
 	}
 
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
-	ctx, cancel := c.context(opts.Context, opts.Timeout)
+	ctx, cancel := c.collection.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	err := c.verifyObserveOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
+	err := c.collection.verifyObserveOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +341,7 @@ func (c *BinaryCollection) Decrement(key string, opts *CounterOptions) (countOut
 	if opts.PersistTo == 0 && opts.ReplicateTo == 0 {
 		return res, nil
 	}
-	return res, c.durability(durabilitySettings{
+	return res, c.collection.durability(durabilitySettings{
 		ctx:            opts.Context,
 		key:            key,
 		cas:            res.Cas(),
@@ -349,13 +349,13 @@ func (c *BinaryCollection) Decrement(key string, opts *CounterOptions) (countOut
 		replicaTo:      opts.ReplicateTo,
 		persistTo:      opts.PersistTo,
 		forDelete:      true,
-		scopeName:      c.scopeName(),
-		collectionName: c.name(),
+		scopeName:      c.collection.scopeName(),
+		collectionName: c.collection.name(),
 	})
 }
 
 func (c *BinaryCollection) decrement(ctx context.Context, key string, opts CounterOptions) (countOut *CounterResult, errOut error) {
-	agent, err := c.getKvProvider()
+	agent, err := c.collection.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
@@ -365,21 +365,21 @@ func (c *BinaryCollection) decrement(ctx context.Context, key string, opts Count
 		realInitial = uint64(opts.Initial)
 	}
 
-	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
+	coerced, durabilityTimeout := c.collection.durabilityTimeout(ctx, opts.DurabilityLevel)
 	if coerced {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
 		defer cancel()
 	}
 
-	ctrl := c.newOpManager(ctx)
+	ctrl := c.collection.newOpManager(ctx)
 	err = ctrl.wait(agent.DecrementEx(gocbcore.CounterOptions{
 		Key:                    []byte(key),
 		Delta:                  opts.Delta,
 		Initial:                realInitial,
 		Expiry:                 opts.Expiration,
-		CollectionName:         c.name(),
-		ScopeName:              c.scopeName(),
+		CollectionName:         c.collection.name(),
+		ScopeName:              c.collection.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
 		Cas:                    gocbcore.Cas(opts.Cas),
@@ -392,7 +392,7 @@ func (c *BinaryCollection) decrement(ctx context.Context, key string, opts Count
 
 		mutTok := MutationToken{
 			token:      res.MutationToken,
-			bucketName: c.sb.BucketName,
+			bucketName: c.collection.sb.BucketName,
 		}
 		countOut = &CounterResult{
 			MutationResult: MutationResult{
