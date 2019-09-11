@@ -110,6 +110,10 @@ type Cas gocbcore.Cas
 type pendingOp gocbcore.PendingOp
 
 func (c *Collection) verifyObserveOptions(persistTo, replicateTo uint, durabilityLevel DurabilityLevel) error {
+	if (persistTo != 0 || replicateTo != 0) && !c.sb.clientStateBlock.UseMutationTokens {
+		return configurationError{"cannot use observe based durability without mutation tokens"}
+	}
+
 	if (persistTo != 0 || replicateTo != 0) && durabilityLevel > 0 {
 		return configurationError{message: "cannot mix observe based durability and synchronous durability"}
 	}
@@ -145,10 +149,6 @@ type InsertOptions struct {
 func (c *Collection) Insert(key string, val interface{}, opts *InsertOptions) (mutOut *MutationResult, errOut error) {
 	if opts == nil {
 		opts = &InsertOptions{}
-	}
-
-	if (opts.PersistTo != 0 || opts.ReplicateTo != 0) && !c.sb.clientStateBlock.UseMutationTokens {
-		return nil, configurationError{"cannot use observe based durability without mutation tokens"}
 	}
 
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
@@ -246,10 +246,6 @@ func (c *Collection) insert(ctx context.Context, key string, val interface{}, op
 func (c *Collection) Upsert(key string, val interface{}, opts *UpsertOptions) (mutOut *MutationResult, errOut error) {
 	if opts == nil {
 		opts = &UpsertOptions{}
-	}
-
-	if (opts.PersistTo != 0 || opts.ReplicateTo != 0) && !c.sb.clientStateBlock.UseMutationTokens {
-		return nil, configurationError{"cannot use observe based durability without mutation tokens"}
 	}
 
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
@@ -359,10 +355,6 @@ type ReplaceOptions struct {
 func (c *Collection) Replace(key string, val interface{}, opts *ReplaceOptions) (mutOut *MutationResult, errOut error) {
 	if opts == nil {
 		opts = &ReplaceOptions{}
-	}
-
-	if (opts.PersistTo != 0 || opts.ReplicateTo != 0) && !c.sb.clientStateBlock.UseMutationTokens {
-		return nil, configurationError{"cannot use observe based durability without mutation tokens"}
 	}
 
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
@@ -749,10 +741,6 @@ type RemoveOptions struct {
 func (c *Collection) Remove(key string, opts *RemoveOptions) (mutOut *MutationResult, errOut error) {
 	if opts == nil {
 		opts = &RemoveOptions{}
-	}
-
-	if (opts.PersistTo != 0 || opts.ReplicateTo != 0) && !c.sb.clientStateBlock.UseMutationTokens {
-		return nil, configurationError{"cannot use observe based durability without mutation tokens"}
 	}
 
 	ctx, cancel := c.context(opts.Context, opts.Timeout)

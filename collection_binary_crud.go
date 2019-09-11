@@ -17,6 +17,8 @@ type AppendOptions struct {
 	Timeout         time.Duration
 	Context         context.Context
 	DurabilityLevel DurabilityLevel
+	PersistTo       uint
+	ReplicateTo     uint
 }
 
 // Append appends a byte value to a document.
@@ -31,12 +33,30 @@ func (c *BinaryCollection) Append(key string, val []byte, opts *AppendOptions) (
 		defer cancel()
 	}
 
+	err := c.verifyObserveOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
+	if err != nil {
+		return nil, err
+	}
+
 	res, err := c.append(ctx, key, val, *opts)
 	if err != nil {
 		return nil, err
 	}
 
-	return res, nil
+	if opts.PersistTo == 0 && opts.ReplicateTo == 0 {
+		return res, nil
+	}
+	return res, c.durability(durabilitySettings{
+		ctx:            opts.Context,
+		key:            key,
+		cas:            res.Cas(),
+		mt:             res.MutationToken(),
+		replicaTo:      opts.ReplicateTo,
+		persistTo:      opts.PersistTo,
+		forDelete:      true,
+		scopeName:      c.scopeName(),
+		collectionName: c.name(),
+	})
 }
 
 func (c *BinaryCollection) append(ctx context.Context, key string, val []byte, opts AppendOptions) (mutOut *MutationResult, errOut error) {
@@ -90,6 +110,8 @@ type PrependOptions struct {
 	Timeout         time.Duration
 	Context         context.Context
 	DurabilityLevel DurabilityLevel
+	PersistTo       uint
+	ReplicateTo     uint
 }
 
 // Prepend prepends a byte value to a document.
@@ -104,12 +126,30 @@ func (c *BinaryCollection) Prepend(key string, val []byte, opts *PrependOptions)
 		defer cancel()
 	}
 
+	err := c.verifyObserveOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
+	if err != nil {
+		return nil, err
+	}
+
 	res, err := c.prepend(ctx, key, val, *opts)
 	if err != nil {
 		return nil, err
 	}
 
-	return res, nil
+	if opts.PersistTo == 0 && opts.ReplicateTo == 0 {
+		return res, nil
+	}
+	return res, c.durability(durabilitySettings{
+		ctx:            opts.Context,
+		key:            key,
+		cas:            res.Cas(),
+		mt:             res.MutationToken(),
+		replicaTo:      opts.ReplicateTo,
+		persistTo:      opts.PersistTo,
+		forDelete:      true,
+		scopeName:      c.scopeName(),
+		collectionName: c.name(),
+	})
 }
 
 func (c *BinaryCollection) prepend(ctx context.Context, key string, val []byte, opts PrependOptions) (mutOut *MutationResult, errOut error) {
@@ -171,6 +211,8 @@ type CounterOptions struct {
 	// Delta is the value to use for incrementing/decrementing if Initial is not present.
 	Delta           uint64
 	DurabilityLevel DurabilityLevel
+	PersistTo       uint
+	ReplicateTo     uint
 }
 
 // Increment performs an atomic addition for an integer document. Passing a
@@ -192,7 +234,20 @@ func (c *BinaryCollection) Increment(key string, opts *CounterOptions) (countOut
 		return nil, err
 	}
 
-	return res, nil
+	if opts.PersistTo == 0 && opts.ReplicateTo == 0 {
+		return res, nil
+	}
+	return res, c.durability(durabilitySettings{
+		ctx:            opts.Context,
+		key:            key,
+		cas:            res.Cas(),
+		mt:             res.MutationToken(),
+		replicaTo:      opts.ReplicateTo,
+		persistTo:      opts.PersistTo,
+		forDelete:      true,
+		scopeName:      c.scopeName(),
+		collectionName: c.name(),
+	})
 }
 
 func (c *BinaryCollection) increment(ctx context.Context, key string, opts CounterOptions) (countOut *CounterResult, errOut error) {
@@ -267,12 +322,30 @@ func (c *BinaryCollection) Decrement(key string, opts *CounterOptions) (countOut
 		defer cancel()
 	}
 
+	err := c.verifyObserveOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
+	if err != nil {
+		return nil, err
+	}
+
 	res, err := c.decrement(ctx, key, *opts)
 	if err != nil {
 		return nil, err
 	}
 
-	return res, nil
+	if opts.PersistTo == 0 && opts.ReplicateTo == 0 {
+		return res, nil
+	}
+	return res, c.durability(durabilitySettings{
+		ctx:            opts.Context,
+		key:            key,
+		cas:            res.Cas(),
+		mt:             res.MutationToken(),
+		replicaTo:      opts.ReplicateTo,
+		persistTo:      opts.PersistTo,
+		forDelete:      true,
+		scopeName:      c.scopeName(),
+		collectionName: c.name(),
+	})
 }
 
 func (c *BinaryCollection) decrement(ctx context.Context, key string, opts CounterOptions) (countOut *CounterResult, errOut error) {
