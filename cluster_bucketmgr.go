@@ -528,15 +528,18 @@ func (bm *BucketManager) settingsToPostData(settings *BucketSettings) (url.Value
 		posts.Add("replicaIndex", "1")
 	}
 
-	posts.Add("replicaNumber", fmt.Sprintf("%d", settings.NumReplicas))
-
 	switch settings.BucketType {
 	case CouchbaseBucketType:
 		posts.Add("bucketType", string(settings.BucketType))
+		posts.Add("replicaNumber", fmt.Sprintf("%d", settings.NumReplicas))
 	case MemcachedBucketType:
 		posts.Add("bucketType", string(settings.BucketType))
+		if settings.NumReplicas > 0 {
+			return nil, configurationError{message: "replicas cannot be used with memcached buckets"}
+		}
 	case EphemeralBucketType:
 		posts.Add("bucketType", string(settings.BucketType))
+		posts.Add("replicaNumber", fmt.Sprintf("%d", settings.NumReplicas))
 	default:
 		return nil, bucketManagerError{message: "Unrecognized bucket type"}
 	}
