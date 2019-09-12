@@ -19,10 +19,10 @@ type LookupInOp struct {
 
 // LookupInOptions are the set of options available to LookupIn.
 type LookupInOptions struct {
-	Context    context.Context
-	Timeout    time.Duration
-	WithExpiry bool
-	Serializer JSONSerializer
+	Context        context.Context
+	Timeout        time.Duration
+	WithExpiration bool
+	Serializer     JSONSerializer
 }
 
 // LookupInSpecGetOptions are the options available to LookupIn subdoc Get operations.
@@ -156,8 +156,8 @@ func (c *Collection) lookupIn(ctx context.Context, key string, ops []LookupInOp,
 		subdocs = append(subdocs, op.op)
 	}
 
-	// Prepend the expiry get if required, xattrs have to be at the front of the ops list.
-	if opts.WithExpiry {
+	// Prepend the expiration get if required, xattrs have to be at the front of the ops list.
+	if opts.WithExpiration {
 		op := gocbcore.SubDocOp{
 			Op:    gocbcore.SubDocOpGet,
 			Path:  "$document.exptime",
@@ -203,8 +203,8 @@ func (c *Collection) lookupIn(ctx context.Context, key string, ops []LookupInOp,
 				}
 			}
 
-			if opts.WithExpiry {
-				// if expiry was requested then extract and remove it from the results
+			if opts.WithExpiration {
+				// if expiration was requested then extract and remove it from the results
 				resSet.withExpiration = true
 				err = resSet.ContentAt(0, &resSet.expiration)
 				if err != nil {

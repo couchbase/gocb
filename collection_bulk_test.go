@@ -9,9 +9,9 @@ func TestUpsertGetBulk(t *testing.T) {
 	var ops []BulkOp
 	for i := 0; i < 20; i++ {
 		ops = append(ops, &UpsertOp{
-			Key:    fmt.Sprintf("%d", i),
-			Value:  "test",
-			Expiry: 20,
+			Key:        fmt.Sprintf("%d", i),
+			Value:      "test",
+			Expiration: 20,
 		})
 	}
 

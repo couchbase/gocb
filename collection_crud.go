@@ -450,9 +450,9 @@ func (c *Collection) replace(ctx context.Context, key string, val interface{}, o
 
 // GetOptions are the options available to a Get operation.
 type GetOptions struct {
-	Timeout    time.Duration
-	Context    context.Context
-	WithExpiry bool
+	Timeout        time.Duration
+	Context        context.Context
+	WithExpiration bool
 	// Project causes the Get operation to only fetch the fields indicated
 	// by the paths. The result of the operation is then treated as a
 	// standard GetResult.
@@ -467,7 +467,7 @@ type ProjectOptions struct {
 }
 
 // Get performs a fetch operation against the collection. This can take 3 paths, a standard full document
-// fetch, a subdocument full document fetch also fetching document expiry (when WithExpiry is set),
+// fetch, a subdocument full document fetch also fetching document expiration (when WithExpiration is set),
 // or a subdocument fetch (when Project is used).
 func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOut error) {
 	if opts == nil {
@@ -483,7 +483,7 @@ func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOu
 		opts.Transcoder = c.sb.Transcoder
 	}
 
-	if (opts.Project == nil || (opts.Project != nil && len(opts.Project.Fields) > 16)) && !opts.WithExpiry {
+	if (opts.Project == nil || (opts.Project != nil && len(opts.Project.Fields) > 16)) && !opts.WithExpiration {
 		// Standard fulldoc
 		doc, err := c.get(ctx, key, opts)
 		if err != nil {
@@ -492,11 +492,11 @@ func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOu
 		return doc, nil
 	}
 
-	lookupOpts := LookupInOptions{Context: ctx, WithExpiry: opts.WithExpiry}
+	lookupOpts := LookupInOptions{Context: ctx, WithExpiration: opts.WithExpiration}
 	spec := LookupInSpec{}
 	var ops []LookupInOp
-	if opts.Project == nil || (len(opts.Project.Fields) > 15 && opts.WithExpiry) {
-		// This is a subdoc full doc as WithExpiry is set and projections are either missing or too many.
+	if opts.Project == nil || (len(opts.Project.Fields) > 15 && opts.WithExpiration) {
+		// This is a subdoc full doc as WithExpiration is set and projections are either missing or too many.
 		ops = append(ops, spec.GetFull(nil))
 		opts.Project = &ProjectOptions{}
 	} else {
@@ -834,7 +834,7 @@ type GetAndTouchOptions struct {
 	Transcoder Transcoder
 }
 
-// GetAndTouch retrieves a document and simultaneously updates its expiry time.
+// GetAndTouch retrieves a document and simultaneously updates its expiration time.
 func (c *Collection) GetAndTouch(key string, expiration uint32, opts *GetAndTouchOptions) (docOut *GetResult, errOut error) {
 	if opts == nil {
 		opts = &GetAndTouchOptions{}
@@ -1035,7 +1035,7 @@ type TouchOptions struct {
 	DurabilityLevel DurabilityLevel
 }
 
-// Touch touches a document, specifying a new expiry time for it.
+// Touch touches a document, specifying a new expiration time for it.
 func (c *Collection) Touch(key string, expiration uint32, opts *TouchOptions) (mutOut *MutationResult, errOut error) {
 	if opts == nil {
 		opts = &TouchOptions{}

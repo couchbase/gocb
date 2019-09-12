@@ -43,7 +43,7 @@ func TestGetResultExpiry(t *testing.T) {
 	}
 
 	if res.Expiration() != 10 {
-		t.Fatalf("Expiry value should have been 10 but was %d", res.Expiration())
+		t.Fatalf("Expiration value should have been 10 but was %d", res.Expiration())
 	}
 }
 
@@ -182,7 +182,7 @@ func TestLookupInResultExpiry(t *testing.T) {
 	}
 
 	if res.Expiration() != 10 {
-		t.Fatalf("Expiry value should have been 10 but was %d", res.Expiration())
+		t.Fatalf("Expiration value should have been 10 but was %d", res.Expiration())
 	}
 }
 

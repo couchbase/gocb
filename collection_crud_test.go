@@ -55,7 +55,7 @@ func TestInsertGetWithExpiry(t *testing.T) {
 		t.Fatalf("Insert CAS was 0")
 	}
 
-	insertedDoc, err := globalCollection.Get("expiryDoc", &GetOptions{WithExpiry: true})
+	insertedDoc, err := globalCollection.Get("expiryDoc", &GetOptions{WithExpiration: true})
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)
 	}
@@ -424,7 +424,7 @@ func TestInsertGetProjection16FieldsExpiry(t *testing.T) {
 			Fields: []string{"field1", "field2", "field3", "field4", "field5", "field6", "field7", "field8", "field9",
 				"field1", "field10", "field12", "field13", "field14", "field15", "field16"},
 		},
-		WithExpiry: true,
+		WithExpiration: true,
 	})
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)
@@ -813,7 +813,7 @@ func TestGetAndTouch(t *testing.T) {
 		t.Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
 	}
 
-	expireDoc, err := globalCollection.Get("getAndTouch", &GetOptions{WithExpiry: true})
+	expireDoc, err := globalCollection.Get("getAndTouch", &GetOptions{WithExpiration: true})
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)
 	}
@@ -1076,7 +1076,7 @@ func TestTouch(t *testing.T) {
 
 	globalCluster.TimeTravel(2 * time.Second)
 
-	expireDoc, err := globalCollection.Get("touch", &GetOptions{WithExpiry: true})
+	expireDoc, err := globalCollection.Get("touch", &GetOptions{WithExpiration: true})
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)
 	}
