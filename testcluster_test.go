@@ -35,33 +35,34 @@ var (
 )
 
 var (
-	KeyValueFeature          = FeatureCode(1)
-	ViewFeature              = FeatureCode(2)
-	CccpFeature              = FeatureCode(3)
-	SslFeature               = FeatureCode(4)
-	DcpFeature               = FeatureCode(5)
-	SpatialViewFeature       = FeatureCode(6)
-	N1qlFeature              = FeatureCode(7)
-	SubdocFeature            = FeatureCode(8)
-	KvErrorMapFeature        = FeatureCode(9)
-	RbacFeature              = FeatureCode(10)
-	FtsFeature               = FeatureCode(11)
-	EnhancedErrorsFeature    = FeatureCode(12)
-	FtsIndexFeature          = FeatureCode(13)
-	CompressionFeature       = FeatureCode(14)
-	ServerSideTracingFeature = FeatureCode(15)
-	AnalyticsFeature         = FeatureCode(16)
-	XattrFeature             = FeatureCode(17)
-	CollectionsFeature       = FeatureCode(18)
-	SubdocMockBugFeature     = FeatureCode(19)
-	AdjoinFeature            = FeatureCode(20)
-	ExpandMacrosFeature      = FeatureCode(21)
-	DurabilityFeature        = FeatureCode(22)
-	UserGroupFeature         = FeatureCode(23)
-	UserManagerFeature       = FeatureCode(24)
-	AnalyticsIndexFeature    = FeatureCode(25)
-	BucketMgrFeature         = FeatureCode(26)
-	FtsAnalyzeFeature        = FeatureCode(27)
+	KeyValueFeature                       = FeatureCode(1)
+	ViewFeature                           = FeatureCode(2)
+	CccpFeature                           = FeatureCode(3)
+	SslFeature                            = FeatureCode(4)
+	DcpFeature                            = FeatureCode(5)
+	SpatialViewFeature                    = FeatureCode(6)
+	N1qlFeature                           = FeatureCode(7)
+	SubdocFeature                         = FeatureCode(8)
+	KvErrorMapFeature                     = FeatureCode(9)
+	RbacFeature                           = FeatureCode(10)
+	FtsFeature                            = FeatureCode(11)
+	EnhancedErrorsFeature                 = FeatureCode(12)
+	FtsIndexFeature                       = FeatureCode(13)
+	CompressionFeature                    = FeatureCode(14)
+	ServerSideTracingFeature              = FeatureCode(15)
+	AnalyticsFeature                      = FeatureCode(16)
+	XattrFeature                          = FeatureCode(17)
+	CollectionsFeature                    = FeatureCode(18)
+	SubdocMockBugFeature                  = FeatureCode(19)
+	AdjoinFeature                         = FeatureCode(20)
+	ExpandMacrosFeature                   = FeatureCode(21)
+	DurabilityFeature                     = FeatureCode(22)
+	UserGroupFeature                      = FeatureCode(23)
+	UserManagerFeature                    = FeatureCode(24)
+	AnalyticsIndexFeature                 = FeatureCode(25)
+	BucketMgrFeature                      = FeatureCode(26)
+	FtsAnalyzeFeature                     = FeatureCode(27)
+	AnalyticsIndexPendingMutationsFeature = FeatureCode(28)
 )
 
 type testCluster struct {
@@ -111,6 +112,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case BucketMgrFeature:
 			supported = false
 		case FtsAnalyzeFeature:
+			supported = false
+		case AnalyticsIndexPendingMutationsFeature:
 			supported = false
 		}
 	} else {
@@ -168,6 +171,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case BucketMgrFeature:
 			supported = true
 		case FtsAnalyzeFeature:
+			supported = !c.Version.Lower(srvVer650)
+		case AnalyticsIndexPendingMutationsFeature:
 			supported = !c.Version.Lower(srvVer650)
 		}
 	}

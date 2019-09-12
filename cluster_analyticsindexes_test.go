@@ -116,9 +116,11 @@ func TestAnalyticsIndexesCrud(t *testing.T) {
 		t.Fatalf("Expected indexes length to be greater than 0")
 	}
 
-	_, err = mgr.GetPendingMutations(nil)
-	if err != nil {
-		t.Fatalf("Expected GetPendingMutations to not error %v", err)
+	if globalCluster.SupportsFeature(AnalyticsIndexPendingMutationsFeature) {
+		_, err = mgr.GetPendingMutations(nil)
+		if err != nil {
+			t.Fatalf("Expected GetPendingMutations to not error %v", err)
+		}
 	}
 
 	err = mgr.DisconnectLink("Local", nil)
