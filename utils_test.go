@@ -135,6 +135,6 @@ func testGetCollection(t *testing.T, provider *mockKvProvider) *Collection {
 			Transcoder:       NewDefaultTranscoder(&DefaultJSONSerializer{}),
 		},
 	}
-	col := b.DefaultCollection(nil)
+	col := b.DefaultCollection()
 	return col
 }

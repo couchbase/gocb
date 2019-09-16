@@ -25,8 +25,8 @@ func (s *Scope) Name() string {
 
 // Collection returns an instance of a collection.
 // Volatile: This API is subject to change at any time.
-func (s *Scope) Collection(collectionName string, opts *CollectionOptions) *Collection {
-	return newCollection(s, collectionName, opts)
+func (s *Scope) Collection(collectionName string) *Collection {
+	return newCollection(s, collectionName)
 }
 
 func (s *Scope) stateBlock() stateBlock {

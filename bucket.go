@@ -60,15 +60,15 @@ func (b *Bucket) defaultScope() *Scope {
 	return b.Scope("_default")
 }
 
-// Collection returns an instance of a collection.
+// Collection returns an instance of a collection from within the default scope.
 // Volatile: This API is subject to change at any time.
-func (b *Bucket) Collection(scopeName string, collectionName string, opts *CollectionOptions) *Collection {
-	return b.Scope(scopeName).Collection(collectionName, opts)
+func (b *Bucket) Collection(collectionName string) *Collection {
+	return b.defaultScope().Collection(collectionName)
 }
 
 // DefaultCollection returns an instance of the default collection.
-func (b *Bucket) DefaultCollection(opts *CollectionOptions) *Collection {
-	return b.defaultScope().Collection("_default", opts)
+func (b *Bucket) DefaultCollection() *Collection {
+	return b.defaultScope().Collection("_default")
 }
 
 func (b *Bucket) stateBlock() stateBlock {

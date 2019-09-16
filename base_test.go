@@ -99,13 +99,13 @@ func TestMain(m *testing.M) {
 	globalBucket = globalCluster.Bucket(*bucketName, nil)
 
 	if *collectionName != "" {
-		globalCollection = globalBucket.Collection("_default", *collectionName, nil)
+		globalCollection = globalBucket.Collection(*collectionName)
 	} else {
-		globalCollection = globalBucket.DefaultCollection(nil)
+		globalCollection = globalBucket.DefaultCollection()
 	}
 
 	globalTravelBucket = globalCluster.Bucket("travel-sample", nil)
-	_, err = globalTravelBucket.DefaultCollection(nil).Get("invalid", nil)
+	_, err = globalTravelBucket.DefaultCollection().Get("invalid", nil)
 	if !(err == nil || IsKeyNotFoundError(err)) {
 		globalTravelBucket = nil
 	}

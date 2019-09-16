@@ -196,7 +196,7 @@ func (c *testCluster) TimeTravel(waitDura time.Duration) {
 }
 
 func (c *testCluster) DefaultCollection(bucket *Bucket) *Collection {
-	return bucket.DefaultCollection(nil)
+	return bucket.DefaultCollection()
 }
 
 func (c *testCluster) CreateBreweryDataset(col *Collection) error {
@@ -268,7 +268,7 @@ func testCreate(name, scopeName string, bucket *Bucket, cli client) (*Collection
 		case <-timer.C:
 			return nil, errors.New("wait time for collection to become available expired")
 		default:
-			col := bucket.Collection(scopeName, name, nil)
+			col := bucket.Collection(name)
 			_, err := col.Get("test", nil)
 			if err != nil {
 				if IsCollectionNotFoundError(err) {
@@ -330,7 +330,7 @@ func testDeleteCollection(name, scopeName string, bucket *Bucket, cli client, wa
 			case <-timer.C:
 				return 0, errors.New("wait time for collection to become unavailable expired")
 			default:
-				col := bucket.Collection(scopeName, name, nil)
+				col := bucket.Collection(name)
 				_, err := col.Get("test", nil)
 
 				if err == nil || IsKeyNotFoundError(err) {
