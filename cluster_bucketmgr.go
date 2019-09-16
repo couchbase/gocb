@@ -15,7 +15,8 @@ import (
 // See BucketManager for methods that allow creating and removing buckets themselves.
 // Volatile: This API is subject to change at any time.
 type BucketManager struct {
-	httpClient httpProvider
+	httpClient    httpProvider
+	globalTimeout time.Duration
 }
 
 // BucketType specifies the kind of bucket.
@@ -143,17 +144,19 @@ func bucketDataInToSettings(bucketData *bucketDataIn) (string, BucketSettings) {
 	return bucketData.Name, settings
 }
 
-func contextFromMaybeTimeout(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+func contextFromMaybeTimeout(ctx context.Context, timeout time.Duration, globalTimeout time.Duration) (context.Context, context.CancelFunc) {
+	if timeout == 0 {
+		// no operation level timeouts set, use global level
+		timeout = globalTimeout
+	}
+
 	if ctx == nil {
-		ctx = context.Background()
+		// no context provided so just make a new one
+		return context.WithTimeout(context.Background(), timeout)
 	}
 
-	var cancel context.CancelFunc
-	if timeout > 0 {
-		ctx, cancel = context.WithTimeout(ctx, timeout)
-	}
-
-	return ctx, cancel
+	// a context has been provided so add whatever timeout to it. WithTimeout will pick the shortest anyway.
+	return context.WithTimeout(ctx, timeout)
 }
 
 // GetBucketOptions is the set of options available to the bucket manager GetBucket operation.
@@ -168,7 +171,7 @@ func (bm *BucketManager) GetBucket(bucketName string, opts *GetBucketOptions) (*
 		opts = &GetBucketOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, bm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -230,7 +233,7 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 		opts = &GetAllBucketsOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, bm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -292,7 +295,7 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 		opts = &CreateBucketOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, bm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -356,7 +359,7 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 		opts = &UpdateBucketOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, bm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -412,7 +415,7 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 		opts = &DropBucketOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, bm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -462,7 +465,7 @@ func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) erro
 		opts = &FlushBucketOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, bm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}

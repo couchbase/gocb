@@ -15,7 +15,8 @@ import (
 // UserManager provides methods for performing Couchbase user management.
 // Volatile: This API is subject to change at any time.
 type UserManager struct {
-	httpClient httpProvider
+	httpClient    httpProvider
+	globalTimeout time.Duration
 }
 
 // Role represents a specific permission.
@@ -168,7 +169,7 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 		opts.DomainName = string(LocalDomain)
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, um.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -231,7 +232,7 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 		opts.DomainName = string(LocalDomain)
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, um.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -289,7 +290,7 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 		opts.DomainName = string(LocalDomain)
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, um.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -356,7 +357,7 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 		opts.DomainName = string(LocalDomain)
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, um.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -400,7 +401,7 @@ func (um *UserManager) AvailableRoles(opts *AvailableRolesOptions) ([]RoleAndDes
 		opts = &AvailableRolesOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, um.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -468,7 +469,7 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 		opts = &GetGroupOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, um.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -519,7 +520,7 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 		opts = &GetAllGroupsOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, um.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -573,7 +574,7 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 		opts = &UpsertGroupOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, um.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -637,7 +638,7 @@ func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error
 		opts = &DropGroupOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, um.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}

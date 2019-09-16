@@ -14,8 +14,9 @@ import (
 // AnalyticsIndexManager provides methods for performing Couchbase Analytics index management.
 // Volatile: This API is subject to change at any time.
 type AnalyticsIndexManager struct {
-	httpClient   httpProvider
-	executeQuery func(statement string, opts *AnalyticsOptions) (*AnalyticsResult, error)
+	httpClient    httpProvider
+	executeQuery  func(statement string, opts *AnalyticsOptions) (*AnalyticsResult, error)
+	globalTimeout time.Duration
 }
 
 // AnalyticsDataset contains information about an analytics dataset,
@@ -54,7 +55,7 @@ func (am *AnalyticsIndexManager) CreateDataverse(dataverseName string, opts *Cre
 		opts = &CreateAnalyticsDataverseOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, am.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -97,7 +98,7 @@ func (am *AnalyticsIndexManager) DropDataverse(dataverseName string, opts *DropA
 		opts = &DropAnalyticsDataverseOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, am.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -149,7 +150,7 @@ func (am *AnalyticsIndexManager) CreateDataset(datasetName, bucketName string, o
 		opts = &CreateAnalyticsDatasetOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, am.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -207,7 +208,7 @@ func (am *AnalyticsIndexManager) DropDataset(datasetName string, opts *DropAnaly
 		opts = &DropAnalyticsDatasetOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, am.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -254,7 +255,7 @@ func (am *AnalyticsIndexManager) GetAllDatasets(opts *GetAllAnalyticsDatasetsOpt
 		opts = &GetAllAnalyticsDatasetsOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, am.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -316,7 +317,7 @@ func (am *AnalyticsIndexManager) CreateIndex(datasetName, indexName string, fiel
 		opts = &CreateAnalyticsIndexOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, am.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -371,7 +372,7 @@ func (am *AnalyticsIndexManager) DropIndex(datasetName, indexName string, opts *
 		opts = &DropAnalyticsIndexOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, am.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -418,7 +419,7 @@ func (am *AnalyticsIndexManager) GetAllIndexes(opts *GetAllAnalyticsIndexesOptio
 		opts = &GetAllAnalyticsIndexesOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, am.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -472,7 +473,7 @@ func (am *AnalyticsIndexManager) ConnectLink(linkName string, opts *ConnectAnaly
 		opts = &ConnectAnalyticsLinkOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, am.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -509,7 +510,7 @@ func (am *AnalyticsIndexManager) DisconnectLink(linkName string, opts *Disconnec
 		opts = &DisconnectAnalyticsLinkOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, am.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -546,7 +547,7 @@ func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAn
 		opts = &GetPendingMutationsAnalyticsOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, am.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}

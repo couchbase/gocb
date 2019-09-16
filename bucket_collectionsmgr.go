@@ -14,8 +14,9 @@ import (
 // CollectionManager provides methods for performing collections management.
 // Volatile: This API is subject to change at any time.
 type CollectionManager struct {
-	httpClient httpProvider
-	bucketName string
+	httpClient    httpProvider
+	bucketName    string
+	globalTimeout time.Duration
 }
 
 // CollectionSpec describes the specification of a collection.
@@ -70,7 +71,7 @@ func (cm *CollectionManager) CollectionExists(spec CollectionSpec, opts *Collect
 		opts = &CollectionExistsOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		cancel()
 	}
@@ -167,7 +168,7 @@ func (cm *CollectionManager) ScopeExists(scopeName string, opts *ScopeExistsOpti
 		opts = &ScopeExistsOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		cancel()
 	}
@@ -250,7 +251,7 @@ func (cm *CollectionManager) GetScope(scopeName string, opts *GetScopeOptions) (
 		opts = &GetScopeOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		cancel()
 	}
@@ -355,7 +356,7 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 		opts = &GetAllScopesOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		cancel()
 	}
@@ -461,7 +462,7 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 		opts = &CreateCollectionOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		cancel()
 	}
@@ -531,7 +532,7 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 		opts = &DropCollectionOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		cancel()
 	}
@@ -590,7 +591,7 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 		opts = &CreateScopeOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		cancel()
 	}
@@ -648,7 +649,7 @@ func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions)
 		opts = &DropScopeOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		cancel()
 	}

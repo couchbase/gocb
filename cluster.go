@@ -93,6 +93,7 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 	queryTimeout := 75000 * time.Millisecond
 	analyticsTimeout := 75000 * time.Millisecond
 	searchTimeout := 75000 * time.Millisecond
+	managementTimeout := 75000 * time.Millisecond
 	if opts.ConnectTimeout > 0 {
 		connectTimeout = opts.ConnectTimeout
 	}
@@ -110,6 +111,9 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 	}
 	if opts.SearchTimeout > 0 {
 		searchTimeout = opts.SearchTimeout
+	}
+	if opts.ManagementTimeout > 0 {
+		managementTimeout = opts.SearchTimeout
 	}
 	if opts.Transcoder == nil {
 		opts.Transcoder = NewDefaultTranscoder(&DefaultJSONSerializer{})
@@ -137,6 +141,7 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 			Transcoder:             opts.Transcoder,
 			Serializer:             opts.Serializer,
 			UseMutationTokens:      !opts.DisableMutationTokens,
+			ManagementTimeout:      managementTimeout,
 		},
 
 		queryCache: make(map[string]*n1qlCache),
@@ -387,7 +392,8 @@ func (c *Cluster) Users() (*UserManager, error) {
 	}
 
 	return &UserManager{
-		httpClient: provider,
+		httpClient:    provider,
+		globalTimeout: c.sb.ManagementTimeout,
 	}, nil
 }
 
@@ -400,7 +406,8 @@ func (c *Cluster) Buckets() (*BucketManager, error) {
 	}
 
 	return &BucketManager{
-		httpClient: provider,
+		httpClient:    provider,
+		globalTimeout: c.sb.ManagementTimeout,
 	}, nil
 }
 
@@ -412,8 +419,9 @@ func (c *Cluster) AnalyticsIndexes() (*AnalyticsIndexManager, error) {
 		return nil, err
 	}
 	return &AnalyticsIndexManager{
-		httpClient:   provider,
-		executeQuery: c.AnalyticsQuery,
+		httpClient:    provider,
+		executeQuery:  c.AnalyticsQuery,
+		globalTimeout: c.sb.ManagementTimeout,
 	}, nil
 }
 
@@ -421,7 +429,8 @@ func (c *Cluster) AnalyticsIndexes() (*AnalyticsIndexManager, error) {
 // Volatile: This API is subject to change at any time.
 func (c *Cluster) QueryIndexes() (*QueryIndexManager, error) {
 	return &QueryIndexManager{
-		executeQuery: c.Query,
+		executeQuery:  c.Query,
+		globalTimeout: c.sb.ManagementTimeout,
 	}, nil
 }
 
@@ -432,6 +441,7 @@ func (c *Cluster) SearchIndexes() (*SearchIndexManager, error) {
 		return nil, err
 	}
 	return &SearchIndexManager{
-		httpClient: provider,
+		httpClient:    provider,
+		globalTimeout: c.sb.ManagementTimeout,
 	}, nil
 }

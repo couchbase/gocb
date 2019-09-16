@@ -27,8 +27,9 @@ const (
 // ViewIndexManager provides methods for performing View management.
 // Volatile: This API is subject to change at any time.
 type ViewIndexManager struct {
-	bucketName string
-	httpClient httpProvider
+	bucketName    string
+	httpClient    httpProvider
+	globalTimeout time.Duration
 }
 
 // View represents a Couchbase view within a design document.
@@ -73,14 +74,8 @@ func (vm *ViewIndexManager) GetDesignDocument(name string, namespace DesignDocum
 		opts = &GetDesignDocumentOptions{}
 	}
 
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	if opts.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, vm.globalTimeout)
+	if cancel != nil {
 		defer cancel()
 	}
 
@@ -138,14 +133,8 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamesp
 		opts = &GetAllDesignDocumentsOptions{}
 	}
 
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	if opts.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, vm.globalTimeout)
+	if cancel != nil {
 		defer cancel()
 	}
 
@@ -215,14 +204,8 @@ func (vm *ViewIndexManager) UpsertDesignDocument(ddoc DesignDocument, namespace 
 		opts = &UpsertDesignDocumentOptions{}
 	}
 
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	if opts.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, vm.globalTimeout)
+	if cancel != nil {
 		defer cancel()
 	}
 
@@ -273,14 +256,8 @@ func (vm *ViewIndexManager) DropDesignDocument(name string, namespace DesignDocu
 		opts = &DropDesignDocumentOptions{}
 	}
 
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	if opts.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, vm.globalTimeout)
+	if cancel != nil {
 		defer cancel()
 	}
 
@@ -329,14 +306,8 @@ func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesi
 		opts = &PublishDesignDocumentOptions{}
 	}
 
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	if opts.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, vm.globalTimeout)
+	if cancel != nil {
 		defer cancel()
 	}
 

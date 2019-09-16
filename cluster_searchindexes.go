@@ -13,7 +13,8 @@ import (
 // SearchIndexManager provides methods for performing Couchbase FTS index management.
 // Experimental: This API is subject to change at any time.
 type SearchIndexManager struct {
-	httpClient httpProvider
+	httpClient    httpProvider
+	globalTimeout time.Duration
 }
 
 type searchIndexDefs struct {
@@ -43,7 +44,7 @@ func (sim *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]
 		opts = &GetAllSearchIndexOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -105,7 +106,7 @@ func (sim *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOp
 		opts = &GetSearchIndexOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -190,7 +191,7 @@ func (sim *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Up
 		opts = &UpsertSearchIndexOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -251,7 +252,7 @@ func (sim *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndex
 		opts = &DropSearchIndexOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -303,7 +304,7 @@ func (sim *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{}
 		opts = &AnalyzeDocumentOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -371,7 +372,7 @@ func (sim *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *
 		opts = &GetIndexedDocumentsCountOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -465,7 +466,7 @@ func (sim *SearchIndexManager) PauseIngest(indexName string, opts *PauseIngestSe
 		opts = &PauseIngestSearchIndexOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -489,7 +490,7 @@ func (sim *SearchIndexManager) ResumeIngest(indexName string, opts *ResumeIngest
 		opts = &ResumeIngestSearchIndexOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -513,7 +514,7 @@ func (sim *SearchIndexManager) AllowQuerying(indexName string, opts *AllowQueryi
 		opts = &AllowQueryingSearchIndexOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -537,7 +538,7 @@ func (sim *SearchIndexManager) DisallowQuerying(indexName string, opts *AllowQue
 		opts = &AllowQueryingSearchIndexOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -561,7 +562,7 @@ func (sim *SearchIndexManager) FreezePlan(indexName string, opts *AllowQueryingS
 		opts = &AllowQueryingSearchIndexOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -585,7 +586,7 @@ func (sim *SearchIndexManager) UnfreezePlan(indexName string, opts *AllowQueryin
 		opts = &AllowQueryingSearchIndexOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}

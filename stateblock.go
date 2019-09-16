@@ -32,10 +32,11 @@ type stateBlock struct {
 	AnalyticsRetryBehavior RetryBehavior
 	SearchRetryBehavior    RetryBehavior
 
-	QueryTimeout     time.Duration
-	AnalyticsTimeout time.Duration
-	SearchTimeout    time.Duration
-	ViewTimeout      time.Duration
+	QueryTimeout      time.Duration
+	AnalyticsTimeout  time.Duration
+	SearchTimeout     time.Duration
+	ViewTimeout       time.Duration
+	ManagementTimeout time.Duration
 
 	UseMutationTokens bool
 

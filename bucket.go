@@ -25,6 +25,7 @@ func newBucket(sb *stateBlock, bucketName string, opts BucketOptions) *Bucket {
 			DuraTimeout:       sb.DuraTimeout,
 			DuraPollTimeout:   sb.DuraPollTimeout,
 			UseMutationTokens: sb.UseMutationTokens,
+			ManagementTimeout: sb.ManagementTimeout,
 
 			Transcoder: sb.Transcoder,
 			Serializer: sb.Serializer,
@@ -84,8 +85,9 @@ func (b *Bucket) ViewIndexes() (*ViewIndexManager, error) {
 	}
 
 	return &ViewIndexManager{
-		bucketName: b.Name(),
-		httpClient: provider,
+		bucketName:    b.Name(),
+		httpClient:    provider,
+		globalTimeout: b.sb.ManagementTimeout,
 	}, nil
 }
 
@@ -98,7 +100,8 @@ func (b *Bucket) CollectionManager() (*CollectionManager, error) {
 	}
 
 	return &CollectionManager{
-		httpClient: provider,
-		bucketName: b.Name(),
+		httpClient:    provider,
+		bucketName:    b.Name(),
+		globalTimeout: b.sb.ManagementTimeout,
 	}, nil
 }

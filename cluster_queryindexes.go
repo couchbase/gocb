@@ -9,7 +9,8 @@ import (
 // QueryIndexManager provides methods for performing Couchbase N1ql index management.
 // Volatile: This API is subject to change at any time.
 type QueryIndexManager struct {
-	executeQuery func(statement string, opts *QueryOptions) (*QueryResult, error)
+	executeQuery  func(statement string, opts *QueryOptions) (*QueryResult, error)
+	globalTimeout time.Duration
 }
 
 // QueryIndex represents a Couchbase GSI index.
@@ -101,7 +102,7 @@ func (qm *QueryIndexManager) CreateIndex(bucketName, indexName string, fields []
 		opts = &CreateQueryIndexOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, qm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -129,7 +130,7 @@ func (qm *QueryIndexManager) CreatePrimaryIndex(bucketName string, opts *CreateP
 		opts = &CreatePrimaryQueryIndexOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, qm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -195,7 +196,7 @@ func (qm *QueryIndexManager) DropIndex(bucketName, indexName string, opts *DropQ
 		opts = &DropQueryIndexOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, qm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -221,7 +222,7 @@ func (qm *QueryIndexManager) DropPrimaryIndex(bucketName string, opts *DropPrima
 		opts = &DropPrimaryQueryIndexOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, qm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -244,7 +245,7 @@ func (qm *QueryIndexManager) GetAllIndexes(bucketName string, opts *GetAllQueryI
 		opts = &GetAllQueryIndexesOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, qm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -285,7 +286,7 @@ func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *Build
 		opts = &BuildDeferredQueryIndexOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, qm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
@@ -385,7 +386,7 @@ func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string,
 		opts = &WatchQueryIndexOptions{}
 	}
 
-	ctx, cancel := contextFromMaybeTimeout(timeout.Context, timeout.Timeout)
+	ctx, cancel := contextFromMaybeTimeout(timeout.Context, timeout.Timeout, qm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
