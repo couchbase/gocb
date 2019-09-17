@@ -45,7 +45,7 @@ func (d *GetResult) Content(valuePtr interface{}) error {
 	return d.transcoder.Decode(d.contents, d.flags, valuePtr)
 }
 
-func (d *GetResult) fromSubDoc(ops []LookupInOp, result *LookupInResult, ignorePathErrors bool) error {
+func (d *GetResult) fromSubDoc(ops []LookupInOp, result *LookupInResult) error {
 	content := make(map[string]interface{})
 	if len(ops) == 1 && ops[0].op.Path == "" {
 		// This is a special case where the subdoc was a sole fulldoc.
@@ -63,9 +63,7 @@ func (d *GetResult) fromSubDoc(ops []LookupInOp, result *LookupInResult, ignoreP
 				return err
 			}
 
-			if !(IsSubdocPathNotFoundError(err) && ignorePathErrors) {
-				errs.errors = append(errs.errors, kvErr)
-			}
+			errs.errors = append(errs.errors, kvErr)
 		}
 		parts := d.pathParts(op.op.Path)
 		d.set(parts, content, result.contents[i].data)

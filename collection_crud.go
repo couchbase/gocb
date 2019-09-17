@@ -456,14 +456,8 @@ type GetOptions struct {
 	// Project causes the Get operation to only fetch the fields indicated
 	// by the paths. The result of the operation is then treated as a
 	// standard GetResult.
-	Project    *ProjectOptions
+	Project    []string
 	Transcoder Transcoder
-}
-
-// ProjectOptions are the options for using projections as a part of a Get request.
-type ProjectOptions struct {
-	Fields                 []string
-	IgnorePathMissingError bool
 }
 
 // Get performs a fetch operation against the collection. This can take 3 paths, a standard full document
@@ -483,7 +477,7 @@ func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOu
 		opts.Transcoder = c.sb.Transcoder
 	}
 
-	if (opts.Project == nil || (opts.Project != nil && len(opts.Project.Fields) > 16)) && !opts.WithExpiration {
+	if (opts.Project == nil || (opts.Project != nil && len(opts.Project) > 16)) && !opts.WithExpiration {
 		// Standard fulldoc
 		doc, err := c.get(ctx, key, opts)
 		if err != nil {
@@ -495,12 +489,11 @@ func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOu
 	lookupOpts := LookupInOptions{Context: ctx, WithExpiration: opts.WithExpiration}
 	spec := LookupInSpec{}
 	var ops []LookupInOp
-	if opts.Project == nil || (len(opts.Project.Fields) > 15 && opts.WithExpiration) {
+	if opts.Project == nil || (len(opts.Project) > 15 && opts.WithExpiration) {
 		// This is a subdoc full doc as WithExpiration is set and projections are either missing or too many.
 		ops = append(ops, spec.GetFull(nil))
-		opts.Project = &ProjectOptions{}
 	} else {
-		for _, path := range opts.Project.Fields {
+		for _, path := range opts.Project {
 			ops = append(ops, spec.Get(path, nil))
 		}
 	}
@@ -515,7 +508,7 @@ func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOu
 	doc.withExpiration = result.withExpiration
 	doc.expiration = result.expiration
 	doc.cas = result.cas
-	err = doc.fromSubDoc(ops, result, opts.Project.IgnorePathMissingError)
+	err = doc.fromSubDoc(ops, result)
 	if err != nil {
 		return nil, err
 	}

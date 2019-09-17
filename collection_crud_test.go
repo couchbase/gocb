@@ -339,9 +339,7 @@ func TestInsertGetProjection(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			doc, err := globalCollection.Get("projectDoc", &GetOptions{
-				Project: &ProjectOptions{
-					Fields: testCase.project,
-				},
+				Project: testCase.project,
 			})
 			if err != nil {
 				t.Fatalf("Get failed, error was %v", err)
@@ -377,10 +375,8 @@ func TestInsertGetProjection17Fields(t *testing.T) {
 	}
 
 	insertedDoc, err := globalCollection.Get("projectDocTooManyFields", &GetOptions{
-		Project: &ProjectOptions{
-			Fields: []string{"field1", "field2", "field3", "field4", "field5", "field6", "field7", "field8", "field9",
-				"field1", "field10", "field12", "field13", "field14", "field15", "field16", "field17"},
-		},
+		Project: []string{"field1", "field2", "field3", "field4", "field5", "field6", "field7", "field8", "field9",
+			"field1", "field10", "field12", "field13", "field14", "field15", "field16", "field17"},
 	})
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)
@@ -420,10 +416,8 @@ func TestInsertGetProjection16FieldsExpiry(t *testing.T) {
 	}
 
 	insertedDoc, err := globalCollection.Get("projectDocTooManyFieldsExpiry", &GetOptions{
-		Project: &ProjectOptions{
-			Fields: []string{"field1", "field2", "field3", "field4", "field5", "field6", "field7", "field8", "field9",
-				"field1", "field10", "field12", "field13", "field14", "field15", "field16"},
-		},
+		Project: []string{"field1", "field2", "field3", "field4", "field5", "field6", "field7", "field8", "field9",
+			"field1", "field10", "field12", "field13", "field14", "field15", "field16"},
 		WithExpiration: true,
 	})
 	if err != nil {
@@ -466,54 +460,10 @@ func TestInsertGetProjectionPathMissing(t *testing.T) {
 	}
 
 	_, err = globalCollection.Get("projectMissingDoc", &GetOptions{
-		Project: &ProjectOptions{
-			Fields:                 []string{"name", "thisfielddoesntexist"},
-			IgnorePathMissingError: false,
-		},
+		Project: []string{"name", "thisfielddoesntexist"},
 	})
 	if err == nil {
 		t.Fatalf("Get should have failed")
-	}
-}
-
-func TestInsertGetProjectionIgnorePathMissing(t *testing.T) {
-	var doc testBeerDocument
-	err := loadJSONTestDataset("beer_sample_single", &doc)
-	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
-	}
-
-	mutRes, err := globalCollection.Insert("projectIgnoreMissingDoc", doc, nil)
-	if err != nil {
-		t.Fatalf("Insert failed, error was %v", err)
-	}
-
-	if mutRes.Cas() == 0 {
-		t.Fatalf("Insert CAS was 0")
-	}
-
-	insertedDoc, err := globalCollection.Get("projectIgnoreMissingDoc", &GetOptions{
-		Project: &ProjectOptions{
-			Fields:                 []string{"name", "thisfielddoesntexist"},
-			IgnorePathMissingError: true,
-		},
-	})
-	if err != nil {
-		t.Fatalf("Get failed, error was %v", err)
-	}
-
-	var insertedDocContent testBeerDocument
-	err = insertedDoc.Content(&insertedDocContent)
-	if err != nil {
-		t.Fatalf("Content failed, error was %v", err)
-	}
-
-	expectedDoc := testBeerDocument{
-		Name: doc.Name,
-	}
-
-	if insertedDocContent != expectedDoc {
-		t.Fatalf("Expected resulting doc to be %v but was %v", expectedDoc, insertedDocContent)
 	}
 }
 

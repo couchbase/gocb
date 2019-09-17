@@ -124,7 +124,7 @@ func TestGetResultFromSubDoc(t *testing.T) {
 		{op: ops[0]},
 		{op: ops[1]},
 		{op: ops[2]},
-	}, results, false)
+	}, results)
 	if err != nil {
 		t.Fatalf("Failed to create result from subdoc: %v", err)
 	}
