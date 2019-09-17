@@ -18,8 +18,8 @@ type PingServiceEntry struct {
 	Latency  time.Duration
 }
 
-// PingReport encapsulates the details from a executed ping operation.
-type PingReport struct {
+// PingResult encapsulates the details from a executed ping operation.
+type PingResult struct {
 	Services []PingServiceEntry
 	ID       string
 }
@@ -38,7 +38,7 @@ type jsonPingReport struct {
 }
 
 // MarshalJSON generates a JSON representation of this ping report.
-func (report *PingReport) MarshalJSON() ([]byte, error) {
+func (report *PingResult) MarshalJSON() ([]byte, error) {
 	jsonReport := jsonPingReport{
 		Version:  1,
 		ID:       report.ID,
@@ -58,8 +58,8 @@ func (report *PingReport) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&jsonReport)
 }
 
-func (jsonReport *jsonPingReport) toReport() *PingReport {
-	report := &PingReport{
+func (jsonReport *jsonPingReport) toReport() *PingResult {
+	report := &PingResult{
 		ID: jsonReport.ID,
 	}
 
@@ -123,14 +123,14 @@ type PingOptions struct {
 // responding in an acceptable period of time.
 //
 // Volatile: This API is subject to change at any time.
-func (b *Bucket) Ping(opts *PingOptions) (*PingReport, error) {
+func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 	if opts == nil {
 		opts = &PingOptions{}
 	}
 
 	numServices := 0
 	waitCh := make(chan error, 10)
-	report := &PingReport{}
+	report := &PingResult{}
 	var reportLock sync.Mutex
 	services := opts.ServiceTypes
 
