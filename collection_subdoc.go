@@ -254,6 +254,7 @@ type MutateInOptions struct {
 	ReplicateTo     uint
 	DurabilityLevel DurabilityLevel
 	UpsertDocument  bool
+	InsertDocument  bool
 	Serializer      JSONSerializer
 	// Internal: This should never be used and is not supported.
 	AccessDeleted bool
@@ -309,6 +310,22 @@ func (spec MutateInSpec) Insert(path string, val interface{}, opts *MutateInSpec
 	return MutateInOp{op: op}
 }
 
+// MutateInSpecInsertFullOptions are the options available to subdocument InsertFull operations.
+type MutateInSpecInsertFullOptions struct {
+}
+
+// InsertFull creates a new document if it does not exist.
+// This command allows you to do things like updating xattrs whilst upserting a document.
+func (spec MutateInSpec) InsertFull(path string, val interface{}, opts *MutateInSpecInsertFullOptions) MutateInOp {
+	op := subDocOp{
+		Op:    gocbcore.SubDocOpAddDoc,
+		Flags: gocbcore.SubdocFlag(SubdocDocFlagAddDoc),
+		Value: val,
+	}
+
+	return MutateInOp{op: op}
+}
+
 // MutateInSpecUpsertOptions are the options available to subdocument Upsert operations.
 type MutateInSpecUpsertOptions struct {
 	CreatePath bool
@@ -356,7 +373,7 @@ type MutateInSpecUpsertFullOptions struct {
 func (spec MutateInSpec) UpsertFull(val interface{}, opts *MutateInSpecUpsertFullOptions) MutateInOp {
 	op := subDocOp{
 		Op:    gocbcore.SubDocOpSetDoc,
-		Flags: gocbcore.SubdocFlag(SubdocFlagNone),
+		Flags: gocbcore.SubdocFlag(SubdocDocFlagMkDoc),
 		Value: val,
 	}
 
@@ -410,16 +427,6 @@ func (spec MutateInSpec) Remove(path string, opts *MutateInSpecRemoveOptions) Mu
 	}
 
 	return MutateInOp{op: op}
-}
-
-// RemoveFull removes the full document, including metadata.
-func (spec MutateInSpec) RemoveFull() (*MutateInOp, error) {
-	op := subDocOp{
-		Op:    gocbcore.SubDocOpDeleteDoc,
-		Flags: gocbcore.SubdocFlag(SubdocFlagNone),
-	}
-
-	return &MutateInOp{op: op}, nil
 }
 
 // MutateInSpecArrayAppendOptions are the options available to subdocument ArrayAppend operations.
@@ -709,6 +716,9 @@ func (c *Collection) mutate(ctx context.Context, key string, ops []MutateInOp, o
 	var flags SubdocDocFlag
 	if opts.UpsertDocument {
 		flags |= SubdocDocFlagMkDoc
+	}
+	if opts.InsertDocument {
+		flags |= SubdocDocFlagAddDoc
 	}
 	if opts.AccessDeleted {
 		flags |= SubdocDocFlagAccessDeleted

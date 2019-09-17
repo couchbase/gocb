@@ -84,8 +84,8 @@ const (
 	// SubdocDocFlagMkDoc indicates that the document should be created if it does not already exist.
 	SubdocDocFlagMkDoc = SubdocDocFlag(gocbcore.SubdocDocFlagMkDoc)
 
-	// SubdocDocFlagReplaceDoc indices that this operation should be a replace rather than upsert.
-	SubdocDocFlagReplaceDoc = SubdocDocFlag(gocbcore.SubdocDocFlagReplaceDoc)
+	// SubdocDocFlagAddDoc indices that the document should be created only if it does not already exist.
+	SubdocDocFlagAddDoc = SubdocDocFlag(gocbcore.SubdocDocFlagReplaceDoc)
 
 	// SubdocDocFlagAccessDeleted indicates that you wish to receive soft-deleted documents.
 	SubdocDocFlagAccessDeleted = SubdocDocFlag(gocbcore.SubdocDocFlagAccessDeleted)
