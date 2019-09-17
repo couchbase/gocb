@@ -126,6 +126,10 @@ func (ra PasswordAuthenticator) Credentials(req AuthCredsRequest) ([]UserPassPai
 	}}, nil
 }
 
+type certAuthenticator interface {
+	isTlsAuth() bool
+}
+
 // CertAuthenticator implements an Authenticator which can be used with certificate authentication.
 type CertAuthenticator struct {
 }
@@ -138,8 +142,16 @@ func (ca CertAuthenticator) Credentials(req AuthCredsRequest) ([]UserPassPair, e
 	}}, nil
 }
 
+func (ca CertAuthenticator) isTlsAuth() bool {
+	return true
+}
+
 // CertificateAuthenticator is included for backwards compatibility only.
 // Deprecated: Use CertAuthenticator instead.
 type CertificateAuthenticator struct {
 	CertAuthenticator
+}
+
+func (ca CertificateAuthenticator) isTlsAuth() bool {
+	return true
 }

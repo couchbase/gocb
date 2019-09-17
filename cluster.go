@@ -280,8 +280,8 @@ func (c *Cluster) makeAgentConfig(bucket, password string, forceMt bool) (*gocbc
 		if auth == nil {
 			return nil, ErrMixedCertAuthentication
 		}
-		_, ok := auth.(CertAuthenticator)
-		if !ok {
+		certAuth, ok := auth.(certAuthenticator)
+		if !ok || !certAuth.isTlsAuth() {
 			return nil, ErrMixedCertAuthentication
 		}
 	}
@@ -298,8 +298,8 @@ func (c *Cluster) makeAgentConfig(bucket, password string, forceMt bool) (*gocbc
 		if password != "" {
 			return nil, ErrMixedAuthentication
 		}
-		_, ok := auth.(CertAuthenticator)
-		if ok && !useCertificates {
+		certAuth, ok := auth.(certAuthenticator)
+		if ok && certAuth.isTlsAuth() && !useCertificates {
 			return nil, ErrMixedCertAuthentication
 		}
 	}
