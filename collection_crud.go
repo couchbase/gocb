@@ -1023,9 +1023,8 @@ func (c *Collection) unlock(ctx context.Context, key string, cas Cas, opts Unloc
 
 // TouchOptions are the options available to the Touch operation.
 type TouchOptions struct {
-	Timeout         time.Duration
-	Context         context.Context
-	DurabilityLevel DurabilityLevel
+	Timeout time.Duration
+	Context context.Context
 }
 
 // Touch touches a document, specifying a new expiration time for it.
@@ -1053,21 +1052,12 @@ func (c *Collection) touch(ctx context.Context, key string, expiration uint32, o
 		return nil, err
 	}
 
-	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
-	if coerced {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
-		defer cancel()
-	}
-
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.TouchEx(gocbcore.TouchOptions{
-		Key:                    []byte(key),
-		Expiry:                 expiration,
-		CollectionName:         c.name(),
-		ScopeName:              c.scopeName(),
-		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
-		DurabilityLevelTimeout: durabilityTimeout,
+		Key:            []byte(key),
+		Expiry:         expiration,
+		CollectionName: c.name(),
+		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.TouchResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceKVErr(err, key, false)
