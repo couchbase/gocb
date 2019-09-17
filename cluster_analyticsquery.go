@@ -26,7 +26,6 @@ type analyticsResponse struct {
 	Status          string                   `json:"status,omitempty"`
 	Signature       interface{}              `json:"signature,omitempty"`
 	Metrics         analyticsResponseMetrics `json:"metrics,omitempty"`
-	Handle          string                   `json:"handle,omitempty"`
 }
 
 type analyticsResponseMetrics struct {
@@ -71,7 +70,6 @@ type AnalyticsResult struct {
 	err        error
 	httpStatus int
 
-	handle       *AnalyticsDeferredResultHandle
 	streamResult *streamingResult
 	cancel       context.CancelFunc
 	httpProvider httpProvider
@@ -199,14 +197,6 @@ func (r *AnalyticsResultsMetadata) ClientContextID() string {
 	return r.clientContextID
 }
 
-// Handle returns a deferred result handle. This can be polled to verify whether
-// the result is bucketReady to be read.
-//
-// Experimental: This API is subject to change at any time.
-func (r *AnalyticsResult) Handle() *AnalyticsDeferredResultHandle {
-	return r.handle
-}
-
 func (r *AnalyticsResult) readAttribute(decoder *json.Decoder, t json.Token) (bool, error) {
 	switch t {
 	case "requestID":
@@ -285,16 +275,6 @@ func (r *AnalyticsResult) readAttribute(decoder *json.Decoder, t json.Token) (bo
 		err := decoder.Decode(&r.metadata.status)
 		if err != nil {
 			return false, err
-		}
-	case "handle":
-		var handle string
-		err := decoder.Decode(&handle)
-		if err != nil {
-			return false, err
-		}
-		r.handle = &AnalyticsDeferredResultHandle{
-			handleUri: handle,
-			provider:  r.httpProvider,
 		}
 	default:
 		var ignore interface{}

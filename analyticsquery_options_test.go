@@ -29,12 +29,6 @@ func TestAnalyticsQueryOptionsToMap(t *testing.T) {
 
 		testAssertOption(t, statement, "statement", optMap)
 
-		if opts.Deferred {
-			testAssertOption(t, "async", "mode", optMap)
-		} else {
-			testAssertOption(t, nil, "mode", optMap)
-		}
-
 		if opts.Priority {
 			testAssertOption(t, -1, "priority", optMap)
 		} else {
@@ -104,11 +98,6 @@ func testCreateAnalyticsQueryOptions(seed int64) *AnalyticsOptions {
 	randVal := rand.Intn(2)
 	if randVal == 1 {
 		opts.ClientContextID = "62d29101-0c9f-400d-af2b-9bd44a557a7c"
-	}
-
-	randVal = rand.Intn(2)
-	if randVal == 1 {
-		opts.Deferred = true
 	}
 
 	randVal = rand.Intn(2)

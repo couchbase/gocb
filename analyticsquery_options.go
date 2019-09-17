@@ -21,9 +21,6 @@ type AnalyticsOptions struct {
 	PositionalParameters []interface{}
 	NamedParameters      map[string]interface{}
 
-	// Experimental: This API is subject to change at any time.
-	Deferred bool
-
 	// JSONSerializer is used to deserialize each row in the result. This should be a JSON deserializer as results are JSON.
 	// NOTE: if not set then query will always default to DefaultJSONSerializer.
 	Serializer JSONSerializer
@@ -45,10 +42,6 @@ func (opts *AnalyticsOptions) toMap(statement string) (map[string]interface{}, e
 
 	if opts.Priority {
 		execOpts["priority"] = -1
-	}
-
-	if opts.Deferred {
-		execOpts["mode"] = "async"
 	}
 
 	if opts.PositionalParameters != nil && opts.NamedParameters != nil {
