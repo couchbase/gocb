@@ -343,6 +343,22 @@ func (cs *CouchbaseSet) Remove(val string) error {
 	return nil
 }
 
+// Values returns all of the values within the set.
+func (cs *CouchbaseSet) Values() ([]interface{}, error) {
+	content, err := cs.underlying.collection.Get(cs.key, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var setContents []interface{}
+	err = content.Content(&setContents)
+	if err != nil {
+		return nil, err
+	}
+
+	return setContents, nil
+}
+
 // Contains verifies whether or not a value exists within the set.
 func (cs *CouchbaseSet) Contains(val string) (bool, error) {
 	content, err := cs.underlying.collection.Get(cs.key, nil)

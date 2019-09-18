@@ -166,6 +166,17 @@ func TestSetCrud(t *testing.T) {
 		}
 	}
 
+	values, err := set.Values()
+	if err != nil {
+		t.Fatalf("Failed to get values for set %v", err)
+	}
+	for _, item := range values {
+		_, ok := expected[item.(string)]
+		if !ok {
+			t.Fatalf("Unexpected values entry %s", item)
+		}
+	}
+
 	err = set.Remove("test2")
 	if err != nil {
 		t.Fatalf("Failed to remove from set %v", err)
