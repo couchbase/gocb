@@ -28,14 +28,14 @@ type ViewRow struct {
 	value json.RawMessage
 }
 
-// ViewResultsMetadata provides access to the metadata properties of a view query result.
-type ViewResultsMetadata struct {
+// ViewMetadata provides access to the metadata properties of a view query result.
+type ViewMetadata struct {
 	totalRows int
 }
 
 // ViewResult implements an iterator interface which can be used to iterate over the rows of the query results.
 type ViewResult struct {
-	metadata   ViewResultsMetadata
+	metadata   ViewMetadata
 	errReason  string
 	errMessage string
 
@@ -242,7 +242,7 @@ func (r *ViewResult) One(rowPtr *ViewRow) error {
 }
 
 // Metadata returns metadata for this result.
-func (r *ViewResult) Metadata() (*ViewResultsMetadata, error) {
+func (r *ViewResult) Metadata() (*ViewMetadata, error) {
 	if r.streamResult != nil && !r.streamResult.Closed() {
 		return nil, errors.New("result must be closed before accessing meta-data")
 	}
@@ -251,7 +251,7 @@ func (r *ViewResult) Metadata() (*ViewResultsMetadata, error) {
 }
 
 // TotalRows returns the total number of rows in the view, can be greater than the number of rows returned.
-func (r *ViewResultsMetadata) TotalRows() int {
+func (r *ViewMetadata) TotalRows() int {
 	return r.totalRows
 }
 

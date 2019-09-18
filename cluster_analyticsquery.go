@@ -40,8 +40,8 @@ type analyticsResponseMetrics struct {
 	ProcessedObjects uint   `json:"processedObjects,omitempty"`
 }
 
-// AnalyticsResultMetrics encapsulates various metrics gathered during a queries execution.
-type AnalyticsResultMetrics struct {
+// AnalyticsMetrics encapsulates various metrics gathered during a queries execution.
+type AnalyticsMetrics struct {
 	ElapsedTime      time.Duration
 	ExecutionTime    time.Duration
 	ResultCount      uint
@@ -53,20 +53,20 @@ type AnalyticsResultMetrics struct {
 	ProcessedObjects uint
 }
 
-// AnalyticsResultsMetadata provides access to the metadata properties of an Analytics query result.
-type AnalyticsResultsMetadata struct {
+// AnalyticsMetadata provides access to the metadata properties of an Analytics query result.
+type AnalyticsMetadata struct {
 	requestID       string
 	clientContextID string
 	status          string
 	warnings        []AnalyticsWarning
 	signature       interface{}
-	metrics         AnalyticsResultMetrics
+	metrics         AnalyticsMetrics
 	sourceAddr      string
 }
 
 // AnalyticsResult allows access to the results of an Analytics query.
 type AnalyticsResult struct {
-	metadata   AnalyticsResultsMetadata
+	metadata   AnalyticsMetadata
 	err        error
 	httpStatus int
 
@@ -159,7 +159,7 @@ func (r *AnalyticsResult) One(valuePtr interface{}) error {
 }
 
 // Metadata returns metadata for this result.
-func (r *AnalyticsResult) Metadata() (*AnalyticsResultsMetadata, error) {
+func (r *AnalyticsResult) Metadata() (*AnalyticsMetadata, error) {
 	if !r.streamResult.Closed() {
 		return nil, errors.New("result must be closed before accessing meta-data")
 	}
@@ -168,32 +168,32 @@ func (r *AnalyticsResult) Metadata() (*AnalyticsResultsMetadata, error) {
 }
 
 // Warnings returns any warnings that occurred during query execution.
-func (r *AnalyticsResultsMetadata) Warnings() []AnalyticsWarning {
+func (r *AnalyticsMetadata) Warnings() []AnalyticsWarning {
 	return r.warnings
 }
 
 // Status returns the status for the results.
-func (r *AnalyticsResultsMetadata) Status() string {
+func (r *AnalyticsMetadata) Status() string {
 	return r.status
 }
 
 // Signature returns TODO
-func (r *AnalyticsResultsMetadata) Signature() interface{} {
+func (r *AnalyticsMetadata) Signature() interface{} {
 	return r.signature
 }
 
 // Metrics returns metrics about execution of this result.
-func (r *AnalyticsResultsMetadata) Metrics() AnalyticsResultMetrics {
+func (r *AnalyticsMetadata) Metrics() AnalyticsMetrics {
 	return r.metrics
 }
 
 // RequestID returns the request ID used for this query.
-func (r *AnalyticsResultsMetadata) RequestID() string {
+func (r *AnalyticsMetadata) RequestID() string {
 	return r.requestID
 }
 
 // ClientContextID returns the context ID used for this query.
-func (r *AnalyticsResultsMetadata) ClientContextID() string {
+func (r *AnalyticsMetadata) ClientContextID() string {
 	return r.clientContextID
 }
 
@@ -225,7 +225,7 @@ func (r *AnalyticsResult) readAttribute(decoder *json.Decoder, t json.Token) (bo
 			logDebugf("Failed to parse execution time duration (%s)", err)
 		}
 
-		r.metadata.metrics = AnalyticsResultMetrics{
+		r.metadata.metrics = AnalyticsMetrics{
 			ElapsedTime:      elapsedTime,
 			ExecutionTime:    executionTime,
 			ResultCount:      metrics.ResultCount,
@@ -424,7 +424,7 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, opts map[string]int
 	}
 
 	queryResults := &AnalyticsResult{
-		metadata: AnalyticsResultsMetadata{
+		metadata: AnalyticsMetadata{
 			sourceAddr: epInfo.Host,
 		},
 		httpStatus:   resp.StatusCode,

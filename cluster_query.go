@@ -43,8 +43,8 @@ type QueryWarning struct {
 	Message string `json:"msg"`
 }
 
-// QueryResultMetrics encapsulates various metrics gathered during a queries execution.
-type QueryResultMetrics struct {
+// QueryMetrics encapsulates various metrics gathered during a queries execution.
+type QueryMetrics struct {
 	ElapsedTime   time.Duration
 	ExecutionTime time.Duration
 	ResultCount   uint
@@ -55,11 +55,11 @@ type QueryResultMetrics struct {
 	WarningCount  uint
 }
 
-// QueryResultsMetadata provides access to the metadata properties of a N1QL query result.
-type QueryResultsMetadata struct {
+// QueryMetadata provides access to the metadata properties of a N1QL query result.
+type QueryMetadata struct {
 	requestID       string
 	clientContextID string
-	metrics         QueryResultMetrics
+	metrics         QueryMetrics
 	signature       interface{}
 	warnings        []QueryWarning
 	sourceAddr      string
@@ -68,7 +68,7 @@ type QueryResultsMetadata struct {
 
 // QueryResult allows access to the results of a N1QL query.
 type QueryResult struct {
-	metadata     QueryResultsMetadata
+	metadata     QueryMetadata
 	preparedName string
 	err          error
 	httpStatus   int
@@ -162,7 +162,7 @@ func (r *QueryResult) One(valuePtr interface{}) error {
 }
 
 // Metadata returns metadata for this result.
-func (r *QueryResult) Metadata() (*QueryResultsMetadata, error) {
+func (r *QueryResult) Metadata() (*QueryMetadata, error) {
 	if !r.streamResult.Closed() {
 		return nil, errors.New("result must be closed before accessing meta-data")
 	}
@@ -171,32 +171,32 @@ func (r *QueryResult) Metadata() (*QueryResultsMetadata, error) {
 }
 
 // RequestID returns the request ID used for this query.
-func (r *QueryResultsMetadata) RequestID() string {
+func (r *QueryMetadata) RequestID() string {
 	return r.requestID
 }
 
 // Profile returns the profile generated for this query.
-func (r *QueryResultsMetadata) Profile() interface{} {
+func (r *QueryMetadata) Profile() interface{} {
 	return r.profile
 }
 
 // ClientContextID returns the context ID used for this query.
-func (r *QueryResultsMetadata) ClientContextID() string {
+func (r *QueryMetadata) ClientContextID() string {
 	return r.clientContextID
 }
 
 // Metrics returns metrics about execution of this result.
-func (r *QueryResultsMetadata) Metrics() QueryResultMetrics {
+func (r *QueryMetadata) Metrics() QueryMetrics {
 	return r.metrics
 }
 
 // Warnings returns any warnings that were generated during execution of the query.
-func (r *QueryResultsMetadata) Warnings() []QueryWarning {
+func (r *QueryMetadata) Warnings() []QueryWarning {
 	return r.warnings
 }
 
 // Signature returns the schema of the results.
-func (r *QueryResultsMetadata) Signature() interface{} {
+func (r *QueryMetadata) Signature() interface{} {
 	return r.signature
 }
 
@@ -233,7 +233,7 @@ func (r *QueryResult) readAttribute(decoder *json.Decoder, t json.Token) (bool, 
 			logDebugf("Failed to parse execution time duration (%s)", err)
 		}
 
-		r.metadata.metrics = QueryResultMetrics{
+		r.metadata.metrics = QueryMetrics{
 			ElapsedTime:   elapsedTime,
 			ExecutionTime: executionTime,
 			ResultCount:   metrics.ResultCount,
@@ -583,7 +583,7 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, opts map[string]interfac
 	}
 
 	queryResults := &QueryResult{
-		metadata: QueryResultsMetadata{
+		metadata: QueryMetadata{
 			sourceAddr: epInfo.Host,
 		},
 		httpStatus:         resp.StatusCode,

@@ -32,41 +32,41 @@ type SearchResultRow struct {
 	Fields      map[string]interface{}                       `json:"fields,omitempty"`
 }
 
-// SearchResultTermFacet holds the results of a term facet in search results.
-type SearchResultTermFacet struct {
+// TermFacetResult holds the results of a term facet in search results.
+type TermFacetResult struct {
 	Term  string `json:"term,omitempty"`
 	Count int    `json:"count,omitempty"`
 }
 
-// SearchResultNumericFacet holds the results of a numeric facet in search results.
-type SearchResultNumericFacet struct {
+// NumericFacetResult holds the results of a numeric facet in search results.
+type NumericFacetResult struct {
 	Name  string  `json:"name,omitempty"`
 	Min   float64 `json:"min,omitempty"`
 	Max   float64 `json:"max,omitempty"`
 	Count int     `json:"count,omitempty"`
 }
 
-// SearchResultDateFacet holds the results of a date facet in search results.
-type SearchResultDateFacet struct {
+// DateFacetResult holds the results of a date facet in search results.
+type DateFacetResult struct {
 	Name  string `json:"name,omitempty"`
 	Min   string `json:"min,omitempty"`
 	Max   string `json:"max,omitempty"`
 	Count int    `json:"count,omitempty"`
 }
 
-// SearchResultFacet holds the results of a specified facet in search results.
-type SearchResultFacet struct {
-	Field         string                     `json:"field,omitempty"`
-	Total         int                        `json:"total,omitempty"`
-	Missing       int                        `json:"missing,omitempty"`
-	Other         int                        `json:"other,omitempty"`
-	Terms         []SearchResultTermFacet    `json:"terms,omitempty"`
-	NumericRanges []SearchResultNumericFacet `json:"numeric_ranges,omitempty"`
-	DateRanges    []SearchResultDateFacet    `json:"date_ranges,omitempty"`
+// FacetResult holds the results of a specified facet in search results.
+type FacetResult struct {
+	Field         string               `json:"field,omitempty"`
+	Total         int                  `json:"total,omitempty"`
+	Missing       int                  `json:"missing,omitempty"`
+	Other         int                  `json:"other,omitempty"`
+	Terms         []TermFacetResult    `json:"terms,omitempty"`
+	NumericRanges []NumericFacetResult `json:"numeric_ranges,omitempty"`
+	DateRanges    []DateFacetResult    `json:"date_ranges,omitempty"`
 }
 
-// SearchResultStatus holds the status information for an executed search query.
-type SearchResultStatus struct {
+// SearchStatus holds the status information for an executed search query.
+type SearchStatus struct {
 	Total      int `json:"total,omitempty"`
 	Failed     int `json:"failed,omitempty"`
 	Successful int `json:"successful,omitempty"`
@@ -88,9 +88,9 @@ type searchResponseStatus struct {
 	Errors     interface{} `json:"errors,omitempty"`
 }
 
-// SearchResultsMetadata provides access to the metadata properties of a search query result.
-type SearchResultsMetadata struct {
-	status     SearchResultStatus
+// SearchMetadata provides access to the metadata properties of a search query result.
+type SearchMetadata struct {
+	status     SearchStatus
 	totalHits  int
 	took       uint
 	maxScore   float64
@@ -99,9 +99,9 @@ type SearchResultsMetadata struct {
 
 // SearchResult allows access to the results of a search query.
 type SearchResult struct {
-	metadata SearchResultsMetadata
+	metadata SearchMetadata
 	err      error
-	facets   map[string]SearchResultFacet
+	facets   map[string]FacetResult
 
 	httpStatus   int
 	streamResult *streamingResult
@@ -241,7 +241,7 @@ func (r *SearchResult) One(rowPtr *SearchResultRow) error {
 }
 
 // Metadata returns metadata for this result.
-func (r *SearchResult) Metadata() (*SearchResultsMetadata, error) {
+func (r *SearchResult) Metadata() (*SearchMetadata, error) {
 	if !r.streamResult.Closed() {
 		return nil, errors.New("result must be closed before accessing meta-data")
 	}
@@ -250,22 +250,22 @@ func (r *SearchResult) Metadata() (*SearchResultsMetadata, error) {
 }
 
 // SuccessCount is the number of successes for the results.
-func (r SearchResultsMetadata) SuccessCount() int {
+func (r SearchMetadata) SuccessCount() int {
 	return r.status.Successful
 }
 
 // ErrorCount is the number of errors for the results.
-func (r SearchResultsMetadata) ErrorCount() int {
+func (r SearchMetadata) ErrorCount() int {
 	return r.status.Failed
 }
 
 // TotalRows is the actual number of rows before the limit was applied.
-func (r SearchResultsMetadata) TotalRows() int {
+func (r SearchMetadata) TotalRows() int {
 	return r.totalHits
 }
 
 // Facets contains the information relative to the facets requested in the search query.
-func (r SearchResult) Facets() (map[string]SearchResultFacet, error) {
+func (r SearchResult) Facets() (map[string]FacetResult, error) {
 	if !r.streamResult.Closed() {
 		return nil, errors.New("result must be closed before accessing meta-data")
 	}
@@ -274,12 +274,12 @@ func (r SearchResult) Facets() (map[string]SearchResultFacet, error) {
 }
 
 // Took returns the time taken to execute the search.
-func (r SearchResultsMetadata) Took() time.Duration {
+func (r SearchMetadata) Took() time.Duration {
 	return time.Duration(r.took) / time.Nanosecond
 }
 
 // MaxScore returns the highest score of all documents for this query.
-func (r SearchResultsMetadata) MaxScore() float64 {
+func (r SearchMetadata) MaxScore() float64 {
 	return r.maxScore
 }
 
@@ -585,7 +585,7 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, query jsonx.DelayedObj
 	}
 
 	queryResults := &SearchResult{
-		metadata: SearchResultsMetadata{
+		metadata: SearchMetadata{
 			sourceAddr: epInfo.Host,
 		},
 		httpStatus: resp.StatusCode,
