@@ -102,7 +102,7 @@ type SearchSortGeoDistance struct {
 }
 
 // NewSearchSortGeoDistance creates a new SearchSortGeoDistance.
-func NewSearchSortGeoDistance(field string, lat, lon float64) *SearchSortGeoDistance {
+func NewSearchSortGeoDistance(field string, lon, lat float64) *SearchSortGeoDistance {
 	q := &SearchSortGeoDistance{newFtsSortBase()}
 	q.options["by"] = "geo_distance"
 	q.options["field"] = field

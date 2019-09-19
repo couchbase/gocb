@@ -575,7 +575,7 @@ type GeoDistanceQuery struct {
 }
 
 // NewGeoDistanceQuery creates a new GeoDistanceQuery.
-func NewGeoDistanceQuery(lat, lon float64, distance string) *GeoDistanceQuery {
+func NewGeoDistanceQuery(lon, lat float64, distance string) *GeoDistanceQuery {
 	q := &GeoDistanceQuery{newFtsQueryBase()}
 	q.options["location"] = []float64{lon, lat}
 	q.options["distance"] = distance
@@ -600,7 +600,7 @@ type GeoBoundingBoxQuery struct {
 }
 
 // NewGeoBoundingBoxQuery creates a new GeoBoundingBoxQuery.
-func NewGeoBoundingBoxQuery(tlLat, tlLon, brLat, brLon float64) *GeoBoundingBoxQuery {
+func NewGeoBoundingBoxQuery(tlLon, tlLat, brLon, brLat float64) *GeoBoundingBoxQuery {
 	q := &GeoBoundingBoxQuery{newFtsQueryBase()}
 	q.options["top_left"] = []float64{tlLon, tlLat}
 	q.options["bottom_right"] = []float64{brLon, brLat}
