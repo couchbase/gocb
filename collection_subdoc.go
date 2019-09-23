@@ -36,26 +36,19 @@ func GetSpec(path string, opts *GetSpecOptions) LookupInSpec {
 	return getSpecWithFlags(path, opts.IsXattr)
 }
 
-// GetFullSpecOptions are the options available to LookupIn subdoc GetFull operations.
-// There are currently no options and this is left empty for future extensibility.
-type GetFullSpecOptions struct {
-}
-
-// GetFullSpec indicates that a full document should be retrieved. This command allows you
-// to do things like combine with Get to fetch a document with certain Xattrs
-func GetFullSpec(opts *GetFullSpecOptions) LookupInSpec {
-	op := gocbcore.SubDocOp{
-		Op:    gocbcore.SubDocOpGetDoc,
-		Flags: gocbcore.SubdocFlag(SubdocFlagNone),
-	}
-
-	return LookupInSpec{op: op}
-}
-
 func getSpecWithFlags(path string, isXattr bool) LookupInSpec {
 	var flags gocbcore.SubdocFlag
 	if isXattr {
 		flags |= gocbcore.SubdocFlag(SubdocFlagXattr)
+	}
+
+	if path == "" {
+		op := gocbcore.SubDocOp{
+			Op:    gocbcore.SubDocOpGetDoc,
+			Flags: gocbcore.SubdocFlag(SubdocFlagNone),
+		}
+
+		return LookupInSpec{op: op}
 	}
 
 	op := gocbcore.SubDocOp{
@@ -302,22 +295,6 @@ func InsertSpec(path string, val interface{}, opts *InsertSpecOptions) MutateInS
 	return MutateInSpec{op: op}
 }
 
-// InsertFullSpecOptions are the options available to subdocument InsertFull operations.
-type InsertFullSpecOptions struct {
-}
-
-// InsertFullSpec creates a new document if it does not exist.
-// This command allows you to do things like updating xattrs whilst upserting a document.
-func InsertFullSpec(path string, val interface{}, opts *InsertFullSpecOptions) MutateInSpec {
-	op := subDocOp{
-		Op:    gocbcore.SubDocOpAddDoc,
-		Flags: gocbcore.SubdocFlag(SubdocDocFlagAddDoc),
-		Value: val,
-	}
-
-	return MutateInSpec{op: op}
-}
-
 // UpsertSpecOptions are the options available to subdocument Upsert operations.
 type UpsertSpecOptions struct {
 	CreatePath bool
@@ -344,28 +321,20 @@ func UpsertSpec(path string, val interface{}, opts *UpsertSpecOptions) MutateInS
 		flags |= SubdocFlagXattr
 	}
 
+	if path == "" {
+		op := subDocOp{
+			Op:    gocbcore.SubDocOpSetDoc,
+			Flags: gocbcore.SubdocFlag(flags),
+			Value: val,
+		}
+
+		return MutateInSpec{op: op}
+	}
+
 	op := subDocOp{
 		Op:    gocbcore.SubDocOpDictSet,
 		Path:  path,
 		Flags: gocbcore.SubdocFlag(flags),
-		Value: val,
-	}
-
-	return MutateInSpec{op: op}
-}
-
-// UpsertFullSpecOptions are the options available to subdocument UpsertFull operations.
-// Currently exists for future extensibility and consistency.
-type UpsertFullSpecOptions struct {
-}
-
-// UpsertFullSpec creates a new document if it does not exist, if it does exist then it
-// updates it. This command allows you to do things like updating xattrs whilst upserting
-// a document.
-func UpsertFullSpec(val interface{}, opts *UpsertFullSpecOptions) MutateInSpec {
-	op := subDocOp{
-		Op:    gocbcore.SubDocOpSetDoc,
-		Flags: gocbcore.SubdocFlag(SubdocDocFlagMkDoc),
 		Value: val,
 	}
 
@@ -723,6 +692,18 @@ func (c *Collection) mutate(ctx context.Context, key string, ops []MutateInSpec,
 
 	var subdocs []gocbcore.SubDocOp
 	for _, op := range ops {
+		if op.op.Path == "" {
+			switch op.op.Op {
+			case gocbcore.SubDocOpDictAdd:
+				return nil, invalidArgumentsError{"cannot specify a blank path with InsertSpec"}
+			case gocbcore.SubDocOpReplace:
+				return nil, invalidArgumentsError{"cannot specify a blank path with ReplaceSpec"}
+			case gocbcore.SubDocOpDelete:
+				return nil, invalidArgumentsError{"cannot specify a blank path with DeleteSpec"}
+			default:
+			}
+		}
+
 		if op.op.Value == nil {
 			subdocs = append(subdocs, gocbcore.SubDocOp{
 				Op:    op.op.Op,

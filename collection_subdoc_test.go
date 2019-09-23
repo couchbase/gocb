@@ -237,7 +237,7 @@ func TestMutateInLookupInXattr(t *testing.T) {
 	doc.Name = "namename"
 	subRes, err := globalCollection.MutateIn("mutateInFullInsertInsertXattr", []MutateInSpec{
 		InsertSpec("fish", fishName, &InsertSpecOptions{IsXattr: true}),
-		UpsertFullSpec(doc, nil),
+		UpsertSpec("", doc, nil),
 	}, nil)
 	if err != nil {
 		t.Fatalf("MutateIn failed, error was %v", err)
@@ -288,7 +288,7 @@ func TestInsertLookupInInsertGetFull(t *testing.T) {
 
 	subRes, err := globalCollection.MutateIn("lookupDocGetFull", []MutateInSpec{
 		InsertSpec("xattrpath", "xattrvalue", &InsertSpecOptions{IsXattr: true}),
-		UpsertFullSpec(doc, nil),
+		UpsertSpec("", doc, nil),
 	}, &MutateInOptions{UpsertDocument: true, Expiration: 20})
 	if err != nil {
 		t.Fatalf("MutateIn failed, error was %v", err)
@@ -300,7 +300,7 @@ func TestInsertLookupInInsertGetFull(t *testing.T) {
 
 	result, err := globalCollection.LookupIn("lookupDocGetFull", []LookupInSpec{
 		GetSpec("$document.exptime", &GetSpecOptions{IsXattr: true}),
-		GetFullSpec(nil),
+		GetSpec("", nil),
 	}, nil)
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)
