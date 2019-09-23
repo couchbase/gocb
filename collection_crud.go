@@ -486,10 +486,11 @@ func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOu
 		return doc, nil
 	}
 
-	lookupOpts := LookupInOptions{Context: ctx, WithExpiry: opts.WithExpiry}
+	lookupOpts := LookupInOptions{Context: ctx}
 	var ops []LookupInSpec
 	if opts.Project == nil || (len(opts.Project) > 15 && opts.WithExpiry) {
 		// This is a subdoc full doc as WithExpiration is set and projections are either missing or too many.
+		ops = append(ops, GetSpec("$document.exptime", &GetSpecOptions{IsXattr: true}))
 		ops = append(ops, GetSpec("", nil))
 	} else {
 		for _, path := range opts.Project {
@@ -503,9 +504,17 @@ func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOu
 	}
 
 	doc := &GetResult{}
+	if opts.WithExpiry {
+		// if expiration was requested then extract and remove it from the results
+		err = result.ContentAt(0, &doc.expiry)
+		if err != nil {
+			return nil, err
+		}
+		result.contents = result.contents[1:]
+	}
+
 	doc.transcoder = opts.Transcoder
-	doc.withExpiry = result.withExpiry
-	doc.expiry = result.expiry
+	doc.withExpiry = opts.WithExpiry
 	doc.cas = result.cas
 	err = doc.fromSubDoc(ops, result)
 	if err != nil {

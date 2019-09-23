@@ -17,7 +17,6 @@ type LookupInSpec struct {
 type LookupInOptions struct {
 	Context    context.Context
 	Timeout    time.Duration
-	WithExpiry bool
 	Serializer JSONSerializer
 }
 
@@ -145,17 +144,6 @@ func (c *Collection) lookupIn(ctx context.Context, key string, ops []LookupInSpe
 		subdocs = append(subdocs, op.op)
 	}
 
-	// Prepend the expiry get if required, xattrs have to be at the front of the ops list.
-	if opts.WithExpiry {
-		op := gocbcore.SubDocOp{
-			Op:    gocbcore.SubDocOpGet,
-			Path:  "$document.exptime",
-			Flags: gocbcore.SubdocFlag(SubdocFlagXattr),
-		}
-
-		subdocs = append([]gocbcore.SubDocOp{op}, subdocs...)
-	}
-
 	if len(ops) > 16 {
 		return nil, errors.New("too many lookupIn ops specified, maximum 16")
 	}
@@ -190,18 +178,6 @@ func (c *Collection) lookupIn(ctx context.Context, key string, ops []LookupInSpe
 				if opRes.Value != nil {
 					resSet.contents[i].data = append([]byte(nil), opRes.Value...)
 				}
-			}
-
-			if opts.WithExpiry {
-				// if expiry was requested then extract and remove it from the results
-				resSet.withExpiry = true
-				err = resSet.ContentAt(0, &resSet.expiry)
-				if err != nil {
-					errOut = err
-					ctrl.resolve()
-					return
-				}
-				resSet.contents = resSet.contents[1:]
 			}
 
 			docOut = resSet

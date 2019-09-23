@@ -37,9 +37,7 @@ func TestGetResultHasExpiry(t *testing.T) {
 
 func TestGetResultExpiry(t *testing.T) {
 	res := GetResult{
-		Result: Result{
-			expiry: 10,
-		},
+		expiry: 10,
 	}
 
 	if res.Expiry() != 10 {
@@ -157,32 +155,6 @@ func TestLookupInResultCas(t *testing.T) {
 
 	if res.Cas() != cas {
 		t.Fatalf("Cas value should have been %d but was %d", cas, res.Cas())
-	}
-}
-
-func TestLookupInResultHasExpiry(t *testing.T) {
-	res := LookupInResult{}
-
-	if res.HasExpiry() {
-		t.Fatalf("HasExpiry should have returned false but returned true")
-	}
-
-	res.withExpiry = true
-
-	if !res.HasExpiry() {
-		t.Fatalf("HasExpiry should have returned true but returned false")
-	}
-}
-
-func TestLookupInResultExpiry(t *testing.T) {
-	res := LookupInResult{
-		Result: Result{
-			expiry: 10,
-		},
-	}
-
-	if res.Expiry() != 10 {
-		t.Fatalf("Expiry value should have been 10 but was %d", res.Expiry())
 	}
 }
 

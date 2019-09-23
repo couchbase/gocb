@@ -12,24 +12,12 @@ import (
 
 // Result is the base type for the return types of operations
 type Result struct {
-	cas        Cas
-	expiry     uint32
-	withExpiry bool
+	cas Cas
 }
 
 // Cas returns the cas of the result.
 func (d *Result) Cas() Cas {
 	return d.cas
-}
-
-// HasExpiry verifies whether or not the result has an expiry value.
-func (d *Result) HasExpiry() bool {
-	return d.withExpiry
-}
-
-// Expiry returns the expiry value for the result.
-func (d *Result) Expiry() uint32 {
-	return d.expiry
 }
 
 // GetResult is the return type of Get operations.
@@ -38,11 +26,23 @@ type GetResult struct {
 	transcoder Transcoder
 	flags      uint32
 	contents   []byte
+	expiry     uint32
+	withExpiry bool
 }
 
 // Content assigns the value of the result into the valuePtr using default decoding.
 func (d *GetResult) Content(valuePtr interface{}) error {
 	return d.transcoder.Decode(d.contents, d.flags, valuePtr)
+}
+
+// HasExpiry verifies whether or not the result has an expiry value.
+func (d *GetResult) HasExpiry() bool {
+	return d.withExpiry
+}
+
+// Expiry returns the expiry value for the result.
+func (d *GetResult) Expiry() uint32 {
+	return d.expiry
 }
 
 func (d *GetResult) fromSubDoc(ops []LookupInSpec, result *LookupInResult) error {
