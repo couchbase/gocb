@@ -2,6 +2,8 @@ package gocb
 
 import (
 	"fmt"
+
+	"github.com/pkg/errors"
 )
 
 // CouchbaseList represents a list document.
@@ -313,7 +315,7 @@ func (cs *CouchbaseSet) Add(val interface{}) error {
 
 // Remove removes an value from the set.
 func (cs *CouchbaseSet) Remove(val string) error {
-	for {
+	for i := 0; i < 16; i++ {
 		content, err := cs.underlying.collection.Get(cs.id, nil)
 		if err != nil {
 			return err
@@ -344,11 +346,11 @@ func (cs *CouchbaseSet) Remove(val string) error {
 			if err != nil {
 				return err
 			}
-			break
 		}
+		return nil
 	}
 
-	return nil
+	return errors.New("failed to perform operation after 16 retries")
 }
 
 // Values returns all of the values within the set.
@@ -430,7 +432,7 @@ func (cs *CouchbaseQueue) Push(val interface{}) error {
 
 // Pop pops an items off of the queue.
 func (cs *CouchbaseQueue) Pop(valuePtr interface{}) error {
-	for {
+	for i := 0; i < 16; i++ {
 		ops := make([]LookupInSpec, 1)
 		ops[0] = GetSpec("[-1]", nil)
 		content, err := cs.underlying.collection.LookupIn(cs.id, ops, nil)
@@ -453,10 +455,10 @@ func (cs *CouchbaseQueue) Pop(valuePtr interface{}) error {
 		if err != nil {
 			return err
 		}
-		break
+		return nil
 	}
 
-	return nil
+	return errors.New("failed to perform operation after 16 retries")
 }
 
 // Size returns the size of the queue.
