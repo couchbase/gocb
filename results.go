@@ -12,9 +12,9 @@ import (
 
 // Result is the base type for the return types of operations
 type Result struct {
-	cas            Cas
-	expiration     uint32
-	withExpiration bool
+	cas        Cas
+	expiry     uint32
+	withExpiry bool
 }
 
 // Cas returns the cas of the result.
@@ -22,14 +22,14 @@ func (d *Result) Cas() Cas {
 	return d.cas
 }
 
-// HasExpiration verifies whether or not the result has an expiration value.
-func (d *Result) HasExpiration() bool {
-	return d.withExpiration
+// HasExpiry verifies whether or not the result has an expiry value.
+func (d *Result) HasExpiry() bool {
+	return d.withExpiry
 }
 
-// Expiration returns the expiration value for the result.
-func (d *Result) Expiration() uint32 {
-	return d.expiration
+// Expiry returns the expiry value for the result.
+func (d *Result) Expiry() uint32 {
+	return d.expiry
 }
 
 // GetResult is the return type of Get operations.

@@ -46,7 +46,7 @@ func TestInsertGetWithExpiry(t *testing.T) {
 		t.Fatalf("Could not read test dataset: %v", err)
 	}
 
-	mutRes, err := globalCollection.Insert("expiryDoc", doc, &InsertOptions{Expiration: 10})
+	mutRes, err := globalCollection.Insert("expiryDoc", doc, &InsertOptions{Expiry: 10})
 	if err != nil {
 		t.Fatalf("Insert failed, error was %v", err)
 	}
@@ -55,7 +55,7 @@ func TestInsertGetWithExpiry(t *testing.T) {
 		t.Fatalf("Insert CAS was 0")
 	}
 
-	insertedDoc, err := globalCollection.Get("expiryDoc", &GetOptions{WithExpiration: true})
+	insertedDoc, err := globalCollection.Get("expiryDoc", &GetOptions{WithExpiry: true})
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)
 	}
@@ -70,11 +70,11 @@ func TestInsertGetWithExpiry(t *testing.T) {
 		t.Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
 	}
 
-	if !insertedDoc.HasExpiration() {
+	if !insertedDoc.HasExpiry() {
 		t.Fatalf("Expected document to have an expiry")
 	}
 
-	if insertedDoc.Expiration() == 0 {
+	if insertedDoc.Expiry() == 0 {
 		t.Fatalf("Expected expiry value to be populated")
 	}
 }
@@ -405,7 +405,7 @@ func TestInsertGetProjection16FieldsExpiry(t *testing.T) {
 	}
 
 	mutRes, err := globalCollection.Upsert("projectDocTooManyFieldsExpiry", doc, &UpsertOptions{
-		Expiration: 60,
+		Expiry: 60,
 	})
 	if err != nil {
 		t.Fatalf("Insert failed, error was %v", err)
@@ -418,7 +418,7 @@ func TestInsertGetProjection16FieldsExpiry(t *testing.T) {
 	insertedDoc, err := globalCollection.Get("projectDocTooManyFieldsExpiry", &GetOptions{
 		Project: []string{"field1", "field2", "field3", "field4", "field5", "field6", "field7", "field8", "field9",
 			"field1", "field10", "field12", "field13", "field14", "field15", "field16"},
-		WithExpiration: true,
+		WithExpiry: true,
 	})
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)
@@ -434,11 +434,11 @@ func TestInsertGetProjection16FieldsExpiry(t *testing.T) {
 		t.Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
 	}
 
-	if !insertedDoc.HasExpiration() {
+	if !insertedDoc.HasExpiry() {
 		t.Fatalf("Expected document to have an expiry")
 	}
 
-	if insertedDoc.Expiration() == 0 {
+	if insertedDoc.Expiry() == 0 {
 		t.Fatalf("Expected expiry value to be populated")
 	}
 }
@@ -763,17 +763,17 @@ func TestGetAndTouch(t *testing.T) {
 		t.Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
 	}
 
-	expireDoc, err := globalCollection.Get("getAndTouch", &GetOptions{WithExpiration: true})
+	expireDoc, err := globalCollection.Get("getAndTouch", &GetOptions{WithExpiry: true})
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)
 	}
 
-	if !expireDoc.HasExpiration() {
+	if !expireDoc.HasExpiry() {
 		t.Fatalf("Expected doc to have an expiry")
 	}
 
-	if expireDoc.Expiration() == 0 {
-		t.Fatalf("Expected doc to have an expiry > 0, was %d", expireDoc.Expiration())
+	if expireDoc.Expiry() == 0 {
+		t.Fatalf("Expected doc to have an expiry > 0, was %d", expireDoc.Expiry())
 	}
 
 	var expireDocContent testBeerDocument
@@ -1026,17 +1026,17 @@ func TestTouch(t *testing.T) {
 
 	globalCluster.TimeTravel(2 * time.Second)
 
-	expireDoc, err := globalCollection.Get("touch", &GetOptions{WithExpiration: true})
+	expireDoc, err := globalCollection.Get("touch", &GetOptions{WithExpiry: true})
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)
 	}
 
-	if !expireDoc.HasExpiration() {
+	if !expireDoc.HasExpiry() {
 		t.Fatalf("Expected doc to have an expiry")
 	}
 
-	if expireDoc.Expiration() == 0 {
-		t.Fatalf("Expected doc to have an expiry > 0, was %d", expireDoc.Expiration())
+	if expireDoc.Expiry() == 0 {
+		t.Fatalf("Expected doc to have an expiry > 0, was %d", expireDoc.Expiry())
 	}
 
 	var expireDocContent testBeerDocument

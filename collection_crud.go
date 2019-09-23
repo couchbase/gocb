@@ -125,8 +125,8 @@ func (c *Collection) verifyObserveOptions(persistTo, replicateTo uint, durabilit
 type UpsertOptions struct {
 	Timeout time.Duration
 	Context context.Context
-	// The expiration length in seconds
-	Expiration      uint32
+	// The expiry length in seconds
+	Expiry          uint32
 	PersistTo       uint
 	ReplicateTo     uint
 	DurabilityLevel DurabilityLevel
@@ -137,8 +137,8 @@ type UpsertOptions struct {
 type InsertOptions struct {
 	Timeout time.Duration
 	Context context.Context
-	// The expiration length in seconds
-	Expiration      uint32
+	// The expiry length in seconds
+	Expiry          uint32
 	PersistTo       uint
 	ReplicateTo     uint
 	DurabilityLevel DurabilityLevel
@@ -212,7 +212,7 @@ func (c *Collection) insert(ctx context.Context, key string, val interface{}, op
 		Key:                    []byte(key),
 		Value:                  bytes,
 		Flags:                  flags,
-		Expiry:                 opts.Expiration,
+		Expiry:                 opts.Expiry,
 		CollectionName:         c.name(),
 		ScopeName:              c.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
@@ -309,7 +309,7 @@ func (c *Collection) upsert(ctx context.Context, key string, val interface{}, op
 		Key:                    []byte(key),
 		Value:                  bytes,
 		Flags:                  flags,
-		Expiry:                 opts.Expiration,
+		Expiry:                 opts.Expiry,
 		CollectionName:         c.name(),
 		ScopeName:              c.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
@@ -343,7 +343,7 @@ func (c *Collection) upsert(ctx context.Context, key string, val interface{}, op
 type ReplaceOptions struct {
 	Timeout         time.Duration
 	Context         context.Context
-	Expiration      uint32
+	Expiry          uint32
 	Cas             Cas
 	PersistTo       uint
 	ReplicateTo     uint
@@ -417,7 +417,7 @@ func (c *Collection) replace(ctx context.Context, key string, val interface{}, o
 		Key:                    []byte(key),
 		Value:                  bytes,
 		Flags:                  flags,
-		Expiry:                 opts.Expiration,
+		Expiry:                 opts.Expiry,
 		Cas:                    gocbcore.Cas(opts.Cas),
 		CollectionName:         c.name(),
 		ScopeName:              c.scopeName(),
@@ -450,9 +450,9 @@ func (c *Collection) replace(ctx context.Context, key string, val interface{}, o
 
 // GetOptions are the options available to a Get operation.
 type GetOptions struct {
-	Timeout        time.Duration
-	Context        context.Context
-	WithExpiration bool
+	Timeout    time.Duration
+	Context    context.Context
+	WithExpiry bool
 	// Project causes the Get operation to only fetch the fields indicated
 	// by the paths. The result of the operation is then treated as a
 	// standard GetResult.
@@ -461,7 +461,7 @@ type GetOptions struct {
 }
 
 // Get performs a fetch operation against the collection. This can take 3 paths, a standard full document
-// fetch, a subdocument full document fetch also fetching document expiration (when WithExpiration is set),
+// fetch, a subdocument full document fetch also fetching document expiry (when WithExpiry is set),
 // or a subdocument fetch (when Project is used).
 func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOut error) {
 	if opts == nil {
@@ -477,7 +477,7 @@ func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOu
 		opts.Transcoder = c.sb.Transcoder
 	}
 
-	if (opts.Project == nil || (opts.Project != nil && len(opts.Project) > 16)) && !opts.WithExpiration {
+	if (opts.Project == nil || (opts.Project != nil && len(opts.Project) > 16)) && !opts.WithExpiry {
 		// Standard fulldoc
 		doc, err := c.get(ctx, key, opts)
 		if err != nil {
@@ -486,9 +486,9 @@ func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOu
 		return doc, nil
 	}
 
-	lookupOpts := LookupInOptions{Context: ctx, WithExpiration: opts.WithExpiration}
+	lookupOpts := LookupInOptions{Context: ctx, WithExpiry: opts.WithExpiry}
 	var ops []LookupInSpec
-	if opts.Project == nil || (len(opts.Project) > 15 && opts.WithExpiration) {
+	if opts.Project == nil || (len(opts.Project) > 15 && opts.WithExpiry) {
 		// This is a subdoc full doc as WithExpiration is set and projections are either missing or too many.
 		ops = append(ops, GetSpec("", nil))
 	} else {
@@ -504,8 +504,8 @@ func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOu
 
 	doc := &GetResult{}
 	doc.transcoder = opts.Transcoder
-	doc.withExpiration = result.withExpiration
-	doc.expiration = result.expiration
+	doc.withExpiry = result.withExpiry
+	doc.expiry = result.expiry
 	doc.cas = result.cas
 	err = doc.fromSubDoc(ops, result)
 	if err != nil {
@@ -826,8 +826,8 @@ type GetAndTouchOptions struct {
 	Transcoder Transcoder
 }
 
-// GetAndTouch retrieves a document and simultaneously updates its expiration time.
-func (c *Collection) GetAndTouch(key string, expiration uint32, opts *GetAndTouchOptions) (docOut *GetResult, errOut error) {
+// GetAndTouch retrieves a document and simultaneously updates its expiry time.
+func (c *Collection) GetAndTouch(key string, expiry uint32, opts *GetAndTouchOptions) (docOut *GetResult, errOut error) {
 	if opts == nil {
 		opts = &GetAndTouchOptions{}
 	}
@@ -837,7 +837,7 @@ func (c *Collection) GetAndTouch(key string, expiration uint32, opts *GetAndTouc
 		defer cancel()
 	}
 
-	res, err := c.getAndTouch(ctx, key, expiration, *opts)
+	res, err := c.getAndTouch(ctx, key, expiry, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -845,7 +845,7 @@ func (c *Collection) GetAndTouch(key string, expiration uint32, opts *GetAndTouc
 	return res, nil
 }
 
-func (c *Collection) getAndTouch(ctx context.Context, key string, expiration uint32, opts GetAndTouchOptions) (docOut *GetResult, errOut error) {
+func (c *Collection) getAndTouch(ctx context.Context, key string, expiry uint32, opts GetAndTouchOptions) (docOut *GetResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -858,7 +858,7 @@ func (c *Collection) getAndTouch(ctx context.Context, key string, expiration uin
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.GetAndTouchEx(gocbcore.GetAndTouchOptions{
 		Key:            []byte(key),
-		Expiry:         expiration,
+		Expiry:         expiry,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.GetAndTouchResult, err error) {
@@ -1026,8 +1026,8 @@ type TouchOptions struct {
 	Context context.Context
 }
 
-// Touch touches a document, specifying a new expiration time for it.
-func (c *Collection) Touch(key string, expiration uint32, opts *TouchOptions) (mutOut *MutationResult, errOut error) {
+// Touch touches a document, specifying a new expiry time for it.
+func (c *Collection) Touch(key string, expiry uint32, opts *TouchOptions) (mutOut *MutationResult, errOut error) {
 	if opts == nil {
 		opts = &TouchOptions{}
 	}
@@ -1037,7 +1037,7 @@ func (c *Collection) Touch(key string, expiration uint32, opts *TouchOptions) (m
 		defer cancel()
 	}
 
-	res, err := c.touch(ctx, key, expiration, *opts)
+	res, err := c.touch(ctx, key, expiry, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -1045,7 +1045,7 @@ func (c *Collection) Touch(key string, expiration uint32, opts *TouchOptions) (m
 	return res, nil
 }
 
-func (c *Collection) touch(ctx context.Context, key string, expiration uint32, opts TouchOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) touch(ctx context.Context, key string, expiry uint32, opts TouchOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -1054,7 +1054,7 @@ func (c *Collection) touch(ctx context.Context, key string, expiration uint32, o
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.TouchEx(gocbcore.TouchOptions{
 		Key:            []byte(key),
-		Expiry:         expiration,
+		Expiry:         expiry,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.TouchResult, err error) {

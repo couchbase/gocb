@@ -15,10 +15,10 @@ type LookupInSpec struct {
 
 // LookupInOptions are the set of options available to LookupIn.
 type LookupInOptions struct {
-	Context        context.Context
-	Timeout        time.Duration
-	WithExpiration bool
-	Serializer     JSONSerializer
+	Context    context.Context
+	Timeout    time.Duration
+	WithExpiry bool
+	Serializer JSONSerializer
 }
 
 // GetSpecOptions are the options available to LookupIn subdoc Get operations.
@@ -145,8 +145,8 @@ func (c *Collection) lookupIn(ctx context.Context, key string, ops []LookupInSpe
 		subdocs = append(subdocs, op.op)
 	}
 
-	// Prepend the expiration get if required, xattrs have to be at the front of the ops list.
-	if opts.WithExpiration {
+	// Prepend the expiry get if required, xattrs have to be at the front of the ops list.
+	if opts.WithExpiry {
 		op := gocbcore.SubDocOp{
 			Op:    gocbcore.SubDocOpGet,
 			Path:  "$document.exptime",
@@ -192,10 +192,10 @@ func (c *Collection) lookupIn(ctx context.Context, key string, ops []LookupInSpe
 				}
 			}
 
-			if opts.WithExpiration {
-				// if expiration was requested then extract and remove it from the results
-				resSet.withExpiration = true
-				err = resSet.ContentAt(0, &resSet.expiration)
+			if opts.WithExpiry {
+				// if expiry was requested then extract and remove it from the results
+				resSet.withExpiry = true
+				err = resSet.ContentAt(0, &resSet.expiry)
 				if err != nil {
 					errOut = err
 					ctrl.resolve()
@@ -233,7 +233,7 @@ type MutateInSpec struct {
 type MutateInOptions struct {
 	Timeout         time.Duration
 	Context         context.Context
-	Expiration      uint32
+	Expiry          uint32
 	Cas             Cas
 	PersistTo       uint
 	ReplicateTo     uint
@@ -746,7 +746,7 @@ func (c *Collection) mutate(ctx context.Context, key string, ops []MutateInSpec,
 		Flags:                  gocbcore.SubdocDocFlag(flags),
 		Cas:                    gocbcore.Cas(opts.Cas),
 		Ops:                    subdocs,
-		Expiry:                 opts.Expiration,
+		Expiry:                 opts.Expiry,
 		CollectionName:         c.name(),
 		ScopeName:              c.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),

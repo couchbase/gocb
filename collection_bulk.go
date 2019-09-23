@@ -145,10 +145,10 @@ func (item *GetOp) execute(c *Collection, provider kvProvider, transcoder Transc
 type GetAndTouchOp struct {
 	bulkOp
 
-	Key        string
-	Expiration uint32
-	Result     *GetResult
-	Err        error
+	Key    string
+	Expiry uint32
+	Result *GetResult
+	Err    error
 }
 
 func (item *GetAndTouchOp) markError(err error) {
@@ -158,7 +158,7 @@ func (item *GetAndTouchOp) markError(err error) {
 func (item *GetAndTouchOp) execute(c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp) {
 	op, err := provider.GetAndTouchEx(gocbcore.GetAndTouchOptions{
 		Key:            []byte(item.Key),
-		Expiry:         item.Expiration,
+		Expiry:         item.Expiry,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.GetAndTouchResult, err error) {
@@ -187,10 +187,10 @@ func (item *GetAndTouchOp) execute(c *Collection, provider kvProvider, transcode
 type TouchOp struct {
 	bulkOp
 
-	Key        string
-	Expiration uint32
-	Result     *MutationResult
-	Err        error
+	Key    string
+	Expiry uint32
+	Result *MutationResult
+	Err    error
 }
 
 func (item *TouchOp) markError(err error) {
@@ -200,7 +200,7 @@ func (item *TouchOp) markError(err error) {
 func (item *TouchOp) execute(c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp) {
 	op, err := provider.TouchEx(gocbcore.TouchOptions{
 		Key:            []byte(item.Key),
-		Expiry:         item.Expiration,
+		Expiry:         item.Expiry,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.TouchResult, err error) {
@@ -275,12 +275,12 @@ func (item *RemoveOp) execute(c *Collection, provider kvProvider, transcoder Tra
 type UpsertOp struct {
 	bulkOp
 
-	Key        string
-	Value      interface{}
-	Expiration uint32
-	Cas        Cas
-	Result     *MutationResult
-	Err        error
+	Key    string
+	Value  interface{}
+	Expiry uint32
+	Cas    Cas
+	Result *MutationResult
+	Err    error
 }
 
 func (item *UpsertOp) markError(err error) {
@@ -299,7 +299,7 @@ func (item *UpsertOp) execute(c *Collection, provider kvProvider, transcoder Tra
 		Key:            []byte(item.Key),
 		Value:          bytes,
 		Flags:          flags,
-		Expiry:         item.Expiration,
+		Expiry:         item.Expiry,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.StoreResult, err error) {
@@ -330,11 +330,11 @@ func (item *UpsertOp) execute(c *Collection, provider kvProvider, transcoder Tra
 type InsertOp struct {
 	bulkOp
 
-	Key        string
-	Value      interface{}
-	Expiration uint32
-	Result     *MutationResult
-	Err        error
+	Key    string
+	Value  interface{}
+	Expiry uint32
+	Result *MutationResult
+	Err    error
 }
 
 func (item *InsertOp) markError(err error) {
@@ -353,7 +353,7 @@ func (item *InsertOp) execute(c *Collection, provider kvProvider, transcoder Tra
 		Key:            []byte(item.Key),
 		Value:          bytes,
 		Flags:          flags,
-		Expiry:         item.Expiration,
+		Expiry:         item.Expiry,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.StoreResult, err error) {
@@ -384,12 +384,12 @@ func (item *InsertOp) execute(c *Collection, provider kvProvider, transcoder Tra
 type ReplaceOp struct {
 	bulkOp
 
-	Key        string
-	Value      interface{}
-	Expiration uint32
-	Cas        Cas
-	Result     *MutationResult
-	Err        error
+	Key    string
+	Value  interface{}
+	Expiry uint32
+	Cas    Cas
+	Result *MutationResult
+	Err    error
 }
 
 func (item *ReplaceOp) markError(err error) {
@@ -409,7 +409,7 @@ func (item *ReplaceOp) execute(c *Collection, provider kvProvider, transcoder Tr
 		Value:          bytes,
 		Flags:          flags,
 		Cas:            gocbcore.Cas(item.Cas),
-		Expiry:         item.Expiration,
+		Expiry:         item.Expiry,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.StoreResult, err error) {
@@ -528,10 +528,10 @@ func (item *PrependOp) execute(c *Collection, provider kvProvider, transcoder Tr
 type IncrementOp struct {
 	bulkOp
 
-	Key        string
-	Delta      int64
-	Initial    int64
-	Expiration uint32
+	Key     string
+	Delta   int64
+	Initial int64
+	Expiry  uint32
 
 	Result *CounterResult
 	Err    error
@@ -551,7 +551,7 @@ func (item *IncrementOp) execute(c *Collection, provider kvProvider, transcoder 
 		Key:            []byte(item.Key),
 		Delta:          uint64(item.Delta),
 		Initial:        realInitial,
-		Expiry:         item.Expiration,
+		Expiry:         item.Expiry,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.CounterResult, err error) {
@@ -585,10 +585,10 @@ func (item *IncrementOp) execute(c *Collection, provider kvProvider, transcoder 
 type DecrementOp struct {
 	bulkOp
 
-	Key        string
-	Delta      int64
-	Initial    int64
-	Expiration uint32
+	Key     string
+	Delta   int64
+	Initial int64
+	Expiry  uint32
 
 	Result *CounterResult
 	Err    error
@@ -608,7 +608,7 @@ func (item *DecrementOp) execute(c *Collection, provider kvProvider, transcoder 
 		Key:            []byte(item.Key),
 		Delta:          uint64(item.Delta),
 		Initial:        realInitial,
-		Expiry:         item.Expiration,
+		Expiry:         item.Expiry,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.CounterResult, err error) {

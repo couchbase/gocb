@@ -206,9 +206,9 @@ func (c *BinaryCollection) prepend(ctx context.Context, key string, val []byte, 
 type CounterOptions struct {
 	Timeout time.Duration
 	Context context.Context
-	// Expiration is the length of time in seconds that the document will be stored in Couchbase.
+	// Expiry is the length of time in seconds that the document will be stored in Couchbase.
 	// A value of 0 will set the document to never expire.
-	Expiration uint32
+	Expiry uint32
 	// Initial, if non-negative, is the `initial` value to use for the document if it does not exist.
 	// If present, this is the value that will be returned by a successful operation.
 	Initial int64
@@ -278,7 +278,7 @@ func (c *BinaryCollection) increment(ctx context.Context, key string, opts Count
 		Key:                    []byte(key),
 		Delta:                  opts.Delta,
 		Initial:                realInitial,
-		Expiry:                 opts.Expiration,
+		Expiry:                 opts.Expiry,
 		CollectionName:         c.collection.name(),
 		ScopeName:              c.collection.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
@@ -377,7 +377,7 @@ func (c *BinaryCollection) decrement(ctx context.Context, key string, opts Count
 		Key:                    []byte(key),
 		Delta:                  opts.Delta,
 		Initial:                realInitial,
-		Expiry:                 opts.Expiration,
+		Expiry:                 opts.Expiry,
 		CollectionName:         c.collection.name(),
 		ScopeName:              c.collection.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
