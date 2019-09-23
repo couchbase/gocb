@@ -96,6 +96,11 @@ func TestListCrud(t *testing.T) {
 			t.Fatalf("Expected item at %d to be %s but was %s", i, expected2[i], item)
 		}
 	}
+
+	err = list.Clear()
+	if err != nil {
+		t.Fatalf("Failed to clear list %v", err)
+	}
 }
 
 func TestSetCrud(t *testing.T) {
@@ -208,6 +213,11 @@ func TestSetCrud(t *testing.T) {
 			t.Fatalf("Unexpected iterator entry %s", item)
 		}
 	}
+
+	err = set.Clear()
+	if err != nil {
+		t.Fatalf("Failed to clear set %v", err)
+	}
 }
 
 func TestQueueCrud(t *testing.T) {
@@ -290,6 +300,11 @@ func TestQueueCrud(t *testing.T) {
 			t.Fatalf("Expected item at %d to be %s but was %s", i, expected2[i], item)
 		}
 	}
+
+	err = queue.Clear()
+	if err != nil {
+		t.Fatalf("Failed to clear queue %v", err)
+	}
 }
 
 func TestMapCrud(t *testing.T) {
@@ -364,5 +379,10 @@ func TestMapCrud(t *testing.T) {
 		if expectedItem != item {
 			t.Fatalf("Expected item at %s to be %s but was %s", key, expectedItem, item)
 		}
+	}
+
+	err = cMap.Clear()
+	if err != nil {
+		t.Fatalf("Failed to clear map %v", err)
 	}
 }

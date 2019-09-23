@@ -122,6 +122,16 @@ func (cl *CouchbaseList) Size() (int, error) {
 	return count, nil
 }
 
+// Clear clears a list, also removing it.
+func (cl *CouchbaseList) Clear() error {
+	_, err := cl.collection.Remove(cl.key, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // CouchbaseMap represents a map document.
 type CouchbaseMap struct {
 	collection *Collection
@@ -260,6 +270,16 @@ func (cl *CouchbaseMap) Values() ([]interface{}, error) {
 	return values, nil
 }
 
+// Clear clears a map, also removing it.
+func (cl *CouchbaseMap) Clear() error {
+	_, err := cl.collection.Remove(cl.key, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // CouchbaseSet represents a set document.
 type CouchbaseSet struct {
 	key        string
@@ -374,6 +394,16 @@ func (cs *CouchbaseSet) Size() (int, error) {
 	return cs.underlying.Size()
 }
 
+// Clear clears a set, also removing it.
+func (cs *CouchbaseSet) Clear() error {
+	err := cs.underlying.Clear()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // CouchbaseQueue represents a queue document.
 type CouchbaseQueue struct {
 	key        string
@@ -432,4 +462,14 @@ func (cs *CouchbaseQueue) Pop(valuePtr interface{}) error {
 // Size returns the size of the queue.
 func (cs *CouchbaseQueue) Size() (int, error) {
 	return cs.underlying.Size()
+}
+
+// Clear clears a queue, also removing it.
+func (cs *CouchbaseQueue) Clear() error {
+	err := cs.underlying.Clear()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
