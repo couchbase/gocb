@@ -36,9 +36,8 @@ func (cl *CouchbaseList) Iterator() ([]interface{}, error) {
 
 // At retrieves the value specified at the given index from the list.
 func (cl *CouchbaseList) At(index int, valuePtr interface{}) error {
-	spec := LookupInSpec{}
-	ops := make([]LookupInOp, 1)
-	ops[0] = spec.Get(fmt.Sprintf("[%d]", index), nil)
+	ops := make([]LookupInSpec, 1)
+	ops[0] = GetSpec(fmt.Sprintf("[%d]", index), nil)
 	result, err := cl.collection.LookupIn(cl.key, ops, nil)
 	if err != nil {
 		return err
@@ -49,9 +48,8 @@ func (cl *CouchbaseList) At(index int, valuePtr interface{}) error {
 
 // RemoveAt removes the value specified at the given index from the list.
 func (cl *CouchbaseList) RemoveAt(index int) error {
-	spec := MutateInSpec{}
-	ops := make([]MutateInOp, 1)
-	ops[0] = spec.Remove(fmt.Sprintf("[%d]", index), nil)
+	ops := make([]MutateInSpec, 1)
+	ops[0] = RemoveSpec(fmt.Sprintf("[%d]", index), nil)
 	_, err := cl.collection.MutateIn(cl.key, ops, nil)
 	if err != nil {
 		return err
@@ -62,9 +60,8 @@ func (cl *CouchbaseList) RemoveAt(index int) error {
 
 // Append appends an item to the list.
 func (cl *CouchbaseList) Append(val interface{}) error {
-	spec := MutateInSpec{}
-	ops := make([]MutateInOp, 1)
-	ops[0] = spec.ArrayAppend("", val, nil)
+	ops := make([]MutateInSpec, 1)
+	ops[0] = ArrayAppendSpec("", val, nil)
 	_, err := cl.collection.MutateIn(cl.key, ops, &MutateInOptions{UpsertDocument: true})
 	if err != nil {
 		return err
@@ -75,9 +72,8 @@ func (cl *CouchbaseList) Append(val interface{}) error {
 
 // Prepend prepends an item to the list.
 func (cl *CouchbaseList) Prepend(val interface{}) error {
-	spec := MutateInSpec{}
-	ops := make([]MutateInOp, 1)
-	ops[0] = spec.ArrayPrepend("", val, nil)
+	ops := make([]MutateInSpec, 1)
+	ops[0] = ArrayPrependSpec("", val, nil)
 	_, err := cl.collection.MutateIn(cl.key, ops, &MutateInOptions{UpsertDocument: true})
 	if err != nil {
 		return err
@@ -110,9 +106,8 @@ func (cl *CouchbaseList) IndexOf(val interface{}) (int, error) {
 
 // Size returns the size of the list.
 func (cl *CouchbaseList) Size() (int, error) {
-	spec := LookupInSpec{}
-	ops := make([]LookupInOp, 1)
-	ops[0] = spec.Count("", nil)
+	ops := make([]LookupInSpec, 1)
+	ops[0] = CountSpec("", nil)
 	result, err := cl.collection.LookupIn(cl.key, ops, nil)
 	if err != nil {
 		return 0, err
@@ -159,9 +154,8 @@ func (cl *CouchbaseMap) Iterator() (map[string]interface{}, error) {
 
 // At retrieves the item for the given key from the map.
 func (cl *CouchbaseMap) At(key string, valuePtr interface{}) error {
-	spec := LookupInSpec{}
-	ops := make([]LookupInOp, 1)
-	ops[0] = spec.Get(fmt.Sprintf("[%s]", key), nil)
+	ops := make([]LookupInSpec, 1)
+	ops[0] = GetSpec(fmt.Sprintf("[%s]", key), nil)
 	result, err := cl.collection.LookupIn(cl.key, ops, nil)
 	if err != nil {
 		return err
@@ -172,9 +166,8 @@ func (cl *CouchbaseMap) At(key string, valuePtr interface{}) error {
 
 // Add adds an item to the map.
 func (cl *CouchbaseMap) Add(key string, val interface{}) error {
-	spec := MutateInSpec{}
-	ops := make([]MutateInOp, 1)
-	ops[0] = spec.Upsert(key, val, nil)
+	ops := make([]MutateInSpec, 1)
+	ops[0] = UpsertSpec(key, val, nil)
 	_, err := cl.collection.MutateIn(cl.key, ops, &MutateInOptions{UpsertDocument: true})
 	if err != nil {
 		return err
@@ -185,9 +178,8 @@ func (cl *CouchbaseMap) Add(key string, val interface{}) error {
 
 // Remove removes an item from the map.
 func (cl *CouchbaseMap) Remove(key string) error {
-	spec := MutateInSpec{}
-	ops := make([]MutateInOp, 1)
-	ops[0] = spec.Remove(key, nil)
+	ops := make([]MutateInSpec, 1)
+	ops[0] = RemoveSpec(key, nil)
 	_, err := cl.collection.MutateIn(cl.key, ops, nil)
 	if err != nil {
 		return err
@@ -198,9 +190,8 @@ func (cl *CouchbaseMap) Remove(key string) error {
 
 // Exists verifies whether or a key exists in the map.
 func (cl *CouchbaseMap) Exists(key string) (bool, error) {
-	spec := LookupInSpec{}
-	ops := make([]LookupInOp, 1)
-	ops[0] = spec.Exists(fmt.Sprintf("[%s]", key), nil)
+	ops := make([]LookupInSpec, 1)
+	ops[0] = ExistsSpec(fmt.Sprintf("[%s]", key), nil)
 	result, err := cl.collection.LookupIn(cl.key, ops, nil)
 	if err != nil {
 		return false, err
@@ -211,9 +202,8 @@ func (cl *CouchbaseMap) Exists(key string) (bool, error) {
 
 // Size returns the size of the map.
 func (cl *CouchbaseMap) Size() (int, error) {
-	spec := LookupInSpec{}
-	ops := make([]LookupInOp, 1)
-	ops[0] = spec.Count("", nil)
+	ops := make([]LookupInSpec, 1)
+	ops[0] = CountSpec("", nil)
 	result, err := cl.collection.LookupIn(cl.key, ops, nil)
 	if err != nil {
 		return 0, err
@@ -291,9 +281,8 @@ func (cs *CouchbaseSet) Iterator() ([]interface{}, error) {
 
 // Add adds a value to the set.
 func (cs *CouchbaseSet) Add(val interface{}) error {
-	spec := MutateInSpec{}
-	ops := make([]MutateInOp, 1)
-	ops[0] = spec.ArrayAddUnique("", val, nil)
+	ops := make([]MutateInSpec, 1)
+	ops[0] = ArrayAddUniqueSpec("", val, nil)
 	_, err := cs.underlying.collection.MutateIn(cs.key, ops, &MutateInOptions{UpsertDocument: true})
 	if err != nil {
 		return err
@@ -304,7 +293,6 @@ func (cs *CouchbaseSet) Add(val interface{}) error {
 
 // Remove removes an value from the set.
 func (cs *CouchbaseSet) Remove(val string) error {
-	spec := MutateInSpec{}
 	for {
 		content, err := cs.underlying.collection.Get(cs.key, nil)
 		if err != nil {
@@ -327,8 +315,8 @@ func (cs *CouchbaseSet) Remove(val string) error {
 		}
 
 		if indexToRemove > -1 {
-			ops := make([]MutateInOp, 1)
-			ops[0] = spec.Remove(fmt.Sprintf("[%d]", indexToRemove), nil)
+			ops := make([]MutateInSpec, 1)
+			ops[0] = RemoveSpec(fmt.Sprintf("[%d]", indexToRemove), nil)
 			_, err = cs.underlying.collection.MutateIn(cs.key, ops, &MutateInOptions{Cas: cas})
 			if IsCasMismatchError(err) {
 				continue
@@ -412,11 +400,9 @@ func (cs *CouchbaseQueue) Push(val interface{}) error {
 
 // Pop pops an items off of the queue.
 func (cs *CouchbaseQueue) Pop(valuePtr interface{}) error {
-	spec := LookupInSpec{}
-	mutateSpec := MutateInSpec{}
 	for {
-		ops := make([]LookupInOp, 1)
-		ops[0] = spec.Get("[-1]", nil)
+		ops := make([]LookupInSpec, 1)
+		ops[0] = GetSpec("[-1]", nil)
 		content, err := cs.underlying.collection.LookupIn(cs.key, ops, nil)
 		if err != nil {
 			return err
@@ -428,8 +414,8 @@ func (cs *CouchbaseQueue) Pop(valuePtr interface{}) error {
 			return err
 		}
 
-		mutateOps := make([]MutateInOp, 1)
-		mutateOps[0] = mutateSpec.Remove("[-1]", nil)
+		mutateOps := make([]MutateInSpec, 1)
+		mutateOps[0] = RemoveSpec("[-1]", nil)
 		_, err = cs.underlying.collection.MutateIn(cs.key, mutateOps, &MutateInOptions{Cas: cas})
 		if IsCasMismatchError(err) {
 			continue

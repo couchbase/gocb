@@ -120,7 +120,7 @@ func TestGetResultFromSubDoc(t *testing.T) {
 	}
 	var doc person
 	getResult := GetResult{transcoder: NewDefaultTranscoder(&DefaultJSONSerializer{})}
-	err = getResult.fromSubDoc([]LookupInOp{
+	err = getResult.fromSubDoc([]LookupInSpec{
 		{op: ops[0]},
 		{op: ops[1]},
 		{op: ops[2]},

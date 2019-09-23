@@ -27,14 +27,13 @@ func TestInsertLookupIn(t *testing.T) {
 		t.Fatalf("Insert CAS was 0")
 	}
 
-	spec := LookupInSpec{}
-	result, err := globalCollection.LookupIn("lookupDoc", []LookupInOp{
-		spec.Get("name", nil),
-		spec.Get("description", nil),
-		spec.Exists("doesnt", nil),
-		spec.Exists("style", nil),
-		spec.Get("doesntexist", nil),
-		spec.Count("countable", nil),
+	result, err := globalCollection.LookupIn("lookupDoc", []LookupInSpec{
+		GetSpec("name", nil),
+		GetSpec("description", nil),
+		ExistsSpec("doesnt", nil),
+		ExistsSpec("style", nil),
+		GetSpec("doesntexist", nil),
+		CountSpec("countable", nil),
 	}, nil)
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)
@@ -105,16 +104,15 @@ func TestMutateInBasicCrud(t *testing.T) {
 		t.Fatalf("Insert CAS was 0")
 	}
 
-	mutSpec := MutateInSpec{}
 	fishName := "blobfish"
 	newName := "fishy beer"
 	newStyle := "fishy"
-	subRes, err := globalCollection.MutateIn("mutateIn", []MutateInOp{
-		mutSpec.Insert("fish", fishName, nil),
-		mutSpec.Upsert("name", newName, nil),
-		mutSpec.Upsert("newName", newName, nil),
-		mutSpec.Replace("style", newStyle, nil),
-		mutSpec.Remove("type", nil),
+	subRes, err := globalCollection.MutateIn("mutateIn", []MutateInSpec{
+		InsertSpec("fish", fishName, nil),
+		UpsertSpec("name", newName, nil),
+		UpsertSpec("newName", newName, nil),
+		ReplaceSpec("style", newStyle, nil),
+		RemoveSpec("type", nil),
 	}, nil)
 	if err != nil {
 		t.Fatalf("MutateIn failed, error was %v", err)
@@ -170,14 +168,13 @@ func TestMutateInBasicArray(t *testing.T) {
 		t.Fatalf("Insert CAS was 0")
 	}
 
-	mutSpec := MutateInSpec{}
-	subRes, err := globalCollection.MutateIn("mutateInArray", []MutateInOp{
-		mutSpec.ArrayAppend("array", "clownfish", nil),
-		mutSpec.ArrayPrepend("array", "whaleshark", nil),
-		mutSpec.ArrayInsert("array[1]", "catfish", nil),
-		mutSpec.ArrayAppend("array", []string{"manta ray", "stingray"}, &MutateInSpecArrayAppendOptions{HasMultiple: true}),
-		mutSpec.ArrayPrepend("array", []string{"carp", "goldfish"}, &MutateInSpecArrayPrependOptions{HasMultiple: true}),
-		mutSpec.ArrayInsert("array[1]", []string{"eel", "stonefish"}, &MutateInSpecArrayInsertOptions{HasMultiple: true}),
+	subRes, err := globalCollection.MutateIn("mutateInArray", []MutateInSpec{
+		ArrayAppendSpec("array", "clownfish", nil),
+		ArrayPrependSpec("array", "whaleshark", nil),
+		ArrayInsertSpec("array[1]", "catfish", nil),
+		ArrayAppendSpec("array", []string{"manta ray", "stingray"}, &ArrayAppendSpecOptions{HasMultiple: true}),
+		ArrayPrependSpec("array", []string{"carp", "goldfish"}, &ArrayPrependSpecOptions{HasMultiple: true}),
+		ArrayInsertSpec("array[1]", []string{"eel", "stonefish"}, &ArrayInsertSpecOptions{HasMultiple: true}),
 	}, nil)
 	if err != nil {
 		t.Fatalf("MutateIn failed, error was %v", err)
@@ -238,10 +235,9 @@ func TestMutateInLookupInXattr(t *testing.T) {
 
 	fishName := "flounder"
 	doc.Name = "namename"
-	mutSpec := MutateInSpec{}
-	subRes, err := globalCollection.MutateIn("mutateInFullInsertInsertXattr", []MutateInOp{
-		mutSpec.Insert("fish", fishName, &MutateInSpecInsertOptions{IsXattr: true}),
-		mutSpec.UpsertFull(doc, nil),
+	subRes, err := globalCollection.MutateIn("mutateInFullInsertInsertXattr", []MutateInSpec{
+		InsertSpec("fish", fishName, &InsertSpecOptions{IsXattr: true}),
+		UpsertFullSpec(doc, nil),
 	}, nil)
 	if err != nil {
 		t.Fatalf("MutateIn failed, error was %v", err)
@@ -251,10 +247,9 @@ func TestMutateInLookupInXattr(t *testing.T) {
 		t.Fatalf("MutateIn CAS was 0")
 	}
 
-	spec := LookupInSpec{}
-	result, err := globalCollection.LookupIn("mutateInFullInsertInsertXattr", []LookupInOp{
-		spec.Get("fish", &LookupInSpecGetOptions{IsXattr: true}),
-		spec.Get("name", nil),
+	result, err := globalCollection.LookupIn("mutateInFullInsertInsertXattr", []LookupInSpec{
+		GetSpec("fish", &GetSpecOptions{IsXattr: true}),
+		GetSpec("name", nil),
 	}, nil)
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)
@@ -291,10 +286,9 @@ func TestInsertLookupInInsertGetFull(t *testing.T) {
 		t.Fatalf("Could not read test dataset: %v", err)
 	}
 
-	mutSpec := MutateInSpec{}
-	subRes, err := globalCollection.MutateIn("lookupDocGetFull", []MutateInOp{
-		mutSpec.Insert("xattrpath", "xattrvalue", &MutateInSpecInsertOptions{IsXattr: true}),
-		mutSpec.UpsertFull(doc, nil),
+	subRes, err := globalCollection.MutateIn("lookupDocGetFull", []MutateInSpec{
+		InsertSpec("xattrpath", "xattrvalue", &InsertSpecOptions{IsXattr: true}),
+		UpsertFullSpec(doc, nil),
 	}, &MutateInOptions{UpsertDocument: true, Expiration: 20})
 	if err != nil {
 		t.Fatalf("MutateIn failed, error was %v", err)
@@ -304,11 +298,9 @@ func TestInsertLookupInInsertGetFull(t *testing.T) {
 		t.Fatalf("MutateIn CAS was 0")
 	}
 
-	spec := LookupInSpec{}
-
-	result, err := globalCollection.LookupIn("lookupDocGetFull", []LookupInOp{
-		spec.Get("$document.exptime", &LookupInSpecGetOptions{IsXattr: true}),
-		spec.GetFull(nil),
+	result, err := globalCollection.LookupIn("lookupDocGetFull", []LookupInSpec{
+		GetSpec("$document.exptime", &GetSpecOptions{IsXattr: true}),
+		GetFullSpec(nil),
 	}, nil)
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)
@@ -351,10 +343,9 @@ func TestMutateInLookupInCounters(t *testing.T) {
 		t.Fatalf("Insert CAS was 0")
 	}
 
-	mutSpec := MutateInSpec{}
-	subRes, err := globalCollection.MutateIn("mutateInLookupInCounters", []MutateInOp{
-		mutSpec.Increment("counter", 10, nil),
-		mutSpec.Decrement("counter", 5, nil),
+	subRes, err := globalCollection.MutateIn("mutateInLookupInCounters", []MutateInSpec{
+		IncrementSpec("counter", 10, nil),
+		DecrementSpec("counter", 5, nil),
 	}, nil)
 	if err != nil {
 		t.Fatalf("Increment failed, error was %v", err)
@@ -364,9 +355,8 @@ func TestMutateInLookupInCounters(t *testing.T) {
 		t.Fatalf("Insert CAS was 0")
 	}
 
-	spec := LookupInSpec{}
-	result, err := globalCollection.LookupIn("mutateInLookupInCounters", []LookupInOp{
-		spec.Get("counter", nil),
+	result, err := globalCollection.LookupIn("mutateInLookupInCounters", []LookupInSpec{
+		GetSpec("counter", nil),
 	}, nil)
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)
@@ -403,9 +393,8 @@ func TestMutateInLookupInMacro(t *testing.T) {
 		t.Fatalf("Insert CAS was 0")
 	}
 
-	mutSpec := MutateInSpec{}
-	subRes, err := globalCollection.MutateIn("mutateInInsertMacro", []MutateInOp{
-		mutSpec.Insert("caspath", MutationMacroCAS, nil),
+	subRes, err := globalCollection.MutateIn("mutateInInsertMacro", []MutateInSpec{
+		InsertSpec("caspath", MutationMacroCAS, nil),
 	}, nil)
 	if err != nil {
 		t.Fatalf("MutateIn failed, error was %v", err)
@@ -415,9 +404,8 @@ func TestMutateInLookupInMacro(t *testing.T) {
 		t.Fatalf("MutateIn CAS was 0")
 	}
 
-	spec := LookupInSpec{}
-	result, err := globalCollection.LookupIn("mutateInInsertMacro", []LookupInOp{
-		spec.Get("caspath", &LookupInSpecGetOptions{IsXattr: true}),
+	result, err := globalCollection.LookupIn("mutateInInsertMacro", []LookupInSpec{
+		GetSpec("caspath", &GetSpecOptions{IsXattr: true}),
 	}, nil)
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)

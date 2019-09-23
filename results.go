@@ -45,7 +45,7 @@ func (d *GetResult) Content(valuePtr interface{}) error {
 	return d.transcoder.Decode(d.contents, d.flags, valuePtr)
 }
 
-func (d *GetResult) fromSubDoc(ops []LookupInOp, result *LookupInResult) error {
+func (d *GetResult) fromSubDoc(ops []LookupInSpec, result *LookupInResult) error {
 	content := make(map[string]interface{})
 	if len(ops) == 1 && ops[0].op.Path == "" {
 		// This is a special case where the subdoc was a sole fulldoc.
