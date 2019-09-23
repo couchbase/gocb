@@ -897,7 +897,9 @@ type GetAndLockOptions struct {
 }
 
 // GetAndLock locks a document for a period of time, providing exclusive RW access to it.
-func (c *Collection) GetAndLock(key string, lockTime uint32, opts *GetAndLockOptions) (docOut *GetResult, errOut error) {
+// A lockTime value of over 30 seconds will be treated as 30 seconds. The resolution used to send this value to
+// the server is seconds and is calculated using uint32(lockTime/time.Second).
+func (c *Collection) GetAndLock(key string, lockTime time.Duration, opts *GetAndLockOptions) (docOut *GetResult, errOut error) {
 	if opts == nil {
 		opts = &GetAndLockOptions{}
 	}
@@ -907,7 +909,7 @@ func (c *Collection) GetAndLock(key string, lockTime uint32, opts *GetAndLockOpt
 		defer cancel()
 	}
 
-	res, err := c.getAndLock(ctx, key, lockTime, *opts)
+	res, err := c.getAndLock(ctx, key, uint32(lockTime/time.Second), *opts)
 	if err != nil {
 		return nil, err
 	}

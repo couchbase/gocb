@@ -803,7 +803,7 @@ func TestGetAndLock(t *testing.T) {
 		t.Fatalf("Upsert CAS was 0")
 	}
 
-	lockedDoc, err := globalCollection.GetAndLock("getAndLock", 1, nil)
+	lockedDoc, err := globalCollection.GetAndLock("getAndLock", 1*time.Second, nil)
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)
 	}
