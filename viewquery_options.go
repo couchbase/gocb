@@ -59,6 +59,10 @@ type ViewOptions struct {
 	// Timeout and context are used to control cancellation of the data stream.
 	Context context.Context
 	Timeout time.Duration
+
+	// JSONSerializer is used to deserialize each row in the result. This should be a JSON deserializer as results are JSON.
+	// NOTE: if not set then views will always default to DefaultJSONSerializer.
+	Serializer JSONSerializer
 }
 
 func (opts *ViewOptions) toURLValues() (*url.Values, error) {

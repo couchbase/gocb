@@ -26,6 +26,8 @@ type ViewRow struct {
 	ID    string
 	Key   interface{}
 	value json.RawMessage
+
+	serializer JSONSerializer
 }
 
 // ViewMetadata provides access to the metadata properties of a view query result.
@@ -43,6 +45,8 @@ type ViewResult struct {
 	cancel       context.CancelFunc
 	streamResult *streamingResult
 	err          error
+
+	serializer JSONSerializer
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
@@ -80,6 +84,7 @@ func (r *ViewResult) Next(rowPtr *ViewRow) bool {
 				return false
 			}
 		case "value":
+			rowPtr.serializer = r.serializer
 			r.err = decoder.Decode(&rowPtr.value)
 			if r.err != nil {
 				return false
@@ -102,7 +107,7 @@ func (r *ViewRow) Value(valuePtr interface{}) error {
 		return errors.New("no data to scan")
 	}
 
-	err := json.Unmarshal(r.value, valuePtr)
+	err := r.serializer.Deserialize(r.value, valuePtr)
 	if err != nil {
 		return err
 	}
@@ -289,7 +294,11 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 		return nil, errors.Wrap(err, "could not parse query options")
 	}
 
-	res, err := b.executeViewQuery(ctx, "_view", designDoc, viewName, *urlValues, provider, cancel)
+	if opts.Serializer == nil {
+		opts.Serializer = b.sb.Serializer
+	}
+
+	res, err := b.executeViewQuery(ctx, "_view", designDoc, viewName, *urlValues, provider, cancel, opts.Serializer)
 	if err != nil {
 		cancel()
 		return nil, err
@@ -299,7 +308,7 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 }
 
 func (b *Bucket) executeViewQuery(ctx context.Context, viewType, ddoc, viewName string,
-	options url.Values, provider httpProvider, cancel context.CancelFunc) (*ViewResult, error) {
+	options url.Values, provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer) (*ViewResult, error) {
 	reqUri := fmt.Sprintf("/_design/%s/%s/%s?%s", ddoc, viewType, viewName, options.Encode())
 	req := &gocbcore.HttpRequest{
 		Service: gocbcore.CapiService,
@@ -322,7 +331,9 @@ func (b *Bucket) executeViewQuery(ctx context.Context, viewType, ddoc, viewName 
 		return nil, errors.Wrap(err, "could not complete query http request")
 	}
 
-	queryResults := &ViewResult{}
+	queryResults := &ViewResult{
+		serializer: serializer,
+	}
 
 	if resp.StatusCode == 500 {
 		// We have to handle the views 500 case as a special case because the body can be of form [] or {}
