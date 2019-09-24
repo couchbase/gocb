@@ -478,7 +478,7 @@ func (c *Collection) Get(id string, opts *GetOptions) (docOut *GetResult, errOut
 	}
 
 	projections := opts.Project
-	if projections == nil && !opts.WithExpiry {
+	if len(projections) == 0 && !opts.WithExpiry {
 		// Standard fulldoc
 		doc, err := c.get(ctx, id, opts)
 		if err != nil {
@@ -503,7 +503,7 @@ func (c *Collection) Get(id string, opts *GetOptions) (docOut *GetResult, errOut
 		ops = append(ops, GetSpec("$document.exptime", &GetSpecOptions{IsXattr: true}))
 	}
 
-	if projections == nil {
+	if len(projections) == 0 {
 		ops = append(ops, GetSpec("", nil))
 	} else {
 		for _, path := range projections {
@@ -523,6 +523,7 @@ func (c *Collection) Get(id string, opts *GetOptions) (docOut *GetResult, errOut
 		if err != nil {
 			return nil, err
 		}
+		ops = ops[1:]
 		result.contents = result.contents[1:]
 	}
 
