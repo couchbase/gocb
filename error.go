@@ -546,7 +546,7 @@ func IsSyncWriteReCommitInProgressError(err error) bool {
 }
 
 // IsSyncWriteInProgressError verifies whether or not the cause for an error is because of an
-// attempt to mutate a key which has a SyncWrite pending. Client should retry, possibly with backoff.
+// attempt to mutate a document which has a SyncWrite pending. Client should retry, possibly with backoff.
 func IsSyncWriteInProgressError(err error) bool {
 	cause := errors.Cause(err)
 	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {

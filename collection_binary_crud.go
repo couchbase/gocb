@@ -23,7 +23,7 @@ type AppendOptions struct {
 }
 
 // Append appends a byte value to a document.
-func (c *BinaryCollection) Append(key string, val []byte, opts *AppendOptions) (mutOut *MutationResult, errOut error) {
+func (c *BinaryCollection) Append(id string, val []byte, opts *AppendOptions) (mutOut *MutationResult, errOut error) {
 	if opts == nil {
 		opts = &AppendOptions{}
 	}
@@ -39,7 +39,7 @@ func (c *BinaryCollection) Append(key string, val []byte, opts *AppendOptions) (
 		return nil, err
 	}
 
-	res, err := c.append(ctx, key, val, *opts)
+	res, err := c.append(ctx, id, val, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func (c *BinaryCollection) Append(key string, val []byte, opts *AppendOptions) (
 	}
 	return res, c.collection.durability(durabilitySettings{
 		ctx:            opts.Context,
-		key:            key,
+		key:            id,
 		cas:            res.Cas(),
 		mt:             res.MutationToken(),
 		replicaTo:      opts.ReplicateTo,
@@ -60,7 +60,7 @@ func (c *BinaryCollection) Append(key string, val []byte, opts *AppendOptions) (
 	})
 }
 
-func (c *BinaryCollection) append(ctx context.Context, key string, val []byte, opts AppendOptions) (mutOut *MutationResult, errOut error) {
+func (c *BinaryCollection) append(ctx context.Context, id string, val []byte, opts AppendOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.collection.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -75,7 +75,7 @@ func (c *BinaryCollection) append(ctx context.Context, key string, val []byte, o
 
 	ctrl := c.collection.newOpManager(ctx)
 	err = ctrl.wait(agent.AppendEx(gocbcore.AdjoinOptions{
-		Key:                    []byte(key),
+		Key:                    []byte(id),
 		Value:                  val,
 		CollectionName:         c.collection.name(),
 		ScopeName:              c.collection.scopeName(),
@@ -118,7 +118,7 @@ type PrependOptions struct {
 }
 
 // Prepend prepends a byte value to a document.
-func (c *BinaryCollection) Prepend(key string, val []byte, opts *PrependOptions) (mutOut *MutationResult, errOut error) {
+func (c *BinaryCollection) Prepend(id string, val []byte, opts *PrependOptions) (mutOut *MutationResult, errOut error) {
 	if opts == nil {
 		opts = &PrependOptions{}
 	}
@@ -134,7 +134,7 @@ func (c *BinaryCollection) Prepend(key string, val []byte, opts *PrependOptions)
 		return nil, err
 	}
 
-	res, err := c.prepend(ctx, key, val, *opts)
+	res, err := c.prepend(ctx, id, val, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func (c *BinaryCollection) Prepend(key string, val []byte, opts *PrependOptions)
 	}
 	return res, c.collection.durability(durabilitySettings{
 		ctx:            opts.Context,
-		key:            key,
+		key:            id,
 		cas:            res.Cas(),
 		mt:             res.MutationToken(),
 		replicaTo:      opts.ReplicateTo,
@@ -155,7 +155,7 @@ func (c *BinaryCollection) Prepend(key string, val []byte, opts *PrependOptions)
 	})
 }
 
-func (c *BinaryCollection) prepend(ctx context.Context, key string, val []byte, opts PrependOptions) (mutOut *MutationResult, errOut error) {
+func (c *BinaryCollection) prepend(ctx context.Context, id string, val []byte, opts PrependOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.collection.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -170,7 +170,7 @@ func (c *BinaryCollection) prepend(ctx context.Context, key string, val []byte, 
 
 	ctrl := c.collection.newOpManager(ctx)
 	err = ctrl.wait(agent.PrependEx(gocbcore.AdjoinOptions{
-		Key:                    []byte(key),
+		Key:                    []byte(id),
 		Value:                  val,
 		CollectionName:         c.collection.name(),
 		ScopeName:              c.collection.scopeName(),
@@ -223,7 +223,7 @@ type CounterOptions struct {
 // Increment performs an atomic addition for an integer document. Passing a
 // non-negative `initial` value will cause the document to be created if it did not
 // already exist.
-func (c *BinaryCollection) Increment(key string, opts *CounterOptions) (countOut *CounterResult, errOut error) {
+func (c *BinaryCollection) Increment(id string, opts *CounterOptions) (countOut *CounterResult, errOut error) {
 	if opts == nil {
 		opts = &CounterOptions{}
 	}
@@ -234,7 +234,7 @@ func (c *BinaryCollection) Increment(key string, opts *CounterOptions) (countOut
 		defer cancel()
 	}
 
-	res, err := c.increment(ctx, key, *opts)
+	res, err := c.increment(ctx, id, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +244,7 @@ func (c *BinaryCollection) Increment(key string, opts *CounterOptions) (countOut
 	}
 	return res, c.collection.durability(durabilitySettings{
 		ctx:            opts.Context,
-		key:            key,
+		key:            id,
 		cas:            res.Cas(),
 		mt:             res.MutationToken(),
 		replicaTo:      opts.ReplicateTo,
@@ -255,7 +255,7 @@ func (c *BinaryCollection) Increment(key string, opts *CounterOptions) (countOut
 	})
 }
 
-func (c *BinaryCollection) increment(ctx context.Context, key string, opts CounterOptions) (countOut *CounterResult, errOut error) {
+func (c *BinaryCollection) increment(ctx context.Context, id string, opts CounterOptions) (countOut *CounterResult, errOut error) {
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
 	if opts.Initial >= 0 {
 		realInitial = uint64(opts.Initial)
@@ -275,7 +275,7 @@ func (c *BinaryCollection) increment(ctx context.Context, key string, opts Count
 
 	ctrl := c.collection.newOpManager(ctx)
 	err = ctrl.wait(agent.IncrementEx(gocbcore.CounterOptions{
-		Key:                    []byte(key),
+		Key:                    []byte(id),
 		Delta:                  opts.Delta,
 		Initial:                realInitial,
 		Expiry:                 opts.Expiry,
@@ -317,7 +317,7 @@ func (c *BinaryCollection) increment(ctx context.Context, key string, opts Count
 // Decrement performs an atomic subtraction for an integer document. Passing a
 // non-negative `initial` value will cause the document to be created if it did not
 // already exist.
-func (c *BinaryCollection) Decrement(key string, opts *CounterOptions) (countOut *CounterResult, errOut error) {
+func (c *BinaryCollection) Decrement(id string, opts *CounterOptions) (countOut *CounterResult, errOut error) {
 	if opts == nil {
 		opts = &CounterOptions{}
 	}
@@ -333,7 +333,7 @@ func (c *BinaryCollection) Decrement(key string, opts *CounterOptions) (countOut
 		return nil, err
 	}
 
-	res, err := c.decrement(ctx, key, *opts)
+	res, err := c.decrement(ctx, id, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -343,7 +343,7 @@ func (c *BinaryCollection) Decrement(key string, opts *CounterOptions) (countOut
 	}
 	return res, c.collection.durability(durabilitySettings{
 		ctx:            opts.Context,
-		key:            key,
+		key:            id,
 		cas:            res.Cas(),
 		mt:             res.MutationToken(),
 		replicaTo:      opts.ReplicateTo,
@@ -354,7 +354,7 @@ func (c *BinaryCollection) Decrement(key string, opts *CounterOptions) (countOut
 	})
 }
 
-func (c *BinaryCollection) decrement(ctx context.Context, key string, opts CounterOptions) (countOut *CounterResult, errOut error) {
+func (c *BinaryCollection) decrement(ctx context.Context, id string, opts CounterOptions) (countOut *CounterResult, errOut error) {
 	agent, err := c.collection.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -374,7 +374,7 @@ func (c *BinaryCollection) decrement(ctx context.Context, key string, opts Count
 
 	ctrl := c.collection.newOpManager(ctx)
 	err = ctrl.wait(agent.DecrementEx(gocbcore.CounterOptions{
-		Key:                    []byte(key),
+		Key:                    []byte(id),
 		Delta:                  opts.Delta,
 		Initial:                realInitial,
 		Expiry:                 opts.Expiry,

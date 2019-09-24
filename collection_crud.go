@@ -146,7 +146,7 @@ type InsertOptions struct {
 }
 
 // Insert creates a new document in the Collection.
-func (c *Collection) Insert(key string, val interface{}, opts *InsertOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) Insert(id string, val interface{}, opts *InsertOptions) (mutOut *MutationResult, errOut error) {
 	if opts == nil {
 		opts = &InsertOptions{}
 	}
@@ -161,7 +161,7 @@ func (c *Collection) Insert(key string, val interface{}, opts *InsertOptions) (m
 		return nil, err
 	}
 
-	res, err := c.insert(ctx, key, val, *opts)
+	res, err := c.insert(ctx, id, val, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +171,7 @@ func (c *Collection) Insert(key string, val interface{}, opts *InsertOptions) (m
 	}
 	return res, c.durability(durabilitySettings{
 		ctx:            opts.Context,
-		key:            key,
+		key:            id,
 		cas:            res.Cas(),
 		mt:             res.MutationToken(),
 		replicaTo:      opts.ReplicateTo,
@@ -182,7 +182,7 @@ func (c *Collection) Insert(key string, val interface{}, opts *InsertOptions) (m
 	})
 }
 
-func (c *Collection) insert(ctx context.Context, key string, val interface{}, opts InsertOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) insert(ctx context.Context, id string, val interface{}, opts InsertOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		errOut = err
@@ -209,7 +209,7 @@ func (c *Collection) insert(ctx context.Context, key string, val interface{}, op
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.AddEx(gocbcore.AddOptions{
-		Key:                    []byte(key),
+		Key:                    []byte(id),
 		Value:                  bytes,
 		Flags:                  flags,
 		Expiry:                 opts.Expiry,
@@ -219,7 +219,7 @@ func (c *Collection) insert(ctx context.Context, key string, val interface{}, op
 		DurabilityLevelTimeout: durabilityTimeout,
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, key, true)
+			errOut = maybeEnhanceKVErr(err, id, true)
 			ctrl.resolve()
 			return
 		}
@@ -243,7 +243,7 @@ func (c *Collection) insert(ctx context.Context, key string, val interface{}, op
 }
 
 // Upsert creates a new document in the Collection if it does not exist, if it does exist then it updates it.
-func (c *Collection) Upsert(key string, val interface{}, opts *UpsertOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mutOut *MutationResult, errOut error) {
 	if opts == nil {
 		opts = &UpsertOptions{}
 	}
@@ -258,7 +258,7 @@ func (c *Collection) Upsert(key string, val interface{}, opts *UpsertOptions) (m
 		return nil, err
 	}
 
-	res, err := c.upsert(ctx, key, val, *opts)
+	res, err := c.upsert(ctx, id, val, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +268,7 @@ func (c *Collection) Upsert(key string, val interface{}, opts *UpsertOptions) (m
 	}
 	return res, c.durability(durabilitySettings{
 		ctx:            opts.Context,
-		key:            key,
+		key:            id,
 		cas:            res.Cas(),
 		mt:             res.MutationToken(),
 		replicaTo:      opts.ReplicateTo,
@@ -279,7 +279,7 @@ func (c *Collection) Upsert(key string, val interface{}, opts *UpsertOptions) (m
 	})
 }
 
-func (c *Collection) upsert(ctx context.Context, key string, val interface{}, opts UpsertOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) upsert(ctx context.Context, id string, val interface{}, opts UpsertOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		errOut = err
@@ -306,7 +306,7 @@ func (c *Collection) upsert(ctx context.Context, key string, val interface{}, op
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.SetEx(gocbcore.SetOptions{
-		Key:                    []byte(key),
+		Key:                    []byte(id),
 		Value:                  bytes,
 		Flags:                  flags,
 		Expiry:                 opts.Expiry,
@@ -316,7 +316,7 @@ func (c *Collection) upsert(ctx context.Context, key string, val interface{}, op
 		DurabilityLevelTimeout: durabilityTimeout,
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, key, false)
+			errOut = maybeEnhanceKVErr(err, id, false)
 			ctrl.resolve()
 			return
 		}
@@ -352,7 +352,7 @@ type ReplaceOptions struct {
 }
 
 // Replace updates a document in the collection.
-func (c *Collection) Replace(key string, val interface{}, opts *ReplaceOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (mutOut *MutationResult, errOut error) {
 	if opts == nil {
 		opts = &ReplaceOptions{}
 	}
@@ -367,7 +367,7 @@ func (c *Collection) Replace(key string, val interface{}, opts *ReplaceOptions) 
 		return nil, err
 	}
 
-	res, err := c.replace(ctx, key, val, *opts)
+	res, err := c.replace(ctx, id, val, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -377,7 +377,7 @@ func (c *Collection) Replace(key string, val interface{}, opts *ReplaceOptions) 
 	}
 	return res, c.durability(durabilitySettings{
 		ctx:            opts.Context,
-		key:            key,
+		key:            id,
 		cas:            res.Cas(),
 		mt:             res.MutationToken(),
 		replicaTo:      opts.ReplicateTo,
@@ -388,7 +388,7 @@ func (c *Collection) Replace(key string, val interface{}, opts *ReplaceOptions) 
 	})
 }
 
-func (c *Collection) replace(ctx context.Context, key string, val interface{}, opts ReplaceOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) replace(ctx context.Context, id string, val interface{}, opts ReplaceOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -414,7 +414,7 @@ func (c *Collection) replace(ctx context.Context, key string, val interface{}, o
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.ReplaceEx(gocbcore.ReplaceOptions{
-		Key:                    []byte(key),
+		Key:                    []byte(id),
 		Value:                  bytes,
 		Flags:                  flags,
 		Expiry:                 opts.Expiry,
@@ -425,7 +425,7 @@ func (c *Collection) replace(ctx context.Context, key string, val interface{}, o
 		DurabilityLevelTimeout: durabilityTimeout,
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, key, false)
+			errOut = maybeEnhanceKVErr(err, id, false)
 			ctrl.resolve()
 			return
 		}
@@ -463,7 +463,7 @@ type GetOptions struct {
 // Get performs a fetch operation against the collection. This can take 3 paths, a standard full document
 // fetch, a subdocument full document fetch also fetching document expiry (when WithExpiry is set),
 // or a subdocument fetch (when Project is used).
-func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOut error) {
+func (c *Collection) Get(id string, opts *GetOptions) (docOut *GetResult, errOut error) {
 	if opts == nil {
 		opts = &GetOptions{}
 	}
@@ -479,7 +479,7 @@ func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOu
 
 	if (opts.Project == nil || (opts.Project != nil && len(opts.Project) > 16)) && !opts.WithExpiry {
 		// Standard fulldoc
-		doc, err := c.get(ctx, key, opts)
+		doc, err := c.get(ctx, id, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -498,7 +498,7 @@ func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOu
 		}
 	}
 
-	result, err := c.lookupIn(ctx, key, ops, lookupOpts)
+	result, err := c.lookupIn(ctx, id, ops, lookupOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -525,7 +525,7 @@ func (c *Collection) Get(key string, opts *GetOptions) (docOut *GetResult, errOu
 }
 
 // get performs a full document fetch against the collection
-func (c *Collection) get(ctx context.Context, key string, opts *GetOptions) (docOut *GetResult, errOut error) {
+func (c *Collection) get(ctx context.Context, id string, opts *GetOptions) (docOut *GetResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -533,12 +533,12 @@ func (c *Collection) get(ctx context.Context, key string, opts *GetOptions) (doc
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.GetEx(gocbcore.GetOptions{
-		Key:            []byte(key),
+		Key:            []byte(id),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.GetResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, key, false)
+			errOut = maybeEnhanceKVErr(err, id, false)
 			ctrl.resolve()
 			return
 		}
@@ -570,8 +570,8 @@ type ExistsOptions struct {
 	Context context.Context
 }
 
-// Exists checks if a document exists for the given key.
-func (c *Collection) Exists(key string, opts *ExistsOptions) (docOut *ExistsResult, errOut error) {
+// Exists checks if a document exists for the given id.
+func (c *Collection) Exists(id string, opts *ExistsOptions) (docOut *ExistsResult, errOut error) {
 	if opts == nil {
 		opts = &ExistsOptions{}
 	}
@@ -581,7 +581,7 @@ func (c *Collection) Exists(key string, opts *ExistsOptions) (docOut *ExistsResu
 		defer cancel()
 	}
 
-	res, err := c.exists(ctx, key, *opts)
+	res, err := c.exists(ctx, id, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -589,7 +589,7 @@ func (c *Collection) Exists(key string, opts *ExistsOptions) (docOut *ExistsResu
 	return res, nil
 }
 
-func (c *Collection) exists(ctx context.Context, key string, opts ExistsOptions) (docOut *ExistsResult, errOut error) {
+func (c *Collection) exists(ctx context.Context, id string, opts ExistsOptions) (docOut *ExistsResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -597,13 +597,13 @@ func (c *Collection) exists(ctx context.Context, key string, opts ExistsOptions)
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.ObserveEx(gocbcore.ObserveOptions{
-		Key:            []byte(key),
+		Key:            []byte(id),
 		ReplicaIdx:     0,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.ObserveResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, key, false)
+			errOut = maybeEnhanceKVErr(err, id, false)
 			ctrl.resolve()
 			return
 		}
@@ -635,7 +635,7 @@ type GetAnyReplicaOptions struct {
 }
 
 // GetAnyReplica returns the value of a particular document from a replica server.
-func (c *Collection) GetAnyReplica(key string, opts *GetAnyReplicaOptions) (docOut *GetReplicaResult, errOut error) {
+func (c *Collection) GetAnyReplica(id string, opts *GetAnyReplicaOptions) (docOut *GetReplicaResult, errOut error) {
 	if opts == nil {
 		opts = &GetAnyReplicaOptions{}
 	}
@@ -645,7 +645,7 @@ func (c *Collection) GetAnyReplica(key string, opts *GetAnyReplicaOptions) (docO
 		defer cancel()
 	}
 
-	res, err := c.getAnyReplica(ctx, key, *opts)
+	res, err := c.getAnyReplica(ctx, id, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -653,7 +653,7 @@ func (c *Collection) GetAnyReplica(key string, opts *GetAnyReplicaOptions) (docO
 	return res, nil
 }
 
-func (c *Collection) getAnyReplica(ctx context.Context, key string,
+func (c *Collection) getAnyReplica(ctx context.Context, id string,
 	opts GetAnyReplicaOptions) (docOut *GetReplicaResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
@@ -666,12 +666,12 @@ func (c *Collection) getAnyReplica(ctx context.Context, key string,
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.GetAnyReplicaEx(gocbcore.GetAnyReplicaOptions{
-		Key:            []byte(key),
+		Key:            []byte(id),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.GetReplicaResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, key, false)
+			errOut = maybeEnhanceKVErr(err, id, false)
 			ctrl.resolve()
 			return
 		}
@@ -706,7 +706,7 @@ type GetAllReplicaOptions struct {
 
 // GetAllReplicas returns the value of a particular document from all replica servers. This will return an iterable
 // which streams results one at a time.
-func (c *Collection) GetAllReplicas(key string, opts *GetAllReplicaOptions) (docOut *GetAllReplicasResult, errOut error) {
+func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docOut *GetAllReplicasResult, errOut error) {
 	if opts == nil {
 		opts = &GetAllReplicaOptions{}
 	}
@@ -724,7 +724,7 @@ func (c *Collection) GetAllReplicas(key string, opts *GetAllReplicaOptions) (doc
 	return &GetAllReplicasResult{
 		ctx: ctx,
 		opts: gocbcore.GetOneReplicaOptions{
-			Key:            []byte(key),
+			Key:            []byte(id),
 			CollectionName: c.name(),
 			ScopeName:      c.scopeName(),
 		},
@@ -746,7 +746,7 @@ type RemoveOptions struct {
 }
 
 // Remove removes a document from the collection.
-func (c *Collection) Remove(key string, opts *RemoveOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) Remove(id string, opts *RemoveOptions) (mutOut *MutationResult, errOut error) {
 	if opts == nil {
 		opts = &RemoveOptions{}
 	}
@@ -761,7 +761,7 @@ func (c *Collection) Remove(key string, opts *RemoveOptions) (mutOut *MutationRe
 		return nil, err
 	}
 
-	res, err := c.remove(ctx, key, *opts)
+	res, err := c.remove(ctx, id, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -771,7 +771,7 @@ func (c *Collection) Remove(key string, opts *RemoveOptions) (mutOut *MutationRe
 	}
 	return res, c.durability(durabilitySettings{
 		ctx:            opts.Context,
-		key:            key,
+		key:            id,
 		cas:            res.Cas(),
 		mt:             res.MutationToken(),
 		replicaTo:      opts.ReplicateTo,
@@ -782,7 +782,7 @@ func (c *Collection) Remove(key string, opts *RemoveOptions) (mutOut *MutationRe
 	})
 }
 
-func (c *Collection) remove(ctx context.Context, key string, opts RemoveOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) remove(ctx context.Context, id string, opts RemoveOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -797,7 +797,7 @@ func (c *Collection) remove(ctx context.Context, key string, opts RemoveOptions)
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.DeleteEx(gocbcore.DeleteOptions{
-		Key:                    []byte(key),
+		Key:                    []byte(id),
 		Cas:                    gocbcore.Cas(opts.Cas),
 		CollectionName:         c.name(),
 		ScopeName:              c.scopeName(),
@@ -805,7 +805,7 @@ func (c *Collection) remove(ctx context.Context, key string, opts RemoveOptions)
 		DurabilityLevelTimeout: durabilityTimeout,
 	}, func(res *gocbcore.DeleteResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, key, false)
+			errOut = maybeEnhanceKVErr(err, id, false)
 			ctrl.resolve()
 			return
 		}
@@ -836,7 +836,7 @@ type GetAndTouchOptions struct {
 }
 
 // GetAndTouch retrieves a document and simultaneously updates its expiry time.
-func (c *Collection) GetAndTouch(key string, expiry uint32, opts *GetAndTouchOptions) (docOut *GetResult, errOut error) {
+func (c *Collection) GetAndTouch(id string, expiry uint32, opts *GetAndTouchOptions) (docOut *GetResult, errOut error) {
 	if opts == nil {
 		opts = &GetAndTouchOptions{}
 	}
@@ -846,7 +846,7 @@ func (c *Collection) GetAndTouch(key string, expiry uint32, opts *GetAndTouchOpt
 		defer cancel()
 	}
 
-	res, err := c.getAndTouch(ctx, key, expiry, *opts)
+	res, err := c.getAndTouch(ctx, id, expiry, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -854,7 +854,7 @@ func (c *Collection) GetAndTouch(key string, expiry uint32, opts *GetAndTouchOpt
 	return res, nil
 }
 
-func (c *Collection) getAndTouch(ctx context.Context, key string, expiry uint32, opts GetAndTouchOptions) (docOut *GetResult, errOut error) {
+func (c *Collection) getAndTouch(ctx context.Context, id string, expiry uint32, opts GetAndTouchOptions) (docOut *GetResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -866,13 +866,13 @@ func (c *Collection) getAndTouch(ctx context.Context, key string, expiry uint32,
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.GetAndTouchEx(gocbcore.GetAndTouchOptions{
-		Key:            []byte(key),
+		Key:            []byte(id),
 		Expiry:         expiry,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.GetAndTouchResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, key, false)
+			errOut = maybeEnhanceKVErr(err, id, false)
 			ctrl.resolve()
 			return
 		}
@@ -908,7 +908,7 @@ type GetAndLockOptions struct {
 // GetAndLock locks a document for a period of time, providing exclusive RW access to it.
 // A lockTime value of over 30 seconds will be treated as 30 seconds. The resolution used to send this value to
 // the server is seconds and is calculated using uint32(lockTime/time.Second).
-func (c *Collection) GetAndLock(key string, lockTime time.Duration, opts *GetAndLockOptions) (docOut *GetResult, errOut error) {
+func (c *Collection) GetAndLock(id string, lockTime time.Duration, opts *GetAndLockOptions) (docOut *GetResult, errOut error) {
 	if opts == nil {
 		opts = &GetAndLockOptions{}
 	}
@@ -918,14 +918,14 @@ func (c *Collection) GetAndLock(key string, lockTime time.Duration, opts *GetAnd
 		defer cancel()
 	}
 
-	res, err := c.getAndLock(ctx, key, uint32(lockTime/time.Second), *opts)
+	res, err := c.getAndLock(ctx, id, uint32(lockTime/time.Second), *opts)
 	if err != nil {
 		return nil, err
 	}
 
 	return res, nil
 }
-func (c *Collection) getAndLock(ctx context.Context, key string, lockTime uint32, opts GetAndLockOptions) (docOut *GetResult, errOut error) {
+func (c *Collection) getAndLock(ctx context.Context, id string, lockTime uint32, opts GetAndLockOptions) (docOut *GetResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -937,13 +937,13 @@ func (c *Collection) getAndLock(ctx context.Context, key string, lockTime uint32
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.GetAndLockEx(gocbcore.GetAndLockOptions{
-		Key:            []byte(key),
+		Key:            []byte(id),
 		LockTime:       lockTime,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.GetAndLockResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, key, false)
+			errOut = maybeEnhanceKVErr(err, id, false)
 			ctrl.resolve()
 			return
 		}
@@ -976,7 +976,7 @@ type UnlockOptions struct {
 }
 
 // Unlock unlocks a document which was locked with GetAndLock.
-func (c *Collection) Unlock(key string, cas Cas, opts *UnlockOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) Unlock(id string, cas Cas, opts *UnlockOptions) (mutOut *MutationResult, errOut error) {
 	if opts == nil {
 		opts = &UnlockOptions{}
 	}
@@ -986,7 +986,7 @@ func (c *Collection) Unlock(key string, cas Cas, opts *UnlockOptions) (mutOut *M
 		defer cancel()
 	}
 
-	res, err := c.unlock(ctx, key, cas, *opts)
+	res, err := c.unlock(ctx, id, cas, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -994,7 +994,7 @@ func (c *Collection) Unlock(key string, cas Cas, opts *UnlockOptions) (mutOut *M
 	return res, nil
 }
 
-func (c *Collection) unlock(ctx context.Context, key string, cas Cas, opts UnlockOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) unlock(ctx context.Context, id string, cas Cas, opts UnlockOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -1002,13 +1002,13 @@ func (c *Collection) unlock(ctx context.Context, key string, cas Cas, opts Unloc
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.UnlockEx(gocbcore.UnlockOptions{
-		Key:            []byte(key),
+		Key:            []byte(id),
 		Cas:            gocbcore.Cas(cas),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.UnlockResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, key, false)
+			errOut = maybeEnhanceKVErr(err, id, false)
 			ctrl.resolve()
 			return
 		}
@@ -1038,7 +1038,7 @@ type TouchOptions struct {
 }
 
 // Touch touches a document, specifying a new expiry time for it.
-func (c *Collection) Touch(key string, expiry uint32, opts *TouchOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) Touch(id string, expiry uint32, opts *TouchOptions) (mutOut *MutationResult, errOut error) {
 	if opts == nil {
 		opts = &TouchOptions{}
 	}
@@ -1048,7 +1048,7 @@ func (c *Collection) Touch(key string, expiry uint32, opts *TouchOptions) (mutOu
 		defer cancel()
 	}
 
-	res, err := c.touch(ctx, key, expiry, *opts)
+	res, err := c.touch(ctx, id, expiry, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -1056,7 +1056,7 @@ func (c *Collection) Touch(key string, expiry uint32, opts *TouchOptions) (mutOu
 	return res, nil
 }
 
-func (c *Collection) touch(ctx context.Context, key string, expiry uint32, opts TouchOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) touch(ctx context.Context, id string, expiry uint32, opts TouchOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -1064,13 +1064,13 @@ func (c *Collection) touch(ctx context.Context, key string, expiry uint32, opts 
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.TouchEx(gocbcore.TouchOptions{
-		Key:            []byte(key),
+		Key:            []byte(id),
 		Expiry:         expiry,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.TouchResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, key, false)
+			errOut = maybeEnhanceKVErr(err, id, false)
 			ctrl.resolve()
 			return
 		}

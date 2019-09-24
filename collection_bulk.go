@@ -105,7 +105,7 @@ func (c *Collection) Do(ops []BulkOp, opts *BulkOpOptions) error {
 type GetOp struct {
 	bulkOp
 
-	Key    string
+	ID     string
 	Result *GetResult
 	Err    error
 }
@@ -116,11 +116,11 @@ func (item *GetOp) markError(err error) {
 
 func (item *GetOp) execute(c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp) {
 	op, err := provider.GetEx(gocbcore.GetOptions{
-		Key:            []byte(item.Key),
+		Key:            []byte(item.ID),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.GetResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.Key, false)
+		item.Err = maybeEnhanceKVErr(err, item.ID, false)
 		if item.Err == nil {
 			item.Result = &GetResult{
 				Result: Result{
@@ -145,7 +145,7 @@ func (item *GetOp) execute(c *Collection, provider kvProvider, transcoder Transc
 type GetAndTouchOp struct {
 	bulkOp
 
-	Key    string
+	ID     string
 	Expiry uint32
 	Result *GetResult
 	Err    error
@@ -157,12 +157,12 @@ func (item *GetAndTouchOp) markError(err error) {
 
 func (item *GetAndTouchOp) execute(c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp) {
 	op, err := provider.GetAndTouchEx(gocbcore.GetAndTouchOptions{
-		Key:            []byte(item.Key),
+		Key:            []byte(item.ID),
 		Expiry:         item.Expiry,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.GetAndTouchResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.Key, false)
+		item.Err = maybeEnhanceKVErr(err, item.ID, false)
 		if item.Err == nil {
 			item.Result = &GetResult{
 				Result: Result{
@@ -187,7 +187,7 @@ func (item *GetAndTouchOp) execute(c *Collection, provider kvProvider, transcode
 type TouchOp struct {
 	bulkOp
 
-	Key    string
+	ID     string
 	Expiry uint32
 	Result *MutationResult
 	Err    error
@@ -199,12 +199,12 @@ func (item *TouchOp) markError(err error) {
 
 func (item *TouchOp) execute(c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp) {
 	op, err := provider.TouchEx(gocbcore.TouchOptions{
-		Key:            []byte(item.Key),
+		Key:            []byte(item.ID),
 		Expiry:         item.Expiry,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.TouchResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.Key, false)
+		item.Err = maybeEnhanceKVErr(err, item.ID, false)
 		if item.Err == nil {
 			mutTok := MutationToken{
 				token:      res.MutationToken,
@@ -231,7 +231,7 @@ func (item *TouchOp) execute(c *Collection, provider kvProvider, transcoder Tran
 type RemoveOp struct {
 	bulkOp
 
-	Key    string
+	ID     string
 	Cas    Cas
 	Result *MutationResult
 	Err    error
@@ -243,12 +243,12 @@ func (item *RemoveOp) markError(err error) {
 
 func (item *RemoveOp) execute(c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp) {
 	op, err := provider.DeleteEx(gocbcore.DeleteOptions{
-		Key:            []byte(item.Key),
+		Key:            []byte(item.ID),
 		Cas:            gocbcore.Cas(item.Cas),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.DeleteResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.Key, false)
+		item.Err = maybeEnhanceKVErr(err, item.ID, false)
 		if item.Err == nil {
 			mutTok := MutationToken{
 				token:      res.MutationToken,
@@ -275,7 +275,7 @@ func (item *RemoveOp) execute(c *Collection, provider kvProvider, transcoder Tra
 type UpsertOp struct {
 	bulkOp
 
-	Key    string
+	ID     string
 	Value  interface{}
 	Expiry uint32
 	Cas    Cas
@@ -296,14 +296,14 @@ func (item *UpsertOp) execute(c *Collection, provider kvProvider, transcoder Tra
 	}
 
 	op, err := provider.SetEx(gocbcore.SetOptions{
-		Key:            []byte(item.Key),
+		Key:            []byte(item.ID),
 		Value:          bytes,
 		Flags:          flags,
 		Expiry:         item.Expiry,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.StoreResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.Key, false)
+		item.Err = maybeEnhanceKVErr(err, item.ID, false)
 		if item.Err == nil {
 			mutTok := MutationToken{
 				token:      res.MutationToken,
@@ -330,7 +330,7 @@ func (item *UpsertOp) execute(c *Collection, provider kvProvider, transcoder Tra
 type InsertOp struct {
 	bulkOp
 
-	Key    string
+	ID     string
 	Value  interface{}
 	Expiry uint32
 	Result *MutationResult
@@ -350,14 +350,14 @@ func (item *InsertOp) execute(c *Collection, provider kvProvider, transcoder Tra
 	}
 
 	op, err := provider.AddEx(gocbcore.AddOptions{
-		Key:            []byte(item.Key),
+		Key:            []byte(item.ID),
 		Value:          bytes,
 		Flags:          flags,
 		Expiry:         item.Expiry,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.StoreResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.Key, true)
+		item.Err = maybeEnhanceKVErr(err, item.ID, true)
 		if item.Err == nil {
 			mutTok := MutationToken{
 				token:      res.MutationToken,
@@ -384,7 +384,7 @@ func (item *InsertOp) execute(c *Collection, provider kvProvider, transcoder Tra
 type ReplaceOp struct {
 	bulkOp
 
-	Key    string
+	ID     string
 	Value  interface{}
 	Expiry uint32
 	Cas    Cas
@@ -405,7 +405,7 @@ func (item *ReplaceOp) execute(c *Collection, provider kvProvider, transcoder Tr
 	}
 
 	op, err := provider.ReplaceEx(gocbcore.ReplaceOptions{
-		Key:            []byte(item.Key),
+		Key:            []byte(item.ID),
 		Value:          bytes,
 		Flags:          flags,
 		Cas:            gocbcore.Cas(item.Cas),
@@ -413,7 +413,7 @@ func (item *ReplaceOp) execute(c *Collection, provider kvProvider, transcoder Tr
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.StoreResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.Key, true)
+		item.Err = maybeEnhanceKVErr(err, item.ID, true)
 		if item.Err == nil {
 			mutTok := MutationToken{
 				token:      res.MutationToken,
@@ -440,7 +440,7 @@ func (item *ReplaceOp) execute(c *Collection, provider kvProvider, transcoder Tr
 type AppendOp struct {
 	bulkOp
 
-	Key    string
+	ID     string
 	Value  string
 	Result *MutationResult
 	Err    error
@@ -452,12 +452,12 @@ func (item *AppendOp) markError(err error) {
 
 func (item *AppendOp) execute(c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp) {
 	op, err := provider.AppendEx(gocbcore.AdjoinOptions{
-		Key:            []byte(item.Key),
+		Key:            []byte(item.ID),
 		Value:          []byte(item.Value),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.AdjoinResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.Key, true)
+		item.Err = maybeEnhanceKVErr(err, item.ID, true)
 		if item.Err == nil {
 			mutTok := MutationToken{
 				token:      res.MutationToken,
@@ -484,7 +484,7 @@ func (item *AppendOp) execute(c *Collection, provider kvProvider, transcoder Tra
 type PrependOp struct {
 	bulkOp
 
-	Key    string
+	ID     string
 	Value  string
 	Result *MutationResult
 	Err    error
@@ -496,12 +496,12 @@ func (item *PrependOp) markError(err error) {
 
 func (item *PrependOp) execute(c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp) {
 	op, err := provider.PrependEx(gocbcore.AdjoinOptions{
-		Key:            []byte(item.Key),
+		Key:            []byte(item.ID),
 		Value:          []byte(item.Value),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.AdjoinResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.Key, true)
+		item.Err = maybeEnhanceKVErr(err, item.ID, true)
 		if item.Err == nil {
 			mutTok := MutationToken{
 				token:      res.MutationToken,
@@ -528,7 +528,7 @@ func (item *PrependOp) execute(c *Collection, provider kvProvider, transcoder Tr
 type IncrementOp struct {
 	bulkOp
 
-	Key     string
+	ID      string
 	Delta   int64
 	Initial int64
 	Expiry  uint32
@@ -548,14 +548,14 @@ func (item *IncrementOp) execute(c *Collection, provider kvProvider, transcoder 
 	}
 
 	op, err := provider.IncrementEx(gocbcore.CounterOptions{
-		Key:            []byte(item.Key),
+		Key:            []byte(item.ID),
 		Delta:          uint64(item.Delta),
 		Initial:        realInitial,
 		Expiry:         item.Expiry,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.CounterResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.Key, true)
+		item.Err = maybeEnhanceKVErr(err, item.ID, true)
 		if item.Err == nil {
 			mutTok := MutationToken{
 				token:      res.MutationToken,
@@ -585,7 +585,7 @@ func (item *IncrementOp) execute(c *Collection, provider kvProvider, transcoder 
 type DecrementOp struct {
 	bulkOp
 
-	Key     string
+	ID      string
 	Delta   int64
 	Initial int64
 	Expiry  uint32
@@ -605,14 +605,14 @@ func (item *DecrementOp) execute(c *Collection, provider kvProvider, transcoder 
 	}
 
 	op, err := provider.DecrementEx(gocbcore.CounterOptions{
-		Key:            []byte(item.Key),
+		Key:            []byte(item.ID),
 		Delta:          uint64(item.Delta),
 		Initial:        realInitial,
 		Expiry:         item.Expiry,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.CounterResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.Key, true)
+		item.Err = maybeEnhanceKVErr(err, item.ID, true)
 		if item.Err == nil {
 			mutTok := MutationToken{
 				token:      res.MutationToken,

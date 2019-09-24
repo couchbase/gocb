@@ -113,8 +113,8 @@ func CountSpec(path string, opts *CountSpecOptions) LookupInSpec {
 	return LookupInSpec{op: op}
 }
 
-// LookupIn performs a set of subdocument lookup operations on the document identified by key.
-func (c *Collection) LookupIn(key string, ops []LookupInSpec, opts *LookupInOptions) (docOut *LookupInResult, errOut error) {
+// LookupIn performs a set of subdocument lookup operations on the document identified by id.
+func (c *Collection) LookupIn(id string, ops []LookupInSpec, opts *LookupInOptions) (docOut *LookupInResult, errOut error) {
 	if opts == nil {
 		opts = &LookupInOptions{}
 	}
@@ -125,7 +125,7 @@ func (c *Collection) LookupIn(key string, ops []LookupInSpec, opts *LookupInOpti
 		defer cancel()
 	}
 
-	res, err := c.lookupIn(ctx, key, ops, *opts)
+	res, err := c.lookupIn(ctx, id, ops, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (c *Collection) LookupIn(key string, ops []LookupInSpec, opts *LookupInOpti
 	return res, nil
 }
 
-func (c *Collection) lookupIn(ctx context.Context, key string, ops []LookupInSpec, opts LookupInOptions) (docOut *LookupInResult, errOut error) {
+func (c *Collection) lookupIn(ctx context.Context, id string, ops []LookupInSpec, opts LookupInOptions) (docOut *LookupInResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -155,13 +155,13 @@ func (c *Collection) lookupIn(ctx context.Context, key string, ops []LookupInSpe
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.LookupInEx(gocbcore.LookupInOptions{
-		Key:            []byte(key),
+		Key:            []byte(id),
 		Ops:            subdocs,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 	}, func(res *gocbcore.LookupInResult, err error) {
 		if err != nil && !gocbcore.IsErrorStatus(err, gocbcore.StatusSubDocBadMulti) {
-			errOut = maybeEnhanceKVErr(err, key, false)
+			errOut = maybeEnhanceKVErr(err, id, false)
 			ctrl.resolve()
 			return
 		}
@@ -174,7 +174,7 @@ func (c *Collection) lookupIn(ctx context.Context, key string, ops []LookupInSpe
 
 			for i, opRes := range res.Ops {
 				// resSet.contents[i].path = opts.spec.ops[i].Path
-				resSet.contents[i].err = maybeEnhanceKVErr(opRes.Err, key, false)
+				resSet.contents[i].err = maybeEnhanceKVErr(opRes.Err, id, false)
 				if opRes.Value != nil {
 					resSet.contents[i].data = append([]byte(nil), opRes.Value...)
 				}
@@ -601,8 +601,8 @@ func DecrementSpec(path string, delta int64, opts *CounterSpecOptions) MutateInS
 	return MutateInSpec{op: op}
 }
 
-// MutateIn performs a set of subdocument mutations on the document specified by key.
-func (c *Collection) MutateIn(key string, ops []MutateInSpec, opts *MutateInOptions) (mutOut *MutateInResult, errOut error) {
+// MutateIn performs a set of subdocument mutations on the document specified by id.
+func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptions) (mutOut *MutateInResult, errOut error) {
 	if opts == nil {
 		opts = &MutateInOptions{}
 	}
@@ -618,7 +618,7 @@ func (c *Collection) MutateIn(key string, ops []MutateInSpec, opts *MutateInOpti
 		return nil, err
 	}
 
-	res, err := c.mutate(ctx, key, ops, *opts)
+	res, err := c.mutate(ctx, id, ops, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -628,7 +628,7 @@ func (c *Collection) MutateIn(key string, ops []MutateInSpec, opts *MutateInOpti
 	}
 	return res, c.durability(durabilitySettings{
 		ctx:            opts.Context,
-		key:            key,
+		key:            id,
 		cas:            res.Cas(),
 		mt:             res.MutationToken(),
 		replicaTo:      opts.ReplicateTo,
@@ -639,7 +639,7 @@ func (c *Collection) MutateIn(key string, ops []MutateInSpec, opts *MutateInOpti
 	})
 }
 
-func (c *Collection) mutate(ctx context.Context, key string, ops []MutateInSpec, opts MutateInOptions) (mutOut *MutateInResult, errOut error) {
+func (c *Collection) mutate(ctx context.Context, id string, ops []MutateInSpec, opts MutateInOptions) (mutOut *MutateInResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -718,7 +718,7 @@ func (c *Collection) mutate(ctx context.Context, key string, ops []MutateInSpec,
 
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.MutateInEx(gocbcore.MutateInOptions{
-		Key:                    []byte(key),
+		Key:                    []byte(id),
 		Flags:                  gocbcore.SubdocDocFlag(flags),
 		Cas:                    gocbcore.Cas(opts.Cas),
 		Ops:                    subdocs,
@@ -729,7 +729,7 @@ func (c *Collection) mutate(ctx context.Context, key string, ops []MutateInSpec,
 		DurabilityLevelTimeout: durabilityTimeout,
 	}, func(res *gocbcore.MutateInResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, key, isInsertDocument)
+			errOut = maybeEnhanceKVErr(err, id, isInsertDocument)
 			ctrl.resolve()
 			return
 		}
