@@ -40,7 +40,7 @@ const (
 // SetLogRedactionLevel specifies the level with which logs should be redacted.
 func SetLogRedactionLevel(level LogRedactLevel) {
 	globalLogRedactionLevel = level
-	// gocbcore.SetLogRedactionLevel(gocbcore.LogRedactLevel(level))
+	gocbcore.SetLogRedactionLevel(gocbcore.LogRedactLevel(level))
 }
 
 // Logger defines a logging interface. You can either use one of the default loggers
