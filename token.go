@@ -18,6 +18,26 @@ type bucketToken struct {
 	VbUuid string `json:"vbuuid"`
 }
 
+// BucketName returns the name of the bucket that this token belongs to.
+func (mt MutationToken) BucketName() string {
+	return mt.bucketName
+}
+
+// PartitionUUID returns the UUID of the vbucket that this token belongs to.
+func (mt MutationToken) PartitionUUID() uint64 {
+	return uint64(mt.token.VbUuid)
+}
+
+// PartitionID returns the ID of the vbucket that this token belongs to.
+func (mt MutationToken) PartitionID() uint64 {
+	return uint64(mt.token.VbId)
+}
+
+// SequenceNumber returns the sequence number of the vbucket that this token belongs to.
+func (mt MutationToken) SequenceNumber() uint64 {
+	return uint64(mt.token.SeqNo)
+}
+
 func (mt bucketToken) MarshalJSON() ([]byte, error) {
 	info := []interface{}{mt.SeqNo, mt.VbUuid}
 	return json.Marshal(info)
