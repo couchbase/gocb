@@ -326,7 +326,7 @@ func IsConfigurationError(err error) bool {
 func IsCasMismatchError(err error) bool {
 	cause := errors.Cause(err)
 	if kvErr, ok := cause.(kvError); ok && kvErr.KeyValueError() {
-		return kvErr.status == gocbcore.StatusKeyExists && kvErr.isInsertOp
+		return kvErr.status == gocbcore.StatusKeyExists && !kvErr.isInsertOp
 	}
 
 	return false

@@ -12,13 +12,13 @@ func TestIsCasMismatchError(t *testing.T) {
 	}
 
 	mismatchErr := maybeEnhanceKVErr(err, "myfakekey", true)
-	if !IsCasMismatchError(mismatchErr) {
-		t.Fatalf("Error should have been cas mismatch")
+	if IsCasMismatchError(mismatchErr) {
+		t.Fatalf("Error should not have been cas mismatch")
 	}
 
 	notMismatchErr := maybeEnhanceKVErr(err, "myfakekey", false)
-	if IsCasMismatchError(notMismatchErr) {
-		t.Fatalf("Error should not have been cas mismatch")
+	if !IsCasMismatchError(notMismatchErr) {
+		t.Fatalf("Error should have been cas mismatch")
 	}
 
 	errValTooLarge := &gocbcore.KvError{
