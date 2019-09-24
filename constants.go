@@ -98,9 +98,9 @@ const (
 	// DurabilityLevelMajority specifies that a mutation must be replicated (held in memory) to a majority of nodes.
 	DurabilityLevelMajority = DurabilityLevel(1)
 
-	// DurabilityLevelMajorityAndPersistActive specifies that a mutation must be replicated (held in memory) to a
+	// DurabilityLevelMajorityAndPersistOnMaster specifies that a mutation must be replicated (held in memory) to a
 	// majority of nodes and also persisted (written to disk) on the active node.
-	DurabilityLevelMajorityAndPersistActive = DurabilityLevel(2)
+	DurabilityLevelMajorityAndPersistOnMaster = DurabilityLevel(2)
 
 	// DurabilityLevelPersistToMajority specifies that a mutation must be persisted (written to disk) to a majority
 	// of nodes.
