@@ -477,7 +477,8 @@ func (c *Collection) Get(id string, opts *GetOptions) (docOut *GetResult, errOut
 		opts.Transcoder = c.sb.Transcoder
 	}
 
-	if (opts.Project == nil || (opts.Project != nil && len(opts.Project) > 16)) && !opts.WithExpiry {
+	projections := opts.Project
+	if projections == nil && !opts.WithExpiry {
 		// Standard fulldoc
 		doc, err := c.get(ctx, id, opts)
 		if err != nil {
@@ -486,14 +487,26 @@ func (c *Collection) Get(id string, opts *GetOptions) (docOut *GetResult, errOut
 		return doc, nil
 	}
 
-	lookupOpts := LookupInOptions{Context: ctx}
+	if len(projections) > 16 {
+		// Too many for subdoc so we need to do a full doc fetch
+		projections = nil
+	}
+	if len(projections) > 15 && opts.WithExpiry {
+		// Expiration will push us over subdoc limit so we need to do a full doc fetch
+		projections = nil
+	}
+
 	var ops []LookupInSpec
-	if opts.Project == nil || (len(opts.Project) > 15 && opts.WithExpiry) {
-		// This is a subdoc full doc as WithExpiration is set and projections are either missing or too many.
+	lookupOpts := LookupInOptions{Context: ctx}
+
+	if opts.WithExpiry {
 		ops = append(ops, GetSpec("$document.exptime", &GetSpecOptions{IsXattr: true}))
+	}
+
+	if projections == nil {
 		ops = append(ops, GetSpec("", nil))
 	} else {
-		for _, path := range opts.Project {
+		for _, path := range projections {
 			ops = append(ops, GetSpec(path, nil))
 		}
 	}
@@ -516,9 +529,16 @@ func (c *Collection) Get(id string, opts *GetOptions) (docOut *GetResult, errOut
 	doc.transcoder = opts.Transcoder
 	doc.withExpiry = opts.WithExpiry
 	doc.cas = result.cas
-	err = doc.fromSubDoc(ops, result)
-	if err != nil {
-		return nil, err
+	if projections == nil {
+		err = doc.fromFullProjection(ops, result, opts.Project)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err = doc.fromSubDoc(ops, result)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return doc, nil

@@ -45,13 +45,45 @@ func (d *GetResult) Expiry() uint32 {
 	return d.expiry
 }
 
-func (d *GetResult) fromSubDoc(ops []LookupInSpec, result *LookupInResult) error {
-	content := make(map[string]interface{})
-	if len(ops) == 1 && ops[0].op.Path == "" {
-		// This is a special case where the subdoc was a sole fulldoc.
+func (d *GetResult) fromFullProjection(ops []LookupInSpec, result *LookupInResult, fields []string) error {
+	if fields == nil || len(fields) == 0 {
+		// This is a special case where user specified a full doc fetch with expiration.
 		d.contents = result.contents[0].data
 		return nil
 	}
+
+	if len(result.contents) != 1 {
+		return configurationError{message: "fromFullProjection should only be called with 1 subdoc result"}
+	}
+
+	resultContent := result.contents[0]
+	if resultContent.err != nil {
+		return resultContent.err
+	}
+
+	var content map[string]interface{}
+	err := json.Unmarshal(resultContent.data, &content)
+	if err != nil {
+		return err
+	}
+
+	newContent := make(map[string]interface{})
+	for _, field := range fields {
+		parts := d.pathParts(field)
+		d.set(parts, newContent, content[field])
+	}
+
+	bytes, err := json.Marshal(newContent)
+	if err != nil {
+		return errors.Wrap(err, "could not marshal result contents")
+	}
+	d.contents = bytes
+
+	return nil
+}
+
+func (d *GetResult) fromSubDoc(ops []LookupInSpec, result *LookupInResult) error {
+	content := make(map[string]interface{})
 
 	var errs projectionErrors
 	for i, op := range ops {
@@ -64,6 +96,7 @@ func (d *GetResult) fromSubDoc(ops []LookupInSpec, result *LookupInResult) error
 			}
 
 			errs.errors = append(errs.errors, kvErr)
+			continue
 		}
 		parts := d.pathParts(op.op.Path)
 		d.set(parts, content, result.contents[i].data)
@@ -75,7 +108,7 @@ func (d *GetResult) fromSubDoc(ops []LookupInSpec, result *LookupInResult) error
 
 	bytes, err := json.Marshal(content)
 	if err != nil {
-		return errors.Wrap(err, "could not unmarshal result contents") // TODO
+		return errors.Wrap(err, "could not marshal result contents")
 	}
 	d.contents = bytes
 

@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"context"
+	"encoding/json"
 	"reflect"
 	"testing"
 	"time"
@@ -358,11 +359,29 @@ func TestInsertGetProjection(t *testing.T) {
 	}
 }
 
-func TestInsertGetProjection17Fields(t *testing.T) {
-	var doc testBeerDocument
-	err := loadJSONTestDataset("beer_sample_single", &doc)
-	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
+func TestInsertGetProjection18Fields(t *testing.T) {
+	type docType struct {
+		Field1  int `json:"field1"`
+		Field2  int `json:"field2"`
+		Field3  int `json:"field3"`
+		Field4  int `json:"field4"`
+		Field5  int `json:"field5"`
+		Field6  int `json:"field6"`
+		Field7  int `json:"field7"`
+		Field8  int `json:"field8"`
+		Field9  int `json:"field9"`
+		Field10 int `json:"field10"`
+		Field11 int `json:"field11"`
+		Field12 int `json:"field12"`
+		Field13 int `json:"field13"`
+		Field14 int `json:"field14"`
+		Field15 int `json:"field15"`
+		Field16 int `json:"field16"`
+		Field17 int `json:"field17"`
+		Field18 int `json:"field18"`
+	}
+	doc := docType{
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
 	}
 
 	mutRes, err := globalCollection.Insert("projectDocTooManyFields", doc, nil)
@@ -374,22 +393,43 @@ func TestInsertGetProjection17Fields(t *testing.T) {
 		t.Fatalf("Insert CAS was 0")
 	}
 
-	insertedDoc, err := globalCollection.Get("projectDocTooManyFields", &GetOptions{
+	getDoc, err := globalCollection.Get("projectDocTooManyFields", &GetOptions{
 		Project: []string{"field1", "field2", "field3", "field4", "field5", "field6", "field7", "field8", "field9",
-			"field1", "field10", "field12", "field13", "field14", "field15", "field16", "field17"},
+			"field10", "field11", "field12", "field13", "field14", "field15", "field16", "field17"},
 	})
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)
 	}
 
-	var insertedDocContent testBeerDocument
-	err = insertedDoc.Content(&insertedDocContent)
+	var getDocContent map[string]interface{}
+	err = getDoc.Content(&getDocContent)
 	if err != nil {
 		t.Fatalf("Content failed, error was %v", err)
 	}
 
-	if insertedDocContent != doc {
-		t.Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
+	bytes, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatalf("Marshal failed, error was %v", err)
+	}
+
+	var originalDocContent map[string]interface{}
+	err = json.Unmarshal(bytes, &originalDocContent)
+	if err != nil {
+		t.Fatalf("Unmarshal failed, error was %v", err)
+	}
+
+	if len(getDocContent) != 17 {
+		t.Fatalf("Expected doc content to have 17 fields, had %d", len(getDocContent))
+	}
+
+	if _, ok := getDocContent["field18"]; ok {
+		t.Fatalf("Expected doc to not contain field18")
+	}
+
+	for k, v := range originalDocContent {
+		if v != getDocContent[k] && k != "field18" {
+			t.Fatalf("%s not equal, expected %d but was %d", k, v, originalDocContent[k])
+		}
 	}
 }
 
@@ -398,10 +438,28 @@ func TestInsertGetProjection16FieldsExpiry(t *testing.T) {
 		t.Skip("Skipping test as xattrs not supported.")
 	}
 
-	var doc testBeerDocument
-	err := loadJSONTestDataset("beer_sample_single", &doc)
-	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
+	type docType struct {
+		Field1  int `json:"field1"`
+		Field2  int `json:"field2"`
+		Field3  int `json:"field3"`
+		Field4  int `json:"field4"`
+		Field5  int `json:"field5"`
+		Field6  int `json:"field6"`
+		Field7  int `json:"field7"`
+		Field8  int `json:"field8"`
+		Field9  int `json:"field9"`
+		Field10 int `json:"field10"`
+		Field11 int `json:"field11"`
+		Field12 int `json:"field12"`
+		Field13 int `json:"field13"`
+		Field14 int `json:"field14"`
+		Field15 int `json:"field15"`
+		Field16 int `json:"field16"`
+		Field17 int `json:"field17"`
+		Field18 int `json:"field18"`
+	}
+	doc := docType{
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
 	}
 
 	mutRes, err := globalCollection.Upsert("projectDocTooManyFieldsExpiry", doc, &UpsertOptions{
@@ -417,21 +475,38 @@ func TestInsertGetProjection16FieldsExpiry(t *testing.T) {
 
 	insertedDoc, err := globalCollection.Get("projectDocTooManyFieldsExpiry", &GetOptions{
 		Project: []string{"field1", "field2", "field3", "field4", "field5", "field6", "field7", "field8", "field9",
-			"field1", "field10", "field12", "field13", "field14", "field15", "field16"},
+			"field10", "field11", "field12", "field13", "field14", "field15", "field16"},
 		WithExpiry: true,
 	})
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)
 	}
 
-	var insertedDocContent testBeerDocument
+	var insertedDocContent map[string]interface{}
 	err = insertedDoc.Content(&insertedDocContent)
 	if err != nil {
 		t.Fatalf("Content failed, error was %v", err)
 	}
 
-	if insertedDocContent != doc {
-		t.Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
+	bytes, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatalf("Marshal failed, error was %v", err)
+	}
+
+	var originalDocContent map[string]interface{}
+	err = json.Unmarshal(bytes, &originalDocContent)
+	if err != nil {
+		t.Fatalf("Unmarshal failed, error was %v", err)
+	}
+
+	if len(insertedDocContent) != 16 {
+		t.Fatalf("Expected doc content to have 16 fields, had %d", len(insertedDocContent))
+	}
+
+	for k, v := range originalDocContent {
+		if v != originalDocContent[k] {
+			t.Fatalf("%s not equal, expected %d but was %d", k, v, originalDocContent[k])
+		}
 	}
 
 	if !insertedDoc.HasExpiry() {
