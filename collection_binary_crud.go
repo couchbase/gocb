@@ -51,7 +51,7 @@ func (c *BinaryCollection) Append(id string, val []byte, opts *AppendOptions) (m
 		ctx:            opts.Context,
 		key:            id,
 		cas:            res.Cas(),
-		mt:             res.MutationToken(),
+		mt:             *res.MutationToken(),
 		replicaTo:      opts.ReplicateTo,
 		persistTo:      opts.PersistTo,
 		forDelete:      true,
@@ -89,14 +89,16 @@ func (c *BinaryCollection) append(ctx context.Context, id string, val []byte, op
 			return
 		}
 
-		mutTok := MutationToken{
-			token:      res.MutationToken,
-			bucketName: c.collection.sb.BucketName,
-		}
-		mutOut = &MutationResult{
-			mt: mutTok,
-		}
+		mutOut = &MutationResult{}
 		mutOut.cas = Cas(res.Cas)
+
+		if res.MutationToken.VbUuid != 0 {
+			mutTok := &MutationToken{
+				token:      res.MutationToken,
+				bucketName: c.collection.sb.BucketName,
+			}
+			mutOut.mt = mutTok
+		}
 
 		ctrl.resolve()
 	}))
@@ -146,7 +148,7 @@ func (c *BinaryCollection) Prepend(id string, val []byte, opts *PrependOptions) 
 		ctx:            opts.Context,
 		key:            id,
 		cas:            res.Cas(),
-		mt:             res.MutationToken(),
+		mt:             *res.MutationToken(),
 		replicaTo:      opts.ReplicateTo,
 		persistTo:      opts.PersistTo,
 		forDelete:      true,
@@ -184,14 +186,16 @@ func (c *BinaryCollection) prepend(ctx context.Context, id string, val []byte, o
 			return
 		}
 
-		mutTok := MutationToken{
-			token:      res.MutationToken,
-			bucketName: c.collection.sb.BucketName,
-		}
-		mutOut = &MutationResult{
-			mt: mutTok,
-		}
+		mutOut = &MutationResult{}
 		mutOut.cas = Cas(res.Cas)
+
+		if res.MutationToken.VbUuid != 0 {
+			mutTok := &MutationToken{
+				token:      res.MutationToken,
+				bucketName: c.collection.sb.BucketName,
+			}
+			mutOut.mt = mutTok
+		}
 
 		ctrl.resolve()
 	}))
@@ -246,7 +250,7 @@ func (c *BinaryCollection) Increment(id string, opts *CounterOptions) (countOut 
 		ctx:            opts.Context,
 		key:            id,
 		cas:            res.Cas(),
-		mt:             res.MutationToken(),
+		mt:             *res.MutationToken(),
 		replicaTo:      opts.ReplicateTo,
 		persistTo:      opts.PersistTo,
 		forDelete:      true,
@@ -291,18 +295,21 @@ func (c *BinaryCollection) increment(ctx context.Context, id string, opts Counte
 			return
 		}
 
-		mutTok := MutationToken{
-			token:      res.MutationToken,
-			bucketName: c.collection.sb.BucketName,
-		}
 		countOut = &CounterResult{
 			MutationResult: MutationResult{
-				mt: mutTok,
 				Result: Result{
 					cas: Cas(res.Cas),
 				},
 			},
 			content: res.Value,
+		}
+
+		if res.MutationToken.VbUuid != 0 {
+			mutTok := &MutationToken{
+				token:      res.MutationToken,
+				bucketName: c.collection.sb.BucketName,
+			}
+			countOut.mt = mutTok
 		}
 
 		ctrl.resolve()
@@ -345,7 +352,7 @@ func (c *BinaryCollection) Decrement(id string, opts *CounterOptions) (countOut 
 		ctx:            opts.Context,
 		key:            id,
 		cas:            res.Cas(),
-		mt:             res.MutationToken(),
+		mt:             *res.MutationToken(),
 		replicaTo:      opts.ReplicateTo,
 		persistTo:      opts.PersistTo,
 		forDelete:      true,
@@ -390,18 +397,21 @@ func (c *BinaryCollection) decrement(ctx context.Context, id string, opts Counte
 			return
 		}
 
-		mutTok := MutationToken{
-			token:      res.MutationToken,
-			bucketName: c.collection.sb.BucketName,
-		}
 		countOut = &CounterResult{
 			MutationResult: MutationResult{
-				mt: mutTok,
 				Result: Result{
 					cas: Cas(res.Cas),
 				},
 			},
 			content: res.Value,
+		}
+
+		if res.MutationToken.VbUuid != 0 {
+			mutTok := &MutationToken{
+				token:      res.MutationToken,
+				bucketName: c.collection.sb.BucketName,
+			}
+			countOut.mt = mutTok
 		}
 
 		ctrl.resolve()

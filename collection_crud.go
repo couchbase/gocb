@@ -173,7 +173,7 @@ func (c *Collection) Insert(id string, val interface{}, opts *InsertOptions) (mu
 		ctx:            opts.Context,
 		key:            id,
 		cas:            res.Cas(),
-		mt:             res.MutationToken(),
+		mt:             *res.MutationToken(),
 		replicaTo:      opts.ReplicateTo,
 		persistTo:      opts.PersistTo,
 		forDelete:      false,
@@ -224,14 +224,16 @@ func (c *Collection) insert(ctx context.Context, id string, val interface{}, opt
 			return
 		}
 
-		mutTok := MutationToken{
-			token:      res.MutationToken,
-			bucketName: c.sb.BucketName,
-		}
-		mutOut = &MutationResult{
-			mt: mutTok,
-		}
+		mutOut = &MutationResult{}
 		mutOut.cas = Cas(res.Cas)
+
+		if res.MutationToken.VbUuid != 0 {
+			mutTok := &MutationToken{
+				token:      res.MutationToken,
+				bucketName: c.sb.BucketName,
+			}
+			mutOut.mt = mutTok
+		}
 
 		ctrl.resolve()
 	}))
@@ -270,7 +272,7 @@ func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mu
 		ctx:            opts.Context,
 		key:            id,
 		cas:            res.Cas(),
-		mt:             res.MutationToken(),
+		mt:             *res.MutationToken(),
 		replicaTo:      opts.ReplicateTo,
 		persistTo:      opts.PersistTo,
 		forDelete:      false,
@@ -321,14 +323,16 @@ func (c *Collection) upsert(ctx context.Context, id string, val interface{}, opt
 			return
 		}
 
-		mutTok := MutationToken{
-			token:      res.MutationToken,
-			bucketName: c.sb.BucketName,
-		}
-		mutOut = &MutationResult{
-			mt: mutTok,
-		}
+		mutOut = &MutationResult{}
 		mutOut.cas = Cas(res.Cas)
+
+		if res.MutationToken.VbUuid != 0 {
+			mutTok := &MutationToken{
+				token:      res.MutationToken,
+				bucketName: c.sb.BucketName,
+			}
+			mutOut.mt = mutTok
+		}
 
 		ctrl.resolve()
 	}))
@@ -379,7 +383,7 @@ func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (
 		ctx:            opts.Context,
 		key:            id,
 		cas:            res.Cas(),
-		mt:             res.MutationToken(),
+		mt:             *res.MutationToken(),
 		replicaTo:      opts.ReplicateTo,
 		persistTo:      opts.PersistTo,
 		forDelete:      false,
@@ -430,14 +434,16 @@ func (c *Collection) replace(ctx context.Context, id string, val interface{}, op
 			return
 		}
 
-		mutTok := MutationToken{
-			token:      res.MutationToken,
-			bucketName: c.sb.BucketName,
-		}
-		mutOut = &MutationResult{
-			mt: mutTok,
-		}
+		mutOut = &MutationResult{}
 		mutOut.cas = Cas(res.Cas)
+
+		if res.MutationToken.VbUuid != 0 {
+			mutTok := &MutationToken{
+				token:      res.MutationToken,
+				bucketName: c.sb.BucketName,
+			}
+			mutOut.mt = mutTok
+		}
 
 		ctrl.resolve()
 	}))
@@ -528,7 +534,6 @@ func (c *Collection) Get(id string, opts *GetOptions) (docOut *GetResult, errOut
 	}
 
 	doc.transcoder = opts.Transcoder
-	doc.withExpiry = opts.WithExpiry
 	doc.cas = result.cas
 	if projections == nil {
 		err = doc.fromFullProjection(ops, result, opts.Project)
@@ -795,7 +800,7 @@ func (c *Collection) Remove(id string, opts *RemoveOptions) (mutOut *MutationRes
 		ctx:            opts.Context,
 		key:            id,
 		cas:            res.Cas(),
-		mt:             res.MutationToken(),
+		mt:             *res.MutationToken(),
 		replicaTo:      opts.ReplicateTo,
 		persistTo:      opts.PersistTo,
 		forDelete:      true,
@@ -832,14 +837,16 @@ func (c *Collection) remove(ctx context.Context, id string, opts RemoveOptions) 
 			return
 		}
 
-		mutTok := MutationToken{
-			token:      res.MutationToken,
-			bucketName: c.sb.BucketName,
-		}
-		mutOut = &MutationResult{
-			mt: mutTok,
-		}
+		mutOut = &MutationResult{}
 		mutOut.cas = Cas(res.Cas)
+
+		if res.MutationToken.VbUuid != 0 {
+			mutTok := &MutationToken{
+				token:      res.MutationToken,
+				bucketName: c.sb.BucketName,
+			}
+			mutOut.mt = mutTok
+		}
 
 		ctrl.resolve()
 	}))
@@ -1035,14 +1042,16 @@ func (c *Collection) unlock(ctx context.Context, id string, cas Cas, opts Unlock
 			return
 		}
 
-		mutTok := MutationToken{
-			token:      res.MutationToken,
-			bucketName: c.sb.BucketName,
-		}
-		mutOut = &MutationResult{
-			mt: mutTok,
-		}
+		mutOut = &MutationResult{}
 		mutOut.cas = Cas(res.Cas)
+
+		if res.MutationToken.VbUuid != 0 {
+			mutTok := &MutationToken{
+				token:      res.MutationToken,
+				bucketName: c.sb.BucketName,
+			}
+			mutOut.mt = mutTok
+		}
 
 		ctrl.resolve()
 	}))
@@ -1097,14 +1106,16 @@ func (c *Collection) touch(ctx context.Context, id string, expiry uint32, opts T
 			return
 		}
 
-		mutTok := MutationToken{
-			token:      res.MutationToken,
-			bucketName: c.sb.BucketName,
-		}
-		mutOut = &MutationResult{
-			mt: mutTok,
-		}
+		mutOut = &MutationResult{}
 		mutOut.cas = Cas(res.Cas)
+
+		if res.MutationToken.VbUuid != 0 {
+			mutTok := &MutationToken{
+				token:      res.MutationToken,
+				bucketName: c.sb.BucketName,
+			}
+			mutOut.mt = mutTok
+		}
 
 		ctrl.resolve()
 	}))

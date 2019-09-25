@@ -629,7 +629,7 @@ func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptio
 		ctx:            opts.Context,
 		key:            id,
 		cas:            res.Cas(),
-		mt:             res.MutationToken(),
+		mt:             *res.MutationToken(),
 		replicaTo:      opts.ReplicateTo,
 		persistTo:      opts.PersistTo,
 		forDelete:      false,
@@ -733,18 +733,21 @@ func (c *Collection) mutate(ctx context.Context, id string, ops []MutateInSpec, 
 			return
 		}
 
-		mutTok := MutationToken{
-			token:      res.MutationToken,
-			bucketName: c.sb.BucketName,
-		}
 		mutRes := &MutateInResult{
 			MutationResult: MutationResult{
-				mt: mutTok,
 				Result: Result{
 					cas: Cas(res.Cas),
 				},
 			},
 			contents: make([]mutateInPartial, len(res.Ops)),
+		}
+
+		if res.MutationToken.VbUuid != 0 {
+			mutTok := &MutationToken{
+				token:      res.MutationToken,
+				bucketName: c.sb.BucketName,
+			}
+			mutRes.mt = mutTok
 		}
 
 		for i, op := range res.Ops {

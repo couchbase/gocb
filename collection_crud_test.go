@@ -71,11 +71,7 @@ func TestInsertGetWithExpiry(t *testing.T) {
 		t.Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
 	}
 
-	if !insertedDoc.HasExpiry() {
-		t.Fatalf("Expected document to have an expiry")
-	}
-
-	if insertedDoc.Expiry() == 0 {
+	if *insertedDoc.Expiry() == 0 {
 		t.Fatalf("Expected expiry value to be populated")
 	}
 }
@@ -509,11 +505,7 @@ func TestInsertGetProjection16FieldsExpiry(t *testing.T) {
 		}
 	}
 
-	if !insertedDoc.HasExpiry() {
-		t.Fatalf("Expected document to have an expiry")
-	}
-
-	if insertedDoc.Expiry() == 0 {
+	if *insertedDoc.Expiry() == 0 {
 		t.Fatalf("Expected expiry value to be populated")
 	}
 }
@@ -843,11 +835,7 @@ func TestGetAndTouch(t *testing.T) {
 		t.Fatalf("Get failed, error was %v", err)
 	}
 
-	if !expireDoc.HasExpiry() {
-		t.Fatalf("Expected doc to have an expiry")
-	}
-
-	if expireDoc.Expiry() == 0 {
+	if *expireDoc.Expiry() == 0 {
 		t.Fatalf("Expected doc to have an expiry > 0, was %d", expireDoc.Expiry())
 	}
 
@@ -1106,11 +1094,7 @@ func TestTouch(t *testing.T) {
 		t.Fatalf("Get failed, error was %v", err)
 	}
 
-	if !expireDoc.HasExpiry() {
-		t.Fatalf("Expected doc to have an expiry")
-	}
-
-	if expireDoc.Expiry() == 0 {
+	if *expireDoc.Expiry() == 0 {
 		t.Fatalf("Expected doc to have an expiry > 0, was %d", expireDoc.Expiry())
 	}
 

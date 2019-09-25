@@ -206,15 +206,18 @@ func (item *TouchOp) execute(c *Collection, provider kvProvider, transcoder Tran
 	}, func(res *gocbcore.TouchResult, err error) {
 		item.Err = maybeEnhanceKVErr(err, item.ID, false)
 		if item.Err == nil {
-			mutTok := MutationToken{
-				token:      res.MutationToken,
-				bucketName: c.sb.BucketName,
-			}
 			item.Result = &MutationResult{
 				Result: Result{
 					cas: Cas(res.Cas),
 				},
-				mt: mutTok,
+			}
+
+			if res.MutationToken.VbUuid != 0 {
+				mutTok := &MutationToken{
+					token:      res.MutationToken,
+					bucketName: c.sb.BucketName,
+				}
+				item.Result.mt = mutTok
 			}
 		}
 		signal <- item
@@ -250,15 +253,18 @@ func (item *RemoveOp) execute(c *Collection, provider kvProvider, transcoder Tra
 	}, func(res *gocbcore.DeleteResult, err error) {
 		item.Err = maybeEnhanceKVErr(err, item.ID, false)
 		if item.Err == nil {
-			mutTok := MutationToken{
-				token:      res.MutationToken,
-				bucketName: c.sb.BucketName,
-			}
 			item.Result = &MutationResult{
 				Result: Result{
 					cas: Cas(res.Cas),
 				},
-				mt: mutTok,
+			}
+
+			if res.MutationToken.VbUuid != 0 {
+				mutTok := &MutationToken{
+					token:      res.MutationToken,
+					bucketName: c.sb.BucketName,
+				}
+				item.Result.mt = mutTok
 			}
 		}
 		signal <- item
@@ -305,15 +311,18 @@ func (item *UpsertOp) execute(c *Collection, provider kvProvider, transcoder Tra
 	}, func(res *gocbcore.StoreResult, err error) {
 		item.Err = maybeEnhanceKVErr(err, item.ID, false)
 		if item.Err == nil {
-			mutTok := MutationToken{
-				token:      res.MutationToken,
-				bucketName: c.sb.BucketName,
-			}
 			item.Result = &MutationResult{
 				Result: Result{
 					cas: Cas(res.Cas),
 				},
-				mt: mutTok,
+			}
+
+			if res.MutationToken.VbUuid != 0 {
+				mutTok := &MutationToken{
+					token:      res.MutationToken,
+					bucketName: c.sb.BucketName,
+				}
+				item.Result.mt = mutTok
 			}
 		}
 		signal <- item
@@ -359,15 +368,18 @@ func (item *InsertOp) execute(c *Collection, provider kvProvider, transcoder Tra
 	}, func(res *gocbcore.StoreResult, err error) {
 		item.Err = maybeEnhanceKVErr(err, item.ID, true)
 		if item.Err == nil {
-			mutTok := MutationToken{
-				token:      res.MutationToken,
-				bucketName: c.sb.BucketName,
-			}
 			item.Result = &MutationResult{
 				Result: Result{
 					cas: Cas(res.Cas),
 				},
-				mt: mutTok,
+			}
+
+			if res.MutationToken.VbUuid != 0 {
+				mutTok := &MutationToken{
+					token:      res.MutationToken,
+					bucketName: c.sb.BucketName,
+				}
+				item.Result.mt = mutTok
 			}
 		}
 		signal <- item
@@ -415,15 +427,18 @@ func (item *ReplaceOp) execute(c *Collection, provider kvProvider, transcoder Tr
 	}, func(res *gocbcore.StoreResult, err error) {
 		item.Err = maybeEnhanceKVErr(err, item.ID, true)
 		if item.Err == nil {
-			mutTok := MutationToken{
-				token:      res.MutationToken,
-				bucketName: c.sb.BucketName,
-			}
 			item.Result = &MutationResult{
 				Result: Result{
 					cas: Cas(res.Cas),
 				},
-				mt: mutTok,
+			}
+
+			if res.MutationToken.VbUuid != 0 {
+				mutTok := &MutationToken{
+					token:      res.MutationToken,
+					bucketName: c.sb.BucketName,
+				}
+				item.Result.mt = mutTok
 			}
 		}
 		signal <- item
@@ -459,15 +474,18 @@ func (item *AppendOp) execute(c *Collection, provider kvProvider, transcoder Tra
 	}, func(res *gocbcore.AdjoinResult, err error) {
 		item.Err = maybeEnhanceKVErr(err, item.ID, true)
 		if item.Err == nil {
-			mutTok := MutationToken{
-				token:      res.MutationToken,
-				bucketName: c.sb.BucketName,
-			}
 			item.Result = &MutationResult{
 				Result: Result{
 					cas: Cas(res.Cas),
 				},
-				mt: mutTok,
+			}
+
+			if res.MutationToken.VbUuid != 0 {
+				mutTok := &MutationToken{
+					token:      res.MutationToken,
+					bucketName: c.sb.BucketName,
+				}
+				item.Result.mt = mutTok
 			}
 		}
 		signal <- item
@@ -503,15 +521,18 @@ func (item *PrependOp) execute(c *Collection, provider kvProvider, transcoder Tr
 	}, func(res *gocbcore.AdjoinResult, err error) {
 		item.Err = maybeEnhanceKVErr(err, item.ID, true)
 		if item.Err == nil {
-			mutTok := MutationToken{
-				token:      res.MutationToken,
-				bucketName: c.sb.BucketName,
-			}
 			item.Result = &MutationResult{
 				Result: Result{
 					cas: Cas(res.Cas),
 				},
-				mt: mutTok,
+			}
+
+			if res.MutationToken.VbUuid != 0 {
+				mutTok := &MutationToken{
+					token:      res.MutationToken,
+					bucketName: c.sb.BucketName,
+				}
+				item.Result.mt = mutTok
 			}
 		}
 		signal <- item
@@ -557,18 +578,21 @@ func (item *IncrementOp) execute(c *Collection, provider kvProvider, transcoder 
 	}, func(res *gocbcore.CounterResult, err error) {
 		item.Err = maybeEnhanceKVErr(err, item.ID, true)
 		if item.Err == nil {
-			mutTok := MutationToken{
-				token:      res.MutationToken,
-				bucketName: c.sb.BucketName,
-			}
 			item.Result = &CounterResult{
 				MutationResult: MutationResult{
-					mt: mutTok,
 					Result: Result{
 						cas: Cas(res.Cas),
 					},
 				},
 				content: res.Value,
+			}
+
+			if res.MutationToken.VbUuid != 0 {
+				mutTok := &MutationToken{
+					token:      res.MutationToken,
+					bucketName: c.sb.BucketName,
+				}
+				item.Result.mt = mutTok
 			}
 		}
 		signal <- item
@@ -614,18 +638,21 @@ func (item *DecrementOp) execute(c *Collection, provider kvProvider, transcoder 
 	}, func(res *gocbcore.CounterResult, err error) {
 		item.Err = maybeEnhanceKVErr(err, item.ID, true)
 		if item.Err == nil {
-			mutTok := MutationToken{
-				token:      res.MutationToken,
-				bucketName: c.sb.BucketName,
-			}
 			item.Result = &CounterResult{
 				MutationResult: MutationResult{
-					mt: mutTok,
 					Result: Result{
 						cas: Cas(res.Cas),
 					},
 				},
 				content: res.Value,
+			}
+
+			if res.MutationToken.VbUuid != 0 {
+				mutTok := &MutationToken{
+					token:      res.MutationToken,
+					bucketName: c.sb.BucketName,
+				}
+				item.Result.mt = mutTok
 			}
 		}
 		signal <- item

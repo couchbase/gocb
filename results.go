@@ -26,8 +26,7 @@ type GetResult struct {
 	transcoder Transcoder
 	flags      uint32
 	contents   []byte
-	expiry     uint32
-	withExpiry bool
+	expiry     *uint32
 }
 
 // Content assigns the value of the result into the valuePtr using default decoding.
@@ -35,13 +34,8 @@ func (d *GetResult) Content(valuePtr interface{}) error {
 	return d.transcoder.Decode(d.contents, d.flags, valuePtr)
 }
 
-// HasExpiry verifies whether or not the result has an expiry value.
-func (d *GetResult) HasExpiry() bool {
-	return d.withExpiry
-}
-
 // Expiry returns the expiry value for the result.
-func (d *GetResult) Expiry() uint32 {
+func (d *GetResult) Expiry() *uint32 {
 	return d.expiry
 }
 
@@ -285,11 +279,11 @@ func (d *ExistsResult) Exists() bool {
 // MutationResult is the return type of any store related operations. It contains Cas and mutation tokens.
 type MutationResult struct {
 	Result
-	mt MutationToken
+	mt *MutationToken
 }
 
 // MutationToken returns the mutation token belonging to an operation.
-func (mr MutationResult) MutationToken() MutationToken {
+func (mr MutationResult) MutationToken() *MutationToken {
 	return mr.mt
 }
 
@@ -330,7 +324,7 @@ type CounterResult struct {
 }
 
 // MutationToken returns the mutation token belonging to an operation.
-func (mr CounterResult) MutationToken() MutationToken {
+func (mr CounterResult) MutationToken() *MutationToken {
 	return mr.mt
 }
 

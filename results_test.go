@@ -23,23 +23,29 @@ func TestGetResultCas(t *testing.T) {
 func TestGetResultHasExpiry(t *testing.T) {
 	res := GetResult{}
 
-	if res.HasExpiry() {
-		t.Fatalf("HasExpiry should have returned false but returned true")
+	if res.Expiry() != nil {
+		t.Fatalf("Expiry should have returned nil but returned %d", *res.Expiry())
 	}
 
-	res.withExpiry = true
+	expiry := uint32(32)
+	res.expiry = &expiry
 
-	if !res.HasExpiry() {
-		t.Fatalf("HasExpiry should have returned true but returned false")
+	if *res.Expiry() == 0 {
+		t.Fatalf("HasExpiry should have returned not 0")
 	}
 }
 
 func TestGetResultExpiry(t *testing.T) {
+	expiry := uint32(10)
 	res := GetResult{
-		expiry: 10,
+		expiry: &expiry,
 	}
 
-	if res.Expiry() != 10 {
+	if res.Expiry() == nil {
+		t.Fatalf("Expiry should have not returned nil")
+	}
+
+	if *res.Expiry() != 10 {
 		t.Fatalf("Expiry value should have been 10 but was %d", res.Expiry())
 	}
 }
@@ -320,7 +326,7 @@ func TestMutationResultCas(t *testing.T) {
 }
 
 func TestMutationResultMutationToken(t *testing.T) {
-	token := MutationToken{
+	token := &MutationToken{
 		bucketName: "name",
 		token:      gocbcore.MutationToken{},
 	}
@@ -349,7 +355,7 @@ func TestCounterResultCas(t *testing.T) {
 }
 
 func TestCounterResultMutationToken(t *testing.T) {
-	token := MutationToken{
+	token := &MutationToken{
 		bucketName: "name",
 		token:      gocbcore.MutationToken{},
 	}
@@ -390,7 +396,7 @@ func TestMutateInResultCas(t *testing.T) {
 }
 
 func TestMutateInResultMutationToken(t *testing.T) {
-	token := MutationToken{
+	token := &MutationToken{
 		bucketName: "name",
 		token:      gocbcore.MutationToken{},
 	}
