@@ -1,11 +1,5 @@
-github.com/couchbase/gocbcore/v8 v8.0.0-alpha.5.0.20190822080250-9bba5ee0a3db h1:g5/9lpSUekNeszP0nuNHxWvat4fGRoYQuS7HFkfCvvQ=
-github.com/couchbase/gocbcore/v8 v8.0.0-alpha.5.0.20190822080250-9bba5ee0a3db/go.mod h1:ffhLs3F/rbsp3S5L4C8vOGixYWbDYivgokZ+vTZivOo=
-github.com/couchbase/gocbcore/v8 v8.0.0-alpha.5.0.20190910164800-32bdceff1493 h1:Ve7Oj3IJPumF0TllUvO4k5lBiDD6I6/pg5oLfOnMypE=
-github.com/couchbase/gocbcore/v8 v8.0.0-alpha.5.0.20190910164800-32bdceff1493/go.mod h1:ffhLs3F/rbsp3S5L4C8vOGixYWbDYivgokZ+vTZivOo=
-github.com/couchbase/gocbcore/v8 v8.0.0-alpha.5.0.20190912063440-e96c73e8b2a3 h1:vLV3W6TWx8RVG9cFFSdp8z7DOPuP3v6Uw+3lvf7Yaqk=
-github.com/couchbase/gocbcore/v8 v8.0.0-alpha.5.0.20190912063440-e96c73e8b2a3/go.mod h1:ffhLs3F/rbsp3S5L4C8vOGixYWbDYivgokZ+vTZivOo=
-github.com/couchbase/gocbcore/v8 v8.0.0-alpha.5.0.20190919171833-cc6231dc3abd h1:Xk8Ijg4zi7pXcAGOGpG2QVdaK81TBIvO48QK2qk+E/4=
-github.com/couchbase/gocbcore/v8 v8.0.0-alpha.5.0.20190919171833-cc6231dc3abd/go.mod h1:ffhLs3F/rbsp3S5L4C8vOGixYWbDYivgokZ+vTZivOo=
+github.com/couchbase/gocbcore/v8 v8.0.0-alpha.5.0.20190926140722-63dd10dcba15 h1:Hj+H7AZ0JZT1pLMB8D0L3Q4sbXY+A972efnYRXxzcLQ=
+github.com/couchbase/gocbcore/v8 v8.0.0-alpha.5.0.20190926140722-63dd10dcba15/go.mod h1:ffhLs3F/rbsp3S5L4C8vOGixYWbDYivgokZ+vTZivOo=
 github.com/couchbaselabs/gocbconnstr v1.0.3 h1:rkHC5N0ecbZ1NU7671ubApRdhSVc4rsulTEQ0W8O1uw=
 github.com/couchbaselabs/gocbconnstr v1.0.3/go.mod h1:Mg0VKc6azyPXhSq4b/xwsrW30ORe+H5L5hucCweYhj8=
 github.com/couchbaselabs/gojcbmock v1.0.3 h1:Ueenew8eiSM50pgHWV9+LThTB/aG29M2+LrxdjKasyU=

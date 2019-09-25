@@ -70,21 +70,23 @@ func diagStateString(state DiagConnState) string {
 	return ""
 }
 
-// DiagnosticEntry represents a single entry in a diagnostics report.
-type DiagnosticEntry struct {
-	Service      ServiceType
+// EndPointDiagnostics represents a single entry in a diagnostics report.
+type EndPointDiagnostics struct {
+	Type         ServiceType
 	State        DiagConnState
-	LocalAddr    string
-	RemoteAddr   string
+	Local        string
+	Remote       string
 	LastActivity time.Time
+	Scope        string
+	ID           string
 }
 
 // DiagnosticsResult encapsulates the results of a Diagnostics operation.
 type DiagnosticsResult struct {
-	ID        string
-	ConfigRev int64
-	SDK       string
-	Services  []DiagnosticEntry
+	ID       string
+	Version  int64
+	SDK      string
+	Services map[string][]EndPointDiagnostics
 }
 
 type jsonDiagnosticEntry struct {
@@ -92,43 +94,47 @@ type jsonDiagnosticEntry struct {
 	Remote         string `json:"remote"`
 	Local          string `json:"local"`
 	LastActivityUs uint64 `json:"last_activity_us"`
+	Scope          string `json:"scope"`
+	ID             string `json:"id"`
 }
 
 type jsonDiagnosticReport struct {
-	Version   int                              `json:"version"`
-	ID        string                           `json:"id"`
-	ConfigRev int64                            `json:"config_rev"`
-	SDK       string                           `json:"sdk"`
-	Services  map[string][]jsonDiagnosticEntry `json:"services"`
+	Version  int64                            `json:"version"`
+	ID       string                           `json:"id"`
+	SDK      string                           `json:"sdk"`
+	Services map[string][]jsonDiagnosticEntry `json:"services"`
 }
 
 // MarshalJSON generates a JSON representation of this diagnostics report.
 func (report *DiagnosticsResult) MarshalJSON() ([]byte, error) {
 	jsonReport := jsonDiagnosticReport{
-		Version:   1,
-		ID:        report.ID,
-		Services:  make(map[string][]jsonDiagnosticEntry),
-		SDK:       report.SDK,
-		ConfigRev: report.ConfigRev,
+		Version:  1,
+		ID:       report.ID,
+		Services: make(map[string][]jsonDiagnosticEntry),
+		SDK:      report.SDK,
 	}
 
-	for _, service := range report.Services {
-		serviceStr := diagServiceString(service.Service)
-		if serviceStr == "" {
-			serviceStr = "unknown"
-		}
+	for _, serviceType := range report.Services {
+		for _, service := range serviceType {
+			serviceStr := diagServiceString(service.Type)
+			if serviceStr == "" {
+				serviceStr = "unknown"
+			}
 
-		stateStr := diagStateString(service.State)
-		if stateStr == "" {
-			stateStr = "unknown"
-		}
+			stateStr := diagStateString(service.State)
+			if stateStr == "" {
+				stateStr = "unknown"
+			}
 
-		jsonReport.Services[serviceStr] = append(jsonReport.Services[serviceStr], jsonDiagnosticEntry{
-			State:          stateStr,
-			Remote:         service.RemoteAddr,
-			Local:          service.LocalAddr,
-			LastActivityUs: uint64(time.Now().Sub(service.LastActivity).Nanoseconds()),
-		})
+			jsonReport.Services[serviceStr] = append(jsonReport.Services[serviceStr], jsonDiagnosticEntry{
+				State:          stateStr,
+				Remote:         service.Remote,
+				Local:          service.Local,
+				LastActivityUs: uint64(time.Now().Sub(service.LastActivity).Nanoseconds()),
+				Scope:          service.Scope,
+				ID:             service.ID,
+			})
+		}
 	}
 
 	return json.Marshal(&jsonReport)
@@ -151,12 +157,7 @@ func (c *Cluster) Diagnostics(opts *DiagnosticsOptions) (*DiagnosticsResult, err
 		opts.ReportID = uuid.New().String()
 	}
 
-	cli, err := c.randomClient()
-	if err != nil {
-		return nil, err
-	}
-
-	provider, err := cli.getDiagnosticsProvider()
+	provider, err := c.getDiagnosticsProvider()
 	if err != nil {
 		return nil, err
 	}
@@ -167,10 +168,13 @@ func (c *Cluster) Diagnostics(opts *DiagnosticsOptions) (*DiagnosticsResult, err
 	}
 
 	report := &DiagnosticsResult{
-		ID:        opts.ReportID,
-		ConfigRev: agentReport.ConfigRev,
-		SDK:       Identifier(),
+		ID:       opts.ReportID,
+		Version:  agentReport.ConfigRev,
+		SDK:      Identifier(),
+		Services: make(map[string][]EndPointDiagnostics),
 	}
+
+	report.Services["kv"] = make([]EndPointDiagnostics, 0)
 
 	for _, conn := range agentReport.MemdConns {
 		state := DiagStateDisconnected
@@ -178,12 +182,14 @@ func (c *Cluster) Diagnostics(opts *DiagnosticsOptions) (*DiagnosticsResult, err
 			state = DiagStateOk
 		}
 
-		report.Services = append(report.Services, DiagnosticEntry{
-			Service:      MemdService,
+		report.Services["kv"] = append(report.Services["kv"], EndPointDiagnostics{
+			Type:         MemdService,
 			State:        state,
-			LocalAddr:    conn.LocalAddr,
-			RemoteAddr:   conn.RemoteAddr,
+			Local:        conn.LocalAddr,
+			Remote:       conn.RemoteAddr,
 			LastActivity: conn.LastActivity,
+			Scope:        conn.Scope,
+			ID:           conn.Id,
 		})
 	}
 

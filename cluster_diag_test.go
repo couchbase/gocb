@@ -35,11 +35,14 @@ func TestDiagnostics(t *testing.T) {
 				LastActivity: date1,
 				LocalAddr:    "10.112.191.101",
 				RemoteAddr:   "10.112.191.102",
+				Scope:        "bucket",
+				Id:           "0xc000094120",
 			},
 			{
 				LastActivity: date2,
 				LocalAddr:    "",
 				RemoteAddr:   "",
+				Id:           "",
 			},
 		},
 	}
@@ -71,28 +74,39 @@ func TestDiagnostics(t *testing.T) {
 		t.Fatalf("Report ID should have been not empty")
 	}
 
-	if report.ConfigRev != info.ConfigRev {
-		t.Fatalf("Report ConfigRev should have been %d but was %d", info.ConfigRev, report.ConfigRev)
+	if report.Version != info.ConfigRev {
+		t.Fatalf("Report Version should have been %d but was %d", info.ConfigRev, report.Version)
 	}
 
-	if len(report.Services) != len(info.MemdConns) {
+	services, ok := report.Services["kv"]
+	if !ok {
+		t.Fatalf("Report missing kv service")
+	}
+
+	if len(services) != len(info.MemdConns) {
 		t.Fatalf("Expected Services length to be %d but was %d", len(info.MemdConns), len(report.Services))
 	}
 
-	for i, service := range report.Services {
-		if service.Service != MemdService {
-			t.Fatalf("Expected service to be MemdService but was %d", service.Service)
+	for i, service := range services {
+		if service.Type != MemdService {
+			t.Fatalf("Expected service to be MemdService but was %d", service.Type)
 		}
 
 		expected := info.MemdConns[i]
-		if service.RemoteAddr != expected.RemoteAddr {
-			t.Fatalf("Expected service RemoteAddr to be %s but was %s", expected.RemoteAddr, service.RemoteAddr)
+		if service.Remote != expected.RemoteAddr {
+			t.Fatalf("Expected service Remote to be %s but was %s", expected.RemoteAddr, service.Remote)
 		}
-		if service.LocalAddr != expected.LocalAddr {
-			t.Fatalf("Expected service LocalAddr to be %s but was %s", expected.LocalAddr, service.LocalAddr)
+		if service.Local != expected.LocalAddr {
+			t.Fatalf("Expected service Local to be %s but was %s", expected.LocalAddr, service.Local)
 		}
 		if service.LastActivity != expected.LastActivity {
 			t.Fatalf("Expected service LastActivity to be %s but was %s", expected.LastActivity, service.LastActivity)
+		}
+		if service.Scope != expected.Scope {
+			t.Fatalf("Expected service Scope to be %s but was %s", expected.Scope, service.Scope)
+		}
+		if service.ID != expected.Id {
+			t.Fatalf("Expected service ID to be %s but was %s", expected.Id, service.ID)
 		}
 
 		if expected.LocalAddr == "" {
@@ -121,8 +135,8 @@ func TestDiagnostics(t *testing.T) {
 		t.Fatalf("Expected json report ID to be %s but was %s", report.ID, jsonReport.ID)
 	}
 
-	if jsonReport.ConfigRev != report.ConfigRev {
-		t.Fatalf("Expected json report ConfigRev to be %d but was %d", report.ConfigRev, jsonReport.ConfigRev)
+	if jsonReport.Version != report.Version {
+		t.Fatalf("Expected json report Version to be %d but was %d", report.Version, jsonReport.Version)
 	}
 
 	if jsonReport.Version != 1 {
@@ -137,28 +151,34 @@ func TestDiagnostics(t *testing.T) {
 		t.Fatalf("Expected json report Services to be of length 1 but was %d", len(jsonReport.Services))
 	}
 
-	services, ok := jsonReport.Services["kv"]
+	jsonServices, ok := jsonReport.Services["kv"]
 	if !ok {
 		t.Fatalf("Expected json report services to contain kv but didn't")
 	}
 
-	if len(report.Services) != len(services) {
+	if len(services) != len(jsonServices) {
 		t.Fatalf("Expected json report Services length to be %d but was %d", len(report.Services), len(services))
 	}
 
-	for i, service := range services {
-		expected := report.Services[i]
-		if service.Remote != expected.RemoteAddr {
-			t.Fatalf("Expected service Remote to be %s but was %s", expected.RemoteAddr, service.Remote)
+	for i, service := range jsonServices {
+		expected := services[i]
+		if service.Remote != expected.Remote {
+			t.Fatalf("Expected service Remote to be %s but was %s", expected.Remote, service.Remote)
 		}
-		if service.Local != expected.LocalAddr {
-			t.Fatalf("Expected service Local to be %s but was %s", expected.LocalAddr, service.Local)
+		if service.Local != expected.Local {
+			t.Fatalf("Expected service Local to be %s but was %s", expected.Local, service.Local)
 		}
 		if service.LastActivityUs == 0 {
 			t.Fatalf("Expected service LastActivityUs to be non zero but was %d", service.LastActivityUs)
 		}
+		if service.Scope != expected.Scope {
+			t.Fatalf("Expected service Scope to be %s but was %s", expected.Scope, service.Scope)
+		}
+		if service.ID != expected.ID {
+			t.Fatalf("Expected service Scope to be %s but was %s", expected.ID, service.ID)
+		}
 
-		if expected.LocalAddr == "" {
+		if expected.Local == "" {
 			if service.State != "disconnected" {
 				t.Fatalf("Expected service state to be disconnected but was %s", service.State)
 			}

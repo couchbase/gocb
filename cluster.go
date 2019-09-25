@@ -343,6 +343,43 @@ func (c *Cluster) Close(opts *ClusterCloseOptions) error {
 	return overallErr
 }
 
+func (c *Cluster) clusterOrRandomClient() (client, error) {
+	var cli client
+	c.connectionsLock.RLock()
+	if c.clusterClient == nil {
+		c.connectionsLock.RUnlock()
+		var err error
+		cli, err = c.randomClient()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		cli = c.clusterClient
+		c.connectionsLock.RUnlock()
+		if !cli.supportsGCCCP() {
+			return nil, configurationError{
+				message: "cluster level operations not supported by cluster version",
+			}
+		}
+	}
+
+	return cli, nil
+}
+
+func (c *Cluster) getDiagnosticsProvider() (diagnosticsProvider, error) {
+	cli, err := c.clusterOrRandomClient()
+	if err != nil {
+		return nil, err
+	}
+
+	provider, err := cli.getDiagnosticsProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}
+
 func (c *Cluster) getHTTPProvider() (httpProvider, error) {
 	var cli client
 	c.connectionsLock.RLock()
