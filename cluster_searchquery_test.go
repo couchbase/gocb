@@ -127,7 +127,12 @@ func testSimpleSearchQuery(t *testing.T) {
 	for results.Next(&sample) {
 		samples = append(samples, sample)
 
-		if sample.Fields == nil {
+		var fields interface{}
+		err := sample.Fields(&fields)
+		if err != nil {
+			t.Fatalf("Fields had error: %v", err)
+		}
+		if fields == nil {
 			t.Fatalf("Expected fields to be not nil")
 		}
 	}

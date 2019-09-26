@@ -29,7 +29,9 @@ type SearchResultRow struct {
 	Explanation map[string]interface{}                       `json:"explanation,omitempty"`
 	Locations   map[string]map[string][]SearchResultLocation `json:"locations,omitempty"`
 	Fragments   map[string][]string                          `json:"fragments,omitempty"`
-	Fields      map[string]interface{}                       `json:"fields,omitempty"`
+
+	fields     json.RawMessage
+	serializer JSONSerializer
 }
 
 // TermFacetResult holds the results of a term facet in search results.
@@ -107,6 +109,22 @@ type SearchResult struct {
 	streamResult *streamingResult
 	cancel       context.CancelFunc
 	ctx          context.Context
+
+	serializer JSONSerializer
+}
+
+// Fields are any fields that were requested as a part of the search query.
+func (row *SearchResultRow) Fields(valuePtr interface{}) error {
+	if row.fields == nil {
+		return errors.New("no fields to scan")
+	}
+
+	err := row.serializer.Deserialize(row.fields, valuePtr)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
@@ -164,7 +182,8 @@ func (r *SearchResult) Next(rowPtr *SearchResultRow) bool {
 				return false
 			}
 		case "fields":
-			r.err = decoder.Decode(&rowPtr.Fields)
+			rowPtr.serializer = r.serializer
+			r.err = decoder.Decode(&rowPtr.fields)
 			if r.err != nil {
 				return false
 			}
@@ -471,11 +490,15 @@ func (c *Cluster) searchQuery(ctx context.Context, qIndexName string, q SearchQu
 		return nil, err
 	}
 
+	if opts.Serializer == nil {
+		opts.Serializer = &DefaultJSONSerializer{}
+	}
+
 	var retries uint
 	var res *SearchResult
 	for {
 		retries++
-		res, err = c.executeSearchQuery(ctx, queryData, qIndexName, provider, cancel)
+		res, err = c.executeSearchQuery(ctx, queryData, qIndexName, provider, cancel, opts.Serializer)
 		if err == nil {
 			break
 		}
@@ -500,7 +523,7 @@ func (c *Cluster) searchQuery(ctx context.Context, qIndexName string, q SearchQu
 }
 
 func (c *Cluster) executeSearchQuery(ctx context.Context, query jsonx.DelayedObject,
-	qIndexName string, provider httpProvider, cancel context.CancelFunc) (*SearchResult, error) {
+	qIndexName string, provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer) (*SearchResult, error) {
 
 	qBytes, err := json.Marshal(query)
 	if err != nil {
@@ -589,6 +612,7 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, query jsonx.DelayedObj
 			sourceAddr: epInfo.Host,
 		},
 		httpStatus: resp.StatusCode,
+		serializer: serializer,
 	}
 
 	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)
