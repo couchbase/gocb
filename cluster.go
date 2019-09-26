@@ -128,9 +128,9 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 		connections: make(map[string]client),
 		sb: stateBlock{
 			ConnectTimeout:         connectTimeout,
-			N1qlRetryBehavior:      StandardDelayRetryBehavior(10, 2, 500*time.Millisecond, ExponentialDelayFunction),
-			AnalyticsRetryBehavior: StandardDelayRetryBehavior(10, 2, 500*time.Millisecond, ExponentialDelayFunction),
-			SearchRetryBehavior:    StandardDelayRetryBehavior(10, 2, 500*time.Millisecond, ExponentialDelayFunction),
+			N1qlRetryBehavior:      standardDelayRetryBehavior(10, 2, 500*time.Millisecond, exponentialDelayFunction),
+			AnalyticsRetryBehavior: standardDelayRetryBehavior(10, 2, 500*time.Millisecond, exponentialDelayFunction),
+			SearchRetryBehavior:    standardDelayRetryBehavior(10, 2, 500*time.Millisecond, exponentialDelayFunction),
 			QueryTimeout:           queryTimeout,
 			AnalyticsTimeout:       analyticsTimeout,
 			SearchTimeout:          searchTimeout,

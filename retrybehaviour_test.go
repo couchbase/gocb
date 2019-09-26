@@ -6,7 +6,7 @@ import (
 )
 
 func TestDelayRetryBehaviorCanRetry(t *testing.T) {
-	behav := StandardDelayRetryBehavior(10, 1000, 1*time.Second, LinearDelayFunction)
+	behav := standardDelayRetryBehavior(10, 1000, 1*time.Second, linearDelayFunction)
 
 	var retries uint
 	if !behav.CanRetry(retries) {
@@ -28,7 +28,7 @@ func TestDelayRetryBehaviorCanRetry(t *testing.T) {
 }
 
 func TestDelayRetryBehaviorLinear(t *testing.T) {
-	behav := StandardDelayRetryBehavior(10, 2, 500*time.Millisecond, LinearDelayFunction)
+	behav := standardDelayRetryBehavior(10, 2, 500*time.Millisecond, linearDelayFunction)
 
 	testNextInterval(t, behav, 1, 2*time.Millisecond, "TestDelayRetryBehaviorLinear")
 	testNextInterval(t, behav, 5, 10*time.Millisecond, "TestDelayRetryBehaviorLinear")
@@ -37,14 +37,14 @@ func TestDelayRetryBehaviorLinear(t *testing.T) {
 }
 
 func TestDelayRetryBehaviorExponential(t *testing.T) {
-	behav := StandardDelayRetryBehavior(10, 2, 500*time.Millisecond, ExponentialDelayFunction)
+	behav := standardDelayRetryBehavior(10, 2, 500*time.Millisecond, exponentialDelayFunction)
 
 	testNextInterval(t, behav, 1, 2*time.Millisecond, "TestDelayRetryBehaviorExponential")
 	testNextInterval(t, behav, 5, 32*time.Millisecond, "TestDelayRetryBehaviorExponential")
 	testNextInterval(t, behav, 10, 500*time.Millisecond, "TestDelayRetryBehaviorExponential")
 }
 
-func testNextInterval(t *testing.T, behav *DelayRetryBehavior, retries uint, expected time.Duration, testName string) {
+func testNextInterval(t *testing.T, behav *delayRetryBehavior, retries uint, expected time.Duration, testName string) {
 	interval := behav.NextInterval(retries)
 	if interval != expected {
 		t.Logf("%s expected interval of %v but was %v", testName, expected, interval)

@@ -28,9 +28,9 @@ type stateBlock struct {
 	PersistTo       uint
 	ReplicateTo     uint
 
-	N1qlRetryBehavior      RetryBehavior
-	AnalyticsRetryBehavior RetryBehavior
-	SearchRetryBehavior    RetryBehavior
+	N1qlRetryBehavior      retryBehavior
+	AnalyticsRetryBehavior retryBehavior
+	SearchRetryBehavior    retryBehavior
 
 	QueryTimeout      time.Duration
 	AnalyticsTimeout  time.Duration

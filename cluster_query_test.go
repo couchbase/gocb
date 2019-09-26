@@ -1021,7 +1021,7 @@ func TestBasicRetries(t *testing.T) {
 	}
 
 	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
-	cluster.sb.N1qlRetryBehavior = StandardDelayRetryBehavior(3, 1, 100*time.Millisecond, LinearDelayFunction)
+	cluster.sb.N1qlRetryBehavior = standardDelayRetryBehavior(3, 1, 100*time.Millisecond, linearDelayFunction)
 
 	_, err = cluster.Query(statement, nil)
 	if err == nil {
@@ -1064,7 +1064,7 @@ func TestBasicEnhancedPreparedQuery(t *testing.T) {
 	}
 
 	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
-	cluster.sb.N1qlRetryBehavior = StandardDelayRetryBehavior(3, 1, 100*time.Millisecond, LinearDelayFunction)
+	cluster.sb.N1qlRetryBehavior = standardDelayRetryBehavior(3, 1, 100*time.Millisecond, linearDelayFunction)
 
 	cluster.queryCache = map[string]*n1qlCache{
 		"fake": {
@@ -1134,7 +1134,7 @@ func TestBasicEnhancedPreparedQueryAlreadySupported(t *testing.T) {
 	}
 
 	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
-	cluster.sb.N1qlRetryBehavior = StandardDelayRetryBehavior(3, 1, 100*time.Millisecond, LinearDelayFunction)
+	cluster.sb.N1qlRetryBehavior = standardDelayRetryBehavior(3, 1, 100*time.Millisecond, linearDelayFunction)
 	cluster.supportsEnhancedStatements = 1
 
 	cluster.queryCache = map[string]*n1qlCache{
@@ -1192,7 +1192,7 @@ func TestBasicEnhancedPreparedQueryAlreadyCached(t *testing.T) {
 	}
 
 	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
-	cluster.sb.N1qlRetryBehavior = StandardDelayRetryBehavior(3, 1, 100*time.Millisecond, LinearDelayFunction)
+	cluster.sb.N1qlRetryBehavior = standardDelayRetryBehavior(3, 1, 100*time.Millisecond, linearDelayFunction)
 	cluster.supportsEnhancedStatements = 1
 
 	cluster.queryCache = map[string]*n1qlCache{
@@ -1259,7 +1259,7 @@ func TestBasicRetriesEnhancedPreparedNoRetry(t *testing.T) {
 	}
 
 	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
-	cluster.sb.N1qlRetryBehavior = StandardDelayRetryBehavior(3, 1, 100*time.Millisecond, LinearDelayFunction)
+	cluster.sb.N1qlRetryBehavior = standardDelayRetryBehavior(3, 1, 100*time.Millisecond, linearDelayFunction)
 
 	cluster.queryCache = map[string]*n1qlCache{
 		"fake": {
@@ -1322,7 +1322,7 @@ func TestBasicRetriesEnhancedPreparedRetry(t *testing.T) {
 	}
 
 	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
-	cluster.sb.N1qlRetryBehavior = StandardDelayRetryBehavior(3, 1, 100*time.Millisecond, LinearDelayFunction)
+	cluster.sb.N1qlRetryBehavior = standardDelayRetryBehavior(3, 1, 100*time.Millisecond, linearDelayFunction)
 
 	cluster.queryCache = map[string]*n1qlCache{
 		"fake": {

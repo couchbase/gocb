@@ -242,7 +242,7 @@ func TestSearchQueryRetries(t *testing.T) {
 	}
 
 	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
-	cluster.sb.SearchRetryBehavior = StandardDelayRetryBehavior(3, 1, 100*time.Millisecond, LinearDelayFunction)
+	cluster.sb.SearchRetryBehavior = standardDelayRetryBehavior(3, 1, 100*time.Millisecond, linearDelayFunction)
 
 	_, err := cluster.SearchQuery("test", q, nil)
 	if err == nil {
