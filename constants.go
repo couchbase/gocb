@@ -23,8 +23,8 @@ const (
 type ServiceType gocbcore.ServiceType
 
 const (
-	// MemdService represents a memcached service.
-	MemdService = ServiceType(gocbcore.MemdService)
+	// KeyValueService represents a memcached service.
+	KeyValueService = ServiceType(gocbcore.MemdService)
 
 	// MgmtService represents a management service (typically ns_server).
 	MgmtService = ServiceType(gocbcore.MgmtService)

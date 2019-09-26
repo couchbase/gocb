@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
 )
 
@@ -14,19 +14,23 @@ func TestPingAll(t *testing.T) {
 		"server1": {
 			Endpoint: "server1",
 			Latency:  25 * time.Millisecond,
+			Scope:    "default",
 		},
 		"server2": {
 			Endpoint: "server2",
 			Latency:  42 * time.Millisecond,
 			Error:    errors.New("something"),
+			Scope:    "default",
 		},
 		"server3": {
 			Endpoint: "server3",
 			Latency:  100 * time.Millisecond,
 			Error:    gocbcore.ErrCancelled,
+			Scope:    "default",
 		},
 	}
 	pingResult := &gocbcore.PingKvResult{
+		ConfigRev: 64,
 		Services: []gocbcore.PingResult{
 			results["server1"],
 			results["server2"],
@@ -112,83 +116,74 @@ func TestPingAll(t *testing.T) {
 		t.Fatalf("Report ID was empty")
 	}
 
-	if len(report.Services) != 6 {
-		t.Fatalf("Expected services length to be 4 but was %d", len(report.Services))
+	if len(report.Services) != 4 {
+		t.Fatalf("Expected services length to be 6 but was %d", len(report.Services))
 	}
 
-	for _, service := range report.Services {
-		switch service.Service {
-		case QueryService:
-			if service.Endpoint != "http://localhost:8093" {
-				t.Fatalf("Expected service endpoint to be http://localhost:8093 but was %s", service.Endpoint)
-			}
+	if report.ConfigRev != 64 {
+		t.Fatalf("Expected report ConfigRev to be 64, was %d", report.ConfigRev)
+	}
 
-			if service.Service != QueryService {
-				t.Fatalf("Expected service type to be QueryService but was %d", service.Service)
-			}
-
-			if !service.Success {
-				t.Fatalf("Expected service success but wasn't")
-			}
-
-			if service.Latency < 50*time.Millisecond {
-				t.Fatalf("Expected service latency to be over 50ms but was %d", service.Latency)
-			}
-		case SearchService:
-			if service.Endpoint != "http://localhost:8094" {
-				t.Fatalf("Expected service endpoint to be http://localhost:8094 but was %s", service.Endpoint)
-			}
-
-			if service.Service != SearchService {
-				t.Fatalf("Expected service type to be SearchService but was %d", service.Service)
-			}
-
-			if service.Success {
-				t.Fatalf("Expected service service to be false")
-			}
-
-			if service.Latency != 0 {
-				t.Fatalf("Expected service latency to be 0 but was %d", service.Latency)
-			}
-		case AnalyticsService:
-			if service.Endpoint != "http://localhost:8095" {
-				t.Fatalf("Expected service endpoint to be http://localhost:8095 but was %s", service.Endpoint)
-			}
-
-			if service.Service != AnalyticsService {
-				t.Fatalf("Expected service type to be QueryService but was %d", service.Service)
-			}
-
-			if !service.Success {
-				t.Fatalf("Expected service success but wasn't")
-			}
-
-			if service.Latency < 20*time.Millisecond {
-				t.Fatalf("Expected service latency to be over 20ms but was %d", service.Latency)
-			}
-		case MemdService:
-			expected, ok := results[service.Endpoint]
-			if !ok {
-				t.Fatalf("Unexpected service endpoint: %s", service.Endpoint)
-			}
-			if service.Latency != expected.Latency {
-				t.Fatalf("Expected service Latency to be %s but was %s", expected.Latency, service.Latency)
-			}
-			if service.Service != MemdService {
-				t.Fatalf("Expected service Service to be MemdService but was %d", service.Service)
-			}
-
-			if expected.Error != nil {
-				if service.Success {
-					t.Fatalf("Service success should have been false")
+	for serviceType, services := range report.Services {
+		for _, service := range services {
+			switch serviceType {
+			case QueryService:
+				if service.RemoteAddr != "http://localhost:8093" {
+					t.Fatalf("Expected service RemoteAddr to be http://localhost:8093 but was %s", service.RemoteAddr)
 				}
-			} else {
-				if !service.Success {
-					t.Fatalf("Service success should have been true")
+
+				if service.State != "ok" {
+					t.Fatalf("Expected service state to be ok but was %s", service.State)
 				}
+
+				if service.Latency < 50*time.Millisecond {
+					t.Fatalf("Expected service latency to be over 50ms but was %d", service.Latency)
+				}
+			case SearchService:
+				if service.RemoteAddr != "http://localhost:8094" {
+					t.Fatalf("Expected service RemoteAddr to be http://localhost:8094 but was %s", service.RemoteAddr)
+				}
+
+				if service.State != "error" {
+					t.Fatalf("Expected service State to be error but was %s", service.State)
+				}
+
+				if service.Latency != 0 {
+					t.Fatalf("Expected service latency to be 0 but was %d", service.Latency)
+				}
+			case AnalyticsService:
+				if service.RemoteAddr != "http://localhost:8095" {
+					t.Fatalf("Expected service RemoteAddr to be http://localhost:8095 but was %s", service.RemoteAddr)
+				}
+
+				if service.State != "ok" {
+					t.Fatalf("Expected service state to be ok but was %s", service.State)
+				}
+
+				if service.Latency < 20*time.Millisecond {
+					t.Fatalf("Expected service latency to be over 20ms but was %d", service.Latency)
+				}
+			case KeyValueService:
+				expected, ok := results[service.RemoteAddr]
+				if !ok {
+					t.Fatalf("Unexpected service endpoint: %s", service.RemoteAddr)
+				}
+				if service.Latency != expected.Latency {
+					t.Fatalf("Expected service Latency to be %s but was %s", expected.Latency, service.Latency)
+				}
+
+				if expected.Error != nil {
+					if service.State != "error" {
+						t.Fatalf("Service success should have been error, was %s", service.State)
+					}
+				} else {
+					if service.State != "ok" {
+						t.Fatalf("Service success should have been ok, was %s", service.State)
+					}
+				}
+			default:
+				t.Fatalf("Unexpected service type: %d", serviceType)
 			}
-		default:
-			t.Fatalf("Unexpected service type: %d", service.Service)
 		}
 	}
 }
@@ -244,17 +239,13 @@ func TestPingTimeoutQueryOnly(t *testing.T) {
 		t.Fatalf("Expected report to have 1 service but has %d", len(report.Services))
 	}
 
-	service := report.Services[0]
-	if service.Endpoint != "http://localhost:8094" {
-		t.Fatalf("Expected service endpoint to be http://localhost:8094 but was %s", service.Endpoint)
+	service := report.Services[QueryService][0]
+	if service.RemoteAddr != "http://localhost:8094" {
+		t.Fatalf("Expected service RemoteAddr to be http://localhost:8094 but was %s", service.RemoteAddr)
 	}
 
-	if service.Service != QueryService {
-		t.Fatalf("Expected service type to be QueryService but was %d", service.Service)
-	}
-
-	if service.Success {
-		t.Fatalf("Expected service success to be false")
+	if service.State != "error" {
+		t.Fatalf("Expected service State to be error, was %s", service.State)
 	}
 
 	if service.Latency != 0 {

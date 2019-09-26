@@ -88,8 +88,8 @@ func TestDiagnostics(t *testing.T) {
 	}
 
 	for i, service := range services {
-		if service.Type != MemdService {
-			t.Fatalf("Expected service to be MemdService but was %d", service.Type)
+		if service.Type != KeyValueService {
+			t.Fatalf("Expected service to be KeyValueService but was %d", service.Type)
 		}
 
 		expected := info.MemdConns[i]

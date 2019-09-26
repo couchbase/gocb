@@ -15,7 +15,7 @@ type diagnosticsProvider interface {
 
 func diagServiceString(service ServiceType) string {
 	switch service {
-	case MemdService:
+	case KeyValueService:
 		return "kv"
 	case CapiService:
 		return "view"
@@ -34,7 +34,7 @@ func diagServiceString(service ServiceType) string {
 func diagStringService(service string) ServiceType {
 	switch service {
 	case "kv":
-		return MemdService
+		return KeyValueService
 	case "view":
 		return CapiService
 	case "mgmt":
@@ -94,7 +94,7 @@ type jsonDiagnosticEntry struct {
 	Remote         string `json:"remote"`
 	Local          string `json:"local"`
 	LastActivityUs uint64 `json:"last_activity_us"`
-	Scope          string `json:"scope"`
+	Scope          string `json:"scope,omitempty"`
 	ID             string `json:"id"`
 }
 
@@ -183,7 +183,7 @@ func (c *Cluster) Diagnostics(opts *DiagnosticsOptions) (*DiagnosticsResult, err
 		}
 
 		report.Services["kv"] = append(report.Services["kv"], EndPointDiagnostics{
-			Type:         MemdService,
+			Type:         KeyValueService,
 			State:        state,
 			Local:        conn.LocalAddr,
 			Remote:       conn.RemoteAddr,
