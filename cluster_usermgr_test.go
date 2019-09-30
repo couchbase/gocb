@@ -311,9 +311,9 @@ func TestUserManagerAvailableRoles(t *testing.T) {
 		t.Fatalf("Expected Users to not error: %v", err)
 	}
 
-	roles, err := mgr.AvailableRoles(nil)
+	roles, err := mgr.GetRoles(nil)
 	if err != nil {
-		t.Fatalf("Expected AvailableRoles to not error %v", err)
+		t.Fatalf("Expected GetRoles to not error %v", err)
 	}
 
 	if len(roles) == 0 {

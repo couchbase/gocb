@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
 // UserManager provides methods for performing Couchbase user management.
@@ -389,16 +389,16 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 	return nil
 }
 
-// AvailableRolesOptions is the set of options available to the user manager AvailableRoles operation.
-type AvailableRolesOptions struct {
+// GetRolesOptions is the set of options available to the user manager GetRoles operation.
+type GetRolesOptions struct {
 	Timeout time.Duration
 	Context context.Context
 }
 
-// AvailableRoles lists the roles supported by the cluster.
-func (um *UserManager) AvailableRoles(opts *AvailableRolesOptions) ([]RoleAndDescription, error) {
+// GetRoles lists the roles supported by the cluster.
+func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, error) {
 	if opts == nil {
-		opts = &AvailableRolesOptions{}
+		opts = &GetRolesOptions{}
 	}
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, um.globalTimeout)
