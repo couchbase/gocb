@@ -459,16 +459,12 @@ func (am *AnalyticsIndexManager) GetAllIndexes(opts *GetAllAnalyticsIndexesOptio
 type ConnectAnalyticsLinkOptions struct {
 	Timeout time.Duration
 	Context context.Context
+	// Name of the link, if empty defaults to Local
+	LinkName string
 }
 
 // ConnectLink connects an analytics link.
-func (am *AnalyticsIndexManager) ConnectLink(linkName string, opts *ConnectAnalyticsLinkOptions) error {
-	if linkName == "" {
-		return invalidArgumentsError{
-			message: "link name cannot be empty",
-		}
-	}
-
+func (am *AnalyticsIndexManager) ConnectLink(opts *ConnectAnalyticsLinkOptions) error {
 	if opts == nil {
 		opts = &ConnectAnalyticsLinkOptions{}
 	}
@@ -478,8 +474,12 @@ func (am *AnalyticsIndexManager) ConnectLink(linkName string, opts *ConnectAnaly
 		defer cancel()
 	}
 
+	if opts.LinkName == "" {
+		opts.LinkName = "Local"
+	}
+
 	result, err := am.executeQuery(
-		fmt.Sprintf("CONNECT LINK %s", linkName),
+		fmt.Sprintf("CONNECT LINK %s", opts.LinkName),
 		&AnalyticsOptions{
 			Context: ctx,
 		})
@@ -502,10 +502,12 @@ func (am *AnalyticsIndexManager) ConnectLink(linkName string, opts *ConnectAnaly
 type DisconnectAnalyticsLinkOptions struct {
 	Timeout time.Duration
 	Context context.Context
+	// Name of the link, if empty defaults to Local
+	LinkName string
 }
 
 // DisconnectLink disconnects an analytics link.
-func (am *AnalyticsIndexManager) DisconnectLink(linkName string, opts *DisconnectAnalyticsLinkOptions) error {
+func (am *AnalyticsIndexManager) DisconnectLink(opts *DisconnectAnalyticsLinkOptions) error {
 	if opts == nil {
 		opts = &DisconnectAnalyticsLinkOptions{}
 	}
@@ -515,8 +517,12 @@ func (am *AnalyticsIndexManager) DisconnectLink(linkName string, opts *Disconnec
 		defer cancel()
 	}
 
+	if opts.LinkName == "" {
+		opts.LinkName = "Local"
+	}
+
 	result, err := am.executeQuery(
-		fmt.Sprintf("DISCONNECT LINK %s", linkName),
+		fmt.Sprintf("DISCONNECT LINK %s", opts.LinkName),
 		&AnalyticsOptions{
 			Context: ctx,
 		})

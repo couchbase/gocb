@@ -93,7 +93,7 @@ func TestAnalyticsIndexesCrud(t *testing.T) {
 		t.Fatalf("Expected error to be index already exists but was %v", err)
 	}
 
-	err = mgr.ConnectLink("Local", nil)
+	err = mgr.ConnectLink(nil)
 	if err != nil {
 		t.Fatalf("Expected ConnectLink to not error %v", err)
 	}
@@ -123,7 +123,7 @@ func TestAnalyticsIndexesCrud(t *testing.T) {
 		}
 	}
 
-	err = mgr.DisconnectLink("Local", nil)
+	err = mgr.DisconnectLink(nil)
 	if err != nil {
 		t.Fatalf("Expected DisconnectLink to not error %v", err)
 	}

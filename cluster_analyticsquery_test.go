@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
 )
 
@@ -52,7 +52,7 @@ func testCreateAnalyticsDataset(t *testing.T, mgr *AnalyticsIndexManager) {
 		t.Fatalf("Failed to create dataset %v", err)
 	}
 
-	err = mgr.ConnectLink("Local", &ConnectAnalyticsLinkOptions{
+	err = mgr.ConnectLink(&ConnectAnalyticsLinkOptions{
 		Timeout: 1 * time.Second,
 	})
 	if err != nil {
