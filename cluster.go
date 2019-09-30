@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/couchbaselabs/gocbconnstr"
 )
 
@@ -116,7 +116,7 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 		managementTimeout = opts.SearchTimeout
 	}
 	if opts.Transcoder == nil {
-		opts.Transcoder = NewDefaultTranscoder(&DefaultJSONSerializer{})
+		opts.Transcoder = NewJSONTranscoder(&DefaultJSONSerializer{})
 	}
 	if opts.Serializer == nil {
 		opts.Serializer = &DefaultJSONSerializer{}

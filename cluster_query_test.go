@@ -9,9 +9,8 @@ import (
 	"testing"
 	"time"
 
+	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
-
-	"github.com/couchbase/gocbcore/v8"
 )
 
 func TestQuery(t *testing.T) {
@@ -1366,7 +1365,7 @@ func testGetClusterForHTTP(provider *mockHTTPProvider, n1qlTimeout, analyticsTim
 	c.sb.AnalyticsTimeout = analyticsTimeout
 	c.sb.SearchTimeout = searchTimeout
 
-	c.sb.Transcoder = NewDefaultTranscoder(&DefaultJSONSerializer{})
+	c.sb.Transcoder = NewJSONTranscoder(&DefaultJSONSerializer{})
 	c.sb.Serializer = &DefaultJSONSerializer{}
 
 	return c

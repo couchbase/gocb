@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
 func TestViewQuery(t *testing.T) {
@@ -540,7 +540,7 @@ func testGetBucketForHTTP(provider *mockHTTPProvider, viewTimeout time.Duration)
 	clients["mock"] = cli
 	b := &Bucket{
 		sb: stateBlock{
-			Transcoder:   NewDefaultTranscoder(&DefaultJSONSerializer{}),
+			Transcoder:   NewJSONTranscoder(&DefaultJSONSerializer{}),
 			cachedClient: cli,
 		},
 	}

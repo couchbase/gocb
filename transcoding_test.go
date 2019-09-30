@@ -9,15 +9,11 @@ import (
 	"github.com/pkg/errors"
 )
 
-var (
-	jsonObjStr = []byte("{\"test\":\"value\"}")
-	jsonNumStr = []byte("2222")
-	jsonStrStr = []byte("Hello World")
-)
-
-func TestDefaultEncode(t *testing.T) {
+func TestEncode(t *testing.T) {
 	byteArray := []byte("something")
-	stringValue := "something"
+	rawString := "something"
+	rawMsg := json.RawMessage("hello")
+	rawNumber := 22022
 	jsonStruct := struct {
 		Name string `json:"name"`
 	}{Name: "something"}
@@ -27,216 +23,842 @@ func TestDefaultEncode(t *testing.T) {
 		t.Fatalf("failed to marshal json: %v", err)
 	}
 
-	tests := []struct {
-		name    string
-		args    interface{}
-		value   []byte
-		flags   uint32
-		wantErr bool
-	}{
-		{
-			name:    "byte array",
-			args:    byteArray,
-			value:   []byte("something"),
-			flags:   gocbcore.EncodeCommonFlags(gocbcore.BinaryType, gocbcore.NoCompression),
-			wantErr: false,
-		},
-		{
-			name:    "byte point array",
-			args:    &byteArray,
-			value:   []byte("something"),
-			flags:   gocbcore.EncodeCommonFlags(gocbcore.BinaryType, gocbcore.NoCompression),
-			wantErr: false,
-		},
-		{
-			name:    "string",
-			args:    stringValue,
-			value:   []byte(stringValue),
-			flags:   gocbcore.EncodeCommonFlags(gocbcore.StringType, gocbcore.NoCompression),
-			wantErr: false,
-		},
-		{
-			name:    "string pointer",
-			args:    &stringValue,
-			value:   []byte(stringValue),
-			flags:   gocbcore.EncodeCommonFlags(gocbcore.StringType, gocbcore.NoCompression),
-			wantErr: false,
-		},
-		{
-			name:    "json",
-			args:    jsonStruct,
-			value:   jsonValue,
-			flags:   gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
-			wantErr: false,
-		},
-		{
-			name:    "json pointer",
-			args:    &jsonStruct,
-			value:   jsonValue,
-			flags:   gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
-			wantErr: false,
-		},
+	stringValue, err := json.Marshal(rawString)
+	if err != nil {
+		t.Fatalf("failed to marshal json: %v", err)
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, got1, err := NewDefaultTranscoder(&DefaultJSONSerializer{}).Encode(tt.args)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("DefaultEncode() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.value) {
-				t.Errorf("DefaultEncode() got = %v, want %v", got, tt.value)
-			}
-			if got1 != tt.flags {
-				t.Errorf("DefaultEncode() got1 = %v, want %v", got1, tt.flags)
-			}
-		})
-	}
-}
 
-func testBytesEqual(t *testing.T, left, right []byte) {
-	if len(left) != len(right) {
-		t.Errorf("Slice lengths do not match")
-		return
+	numberValue, err := json.Marshal(rawNumber)
+	if err != nil {
+		t.Fatalf("failed to marshal json: %v", err)
 	}
-	for i := range left {
-		if left[i] != right[i] {
-			t.Errorf("Slice values do not match")
-			return
+
+	var rawInterface interface{} = rawString
+
+	type test struct {
+		name          string
+		args          interface{}
+		expected      []byte
+		expectedFlags uint32
+		wantErr       bool
+	}
+	tests := map[Transcoder][]test{
+		NewJSONTranscoder(nil): {
+			{
+				name:    "byte array",
+				args:    byteArray,
+				wantErr: true,
+			},
+			{
+				name:    "byte point array",
+				args:    &byteArray,
+				wantErr: true,
+			},
+			{
+				name:          "string",
+				args:          rawString,
+				expected:      stringValue,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "string pointer",
+				args:          &rawString,
+				expected:      stringValue,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "json",
+				args:          jsonStruct,
+				expected:      jsonValue,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "json pointer",
+				args:          &jsonStruct,
+				expected:      jsonValue,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "json.RawMessage",
+				args:          rawMsg,
+				expected:      rawMsg,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "json.RawMessage pointer",
+				args:          &rawMsg,
+				expected:      rawMsg,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "number",
+				args:          rawNumber,
+				expected:      numberValue,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "number pointer",
+				args:          &rawNumber,
+				expected:      numberValue,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "interface",
+				args:          rawInterface,
+				expected:      stringValue,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "interface pointer",
+				args:          &rawInterface,
+				expected:      stringValue,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+		},
+		NewLegacyTranscoder(nil): {
+			{
+				name:          "byte array",
+				args:          byteArray,
+				expected:      byteArray,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.BinaryType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "byte point array",
+				args:          &byteArray,
+				expected:      byteArray,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.BinaryType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "string",
+				args:          rawString,
+				expected:      []byte(rawString),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.StringType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "string pointer",
+				args:          &rawString,
+				expected:      []byte(rawString),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.StringType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "json",
+				args:          jsonStruct,
+				expected:      jsonValue,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "json pointer",
+				args:          &jsonStruct,
+				expected:      jsonValue,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "json.RawMessage",
+				args:          rawMsg,
+				expected:      rawMsg,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "json.RawMessage pointer",
+				args:          &rawMsg,
+				expected:      rawMsg,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "number",
+				args:          rawNumber,
+				expected:      numberValue,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "number pointer",
+				args:          &rawNumber,
+				expected:      numberValue,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "interface",
+				args:          rawInterface,
+				expected:      []byte(rawString),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.StringType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "interface pointer",
+				args:          &rawInterface,
+				expected:      []byte(rawString),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.StringType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+		},
+		NewRawJSONTranscoder(): {
+			{
+				name:          "byte array",
+				args:          byteArray,
+				expected:      byteArray,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "byte point array",
+				args:          &byteArray,
+				expected:      byteArray,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "string",
+				args:          rawString,
+				expected:      []byte(rawString),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "string pointer",
+				args:          &rawString,
+				expected:      []byte(rawString),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:    "json",
+				args:    jsonStruct,
+				wantErr: true,
+			},
+			{
+				name:    "json pointer",
+				args:    &jsonStruct,
+				wantErr: true,
+			},
+			{
+				name:          "json.RawMessage",
+				args:          rawMsg,
+				expected:      rawMsg,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "json.RawMessage pointer",
+				args:          &rawMsg,
+				expected:      rawMsg,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:    "number",
+				args:    rawNumber,
+				wantErr: true,
+			},
+			{
+				name:    "number pointer",
+				args:    &rawNumber,
+				wantErr: true,
+			},
+			{
+				name:          "interface",
+				args:          rawInterface,
+				expected:      []byte(rawString),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "interface pointer",
+				args:          &rawInterface,
+				expected:      []byte(rawString),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+		},
+		NewRawStringTranscoder(): {
+			{
+				name:    "byte array",
+				args:    byteArray,
+				wantErr: true,
+			},
+			{
+				name:    "byte point array",
+				args:    &byteArray,
+				wantErr: true,
+			},
+			{
+				name:          "string",
+				args:          rawString,
+				expected:      []byte(rawString),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.StringType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "string pointer",
+				args:          &rawString,
+				expected:      []byte(rawString),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.StringType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:    "json",
+				args:    jsonStruct,
+				wantErr: true,
+			},
+			{
+				name:    "json pointer",
+				args:    &jsonStruct,
+				wantErr: true,
+			},
+			{
+				name:    "json.RawMessage",
+				args:    rawMsg,
+				wantErr: true,
+			},
+			{
+				name:    "json.RawMessage pointer",
+				args:    &rawMsg,
+				wantErr: true,
+			},
+			{
+				name:    "number",
+				args:    rawNumber,
+				wantErr: true,
+			},
+			{
+				name:    "number pointer",
+				args:    &rawNumber,
+				wantErr: true,
+			},
+			{
+				name:          "interface",
+				args:          rawInterface,
+				expected:      []byte(rawString),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.StringType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "interface pointer",
+				args:          &rawInterface,
+				expected:      []byte(rawString),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.StringType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+		},
+		NewRawBinaryTranscoder(): {
+			{
+				name:          "byte array",
+				args:          byteArray,
+				expected:      byteArray,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.BinaryType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:          "byte point array",
+				args:          &byteArray,
+				expected:      byteArray,
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.BinaryType, gocbcore.NoCompression),
+				wantErr:       false,
+			},
+			{
+				name:    "string",
+				args:    rawString,
+				wantErr: true,
+			},
+			{
+				name:    "string pointer",
+				wantErr: true,
+			},
+			{
+				name:    "json",
+				args:    jsonStruct,
+				wantErr: true,
+			},
+			{
+				name:    "json pointer",
+				args:    &jsonStruct,
+				wantErr: true,
+			},
+			{
+				name:    "json.RawMessage",
+				args:    rawMsg,
+				wantErr: true,
+			},
+			{
+				name:    "json.RawMessage pointer",
+				args:    &rawMsg,
+				wantErr: true,
+			},
+			{
+				name:    "number",
+				args:    rawNumber,
+				wantErr: true,
+			},
+			{
+				name:    "number pointer",
+				args:    &rawNumber,
+				wantErr: true,
+			},
+		},
+	}
+	for transcoder, transcoderTests := range tests {
+		for _, tt := range transcoderTests {
+			t.Run(tt.name, func(t *testing.T) {
+				actual, flags, err := transcoder.Encode(tt.args)
+				name := reflect.ValueOf(transcoder).Type()
+				if (err != nil) != tt.wantErr {
+					t.Errorf("%s error = %v, wantErr %v", name, err, tt.wantErr)
+					return
+				}
+				if !reflect.DeepEqual(actual, tt.expected) {
+					t.Errorf("%s got = %v, want %v", name, actual, tt.expected)
+				}
+				if flags != tt.expectedFlags {
+					t.Errorf("%s got1 = %v, want %v", name, flags, tt.expectedFlags)
+				}
+			})
 		}
 	}
 }
 
-func testDecode(t *testing.T, bytes []byte, flags uint32, out interface{}) {
-	err := NewDefaultTranscoder(&DefaultJSONSerializer{}).Decode(bytes, flags, out)
+func TestDecodeJSON(t *testing.T) {
+	type jsonType struct {
+		Name string `json:"name"`
+	}
+
+	jsonStruct := jsonType{Name: "something"}
+
+	jsonValue, err := json.Marshal(jsonStruct)
 	if err != nil {
-		t.Errorf("Failed to decode %v", err)
+		t.Fatalf("failed to marshal json: %v", err)
+	}
+
+	type test struct {
+		bytes    []byte
+		flags    uint32
+		expected jsonType
+		wantErr  bool
+	}
+	tests := map[Transcoder][]test{
+		NewJSONTranscoder(nil): {
+			{
+				bytes:    jsonValue,
+				flags:    0x2000000,
+				expected: jsonStruct,
+				wantErr:  false,
+			},
+		},
+		NewLegacyTranscoder(nil): {
+			{
+				bytes:    jsonValue,
+				flags:    0x2000000,
+				expected: jsonStruct,
+				wantErr:  false,
+			},
+		},
+		NewRawJSONTranscoder(): {
+			{
+				bytes:   jsonValue,
+				flags:   0x2000000,
+				wantErr: true,
+			},
+		},
+		NewRawStringTranscoder(): {
+			{
+				bytes:   jsonValue,
+				flags:   0x2000000,
+				wantErr: true,
+			},
+		},
+		NewRawBinaryTranscoder(): {
+			{
+				bytes:   jsonValue,
+				flags:   0x2000000,
+				wantErr: true,
+			},
+		},
+	}
+	for transcoder, transcoderTests := range tests {
+		name := reflect.ValueOf(transcoder).Type().String()
+		for _, tt := range transcoderTests {
+			t.Run(name, func(t *testing.T) {
+				var actual jsonType
+				err := transcoder.Decode(tt.bytes, tt.flags, &actual)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("%s error = %v, wantErr %v", name, err, tt.wantErr)
+					return
+				}
+				if !reflect.DeepEqual(actual, tt.expected) {
+					t.Errorf("%s got = %v, want %v", name, actual, tt.expected)
+				}
+			})
+		}
 	}
 }
 
-func testEncode(t *testing.T, in interface{}) ([]byte, uint32) {
-	bytes, flags, err := NewDefaultTranscoder(&DefaultJSONSerializer{}).Encode(in)
+func TestDecodeJSONInterface(t *testing.T) {
+	type jsonType struct {
+		Name string `json:"name"`
+	}
+
+	jsonStruct := jsonType{Name: "something"}
+
+	jsonValue, err := json.Marshal(jsonStruct)
 	if err != nil {
-		t.Errorf("Failed to decode %v", err)
+		t.Fatalf("failed to marshal json: %v", err)
 	}
-	return bytes, flags
+
+	type test struct {
+		bytes    []byte
+		flags    uint32
+		expected jsonType
+		wantErr  bool
+	}
+	tests := map[Transcoder][]test{
+		NewJSONTranscoder(nil): {
+			{
+				bytes:    jsonValue,
+				flags:    0x2000000,
+				expected: jsonStruct,
+				wantErr:  false,
+			},
+		},
+		NewLegacyTranscoder(nil): {
+			{
+				bytes:    jsonValue,
+				flags:    0x2000000,
+				expected: jsonStruct,
+				wantErr:  false,
+			},
+		},
+		NewRawJSONTranscoder(): {
+			{
+				bytes:   jsonValue,
+				flags:   0x2000000,
+				wantErr: true,
+			},
+		},
+		NewRawStringTranscoder(): {
+			{
+				bytes:   jsonValue,
+				flags:   0x2000000,
+				wantErr: true,
+			},
+		},
+		NewRawBinaryTranscoder(): {
+			{
+				bytes:   jsonValue,
+				flags:   0x2000000,
+				wantErr: true,
+			},
+		},
+	}
+	for transcoder, transcoderTests := range tests {
+		name := reflect.ValueOf(transcoder).Type().String()
+		for _, tt := range transcoderTests {
+			t.Run(name, func(t *testing.T) {
+				str := jsonType{}
+				var actual interface{} = &str
+				err := transcoder.Decode(tt.bytes, tt.flags, &actual)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("%s error = %v, wantErr %v", name, err, tt.wantErr)
+					return
+				}
+				if !reflect.DeepEqual(actual, &tt.expected) {
+					t.Errorf("%s got = %v, want %v", name, actual, tt.expected)
+				}
+			})
+		}
+	}
 }
 
-func TestDecodeLegacyJson(t *testing.T) {
-	var testOut map[string]string
-	testDecode(t, jsonObjStr, 0, &testOut)
-	if testOut["test"] != "value" {
-		t.Errorf("Decoding failed")
+func TestDecodeJSONString(t *testing.T) {
+	rawString := "something"
+
+	jsonValue, err := json.Marshal(rawString)
+	if err != nil {
+		t.Fatalf("failed to marshal json: %v", err)
+	}
+
+	type test struct {
+		bytes    []byte
+		flags    uint32
+		expected string
+		wantErr  bool
+	}
+	tests := map[Transcoder][]test{
+		NewJSONTranscoder(nil): {
+			{
+				bytes:    jsonValue,
+				flags:    0x2000000,
+				expected: rawString,
+				wantErr:  false,
+			},
+		},
+		NewLegacyTranscoder(nil): {
+			{
+				bytes:    jsonValue,
+				flags:    0x2000000,
+				expected: rawString,
+				wantErr:  false,
+			},
+		},
+		NewRawJSONTranscoder(): {
+			{
+				bytes:    jsonValue,
+				flags:    0x2000000,
+				expected: string(jsonValue),
+				wantErr:  false,
+			},
+		},
+		NewRawStringTranscoder(): {
+			{
+				bytes:   jsonValue,
+				flags:   0x2000000,
+				wantErr: true,
+			},
+		},
+		NewRawBinaryTranscoder(): {
+			{
+				bytes:   jsonValue,
+				flags:   0x2000000,
+				wantErr: true,
+			},
+		},
+	}
+	for transcoder, transcoderTests := range tests {
+		name := reflect.ValueOf(transcoder).Type().String()
+		for _, tt := range transcoderTests {
+			t.Run(name, func(t *testing.T) {
+				var actual string
+				err := transcoder.Decode(tt.bytes, tt.flags, &actual)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("%s error = %v, wantErr %v", name, err, tt.wantErr)
+					return
+				}
+				if !reflect.DeepEqual(actual, tt.expected) {
+					t.Errorf("%s got = %v, want %v", name, actual, tt.expected)
+				}
+			})
+		}
 	}
 }
 
-func TestDecodeJson(t *testing.T) {
-	var testOut map[string]string
-	testDecode(t, jsonObjStr, 0x2000000, &testOut)
-	if testOut["test"] != "value" {
-		t.Errorf("Decoding failed")
+func TestDecodeJSONNumber(t *testing.T) {
+	rawNumber := 22022
+
+	jsonValue, err := json.Marshal(rawNumber)
+	if err != nil {
+		t.Fatalf("failed to marshal json: %v", err)
+	}
+
+	type test struct {
+		bytes    []byte
+		flags    uint32
+		expected int
+		wantErr  bool
+	}
+	tests := map[Transcoder][]test{
+		NewJSONTranscoder(nil): {
+			{
+				bytes:    jsonValue,
+				flags:    0x2000000,
+				expected: rawNumber,
+				wantErr:  false,
+			},
+		},
+		NewLegacyTranscoder(nil): {
+			{
+				bytes:    jsonValue,
+				flags:    0x2000000,
+				expected: rawNumber,
+				wantErr:  false,
+			},
+		},
+		NewRawJSONTranscoder(): {
+			{
+				bytes:   jsonValue,
+				flags:   0x2000000,
+				wantErr: true,
+			},
+		},
+		NewRawStringTranscoder(): {
+			{
+				bytes:   jsonValue,
+				flags:   0x2000000,
+				wantErr: true,
+			},
+		},
+		NewRawBinaryTranscoder(): {
+			{
+				bytes:   jsonValue,
+				flags:   0x2000000,
+				wantErr: true,
+			},
+		},
+	}
+	for transcoder, transcoderTests := range tests {
+		name := reflect.ValueOf(transcoder).Type().String()
+		for _, tt := range transcoderTests {
+			t.Run(name, func(t *testing.T) {
+				var actual int
+				err := transcoder.Decode(tt.bytes, tt.flags, &actual)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("%s error = %v, wantErr %v", name, err, tt.wantErr)
+					return
+				}
+				if !reflect.DeepEqual(actual, tt.expected) {
+					t.Errorf("%s got = %v, want %v", name, actual, tt.expected)
+				}
+			})
+		}
 	}
 }
 
-func TestDecodeJsonStruct(t *testing.T) {
-	var testOut struct {
-		Test string `json:"test"`
-	}
-	testDecode(t, jsonObjStr, 0x2000000, &testOut)
-	if testOut.Test != "value" {
-		t.Errorf("Decoding failed")
-	}
-}
+func TestDecodeBinary(t *testing.T) {
+	binary := []byte("222222")
 
-func TestDecodeNumber(t *testing.T) {
-	var testOut int
-	testDecode(t, jsonNumStr, 0x2000000, &testOut)
-	if testOut != 2222 {
-		t.Errorf("Decoding failed")
+	type test struct {
+		bytes    []byte
+		flags    uint32
+		expected []byte
+		wantErr  bool
+	}
+	tests := map[Transcoder][]test{
+		NewJSONTranscoder(nil): {
+			{
+				bytes:   binary,
+				flags:   3 << 24,
+				wantErr: true,
+			},
+		},
+		NewLegacyTranscoder(nil): {
+			{
+				bytes:    binary,
+				flags:    3 << 24,
+				expected: binary,
+				wantErr:  false,
+			},
+		},
+		NewRawJSONTranscoder(): {
+			{
+				bytes:   binary,
+				flags:   3 << 24,
+				wantErr: true,
+			},
+		},
+		NewRawStringTranscoder(): {
+			{
+				bytes:   binary,
+				flags:   3 << 24,
+				wantErr: true,
+			},
+		},
+		NewRawBinaryTranscoder(): {
+			{
+				bytes:    binary,
+				flags:    3 << 24,
+				expected: binary,
+				wantErr:  false,
+			},
+		},
+	}
+	for transcoder, transcoderTests := range tests {
+		name := reflect.ValueOf(transcoder).Type().String()
+		for _, tt := range transcoderTests {
+			t.Run(name, func(t *testing.T) {
+				var actual []byte
+				err := transcoder.Decode(tt.bytes, tt.flags, &actual)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("%s error = %v, wantErr %v", name, err, tt.wantErr)
+					return
+				}
+				if !reflect.DeepEqual(actual, tt.expected) {
+					t.Errorf("%s got = %v, want %v", name, actual, tt.expected)
+				}
+			})
+		}
 	}
 }
 
 func TestDecodeString(t *testing.T) {
-	var testOut string
-	testDecode(t, jsonStrStr, 0x4000000, &testOut)
-	if testOut != "Hello World" {
-		t.Errorf("Decoding failed")
-	}
-}
+	rawString := "something"
 
-func TestDecodeBadType(t *testing.T) {
-	var testOut string
-	err := NewDefaultTranscoder(&DefaultJSONSerializer{}).Decode(jsonNumStr, 0x2000000, &testOut)
-	if err == nil {
-		t.Errorf("Decoding succeeded but should have failed")
+	type test struct {
+		bytes    []byte
+		flags    uint32
+		expected string
+		wantErr  bool
 	}
-}
-
-func TestDecodeInterface(t *testing.T) {
-	var testOut interface{}
-	testDecode(t, jsonNumStr, 0x2000000, &testOut)
-	switch testOut := testOut.(type) {
-	case int:
-		if testOut != 2222 {
-			t.Errorf("Decoding failed")
+	tests := map[Transcoder][]test{
+		NewJSONTranscoder(nil): {
+			{
+				bytes:   []byte(rawString),
+				flags:   4 << 24,
+				wantErr: true,
+			},
+		},
+		NewLegacyTranscoder(nil): {
+			{
+				bytes:    []byte(rawString),
+				flags:    4 << 24,
+				expected: rawString,
+				wantErr:  false,
+			},
+		},
+		NewRawJSONTranscoder(): {
+			{
+				bytes:   []byte(rawString),
+				flags:   4 << 24,
+				wantErr: true,
+			},
+		},
+		NewRawStringTranscoder(): {
+			{
+				bytes:    []byte(rawString),
+				flags:    4 << 24,
+				expected: rawString,
+				wantErr:  false,
+			},
+		},
+		NewRawBinaryTranscoder(): {
+			{
+				bytes:   []byte(rawString),
+				flags:   4 << 24,
+				wantErr: true,
+			},
+		},
+	}
+	for transcoder, transcoderTests := range tests {
+		name := reflect.ValueOf(transcoder).Type().String()
+		for _, tt := range transcoderTests {
+			t.Run(name, func(t *testing.T) {
+				var actual string
+				err := transcoder.Decode(tt.bytes, tt.flags, &actual)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("%s error = %v, wantErr %v", name, err, tt.wantErr)
+					return
+				}
+				if !reflect.DeepEqual(actual, tt.expected) {
+					t.Errorf("%s got = %v, want %v", name, actual, tt.expected)
+				}
+			})
 		}
-	case float64:
-		if testOut != 2222 {
-			t.Errorf("Decoding failed")
-		}
-	default:
-		t.Errorf("Decoding failed")
 	}
-
-	testDecode(t, jsonStrStr, 0x4000000, &testOut)
-	switch testOut := testOut.(type) {
-	case string:
-		if testOut != "Hello World" {
-			t.Errorf("Decoding failed")
-		}
-	default:
-		t.Errorf("Decoding failed")
-	}
-}
-
-func TestEncodeJson(t *testing.T) {
-	testIn := make(map[string]string)
-	testIn["test"] = "value"
-	bytes, flags := testEncode(t, &testIn)
-	if flags != 0x2000000 {
-		t.Errorf("Bad flags generated")
-	}
-	testBytesEqual(t, bytes, jsonObjStr)
-}
-
-func TestEncodeJsonStruct(t *testing.T) {
-	var testIn struct {
-		Test string `json:"test"`
-	}
-	testIn.Test = "value"
-	bytes, flags := testEncode(t, &testIn)
-	if flags != 0x2000000 {
-		t.Errorf("Bad flags generated")
-	}
-	testBytesEqual(t, bytes, jsonObjStr)
-}
-
-func TestEncodeNumber(t *testing.T) {
-	testIn := 2222
-	bytes, flags := testEncode(t, &testIn)
-	if flags != 0x2000000 {
-		t.Errorf("Bad flags generated")
-	}
-	testBytesEqual(t, bytes, jsonNumStr)
-}
-
-func TestEncodeString(t *testing.T) {
-	testIn := "Hello World"
-	bytes, flags := testEncode(t, &testIn)
-	if flags != 0x4000000 {
-		t.Errorf("Bad flags generated")
-	}
-	testBytesEqual(t, bytes, jsonStrStr)
 }
 
 type MockSerializer struct {

@@ -8,7 +8,10 @@ func TestBinaryAppend(t *testing.T) {
 	}
 	colBinary := globalCollection.Binary()
 
-	res, err := globalCollection.Upsert("binaryAppend", "foo", nil)
+	tcoder := NewRawBinaryTranscoder()
+	res, err := globalCollection.Upsert("binaryAppend", []byte("foo"), &UpsertOptions{
+		Transcoder: tcoder,
+	})
 	if err != nil {
 		t.Fatalf("Failed to Upsert, err: %v", err)
 	}
@@ -26,18 +29,20 @@ func TestBinaryAppend(t *testing.T) {
 		t.Fatalf("Expected Cas to be non-zero")
 	}
 
-	appendDoc, err := globalCollection.Get("binaryAppend", nil)
+	appendDoc, err := globalCollection.Get("binaryAppend", &GetOptions{
+		Transcoder: tcoder,
+	})
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)
 	}
 
-	var appendContent string
+	var appendContent []byte
 	err = appendDoc.Content(&appendContent)
 	if err != nil {
 		t.Fatalf("Content failed, error was %v", err)
 	}
 
-	if appendContent != "foobar" {
+	if string(appendContent) != "foobar" {
 		t.Fatalf("Expected append result to be foobar but was %s", appendContent)
 	}
 }
@@ -48,7 +53,10 @@ func TestBinaryPrepend(t *testing.T) {
 	}
 	colBinary := globalCollection.Binary()
 
-	res, err := globalCollection.Upsert("binaryPrepend", "foo", nil)
+	tcoder := NewRawBinaryTranscoder()
+	res, err := globalCollection.Upsert("binaryPrepend", []byte("foo"), &UpsertOptions{
+		Transcoder: tcoder,
+	})
 	if err != nil {
 		t.Fatalf("Failed to Upsert, err: %v", err)
 	}
@@ -66,18 +74,20 @@ func TestBinaryPrepend(t *testing.T) {
 		t.Fatalf("Expected Cas to be non-zero")
 	}
 
-	appendDoc, err := globalCollection.Get("binaryPrepend", nil)
+	appendDoc, err := globalCollection.Get("binaryPrepend", &GetOptions{
+		Transcoder: tcoder,
+	})
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)
 	}
 
-	var appendContent string
+	var appendContent []byte
 	err = appendDoc.Content(&appendContent)
 	if err != nil {
 		t.Fatalf("Content failed, error was %v", err)
 	}
 
-	if appendContent != "barfoo" {
+	if string(appendContent) != "barfoo" {
 		t.Fatalf("Expected prepend result to be boofar but was %s", appendContent)
 	}
 }

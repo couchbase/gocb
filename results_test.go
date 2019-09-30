@@ -59,7 +59,7 @@ func TestGetResultContent(t *testing.T) {
 
 	res := GetResult{
 		contents:   dataset,
-		transcoder: NewDefaultTranscoder(&DefaultJSONSerializer{}),
+		transcoder: NewJSONTranscoder(&DefaultJSONSerializer{}),
 	}
 
 	var doc testBeerDocument
@@ -117,7 +117,7 @@ func TestGetResultFromSubDoc(t *testing.T) {
 		Address address `json:"address"`
 	}
 	var doc person
-	getResult := GetResult{transcoder: NewDefaultTranscoder(&DefaultJSONSerializer{})}
+	getResult := GetResult{transcoder: NewJSONTranscoder(&DefaultJSONSerializer{})}
 	err = getResult.fromSubDoc([]LookupInSpec{
 		{op: ops[0]},
 		{op: ops[1]},
