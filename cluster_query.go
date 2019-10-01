@@ -59,7 +59,7 @@ type QueryMetrics struct {
 type QueryMetadata struct {
 	requestID       string
 	clientContextID string
-	metrics         QueryMetrics
+	metrics         *QueryMetrics
 	signature       interface{}
 	warnings        []QueryWarning
 	sourceAddr      string
@@ -186,7 +186,7 @@ func (r *QueryMetadata) ClientContextID() string {
 }
 
 // Metrics returns metrics about execution of this result.
-func (r *QueryMetadata) Metrics() QueryMetrics {
+func (r *QueryMetadata) Metrics() *QueryMetrics {
 	return r.metrics
 }
 
@@ -233,7 +233,7 @@ func (r *QueryResult) readAttribute(decoder *json.Decoder, t json.Token) (bool, 
 			logDebugf("Failed to parse execution time duration (%s)", err)
 		}
 
-		r.metadata.metrics = QueryMetrics{
+		r.metadata.metrics = &QueryMetrics{
 			ElapsedTime:   elapsedTime,
 			ExecutionTime: executionTime,
 			ResultCount:   metrics.ResultCount,

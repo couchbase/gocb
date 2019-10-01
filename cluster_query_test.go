@@ -393,6 +393,7 @@ func TestBasicQuery(t *testing.T) {
 
 	queryOptions := &QueryOptions{
 		PositionalParameters: []interface{}{"brewery"},
+		Metrics:              true,
 	}
 
 	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"

@@ -51,6 +51,8 @@ type QueryOptions struct {
 	NamedParameters      map[string]interface{}
 	// Custom allows specifying custom query options.
 	Custom map[string]interface{}
+	// Metrics specifies whether or not to fetch metrics when executing the query.
+	Metrics bool
 
 	// JSONSerializer is used to deserialize each row in the result. This should be a JSON deserializer as results are JSON.
 	// NOTE: if not set then query will always default to DefaultJSONSerializer.
@@ -126,6 +128,10 @@ func (opts *QueryOptions) toMap(statement string) (map[string]interface{}, error
 		for k, v := range opts.Custom {
 			execOpts[k] = v
 		}
+	}
+
+	if !opts.Metrics {
+		execOpts["metrics"] = false
 	}
 
 	if opts.ClientContextID == "" {
