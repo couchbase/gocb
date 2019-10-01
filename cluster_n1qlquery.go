@@ -43,6 +43,7 @@ type n1qlResponse struct {
 	Errors          []n1qlError         `json:"errors,omitempty"`
 	Status          string              `json:"status"`
 	Metrics         n1qlResponseMetrics `json:"metrics"`
+	Profile         interface{}         `json:"profile"`
 }
 
 type n1qlMultiError []n1qlError
@@ -77,6 +78,7 @@ type QueryResults interface {
 	RequestId() string
 	ClientContextId() string
 	Metrics() QueryResultMetrics
+	Profile() interface{}
 
 	// SourceAddr returns the source endpoint where the request was sent to.
 	// VOLATILE
@@ -91,6 +93,7 @@ type n1qlResults struct {
 	requestId       string
 	clientContextId string
 	metrics         QueryResultMetrics
+	profile         interface{}
 	sourceAddr      string
 }
 
@@ -176,6 +179,14 @@ func (r *n1qlResults) Metrics() QueryResultMetrics {
 	}
 
 	return r.metrics
+}
+
+func (r *n1qlResults) Profile() interface{} {
+	if !r.closed {
+		panic("Result must be closed before accessing meta-data")
+	}
+
+	return r.profile
 }
 
 // Executes the N1QL query (in opts) on the server n1qlEp.
@@ -295,6 +306,7 @@ func (c *Cluster) executeN1qlQuery(tracectx opentracing.SpanContext, n1qlEp stri
 			ErrorCount:    n1qlResp.Metrics.ErrorCount,
 			WarningCount:  n1qlResp.Metrics.WarningCount,
 		},
+		profile: n1qlResp.Profile,
 	}, nil
 }
 
