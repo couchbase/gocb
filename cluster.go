@@ -40,7 +40,6 @@ type ClusterOptions struct {
 	AnalyticsTimeout  time.Duration
 	SearchTimeout     time.Duration
 	ManagementTimeout time.Duration
-	EnableTracing     bool
 	// Transcoder is used for trancoding data used in KV operations.
 	Transcoder Transcoder
 	// Serializer is used for deserialization of data used in query, analytics, view and search operations. This
