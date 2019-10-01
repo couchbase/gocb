@@ -39,6 +39,8 @@ type QueryOptions struct {
 	// PipelineCap controls the maximum number of items each execution operator
 	// can buffer between various operators.
 	PipelineCap int
+	// ScanWait specifies the maximum time wait for a scan.
+	ScanWait time.Duration
 	// ReadOnly controls whether a query can change a resulting recordset.  If
 	// readonly is true, then only SELECT statements are permitted.
 	ReadOnly        bool
@@ -122,6 +124,10 @@ func (opts *QueryOptions) toMap(statement string) (map[string]interface{}, error
 
 	if opts.PipelineCap != 0 {
 		execOpts["pipeline_cap"] = strconv.Itoa(opts.PipelineCap)
+	}
+
+	if opts.ScanWait > 0 {
+		execOpts["scan_wait"] = opts.ScanWait.String()
 	}
 
 	if opts.Custom != nil {
