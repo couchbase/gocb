@@ -16,7 +16,7 @@ func TestQueryOptionsToMap(t *testing.T) {
 		statement := "select * from default"
 		optMap, err := opts.toMap(statement)
 
-		if opts.Consistency != 0 && opts.ConsistentWith != nil {
+		if opts.ScanConsistency != 0 && opts.ConsistentWith != nil {
 			if err == nil {
 				t.Fatalf("Expected error when ConsistentWith and Conistency are both set")
 			} else {
@@ -38,15 +38,15 @@ func TestQueryOptionsToMap(t *testing.T) {
 
 		testAssertOption(t, statement, "statement", optMap)
 
-		if opts.Consistency == 0 && opts.ConsistentWith == nil {
+		if opts.ScanConsistency == 0 && opts.ConsistentWith == nil {
 			testAssertOption(t, nil, "scan_consistency", optMap)
 		}
 
-		if opts.Consistency == 1 {
+		if opts.ScanConsistency == 1 {
 			testAssertOption(t, "not_bounded", "scan_consistency", optMap)
-		} else if opts.Consistency == 2 {
+		} else if opts.ScanConsistency == 2 {
 			testAssertOption(t, "request_plus", "scan_consistency", optMap)
-		} else if opts.Consistency == 3 {
+		} else if opts.ScanConsistency == 3 {
 			testAssertOption(t, "statement_plus", "scan_consistency", optMap)
 		}
 
@@ -167,13 +167,11 @@ func testCreateQueryOptions(seed int64) *QueryOptions {
 	opts := &QueryOptions{}
 	rand.Seed(seed)
 
-	randVal := rand.Intn(4)
+	randVal := rand.Intn(3)
 	if randVal == 1 {
-		opts.Consistency = NotBounded
+		opts.ScanConsistency = QueryScanConsistencyNotBounded
 	} else if randVal == 2 {
-		opts.Consistency = RequestPlus
-	} else if randVal == 3 {
-		opts.Consistency = StatementPlus
+		opts.ScanConsistency = QueryScanConsistencyRequestPlus
 	}
 
 	randVal = rand.Intn(2)

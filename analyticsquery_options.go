@@ -6,7 +6,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
+)
+
+// AnalyticsScanConsistency indicates the level of data consistency desired for an analytics query.
+type AnalyticsScanConsistency int
+
+const (
+	// AnalyticsScanConsistencyNotBounded indicates no data consistency is required.
+	AnalyticsScanConsistencyNotBounded = AnalyticsScanConsistency(1)
+	// AnalyticsScanConsistencyRequestPlus indicates that request-level data consistency is required.
+	AnalyticsScanConsistencyRequestPlus = AnalyticsScanConsistency(2)
 )
 
 // AnalyticsOptions is the set of options available to an Analytics query.
@@ -21,6 +30,7 @@ type AnalyticsOptions struct {
 	PositionalParameters []interface{}
 	NamedParameters      map[string]interface{}
 	ReadOnly             bool
+	ScanConsistency      AnalyticsScanConsistency
 
 	// JSONSerializer is used to deserialize each row in the result. This should be a JSON deserializer as results are JSON.
 	// NOTE: if not set then query will always default to DefaultJSONSerializer.
@@ -41,12 +51,22 @@ func (opts *AnalyticsOptions) toMap(statement string) (map[string]interface{}, e
 		execOpts["client_context_id"] = opts.ClientContextID
 	}
 
+	if opts.ScanConsistency != 0 {
+		if opts.ScanConsistency == AnalyticsScanConsistencyNotBounded {
+			execOpts["scan_consistency"] = "not_bounded"
+		} else if opts.ScanConsistency == AnalyticsScanConsistencyRequestPlus {
+			execOpts["scan_consistency"] = "request_plus"
+		} else {
+			return nil, configurationError{message: "unexpected consistency option"}
+		}
+	}
+
 	if opts.Priority {
 		execOpts["priority"] = -1
 	}
 
 	if opts.PositionalParameters != nil && opts.NamedParameters != nil {
-		return nil, errors.New("Positional and named parameters must be used exclusively")
+		return nil, configurationError{message: "positional and named parameters must be used exclusively"}
 	}
 
 	if opts.PositionalParameters != nil {

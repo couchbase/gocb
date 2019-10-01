@@ -3,8 +3,6 @@ package gocb
 import (
 	"context"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 // SearchHighlightStyle indicates the type of highlighting to use for a search query.
@@ -19,6 +17,14 @@ const (
 
 	// AnsiHightlightStyle specifies to use ANSI tags to highlight search result hits.
 	AnsiHightlightStyle = SearchHighlightStyle("ansi")
+)
+
+// SearchScanConsistency indicates the level of data consistency desired for a search query.
+type SearchScanConsistency int
+
+const (
+	// SearchScanConsistencyNotBounded indicates no data consistency is required.
+	SearchScanConsistencyNotBounded = SearchScanConsistency(1)
 )
 
 type searchQueryHighlightData struct {
@@ -61,10 +67,10 @@ type SearchOptions struct {
 	Facets    map[string]interface{}
 	// Timeout and context are used to control cancellation of the data stream. Any timeout or deadline will also be
 	// propagated to the server.
-	Timeout        time.Duration
-	Context        context.Context
-	Consistency    ConsistencyMode
-	ConsistentWith *MutationState
+	Timeout         time.Duration
+	Context         context.Context
+	ScanConsistency SearchScanConsistency
+	ConsistentWith  *MutationState
 }
 
 func (opts *SearchOptions) toOptionsData() (*searchQueryOptionsData, error) {
@@ -96,20 +102,20 @@ func (opts *SearchOptions) toOptionsData() (*searchQueryOptionsData, error) {
 		data.Ctl.Timeout = uint(opts.Timeout / time.Millisecond)
 	}
 
-	if opts.Consistency != 0 && opts.ConsistentWith != nil {
-		return nil, errors.New("Unexpected consistency option")
+	if opts.ScanConsistency != 0 && opts.ConsistentWith != nil {
+		return nil, configurationError{message: "ScanConsistency and ConsistentWith must be used exclusively"}
 	}
 
-	if opts.Consistency != 0 {
+	if opts.ScanConsistency != 0 {
 		if data.Ctl == nil {
 			data.Ctl = &searchQueryCtlData{}
 		}
 
 		data.Ctl.Consistency = &searchQueryConsistencyData{}
-		if opts.Consistency == NotBounded {
+		if opts.ScanConsistency == SearchScanConsistencyNotBounded {
 			data.Ctl.Consistency.Level = "not_bounded"
 		} else {
-			return nil, errors.New("Unexpected consistency option")
+			return nil, configurationError{message: "unexpected consistency option"}
 		}
 	}
 

@@ -7,28 +7,24 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
-	"github.com/pkg/errors"
 )
 
-// ConsistencyMode indicates the level of data consistency desired for a query.
-type ConsistencyMode int
+// QueryScanConsistency indicates the level of data consistency desired for a query.
+type QueryScanConsistency int
 
 const (
-	// NotBounded indicates no data consistency is required.
-	NotBounded = ConsistencyMode(1)
-	// RequestPlus indicates that request-level data consistency is required.
-	RequestPlus = ConsistencyMode(2)
-	// StatementPlus indicates that statement-level data consistency is required.
-	StatementPlus = ConsistencyMode(3)
+	// QueryScanConsistencyNotBounded indicates no data consistency is required.
+	QueryScanConsistencyNotBounded = QueryScanConsistency(1)
+	// QueryScanConsistencyRequestPlus indicates that request-level data consistency is required.
+	QueryScanConsistencyRequestPlus = QueryScanConsistency(2)
 )
 
 // QueryOptions represents the options available when executing a N1QL query.
 type QueryOptions struct {
-	Consistency    ConsistencyMode
-	ConsistentWith *MutationState
-	AdHoc          bool
-	Profile        QueryProfileType
+	ScanConsistency QueryScanConsistency
+	ConsistentWith  *MutationState
+	AdHoc           bool
+	Profile         QueryProfileType
 	// ScanCap specifies the maximum buffered channel size between the indexer
 	// client and the query service for index scans. This parameter controls
 	// when to use scan backfill. Use a negative number to disable.
@@ -70,19 +66,17 @@ func (opts *QueryOptions) toMap(statement string) (map[string]interface{}, error
 		execOpts["timeout"] = opts.Timeout.String()
 	}
 
-	if opts.Consistency != 0 && opts.ConsistentWith != nil {
-		return nil, errors.New("Consistent and ConsistentWith must be used exclusively")
+	if opts.ScanConsistency != 0 && opts.ConsistentWith != nil {
+		return nil, configurationError{message: "ScanConsistency and ConsistentWith must be used exclusively"}
 	}
 
-	if opts.Consistency != 0 {
-		if opts.Consistency == NotBounded {
+	if opts.ScanConsistency != 0 {
+		if opts.ScanConsistency == QueryScanConsistencyNotBounded {
 			execOpts["scan_consistency"] = "not_bounded"
-		} else if opts.Consistency == RequestPlus {
+		} else if opts.ScanConsistency == QueryScanConsistencyRequestPlus {
 			execOpts["scan_consistency"] = "request_plus"
-		} else if opts.Consistency == StatementPlus {
-			execOpts["scan_consistency"] = "statement_plus"
 		} else {
-			return nil, errors.New("Unexpected consistency option")
+			return nil, configurationError{message: "Unexpected consistency option"}
 		}
 	}
 
@@ -100,7 +94,7 @@ func (opts *QueryOptions) toMap(statement string) (map[string]interface{}, error
 	}
 
 	if opts.PositionalParameters != nil && opts.NamedParameters != nil {
-		return nil, errors.New("Positional and named parameters must be used exclusively")
+		return nil, configurationError{message: "Positional and named parameters must be used exclusively"}
 	}
 
 	if opts.PositionalParameters != nil {
