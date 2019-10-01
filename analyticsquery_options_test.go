@@ -178,7 +178,7 @@ func TestAnalyticsQueryOptionsRawParam(t *testing.T) {
 		"raw": "param",
 	}
 	opts := &AnalyticsOptions{
-		RawParam: params,
+		Raw: params,
 	}
 
 	statement := "select * from default"

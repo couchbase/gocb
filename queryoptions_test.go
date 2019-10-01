@@ -97,8 +97,8 @@ func TestQueryOptionsToMap(t *testing.T) {
 			testAssertOption(t, opts.Timeout.String(), "timeout", optMap)
 		}
 
-		if len(opts.Custom) > 0 {
-			for k, v := range opts.Custom {
+		if len(opts.Raw) > 0 {
+			for k, v := range opts.Raw {
 				testAssertOption(t, v, k, optMap)
 			}
 		}
@@ -232,7 +232,7 @@ func testCreateQueryOptions(seed int64) *QueryOptions {
 
 	randVal = rand.Intn(2)
 	if randVal == 1 {
-		opts.Custom = map[string]interface{}{"key1": "param1", "$key2": "param2"}
+		opts.Raw = map[string]interface{}{"key1": "param1", "$key2": "param2"}
 	}
 
 	randVal = rand.Intn(2)

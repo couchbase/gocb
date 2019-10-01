@@ -16,7 +16,7 @@ type AnalyticsOptions struct {
 	ServerSideTimeout    time.Duration
 	Context              context.Context
 	ClientContextID      string
-	RawParam             map[string]interface{}
+	Raw                  map[string]interface{}
 	Priority             bool
 	PositionalParameters []interface{}
 	NamedParameters      map[string]interface{}
@@ -62,8 +62,8 @@ func (opts *AnalyticsOptions) toMap(statement string) (map[string]interface{}, e
 		}
 	}
 
-	if opts.RawParam != nil {
-		for k, v := range opts.RawParam {
+	if opts.Raw != nil {
+		for k, v := range opts.Raw {
 			execOpts[k] = v
 		}
 	}

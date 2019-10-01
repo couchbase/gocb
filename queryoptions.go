@@ -51,10 +51,10 @@ type QueryOptions struct {
 	Context              context.Context
 	PositionalParameters []interface{}
 	NamedParameters      map[string]interface{}
-	// Custom allows specifying custom query options.
-	Custom map[string]interface{}
 	// Metrics specifies whether or not to fetch metrics when executing the query.
 	Metrics bool
+	// Raw allows specifying custom query options.
+	Raw map[string]interface{}
 
 	// JSONSerializer is used to deserialize each row in the result. This should be a JSON deserializer as results are JSON.
 	// NOTE: if not set then query will always default to DefaultJSONSerializer.
@@ -130,8 +130,8 @@ func (opts *QueryOptions) toMap(statement string) (map[string]interface{}, error
 		execOpts["scan_wait"] = opts.ScanWait.String()
 	}
 
-	if opts.Custom != nil {
-		for k, v := range opts.Custom {
+	if opts.Raw != nil {
+		for k, v := range opts.Raw {
 			execOpts[k] = v
 		}
 	}
