@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
 )
 
@@ -372,7 +372,7 @@ func (c *Cluster) query(ctx context.Context, statement string, opts *QueryOption
 	}
 
 	var res *QueryResult
-	if opts.Prepared {
+	if opts.AdHoc {
 		res, err = c.doPreparedN1qlQuery(ctx, queryOpts, provider, cancel, opts.Serializer)
 	} else {
 		res, err = c.doRetryableQuery(ctx, queryOpts, provider, cancel, opts.Serializer)

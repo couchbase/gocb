@@ -183,7 +183,7 @@ func testCreateQueryOptions(seed int64) *QueryOptions {
 
 	randVal = rand.Intn(2)
 	if randVal == 1 {
-		opts.Prepared = true
+		opts.AdHoc = true
 	}
 
 	randVal = rand.Intn(4)

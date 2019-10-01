@@ -245,7 +245,7 @@ func testSimpleQueryError(t *testing.T) {
 
 func testPreparedQuery(t *testing.T) {
 	query := "SELECT `travel-sample`.* FROM `travel-sample` LIMIT 10000;"
-	results, err := globalCluster.Query(query, &QueryOptions{Prepared: true})
+	results, err := globalCluster.Query(query, &QueryOptions{AdHoc: true})
 	if err != nil {
 		t.Fatalf("Failed to execute query: %v", err)
 	}
@@ -278,7 +278,7 @@ func testPreparedQuery(t *testing.T) {
 		t.Fatalf("Query should have been in query cache after prepared statement execution")
 	}
 
-	results, err = globalCluster.Query(query, &QueryOptions{Prepared: true})
+	results, err = globalCluster.Query(query, &QueryOptions{AdHoc: true})
 	if err != nil {
 		t.Fatalf("Failed to execute query: %v", err)
 	}
@@ -1077,7 +1077,7 @@ func TestBasicEnhancedPreparedQuery(t *testing.T) {
 		},
 	}
 
-	_, err = cluster.Query(statement, &QueryOptions{Prepared: true})
+	_, err = cluster.Query(statement, &QueryOptions{AdHoc: true})
 	if err != nil {
 		t.Fatalf("Expected query execution to not error %v", err)
 	}
@@ -1148,7 +1148,7 @@ func TestBasicEnhancedPreparedQueryAlreadySupported(t *testing.T) {
 		},
 	}
 
-	_, err = cluster.Query(statement, &QueryOptions{Prepared: true})
+	_, err = cluster.Query(statement, &QueryOptions{AdHoc: true})
 	if err != nil {
 		t.Fatalf("Expected query execution to not error %v", err)
 	}
@@ -1209,7 +1209,7 @@ func TestBasicEnhancedPreparedQueryAlreadyCached(t *testing.T) {
 		},
 	}
 
-	_, err = cluster.Query(statement, &QueryOptions{Prepared: true})
+	_, err = cluster.Query(statement, &QueryOptions{AdHoc: true})
 	if err != nil {
 		t.Fatalf("Expected query execution to not error %v", err)
 	}
@@ -1272,7 +1272,7 @@ func TestBasicRetriesEnhancedPreparedNoRetry(t *testing.T) {
 		},
 	}
 
-	_, err = cluster.Query(statement, &QueryOptions{Prepared: true})
+	_, err = cluster.Query(statement, &QueryOptions{AdHoc: true})
 	if err == nil {
 		t.Fatal("Expected query execution to error")
 	}
@@ -1335,7 +1335,7 @@ func TestBasicRetriesEnhancedPreparedRetry(t *testing.T) {
 		},
 	}
 
-	_, err = cluster.Query(statement, &QueryOptions{Prepared: true})
+	_, err = cluster.Query(statement, &QueryOptions{AdHoc: true})
 	if err == nil {
 		t.Fatal("Expected query execution to error")
 	}

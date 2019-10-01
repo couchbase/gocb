@@ -27,7 +27,7 @@ const (
 type QueryOptions struct {
 	Consistency    ConsistencyMode
 	ConsistentWith *MutationState
-	Prepared       bool
+	AdHoc          bool
 	Profile        QueryProfileType
 	// ScanCap specifies the maximum buffered channel size between the indexer
 	// client and the query service for index scans. This parameter controls
