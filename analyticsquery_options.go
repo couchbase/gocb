@@ -20,6 +20,7 @@ type AnalyticsOptions struct {
 	Priority             bool
 	PositionalParameters []interface{}
 	NamedParameters      map[string]interface{}
+	ReadOnly             bool
 
 	// JSONSerializer is used to deserialize each row in the result. This should be a JSON deserializer as results are JSON.
 	// NOTE: if not set then query will always default to DefaultJSONSerializer.
@@ -65,6 +66,10 @@ func (opts *AnalyticsOptions) toMap(statement string) (map[string]interface{}, e
 		for k, v := range opts.RawParam {
 			execOpts[k] = v
 		}
+	}
+
+	if opts.ReadOnly {
+		execOpts["readonly"] = true
 	}
 
 	return execOpts, nil
