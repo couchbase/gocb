@@ -53,7 +53,7 @@ func (d *GetResult) fromFullProjection(ops []LookupInSpec, result *LookupInResul
 	}
 
 	if len(result.contents) != 1 {
-		return configurationError{message: "fromFullProjection should only be called with 1 subdoc result"}
+		return invalidArgumentsError{message: "fromFullProjection should only be called with 1 subdoc result"}
 	}
 
 	resultContent := result.contents[0]
@@ -258,7 +258,7 @@ func (pr *lookupInPartial) exists() bool {
 // the operation as it was added to the builder.
 func (lir *LookupInResult) ContentAt(idx int, valuePtr interface{}) error {
 	if idx > len(lir.contents) {
-		return errors.New("the supplied index was invalid")
+		return invalidArgumentsError{message: "the supplied index was invalid"}
 	}
 	return lir.contents[idx].as(valuePtr, lir.serializer)
 }
@@ -370,14 +370,14 @@ func newStreamingResults(stream io.ReadCloser, attributeCb streamingResultCb) (*
 		if bodyErr != nil {
 			logDebugf("Failed to close socket (%s)", bodyErr.Error())
 		}
-		return nil, errors.New("could not read response body, no data found")
+		return nil, clientError{message: "could not read response body, no data found"}
 	}
 	if delim != '{' {
 		bodyErr := stream.Close()
 		if bodyErr != nil {
 			logDebugf("Failed to close socket (%s)", bodyErr.Error())
 		}
-		return nil, errors.New("could not read response body, opening token should have been { but found: " + string(delim))
+		return nil, clientError{message: "could not read response body, opening token should have been { but found: " + string(delim)}
 	}
 
 	return &streamingResult{

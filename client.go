@@ -6,8 +6,6 @@ import (
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
-
-	"github.com/pkg/errors"
 )
 
 type client interface {
@@ -126,7 +124,7 @@ func (c *stdClient) getKvProvider() (kvProvider, error) {
 	}
 
 	if c.agent == nil {
-		return nil, errors.New("Cluster not yet connected")
+		return nil, configurationError{message: "cluster not yet connected"}
 	}
 	return c.agent, nil
 }
@@ -137,7 +135,7 @@ func (c *stdClient) getHTTPProvider() (httpProvider, error) {
 	}
 
 	if c.agent == nil {
-		return nil, errors.New("Cluster not yet connected")
+		return nil, configurationError{message: "cluster not yet connected"}
 	}
 	return c.agent, nil
 }
@@ -156,13 +154,13 @@ func (c *stdClient) openCollection(ctx context.Context, scopeName string, collec
 	}
 
 	if c.agent == nil {
-		c.bootstrapErr = errors.New("Cluster not yet connected")
+		c.bootstrapErr = configurationError{message: "cluster not yet connected"}
 		return
 	}
 
 	// if the collection/scope are none default and the collection ID can't be found then error
 	if !c.agent.HasCollectionsSupport() {
-		c.bootstrapErr = errors.New("Collections not supported by server")
+		c.bootstrapErr = configurationError{message: "Collections not supported by server"}
 		return
 	}
 
@@ -216,7 +214,7 @@ func (c *stdClient) close() error {
 	c.lock.Lock()
 	if c.agent == nil {
 		c.lock.Unlock()
-		return errors.New("Cluster not yet connected")
+		return configurationError{message: "cluster not yet connected"}
 	}
 	c.isConnected = false
 	c.lock.Unlock()

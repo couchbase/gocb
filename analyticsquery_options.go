@@ -57,7 +57,7 @@ func (opts *AnalyticsOptions) toMap(statement string) (map[string]interface{}, e
 		} else if opts.ScanConsistency == AnalyticsScanConsistencyRequestPlus {
 			execOpts["scan_consistency"] = "request_plus"
 		} else {
-			return nil, configurationError{message: "unexpected consistency option"}
+			return nil, invalidArgumentsError{message: "unexpected consistency option"}
 		}
 	}
 
@@ -66,7 +66,7 @@ func (opts *AnalyticsOptions) toMap(statement string) (map[string]interface{}, e
 	}
 
 	if opts.PositionalParameters != nil && opts.NamedParameters != nil {
-		return nil, configurationError{message: "positional and named parameters must be used exclusively"}
+		return nil, invalidArgumentsError{message: "positional and named parameters must be used exclusively"}
 	}
 
 	if opts.PositionalParameters != nil {

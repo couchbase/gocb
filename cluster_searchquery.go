@@ -243,7 +243,7 @@ func (r *SearchResult) One(rowPtr *SearchResultRow) error {
 // Metadata returns metadata for this result.
 func (r *SearchResult) Metadata() (*SearchMetadata, error) {
 	if !r.streamResult.Closed() {
-		return nil, errors.New("result must be closed before accessing meta-data")
+		return nil, clientError{message: "result must be closed before accessing meta-data"}
 	}
 
 	return &r.metadata, nil
@@ -267,7 +267,7 @@ func (r SearchMetadata) TotalRows() int {
 // Facets contains the information relative to the facets requested in the search query.
 func (r SearchResult) Facets() (map[string]FacetResult, error) {
 	if !r.streamResult.Closed() {
-		return nil, errors.New("result must be closed before accessing meta-data")
+		return nil, clientError{message: "result must be closed before accessing meta-data"}
 	}
 
 	return r.facets, nil
@@ -317,12 +317,12 @@ func (r *SearchResult) readAttribute(decoder *json.Decoder, t json.Token) (bool,
 			for k, v := range statusError {
 				msg, ok := v.(string)
 				if !ok {
-					return false, errors.New("could not parse errors")
+					return false, clientError{message: "could not parse errors"}
 				}
 				statusErrors = append(statusErrors, fmt.Sprintf("%s-%s", k, msg))
 			}
 		} else {
-			return false, errors.New("could not parse errors")
+			return false, clientError{message: "could not parse errors"}
 		}
 
 		if len(statusErrors) > 0 {

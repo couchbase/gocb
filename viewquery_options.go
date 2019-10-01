@@ -7,8 +7,6 @@ import (
 	"net/url"
 	"strconv"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 // StaleMode specifies the consistency required for a view query.
@@ -76,7 +74,7 @@ func (opts *ViewOptions) toURLValues() (*url.Values, error) {
 		} else if opts.Stale == After {
 			options.Set("stale", "update_after")
 		} else {
-			return nil, errors.New("Unexpected stale option")
+			return nil, invalidArgumentsError{message: "Unexpected stale option"}
 		}
 	}
 
@@ -94,7 +92,7 @@ func (opts *ViewOptions) toURLValues() (*url.Values, error) {
 		} else if opts.Order == Descending {
 			options.Set("descending", "true")
 		} else {
-			return nil, errors.New("Unexpected order option")
+			return nil, invalidArgumentsError{message: "Unexpected order option"}
 		}
 	}
 

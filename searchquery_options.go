@@ -103,7 +103,7 @@ func (opts *SearchOptions) toOptionsData() (*searchQueryOptionsData, error) {
 	}
 
 	if opts.ScanConsistency != 0 && opts.ConsistentWith != nil {
-		return nil, configurationError{message: "ScanConsistency and ConsistentWith must be used exclusively"}
+		return nil, invalidArgumentsError{message: "ScanConsistency and ConsistentWith must be used exclusively"}
 	}
 
 	if opts.ScanConsistency != 0 {
@@ -115,7 +115,7 @@ func (opts *SearchOptions) toOptionsData() (*searchQueryOptionsData, error) {
 		if opts.ScanConsistency == SearchScanConsistencyNotBounded {
 			data.Ctl.Consistency.Level = "not_bounded"
 		} else {
-			return nil, configurationError{message: "unexpected consistency option"}
+			return nil, invalidArgumentsError{message: "unexpected consistency option"}
 		}
 	}
 

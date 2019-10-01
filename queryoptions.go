@@ -67,7 +67,7 @@ func (opts *QueryOptions) toMap(statement string) (map[string]interface{}, error
 	}
 
 	if opts.ScanConsistency != 0 && opts.ConsistentWith != nil {
-		return nil, configurationError{message: "ScanConsistency and ConsistentWith must be used exclusively"}
+		return nil, invalidArgumentsError{message: "ScanConsistency and ConsistentWith must be used exclusively"}
 	}
 
 	if opts.ScanConsistency != 0 {
@@ -76,7 +76,7 @@ func (opts *QueryOptions) toMap(statement string) (map[string]interface{}, error
 		} else if opts.ScanConsistency == QueryScanConsistencyRequestPlus {
 			execOpts["scan_consistency"] = "request_plus"
 		} else {
-			return nil, configurationError{message: "Unexpected consistency option"}
+			return nil, invalidArgumentsError{message: "Unexpected consistency option"}
 		}
 	}
 
@@ -94,7 +94,7 @@ func (opts *QueryOptions) toMap(statement string) (map[string]interface{}, error
 	}
 
 	if opts.PositionalParameters != nil && opts.NamedParameters != nil {
-		return nil, configurationError{message: "Positional and named parameters must be used exclusively"}
+		return nil, invalidArgumentsError{message: "Positional and named parameters must be used exclusively"}
 	}
 
 	if opts.PositionalParameters != nil {

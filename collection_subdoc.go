@@ -2,7 +2,6 @@ package gocb
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
@@ -145,7 +144,7 @@ func (c *Collection) lookupIn(ctx context.Context, id string, ops []LookupInSpec
 	}
 
 	if len(ops) > 16 {
-		return nil, errors.New("too many lookupIn ops specified, maximum 16")
+		return nil, invalidArgumentsError{message: "too many lookupIn ops specified, maximum 16"}
 	}
 
 	serializer := opts.Serializer
@@ -229,7 +228,7 @@ func (c *Collection) encodeMultiArray(in interface{}, serializer JSONSerializer)
 
 	// Assert first character is a '['
 	if len(out) < 2 || out[0] != '[' {
-		return nil, errors.New("not a JSON array")
+		return nil, invalidArgumentsError{message: "not a JSON array"}
 	}
 
 	out = out[1 : len(out)-1]
@@ -646,7 +645,7 @@ func (c *Collection) mutate(ctx context.Context, id string, ops []MutateInSpec, 
 	}
 
 	if (opts.PersistTo != 0 || opts.ReplicateTo != 0) && !c.sb.UseMutationTokens {
-		return nil, configurationError{"cannot use observe based durability without mutation tokens"}
+		return nil, invalidArgumentsError{"cannot use observe based durability without mutation tokens"}
 	}
 
 	var isInsertDocument bool

@@ -129,9 +129,9 @@ func (t *RawJSONTranscoder) Decode(bytes []byte, flags uint32, out interface{}) 
 
 	// Normal types of decoding
 	if valueType == gocbcore.BinaryType {
-		return configurationError{message: "binary datatype is not supported by RawJSONTranscoder"}
+		return clientError{message: "binary datatype is not supported by RawJSONTranscoder"}
 	} else if valueType == gocbcore.StringType {
-		return configurationError{message: "string datatype is not supported by RawJSONTranscoder"}
+		return clientError{message: "string datatype is not supported by RawJSONTranscoder"}
 	} else if valueType == gocbcore.JsonType {
 		switch typedOut := out.(type) {
 		case *[]byte:
@@ -141,7 +141,7 @@ func (t *RawJSONTranscoder) Decode(bytes []byte, flags uint32, out interface{}) 
 			*typedOut = string(bytes)
 			return nil
 		default:
-			return configurationError{message: "you must encode raw JSON data in a byte array or string"}
+			return clientError{message: "you must encode raw JSON data in a byte array or string"}
 		}
 	}
 
@@ -175,7 +175,7 @@ func (t *RawJSONTranscoder) Encode(value interface{}) ([]byte, uint32, error) {
 	case *interface{}:
 		return t.Encode(*typeValue)
 	default:
-		return nil, 0, configurationError{message: "only binary and string data is supported by RawJSONTranscoder"}
+		return nil, 0, invalidArgumentsError{message: "only binary and string data is supported by RawJSONTranscoder"}
 	}
 
 	// No compression supported currently
@@ -207,7 +207,7 @@ func (t *RawStringTranscoder) Decode(bytes []byte, flags uint32, out interface{}
 
 	// Normal types of decoding
 	if valueType == gocbcore.BinaryType {
-		return configurationError{message: "only string datatype is supported by RawStringTranscoder"}
+		return clientError{message: "only string datatype is supported by RawStringTranscoder"}
 	} else if valueType == gocbcore.StringType {
 		switch typedOut := out.(type) {
 		case *string:
@@ -217,10 +217,10 @@ func (t *RawStringTranscoder) Decode(bytes []byte, flags uint32, out interface{}
 			*typedOut = string(bytes)
 			return nil
 		default:
-			return configurationError{message: "you must encode a string in a string or interface"}
+			return clientError{message: "you must encode a string in a string or interface"}
 		}
 	} else if valueType == gocbcore.JsonType {
-		return configurationError{message: "only string datatype is supported by RawStringTranscoder"}
+		return clientError{message: "only string datatype is supported by RawStringTranscoder"}
 	}
 
 	return clientError{message: "unexpected expectedFlags value"}
@@ -241,7 +241,7 @@ func (t *RawStringTranscoder) Encode(value interface{}) ([]byte, uint32, error) 
 	case *interface{}:
 		return t.Encode(*typeValue)
 	default:
-		return nil, 0, configurationError{message: "only raw string data is supported by RawStringTranscoder"}
+		return nil, 0, invalidArgumentsError{message: "only raw string data is supported by RawStringTranscoder"}
 	}
 
 	// No compression supported currently
@@ -281,12 +281,12 @@ func (t *RawBinaryTranscoder) Decode(bytes []byte, flags uint32, out interface{}
 			*typedOut = bytes
 			return nil
 		default:
-			return configurationError{message: "you must encode binary in a byte array or interface"}
+			return clientError{message: "you must encode binary in a byte array or interface"}
 		}
 	} else if valueType == gocbcore.StringType {
-		return configurationError{message: "only binary datatype is supported by RawBinaryTranscoder"}
+		return clientError{message: "only binary datatype is supported by RawBinaryTranscoder"}
 	} else if valueType == gocbcore.JsonType {
-		return configurationError{message: "only binary datatype is supported by RawBinaryTranscoder"}
+		return clientError{message: "only binary datatype is supported by RawBinaryTranscoder"}
 	}
 
 	return clientError{message: "unexpected expectedFlags value"}
@@ -307,7 +307,7 @@ func (t *RawBinaryTranscoder) Encode(value interface{}) ([]byte, uint32, error) 
 	case *interface{}:
 		return t.Encode(*typeValue)
 	default:
-		return nil, 0, configurationError{message: "only raw binary data is supported by RawBinaryTranscoder"}
+		return nil, 0, invalidArgumentsError{message: "only raw binary data is supported by RawBinaryTranscoder"}
 	}
 
 	// No compression supported currently
@@ -357,7 +357,7 @@ func (t *LegacyTranscoder) Decode(bytes []byte, flags uint32, out interface{}) e
 			*typedOut = bytes
 			return nil
 		default:
-			return configurationError{message: "you must encode binary in a byte array or interface"}
+			return clientError{message: "you must encode binary in a byte array or interface"}
 		}
 	} else if valueType == gocbcore.StringType {
 		switch typedOut := out.(type) {
@@ -368,7 +368,7 @@ func (t *LegacyTranscoder) Decode(bytes []byte, flags uint32, out interface{}) e
 			*typedOut = string(bytes)
 			return nil
 		default:
-			return configurationError{message: "you must encode a string in a string or interface"}
+			return clientError{message: "you must encode a string in a string or interface"}
 		}
 	} else if valueType == gocbcore.JsonType {
 		err := t.serializer.Deserialize(bytes, &out)

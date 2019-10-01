@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
 // BucketManager provides methods for performing bucket management operations.
@@ -506,11 +506,11 @@ func (bm *BucketManager) settingsToPostData(settings *BucketSettings) (url.Value
 	posts := url.Values{}
 
 	if settings.Name == "" {
-		return nil, configurationError{message: "Name invalid, must be set."}
+		return nil, invalidArgumentsError{message: "Name invalid, must be set."}
 	}
 
 	if settings.RAMQuotaMB < 100 {
-		return nil, configurationError{message: "Memory quota invalid, must be greater than 100MB"}
+		return nil, invalidArgumentsError{message: "Memory quota invalid, must be greater than 100MB"}
 	}
 
 	posts.Add("name", settings.Name)
@@ -535,13 +535,13 @@ func (bm *BucketManager) settingsToPostData(settings *BucketSettings) (url.Value
 	case MemcachedBucketType:
 		posts.Add("bucketType", string(settings.BucketType))
 		if settings.NumReplicas > 0 {
-			return nil, configurationError{message: "replicas cannot be used with memcached buckets"}
+			return nil, invalidArgumentsError{message: "replicas cannot be used with memcached buckets"}
 		}
 	case EphemeralBucketType:
 		posts.Add("bucketType", string(settings.BucketType))
 		posts.Add("replicaNumber", fmt.Sprintf("%d", settings.NumReplicas))
 	default:
-		return nil, bucketManagerError{message: "Unrecognized bucket type"}
+		return nil, invalidArgumentsError{message: "Unrecognized bucket type"}
 	}
 
 	posts.Add("ramQuotaMB", fmt.Sprintf("%d", settings.RAMQuotaMB))

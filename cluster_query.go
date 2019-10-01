@@ -164,7 +164,7 @@ func (r *QueryResult) One(valuePtr interface{}) error {
 // Metadata returns metadata for this result.
 func (r *QueryResult) Metadata() (*QueryMetadata, error) {
 	if !r.streamResult.Closed() {
-		return nil, errors.New("result must be closed before accessing meta-data")
+		return nil, clientError{message: "result must be closed before accessing meta-data"}
 	}
 
 	return &r.metadata, nil
@@ -265,7 +265,7 @@ func (r *QueryResult) readAttribute(decoder *json.Decoder, t json.Token) (bool, 
 			return false, err
 		}
 		if delim, ok := t.(json.Delim); !ok || delim != '[' {
-			return false, errors.New("expected results opening token to be [ but was " + string(delim))
+			return false, clientError{message: "expected results opening token to be [ but was " + string(delim)}
 		}
 
 		return true, nil
@@ -403,7 +403,7 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]
 
 	stmtStr, isStr := queryOpts["statement"].(string)
 	if !isStr {
-		return nil, configurationError{message: "query statement could not be parsed"}
+		return nil, invalidArgumentsError{message: "query statement could not be parsed"}
 	}
 
 	c.clusterLock.RLock()

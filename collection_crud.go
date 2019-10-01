@@ -111,11 +111,11 @@ type pendingOp gocbcore.PendingOp
 
 func (c *Collection) verifyObserveOptions(persistTo, replicateTo uint, durabilityLevel DurabilityLevel) error {
 	if (persistTo != 0 || replicateTo != 0) && !c.sb.UseMutationTokens {
-		return configurationError{"cannot use observe based durability without mutation tokens"}
+		return invalidArgumentsError{"cannot use observe based durability without mutation tokens"}
 	}
 
 	if (persistTo != 0 || replicateTo != 0) && durabilityLevel > 0 {
-		return configurationError{message: "cannot mix observe based durability and synchronous durability"}
+		return invalidArgumentsError{message: "cannot mix observe based durability and synchronous durability"}
 	}
 
 	return nil

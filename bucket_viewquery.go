@@ -8,9 +8,8 @@ import (
 	"net/url"
 	"strings"
 
+	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
-
-	"github.com/couchbase/gocbcore/v8"
 )
 
 type viewResponse struct {
@@ -104,7 +103,7 @@ func (r *ViewResult) Next(rowPtr *ViewRow) bool {
 // Value assigns the current result value from the results into the value pointer, returning any error that occurred.
 func (r *ViewRow) Value(valuePtr interface{}) error {
 	if r.value == nil {
-		return errors.New("no data to scan")
+		return clientError{message: "no data to scan"}
 	}
 
 	err := r.serializer.Deserialize(r.value, valuePtr)
@@ -205,7 +204,7 @@ func (r *ViewResult) readAttribute(decoder *json.Decoder, t json.Token) (bool, e
 			return false, err
 		}
 		if delim, ok := t.(json.Delim); !ok || delim != '[' {
-			return false, errors.New("expected results opening token to be [ but was " + string(delim))
+			return false, clientError{message: "expected results opening token to be [ but was " + string(delim)}
 		}
 
 		return true, nil
@@ -249,7 +248,7 @@ func (r *ViewResult) One(rowPtr *ViewRow) error {
 // Metadata returns metadata for this result.
 func (r *ViewResult) Metadata() (*ViewMetadata, error) {
 	if r.streamResult != nil && !r.streamResult.Closed() {
-		return nil, errors.New("result must be closed before accessing meta-data")
+		return nil, clientError{message: "result must be closed before accessing meta-data"}
 	}
 
 	return &r.metadata, nil
@@ -351,7 +350,7 @@ func (b *Bucket) executeViewQuery(ctx context.Context, viewType, ddoc, viewName 
 		}
 		delim, ok := t.(json.Delim)
 		if !ok {
-			return nil, errors.New("could not read response body, no data found")
+			return nil, clientError{message: "could not read response body, no data found"}
 		}
 		if delim == '[' {
 			errMsg, err := decoder.Token()

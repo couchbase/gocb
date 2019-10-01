@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
 )
 
@@ -161,7 +161,7 @@ func (r *AnalyticsResult) One(valuePtr interface{}) error {
 // Metadata returns metadata for this result.
 func (r *AnalyticsResult) Metadata() (*AnalyticsMetadata, error) {
 	if !r.streamResult.Closed() {
-		return nil, errors.New("result must be closed before accessing meta-data")
+		return nil, clientError{message: "result must be closed before accessing meta-data"}
 	}
 
 	return &r.metadata, nil
@@ -257,7 +257,7 @@ func (r *AnalyticsResult) readAttribute(decoder *json.Decoder, t json.Token) (bo
 			return false, err
 		}
 		if delim, ok := t.(json.Delim); !ok || delim != '[' {
-			return false, errors.New("expected results opening token to be [ but was " + t.(string))
+			return false, clientError{message: "expected results opening token to be [ but was " + t.(string)}
 		}
 
 		return true, nil
