@@ -2,7 +2,6 @@ package gocb
 
 import (
 	"encoding/json"
-	"errors"
 	"testing"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
@@ -197,9 +196,6 @@ func TestLookupInResultContentAt(t *testing.T) {
 			{
 				data: contents3,
 			},
-			{
-				err: errors.New("error"),
-			},
 		},
 		serializer: &DefaultJSONSerializer{},
 	}
@@ -248,8 +244,8 @@ func TestLookupInResultContentAt(t *testing.T) {
 
 	var shouldFail string
 	err = res.ContentAt(3, &shouldFail)
-	if err == nil {
-		t.Fatalf("ContentAt should have failed")
+	if !IsInvalidIndexError(err) {
+		t.Fatalf("ContentAt should have failed with InvalidIndexError, was %v", err)
 	}
 
 	if res.Exists(3) {

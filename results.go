@@ -257,14 +257,17 @@ func (pr *lookupInPartial) exists() bool {
 // ContentAt retrieves the value of the operation by its index. The index is the position of
 // the operation as it was added to the builder.
 func (lir *LookupInResult) ContentAt(idx int, valuePtr interface{}) error {
-	if idx > len(lir.contents) {
-		return invalidArgumentsError{message: "the supplied index was invalid"}
+	if idx >= len(lir.contents) {
+		return invalidIndexError{}
 	}
 	return lir.contents[idx].as(valuePtr, lir.serializer)
 }
 
 // Exists verifies that the item at idx exists.
 func (lir *LookupInResult) Exists(idx int) bool {
+	if idx >= len(lir.contents) {
+		return false
+	}
 	return lir.contents[idx].exists()
 }
 

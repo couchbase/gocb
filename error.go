@@ -150,6 +150,22 @@ func (e serviceNotAvailableError) Error() string {
 	return e.message
 }
 
+// InvalidIndexError occurs when an invalid index is specified on a LookupInResult.
+type InvalidIndexError interface {
+	InvalidIndex() bool
+}
+
+type invalidIndexError struct {
+}
+
+func (err invalidIndexError) InvalidIndex() bool {
+	return true
+}
+
+func (err invalidIndexError) Error() string {
+	return "an invalid index was specified"
+}
+
 // ServiceNotAvailableError returns whether or not the error is a service not available error.
 func (e serviceNotAvailableError) ServiceNotAvailableError() bool {
 	return true
@@ -498,6 +514,17 @@ func IsSubdocPathExistsError(err error) bool {
 	}
 
 	return false
+}
+
+// IsInvalidIndexError verifies whether or not the cause for an error is due to an invalid index being specified on
+// a LookupInResult
+func IsInvalidIndexError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case InvalidIndexError:
+		return errType.InvalidIndex()
+	default:
+		return false
+	}
 }
 
 // Durability Specific Errors
