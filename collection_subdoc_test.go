@@ -289,7 +289,7 @@ func TestInsertLookupInInsertGetFull(t *testing.T) {
 	subRes, err := globalCollection.MutateIn("lookupDocGetFull", []MutateInSpec{
 		InsertSpec("xattrpath", "xattrvalue", &InsertSpecOptions{IsXattr: true}),
 		UpsertSpec("", doc, nil),
-	}, &MutateInOptions{UpsertDocument: true, Expiry: 20})
+	}, &MutateInOptions{StoreSemantic: StoreSemanticsUpsert, Expiry: 20})
 	if err != nil {
 		t.Fatalf("MutateIn failed, error was %v", err)
 	}

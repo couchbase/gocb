@@ -64,7 +64,7 @@ func (cl *CouchbaseList) RemoveAt(index int) error {
 func (cl *CouchbaseList) Append(val interface{}) error {
 	ops := make([]MutateInSpec, 1)
 	ops[0] = ArrayAppendSpec("", val, nil)
-	_, err := cl.collection.MutateIn(cl.id, ops, &MutateInOptions{UpsertDocument: true})
+	_, err := cl.collection.MutateIn(cl.id, ops, &MutateInOptions{StoreSemantic: StoreSemanticsUpsert})
 	if err != nil {
 		return err
 	}
@@ -76,7 +76,7 @@ func (cl *CouchbaseList) Append(val interface{}) error {
 func (cl *CouchbaseList) Prepend(val interface{}) error {
 	ops := make([]MutateInSpec, 1)
 	ops[0] = ArrayPrependSpec("", val, nil)
-	_, err := cl.collection.MutateIn(cl.id, ops, &MutateInOptions{UpsertDocument: true})
+	_, err := cl.collection.MutateIn(cl.id, ops, &MutateInOptions{StoreSemantic: StoreSemanticsUpsert})
 	if err != nil {
 		return err
 	}
@@ -180,7 +180,7 @@ func (cl *CouchbaseMap) At(id string, valuePtr interface{}) error {
 func (cl *CouchbaseMap) Add(id string, val interface{}) error {
 	ops := make([]MutateInSpec, 1)
 	ops[0] = UpsertSpec(id, val, nil)
-	_, err := cl.collection.MutateIn(cl.id, ops, &MutateInOptions{UpsertDocument: true})
+	_, err := cl.collection.MutateIn(cl.id, ops, &MutateInOptions{StoreSemantic: StoreSemanticsUpsert})
 	if err != nil {
 		return err
 	}
@@ -305,7 +305,7 @@ func (cs *CouchbaseSet) Iterator() ([]interface{}, error) {
 func (cs *CouchbaseSet) Add(val interface{}) error {
 	ops := make([]MutateInSpec, 1)
 	ops[0] = ArrayAddUniqueSpec("", val, nil)
-	_, err := cs.underlying.collection.MutateIn(cs.id, ops, &MutateInOptions{UpsertDocument: true})
+	_, err := cs.underlying.collection.MutateIn(cs.id, ops, &MutateInOptions{StoreSemantic: StoreSemanticsUpsert})
 	if err != nil {
 		return err
 	}

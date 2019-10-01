@@ -199,6 +199,21 @@ type subDocOp struct {
 	MultiValue bool
 }
 
+// StoreSemantics is used to define the document level action to take during a MutateIn operation.
+type StoreSemantics uint8
+
+const (
+	// StoreSemanticsReplace signifies to Replace the document, and fail if it does not exist.
+	// This is the default action
+	StoreSemanticsReplace = StoreSemantics(0)
+
+	// StoreSemanticsUpsert signifies to replace the document or create it if it doesn't exist.
+	StoreSemanticsUpsert = StoreSemantics(1)
+
+	// StoreSemanticsInsert signifies to create the document, and fail if it exists.
+	StoreSemanticsInsert = StoreSemantics(2)
+)
+
 // MutateInSpec is the representation of an operation available when calling MutateIn
 type MutateInSpec struct {
 	op subDocOp
@@ -213,8 +228,7 @@ type MutateInOptions struct {
 	PersistTo       uint
 	ReplicateTo     uint
 	DurabilityLevel DurabilityLevel
-	UpsertDocument  bool
-	InsertDocument  bool
+	StoreSemantic   StoreSemantics
 	Serializer      JSONSerializer
 	// Internal: This should never be used and is not supported.
 	AccessDeleted bool
@@ -650,12 +664,18 @@ func (c *Collection) mutate(ctx context.Context, id string, ops []MutateInSpec, 
 
 	var isInsertDocument bool
 	var flags SubdocDocFlag
-	if opts.UpsertDocument {
+	action := opts.StoreSemantic
+	if action == StoreSemanticsUpsert {
 		flags |= SubdocDocFlagMkDoc
 	}
-	if opts.InsertDocument {
+	if action == StoreSemanticsInsert {
+		isInsertDocument = true
 		flags |= SubdocDocFlagAddDoc
 	}
+	if action > 2 {
+		return nil, invalidArgumentsError{message: "invalid StoreSemantics value provided"}
+	}
+
 	if opts.AccessDeleted {
 		flags |= SubdocDocFlagAccessDeleted
 	}
