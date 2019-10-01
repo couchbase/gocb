@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
 )
 
@@ -483,12 +483,12 @@ func (r *streamingResult) readAttributes() error {
 // GetReplicaResult is the return type of GetReplica operations.
 type GetReplicaResult struct {
 	GetResult
-	isMaster bool
+	isReplica bool
 }
 
-// IsMaster returns whether or not this result came from the active server.
-func (r *GetReplicaResult) IsMaster() bool {
-	return r.isMaster
+// IsReplica returns whether or not this result came from a replica server.
+func (r *GetReplicaResult) IsReplica() bool {
+	return r.isReplica
 }
 
 // GetAllReplicasResult is the return type of GetAllReplica operations.
@@ -537,7 +537,6 @@ func (r *GetAllReplicasResult) Next(valuePtr *GetReplicaResult) bool {
 					contents:   res.Value,
 					flags:      res.Flags,
 				},
-				isMaster: true,
 			}
 			waitCh <- true
 		})
@@ -557,6 +556,7 @@ func (r *GetAllReplicasResult) Next(valuePtr *GetReplicaResult) bool {
 					contents:   res.Value,
 					flags:      res.Flags,
 				},
+				isReplica: true,
 			}
 			waitCh <- true
 		})

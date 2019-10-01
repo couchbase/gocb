@@ -706,6 +706,7 @@ func (c *Collection) getAnyReplica(ctx context.Context, id string,
 				contents:   res.Value,
 				flags:      res.Flags,
 			},
+			isReplica: !res.IsActive,
 		}
 		docOut = doc
 

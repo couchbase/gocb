@@ -1208,7 +1208,7 @@ func TestInsertReplicateToGetAllReplicas(t *testing.T) {
 	for stream.Next(&insertedDoc) {
 		actualReplicas++
 
-		if insertedDoc.IsMaster() {
+		if !insertedDoc.IsReplica() {
 			numMasters++
 		}
 
