@@ -43,7 +43,9 @@ type QueryOptions struct {
 	ScanWait time.Duration
 	// ReadOnly controls whether a query can change a resulting recordset.  If
 	// readonly is true, then only SELECT statements are permitted.
-	ReadOnly        bool
+	ReadOnly bool
+	// MaxParallelism controls the number of logical cores to use in parallel for this query.
+	MaxParallelism  int
 	ClientContextID string
 	// Timeout and context are used to control cancellation of the data stream. Any timeout or deadline will also be
 	// propagated to the server.
@@ -134,6 +136,10 @@ func (opts *QueryOptions) toMap(statement string) (map[string]interface{}, error
 		for k, v := range opts.Raw {
 			execOpts[k] = v
 		}
+	}
+
+	if opts.MaxParallelism > 0 {
+		execOpts["max_parallelism"] = strconv.Itoa(opts.MaxParallelism)
 	}
 
 	if !opts.Metrics {
