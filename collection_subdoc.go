@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
 // LookupInSpec is the representation of an operation available when calling LookupIn
@@ -297,16 +297,6 @@ func UpsertSpec(path string, val interface{}, opts *UpsertSpecOptions) MutateInS
 		flags |= SubdocFlagXattr
 	}
 
-	if path == "" {
-		op := subDocOp{
-			Op:    gocbcore.SubDocOpSetDoc,
-			Flags: gocbcore.SubdocFlag(flags),
-			Value: val,
-		}
-
-		return MutateInSpec{op: op}
-	}
-
 	op := subDocOp{
 		Op:    gocbcore.SubDocOpDictSet,
 		Path:  path,
@@ -330,6 +320,16 @@ func ReplaceSpec(path string, val interface{}, opts *ReplaceSpecOptions) MutateI
 	var flags SubdocFlag
 	if opts.IsXattr {
 		flags |= SubdocFlagXattr
+	}
+
+	if path == "" {
+		op := subDocOp{
+			Op:    gocbcore.SubDocOpSetDoc,
+			Flags: gocbcore.SubdocFlag(flags),
+			Value: val,
+		}
+
+		return MutateInSpec{op: op}
 	}
 
 	op := subDocOp{
@@ -672,8 +672,8 @@ func (c *Collection) mutate(ctx context.Context, id string, ops []MutateInSpec, 
 			switch op.op.Op {
 			case gocbcore.SubDocOpDictAdd:
 				return nil, invalidArgumentsError{"cannot specify a blank path with InsertSpec"}
-			case gocbcore.SubDocOpReplace:
-				return nil, invalidArgumentsError{"cannot specify a blank path with ReplaceSpec"}
+			case gocbcore.SubDocOpDictSet:
+				return nil, invalidArgumentsError{"cannot specify a blank path with UpsertSpec"}
 			case gocbcore.SubDocOpDelete:
 				return nil, invalidArgumentsError{"cannot specify a blank path with DeleteSpec"}
 			default:
