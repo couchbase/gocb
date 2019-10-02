@@ -593,7 +593,7 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
-		cancel()
+		defer cancel()
 	}
 
 	posts := url.Values{}
