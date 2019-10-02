@@ -9,54 +9,63 @@ import (
 	"time"
 )
 
-// StaleMode specifies the consistency required for a view query.
-type StaleMode int
+// ViewScanConsistency specifies the consistency required for a view query.
+type ViewScanConsistency int
 
 const (
-	// Before indicates to update the index before querying it.
-	Before = StaleMode(1)
-	// None indicates that no special behaviour should be used.
-	None = StaleMode(2)
-	// After indicates to update the index asynchronously after querying.
-	After = StaleMode(3)
+	// ViewScanConsistencyNotBounded indicates that no special behaviour should be used.
+	ViewScanConsistencyNotBounded = ViewScanConsistency(1)
+	// ViewScanConsistencyRequestPlus indicates to update the index before querying it.
+	ViewScanConsistencyRequestPlus = ViewScanConsistency(2)
+	// ViewScanConsistencyUpdateAfter indicates to update the index asynchronously after querying.
+	ViewScanConsistencyUpdateAfter = ViewScanConsistency(3)
 )
 
-// SortOrder specifies the ordering for the view queries results.
-type SortOrder int
+// ViewOrdering specifies the ordering for the view queries results.
+type ViewOrdering int
 
 const (
-	// Ascending indicates the query results should be sorted from lowest to highest.
-	Ascending = SortOrder(1)
-	// Descending indicates the query results should be sorted from highest to lowest.
-	Descending = SortOrder(2)
+	// ViewOrderingAscending indicates the query results should be sorted from lowest to highest.
+	ViewOrderingAscending = ViewOrdering(1)
+	// ViewOrderingDescending indicates the query results should be sorted from highest to lowest.
+	ViewOrderingDescending = ViewOrdering(2)
 )
 
-// Range specifies a value range to get results between.
-type Range struct {
-	Start        interface{}
-	End          interface{}
-	InclusiveEnd bool
-}
+// ViewErrorMode pecifies the behaviour of the query engine should an error occur during the gathering of
+// view index results which would result in only partial results being available.
+type ViewErrorMode int
+
+const (
+	// ViewErrorModeContinue indicates to continue gathering results on error.
+	ViewErrorModeContinue = ViewErrorMode(1)
+
+	// ViewErrorModeStop indicates to stop gathering results on error
+	ViewErrorModeStop = ViewErrorMode(2)
+)
 
 // ViewOptions represents the options available when executing view query.
 type ViewOptions struct {
-	Stale        StaleMode
-	Skip         uint
-	Limit        uint
-	Order        SortOrder
-	Reduce       bool
-	Group        bool
-	GroupLevel   uint
-	Key          interface{}
-	Keys         []interface{}
-	Range        *Range
-	IDRangeStart string
-	IDRangeEnd   string
-	Namespace    DesignDocumentNamespace
-	Custom       map[string]string
+	ScanConsistency ViewScanConsistency
+	Skip            uint
+	Limit           uint
+	Order           ViewOrdering
+	Reduce          bool
+	Group           bool
+	GroupLevel      uint
+	Key             interface{}
+	Keys            []interface{}
+	StartKey        interface{}
+	EndKey          interface{}
+	InclusiveEnd    bool
+	StartKeyDocID   string
+	EndKeyDocID     string
+	Namespace       DesignDocumentNamespace
+	Raw             map[string]string
 	// Timeout and context are used to control cancellation of the data stream.
 	Context context.Context
 	Timeout time.Duration
+	OnError ViewErrorMode
+	Debug   bool
 
 	// JSONSerializer is used to deserialize each row in the result. This should be a JSON deserializer as results are JSON.
 	// NOTE: if not set then views will always default to DefaultJSONSerializer.
@@ -66,15 +75,15 @@ type ViewOptions struct {
 func (opts *ViewOptions) toURLValues() (*url.Values, error) {
 	options := &url.Values{}
 
-	if opts.Stale != 0 {
-		if opts.Stale == Before {
+	if opts.ScanConsistency != 0 {
+		if opts.ScanConsistency == ViewScanConsistencyRequestPlus {
 			options.Set("stale", "false")
-		} else if opts.Stale == None {
+		} else if opts.ScanConsistency == ViewScanConsistencyNotBounded {
 			options.Set("stale", "ok")
-		} else if opts.Stale == After {
+		} else if opts.ScanConsistency == ViewScanConsistencyUpdateAfter {
 			options.Set("stale", "update_after")
 		} else {
-			return nil, invalidArgumentsError{message: "Unexpected stale option"}
+			return nil, invalidArgumentsError{message: "unexpected stale option"}
 		}
 	}
 
@@ -87,12 +96,12 @@ func (opts *ViewOptions) toURLValues() (*url.Values, error) {
 	}
 
 	if opts.Order != 0 {
-		if opts.Order == Ascending {
+		if opts.Order == ViewOrderingAscending {
 			options.Set("descending", "false")
-		} else if opts.Order == Descending {
+		} else if opts.Order == ViewOrderingDescending {
 			options.Set("descending", "true")
 		} else {
-			return nil, invalidArgumentsError{message: "Unexpected order option"}
+			return nil, invalidArgumentsError{message: "unexpected order option"}
 		}
 	}
 
@@ -127,52 +136,62 @@ func (opts *ViewOptions) toURLValues() (*url.Values, error) {
 		options.Set("keys", string(jsonKeys))
 	}
 
-	if opts.Range != nil {
-		if opts.Range.Start != nil {
-			jsonStartKey, err := opts.marshalJson(opts.Range.Start)
-			if err != nil {
-				return nil, err
-			}
-			options.Set("startkey", string(jsonStartKey))
-		} else {
-			options.Del("startkey")
+	if opts.StartKey != nil {
+		jsonStartKey, err := opts.marshalJson(opts.StartKey)
+		if err != nil {
+			return nil, err
 		}
+		options.Set("startkey", string(jsonStartKey))
+	} else {
+		options.Del("startkey")
+	}
 
-		if opts.Range.End != nil {
-			jsonEndKey, err := opts.marshalJson(opts.Range.End)
-			if err != nil {
-				return nil, err
-			}
-			options.Set("endkey", string(jsonEndKey))
-		} else {
-			options.Del("endkey")
+	if opts.EndKey != nil {
+		jsonEndKey, err := opts.marshalJson(opts.EndKey)
+		if err != nil {
+			return nil, err
 		}
+		options.Set("endkey", string(jsonEndKey))
+	} else {
+		options.Del("endkey")
+	}
 
-		if opts.Range.Start != nil || opts.Range.End != nil {
-			if opts.Range.InclusiveEnd {
-				options.Set("inclusive_end", "true")
-			} else {
-				options.Set("inclusive_end", "false")
-			}
+	if opts.StartKey != nil || opts.EndKey != nil {
+		if opts.InclusiveEnd {
+			options.Set("inclusive_end", "true")
 		} else {
-			options.Del("inclusive_end")
+			options.Set("inclusive_end", "false")
 		}
 	}
 
-	if opts.IDRangeStart == "" {
+	if opts.StartKeyDocID == "" {
 		options.Del("startkey_docid")
 	} else {
-		options.Set("startkey_docid", opts.IDRangeStart)
+		options.Set("startkey_docid", opts.StartKeyDocID)
 	}
 
-	if opts.IDRangeEnd == "" {
+	if opts.EndKeyDocID == "" {
 		options.Del("endkey_docid")
 	} else {
-		options.Set("endkey_docid", opts.IDRangeEnd)
+		options.Set("endkey_docid", opts.EndKeyDocID)
 	}
 
-	if opts.Custom != nil {
-		for k, v := range opts.Custom {
+	if opts.OnError > 0 {
+		if opts.OnError == ViewErrorModeContinue {
+			options.Set("on_error", "continue")
+		} else if opts.OnError == ViewErrorModeStop {
+			options.Set("on_error", "stop")
+		} else {
+			return nil, invalidArgumentsError{"unexpected onerror option"}
+		}
+	}
+
+	if opts.Debug {
+		options.Set("debug", "true")
+	}
+
+	if opts.Raw != nil {
+		for k, v := range opts.Raw {
 			options.Set(k, v)
 		}
 	}

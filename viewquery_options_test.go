@@ -14,7 +14,7 @@ func TestViewQueryOptionsToURLValues(t *testing.T) {
 
 		optValues, err := opts.toURLValues()
 
-		if opts.Stale > After || opts.Stale < 0 {
+		if opts.ScanConsistency > ViewScanConsistencyUpdateAfter || opts.ScanConsistency < 0 {
 			if err == nil {
 				t.Fatalf("Expected an error for invalid stale value")
 			} else {
@@ -22,7 +22,7 @@ func TestViewQueryOptionsToURLValues(t *testing.T) {
 			}
 		}
 
-		if opts.Order > Descending || opts.Order < 0 {
+		if opts.Order > ViewOrderingDescending || opts.Order < 0 {
 			if err == nil {
 				t.Fatalf("Expected an error for invalid order value")
 			} else {
@@ -34,13 +34,13 @@ func TestViewQueryOptionsToURLValues(t *testing.T) {
 			t.Fatalf("Expected no error but was %v", err)
 		}
 
-		if opts.Stale == 0 {
+		if opts.ScanConsistency == 0 {
 			testAssertViewOption(t, "", "stale", optValues)
-		} else if opts.Stale == Before {
+		} else if opts.ScanConsistency == ViewScanConsistencyRequestPlus {
 			testAssertViewOption(t, "false", "stale", optValues)
-		} else if opts.Stale == None {
+		} else if opts.ScanConsistency == ViewScanConsistencyNotBounded {
 			testAssertViewOption(t, "ok", "stale", optValues)
-		} else if opts.Stale == After {
+		} else if opts.ScanConsistency == ViewScanConsistencyUpdateAfter {
 			testAssertViewOption(t, "update_after", "stale", optValues)
 		}
 
@@ -58,9 +58,9 @@ func TestViewQueryOptionsToURLValues(t *testing.T) {
 
 		if opts.Order == 0 {
 			testAssertViewOption(t, "", "descending", optValues)
-		} else if opts.Order == Ascending {
+		} else if opts.Order == ViewOrderingAscending {
 			testAssertViewOption(t, "false", "descending", optValues)
-		} else if opts.Order == Descending {
+		} else if opts.Order == ViewOrderingDescending {
 			testAssertViewOption(t, "true", "descending", optValues)
 		}
 
@@ -111,13 +111,13 @@ func testCreateViewQueryOptions(seed int64) *ViewOptions {
 
 	randVal := rand.Intn(6)
 	if randVal == 1 {
-		opts.Stale = Before
+		opts.ScanConsistency = ViewScanConsistencyRequestPlus
 	} else if randVal == 2 {
-		opts.Stale = None
+		opts.ScanConsistency = ViewScanConsistencyNotBounded
 	} else if randVal == 3 {
-		opts.Stale = After
+		opts.ScanConsistency = ViewScanConsistencyUpdateAfter
 	} else if randVal == 4 {
-		opts.Stale = 5
+		opts.ScanConsistency = 5
 	}
 
 	randVal = rand.Intn(2)
@@ -132,9 +132,9 @@ func testCreateViewQueryOptions(seed int64) *ViewOptions {
 
 	randVal = rand.Intn(4)
 	if randVal == 1 {
-		opts.Order = Ascending
+		opts.Order = ViewOrderingAscending
 	} else if randVal == 2 {
-		opts.Order = Descending
+		opts.Order = ViewOrderingDescending
 	} else if randVal == 3 {
 		opts.Order = 3
 	}
@@ -168,39 +168,37 @@ func testCreateViewQueryOptions(seed int64) *ViewOptions {
 
 	randVal = rand.Intn(2)
 	if randVal == 1 {
-		r := &Range{}
-
 		randVal = rand.Intn(2)
 		if randVal == 1 {
-			r.Start = "keystart"
+			opts.StartKey = "keystart"
 		}
 
 		randVal = rand.Intn(2)
 		if randVal == 1 {
-			r.End = "keyend"
+			opts.EndKey = "keyend"
 		}
 
 		randVal = rand.Intn(3)
 		if randVal == 1 {
-			r.InclusiveEnd = true
+			opts.InclusiveEnd = true
 		} else if randVal == 2 {
-			r.InclusiveEnd = false
+			opts.InclusiveEnd = false
 		}
 	}
 
 	randVal = rand.Intn(2)
 	if randVal == 1 {
-		opts.IDRangeStart = "rangeStart"
+		opts.StartKeyDocID = "rangeStart"
 	}
 
 	randVal = rand.Intn(2)
 	if randVal == 1 {
-		opts.IDRangeEnd = "rangeEnd"
+		opts.EndKeyDocID = "rangeEnd"
 	}
 
 	randVal = rand.Intn(2)
 	if randVal == 1 {
-		opts.Custom = map[string]string{"key1": "param1", "$key2": "param2"}
+		opts.Raw = map[string]string{"key1": "param1", "$key2": "param2"}
 	}
 
 	randVal = rand.Intn(2)
