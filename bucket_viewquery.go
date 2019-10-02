@@ -23,7 +23,7 @@ type viewResponse struct {
 // ViewRow provides access to a single view query row.
 type ViewRow struct {
 	ID    string
-	Key   interface{}
+	key   json.RawMessage
 	value json.RawMessage
 
 	serializer JSONSerializer
@@ -32,6 +32,7 @@ type ViewRow struct {
 // ViewMetadata provides access to the metadata properties of a view query result.
 type ViewMetadata struct {
 	totalRows int
+	debug     interface{}
 }
 
 // ViewResult implements an iterator interface which can be used to iterate over the rows of the query results.
@@ -60,6 +61,7 @@ func (r *ViewResult) Next(rowPtr *ViewRow) bool {
 	}
 
 	decoder := json.NewDecoder(bytes.NewBuffer(row))
+	rowPtr.serializer = r.serializer
 	for decoder.More() {
 		t, err := decoder.Token()
 		if err != nil {
@@ -78,12 +80,11 @@ func (r *ViewResult) Next(rowPtr *ViewRow) bool {
 				return false
 			}
 		case "key":
-			r.err = decoder.Decode(&rowPtr.Key)
+			r.err = decoder.Decode(&rowPtr.key)
 			if r.err != nil {
 				return false
 			}
 		case "value":
-			rowPtr.serializer = r.serializer
 			r.err = decoder.Decode(&rowPtr.value)
 			if r.err != nil {
 				return false
@@ -98,6 +99,20 @@ func (r *ViewResult) Next(rowPtr *ViewRow) bool {
 	}
 
 	return true
+}
+
+// Key assigns the current result key from the results into the value pointer, returning any error that occurred.
+func (r *ViewRow) Key(keyPtr interface{}) error {
+	if r.value == nil {
+		return clientError{message: "no data to scan"}
+	}
+
+	err := r.serializer.Deserialize(r.key, keyPtr)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Value assigns the current result value from the results into the value pointer, returning any error that occurred.
@@ -208,6 +223,11 @@ func (r *ViewResult) readAttribute(decoder *json.Decoder, t json.Token) (bool, e
 		}
 
 		return true, nil
+	case "debug_info":
+		err := decoder.Decode(&r.metadata.debug)
+		if err != nil {
+			return false, err
+		}
 	default:
 		var ignore interface{}
 		err := decoder.Decode(&ignore)
@@ -257,6 +277,11 @@ func (r *ViewResult) Metadata() (*ViewMetadata, error) {
 // TotalRows returns the total number of rows in the view, can be greater than the number of rows returned.
 func (r *ViewMetadata) TotalRows() int {
 	return r.totalRows
+}
+
+// Debug returns the debug information associated with the query, if requested.
+func (r *ViewMetadata) Debug() interface{} {
+	return r.debug
 }
 
 // ViewQuery performs a view query and returns a list of rows or an error.
