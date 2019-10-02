@@ -32,8 +32,8 @@ type searchQueryHighlightData struct {
 	Fields []string `json:"fields,omitempty"`
 }
 type searchQueryConsistencyData struct {
-	Level   string         `json:"level,omitempty"`
-	Vectors *MutationState `json:"vectors,omitempty"`
+	Level   string              `json:"level,omitempty"`
+	Vectors searchMutationState `json:"vectors,omitempty"`
 }
 type searchQueryCtlData struct {
 	Timeout     uint                        `json:"timeout,omitempty"`
@@ -130,7 +130,7 @@ func (opts *SearchOptions) toOptionsData() (*searchQueryOptionsData, error) {
 
 		data.Ctl.Consistency = &searchQueryConsistencyData{}
 		data.Ctl.Consistency.Level = "at_plus"
-		data.Ctl.Consistency.Vectors = opts.ConsistentWith
+		data.Ctl.Consistency.Vectors = opts.ConsistentWith.toSearchMutationState()
 	}
 
 	return data, nil
