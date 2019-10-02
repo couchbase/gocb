@@ -13,22 +13,22 @@ import (
 	"github.com/pkg/errors"
 )
 
-// SearchResultLocation holds the location of a hit in a list of search results.
-type SearchResultLocation struct {
+// RowLocation holds the location of a hit in a list of search results.
+type RowLocation struct {
 	Position       int    `json:"position,omitempty"`
 	Start          int    `json:"start,omitempty"`
 	End            int    `json:"end,omitempty"`
 	ArrayPositions []uint `json:"array_positions,omitempty"`
 }
 
-// SearchResultRow holds a single hit in a list of search results.
-type SearchResultRow struct {
-	Index       string                                       `json:"index,omitempty"`
-	ID          string                                       `json:"id,omitempty"`
-	Score       float64                                      `json:"score,omitempty"`
-	Explanation map[string]interface{}                       `json:"explanation,omitempty"`
-	Locations   map[string]map[string][]SearchResultLocation `json:"locations,omitempty"`
-	Fragments   map[string][]string                          `json:"fragments,omitempty"`
+// SearchRow holds a single hit in a list of search results.
+type SearchRow struct {
+	Index       string                              `json:"index,omitempty"`
+	ID          string                              `json:"id,omitempty"`
+	Score       float64                             `json:"score,omitempty"`
+	Explanation map[string]interface{}              `json:"explanation,omitempty"`
+	Locations   map[string]map[string][]RowLocation `json:"locations,omitempty"`
+	Fragments   map[string][]string                 `json:"fragments,omitempty"`
 
 	fields     json.RawMessage
 	serializer JSONSerializer
@@ -67,20 +67,6 @@ type FacetResult struct {
 	DateRanges    []DateFacetResult    `json:"date_ranges,omitempty"`
 }
 
-// SearchStatus holds the status information for an executed search query.
-type SearchStatus struct {
-	Total      int `json:"total,omitempty"`
-	Failed     int `json:"failed,omitempty"`
-	Successful int `json:"successful,omitempty"`
-}
-
-type searchResultStatus struct {
-	Total      int      `json:"total,omitempty"`
-	Failed     int      `json:"failed,omitempty"`
-	Successful int      `json:"successful,omitempty"`
-	Errors     []string `json:"errors,omitempty"`
-}
-
 // The response from the server can contain errors as either array or object so we use this as an intermediary
 // between response and result.
 type searchResponseStatus struct {
@@ -90,12 +76,22 @@ type searchResponseStatus struct {
 	Errors     interface{} `json:"errors,omitempty"`
 }
 
+// SearchStatus contains information about the status of the result.
+type SearchStatus struct {
+	status searchResponseStatus
+}
+
+// SearchMetrics contains metrics about the result.
+type SearchMetrics struct {
+	totalHits int
+	took      uint
+	maxScore  float64
+}
+
 // SearchMetadata provides access to the metadata properties of a search query result.
 type SearchMetadata struct {
-	status     SearchStatus
-	totalHits  int
-	took       uint
-	maxScore   float64
+	status     searchResponseStatus
+	metrics    SearchMetrics
 	sourceAddr string
 }
 
@@ -114,7 +110,7 @@ type SearchResult struct {
 }
 
 // Fields are any fields that were requested as a part of the search query.
-func (row *SearchResultRow) Fields(valuePtr interface{}) error {
+func (row *SearchRow) Fields(valuePtr interface{}) error {
 	if row.fields == nil {
 		return errors.New("no fields to scan")
 	}
@@ -128,7 +124,7 @@ func (row *SearchResultRow) Fields(valuePtr interface{}) error {
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
-func (r *SearchResult) Next(rowPtr *SearchResultRow) bool {
+func (r *SearchResult) Next(rowPtr *SearchRow) bool {
 	if r.err != nil {
 		return false
 	}
@@ -237,7 +233,7 @@ func (r *SearchResult) Close() error {
 // One assigns the first value from the results into the value pointer.
 // It will close the results but not before iterating through all remaining
 // results, as such this should only be used for very small resultsets - ideally
-func (r *SearchResult) One(rowPtr *SearchResultRow) error {
+func (r *SearchResult) One(rowPtr *SearchRow) error {
 	if !r.Next(rowPtr) {
 		err := r.Close()
 		if err != nil {
@@ -259,30 +255,6 @@ func (r *SearchResult) One(rowPtr *SearchResultRow) error {
 	return nil
 }
 
-// Metadata returns metadata for this result.
-func (r *SearchResult) Metadata() (*SearchMetadata, error) {
-	if !r.streamResult.Closed() {
-		return nil, clientError{message: "result must be closed before accessing meta-data"}
-	}
-
-	return &r.metadata, nil
-}
-
-// SuccessCount is the number of successes for the results.
-func (r SearchMetadata) SuccessCount() int {
-	return r.status.Successful
-}
-
-// ErrorCount is the number of errors for the results.
-func (r SearchMetadata) ErrorCount() int {
-	return r.status.Failed
-}
-
-// TotalRows is the actual number of rows before the limit was applied.
-func (r SearchMetadata) TotalRows() int {
-	return r.totalHits
-}
-
 // Facets contains the information relative to the facets requested in the search query.
 func (r SearchResult) Facets() (map[string]FacetResult, error) {
 	if !r.streamResult.Closed() {
@@ -292,14 +264,58 @@ func (r SearchResult) Facets() (map[string]FacetResult, error) {
 	return r.facets, nil
 }
 
+// Metadata returns metadata for this result.
+func (r *SearchResult) Metadata() (*SearchMetadata, error) {
+	if !r.streamResult.Closed() {
+		return nil, clientError{message: "result must be closed before accessing meta-data"}
+	}
+
+	return &r.metadata, nil
+}
+
+// Status returns a SearchStatus containing information about the result.
+func (r SearchMetadata) Status() SearchStatus {
+	return SearchStatus{status: r.status}
+}
+
+// Metrics returns a SearchMetrics containing metrics about the result.
+func (r SearchMetadata) Metrics() SearchMetrics {
+	return r.metrics
+}
+
+// SuccessCount is the number of successes for the results.
+func (r SearchStatus) SuccessCount() int {
+	return r.status.Successful
+}
+
+// ErrorCount is the number of errors for the results.
+func (r SearchStatus) ErrorCount() int {
+	return r.status.Failed
+}
+
+// TotalCount is the total number of results returning, including errors.
+func (r SearchStatus) TotalCount() int {
+	return r.status.Total
+}
+
+// IsSuccess verifies whether or not the search request was successful.
+func (r SearchStatus) IsSuccess() bool {
+	return r.status.Failed == 0
+}
+
 // Took returns the time taken to execute the search.
-func (r SearchMetadata) Took() time.Duration {
+func (r SearchMetrics) Took() time.Duration {
 	return time.Duration(r.took) / time.Nanosecond
 }
 
 // MaxScore returns the highest score of all documents for this query.
-func (r SearchMetadata) MaxScore() float64 {
+func (r SearchMetrics) MaxScore() float64 {
 	return r.maxScore
+}
+
+// TotalRows is the actual number of rows before the limit was applied.
+func (r SearchMetrics) TotalRows() int {
+	return r.totalHits
 }
 
 func (r *SearchResult) readAttribute(decoder *json.Decoder, t json.Token) (bool, error) {
@@ -315,24 +331,19 @@ func (r *SearchResult) readAttribute(decoder *json.Decoder, t json.Token) (bool,
 			return false, nil
 		}
 
-		var status searchResponseStatus
-		err := decoder.Decode(&status)
+		err := decoder.Decode(&r.metadata.status)
 		if err != nil {
 			return false, err
 		}
 
-		r.metadata.status.Total = status.Total
-		r.metadata.status.Successful = status.Successful
-		r.metadata.status.Failed = status.Failed
-
-		if status.Errors == nil {
+		if r.metadata.status.Errors == nil {
 			return false, nil
 		}
 
 		var statusErrors []string
-		if statusError, ok := status.Errors.([]string); ok {
+		if statusError, ok := r.metadata.status.Errors.([]string); ok {
 			statusErrors = statusError
-		} else if statusError, ok := status.Errors.(map[string]interface{}); ok {
+		} else if statusError, ok := r.metadata.status.Errors.(map[string]interface{}); ok {
 			for k, v := range statusError {
 				msg, ok := v.(string)
 				if !ok {
@@ -358,7 +369,7 @@ func (r *SearchResult) readAttribute(decoder *json.Decoder, t json.Token) (bool,
 			}
 		}
 	case "total_hits":
-		err := decoder.Decode(&r.metadata.totalHits)
+		err := decoder.Decode(&r.metadata.metrics.totalHits)
 		if err != nil {
 			return false, err
 		}
@@ -368,12 +379,12 @@ func (r *SearchResult) readAttribute(decoder *json.Decoder, t json.Token) (bool,
 			return false, err
 		}
 	case "took":
-		err := decoder.Decode(&r.metadata.took)
+		err := decoder.Decode(&r.metadata.metrics.took)
 		if err != nil {
 			return false, err
 		}
 	case "max_score":
-		err := decoder.Decode(&r.metadata.maxScore)
+		err := decoder.Decode(&r.metadata.metrics.maxScore)
 		if err != nil {
 			return false, err
 		}
