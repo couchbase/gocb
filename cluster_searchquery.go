@@ -434,7 +434,7 @@ func (c *Cluster) SearchQuery(indexName string, q SearchQuery, opts *SearchOptio
 	return c.searchQuery(ctx, indexName, q, opts, provider)
 }
 
-func (c *Cluster) searchQuery(ctx context.Context, qIndexName string, q SearchQuery, opts *SearchOptions,
+func (c *Cluster) searchQuery(ctx context.Context, qIndexName string, q interface{}, opts *SearchOptions,
 	provider httpProvider) (*SearchResult, error) {
 
 	optsData, err := opts.toOptionsData()
@@ -489,13 +489,7 @@ func (c *Cluster) searchQuery(ctx context.Context, qIndexName string, q SearchQu
 		return nil, err
 	}
 
-	dq, err := q.toSearchQueryData()
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-
-	err = queryData.Set("query", dq.Query)
+	err = queryData.Set("query", q)
 	if err != nil {
 		cancel()
 		return nil, err
