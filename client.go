@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -169,7 +170,7 @@ func (c *stdClient) openCollection(ctx context.Context, scopeName string, collec
 
 	op, err := c.agent.GetCollectionID(scopeName, collectionName, gocbcore.GetCollectionIDOptions{}, func(manifestID uint64, cid uint32, err error) {
 		if err != nil {
-			colErr = err
+			colErr = maybeEnhanceKVErr(err, fmt.Sprintf("%s.%s", scopeName, collectionName), false)
 			waitCh <- struct{}{}
 			return
 		}
@@ -177,7 +178,7 @@ func (c *stdClient) openCollection(ctx context.Context, scopeName string, collec
 		waitCh <- struct{}{}
 	})
 	if err != nil {
-		c.bootstrapErr = err
+		c.bootstrapErr = maybeEnhanceKVErr(err, fmt.Sprintf("%s.%s", scopeName, collectionName), false)
 		return
 	}
 
