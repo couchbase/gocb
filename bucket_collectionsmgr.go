@@ -73,7 +73,7 @@ func (cm *CollectionManager) CollectionExists(spec CollectionSpec, opts *Collect
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
-		cancel()
+		defer cancel()
 	}
 
 	posts := url.Values{}
@@ -170,7 +170,7 @@ func (cm *CollectionManager) ScopeExists(scopeName string, opts *ScopeExistsOpti
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
-		cancel()
+		defer cancel()
 	}
 
 	req := &gocbcore.HttpRequest{
@@ -253,7 +253,7 @@ func (cm *CollectionManager) GetScope(scopeName string, opts *GetScopeOptions) (
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
-		cancel()
+		defer cancel()
 	}
 
 	req := &gocbcore.HttpRequest{
@@ -358,7 +358,7 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
-		cancel()
+		defer cancel()
 	}
 
 	req := &gocbcore.HttpRequest{
@@ -464,7 +464,7 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
-		cancel()
+		defer cancel()
 	}
 
 	posts := url.Values{}
@@ -534,7 +534,7 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
-		cancel()
+		defer cancel()
 	}
 
 	req := &gocbcore.HttpRequest{
@@ -651,7 +651,7 @@ func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions)
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
-		cancel()
+		defer cancel()
 	}
 
 	req := &gocbcore.HttpRequest{
