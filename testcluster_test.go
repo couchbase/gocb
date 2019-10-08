@@ -1,15 +1,11 @@
 package gocb
 
 import (
-	"encoding/json"
-	"fmt"
 	"math"
-	"net/url"
 	"time"
 
 	"github.com/pkg/errors"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/couchbaselabs/gojcbmock"
 )
 
@@ -214,133 +210,4 @@ func (c *testCluster) CreateBreweryDataset(col *Collection) error {
 	}
 
 	return nil
-}
-
-// These functions are likely temporary.
-
-func testCreateCollection(name, scopeName string, bucket *Bucket, cli client) (*Collection, error) {
-	return testCreate(name, scopeName, bucket, cli)
-}
-
-func testCreate(name, scopeName string, bucket *Bucket, cli client) (*Collection, error) {
-	provider, err := cli.getHTTPProvider()
-	if err != nil {
-		return nil, err
-	}
-	data := url.Values{}
-	data.Set("name", name)
-
-	req := &gocbcore.HttpRequest{
-		Service: gocbcore.MgmtService,
-		Path:    fmt.Sprintf("/pools/default/buckets/%s/collections/%s/", bucket.Name(), scopeName),
-		Method:  "POST",
-		Body:    []byte(data.Encode()),
-		Headers: make(map[string]string),
-	}
-
-	req.Headers["Content-Type"] = "application/x-www-form-urlencoded"
-
-	resp, err := provider.DoHttpRequest(req)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("could not create collection, status code: %d", resp.StatusCode)
-	}
-
-	respBody := struct {
-		Uid uint64 `json:"uid"`
-	}{}
-	jsonDec := json.NewDecoder(resp.Body)
-	err = jsonDec.Decode(&respBody)
-	if err != nil {
-		return nil, err
-	}
-	err = resp.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	timer := time.NewTimer(20 * time.Second)
-
-	for {
-		select {
-		case <-timer.C:
-			return nil, errors.New("wait time for collection to become available expired")
-		default:
-			col := bucket.Collection(name)
-			_, err := col.Get("test", nil)
-			if err != nil {
-				if IsCollectionNotFoundError(err) {
-					time.Sleep(100 * time.Millisecond)
-					continue
-				}
-
-				if !IsKeyNotFoundError(err) {
-					return nil, err
-				}
-			}
-
-			return col, nil
-		}
-	}
-}
-
-func testDeleteCollection(name, scopeName string, bucket *Bucket, cli client, waitForDeletion bool) (uint64, error) {
-	provider, err := cli.getHTTPProvider()
-	if err != nil {
-		return 0, nil
-	}
-	data := url.Values{}
-	data.Set("name", name)
-
-	req := &gocbcore.HttpRequest{
-		Service: gocbcore.MgmtService,
-		Path:    fmt.Sprintf("/pools/default/buckets/%s/collections/%s/%s", bucket.Name(), scopeName, name),
-		Method:  "DELETE",
-		Headers: make(map[string]string),
-	}
-
-	resp, err := provider.DoHttpRequest(req)
-	if err != nil {
-		return 0, err
-	}
-	if resp.StatusCode >= 300 {
-		return 0, fmt.Errorf("could not delete, status code: %d", resp.StatusCode)
-	}
-
-	respBody := struct {
-		Uid uint64 `json:"uid"`
-	}{}
-	jsonDec := json.NewDecoder(resp.Body)
-	err = jsonDec.Decode(&respBody)
-	if err != nil {
-		return 0, err
-	}
-	err = resp.Body.Close()
-	if err != nil {
-		return 0, err
-	}
-
-	if waitForDeletion {
-		timer := time.NewTimer(10 * time.Second)
-
-		for {
-			select {
-			case <-timer.C:
-				return 0, errors.New("wait time for collection to become unavailable expired")
-			default:
-				col := bucket.Collection(name)
-				_, err := col.Get("test", nil)
-
-				if err == nil || IsKeyNotFoundError(err) {
-					continue
-				}
-			}
-
-			return respBody.Uid, nil
-		}
-	} else {
-		return respBody.Uid, nil
-	}
 }

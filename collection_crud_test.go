@@ -566,64 +566,82 @@ func TestInsertGet(t *testing.T) {
 	}
 }
 
-// func TestInsertGetRetryInsert(t *testing.T) {
-// 	if testing.Short() {
-// 		t.Skip("Skipping test in short mode.")
-// 	}
-//
-// 	if globalCluster.NotSupportsFeature(CollectionsFeature) {
-// 		t.Skip("Skipping test as collections not supported.")
-// 	}
-//
-// 	var doc testBeerDocument
-// 	err := loadJSONTestDataset("beer_sample_single", &doc)
-// 	if err != nil {
-// 		t.Fatalf("Could not read test dataset: %v", err)
-// 	}
-//
-// 	cli := globalBucket.sb.getCachedClient()
-// 	_, err = testCreateCollection("insertRetry", "_default", globalBucket, cli)
-// 	if err != nil {
-// 		t.Fatalf("Failed to create collection, error was %v", err)
-// 	}
-// 	defer testDeleteCollection("insertRetry", "_default", globalBucket, cli, true)
-//
-// 	col := globalBucket.Collection("_default", "insertRetry", nil)
-//
-// 	_, err = testDeleteCollection("insertRetry", "_default", globalBucket, cli, true)
-// 	if err != nil {
-// 		t.Fatalf("Failed to delete collection, error was %v", err)
-// 	}
-//
-// 	_, err = testCreateCollection("insertRetry", "_default", globalBucket, cli)
-// 	if err != nil {
-// 		t.Fatalf("Failed to create collection, error was %v", err)
-// 	}
-//
-// 	mutRes, err := col.Insert("nonDefaultInsertDoc", doc, nil)
-// 	if err != nil {
-// 		t.Fatalf("Insert failed, error was %v", err)
-// 	}
-//
-// 	if mutRes.Cas() == 0 {
-// 		t.Fatalf("Insert CAS was 0")
-// 	}
-//
-// 	insertedDoc, err := col.Get("nonDefaultInsertDoc", nil)
-// 	if err != nil {
-// 		t.Fatalf("Get failed, error was %v", err)
-// 	}
-//
-// 	var insertedDocContent testBeerDocument
-// 	err = insertedDoc.Content(&insertedDocContent)
-// 	if err != nil {
-// 		t.Fatalf("Content failed, error was %v", err)
-// 	}
-//
-// 	if doc != insertedDocContent {
-// 		t.Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
-// 	}
-// }
+// Following test tests that if a collection is deleted and recreated midway through a set of operations
+// then the operations will still succeed due to the cid being refreshed under the hood.
+func TestCollectionRetry(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping test in short mode.")
+	}
+
+	if globalCluster.NotSupportsFeature(CollectionsFeature) {
+		t.Skip("Skipping test as collections not supported.")
+	}
+
+	var doc testBeerDocument
+	err := loadJSONTestDataset("beer_sample_single", &doc)
+	if err != nil {
+		t.Fatalf("Could not read test dataset: %v", err)
+	}
+
+	collectionName := "insertRetry"
+
+	// cli := globalBucket.sb.getCachedClient()
+	mgr, err := globalBucket.CollectionManager()
+	if err != nil {
+		t.Fatalf("Could not get CollectionManager: %v", err)
+	}
+
+	err = mgr.CreateCollection(CollectionSpec{ScopeName: "_default", Name: collectionName}, nil)
+	if err != nil {
+		t.Fatalf("Could not create collection: %v", err)
+	}
+
+	time.Sleep(500 * time.Millisecond)
+
+	col := globalBucket.Collection(collectionName)
+
+	// Make sure we've connected to the collection ok
+	mutRes, err := col.Upsert("insertRetryDoc", doc, nil)
+	if err != nil {
+		t.Fatalf("Upsert failed, error was %v", err)
+	}
+
+	if mutRes.Cas() == 0 {
+		t.Fatalf("Upsert CAS was 0")
+	}
+
+	// The following delete and create will recreate a collection with the same name but a different cid.
+	err = mgr.DropCollection(CollectionSpec{ScopeName: "_default", Name: collectionName}, nil)
+	if err != nil {
+		t.Fatalf("Could not drop collection: %v", err)
+	}
+
+	err = mgr.CreateCollection(CollectionSpec{ScopeName: "_default", Name: collectionName}, nil)
+	if err != nil {
+		t.Fatalf("Could not create collection: %v", err)
+	}
+
+	// We've wiped the collection so we need to recreate this doc
+	mutRes, err = col.Upsert("insertRetryDoc", doc, nil)
+	if err != nil {
+		t.Fatalf("Upsert failed, error was %v", err)
+	}
+
+	insertedDoc, err := col.Get("insertRetryDoc", nil)
+	if err != nil {
+		t.Fatalf("Get failed, error was %v", err)
+	}
+
+	var insertedDocContent testBeerDocument
+	err = insertedDoc.Content(&insertedDocContent)
+	if err != nil {
+		t.Fatalf("Content failed, error was %v", err)
+	}
+
+	if doc != insertedDocContent {
+		t.Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
+	}
+}
 
 func TestUpsertGetRemove(t *testing.T) {
 	var doc testBeerDocument
