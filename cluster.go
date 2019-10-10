@@ -46,6 +46,7 @@ type ClusterOptions struct {
 	// will default to DefaultJSONSerializer. NOTE: This is entirely independent of Transcoder.
 	Serializer            JSONSerializer
 	DisableMutationTokens bool
+	RetryStrategy         RetryStrategy
 }
 
 // ClusterCloseOptions is the set of options available when disconnecting from a Cluster.
@@ -120,27 +121,28 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 	if opts.Serializer == nil {
 		opts.Serializer = &DefaultJSONSerializer{}
 	}
+	if opts.RetryStrategy == nil {
+		opts.RetryStrategy = NewBestEffortRetryStrategy(nil)
+	}
 
 	cluster := &Cluster{
 		cSpec:       connSpec,
 		auth:        opts.Authenticator,
 		connections: make(map[string]client),
 		sb: stateBlock{
-			ConnectTimeout:         connectTimeout,
-			N1qlRetryBehavior:      standardDelayRetryBehavior(10, 2, 500*time.Millisecond, exponentialDelayFunction),
-			AnalyticsRetryBehavior: standardDelayRetryBehavior(10, 2, 500*time.Millisecond, exponentialDelayFunction),
-			SearchRetryBehavior:    standardDelayRetryBehavior(10, 2, 500*time.Millisecond, exponentialDelayFunction),
-			QueryTimeout:           queryTimeout,
-			AnalyticsTimeout:       analyticsTimeout,
-			SearchTimeout:          searchTimeout,
-			ViewTimeout:            viewTimeout,
-			KvTimeout:              kvTimeout,
-			DuraTimeout:            40000 * time.Millisecond,
-			DuraPollTimeout:        100 * time.Millisecond,
-			Transcoder:             opts.Transcoder,
-			Serializer:             opts.Serializer,
-			UseMutationTokens:      !opts.DisableMutationTokens,
-			ManagementTimeout:      managementTimeout,
+			ConnectTimeout:       connectTimeout,
+			QueryTimeout:         queryTimeout,
+			AnalyticsTimeout:     analyticsTimeout,
+			SearchTimeout:        searchTimeout,
+			ViewTimeout:          viewTimeout,
+			KvTimeout:            kvTimeout,
+			DuraTimeout:          40000 * time.Millisecond,
+			DuraPollTimeout:      100 * time.Millisecond,
+			Transcoder:           opts.Transcoder,
+			Serializer:           opts.Serializer,
+			UseMutationTokens:    !opts.DisableMutationTokens,
+			ManagementTimeout:    managementTimeout,
+			RetryStrategyWrapper: newRetryStrategyWrapper(opts.RetryStrategy),
 		},
 
 		queryCache: make(map[string]*n1qlCache),
@@ -428,8 +430,9 @@ func (c *Cluster) Users() (*UserManager, error) {
 	}
 
 	return &UserManager{
-		httpClient:    provider,
-		globalTimeout: c.sb.ManagementTimeout,
+		httpClient:           provider,
+		globalTimeout:        c.sb.ManagementTimeout,
+		defaultRetryStrategy: c.sb.RetryStrategyWrapper,
 	}, nil
 }
 
@@ -442,8 +445,9 @@ func (c *Cluster) Buckets() (*BucketManager, error) {
 	}
 
 	return &BucketManager{
-		httpClient:    provider,
-		globalTimeout: c.sb.ManagementTimeout,
+		httpClient:           provider,
+		globalTimeout:        c.sb.ManagementTimeout,
+		defaultRetryStrategy: c.sb.RetryStrategyWrapper,
 	}, nil
 }
 
@@ -455,9 +459,10 @@ func (c *Cluster) AnalyticsIndexes() (*AnalyticsIndexManager, error) {
 		return nil, err
 	}
 	return &AnalyticsIndexManager{
-		httpClient:    provider,
-		executeQuery:  c.AnalyticsQuery,
-		globalTimeout: c.sb.ManagementTimeout,
+		httpClient:           provider,
+		executeQuery:         c.AnalyticsQuery,
+		globalTimeout:        c.sb.ManagementTimeout,
+		defaultRetryStrategy: c.sb.RetryStrategyWrapper,
 	}, nil
 }
 
@@ -465,8 +470,9 @@ func (c *Cluster) AnalyticsIndexes() (*AnalyticsIndexManager, error) {
 // Volatile: This API is subject to change at any time.
 func (c *Cluster) QueryIndexes() (*QueryIndexManager, error) {
 	return &QueryIndexManager{
-		executeQuery:  c.Query,
-		globalTimeout: c.sb.ManagementTimeout,
+		executeQuery:         c.Query,
+		globalTimeout:        c.sb.ManagementTimeout,
+		defaultRetryStrategy: c.sb.RetryStrategyWrapper,
 	}, nil
 }
 
@@ -477,7 +483,8 @@ func (c *Cluster) SearchIndexes() (*SearchIndexManager, error) {
 		return nil, err
 	}
 	return &SearchIndexManager{
-		httpClient:    provider,
-		globalTimeout: c.sb.ManagementTimeout,
+		httpClient:           provider,
+		globalTimeout:        c.sb.ManagementTimeout,
+		defaultRetryStrategy: c.sb.RetryStrategyWrapper,
 	}, nil
 }

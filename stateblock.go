@@ -28,10 +28,6 @@ type stateBlock struct {
 	PersistTo       uint
 	ReplicateTo     uint
 
-	N1qlRetryBehavior      retryBehavior
-	AnalyticsRetryBehavior retryBehavior
-	SearchRetryBehavior    retryBehavior
-
 	QueryTimeout      time.Duration
 	AnalyticsTimeout  time.Duration
 	SearchTimeout     time.Duration
@@ -42,6 +38,8 @@ type stateBlock struct {
 
 	Transcoder Transcoder
 	Serializer JSONSerializer
+
+	RetryStrategyWrapper *retryStrategyWrapper
 }
 
 func (sb *stateBlock) getCachedClient() client {

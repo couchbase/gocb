@@ -15,8 +15,9 @@ import (
 // See BucketManager for methods that allow creating and removing buckets themselves.
 // Volatile: This API is subject to change at any time.
 type BucketManager struct {
-	httpClient    httpProvider
-	globalTimeout time.Duration
+	httpClient           httpProvider
+	globalTimeout        time.Duration
+	defaultRetryStrategy *retryStrategyWrapper
 }
 
 // BucketType specifies the kind of bucket.
@@ -161,8 +162,9 @@ func contextFromMaybeTimeout(ctx context.Context, timeout time.Duration, globalT
 
 // GetBucketOptions is the set of options available to the bucket manager GetBucket operation.
 type GetBucketOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // GetBucket returns settings for a bucket on the cluster.
@@ -176,19 +178,34 @@ func (bm *BucketManager) GetBucket(bucketName string, opts *GetBucketOptions) (*
 		defer cancel()
 	}
 
-	return bm.get(ctx, bucketName)
+	retryStrategy := bm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
+	return bm.get(ctx, bucketName, retryStrategy)
 }
 
-func (bm *BucketManager) get(ctx context.Context, bucketName string) (*BucketSettings, error) {
+func (bm *BucketManager) get(ctx context.Context, bucketName string, strategy *retryStrategyWrapper) (*BucketSettings, error) {
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Path:    fmt.Sprintf("/pools/default/buckets/%s", bucketName),
-		Method:  "GET",
-		Context: ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s", bucketName),
+		Method:        "GET",
+		Context:       ctx,
+		IsIdempotent:  true,
+		RetryStrategy: strategy,
 	}
 
 	resp, err := bm.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return nil, err
 	}
 
@@ -223,8 +240,9 @@ func (bm *BucketManager) get(ctx context.Context, bucketName string) (*BucketSet
 
 // GetAllBucketsOptions is the set of options available to the bucket manager GetAll operation.
 type GetAllBucketsOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // GetAllBuckets returns a list of all active buckets on the cluster.
@@ -238,15 +256,30 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 		defer cancel()
 	}
 
+	retryStrategy := bm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Path:    "/pools/default/buckets",
-		Method:  "GET",
-		Context: ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          "/pools/default/buckets",
+		Method:        "GET",
+		Context:       ctx,
+		IsIdempotent:  true,
+		RetryStrategy: retryStrategy,
 	}
 
 	resp, err := bm.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return nil, err
 	}
 
@@ -285,8 +318,9 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 
 // CreateBucketOptions is the set of options available to the bucket manager CreateBucket operation.
 type CreateBucketOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // CreateBucket creates a bucket on the cluster.
@@ -300,6 +334,11 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 		defer cancel()
 	}
 
+	retryStrategy := bm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	posts, err := bm.settingsToPostData(&settings.BucketSettings)
 	if err != nil {
 		return err
@@ -310,16 +349,25 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 	}
 
 	req := &gocbcore.HttpRequest{
-		Service:     gocbcore.ServiceType(MgmtService),
-		Path:        "/pools/default/buckets",
-		Method:      "POST",
-		Body:        []byte(posts.Encode()),
-		ContentType: "application/x-www-form-urlencoded",
-		Context:     ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          "/pools/default/buckets",
+		Method:        "POST",
+		Body:          []byte(posts.Encode()),
+		ContentType:   "application/x-www-form-urlencoded",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
 	}
 
 	resp, err := bm.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return err
 	}
 
@@ -349,8 +397,9 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 
 // UpdateBucketOptions is the set of options available to the bucket manager UpdateBucket operation.
 type UpdateBucketOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // UpdateBucket updates a bucket on the cluster.
@@ -364,22 +413,36 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 		defer cancel()
 	}
 
+	retryStrategy := bm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	posts, err := bm.settingsToPostData(&settings)
 	if err != nil {
 		return err
 	}
 
 	req := &gocbcore.HttpRequest{
-		Service:     gocbcore.ServiceType(MgmtService),
-		Path:        fmt.Sprintf("/pools/default/buckets/%s", settings.Name),
-		Method:      "POST",
-		Body:        []byte(posts.Encode()),
-		ContentType: "application/x-www-form-urlencoded",
-		Context:     ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s", settings.Name),
+		Method:        "POST",
+		Body:          []byte(posts.Encode()),
+		ContentType:   "application/x-www-form-urlencoded",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
 	}
 
 	resp, err := bm.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return err
 	}
 
@@ -405,8 +468,9 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 
 // DropBucketOptions is the set of options available to the bucket manager DropBucket operation.
 type DropBucketOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // DropBucket will delete a bucket from the cluster by name.
@@ -420,15 +484,29 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 		defer cancel()
 	}
 
+	retryStrategy := bm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Path:    fmt.Sprintf("/pools/default/buckets/%s", name),
-		Method:  "DELETE",
-		Context: ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s", name),
+		Method:        "DELETE",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
 	}
 
 	resp, err := bm.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return err
 	}
 
@@ -454,8 +532,9 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 
 // FlushBucketOptions is the set of options available to the bucket manager FlushBucket operation.
 type FlushBucketOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // FlushBucket will delete all the of the data from a bucket.
@@ -470,15 +549,29 @@ func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) erro
 		defer cancel()
 	}
 
+	retryStrategy := bm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Path:    fmt.Sprintf("/pools/default/buckets/%s/controller/doFlush", name),
-		Method:  "POST",
-		Context: ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/controller/doFlush", name),
+		Method:        "POST",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
 	}
 
 	resp, err := bm.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return err
 	}
 

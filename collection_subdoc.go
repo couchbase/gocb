@@ -14,9 +14,10 @@ type LookupInSpec struct {
 
 // LookupInOptions are the set of options available to LookupIn.
 type LookupInOptions struct {
-	Context    context.Context
-	Timeout    time.Duration
-	Serializer JSONSerializer
+	Context       context.Context
+	Timeout       time.Duration
+	Serializer    JSONSerializer
+	RetryStrategy RetryStrategy
 }
 
 // GetSpecOptions are the options available to LookupIn subdoc Get operations.
@@ -152,12 +153,18 @@ func (c *Collection) lookupIn(ctx context.Context, id string, ops []LookupInSpec
 		serializer = &DefaultJSONSerializer{}
 	}
 
+	retryWrapper := c.sb.RetryStrategyWrapper
+	if opts.RetryStrategy != nil {
+		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	ctrl := c.newOpManager(ctx)
 	err = ctrl.wait(agent.LookupInEx(gocbcore.LookupInOptions{
 		Key:            []byte(id),
 		Ops:            subdocs,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
+		RetryStrategy:  retryWrapper,
 	}, func(res *gocbcore.LookupInResult, err error) {
 		if err != nil && !gocbcore.IsErrorStatus(err, gocbcore.StatusSubDocBadMulti) {
 			errOut = maybeEnhanceKVErr(err, id, false)
@@ -230,6 +237,7 @@ type MutateInOptions struct {
 	DurabilityLevel DurabilityLevel
 	StoreSemantic   StoreSemantics
 	Serializer      JSONSerializer
+	RetryStrategy   RetryStrategy
 	// Internal: This should never be used and is not supported.
 	AccessDeleted bool
 }
@@ -728,6 +736,11 @@ func (c *Collection) mutate(ctx context.Context, id string, ops []MutateInSpec, 
 		})
 	}
 
+	retryWrapper := c.sb.RetryStrategyWrapper
+	if opts.RetryStrategy != nil {
+		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
 	if coerced {
 		var cancel context.CancelFunc
@@ -746,6 +759,7 @@ func (c *Collection) mutate(ctx context.Context, id string, ops []MutateInSpec, 
 		ScopeName:              c.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
+		RetryStrategy:          retryWrapper,
 	}, func(res *gocbcore.MutateInResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceKVErr(err, id, isInsertDocument)

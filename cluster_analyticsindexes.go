@@ -14,9 +14,10 @@ import (
 // AnalyticsIndexManager provides methods for performing Couchbase Analytics index management.
 // Volatile: This API is subject to change at any time.
 type AnalyticsIndexManager struct {
-	httpClient    httpProvider
-	executeQuery  func(statement string, opts *AnalyticsOptions) (*AnalyticsResult, error)
-	globalTimeout time.Duration
+	httpClient           httpProvider
+	executeQuery         func(statement string, opts *AnalyticsOptions) (*AnalyticsResult, error)
+	globalTimeout        time.Duration
+	defaultRetryStrategy *retryStrategyWrapper
 }
 
 // AnalyticsDataset contains information about an analytics dataset,
@@ -37,8 +38,9 @@ type AnalyticsIndex struct {
 
 // CreateAnalyticsDataverseOptions is the set of options available to the AnalyticsManager CreateDataverse operation.
 type CreateAnalyticsDataverseOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 
 	IgnoreIfExists bool
 }
@@ -67,7 +69,8 @@ func (am *AnalyticsIndexManager) CreateDataverse(dataverseName string, opts *Cre
 
 	q := fmt.Sprintf("CREATE DATAVERSE `%s` %s", dataverseName, ignoreStr)
 	result, err := am.executeQuery(q, &AnalyticsOptions{
-		Context: ctx,
+		Context:       ctx,
+		RetryStrategy: opts.RetryStrategy,
 	})
 	if err != nil {
 		aErr, ok := err.(AnalyticsQueryError)
@@ -86,8 +89,9 @@ func (am *AnalyticsIndexManager) CreateDataverse(dataverseName string, opts *Cre
 
 // DropAnalyticsDataverseOptions is the set of options available to the AnalyticsManager DropDataverse operation.
 type DropAnalyticsDataverseOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 
 	IgnoreIfNotExists bool
 }
@@ -110,7 +114,8 @@ func (am *AnalyticsIndexManager) DropDataverse(dataverseName string, opts *DropA
 
 	q := fmt.Sprintf("DROP DATAVERSE %s %s", dataverseName, ignoreStr)
 	result, err := am.executeQuery(q, &AnalyticsOptions{
-		Context: ctx,
+		Context:       ctx,
+		RetryStrategy: opts.RetryStrategy,
 	})
 	if err != nil {
 		aErr, ok := err.(AnalyticsQueryError)
@@ -129,8 +134,9 @@ func (am *AnalyticsIndexManager) DropDataverse(dataverseName string, opts *DropA
 
 // CreateAnalyticsDatasetOptions is the set of options available to the AnalyticsManager CreateDataset operation.
 type CreateAnalyticsDatasetOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 
 	IgnoreIfExists bool
 	// Condition can be used to set the WHERE clause for the dataset creation.
@@ -176,7 +182,8 @@ func (am *AnalyticsIndexManager) CreateDataset(datasetName, bucketName string, o
 
 	q := fmt.Sprintf("CREATE DATASET %s %s ON `%s` %s", ignoreStr, datasetName, bucketName, where)
 	result, err := am.executeQuery(q, &AnalyticsOptions{
-		Context: ctx,
+		Context:       ctx,
+		RetryStrategy: opts.RetryStrategy,
 	})
 	if err != nil {
 		aErr, ok := err.(AnalyticsQueryError)
@@ -195,8 +202,9 @@ func (am *AnalyticsIndexManager) CreateDataset(datasetName, bucketName string, o
 
 // DropAnalyticsDatasetOptions is the set of options available to the AnalyticsManager DropDataset operation.
 type DropAnalyticsDatasetOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 
 	IgnoreIfNotExists bool
 	DataverseName     string
@@ -226,7 +234,8 @@ func (am *AnalyticsIndexManager) DropDataset(datasetName string, opts *DropAnaly
 
 	q := fmt.Sprintf("DROP DATASET %s %s", datasetName, ignoreStr)
 	result, err := am.executeQuery(q, &AnalyticsOptions{
-		Context: ctx,
+		Context:       ctx,
+		RetryStrategy: opts.RetryStrategy,
 	})
 	if err != nil {
 		aErr, ok := err.(AnalyticsQueryError)
@@ -245,8 +254,9 @@ func (am *AnalyticsIndexManager) DropDataset(datasetName string, opts *DropAnaly
 
 // GetAllAnalyticsDatasetsOptions is the set of options available to the AnalyticsManager GetAllDatasets operation.
 type GetAllAnalyticsDatasetsOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // GetAllDatasets gets all analytics datasets.
@@ -263,7 +273,9 @@ func (am *AnalyticsIndexManager) GetAllDatasets(opts *GetAllAnalyticsDatasetsOpt
 	result, err := am.executeQuery(
 		"SELECT d.* FROM Metadata.`Dataset` d WHERE d.DataverseName <> \"Metadata\"",
 		&AnalyticsOptions{
-			Context: ctx,
+			Context:       ctx,
+			ReadOnly:      true,
+			RetryStrategy: opts.RetryStrategy,
 		})
 	if err != nil {
 		aErr, ok := err.(AnalyticsQueryError)
@@ -293,8 +305,9 @@ func (am *AnalyticsIndexManager) GetAllDatasets(opts *GetAllAnalyticsDatasetsOpt
 
 // CreateAnalyticsIndexOptions is the set of options available to the AnalyticsManager CreateIndex operation.
 type CreateAnalyticsIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 
 	IgnoreIfExists bool
 	DataverseName  string
@@ -340,7 +353,8 @@ func (am *AnalyticsIndexManager) CreateIndex(datasetName, indexName string, fiel
 
 	q := fmt.Sprintf("CREATE INDEX `%s` %s ON %s (%s)", indexName, ignoreStr, datasetName, strings.Join(indexFields, ","))
 	result, err := am.executeQuery(q, &AnalyticsOptions{
-		Context: ctx,
+		Context:       ctx,
+		RetryStrategy: opts.RetryStrategy,
 	})
 	if err != nil {
 		aErr, ok := err.(AnalyticsQueryError)
@@ -359,8 +373,9 @@ func (am *AnalyticsIndexManager) CreateIndex(datasetName, indexName string, fiel
 
 // DropAnalyticsIndexOptions is the set of options available to the AnalyticsManager DropIndex operation.
 type DropAnalyticsIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 
 	IgnoreIfNotExists bool
 	DataverseName     string
@@ -390,7 +405,8 @@ func (am *AnalyticsIndexManager) DropIndex(datasetName, indexName string, opts *
 
 	q := fmt.Sprintf("DROP INDEX %s.%s %s", datasetName, indexName, ignoreStr)
 	result, err := am.executeQuery(q, &AnalyticsOptions{
-		Context: ctx,
+		Context:       ctx,
+		RetryStrategy: opts.RetryStrategy,
 	})
 	if err != nil {
 		aErr, ok := err.(AnalyticsQueryError)
@@ -409,8 +425,9 @@ func (am *AnalyticsIndexManager) DropIndex(datasetName, indexName string, opts *
 
 // GetAllAnalyticsIndexesOptions is the set of options available to the AnalyticsManager GetAllIndexes operation.
 type GetAllAnalyticsIndexesOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // GetAllIndexes gets all analytics indexes.
@@ -427,7 +444,9 @@ func (am *AnalyticsIndexManager) GetAllIndexes(opts *GetAllAnalyticsIndexesOptio
 	result, err := am.executeQuery(
 		"SELECT d.* FROM Metadata.`Index` d WHERE d.DataverseName <> \"Metadata\"",
 		&AnalyticsOptions{
-			Context: ctx,
+			Context:       ctx,
+			RetryStrategy: opts.RetryStrategy,
+			ReadOnly:      true,
 		})
 	if err != nil {
 		aErr, ok := err.(AnalyticsQueryError)
@@ -457,8 +476,9 @@ func (am *AnalyticsIndexManager) GetAllIndexes(opts *GetAllAnalyticsIndexesOptio
 
 // ConnectAnalyticsLinkOptions is the set of options available to the AnalyticsManager ConnectLink operation.
 type ConnectAnalyticsLinkOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 	// Name of the link, if empty defaults to Local
 	LinkName string
 }
@@ -481,7 +501,8 @@ func (am *AnalyticsIndexManager) ConnectLink(opts *ConnectAnalyticsLinkOptions) 
 	result, err := am.executeQuery(
 		fmt.Sprintf("CONNECT LINK %s", opts.LinkName),
 		&AnalyticsOptions{
-			Context: ctx,
+			Context:       ctx,
+			RetryStrategy: opts.RetryStrategy,
 		})
 	if err != nil {
 		aErr, ok := err.(AnalyticsQueryError)
@@ -500,8 +521,9 @@ func (am *AnalyticsIndexManager) ConnectLink(opts *ConnectAnalyticsLinkOptions) 
 
 // DisconnectAnalyticsLinkOptions is the set of options available to the AnalyticsManager DisconnectLink operation.
 type DisconnectAnalyticsLinkOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 	// Name of the link, if empty defaults to Local
 	LinkName string
 }
@@ -524,7 +546,8 @@ func (am *AnalyticsIndexManager) DisconnectLink(opts *DisconnectAnalyticsLinkOpt
 	result, err := am.executeQuery(
 		fmt.Sprintf("DISCONNECT LINK %s", opts.LinkName),
 		&AnalyticsOptions{
-			Context: ctx,
+			Context:       ctx,
+			RetryStrategy: opts.RetryStrategy,
 		})
 	if err != nil {
 		aErr, ok := err.(AnalyticsQueryError)
@@ -543,8 +566,9 @@ func (am *AnalyticsIndexManager) DisconnectLink(opts *DisconnectAnalyticsLinkOpt
 
 // GetPendingMutationsAnalyticsOptions is the set of options available to the user manager GetPendingMutations operation.
 type GetPendingMutationsAnalyticsOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // GetPendingMutations returns the number of pending mutations for all indexes in the form of dataverse.dataset:mutations.
@@ -558,15 +582,29 @@ func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAn
 		defer cancel()
 	}
 
+	retryStrategy := am.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(AnalyticsService),
-		Method:  "GET",
-		Path:    fmt.Sprintf("/analytics/node/agg/stats/remaining"),
-		Context: ctx,
+		Service:       gocbcore.ServiceType(AnalyticsService),
+		Method:        "GET",
+		Path:          fmt.Sprintf("/analytics/node/agg/stats/remaining"),
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
 	}
 
 	resp, err := am.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return nil, err
 	}
 

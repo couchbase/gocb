@@ -38,6 +38,31 @@ type mockPendingOp struct {
 	cancelSuccess bool
 }
 
+func (mpo *mockPendingOp) RetryAttempts() uint32 {
+	return 0
+}
+
+func (mpo *mockPendingOp) Identifier() string {
+	return ""
+}
+
+func (mpo *mockPendingOp) Idempotent() bool {
+	return false
+}
+
+func (mpo *mockPendingOp) RetryReasons() []gocbcore.RetryReason {
+	return []gocbcore.RetryReason{}
+}
+
+func (mpo *mockPendingOp) addRetryReason(reason gocbcore.RetryReason) {
+}
+
+func (mpo *mockPendingOp) IncrementRetryAttempts() {
+}
+
+func (mpo *mockPendingOp) SetCancelRetry(cancelFunc func() bool) {
+}
+
 func (mpo *mockPendingOp) Cancel() bool {
 	return mpo.cancelSuccess
 }
@@ -339,7 +364,7 @@ func (mko *mockKvProvider) GetOneReplicaEx(opts gocbcore.GetOneReplicaOptions, c
 	return &mockPendingOp{cancelSuccess: mko.opCancellationSuccess}, nil
 }
 
-func (mko *mockKvProvider) PingKvEx(opts gocbcore.PingKvOptions, cb gocbcore.PingKvExCallback) (gocbcore.PendingOp, error) {
+func (mko *mockKvProvider) PingKvEx(opts gocbcore.PingKvOptions, cb gocbcore.PingKvExCallback) (gocbcore.CancellablePendingOp, error) {
 	time.AfterFunc(mko.opWait, func() {
 		if mko.err == nil {
 			cb(mko.value.(*gocbcore.PingKvResult), nil)
@@ -357,6 +382,12 @@ func (mko *mockKvProvider) NumReplicas() int {
 
 func (p *mockHTTPProvider) DoHttpRequest(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
 	return p.doFn(req)
+}
+
+func (p *mockHTTPProvider) MaybeRetryRequest(req gocbcore.RetryRequest, reason gocbcore.RetryReason,
+	strategy gocbcore.RetryStrategy, retryFunc func()) bool {
+	time.AfterFunc(1*time.Millisecond, retryFunc)
+	return true
 }
 
 func (p *mockHTTPProvider) SupportsClusterCapability(capability gocbcore.ClusterCapability) bool {

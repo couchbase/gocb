@@ -9,8 +9,9 @@ import (
 // QueryIndexManager provides methods for performing Couchbase N1ql index management.
 // Volatile: This API is subject to change at any time.
 type QueryIndexManager struct {
-	executeQuery  func(statement string, opts *QueryOptions) (*QueryResult, error)
-	globalTimeout time.Duration
+	executeQuery         func(statement string, opts *QueryOptions) (*QueryResult, error)
+	globalTimeout        time.Duration
+	defaultRetryStrategy *retryStrategyWrapper
 }
 
 // QueryIndex represents a Couchbase GSI index.
@@ -25,7 +26,8 @@ type QueryIndex struct {
 }
 
 type createQueryIndexOptions struct {
-	Context context.Context
+	Context       context.Context
+	RetryStrategy RetryStrategy
 
 	IgnoreIfExists bool
 	Deferred       bool
@@ -58,7 +60,8 @@ func (qm *QueryIndexManager) createIndex(bucketName, indexName string, fields []
 	}
 
 	rows, err := qm.executeQuery(qs, &QueryOptions{
-		Context: opts.Context,
+		Context:       opts.Context,
+		RetryStrategy: opts.RetryStrategy,
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "already exist") {
@@ -78,8 +81,9 @@ func (qm *QueryIndexManager) createIndex(bucketName, indexName string, fields []
 
 // CreateQueryIndexOptions is the set of options available to the query indexes CreateIndex operation.
 type CreateQueryIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 
 	IgnoreIfExists bool
 	Deferred       bool
@@ -111,13 +115,15 @@ func (qm *QueryIndexManager) CreateIndex(bucketName, indexName string, fields []
 		IgnoreIfExists: opts.IgnoreIfExists,
 		Deferred:       opts.Deferred,
 		Context:        ctx,
+		RetryStrategy:  opts.RetryStrategy,
 	})
 }
 
 // CreatePrimaryQueryIndexOptions is the set of options available to the query indexes CreatePrimaryIndex operation.
 type CreatePrimaryQueryIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 
 	IgnoreIfExists bool
 	Deferred       bool
@@ -139,11 +145,13 @@ func (qm *QueryIndexManager) CreatePrimaryIndex(bucketName string, opts *CreateP
 		IgnoreIfExists: opts.IgnoreIfExists,
 		Deferred:       opts.Deferred,
 		Context:        ctx,
+		RetryStrategy:  opts.RetryStrategy,
 	})
 }
 
 type dropQueryIndexOptions struct {
-	Context context.Context
+	Context       context.Context
+	RetryStrategy RetryStrategy
 
 	IgnoreIfNotExists bool
 }
@@ -158,7 +166,8 @@ func (qm *QueryIndexManager) dropIndex(bucketName, indexName string, opts dropQu
 	}
 
 	rows, err := qm.executeQuery(qs, &QueryOptions{
-		Context: opts.Context,
+		Context:       opts.Context,
+		RetryStrategy: opts.RetryStrategy,
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
@@ -178,8 +187,9 @@ func (qm *QueryIndexManager) dropIndex(bucketName, indexName string, opts dropQu
 
 // DropQueryIndexOptions is the set of options available to the query indexes DropIndex operation.
 type DropQueryIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 
 	IgnoreIfNotExists bool
 }
@@ -204,13 +214,15 @@ func (qm *QueryIndexManager) DropIndex(bucketName, indexName string, opts *DropQ
 	return qm.dropIndex(bucketName, indexName, dropQueryIndexOptions{
 		Context:           ctx,
 		IgnoreIfNotExists: opts.IgnoreIfNotExists,
+		RetryStrategy:     opts.RetryStrategy,
 	})
 }
 
 // DropPrimaryQueryIndexOptions is the set of options available to the query indexes DropPrimaryIndex operation.
 type DropPrimaryQueryIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 
 	IgnoreIfNotExists bool
 	CustomName        string
@@ -230,13 +242,15 @@ func (qm *QueryIndexManager) DropPrimaryIndex(bucketName string, opts *DropPrima
 	return qm.dropIndex(bucketName, opts.CustomName, dropQueryIndexOptions{
 		IgnoreIfNotExists: opts.IgnoreIfNotExists,
 		Context:           ctx,
+		RetryStrategy:     opts.RetryStrategy,
 	})
 }
 
 // GetAllQueryIndexesOptions is the set of options available to the query indexes GetAllIndexes operation.
 type GetAllQueryIndexesOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // GetAllIndexes returns a list of all currently registered indexes.
@@ -254,6 +268,8 @@ func (qm *QueryIndexManager) GetAllIndexes(bucketName string, opts *GetAllQueryI
 	queryOpts := &QueryOptions{
 		Context:              ctx,
 		PositionalParameters: []interface{}{bucketName},
+		RetryStrategy:        opts.RetryStrategy,
+		ReadOnly:             true,
 	}
 
 	rows, err := qm.executeQuery(q, queryOpts)
@@ -276,8 +292,9 @@ func (qm *QueryIndexManager) GetAllIndexes(bucketName string, opts *GetAllQueryI
 
 // BuildDeferredQueryIndexOptions is the set of options available to the query indexes BuildDeferredIndexes operation.
 type BuildDeferredQueryIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // BuildDeferredIndexes builds all indexes which are currently in deferred state.
@@ -292,7 +309,8 @@ func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *Build
 	}
 
 	indexList, err := qm.GetAllIndexes(bucketName, &GetAllQueryIndexesOptions{
-		Context: ctx,
+		Context:       ctx,
+		RetryStrategy: opts.RetryStrategy,
 	})
 	if err != nil {
 		return nil, err
@@ -322,7 +340,8 @@ func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *Build
 	qs += ")"
 
 	rows, err := qm.executeQuery(qs, &QueryOptions{
-		Context: ctx,
+		Context:       ctx,
+		RetryStrategy: opts.RetryStrategy,
 	})
 	if err != nil {
 		return nil, err
@@ -365,7 +384,8 @@ func checkIndexesActive(indexes []QueryIndex, checkList []string) (bool, error) 
 
 // WatchQueryIndexOptions is the set of options available to the query indexes Watch operation.
 type WatchQueryIndexOptions struct {
-	WatchPrimary bool
+	WatchPrimary  bool
+	RetryStrategy RetryStrategy
 }
 
 // WatchQueryIndexTimeout is used for setting a timeout value for the query indexes WatchIndexes operation.
@@ -398,7 +418,8 @@ func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string,
 	curInterval := 50 * time.Millisecond
 	for {
 		indexes, err := qm.GetAllIndexes(bucketName, &GetAllQueryIndexesOptions{
-			Context: ctx,
+			Context:       ctx,
+			RetryStrategy: opts.RetryStrategy,
 		})
 		if err != nil {
 			return err

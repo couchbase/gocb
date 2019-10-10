@@ -15,8 +15,9 @@ import (
 // UserManager provides methods for performing Couchbase user management.
 // Volatile: This API is subject to change at any time.
 type UserManager struct {
-	httpClient    httpProvider
-	globalTimeout time.Duration
+	httpClient           httpProvider
+	globalTimeout        time.Duration
+	defaultRetryStrategy *retryStrategyWrapper
 }
 
 // Role represents a specific permission.
@@ -153,8 +154,9 @@ func transformUserMetadataJson(userData *userMetadataJson) UserAndMetadata {
 
 // GetAllUsersOptions is the set of options available to the user manager GetAll operation.
 type GetAllUsersOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 
 	DomainName string
 }
@@ -174,15 +176,30 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 		defer cancel()
 	}
 
+	retryStrategy := um.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Method:  "GET",
-		Path:    fmt.Sprintf("/settings/rbac/users/%s", opts.DomainName),
-		Context: ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Method:        "GET",
+		Path:          fmt.Sprintf("/settings/rbac/users/%s", opts.DomainName),
+		Context:       ctx,
+		IsIdempotent:  true,
+		RetryStrategy: retryStrategy,
 	}
 
 	resp, err := um.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return nil, err
 	}
 
@@ -216,8 +233,9 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 
 // GetUserOptions is the set of options available to the user manager Get operation.
 type GetUserOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 
 	DomainName string
 }
@@ -237,15 +255,30 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 		defer cancel()
 	}
 
+	retryStrategy := um.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Method:  "GET",
-		Path:    fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, name),
-		Context: ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Method:        "GET",
+		Path:          fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, name),
+		Context:       ctx,
+		IsIdempotent:  true,
+		RetryStrategy: retryStrategy,
 	}
 
 	resp, err := um.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return nil, err
 	}
 
@@ -274,8 +307,9 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 
 // UpsertUserOptions is the set of options available to the user manager Upsert operation.
 type UpsertUserOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 
 	DomainName string
 }
@@ -295,6 +329,11 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 		defer cancel()
 	}
 
+	retryStrategy := um.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	var reqRoleStrs []string
 	for _, roleData := range user.Roles {
 		reqRoleStrs = append(reqRoleStrs, fmt.Sprintf("%s[%s]", roleData.Name, roleData.Bucket))
@@ -311,16 +350,25 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 	reqForm.Add("roles", strings.Join(reqRoleStrs, ","))
 
 	req := &gocbcore.HttpRequest{
-		Service:     gocbcore.ServiceType(MgmtService),
-		Method:      "PUT",
-		Path:        fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, user.Username),
-		Body:        []byte(reqForm.Encode()),
-		ContentType: "application/x-www-form-urlencoded",
-		Context:     ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Method:        "PUT",
+		Path:          fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, user.Username),
+		Body:          []byte(reqForm.Encode()),
+		ContentType:   "application/x-www-form-urlencoded",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
 	}
 
 	resp, err := um.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return err
 	}
 
@@ -341,8 +389,9 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 
 // DropUserOptions is the set of options available to the user manager Drop operation.
 type DropUserOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 
 	DomainName string
 }
@@ -362,15 +411,29 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 		defer cancel()
 	}
 
+	retryStrategy := um.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Method:  "DELETE",
-		Path:    fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, name),
-		Context: ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Method:        "DELETE",
+		Path:          fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, name),
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
 	}
 
 	resp, err := um.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return err
 	}
 
@@ -391,8 +454,9 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 
 // GetRolesOptions is the set of options available to the user manager GetRoles operation.
 type GetRolesOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // GetRoles lists the roles supported by the cluster.
@@ -406,15 +470,30 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 		defer cancel()
 	}
 
+	retryStrategy := um.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Method:  "GET",
-		Path:    "/settings/rbac/roles",
-		Context: ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Method:        "GET",
+		Path:          "/settings/rbac/roles",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
+		IsIdempotent:  true,
 	}
 
 	resp, err := um.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return nil, err
 	}
 
@@ -456,8 +535,9 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 
 // GetGroupOptions is the set of options available to the group manager Get operation.
 type GetGroupOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // GetGroup fetches a single group from the server.
@@ -474,15 +554,30 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 		defer cancel()
 	}
 
+	retryStrategy := um.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Method:  "GET",
-		Path:    fmt.Sprintf("/settings/rbac/groups/%s", groupName),
-		Context: ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Method:        "GET",
+		Path:          fmt.Sprintf("/settings/rbac/groups/%s", groupName),
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
+		IsIdempotent:  true,
 	}
 
 	resp, err := um.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return nil, err
 	}
 
@@ -510,8 +605,9 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 
 // GetAllGroupsOptions is the set of options available to the group manager GetAll operation.
 type GetAllGroupsOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // GetAllGroups fetches all groups from the server.
@@ -525,15 +621,30 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 		defer cancel()
 	}
 
+	retryStrategy := um.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Method:  "GET",
-		Path:    "/settings/rbac/groups",
-		Context: ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Method:        "GET",
+		Path:          "/settings/rbac/groups",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
+		IsIdempotent:  true,
 	}
 
 	resp, err := um.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return nil, err
 	}
 
@@ -561,8 +672,9 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 
 // UpsertGroupOptions is the set of options available to the group manager Upsert operation.
 type UpsertGroupOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // UpsertGroup creates, or updates, a group on the server.
@@ -577,6 +689,11 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, um.globalTimeout)
 	if cancel != nil {
 		defer cancel()
+	}
+
+	retryStrategy := um.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
 	var reqRoleStrs []string
@@ -594,16 +711,25 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 	reqForm.Add("roles", strings.Join(reqRoleStrs, ","))
 
 	req := &gocbcore.HttpRequest{
-		Service:     gocbcore.ServiceType(MgmtService),
-		Method:      "PUT",
-		Path:        fmt.Sprintf("/settings/rbac/groups/%s", group.Name),
-		Body:        []byte(reqForm.Encode()),
-		ContentType: "application/x-www-form-urlencoded",
-		Context:     ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Method:        "PUT",
+		Path:          fmt.Sprintf("/settings/rbac/groups/%s", group.Name),
+		Body:          []byte(reqForm.Encode()),
+		ContentType:   "application/x-www-form-urlencoded",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
 	}
 
 	resp, err := um.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return err
 	}
 
@@ -624,8 +750,9 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 
 // DropGroupOptions is the set of options available to the group manager Drop operation.
 type DropGroupOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // DropGroup removes a group from the server.
@@ -643,15 +770,29 @@ func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error
 		defer cancel()
 	}
 
+	retryStrategy := um.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Method:  "DELETE",
-		Path:    fmt.Sprintf("/settings/rbac/groups/%s", groupName),
-		Context: ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Method:        "DELETE",
+		Path:          fmt.Sprintf("/settings/rbac/groups/%s", groupName),
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
 	}
 
 	resp, err := um.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return err
 	}
 

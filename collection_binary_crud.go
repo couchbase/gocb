@@ -20,6 +20,7 @@ type AppendOptions struct {
 	PersistTo       uint
 	ReplicateTo     uint
 	Cas             Cas
+	RetryStrategy   RetryStrategy
 }
 
 // Append appends a byte value to a document.
@@ -66,6 +67,11 @@ func (c *BinaryCollection) append(ctx context.Context, id string, val []byte, op
 		return nil, err
 	}
 
+	retryWrapper := c.collection.sb.RetryStrategyWrapper
+	if opts.RetryStrategy != nil {
+		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	coerced, durabilityTimeout := c.collection.durabilityTimeout(ctx, opts.DurabilityLevel)
 	if coerced {
 		var cancel context.CancelFunc
@@ -82,6 +88,7 @@ func (c *BinaryCollection) append(ctx context.Context, id string, val []byte, op
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
 		Cas:                    gocbcore.Cas(opts.Cas),
+		RetryStrategy:          retryWrapper,
 	}, func(res *gocbcore.AdjoinResult, err error) {
 		if err != nil {
 			errOut = err
@@ -117,6 +124,7 @@ type PrependOptions struct {
 	PersistTo       uint
 	ReplicateTo     uint
 	Cas             Cas
+	RetryStrategy   RetryStrategy
 }
 
 // Prepend prepends a byte value to a document.
@@ -163,6 +171,11 @@ func (c *BinaryCollection) prepend(ctx context.Context, id string, val []byte, o
 		return nil, err
 	}
 
+	retryWrapper := c.collection.sb.RetryStrategyWrapper
+	if opts.RetryStrategy != nil {
+		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	coerced, durabilityTimeout := c.collection.durabilityTimeout(ctx, opts.DurabilityLevel)
 	if coerced {
 		var cancel context.CancelFunc
@@ -179,6 +192,7 @@ func (c *BinaryCollection) prepend(ctx context.Context, id string, val []byte, o
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
 		Cas:                    gocbcore.Cas(opts.Cas),
+		RetryStrategy:          retryWrapper,
 	}, func(res *gocbcore.AdjoinResult, err error) {
 		if err != nil {
 			errOut = err
@@ -222,6 +236,7 @@ type CounterOptions struct {
 	PersistTo       uint
 	ReplicateTo     uint
 	Cas             Cas
+	RetryStrategy   RetryStrategy
 }
 
 // Increment performs an atomic addition for an integer document. Passing a
@@ -265,6 +280,11 @@ func (c *BinaryCollection) increment(ctx context.Context, id string, opts Counte
 		realInitial = uint64(opts.Initial)
 	}
 
+	retryWrapper := c.collection.sb.RetryStrategyWrapper
+	if opts.RetryStrategy != nil {
+		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	agent, err := c.collection.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -288,6 +308,7 @@ func (c *BinaryCollection) increment(ctx context.Context, id string, opts Counte
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
 		Cas:                    gocbcore.Cas(opts.Cas),
+		RetryStrategy:          retryWrapper,
 	}, func(res *gocbcore.CounterResult, err error) {
 		if err != nil {
 			errOut = err
@@ -372,6 +393,11 @@ func (c *BinaryCollection) decrement(ctx context.Context, id string, opts Counte
 		realInitial = uint64(opts.Initial)
 	}
 
+	retryWrapper := c.collection.sb.RetryStrategyWrapper
+	if opts.RetryStrategy != nil {
+		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	coerced, durabilityTimeout := c.collection.durabilityTimeout(ctx, opts.DurabilityLevel)
 	if coerced {
 		var cancel context.CancelFunc
@@ -390,6 +416,7 @@ func (c *BinaryCollection) decrement(ctx context.Context, id string, opts Counte
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
 		Cas:                    gocbcore.Cas(opts.Cas),
+		RetryStrategy:          retryWrapper,
 	}, func(res *gocbcore.CounterResult, err error) {
 		if err != nil {
 			errOut = err

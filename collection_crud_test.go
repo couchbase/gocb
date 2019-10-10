@@ -708,6 +708,59 @@ func TestUpsertGetRemove(t *testing.T) {
 	}
 }
 
+type upsertRetriesStrategy struct {
+	retries int
+}
+
+func (rts *upsertRetriesStrategy) RetryAfter(req RetryRequest, reason RetryReason) RetryAction {
+	rts.retries++
+	return &WithDurationRetryAction{100 * time.Millisecond}
+}
+
+func TestUpsertRetries(t *testing.T) {
+	if testing.Short() {
+		t.Log("Skipping test in short mode")
+		return
+	}
+
+	var doc testBeerDocument
+	err := loadJSONTestDataset("beer_sample_single", &doc)
+	if err != nil {
+		t.Fatalf("Could not read test dataset: %v", err)
+	}
+
+	mutRes, err := globalCollection.Upsert("getRetryDoc", doc, nil)
+	if err != nil {
+		t.Fatalf("Upsert failed, error was %v", err)
+	}
+
+	if mutRes.Cas() == 0 {
+		t.Fatalf("Upsert CAS was 0")
+	}
+
+	_, err = globalCollection.GetAndLock("getRetryDoc", 1*time.Second, nil)
+	if err != nil {
+		t.Fatalf("GetAndLock failed, error was %v", err)
+	}
+
+	retryStrategy := &upsertRetriesStrategy{}
+	mutRes, err = globalCollection.Upsert("getRetryDoc", doc, &UpsertOptions{
+		Timeout:       2100 * time.Millisecond, // Timeout has to be long due to how the server handles unlocking.
+		RetryStrategy: retryStrategy,
+	})
+	if err != nil {
+		t.Fatalf("Upsert failed, error was %v", err)
+	}
+
+	if mutRes.Cas() == 0 {
+		t.Fatalf("Upsert CAS was 0")
+	}
+
+	if retryStrategy.retries <= 1 {
+		t.Fatalf("Expected retries to be > 1")
+	}
+}
+
 func TestRemoveWithCas(t *testing.T) {
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
@@ -909,12 +962,14 @@ func TestGetAndLock(t *testing.T) {
 		t.Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
 	}
 
-	mutRes, err = globalCollection.Upsert("getAndLock", doc, nil)
+	mutRes, err = globalCollection.Upsert("getAndLock", doc, &UpsertOptions{
+		RetryStrategy: NewFailFastRetryStrategy(),
+	})
 	if err == nil {
 		t.Fatalf("Expected error but was nil")
 	}
 
-	if !IsKeyExistsError(err) {
+	if !IsKeyLockedError(err) {
 		t.Fatalf("Expected error to be KeyExistsError but is %s", reflect.TypeOf(err).String())
 	}
 
@@ -992,7 +1047,7 @@ func TestUnlockInvalidCas(t *testing.T) {
 		t.Fatalf("Upsert CAS was 0")
 	}
 
-	lockedDoc, err := globalCollection.GetAndLock("unlockInvalidCas", 1, nil)
+	lockedDoc, err := globalCollection.GetAndLock("unlockInvalidCas", 2, nil)
 	if err != nil {
 		t.Fatalf("Get failed, error was %v", err)
 	}
@@ -1007,13 +1062,41 @@ func TestUnlockInvalidCas(t *testing.T) {
 		t.Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
 	}
 
-	_, err = globalCollection.Unlock("unlockInvalidCas", lockedDoc.Cas()+1, nil)
+	_, err = globalCollection.Unlock("unlockInvalidCas", lockedDoc.Cas()+1, &UnlockOptions{
+		RetryStrategy: NewFailFastRetryStrategy(),
+	})
 	if err == nil {
 		t.Fatalf("Unlock should have failed")
 	}
 
-	if !IsTemporaryFailureError(err) {
-		t.Fatalf("Expected error to be TempFailError but was %s", reflect.TypeOf(err).String())
+	// The server and the mock do not agree on the error for locked documents.
+	if !IsKeyLockedError(err) && !IsTemporaryFailureError(err) {
+		t.Fatalf("Expected error to be TempFailError or IsKeyLockedError but was %s", reflect.TypeOf(err).String())
+	}
+
+	_, err = globalCollection.Unlock("unlockInvalidCas", lockedDoc.Cas()+1, &UnlockOptions{
+		RetryStrategy: NewBestEffortRetryStrategy(nil),
+		Timeout:       10 * time.Millisecond,
+	})
+	if err == nil {
+		t.Fatalf("Unlock should have failed")
+	}
+
+	if !IsTimeoutError(err) {
+		t.Fatalf("Expected error to be TimeoutError but was %s", reflect.TypeOf(err).String())
+	}
+
+	tErr, ok := err.(TimeoutErrorWithDetail)
+	if !ok {
+		t.Fatalf("Expected error to be TimeoutErrorWithDetail but was %+v", err)
+	}
+
+	if len(tErr.RetryReasons()) != 1 {
+		t.Fatalf("Expected 1 retry reason but was %v", tErr.RetryReasons())
+	}
+
+	if tErr.OperationID() == "" {
+		t.Fatalf("Expected OperationID to be not empty")
 	}
 }
 
@@ -1048,13 +1131,16 @@ func TestDoubleLockFail(t *testing.T) {
 		t.Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
 	}
 
-	_, err = globalCollection.GetAndLock("doubleLock", 1, nil)
+	_, err = globalCollection.GetAndLock("doubleLock", 1, &GetAndLockOptions{
+		RetryStrategy: NewFailFastRetryStrategy(),
+	})
 	if err == nil {
 		t.Fatalf("Expected GetAndLock to fail")
 	}
 
-	if !IsTemporaryFailureError(err) {
-		t.Fatalf("Expected error to be TempFailError but was %v", err)
+	// The server and the mock do not agree on the error for locked documents.
+	if !IsKeyLockedError(err) && !IsTemporaryFailureError(err) {
+		t.Fatalf("Expected error to be TempFailError or IsKeyLockedError but was %s", reflect.TypeOf(err).String())
 	}
 }
 

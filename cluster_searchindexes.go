@@ -13,8 +13,9 @@ import (
 // SearchIndexManager provides methods for performing Couchbase FTS index management.
 // Experimental: This API is subject to change at any time.
 type SearchIndexManager struct {
-	httpClient    httpProvider
-	globalTimeout time.Duration
+	httpClient           httpProvider
+	globalTimeout        time.Duration
+	defaultRetryStrategy *retryStrategyWrapper
 }
 
 type searchIndexDefs struct {
@@ -34,8 +35,9 @@ type searchIndexesResp struct {
 
 // GetAllSearchIndexOptions is the set of options available to the search indexes GetAllIndexes operation.
 type GetAllSearchIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // GetAllIndexes retrieves all of the search indexes for the cluster.
@@ -49,15 +51,30 @@ func (sim *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]
 		defer cancel()
 	}
 
+	retryStrategy := sim.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(SearchService),
-		Method:  "GET",
-		Path:    "/api/index",
-		Context: ctx,
+		Service:       gocbcore.ServiceType(SearchService),
+		Method:        "GET",
+		Path:          "/api/index",
+		Context:       ctx,
+		IsIdempotent:  true,
+		RetryStrategy: retryStrategy,
 	}
 
 	res, err := sim.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return nil, err
 	}
 
@@ -96,8 +113,9 @@ func (sim *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]
 
 // GetSearchIndexOptions is the set of options available to the search indexes GetIndex operation.
 type GetSearchIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // GetIndex retrieves a specific search index by name.
@@ -111,14 +129,29 @@ func (sim *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOp
 		defer cancel()
 	}
 
+	retryStrategy := sim.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(SearchService),
-		Method:  "GET",
-		Path:    fmt.Sprintf("/api/index/%s", indexName),
-		Context: ctx,
+		Service:       gocbcore.ServiceType(SearchService),
+		Method:        "GET",
+		Path:          fmt.Sprintf("/api/index/%s", indexName),
+		Context:       ctx,
+		IsIdempotent:  true,
+		RetryStrategy: retryStrategy,
 	}
 	resp, err := sim.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return nil, err
 	}
 
@@ -151,8 +184,9 @@ func (sim *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOp
 
 // UpsertSearchIndexOptions is the set of options available to the search index manager UpsertIndex operation.
 type UpsertSearchIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // SearchIndex is used to define a search index.
@@ -196,23 +230,37 @@ func (sim *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Up
 		defer cancel()
 	}
 
+	retryStrategy := sim.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	b, err := json.Marshal(indexDefinition)
 	if err != nil {
 		return err
 	}
 
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(SearchService),
-		Method:  "PUT",
-		Path:    fmt.Sprintf("/api/index/%s", indexDefinition.Name),
-		Headers: make(map[string]string),
-		Context: ctx,
-		Body:    b,
+		Service:       gocbcore.ServiceType(SearchService),
+		Method:        "PUT",
+		Path:          fmt.Sprintf("/api/index/%s", indexDefinition.Name),
+		Headers:       make(map[string]string),
+		Context:       ctx,
+		Body:          b,
+		RetryStrategy: retryStrategy,
 	}
 	req.Headers["cache-control"] = "no-cache"
 
 	res, err := sim.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return err
 	}
 
@@ -238,8 +286,9 @@ func (sim *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Up
 
 // DropSearchIndexOptions is the set of options available to the search index DropIndex operation.
 type DropSearchIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // DropIndex removes the search index with the specific name.
@@ -257,14 +306,28 @@ func (sim *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndex
 		defer cancel()
 	}
 
+	retryStrategy := sim.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(SearchService),
-		Method:  "DELETE",
-		Path:    fmt.Sprintf("/api/index/%s", indexName),
-		Context: ctx,
+		Service:       gocbcore.ServiceType(SearchService),
+		Method:        "DELETE",
+		Path:          fmt.Sprintf("/api/index/%s", indexName),
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
 	}
 	res, err := sim.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return err
 	}
 
@@ -290,8 +353,9 @@ func (sim *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndex
 
 // AnalyzeDocumentOptions is the set of options available to the search index AnalyzeDocument operation.
 type AnalyzeDocumentOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // AnalyzeDocument returns how a doc is analyzed against a specific index.
@@ -309,20 +373,35 @@ func (sim *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{}
 		defer cancel()
 	}
 
+	retryStrategy := sim.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	b, err := json.Marshal(doc)
 	if err != nil {
 		return nil, err
 	}
 
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(SearchService),
-		Method:  "POST",
-		Path:    fmt.Sprintf("/api/index/%s/analyzeDoc", indexName),
-		Context: ctx,
-		Body:    b,
+		Service:       gocbcore.ServiceType(SearchService),
+		Method:        "POST",
+		Path:          fmt.Sprintf("/api/index/%s/analyzeDoc", indexName),
+		Context:       ctx,
+		Body:          b,
+		RetryStrategy: retryStrategy,
+		IsIdempotent:  true,
 	}
 	res, err := sim.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return nil, err
 	}
 
@@ -358,8 +437,9 @@ func (sim *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{}
 
 // GetIndexedDocumentsCountOptions is the set of options available to the search index GetIndexedDocumentsCount operation.
 type GetIndexedDocumentsCountOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // GetIndexedDocumentsCount retrieves the document count for a search index.
@@ -377,14 +457,29 @@ func (sim *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *
 		defer cancel()
 	}
 
+	retryStrategy := sim.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(SearchService),
-		Method:  "GET",
-		Path:    fmt.Sprintf("/api/index/%s/count", indexName),
-		Context: ctx,
+		Service:       gocbcore.ServiceType(SearchService),
+		Method:        "GET",
+		Path:          fmt.Sprintf("/api/index/%s/count", indexName),
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
+		IsIdempotent:  true,
 	}
 	res, err := sim.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return 0, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return 0, err
 	}
 
@@ -417,15 +512,29 @@ func (sim *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *
 	return count.Count, nil
 }
 
-func (sim *SearchIndexManager) performControlRequest(ctx context.Context, uri, method string) error {
+func (sim *SearchIndexManager) performControlRequest(ctx context.Context, uri, method string, strategy RetryStrategy) error {
+	retryStrategy := sim.defaultRetryStrategy
+	if strategy == nil {
+		retryStrategy = newRetryStrategyWrapper(strategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(SearchService),
-		Method:  method,
-		Path:    uri,
-		Context: ctx,
+		Service:       gocbcore.ServiceType(SearchService),
+		Method:        method,
+		Path:          uri,
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
 	}
 	res, err := sim.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return err
 	}
 
@@ -452,8 +561,9 @@ func (sim *SearchIndexManager) performControlRequest(ctx context.Context, uri, m
 
 // PauseIngestSearchIndexOptions is the set of options available to the search index PauseIngest operation.
 type PauseIngestSearchIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // PauseIngest pauses updates and maintenance for an index.
@@ -471,13 +581,15 @@ func (sim *SearchIndexManager) PauseIngest(indexName string, opts *PauseIngestSe
 		defer cancel()
 	}
 
-	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/ingestControl/pause", indexName), "POST")
+	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/ingestControl/pause", indexName),
+		"POST", opts.RetryStrategy)
 }
 
 // ResumeIngestSearchIndexOptions is the set of options available to the search index ResumeIngest operation.
 type ResumeIngestSearchIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // ResumeIngest resumes updates and maintenance for an index.
@@ -495,13 +607,15 @@ func (sim *SearchIndexManager) ResumeIngest(indexName string, opts *ResumeIngest
 		defer cancel()
 	}
 
-	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/ingestControl/resume", indexName), "POST")
+	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/ingestControl/resume", indexName),
+		"POST", opts.RetryStrategy)
 }
 
 // AllowQueryingSearchIndexOptions is the set of options available to the search index AllowQuerying operation.
 type AllowQueryingSearchIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // AllowQuerying allows querying against an index.
@@ -519,13 +633,14 @@ func (sim *SearchIndexManager) AllowQuerying(indexName string, opts *AllowQueryi
 		defer cancel()
 	}
 
-	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/queryControl/allow", indexName), "POST")
+	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/queryControl/allow", indexName), "POST", opts.RetryStrategy)
 }
 
 // DisallowQueryingSearchIndexOptions is the set of options available to the search index DisallowQuerying operation.
 type DisallowQueryingSearchIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // DisallowQuerying disallows querying against an index.
@@ -543,13 +658,15 @@ func (sim *SearchIndexManager) DisallowQuerying(indexName string, opts *AllowQue
 		defer cancel()
 	}
 
-	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/queryControl/disallow", indexName), "POST")
+	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/queryControl/disallow", indexName),
+		"POST", opts.RetryStrategy)
 }
 
 // FreezePlanSearchIndexOptions is the set of options available to the search index FreezePlan operation.
 type FreezePlanSearchIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // FreezePlan freezes the assignment of index partitions to nodes.
@@ -567,13 +684,15 @@ func (sim *SearchIndexManager) FreezePlan(indexName string, opts *AllowQueryingS
 		defer cancel()
 	}
 
-	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/planFreezeControl/freeze", indexName), "POST")
+	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/planFreezeControl/freeze", indexName),
+		"POST", opts.RetryStrategy)
 }
 
 // UnfreezePlanSearchIndexOptions is the set of options available to the search index UnfreezePlan operation.
 type UnfreezePlanSearchIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // UnfreezePlan unfreezes the assignment of index partitions to nodes.
@@ -591,5 +710,6 @@ func (sim *SearchIndexManager) UnfreezePlan(indexName string, opts *AllowQueryin
 		defer cancel()
 	}
 
-	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/planFreezeControl/unfreeze", indexName), "POST")
+	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/planFreezeControl/unfreeze", indexName),
+		"POST", opts.RetryStrategy)
 }

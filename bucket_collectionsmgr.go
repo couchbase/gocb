@@ -14,9 +14,10 @@ import (
 // CollectionManager provides methods for performing collections management.
 // Volatile: This API is subject to change at any time.
 type CollectionManager struct {
-	httpClient    httpProvider
-	bucketName    string
-	globalTimeout time.Duration
+	httpClient           httpProvider
+	bucketName           string
+	globalTimeout        time.Duration
+	defaultRetryStrategy *retryStrategyWrapper
 }
 
 // CollectionSpec describes the specification of a collection.
@@ -33,8 +34,9 @@ type ScopeSpec struct {
 
 // CollectionExistsOptions is the set of options available to the CollectionExists operation.
 type CollectionExistsOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // These 3 types are temporary. They are necessary for now as the server beta was released with ns_server returning
@@ -76,14 +78,21 @@ func (cm *CollectionManager) CollectionExists(spec CollectionSpec, opts *Collect
 		defer cancel()
 	}
 
+	retryStrategy := cm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	posts := url.Values{}
 	posts.Add("name", spec.Name)
 
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Path:    fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
-		Method:  "GET",
-		Context: ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
+		Method:        "GET",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
+		IsIdempotent:  true,
 	}
 
 	resp, err := cm.httpClient.DoHttpRequest(req)
@@ -152,8 +161,9 @@ func (cm *CollectionManager) CollectionExists(spec CollectionSpec, opts *Collect
 
 // ScopeExistsOptions is the set of options available to the ScopeExists operation.
 type ScopeExistsOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // ScopeExists verifies whether or not a scope exists on the bucket.
@@ -173,11 +183,18 @@ func (cm *CollectionManager) ScopeExists(scopeName string, opts *ScopeExistsOpti
 		defer cancel()
 	}
 
+	retryStrategy := cm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Path:    fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
-		Method:  "GET",
-		Context: ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
+		Method:        "GET",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
+		IsIdempotent:  true,
 	}
 
 	resp, err := cm.httpClient.DoHttpRequest(req)
@@ -235,8 +252,9 @@ func (cm *CollectionManager) ScopeExists(scopeName string, opts *ScopeExistsOpti
 
 // GetScopeOptions is the set of options available to the GetScope operation.
 type GetScopeOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // GetScope gets a scope from the bucket.
@@ -256,11 +274,18 @@ func (cm *CollectionManager) GetScope(scopeName string, opts *GetScopeOptions) (
 		defer cancel()
 	}
 
+	retryStrategy := cm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Path:    fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
-		Method:  "GET",
-		Context: ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
+		Method:        "GET",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
+		IsIdempotent:  true,
 	}
 
 	resp, err := cm.httpClient.DoHttpRequest(req)
@@ -346,8 +371,9 @@ func (cm *CollectionManager) GetScope(scopeName string, opts *GetScopeOptions) (
 
 // GetAllScopesOptions is the set of options available to the GetAllScopes operation.
 type GetAllScopesOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // GetAllScopes gets all scopes from the bucket.
@@ -361,11 +387,18 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 		defer cancel()
 	}
 
+	retryStrategy := cm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Path:    fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
-		Method:  "GET",
-		Context: ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
+		Method:        "GET",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
+		IsIdempotent:  true,
 	}
 
 	resp, err := cm.httpClient.DoHttpRequest(req)
@@ -440,8 +473,9 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 
 // CreateCollectionOptions is the set of options available to the CreateCollection operation.
 type CreateCollectionOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // CreateCollection creates a new collection on the bucket.
@@ -467,16 +501,22 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 		defer cancel()
 	}
 
+	retryStrategy := cm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	posts := url.Values{}
 	posts.Add("name", spec.Name)
 
 	req := &gocbcore.HttpRequest{
-		Service:     gocbcore.ServiceType(MgmtService),
-		Path:        fmt.Sprintf("/pools/default/buckets/%s/collections/%s", cm.bucketName, spec.ScopeName),
-		Method:      "POST",
-		Body:        []byte(posts.Encode()),
-		ContentType: "application/x-www-form-urlencoded",
-		Context:     ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections/%s", cm.bucketName, spec.ScopeName),
+		Method:        "POST",
+		Body:          []byte(posts.Encode()),
+		ContentType:   "application/x-www-form-urlencoded",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
 	}
 
 	resp, err := cm.httpClient.DoHttpRequest(req)
@@ -510,8 +550,9 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 
 // DropCollectionOptions is the set of options available to the DropCollection operation.
 type DropCollectionOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // DropCollection removes a collection.
@@ -537,11 +578,17 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 		defer cancel()
 	}
 
+	retryStrategy := cm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Path:    fmt.Sprintf("/pools/default/buckets/%s/collections/%s/%s", cm.bucketName, spec.ScopeName, spec.Name),
-		Method:  "DELETE",
-		Context: ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections/%s/%s", cm.bucketName, spec.ScopeName, spec.Name),
+		Method:        "DELETE",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
 	}
 
 	resp, err := cm.httpClient.DoHttpRequest(req)
@@ -575,8 +622,9 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 
 // CreateScopeOptions is the set of options available to the CreateScope operation.
 type CreateScopeOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // CreateScope creates a new scope on the bucket.
@@ -596,16 +644,22 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 		defer cancel()
 	}
 
+	retryStrategy := cm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	posts := url.Values{}
 	posts.Add("name", scopeName)
 
 	req := &gocbcore.HttpRequest{
-		Service:     gocbcore.ServiceType(MgmtService),
-		Path:        fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
-		Method:      "POST",
-		Body:        []byte(posts.Encode()),
-		ContentType: "application/x-www-form-urlencoded",
-		Context:     ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
+		Method:        "POST",
+		Body:          []byte(posts.Encode()),
+		ContentType:   "application/x-www-form-urlencoded",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
 	}
 
 	resp, err := cm.httpClient.DoHttpRequest(req)
@@ -639,8 +693,9 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 
 // DropScopeOptions is the set of options available to the DropScope operation.
 type DropScopeOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // DropScope removes a scope.
@@ -654,11 +709,17 @@ func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions)
 		defer cancel()
 	}
 
+	retryStrategy := cm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Path:    fmt.Sprintf("/pools/default/buckets/%s/collections/%s", cm.bucketName, scopeName),
-		Method:  "DELETE",
-		Context: ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections/%s", cm.bucketName, scopeName),
+		Method:        "DELETE",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
 	}
 
 	resp, err := cm.httpClient.DoHttpRequest(req)

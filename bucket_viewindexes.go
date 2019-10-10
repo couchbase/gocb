@@ -27,9 +27,10 @@ const (
 // ViewIndexManager provides methods for performing View management.
 // Volatile: This API is subject to change at any time.
 type ViewIndexManager struct {
-	bucketName    string
-	httpClient    httpProvider
-	globalTimeout time.Duration
+	bucketName           string
+	httpClient           httpProvider
+	globalTimeout        time.Duration
+	defaultRetryStrategy *retryStrategyWrapper
 }
 
 // View represents a Couchbase view within a design document.
@@ -50,8 +51,9 @@ type DesignDocument struct {
 
 // GetDesignDocumentOptions is the set of options available to the ViewIndexManager GetDesignDocument operation.
 type GetDesignDocumentOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 func (vm *ViewIndexManager) ddocName(name string, isProd DesignDocumentNamespace) string {
@@ -81,15 +83,30 @@ func (vm *ViewIndexManager) GetDesignDocument(name string, namespace DesignDocum
 
 	name = vm.ddocName(name, namespace)
 
+	retryStrategy := vm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(CapiService),
-		Path:    fmt.Sprintf("/_design/%s", name),
-		Method:  "GET",
-		Context: ctx,
+		Service:       gocbcore.ServiceType(CapiService),
+		Path:          fmt.Sprintf("/_design/%s", name),
+		Method:        "GET",
+		Context:       ctx,
+		IsIdempotent:  true,
+		RetryStrategy: retryStrategy,
 	}
 
 	resp, err := vm.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return nil, err
 	}
 
@@ -123,8 +140,9 @@ func (vm *ViewIndexManager) GetDesignDocument(name string, namespace DesignDocum
 
 // GetAllDesignDocumentsOptions is the set of options available to the ViewIndexManager GetAllDesignDocuments operation.
 type GetAllDesignDocumentsOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // GetAllDesignDocuments will retrieve all design documents for the given bucket.
@@ -138,15 +156,30 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamesp
 		defer cancel()
 	}
 
+	retryStrategy := vm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Path:    fmt.Sprintf("/pools/default/buckets/%s/ddocs", vm.bucketName),
-		Method:  "GET",
-		Context: ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/ddocs", vm.bucketName),
+		Method:        "GET",
+		Context:       ctx,
+		IsIdempotent:  true,
+		RetryStrategy: retryStrategy,
 	}
 
 	resp, err := vm.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return nil, err
 	}
 
@@ -193,8 +226,9 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamesp
 
 // UpsertDesignDocumentOptions is the set of options available to the ViewIndexManager UpsertDesignDocument operation.
 type UpsertDesignDocumentOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // UpsertDesignDocument will insert a design document to the given bucket, or update
@@ -216,16 +250,30 @@ func (vm *ViewIndexManager) UpsertDesignDocument(ddoc DesignDocument, namespace 
 
 	ddoc.Name = vm.ddocName(ddoc.Name, namespace)
 
+	retryStrategy := vm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(CapiService),
-		Path:    fmt.Sprintf("/_design/%s", ddoc.Name),
-		Method:  "PUT",
-		Body:    data,
-		Context: ctx,
+		Service:       gocbcore.ServiceType(CapiService),
+		Path:          fmt.Sprintf("/_design/%s", ddoc.Name),
+		Method:        "PUT",
+		Body:          data,
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
 	}
 
 	resp, err := vm.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return err
 	}
 
@@ -246,8 +294,9 @@ func (vm *ViewIndexManager) UpsertDesignDocument(ddoc DesignDocument, namespace 
 
 // DropDesignDocumentOptions is the set of options available to the ViewIndexManager Upsert operation.
 type DropDesignDocumentOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // DropDesignDocument will remove a design document from the given bucket.
@@ -263,15 +312,29 @@ func (vm *ViewIndexManager) DropDesignDocument(name string, namespace DesignDocu
 
 	name = vm.ddocName(name, namespace)
 
+	retryStrategy := vm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(CapiService),
-		Path:    fmt.Sprintf("/_design/%s", name),
-		Method:  "DELETE",
-		Context: ctx,
+		Service:       gocbcore.ServiceType(CapiService),
+		Path:          fmt.Sprintf("/_design/%s", name),
+		Method:        "DELETE",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
 	}
 
 	resp, err := vm.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+			}
+		}
+
 		return err
 	}
 
@@ -296,8 +359,9 @@ func (vm *ViewIndexManager) DropDesignDocument(name string, namespace DesignDocu
 
 // PublishDesignDocumentOptions is the set of options available to the ViewIndexManager PublishDesignDocument operation.
 type PublishDesignDocumentOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // PublishDesignDocument publishes a design document to the given bucket.
@@ -312,7 +376,8 @@ func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesi
 	}
 
 	devdoc, err := vm.GetDesignDocument(name, false, &GetDesignDocumentOptions{
-		Context: ctx,
+		Context:       ctx,
+		RetryStrategy: opts.RetryStrategy,
 	})
 	if err != nil {
 		indexErr, ok := err.(viewIndexError)
@@ -325,7 +390,8 @@ func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesi
 	}
 
 	err = vm.UpsertDesignDocument(*devdoc, true, &UpsertDesignDocumentOptions{
-		Context: ctx,
+		Context:       ctx,
+		RetryStrategy: opts.RetryStrategy,
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to create ")
