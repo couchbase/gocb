@@ -211,3 +211,29 @@ func (c *testCluster) CreateBreweryDataset(col *Collection) error {
 
 	return nil
 }
+
+func waitForCollection(bucket *Bucket, name string) error {
+	timer := time.NewTimer(1 * time.Second)
+
+	for {
+		select {
+		case <-timer.C:
+			return errors.New("wait time for collection to become available expired")
+		default:
+			col := bucket.Collection(name)
+			_, err := col.Get("test", nil)
+			if err != nil {
+				if IsCollectionNotFoundError(err) {
+					time.Sleep(100 * time.Millisecond)
+					continue
+				}
+
+				if !IsKeyNotFoundError(err) {
+					return err
+				}
+			}
+
+			return nil
+		}
+	}
+}

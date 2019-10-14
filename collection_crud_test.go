@@ -596,7 +596,10 @@ func TestCollectionRetry(t *testing.T) {
 		t.Fatalf("Could not create collection: %v", err)
 	}
 
-	time.Sleep(500 * time.Millisecond)
+	err = waitForCollection(globalBucket, collectionName)
+	if err != nil {
+		t.Fatalf("Failed waiting for collection: %v", err)
+	}
 
 	col := globalBucket.Collection(collectionName)
 
@@ -620,6 +623,13 @@ func TestCollectionRetry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not create collection: %v", err)
 	}
+
+	err = waitForCollection(globalBucket, collectionName)
+	if err != nil {
+		t.Fatalf("Failed waiting for collection: %v", err)
+	}
+
+	time.Sleep(500 * time.Millisecond)
 
 	// We've wiped the collection so we need to recreate this doc
 	mutRes, err = col.Upsert("insertRetryDoc", doc, nil)
