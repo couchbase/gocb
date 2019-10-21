@@ -331,12 +331,5 @@ func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesi
 		return errors.Wrap(err, "failed to create ")
 	}
 
-	err = vm.DropDesignDocument(devdoc.Name, false, &DropDesignDocumentOptions{
-		Context: ctx,
-	})
-	if err != nil {
-		return viewIndexError{message: fmt.Sprintf("failed to drop development index: %v", err), publishDropFail: true}
-	}
-
 	return nil
 }
