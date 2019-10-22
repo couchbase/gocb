@@ -71,8 +71,8 @@ func (qm *QueryIndexManager) createIndex(tracectx requestSpanContext, bucketName
 				return nil
 			}
 			return queryIndexError{
-				indexExists: true,
-				message:     "the index specified already exists",
+				statusCode: 409,
+				message:    err.Error(),
 			}
 		}
 		return err
@@ -188,8 +188,8 @@ func (qm *QueryIndexManager) dropIndex(tracectx requestSpanContext, bucketName, 
 				return nil
 			}
 			return queryIndexError{
-				indexExists: true,
-				message:     "the index specified does not exist",
+				indexMissing: true,
+				message:      err.Error(),
 			}
 		}
 		return err

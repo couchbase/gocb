@@ -919,10 +919,28 @@ func IsServiceNotConfiguredError(err error) bool {
 	}
 }
 
+// IsFeatureNotFoundError verifies that an error occurred because the requested feature is not supported by the server.
+func IsFeatureNotFoundError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case FeatureNotFoundError:
+		return errType.FeatureNotFoundError()
+	case HTTPError:
+		return errType.HTTPStatus() == 404 && errType.Error() == "Not Found."
+	default:
+		return false
+	}
+}
+
 // HTTPError indicates that an error occurred with a valid HTTP response for an operation.
 type HTTPError interface {
 	error
 	HTTPStatus() int
+}
+
+// FeatureNotFoundError indicates that an error occurred because the requested feature is not supported by the server.
+type FeatureNotFoundError interface {
+	error
+	FeatureNotFoundError() bool
 }
 
 // InvalidArgumentsError indicates that invalid arguments were provided to an operation.
@@ -1313,6 +1331,10 @@ func (e viewIndexError) DesignDocumentPublishDropFailError() bool {
 	return e.publishDropFail
 }
 
+func (e viewIndexError) FeatureNotFoundError() bool {
+	return e.statusCode == 404 && e.message == "Not Found."
+}
+
 // BucketManagerError occurs for errors created By Couchbase Server when performing bucket management.
 type BucketManagerError interface {
 	error
@@ -1322,10 +1344,8 @@ type BucketManagerError interface {
 }
 
 type bucketManagerError struct {
-	statusCode    int
-	message       string
-	bucketMissing bool
-	bucketExists  bool
+	statusCode int
+	message    string
 }
 
 func (e bucketManagerError) Error() string {
@@ -1339,12 +1359,16 @@ func (e bucketManagerError) HTTPStatus() int {
 
 // BucketNotFoundError indicates that a bucket could not be found.
 func (e bucketManagerError) BucketNotFoundError() bool {
-	return e.bucketMissing
+	return e.statusCode == 404 && strings.Contains(e.message, "Requested resource not found")
 }
 
 // BucketExistsError indicates that a bucket already exists.
 func (e bucketManagerError) BucketExistsError() bool {
-	return e.bucketExists
+	return e.statusCode == 404 && strings.Contains(e.message, "Bucket with given name already exists")
+}
+
+func (e bucketManagerError) FeatureNotFoundError() bool {
+	return e.statusCode == 404 && e.message == "Not Found."
 }
 
 // QueryIndexesError occurs for errors created By Couchbase Server when performing query index management.
@@ -1353,13 +1377,13 @@ type QueryIndexesError interface {
 	HTTPStatus() int
 	QueryIndexNotFoundError() bool
 	QueryIndexExistsError() bool
+	BucketNotFoundError() bool
 }
 
 type queryIndexError struct {
 	statusCode   int
 	message      string
 	indexMissing bool
-	indexExists  bool
 }
 
 func (e queryIndexError) Error() string {
@@ -1383,7 +1407,16 @@ func (e queryIndexError) QueryIndexNotFoundError() bool {
 
 // QueryIndexExistsError indicates that an index already exists.
 func (e queryIndexError) QueryIndexExistsError() bool {
-	return e.indexExists
+	return e.statusCode == 409 && strings.Contains(strings.ToLower(e.message), "already exists")
+}
+
+// BucketNotFoundError indicates that a bucket with a given name could not be found.
+func (e queryIndexError) BucketNotFoundError() bool {
+	return e.statusCode == 500 && strings.Contains(strings.ToLower(e.message), "no bucket named")
+}
+
+func (e queryIndexError) FeatureNotFoundError() bool {
+	return e.statusCode == 404 && e.message == "Not Found."
 }
 
 // UserManagerError occurs for errors created By Couchbase Server when performing user management.
@@ -1409,8 +1442,7 @@ func (e userManagerError) HTTPStatus() int {
 
 // UserNotFoundError indicates that a specified user could not be found.
 func (e userManagerError) UserNotFoundError() bool {
-	if strings.Contains(strings.ToLower(e.message), "unknown user") ||
-		strings.Contains(strings.ToLower(e.message), "not found") {
+	if strings.Contains(strings.ToLower(e.message), "unknown user.") {
 		return true
 	}
 
@@ -1419,11 +1451,15 @@ func (e userManagerError) UserNotFoundError() bool {
 
 // GroupNotFoundError indicates that a specified group could not be found.
 func (e userManagerError) GroupNotFoundError() bool {
-	if strings.Contains(strings.ToLower(e.message), "not found") {
+	if strings.Contains(strings.ToLower(e.message), "unknown group.") {
 		return true
 	}
 
 	return false
+}
+
+func (e userManagerError) FeatureNotFoundError() bool {
+	return e.statusCode == 404 && e.message == "Not Found."
 }
 
 // AnalyticsIndexesError occurs for errors created By Couchbase Server when performing analytics index management.
@@ -1519,6 +1555,10 @@ func (e analyticsIndexesError) AnalyticsLinkNotFoundError() bool {
 	return false
 }
 
+func (e analyticsIndexesError) FeatureNotFoundError() bool {
+	return e.statusCode == 404 && e.message == "Not Found."
+}
+
 // SearchIndexesError occurs for errors created By Couchbase Server when performing search index management.
 type SearchIndexesError interface {
 	error
@@ -1547,11 +1587,15 @@ func (e searchIndexError) Code() int {
 
 // SearchIndexNotFoundError indicates that an index could not be found.
 func (e searchIndexError) SearchIndexNotFoundError() bool {
-	if strings.Contains(strings.ToLower(e.message), "not found") {
+	if strings.Contains(strings.ToLower(e.message), "index not found") {
 		return true
 	}
 
 	return false
+}
+
+func (e searchIndexError) FeatureNotFoundError() bool {
+	return e.statusCode == 404 && e.message == "Not Found."
 }
 
 func maybeEnhanceKVErr(err error, key string, isInsertOp bool) error {
