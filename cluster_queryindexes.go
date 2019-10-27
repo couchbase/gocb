@@ -32,6 +32,10 @@ type createQueryIndexOptions struct {
 }
 
 func (qm *QueryIndexManager) createIndex(bucketName, indexName string, fields []string, opts createQueryIndexOptions) error {
+	return qm.createIndexWhere(bucketName, indexName, fields, opts, "")
+}
+
+func (qm *QueryIndexManager) createIndexWhere(bucketName, indexName string, fields []string, opts createQueryIndexOptions, condition string) error {
 	var qs string
 
 	if len(fields) == 0 {
@@ -52,6 +56,9 @@ func (qm *QueryIndexManager) createIndex(bucketName, indexName string, fields []
 			qs += "`" + fields[i] + "`"
 		}
 		qs += ")"
+	}
+	if condition != "" {
+		qs += " WHERE " + condition
 	}
 	if opts.Deferred {
 		qs += " WITH {\"defer_build\": true}"
@@ -112,6 +119,35 @@ func (qm *QueryIndexManager) CreateIndex(bucketName, indexName string, fields []
 		Deferred:       opts.Deferred,
 		Context:        ctx,
 	})
+}
+
+// CreateIndexWhere creates an index over the specified fields with where condition and params
+func (qm *QueryIndexManager) CreateIndexWhere(bucketName, indexName string, fields []string, opts *CreateQueryIndexOptions, whereFormat string) error {
+	if indexName == "" {
+		return invalidArgumentsError{
+			message: "an invalid index name was specified",
+		}
+	}
+	if len(fields) <= 0 {
+		return invalidArgumentsError{
+			message: "you must specify at least one field to index",
+		}
+	}
+
+	if opts == nil {
+		opts = &CreateQueryIndexOptions{}
+	}
+
+	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, qm.globalTimeout)
+	if cancel != nil {
+		defer cancel()
+	}
+
+	return qm.createIndexWhere(bucketName, indexName, fields, createQueryIndexOptions{
+		IgnoreIfExists: opts.IgnoreIfExists,
+		Deferred:       opts.Deferred,
+		Context:        ctx,
+	}, whereFormat)
 }
 
 // CreatePrimaryQueryIndexOptions is the set of options available to the query indexes CreatePrimaryIndex operation.
