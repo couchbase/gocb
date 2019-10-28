@@ -120,13 +120,16 @@ func (c *Collection) LookupIn(id string, ops []LookupInSpec, opts *LookupInOptio
 		opts = &LookupInOptions{}
 	}
 
+	span := c.startKvOpTrace("LookupIn", nil)
+	defer span.Finish()
+
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.lookupIn(ctx, id, ops, startTime, *opts)
+	res, err := c.lookupIn(ctx, span.Context(), id, ops, startTime, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +137,8 @@ func (c *Collection) LookupIn(id string, ops []LookupInSpec, opts *LookupInOptio
 	return res, nil
 }
 
-func (c *Collection) lookupIn(ctx context.Context, id string, ops []LookupInSpec, startTime time.Time, opts LookupInOptions) (docOut *LookupInResult, errOut error) {
+func (c *Collection) lookupIn(ctx context.Context, tracectx requestSpanContext, id string, ops []LookupInSpec,
+	startTime time.Time, opts LookupInOptions) (docOut *LookupInResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -166,6 +170,7 @@ func (c *Collection) lookupIn(ctx context.Context, id string, ops []LookupInSpec
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
+		TraceContext:   tracectx,
 	}, func(res *gocbcore.LookupInResult, err error) {
 		if err != nil && !gocbcore.IsErrorStatus(err, gocbcore.StatusSubDocBadMulti) {
 			errOut = maybeEnhanceKVErr(err, id, false)
@@ -630,6 +635,9 @@ func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptio
 		opts = &MutateInOptions{}
 	}
 
+	span := c.startKvOpTrace("MutateIn", nil)
+	defer span.Finish()
+
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
@@ -641,7 +649,7 @@ func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptio
 		return nil, err
 	}
 
-	res, err := c.mutate(ctx, id, ops, startTime, *opts)
+	res, err := c.mutate(ctx, span.Context(), id, ops, startTime, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -662,8 +670,8 @@ func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptio
 	})
 }
 
-func (c *Collection) mutate(ctx context.Context, id string, ops []MutateInSpec, startTime time.Time,
-	opts MutateInOptions) (mutOut *MutateInResult, errOut error) {
+func (c *Collection) mutate(ctx context.Context, tracectx requestSpanContext, id string, ops []MutateInSpec,
+	startTime time.Time, opts MutateInOptions) (mutOut *MutateInResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -722,11 +730,13 @@ func (c *Collection) mutate(ctx context.Context, id string, ops []MutateInSpec, 
 
 		var marshaled []byte
 		var err error
+		etrace := c.startKvOpTrace("encode", tracectx)
 		if op.op.MultiValue {
 			marshaled, err = c.encodeMultiArray(op.op.Value, serializer)
 		} else {
 			marshaled, err = serializer.Serialize(op.op.Value)
 		}
+		etrace.Finish()
 		if err != nil {
 			return nil, err
 		}
@@ -763,6 +773,7 @@ func (c *Collection) mutate(ctx context.Context, id string, ops []MutateInSpec, 
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
 		RetryStrategy:          retryWrapper,
+		TraceContext:           tracectx,
 	}, func(res *gocbcore.MutateInResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceKVErr(err, id, isInsertDocument)

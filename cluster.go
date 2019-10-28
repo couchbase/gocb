@@ -47,6 +47,15 @@ type ClusterOptions struct {
 	Serializer            JSONSerializer
 	DisableMutationTokens bool
 	RetryStrategy         RetryStrategy
+
+	// Orphan logging records when the SDK receives responses for requests that are no longer in the system (usually
+	// due to being timed out).
+	OrphanLoggerDisabled   bool
+	OrphanLoggerInterval   time.Duration
+	OrphanLoggerSampleSize int
+
+	ThresholdLoggerDisabled bool
+	ThresholdLoggingOptions *ThresholdLoggingOptions
 }
 
 // ClusterCloseOptions is the set of options available when disconnecting from a Cluster.
@@ -125,24 +134,43 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 		opts.RetryStrategy = NewBestEffortRetryStrategy(nil)
 	}
 
+	useServerDurations := true
+	var initialTracer requestTracer
+	if opts.ThresholdLoggerDisabled {
+		initialTracer = &noopTracer{}
+	} else {
+		// When we expose tracing we will need to setup a composite tracer here in the user also has
+		// a tracer set.
+		initialTracer = newThresholdLoggingTracer(opts.ThresholdLoggingOptions)
+		if opts.ThresholdLoggingOptions != nil && opts.ThresholdLoggingOptions.ServerDurationDisabled {
+			useServerDurations = false
+		}
+	}
+	tracerAddRef(initialTracer)
+
 	cluster := &Cluster{
 		cSpec:       connSpec,
 		auth:        opts.Authenticator,
 		connections: make(map[string]client),
 		sb: stateBlock{
-			ConnectTimeout:       connectTimeout,
-			QueryTimeout:         queryTimeout,
-			AnalyticsTimeout:     analyticsTimeout,
-			SearchTimeout:        searchTimeout,
-			ViewTimeout:          viewTimeout,
-			KvTimeout:            kvTimeout,
-			DuraTimeout:          40000 * time.Millisecond,
-			DuraPollTimeout:      100 * time.Millisecond,
-			Transcoder:           opts.Transcoder,
-			Serializer:           opts.Serializer,
-			UseMutationTokens:    !opts.DisableMutationTokens,
-			ManagementTimeout:    managementTimeout,
-			RetryStrategyWrapper: newRetryStrategyWrapper(opts.RetryStrategy),
+			ConnectTimeout:         connectTimeout,
+			QueryTimeout:           queryTimeout,
+			AnalyticsTimeout:       analyticsTimeout,
+			SearchTimeout:          searchTimeout,
+			ViewTimeout:            viewTimeout,
+			KvTimeout:              kvTimeout,
+			DuraTimeout:            40000 * time.Millisecond,
+			DuraPollTimeout:        100 * time.Millisecond,
+			Transcoder:             opts.Transcoder,
+			Serializer:             opts.Serializer,
+			UseMutationTokens:      !opts.DisableMutationTokens,
+			ManagementTimeout:      managementTimeout,
+			RetryStrategyWrapper:   newRetryStrategyWrapper(opts.RetryStrategy),
+			OrphanLoggerEnabled:    !opts.OrphanLoggerDisabled,
+			OrphanLoggerInterval:   opts.OrphanLoggerInterval,
+			OrphanLoggerSampleSize: opts.OrphanLoggerSampleSize,
+			UseServerDurations:     useServerDurations,
+			Tracer:                 initialTracer,
 		},
 
 		queryCache: make(map[string]*n1qlCache),
@@ -341,6 +369,11 @@ func (c *Cluster) Close(opts *ClusterCloseOptions) error {
 	}
 	c.clusterLock.Unlock()
 
+	if c.sb.Tracer != nil {
+		tracerDecRef(c.sb.Tracer)
+		c.sb.Tracer = nil
+	}
+
 	return overallErr
 }
 
@@ -477,6 +510,7 @@ func (c *Cluster) QueryIndexes() (*QueryIndexManager, error) {
 }
 
 // SearchIndexes returns a SearchIndexManager for managing Search indexes.
+// Volatile: This API is subject to change at any time.
 func (c *Cluster) SearchIndexes() (*SearchIndexManager, error) {
 	provider, err := c.getHTTPProvider()
 	if err != nil {

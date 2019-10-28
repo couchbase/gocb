@@ -21,6 +21,8 @@ type stateBlock struct {
 	ScopeName      string
 	CollectionName string
 
+	UseServerDurations bool
+
 	ConnectTimeout  time.Duration
 	KvTimeout       time.Duration
 	DuraTimeout     time.Duration
@@ -39,7 +41,12 @@ type stateBlock struct {
 	Transcoder Transcoder
 	Serializer JSONSerializer
 
-	RetryStrategyWrapper *retryStrategyWrapper
+	RetryStrategyWrapper   *retryStrategyWrapper
+	OrphanLoggerEnabled    bool
+	OrphanLoggerInterval   time.Duration
+	OrphanLoggerSampleSize int
+
+	Tracer requestTracer
 }
 
 func (sb *stateBlock) getCachedClient() client {

@@ -31,6 +31,9 @@ func newBucket(sb *stateBlock, bucketName string, opts BucketOptions) *Bucket {
 			Serializer: sb.Serializer,
 
 			RetryStrategyWrapper: sb.RetryStrategyWrapper,
+
+			UseServerDurations: sb.UseServerDurations,
+			Tracer:             sb.Tracer,
 		},
 	}
 }

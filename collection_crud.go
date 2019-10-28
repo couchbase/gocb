@@ -168,6 +168,9 @@ func (c *Collection) Insert(id string, val interface{}, opts *InsertOptions) (mu
 		opts = &InsertOptions{}
 	}
 
+	span := c.startKvOpTrace("Insert", nil)
+	defer span.Finish()
+
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
@@ -178,7 +181,7 @@ func (c *Collection) Insert(id string, val interface{}, opts *InsertOptions) (mu
 		return nil, err
 	}
 
-	res, err := c.insert(ctx, id, val, startTime, *opts)
+	res, err := c.insert(ctx, span.Context(), id, val, startTime, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -199,8 +202,8 @@ func (c *Collection) Insert(id string, val interface{}, opts *InsertOptions) (mu
 	})
 }
 
-func (c *Collection) insert(ctx context.Context, id string, val interface{}, startTime time.Time,
-	opts InsertOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) insert(ctx context.Context, tracectx requestSpanContext, id string, val interface{},
+	startTime time.Time, opts InsertOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		errOut = err
@@ -212,7 +215,9 @@ func (c *Collection) insert(ctx context.Context, id string, val interface{}, sta
 		transcoder = c.sb.Transcoder
 	}
 
+	espan := c.startKvOpTrace("encode", tracectx)
 	bytes, flags, err := transcoder.Encode(val)
+	espan.Finish()
 	if err != nil {
 		errOut = err
 		return
@@ -241,6 +246,7 @@ func (c *Collection) insert(ctx context.Context, id string, val interface{}, sta
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
 		RetryStrategy:          retryWrapper,
+		TraceContext:           tracectx,
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceKVErr(err, id, true)
@@ -275,6 +281,9 @@ func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mu
 		opts = &UpsertOptions{}
 	}
 
+	span := c.startKvOpTrace("Upsert", nil)
+	defer span.Finish()
+
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
@@ -285,7 +294,7 @@ func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mu
 		return nil, err
 	}
 
-	res, err := c.upsert(ctx, id, val, startTime, *opts)
+	res, err := c.upsert(ctx, span.Context(), id, val, startTime, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -305,9 +314,8 @@ func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mu
 		collectionName: c.name(),
 	})
 }
-
-func (c *Collection) upsert(ctx context.Context, id string, val interface{}, startTime time.Time,
-	opts UpsertOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) upsert(ctx context.Context, tracectx requestSpanContext, id string, val interface{},
+	startTime time.Time, opts UpsertOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		errOut = err
@@ -324,7 +332,9 @@ func (c *Collection) upsert(ctx context.Context, id string, val interface{}, sta
 		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	espan := c.startKvOpTrace("encode", tracectx)
 	bytes, flags, err := transcoder.Encode(val)
+	espan.Finish()
 	if err != nil {
 		errOut = err
 		return
@@ -348,6 +358,7 @@ func (c *Collection) upsert(ctx context.Context, id string, val interface{}, sta
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
 		RetryStrategy:          retryWrapper,
+		TraceContext:           tracectx,
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceKVErr(err, id, false)
@@ -395,6 +406,9 @@ func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (
 		opts = &ReplaceOptions{}
 	}
 
+	span := c.startKvOpTrace("Replace", nil)
+	defer span.Finish()
+
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
@@ -405,7 +419,7 @@ func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (
 		return nil, err
 	}
 
-	res, err := c.replace(ctx, id, val, startTime, *opts)
+	res, err := c.replace(ctx, span.Context(), id, val, startTime, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -426,8 +440,8 @@ func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (
 	})
 }
 
-func (c *Collection) replace(ctx context.Context, id string, val interface{}, startTime time.Time,
-	opts ReplaceOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) replace(ctx context.Context, tracectx requestSpanContext, id string, val interface{},
+	startTime time.Time, opts ReplaceOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -443,7 +457,9 @@ func (c *Collection) replace(ctx context.Context, id string, val interface{}, st
 		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	espan := c.startKvOpTrace("encode", tracectx)
 	bytes, flags, err := transcoder.Encode(val)
+	espan.Finish()
 	if err != nil {
 		errOut = err
 		return
@@ -468,6 +484,7 @@ func (c *Collection) replace(ctx context.Context, id string, val interface{}, st
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
 		RetryStrategy:          retryWrapper,
+		TraceContext:           tracectx,
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceKVErr(err, id, false)
@@ -517,6 +534,9 @@ func (c *Collection) Get(id string, opts *GetOptions) (docOut *GetResult, errOut
 		opts = &GetOptions{}
 	}
 
+	span := c.startKvOpTrace("Get", nil)
+	defer span.Finish()
+
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
@@ -529,7 +549,7 @@ func (c *Collection) Get(id string, opts *GetOptions) (docOut *GetResult, errOut
 	projections := opts.Project
 	if len(projections) == 0 && !opts.WithExpiry {
 		// Standard fulldoc
-		doc, err := c.get(ctx, id, startTime, opts)
+		doc, err := c.get(ctx, span.Context(), id, startTime, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -546,7 +566,7 @@ func (c *Collection) Get(id string, opts *GetOptions) (docOut *GetResult, errOut
 	}
 
 	var ops []LookupInSpec
-	lookupOpts := LookupInOptions{Context: ctx}
+	lookupOpts := &LookupInOptions{Context: ctx}
 
 	if opts.WithExpiry {
 		ops = append(ops, GetSpec("$document.exptime", &GetSpecOptions{IsXattr: true}))
@@ -560,7 +580,7 @@ func (c *Collection) Get(id string, opts *GetOptions) (docOut *GetResult, errOut
 		}
 	}
 
-	result, err := c.lookupIn(ctx, id, ops, startTime, lookupOpts)
+	result, err := c.lookupIn(ctx, span.Context(), id, ops, startTime, *lookupOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -594,8 +614,8 @@ func (c *Collection) Get(id string, opts *GetOptions) (docOut *GetResult, errOut
 }
 
 // get performs a full document fetch against the collection
-func (c *Collection) get(ctx context.Context, id string, startTime time.Time,
-	opts *GetOptions) (docOut *GetResult, errOut error) {
+func (c *Collection) get(ctx context.Context, tracectx requestSpanContext, id string,
+	startTime time.Time, opts *GetOptions) (docOut *GetResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -606,12 +626,16 @@ func (c *Collection) get(ctx context.Context, id string, startTime time.Time,
 		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	span := c.startKvOpTrace("get", tracectx)
+	defer span.Finish()
+
 	ctrl := c.newOpManager(ctx, startTime, "Get")
 	err = ctrl.wait(agent.GetEx(gocbcore.GetOptions{
 		Key:            []byte(id),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
+		TraceContext:   span.Context(),
 	}, func(res *gocbcore.GetResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceKVErr(err, id, false)
@@ -653,12 +677,15 @@ func (c *Collection) Exists(id string, opts *ExistsOptions) (docOut *ExistsResul
 		opts = &ExistsOptions{}
 	}
 
+	span := c.startKvOpTrace("Exists", nil)
+	defer span.Finish()
+
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.exists(ctx, id, startTime, *opts)
+	res, err := c.exists(ctx, span.Context(), id, startTime, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -666,7 +693,7 @@ func (c *Collection) Exists(id string, opts *ExistsOptions) (docOut *ExistsResul
 	return res, nil
 }
 
-func (c *Collection) exists(ctx context.Context, id string, startTime time.Time,
+func (c *Collection) exists(ctx context.Context, tracectx requestSpanContext, id string, startTime time.Time,
 	opts ExistsOptions) (docOut *ExistsResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
@@ -685,6 +712,7 @@ func (c *Collection) exists(ctx context.Context, id string, startTime time.Time,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
+		TraceContext:   tracectx,
 	}, func(res *gocbcore.ObserveResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceKVErr(err, id, false)
@@ -726,12 +754,15 @@ func (c *Collection) GetAnyReplica(id string, opts *GetAnyReplicaOptions) (docOu
 		opts = &GetAnyReplicaOptions{}
 	}
 
+	span := c.startKvOpTrace("GetAnyReplica", nil)
+	defer span.Finish()
+
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.getAnyReplica(ctx, id, startTime, *opts)
+	res, err := c.getAnyReplica(ctx, span.Context(), id, startTime, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -739,7 +770,7 @@ func (c *Collection) GetAnyReplica(id string, opts *GetAnyReplicaOptions) (docOu
 	return res, nil
 }
 
-func (c *Collection) getAnyReplica(ctx context.Context, id string, startTime time.Time,
+func (c *Collection) getAnyReplica(ctx context.Context, tracetx requestSpanContext, id string, startTime time.Time,
 	opts GetAnyReplicaOptions) (docOut *GetReplicaResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
@@ -761,6 +792,7 @@ func (c *Collection) getAnyReplica(ctx context.Context, id string, startTime tim
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
+		TraceContext:   tracetx,
 	}, func(res *gocbcore.GetReplicaResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceKVErr(err, id, false)
@@ -806,6 +838,9 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 		opts = &GetAllReplicaOptions{}
 	}
 
+	span := c.startKvOpTrace("GetAllReplicas", nil)
+	defer span.Finish()
+
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	agent, err := c.getKvProvider()
 	if err != nil {
@@ -828,12 +863,14 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 			CollectionName: c.name(),
 			ScopeName:      c.scopeName(),
 			RetryStrategy:  retryWrapper,
+			TraceContext:   span.Context(),
 		},
 		transcoder:  opts.Transcoder,
 		provider:    agent,
 		cancel:      cancel,
 		maxReplicas: agent.NumReplicas(),
 		startTime:   startTime,
+		span:        span,
 	}, nil
 }
 
@@ -855,6 +892,9 @@ func (c *Collection) Remove(id string, opts *RemoveOptions) (mutOut *MutationRes
 		opts = &RemoveOptions{}
 	}
 
+	span := c.startKvOpTrace("Remove", nil)
+	defer span.Finish()
+
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
@@ -865,7 +905,7 @@ func (c *Collection) Remove(id string, opts *RemoveOptions) (mutOut *MutationRes
 		return nil, err
 	}
 
-	res, err := c.remove(ctx, id, startTime, *opts)
+	res, err := c.remove(ctx, span.Context(), id, startTime, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -886,7 +926,7 @@ func (c *Collection) Remove(id string, opts *RemoveOptions) (mutOut *MutationRes
 	})
 }
 
-func (c *Collection) remove(ctx context.Context, id string, startTime time.Time,
+func (c *Collection) remove(ctx context.Context, tracectx requestSpanContext, id string, startTime time.Time,
 	opts RemoveOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
@@ -914,6 +954,7 @@ func (c *Collection) remove(ctx context.Context, id string, startTime time.Time,
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
 		RetryStrategy:          retryWrapper,
+		TraceContext:           tracectx,
 	}, func(res *gocbcore.DeleteResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceKVErr(err, id, false)
@@ -956,12 +997,15 @@ func (c *Collection) GetAndTouch(id string, expiry uint32, opts *GetAndTouchOpti
 		opts = &GetAndTouchOptions{}
 	}
 
+	span := c.startKvOpTrace("GetAndTouch", nil)
+	defer span.Finish()
+
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.getAndTouch(ctx, id, expiry, startTime, *opts)
+	res, err := c.getAndTouch(ctx, span.Context(), id, expiry, startTime, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -969,8 +1013,8 @@ func (c *Collection) GetAndTouch(id string, expiry uint32, opts *GetAndTouchOpti
 	return res, nil
 }
 
-func (c *Collection) getAndTouch(ctx context.Context, id string, expiry uint32, startTime time.Time,
-	opts GetAndTouchOptions) (docOut *GetResult, errOut error) {
+func (c *Collection) getAndTouch(ctx context.Context, tracectx requestSpanContext, id string, expiry uint32,
+	startTime time.Time, opts GetAndTouchOptions) (docOut *GetResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -992,6 +1036,7 @@ func (c *Collection) getAndTouch(ctx context.Context, id string, expiry uint32, 
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
+		TraceContext:   tracectx,
 	}, func(res *gocbcore.GetAndTouchResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceKVErr(err, id, false)
@@ -1037,21 +1082,24 @@ func (c *Collection) GetAndLock(id string, lockTime time.Duration, opts *GetAndL
 		opts = &GetAndLockOptions{}
 	}
 
+	span := c.startKvOpTrace("GetAndLock", nil)
+	defer span.Finish()
+
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.getAndLock(ctx, id, uint32(lockTime/time.Second), startTime, *opts)
+	res, err := c.getAndLock(ctx, span.Context(), id, uint32(lockTime/time.Second), startTime, *opts)
 	if err != nil {
 		return nil, err
 	}
 
 	return res, nil
 }
-func (c *Collection) getAndLock(ctx context.Context, id string, lockTime uint32, startTime time.Time,
-	opts GetAndLockOptions) (docOut *GetResult, errOut error) {
 
+func (c *Collection) getAndLock(ctx context.Context, tracectx requestSpanContext, id string, lockTime uint32,
+	startTime time.Time, opts GetAndLockOptions) (docOut *GetResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -1073,6 +1121,7 @@ func (c *Collection) getAndLock(ctx context.Context, id string, lockTime uint32,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
+		TraceContext:   tracectx,
 	}, func(res *gocbcore.GetAndLockResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceKVErr(err, id, false)
@@ -1115,12 +1164,15 @@ func (c *Collection) Unlock(id string, cas Cas, opts *UnlockOptions) (mutOut *Mu
 		opts = &UnlockOptions{}
 	}
 
+	span := c.startKvOpTrace("Unlock", nil)
+	defer span.Finish()
+
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.unlock(ctx, id, cas, startTime, *opts)
+	res, err := c.unlock(ctx, span.Context(), id, cas, startTime, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -1128,8 +1180,8 @@ func (c *Collection) Unlock(id string, cas Cas, opts *UnlockOptions) (mutOut *Mu
 	return res, nil
 }
 
-func (c *Collection) unlock(ctx context.Context, id string, cas Cas, startTime time.Time,
-	opts UnlockOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) unlock(ctx context.Context, tracectx requestSpanContext, id string, cas Cas,
+	startTime time.Time, opts UnlockOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -1147,6 +1199,7 @@ func (c *Collection) unlock(ctx context.Context, id string, cas Cas, startTime t
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
+		TraceContext:   tracectx,
 	}, func(res *gocbcore.UnlockResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceKVErr(err, id, false)
@@ -1188,12 +1241,15 @@ func (c *Collection) Touch(id string, expiry uint32, opts *TouchOptions) (mutOut
 		opts = &TouchOptions{}
 	}
 
+	span := c.startKvOpTrace("Touch", nil)
+	defer span.Finish()
+
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	res, err := c.touch(ctx, id, expiry, startTime, *opts)
+	res, err := c.touch(ctx, span.Context(), id, expiry, startTime, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -1201,8 +1257,8 @@ func (c *Collection) Touch(id string, expiry uint32, opts *TouchOptions) (mutOut
 	return res, nil
 }
 
-func (c *Collection) touch(ctx context.Context, id string, expiry uint32, startTime time.Time,
-	opts TouchOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) touch(ctx context.Context, tracectx requestSpanContext, id string, expiry uint32,
+	startTime time.Time, opts TouchOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -1220,6 +1276,7 @@ func (c *Collection) touch(ctx context.Context, id string, expiry uint32, startT
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
+		TraceContext:   tracectx,
 	}, func(res *gocbcore.TouchResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceKVErr(err, id, false)
