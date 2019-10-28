@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/couchbase/gocbcore/v8"
 )
 
@@ -42,6 +44,7 @@ type GetAllSearchIndexOptions struct {
 
 // GetAllIndexes retrieves all of the search indexes for the cluster.
 func (sim *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]SearchIndex, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &GetAllSearchIndexOptions{}
 	}
@@ -63,6 +66,7 @@ func (sim *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]
 		Context:       ctx,
 		IsIdempotent:  true,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 
 	res, err := sim.httpClient.DoHttpRequest(req)
@@ -72,6 +76,8 @@ func (sim *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "fts",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -120,6 +126,7 @@ type GetSearchIndexOptions struct {
 
 // GetIndex retrieves a specific search index by name.
 func (sim *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOptions) (*SearchIndex, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &GetSearchIndexOptions{}
 	}
@@ -141,6 +148,7 @@ func (sim *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOp
 		Context:       ctx,
 		IsIdempotent:  true,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 	resp, err := sim.httpClient.DoHttpRequest(req)
 	if err != nil {
@@ -149,6 +157,8 @@ func (sim *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOp
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "fts",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -214,6 +224,7 @@ type SearchIndex struct {
 
 // UpsertIndex creates or updates a search index.
 func (sim *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *UpsertSearchIndexOptions) error {
+	startTime := time.Now()
 	if indexDefinition.Name == "" {
 		return invalidArgumentsError{"index name cannot be empty"}
 	}
@@ -248,6 +259,7 @@ func (sim *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Up
 		Context:       ctx,
 		Body:          b,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 	req.Headers["cache-control"] = "no-cache"
 
@@ -258,6 +270,8 @@ func (sim *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Up
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "fts",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -293,6 +307,7 @@ type DropSearchIndexOptions struct {
 
 // DropIndex removes the search index with the specific name.
 func (sim *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndexOptions) error {
+	startTime := time.Now()
 	if indexName == "" {
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
@@ -317,6 +332,7 @@ func (sim *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndex
 		Path:          fmt.Sprintf("/api/index/%s", indexName),
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 	res, err := sim.httpClient.DoHttpRequest(req)
 	if err != nil {
@@ -325,6 +341,8 @@ func (sim *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndex
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "fts",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -360,6 +378,7 @@ type AnalyzeDocumentOptions struct {
 
 // AnalyzeDocument returns how a doc is analyzed against a specific index.
 func (sim *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{}, opts *AnalyzeDocumentOptions) ([]interface{}, error) {
+	startTime := time.Now()
 	if indexName == "" {
 		return nil, invalidArgumentsError{"indexName cannot be empty"}
 	}
@@ -391,6 +410,7 @@ func (sim *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{}
 		Body:          b,
 		RetryStrategy: retryStrategy,
 		IsIdempotent:  true,
+		UniqueId:      uuid.New().String(),
 	}
 	res, err := sim.httpClient.DoHttpRequest(req)
 	if err != nil {
@@ -399,6 +419,8 @@ func (sim *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{}
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "fts",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -444,6 +466,7 @@ type GetIndexedDocumentsCountOptions struct {
 
 // GetIndexedDocumentsCount retrieves the document count for a search index.
 func (sim *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *GetIndexedDocumentsCountOptions) (int, error) {
+	startTime := time.Now()
 	if indexName == "" {
 		return 0, invalidArgumentsError{"indexName cannot be empty"}
 	}
@@ -469,6 +492,7 @@ func (sim *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
 		IsIdempotent:  true,
+		UniqueId:      uuid.New().String(),
 	}
 	res, err := sim.httpClient.DoHttpRequest(req)
 	if err != nil {
@@ -477,6 +501,8 @@ func (sim *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "fts",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -512,7 +538,8 @@ func (sim *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *
 	return count.Count, nil
 }
 
-func (sim *SearchIndexManager) performControlRequest(ctx context.Context, uri, method string, strategy RetryStrategy) error {
+func (sim *SearchIndexManager) performControlRequest(ctx context.Context, uri, method string, strategy RetryStrategy,
+	startTime time.Time) error {
 	retryStrategy := sim.defaultRetryStrategy
 	if strategy == nil {
 		retryStrategy = newRetryStrategyWrapper(strategy)
@@ -524,6 +551,7 @@ func (sim *SearchIndexManager) performControlRequest(ctx context.Context, uri, m
 		Path:          uri,
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 	res, err := sim.httpClient.DoHttpRequest(req)
 	if err != nil {
@@ -532,6 +560,8 @@ func (sim *SearchIndexManager) performControlRequest(ctx context.Context, uri, m
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "fts",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -568,6 +598,7 @@ type PauseIngestSearchIndexOptions struct {
 
 // PauseIngest pauses updates and maintenance for an index.
 func (sim *SearchIndexManager) PauseIngest(indexName string, opts *PauseIngestSearchIndexOptions) error {
+	startTime := time.Now()
 	if indexName == "" {
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
@@ -582,7 +613,7 @@ func (sim *SearchIndexManager) PauseIngest(indexName string, opts *PauseIngestSe
 	}
 
 	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/ingestControl/pause", indexName),
-		"POST", opts.RetryStrategy)
+		"POST", opts.RetryStrategy, startTime)
 }
 
 // ResumeIngestSearchIndexOptions is the set of options available to the search index ResumeIngest operation.
@@ -594,6 +625,7 @@ type ResumeIngestSearchIndexOptions struct {
 
 // ResumeIngest resumes updates and maintenance for an index.
 func (sim *SearchIndexManager) ResumeIngest(indexName string, opts *ResumeIngestSearchIndexOptions) error {
+	startTime := time.Now()
 	if indexName == "" {
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
@@ -608,7 +640,7 @@ func (sim *SearchIndexManager) ResumeIngest(indexName string, opts *ResumeIngest
 	}
 
 	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/ingestControl/resume", indexName),
-		"POST", opts.RetryStrategy)
+		"POST", opts.RetryStrategy, startTime)
 }
 
 // AllowQueryingSearchIndexOptions is the set of options available to the search index AllowQuerying operation.
@@ -620,6 +652,7 @@ type AllowQueryingSearchIndexOptions struct {
 
 // AllowQuerying allows querying against an index.
 func (sim *SearchIndexManager) AllowQuerying(indexName string, opts *AllowQueryingSearchIndexOptions) error {
+	startTime := time.Now()
 	if indexName == "" {
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
@@ -633,7 +666,8 @@ func (sim *SearchIndexManager) AllowQuerying(indexName string, opts *AllowQueryi
 		defer cancel()
 	}
 
-	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/queryControl/allow", indexName), "POST", opts.RetryStrategy)
+	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/queryControl/allow", indexName),
+		"POST", opts.RetryStrategy, startTime)
 }
 
 // DisallowQueryingSearchIndexOptions is the set of options available to the search index DisallowQuerying operation.
@@ -645,6 +679,7 @@ type DisallowQueryingSearchIndexOptions struct {
 
 // DisallowQuerying disallows querying against an index.
 func (sim *SearchIndexManager) DisallowQuerying(indexName string, opts *AllowQueryingSearchIndexOptions) error {
+	startTime := time.Now()
 	if indexName == "" {
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
@@ -659,7 +694,7 @@ func (sim *SearchIndexManager) DisallowQuerying(indexName string, opts *AllowQue
 	}
 
 	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/queryControl/disallow", indexName),
-		"POST", opts.RetryStrategy)
+		"POST", opts.RetryStrategy, startTime)
 }
 
 // FreezePlanSearchIndexOptions is the set of options available to the search index FreezePlan operation.
@@ -671,6 +706,7 @@ type FreezePlanSearchIndexOptions struct {
 
 // FreezePlan freezes the assignment of index partitions to nodes.
 func (sim *SearchIndexManager) FreezePlan(indexName string, opts *AllowQueryingSearchIndexOptions) error {
+	startTime := time.Now()
 	if indexName == "" {
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
@@ -685,7 +721,7 @@ func (sim *SearchIndexManager) FreezePlan(indexName string, opts *AllowQueryingS
 	}
 
 	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/planFreezeControl/freeze", indexName),
-		"POST", opts.RetryStrategy)
+		"POST", opts.RetryStrategy, startTime)
 }
 
 // UnfreezePlanSearchIndexOptions is the set of options available to the search index UnfreezePlan operation.
@@ -697,6 +733,7 @@ type UnfreezePlanSearchIndexOptions struct {
 
 // UnfreezePlan unfreezes the assignment of index partitions to nodes.
 func (sim *SearchIndexManager) UnfreezePlan(indexName string, opts *AllowQueryingSearchIndexOptions) error {
+	startTime := time.Now()
 	if indexName == "" {
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
@@ -711,5 +748,5 @@ func (sim *SearchIndexManager) UnfreezePlan(indexName string, opts *AllowQueryin
 	}
 
 	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/planFreezeControl/unfreeze", indexName),
-		"POST", opts.RetryStrategy)
+		"POST", opts.RetryStrategy, startTime)
 }

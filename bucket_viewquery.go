@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
@@ -40,6 +41,8 @@ type ViewResult struct {
 	metadata   ViewMetadata
 	errReason  string
 	errMessage string
+	startTime  time.Time
+	endpoint   string
 
 	ctx          context.Context
 	cancel       context.CancelFunc
@@ -156,7 +159,11 @@ func (r *ViewResult) Close() error {
 		r.cancel()
 	}
 	if ctxErr == context.DeadlineExceeded {
-		return timeoutError{}
+		return timeoutError{
+			elapsed:   time.Now().Sub(r.startTime),
+			remote:    r.endpoint,
+			operation: "fts",
+		}
 	}
 	if vErr := r.makeError(); vErr != nil {
 		return vErr
@@ -286,6 +293,7 @@ func (r *ViewMetadata) Debug() interface{} {
 
 // ViewQuery performs a view query and returns a list of rows or an error.
 func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions) (*ViewResult, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &ViewOptions{}
 	}
@@ -327,7 +335,8 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 		wrapper = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	res, err := b.executeViewQuery(ctx, "_view", designDoc, viewName, *urlValues, provider, cancel, opts.Serializer, wrapper)
+	res, err := b.executeViewQuery(ctx, "_view", designDoc, viewName, *urlValues, provider, cancel,
+		opts.Serializer, wrapper, startTime)
 	if err != nil {
 		cancel()
 		return nil, err
@@ -338,7 +347,7 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 
 func (b *Bucket) executeViewQuery(ctx context.Context, viewType, ddoc, viewName string,
 	options url.Values, provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer,
-	wrapper *retryStrategyWrapper) (*ViewResult, error) {
+	wrapper *retryStrategyWrapper, startTime time.Time) (*ViewResult, error) {
 	reqUri := fmt.Sprintf("/_design/%s/%s/%s?%s", ddoc, viewType, viewName, options.Encode())
 	req := &gocbcore.HttpRequest{
 		Service:       gocbcore.CapiService,
@@ -360,6 +369,9 @@ func (b *Bucket) executeViewQuery(ctx context.Context, viewType, ddoc, viewName 
 				operationID:   req.Identifier(),
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				elapsed:       time.Now().Sub(startTime),
+				remote:        req.Endpoint,
+				operation:     "view",
 			}
 		}
 
@@ -368,6 +380,8 @@ func (b *Bucket) executeViewQuery(ctx context.Context, viewType, ddoc, viewName 
 
 	queryResults := &ViewResult{
 		serializer: serializer,
+		startTime:  startTime,
+		endpoint:   resp.Endpoint,
 	}
 
 	if resp.StatusCode == 500 {

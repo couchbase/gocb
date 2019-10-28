@@ -3,6 +3,7 @@ package gocb
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
@@ -134,6 +135,10 @@ type TimeoutErrorWithDetail interface {
 	OperationID() string
 	RetryAttempts() uint32
 	RetryReasons() []RetryReason
+	LocalAddress() string
+	RemoteAddress() string
+	Elapsed() time.Duration
+	Operation() string
 }
 
 // TimeoutError occurs when an operation times out.
@@ -145,6 +150,11 @@ type timeoutError struct {
 	operationID   string
 	retryReasons  []gocbcore.RetryReason
 	retryAttempts uint32
+	operation     string
+	local         string
+	remote        string
+	elapsed       time.Duration
+	connectionID  string
 }
 
 func (err timeoutError) Error() string {
@@ -161,6 +171,23 @@ func (err timeoutError) Error() string {
 			reasons = append(reasons, reason.Description())
 		}
 		base = fmt.Sprintf("%s, retryReasons: [%s]", base, strings.Join(reasons, ","))
+	}
+	if err.local != "" {
+		base = fmt.Sprintf("%s, lastDispatchedFrom: %s", base, err.local)
+	}
+	if err.remote != "" {
+		base = fmt.Sprintf("%s, lastDispatchedTo: %s", base, err.remote)
+	}
+	if err.connectionID != "" {
+		base = fmt.Sprintf("%s, lastConnectionID: %s", base, err.connectionID)
+	}
+	if err.elapsed != 0 {
+		base = fmt.Sprintf("%s, totalMicros: %d", base, err.elapsed/time.Microsecond)
+	}
+	if err.operation != "" {
+		if err.elapsed != 0 {
+			base = fmt.Sprintf("%s, operation: %s", base, err.operation)
+		}
 	}
 
 	return base
@@ -184,6 +211,22 @@ func (err timeoutError) RetryReasons() []RetryReason {
 		reasons = append(reasons, RetryReason(reason))
 	}
 	return reasons
+}
+
+func (err timeoutError) LocalAddress() string {
+	return err.local
+}
+
+func (err timeoutError) RemoteAddress() string {
+	return err.remote
+}
+
+func (err timeoutError) Elapsed() time.Duration {
+	return err.elapsed
+}
+
+func (err timeoutError) Operation() string {
+	return err.operation
 }
 
 type serviceNotAvailableError struct {

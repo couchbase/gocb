@@ -559,6 +559,8 @@ func TestAnalyticsQueryClientSideTimeout(t *testing.T) {
 	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
 		testAssertAnalyticsQueryRequest(t, req)
 
+		req.Endpoint = "testendpoint"
+
 		var opts map[string]interface{}
 		err := json.Unmarshal(req.Body, &opts)
 		if err != nil {
@@ -594,9 +596,27 @@ func TestAnalyticsQueryClientSideTimeout(t *testing.T) {
 	_, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		ServerSideTimeout: timeout,
 		Context:           ctx,
+		ClientContextID:   "testclientcontext",
 	})
-	if err == nil || !IsTimeoutError(err) {
+	if !IsTimeoutError(err) {
 		t.Fatal(err)
+	}
+
+	tErr := err.(TimeoutErrorWithDetail)
+	if tErr.RemoteAddress() != "testendpoint" {
+		t.Fatalf("Expected RemoteAddress to be testendpoint but was %s", tErr.RemoteAddress())
+	}
+
+	if tErr.OperationID() != "testclientcontext" {
+		t.Fatalf("Expected OperationID to be testclientcontext but was %s", tErr.OperationID())
+	}
+
+	if tErr.Operation() != "cbas" {
+		t.Fatalf("Expected Operation to be cbas but was %s", tErr.Operation())
+	}
+
+	if tErr.Elapsed() == 0 {
+		t.Fatalf("Expected Elapsed to be non zero")
 	}
 }
 
@@ -618,6 +638,8 @@ func TestAnalyticsQueryStreamTimeout(t *testing.T) {
 	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
 		retries++
 		testAssertAnalyticsQueryRequest(t, req)
+
+		req.Endpoint = "testendpoint"
 
 		var opts map[string]interface{}
 		err := json.Unmarshal(req.Body, &opts)
@@ -661,9 +683,27 @@ func TestAnalyticsQueryStreamTimeout(t *testing.T) {
 	_, err = cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		ServerSideTimeout: timeout,
 		Context:           ctx,
+		ClientContextID:   "testclientcontext",
 	})
-	if err == nil || !IsTimeoutError(err) {
+	if !IsTimeoutError(err) {
 		t.Fatalf("Error should have been timeout but was %v", err)
+	}
+
+	tErr := err.(TimeoutErrorWithDetail)
+	if tErr.RemoteAddress() != "testendpoint" {
+		t.Fatalf("Expected RemoteAddress to be testendpoint but was %s", tErr.RemoteAddress())
+	}
+
+	if tErr.OperationID() != "testclientcontext" {
+		t.Fatalf("Expected OperationID to be testclientcontext but was %s", tErr.OperationID())
+	}
+
+	if tErr.Operation() != "cbas" {
+		t.Fatalf("Expected Operation to be cbas but was %s", tErr.Operation())
+	}
+
+	if tErr.Elapsed() == 0 {
+		t.Fatalf("Expected Elapsed to be non zero")
 	}
 }
 
@@ -677,6 +717,8 @@ func TestAnalyticsQueryConnectContextTimeout(t *testing.T) {
 
 	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
 		testAssertAnalyticsQueryRequest(t, req)
+
+		req.Endpoint = "testendpoint"
 
 		var opts map[string]interface{}
 		err := json.Unmarshal(req.Body, &opts)
@@ -713,9 +755,27 @@ func TestAnalyticsQueryConnectContextTimeout(t *testing.T) {
 	_, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		ServerSideTimeout: timeout,
 		Context:           ctx,
+		ClientContextID:   "testclientcontext",
 	})
-	if err == nil || !IsTimeoutError(err) {
+	if !IsTimeoutError(err) {
 		t.Fatal(err)
+	}
+
+	tErr := err.(TimeoutErrorWithDetail)
+	if tErr.RemoteAddress() != "testendpoint" {
+		t.Fatalf("Expected RemoteAddress to be testendpoint but was %s", tErr.RemoteAddress())
+	}
+
+	if tErr.OperationID() != "testclientcontext" {
+		t.Fatalf("Expected OperationID to be testclientcontext but was %s", tErr.OperationID())
+	}
+
+	if tErr.Operation() != "cbas" {
+		t.Fatalf("Expected Operation to be cbas but was %s", tErr.Operation())
+	}
+
+	if tErr.Elapsed() == 0 {
+		t.Fatalf("Expected Elapsed to be non zero")
 	}
 }
 
@@ -728,6 +788,8 @@ func TestAnalyticsQueryConnectClusterTimeoutClusterWins(t *testing.T) {
 	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
 		testAssertAnalyticsQueryRequest(t, req)
 
+		req.Endpoint = "testendpoint"
+
 		var opts map[string]interface{}
 		err := json.Unmarshal(req.Body, &opts)
 		if err != nil {
@@ -761,10 +823,28 @@ func TestAnalyticsQueryConnectClusterTimeoutClusterWins(t *testing.T) {
 	cluster := testGetClusterForHTTP(provider, clusterTimeout, 0, 0)
 
 	_, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
-		Context: ctx,
+		Context:         ctx,
+		ClientContextID: "testclientcontext",
 	})
-	if err == nil || !IsTimeoutError(err) {
+	if !IsTimeoutError(err) {
 		t.Fatal(err)
+	}
+
+	tErr := err.(TimeoutErrorWithDetail)
+	if tErr.RemoteAddress() != "testendpoint" {
+		t.Fatalf("Expected RemoteAddress to be testendpoint but was %s", tErr.RemoteAddress())
+	}
+
+	if tErr.OperationID() != "testclientcontext" {
+		t.Fatalf("Expected OperationID to be testclientcontext but was %s", tErr.OperationID())
+	}
+
+	if tErr.Operation() != "cbas" {
+		t.Fatalf("Expected Operation to be cbas but was %s", tErr.Operation())
+	}
+
+	if tErr.Elapsed() == 0 {
+		t.Fatalf("Expected Elapsed to be non zero")
 	}
 }
 
@@ -777,6 +857,8 @@ func TestAnalyticsQueryConnectClusterTimeoutContextWins(t *testing.T) {
 	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
 		testAssertAnalyticsQueryRequest(t, req)
 
+		req.Endpoint = "testendpoint"
+
 		var opts map[string]interface{}
 		err := json.Unmarshal(req.Body, &opts)
 		if err != nil {
@@ -810,10 +892,28 @@ func TestAnalyticsQueryConnectClusterTimeoutContextWins(t *testing.T) {
 	cluster := testGetClusterForHTTP(provider, clusterTimeout, 0, 0)
 
 	_, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
-		Context: ctx,
+		Context:         ctx,
+		ClientContextID: "testclientcontext",
 	})
-	if err == nil || !IsTimeoutError(err) {
+	if !IsTimeoutError(err) {
 		t.Fatal(err)
+	}
+
+	tErr := err.(TimeoutErrorWithDetail)
+	if tErr.RemoteAddress() != "testendpoint" {
+		t.Fatalf("Expected RemoteAddress to be testendpoint but was %s", tErr.RemoteAddress())
+	}
+
+	if tErr.OperationID() != "testclientcontext" {
+		t.Fatalf("Expected OperationID to be testclientcontext but was %s", tErr.OperationID())
+	}
+
+	if tErr.Operation() != "cbas" {
+		t.Fatalf("Expected Operation to be cbas but was %s", tErr.Operation())
+	}
+
+	if tErr.Elapsed() == 0 {
+		t.Fatalf("Expected Elapsed to be non zero")
 	}
 }
 

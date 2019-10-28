@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
@@ -163,6 +165,7 @@ type GetAllUsersOptions struct {
 
 // GetAllUsers returns a list of all the users from the cluster.
 func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &GetAllUsersOptions{}
 	}
@@ -188,6 +191,7 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 		Context:       ctx,
 		IsIdempotent:  true,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := um.httpClient.DoHttpRequest(req)
@@ -197,6 +201,8 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -242,6 +248,7 @@ type GetUserOptions struct {
 
 // GetUser returns the data for a particular user
 func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetadata, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &GetUserOptions{}
 	}
@@ -267,6 +274,7 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 		Context:       ctx,
 		IsIdempotent:  true,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := um.httpClient.DoHttpRequest(req)
@@ -276,6 +284,8 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -316,6 +326,7 @@ type UpsertUserOptions struct {
 
 // UpsertUser updates a built-in RBAC user on the cluster.
 func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &UpsertUserOptions{}
 	}
@@ -357,6 +368,7 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 		ContentType:   "application/x-www-form-urlencoded",
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := um.httpClient.DoHttpRequest(req)
@@ -366,6 +378,8 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -398,6 +412,7 @@ type DropUserOptions struct {
 
 // DropUser removes a built-in RBAC user on the cluster.
 func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &DropUserOptions{}
 	}
@@ -422,6 +437,7 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 		Path:          fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, name),
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := um.httpClient.DoHttpRequest(req)
@@ -431,6 +447,8 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -461,6 +479,7 @@ type GetRolesOptions struct {
 
 // GetRoles lists the roles supported by the cluster.
 func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &GetRolesOptions{}
 	}
@@ -482,6 +501,7 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
 		IsIdempotent:  true,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := um.httpClient.DoHttpRequest(req)
@@ -491,6 +511,8 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -542,6 +564,7 @@ type GetGroupOptions struct {
 
 // GetGroup fetches a single group from the server.
 func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group, error) {
+	startTime := time.Now()
 	if groupName == "" {
 		return nil, invalidArgumentsError{message: "groupName cannot be empty"}
 	}
@@ -566,6 +589,7 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
 		IsIdempotent:  true,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := um.httpClient.DoHttpRequest(req)
@@ -575,6 +599,8 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -612,6 +638,7 @@ type GetAllGroupsOptions struct {
 
 // GetAllGroups fetches all groups from the server.
 func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &GetAllGroupsOptions{}
 	}
@@ -633,6 +660,7 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
 		IsIdempotent:  true,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := um.httpClient.DoHttpRequest(req)
@@ -642,6 +670,8 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -679,6 +709,7 @@ type UpsertGroupOptions struct {
 
 // UpsertGroup creates, or updates, a group on the server.
 func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error {
+	startTime := time.Now()
 	if group.Name == "" {
 		return invalidArgumentsError{message: "group name cannot be empty"}
 	}
@@ -718,6 +749,7 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 		ContentType:   "application/x-www-form-urlencoded",
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := um.httpClient.DoHttpRequest(req)
@@ -727,6 +759,8 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -757,6 +791,7 @@ type DropGroupOptions struct {
 
 // DropGroup removes a group from the server.
 func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error {
+	startTime := time.Now()
 	if groupName == "" {
 		return invalidArgumentsError{message: "groupName cannot be empty"}
 	}
@@ -781,6 +816,7 @@ func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error
 		Path:          fmt.Sprintf("/settings/rbac/groups/%s", groupName),
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := um.httpClient.DoHttpRequest(req)
@@ -790,6 +826,8 @@ func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 

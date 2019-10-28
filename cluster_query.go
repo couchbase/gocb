@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/google/uuid"
+
 	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
 )
@@ -72,6 +74,7 @@ type QueryResult struct {
 	preparedName string
 	err          error
 	httpStatus   int
+	startTime    time.Time
 
 	streamResult       *streamingResult
 	cancel             context.CancelFunc
@@ -129,6 +132,9 @@ func (r *QueryResult) Close() error {
 	if ctxErr == context.DeadlineExceeded {
 		return timeoutError{
 			operationID: r.metadata.clientContextID,
+			elapsed:     time.Now().Sub(r.startTime),
+			remote:      r.metadata.sourceAddr,
+			operation:   "n1ql",
 		}
 	}
 	if r.err != nil {
@@ -136,6 +142,9 @@ func (r *QueryResult) Close() error {
 			if qErr.Code() == 1080 {
 				return timeoutError{
 					operationID: r.metadata.clientContextID,
+					elapsed:     time.Now().Sub(r.startTime),
+					remote:      r.metadata.sourceAddr,
+					operation:   "n1ql",
 				}
 			}
 		}
@@ -326,15 +335,19 @@ func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResult, err
 		opts = &QueryOptions{}
 	}
 
+	if opts.startTime.IsZero() {
+		opts.startTime = time.Now()
+	}
+
 	provider, err := c.getHTTPProvider()
 	if err != nil {
 		return nil, err
 	}
 
-	return c.query(statement, opts, provider)
+	return c.query(statement, opts, provider, opts.startTime)
 }
 
-func (c *Cluster) query(statement string, opts *QueryOptions, provider httpProvider) (*QueryResult, error) {
+func (c *Cluster) query(statement string, opts *QueryOptions, provider httpProvider, startTime time.Time) (*QueryResult, error) {
 
 	queryOpts, err := opts.toMap(statement)
 	if err != nil {
@@ -380,9 +393,9 @@ func (c *Cluster) query(statement string, opts *QueryOptions, provider httpProvi
 
 	var res *QueryResult
 	if opts.AdHoc {
-		res, err = c.doPreparedN1qlQuery(ctx, queryOpts, provider, cancel, opts.Serializer, wrapper)
+		res, err = c.doPreparedN1qlQuery(ctx, queryOpts, provider, cancel, opts.Serializer, wrapper, startTime)
 	} else {
-		res, err = c.executeN1qlQuery(ctx, queryOpts, provider, cancel, opts.Serializer, wrapper)
+		res, err = c.executeN1qlQuery(ctx, queryOpts, provider, cancel, opts.Serializer, wrapper, startTime)
 	}
 
 	if err != nil {
@@ -397,7 +410,8 @@ func (c *Cluster) query(statement string, opts *QueryOptions, provider httpProvi
 }
 
 func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer, wrapper *retryStrategyWrapper) (*QueryResult, error) {
+	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer,
+	wrapper *retryStrategyWrapper, startTime time.Time) (*QueryResult, error) {
 	if capabilitySupporter, ok := provider.(clusterCapabilityProvider); ok {
 		if !c.supportsEnhancedPreparedStatements() &&
 			capabilitySupporter.SupportsClusterCapability(gocbcore.ClusterCapabilityEnhancedPreparedStatements) {
@@ -425,7 +439,7 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]
 			queryOpts["encoded_plan"] = cachedStmt.encodedPlan
 		}
 
-		results, err := c.executeN1qlQuery(ctx, queryOpts, provider, cancel, serializer, wrapper)
+		results, err := c.executeN1qlQuery(ctx, queryOpts, provider, cancel, serializer, wrapper, startTime)
 		if err == nil {
 			return results, nil
 		}
@@ -433,7 +447,7 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]
 
 	// Prepare the query
 	if c.supportsEnhancedPreparedStatements() {
-		results, err := c.prepareEnhancedN1qlQuery(ctx, queryOpts, provider, cancel, serializer, wrapper)
+		results, err := c.prepareEnhancedN1qlQuery(ctx, queryOpts, provider, cancel, serializer, wrapper, startTime)
 		if err != nil {
 			return nil, err
 		}
@@ -446,7 +460,7 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]
 	}
 
 	var err error
-	cachedStmt, err = c.prepareN1qlQuery(ctx, queryOpts, cancel, provider, wrapper)
+	cachedStmt, err = c.prepareN1qlQuery(ctx, queryOpts, cancel, provider, wrapper, startTime)
 	if err != nil {
 		return nil, err
 	}
@@ -461,11 +475,12 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]
 	queryOpts["prepared"] = cachedStmt.name
 	queryOpts["encoded_plan"] = cachedStmt.encodedPlan
 
-	return c.executeN1qlQuery(ctx, queryOpts, provider, cancel, serializer, wrapper)
+	return c.executeN1qlQuery(ctx, queryOpts, provider, cancel, serializer, wrapper, startTime)
 }
 
 func (c *Cluster) prepareEnhancedN1qlQuery(ctx context.Context, opts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer, wrapper *retryStrategyWrapper) (*QueryResult, error) {
+	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer,
+	wrapper *retryStrategyWrapper, startTime time.Time) (*QueryResult, error) {
 
 	prepOpts := make(map[string]interface{})
 	for k, v := range opts {
@@ -474,11 +489,11 @@ func (c *Cluster) prepareEnhancedN1qlQuery(ctx context.Context, opts map[string]
 	prepOpts["statement"] = "PREPARE " + opts["statement"].(string)
 	prepOpts["auto_execute"] = true
 
-	return c.executeN1qlQuery(ctx, prepOpts, provider, cancel, serializer, wrapper)
+	return c.executeN1qlQuery(ctx, prepOpts, provider, cancel, serializer, wrapper, startTime)
 }
 
 func (c *Cluster) prepareN1qlQuery(ctx context.Context, opts map[string]interface{},
-	cancel context.CancelFunc, provider httpProvider, wrapper *retryStrategyWrapper) (*n1qlCache, error) {
+	cancel context.CancelFunc, provider httpProvider, wrapper *retryStrategyWrapper, startTime time.Time) (*n1qlCache, error) {
 
 	prepOpts := make(map[string]interface{})
 	for k, v := range opts {
@@ -486,7 +501,7 @@ func (c *Cluster) prepareN1qlQuery(ctx context.Context, opts map[string]interfac
 	}
 	prepOpts["statement"] = "PREPARE " + opts["statement"].(string)
 
-	prepRes, err := c.executeN1qlQuery(ctx, prepOpts, provider, cancel, &DefaultJSONSerializer{}, wrapper)
+	prepRes, err := c.executeN1qlQuery(ctx, prepOpts, provider, cancel, &DefaultJSONSerializer{}, wrapper, startTime)
 	if err != nil {
 		return nil, err
 	}
@@ -513,7 +528,8 @@ type n1qlPrepData struct {
 // settings. This function will inject any additional connection or request-level
 // settings into the `opts` map.
 func (c *Cluster) executeN1qlQuery(ctx context.Context, opts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer, wrapper *retryStrategyWrapper) (*QueryResult, error) {
+	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer,
+	wrapper *retryStrategyWrapper, startTime time.Time) (*QueryResult, error) {
 	reqJSON, err := json.Marshal(opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal query request body")
@@ -534,6 +550,14 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, opts map[string]interfac
 		RetryStrategy: wrapper,
 	}
 
+	contextID, ok := opts["client_context_id"].(string)
+	if ok {
+		req.UniqueId = contextID
+	} else {
+		req.UniqueId = uuid.New().String()
+		logWarnf("Failed to assert analytics options client_context_id to string. Replacing with %s", req.UniqueId)
+	}
+
 	enhancedStatements := c.supportsEnhancedPreparedStatements()
 
 	for {
@@ -548,6 +572,9 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, opts map[string]interfac
 					operationID:   req.Identifier(),
 					retryReasons:  req.RetryReasons(),
 					retryAttempts: req.RetryAttempts(),
+					elapsed:       time.Now().Sub(startTime),
+					remote:        req.Endpoint,
+					operation:     "n1ql",
 				}
 			}
 
@@ -564,11 +591,13 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, opts map[string]interfac
 
 		results := &QueryResult{
 			metadata: QueryMetadata{
-				sourceAddr: epInfo.Host,
+				sourceAddr:      epInfo.Host,
+				clientContextID: contextID,
 			},
 			httpStatus:         resp.StatusCode,
 			serializer:         serializer,
 			enhancedStatements: c.supportsEnhancedPreparedStatements(),
+			startTime:          startTime,
 		}
 
 		streamResult, err := newStreamingResults(resp.Body, results.readAttribute)
@@ -606,7 +635,7 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, opts map[string]interfac
 
 			if IsRetryableError(results.err) {
 				shouldRetry, retryErr := shouldRetryHTTPRequest(ctx, req, gocbcore.ServiceResponseCodeIndicatedRetryReason,
-					wrapper, provider)
+					wrapper, provider, startTime)
 				if shouldRetry {
 					continue
 				}

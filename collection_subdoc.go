@@ -115,6 +115,7 @@ func CountSpec(path string, opts *CountSpecOptions) LookupInSpec {
 
 // LookupIn performs a set of subdocument lookup operations on the document identified by id.
 func (c *Collection) LookupIn(id string, ops []LookupInSpec, opts *LookupInOptions) (docOut *LookupInResult, errOut error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &LookupInOptions{}
 	}
@@ -125,7 +126,7 @@ func (c *Collection) LookupIn(id string, ops []LookupInSpec, opts *LookupInOptio
 		defer cancel()
 	}
 
-	res, err := c.lookupIn(ctx, id, ops, *opts)
+	res, err := c.lookupIn(ctx, id, ops, startTime, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +134,7 @@ func (c *Collection) LookupIn(id string, ops []LookupInSpec, opts *LookupInOptio
 	return res, nil
 }
 
-func (c *Collection) lookupIn(ctx context.Context, id string, ops []LookupInSpec, opts LookupInOptions) (docOut *LookupInResult, errOut error) {
+func (c *Collection) lookupIn(ctx context.Context, id string, ops []LookupInSpec, startTime time.Time, opts LookupInOptions) (docOut *LookupInResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -158,7 +159,7 @@ func (c *Collection) lookupIn(ctx context.Context, id string, ops []LookupInSpec
 		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	ctrl := c.newOpManager(ctx)
+	ctrl := c.newOpManager(ctx, startTime, "LookupIn")
 	err = ctrl.wait(agent.LookupInEx(gocbcore.LookupInOptions{
 		Key:            []byte(id),
 		Ops:            subdocs,
@@ -624,6 +625,7 @@ func DecrementSpec(path string, delta int64, opts *CounterSpecOptions) MutateInS
 
 // MutateIn performs a set of subdocument mutations on the document specified by id.
 func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptions) (mutOut *MutateInResult, errOut error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &MutateInOptions{}
 	}
@@ -639,7 +641,7 @@ func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptio
 		return nil, err
 	}
 
-	res, err := c.mutate(ctx, id, ops, *opts)
+	res, err := c.mutate(ctx, id, ops, startTime, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -660,7 +662,8 @@ func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptio
 	})
 }
 
-func (c *Collection) mutate(ctx context.Context, id string, ops []MutateInSpec, opts MutateInOptions) (mutOut *MutateInResult, errOut error) {
+func (c *Collection) mutate(ctx context.Context, id string, ops []MutateInSpec, startTime time.Time,
+	opts MutateInOptions) (mutOut *MutateInResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -748,7 +751,7 @@ func (c *Collection) mutate(ctx context.Context, id string, ops []MutateInSpec, 
 		defer cancel()
 	}
 
-	ctrl := c.newOpManager(ctx)
+	ctrl := c.newOpManager(ctx, startTime, "MutateIn")
 	err = ctrl.wait(agent.MutateInEx(gocbcore.MutateInOptions{
 		Key:                    []byte(id),
 		Flags:                  gocbcore.SubdocDocFlag(flags),

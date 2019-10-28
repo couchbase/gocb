@@ -67,6 +67,18 @@ func (mpo *mockPendingOp) Cancel() bool {
 	return mpo.cancelSuccess
 }
 
+func (mpo *mockPendingOp) ConnectionId() string {
+	return ""
+}
+
+func (mpo *mockPendingOp) RemoteEndpoint() string {
+	return ""
+}
+
+func (mpo *mockPendingOp) LocalEndpoint() string {
+	return ""
+}
+
 func (mko *mockKvProvider) AddEx(opts gocbcore.AddOptions, cb gocbcore.StoreExCallback) (gocbcore.PendingOp, error) {
 	time.AfterFunc(mko.opWait, func() {
 		if mko.err == nil {

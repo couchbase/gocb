@@ -682,6 +682,8 @@ func TestQueryConnectTimeout(t *testing.T) {
 	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
 		testAssertQueryRequest(t, req)
 
+		req.Endpoint = "testlocal:8093"
+
 		var opts map[string]interface{}
 		err := json.Unmarshal(req.Body, &opts)
 		if err != nil {
@@ -712,11 +714,29 @@ func TestQueryConnectTimeout(t *testing.T) {
 	cluster := testGetClusterForHTTP(provider, clusterTimeout, 0, 0)
 
 	_, err := cluster.Query(statement, &QueryOptions{
-		Timeout: timeout,
-		Context: ctx,
+		Timeout:         timeout,
+		Context:         ctx,
+		ClientContextID: "testclientcontext",
 	})
 	if !IsTimeoutError(err) {
 		t.Fatal(err)
+	}
+
+	tErr := err.(TimeoutErrorWithDetail)
+	if tErr.RemoteAddress() != "testlocal:8093" {
+		t.Fatalf("Expected RemoteAddress to be testendpoint:8093 but was %s", tErr.RemoteAddress())
+	}
+
+	if tErr.OperationID() != "testclientcontext" {
+		t.Fatalf("Expected OperationID to be testclientcontext but was %s", tErr.OperationID())
+	}
+
+	if tErr.Operation() != "n1ql" {
+		t.Fatalf("Expected Operation to be cbas but was %s", tErr.Operation())
+	}
+
+	if tErr.Elapsed() == 0 {
+		t.Fatalf("Expected Elapsed to be non zero")
 	}
 }
 
@@ -734,6 +754,8 @@ func TestQueryStreamTimeout(t *testing.T) {
 
 	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
 		testAssertQueryRequest(t, req)
+
+		req.Endpoint = "http://testlocal:8093"
 
 		var opts map[string]interface{}
 		err := json.Unmarshal(req.Body, &opts)
@@ -758,6 +780,7 @@ func TestQueryStreamTimeout(t *testing.T) {
 		resp := &gocbcore.HttpResponse{
 			StatusCode: 200,
 			Body:       &testReadCloser{bytes.NewBuffer(dataBytes), nil},
+			Endpoint:   req.Endpoint,
 		}
 
 		return resp, nil
@@ -770,8 +793,9 @@ func TestQueryStreamTimeout(t *testing.T) {
 	cluster := testGetClusterForHTTP(provider, clusterTimeout, 0, 0)
 
 	results, err := cluster.Query(statement, &QueryOptions{
-		Timeout: timeout,
-		Context: ctx,
+		Timeout:         timeout,
+		Context:         ctx,
+		ClientContextID: "9f6b7330-4623-4123-b340-d991594a90af",
 	})
 	if err != nil {
 		t.Fatalf("Query shouldn't have errored but was %v", err)
@@ -785,6 +809,23 @@ func TestQueryStreamTimeout(t *testing.T) {
 	if !IsTimeoutError(err) {
 		t.Fatalf("Error should have been timeout but was %v", err)
 	}
+
+	tErr := err.(TimeoutErrorWithDetail)
+	if tErr.RemoteAddress() != "testlocal:8093" {
+		t.Fatalf("Expected RemoteAddress to be testendpoint:8093 but was %s", tErr.RemoteAddress())
+	}
+
+	if tErr.OperationID() != "9f6b7330-4623-4123-b340-d991594a90af" {
+		t.Fatalf("Expected OperationID to be 9f6b7330-4623-4123-b340-d991594a90af but was %s", tErr.OperationID())
+	}
+
+	if tErr.Operation() != "n1ql" {
+		t.Fatalf("Expected Operation to be cbas but was %s", tErr.Operation())
+	}
+
+	if tErr.Elapsed() == 0 {
+		t.Fatalf("Expected Elapsed to be non zero")
+	}
 }
 
 func TestQueryConnectContextTimeout(t *testing.T) {
@@ -797,6 +838,8 @@ func TestQueryConnectContextTimeout(t *testing.T) {
 
 	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
 		testAssertQueryRequest(t, req)
+
+		req.Endpoint = "testlocal:8093"
 
 		var opts map[string]interface{}
 		err := json.Unmarshal(req.Body, &opts)
@@ -828,11 +871,29 @@ func TestQueryConnectContextTimeout(t *testing.T) {
 	cluster := testGetClusterForHTTP(provider, clusterTimeout, 0, 0)
 
 	_, err := cluster.Query(statement, &QueryOptions{
-		Timeout: timeout,
-		Context: ctx,
+		Timeout:         timeout,
+		Context:         ctx,
+		ClientContextID: "testclientcontext",
 	})
-	if err == nil || !IsTimeoutError(err) {
+	if !IsTimeoutError(err) {
 		t.Fatal(err)
+	}
+
+	tErr := err.(TimeoutErrorWithDetail)
+	if tErr.RemoteAddress() != "testlocal:8093" {
+		t.Fatalf("Expected RemoteAddress to be testendpoint:8093 but was %s", tErr.RemoteAddress())
+	}
+
+	if tErr.OperationID() != "testclientcontext" {
+		t.Fatalf("Expected OperationID to be testclientcontext but was %s", tErr.OperationID())
+	}
+
+	if tErr.Operation() != "n1ql" {
+		t.Fatalf("Expected Operation to be cbas but was %s", tErr.Operation())
+	}
+
+	if tErr.Elapsed() == 0 {
+		t.Fatalf("Expected Elapsed to be non zero")
 	}
 }
 
@@ -844,6 +905,8 @@ func TestQueryConnectClusterTimeout(t *testing.T) {
 
 	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
 		testAssertQueryRequest(t, req)
+
+		req.Endpoint = "testlocal:8093"
 
 		var opts map[string]interface{}
 		err := json.Unmarshal(req.Body, &opts)
@@ -875,10 +938,28 @@ func TestQueryConnectClusterTimeout(t *testing.T) {
 	cluster := testGetClusterForHTTP(provider, clusterTimeout, 0, 0)
 
 	_, err := cluster.Query(statement, &QueryOptions{
-		Context: ctx,
+		Context:         ctx,
+		ClientContextID: "testclientcontext",
 	})
-	if err == nil || !IsTimeoutError(err) {
+	if !IsTimeoutError(err) {
 		t.Fatal(err)
+	}
+
+	tErr := err.(TimeoutErrorWithDetail)
+	if tErr.RemoteAddress() != "testlocal:8093" {
+		t.Fatalf("Expected RemoteAddress to be testendpoint:8093 but was %s", tErr.RemoteAddress())
+	}
+
+	if tErr.OperationID() != "testclientcontext" {
+		t.Fatalf("Expected OperationID to be testclientcontext but was %s", tErr.OperationID())
+	}
+
+	if tErr.Operation() != "n1ql" {
+		t.Fatalf("Expected Operation to be cbas but was %s", tErr.Operation())
+	}
+
+	if tErr.Elapsed() == 0 {
+		t.Fatalf("Expected Elapsed to be non zero")
 	}
 }
 

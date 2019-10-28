@@ -58,6 +58,8 @@ type QueryOptions struct {
 	// NOTE: if not set then query will always default to DefaultJSONSerializer.
 	Serializer    JSONSerializer
 	RetryStrategy RetryStrategy
+
+	startTime time.Time
 }
 
 func (opts *QueryOptions) toMap(statement string) (map[string]interface{}, error) {

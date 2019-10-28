@@ -71,6 +71,7 @@ type AnalyticsResult struct {
 	metadata   AnalyticsMetadata
 	err        error
 	httpStatus int
+	startTime  time.Time
 
 	streamResult *streamingResult
 	cancel       context.CancelFunc
@@ -128,6 +129,9 @@ func (r *AnalyticsResult) Close() error {
 	if ctxErr == context.DeadlineExceeded {
 		return timeoutError{
 			operationID: r.metadata.clientContextID,
+			elapsed:     time.Now().Sub(r.startTime),
+			remote:      r.metadata.sourceAddr,
+			operation:   "cbas",
 		}
 	}
 	if r.err != nil {
@@ -135,6 +139,9 @@ func (r *AnalyticsResult) Close() error {
 			if qErr.Code() == 21002 {
 				return timeoutError{
 					operationID: r.metadata.clientContextID,
+					elapsed:     time.Now().Sub(r.startTime),
+					remote:      r.metadata.sourceAddr,
+					operation:   "cbas",
 				}
 			}
 		}
@@ -372,6 +379,7 @@ func (c *Cluster) analyticsQuery(statement string, opts *AnalyticsOptions,
 func (c *Cluster) executeAnalyticsQuery(ctx context.Context, opts map[string]interface{},
 	provider httpProvider, cancel context.CancelFunc, idempotent bool, serializer JSONSerializer,
 	retryWrapper *retryStrategyWrapper) (*AnalyticsResult, error) {
+	startTime := time.Now()
 	// priority is sent as a header not in the body
 	priority, priorityCastOK := opts["priority"].(int)
 	if priorityCastOK {
@@ -418,6 +426,9 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, opts map[string]int
 					operationID:   req.Identifier(),
 					retryReasons:  req.RetryReasons(),
 					retryAttempts: req.RetryAttempts(),
+					elapsed:       time.Now().Sub(startTime),
+					remote:        req.Endpoint,
+					operation:     "cbas",
 				}
 			}
 
@@ -439,6 +450,7 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, opts map[string]int
 			httpStatus:   resp.StatusCode,
 			httpProvider: provider,
 			serializer:   serializer,
+			startTime:    startTime,
 		}
 
 		streamResult, err := newStreamingResults(resp.Body, results.readAttribute)
@@ -471,7 +483,7 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, opts map[string]int
 			// immediately.
 			if IsRetryableError(results.err) {
 				shouldRetry, retryErr := shouldRetryHTTPRequest(ctx, req, gocbcore.ServiceResponseCodeIndicatedRetryReason,
-					retryWrapper, provider)
+					retryWrapper, provider, startTime)
 				if shouldRetry {
 					continue
 				}
@@ -494,7 +506,7 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, opts map[string]int
 }
 
 func shouldRetryHTTPRequest(ctx context.Context, req *gocbcore.HttpRequest, reason gocbcore.RetryReason,
-	retryWrapper *retryStrategyWrapper, provider httpProvider) (bool, error) {
+	retryWrapper *retryStrategyWrapper, provider httpProvider, startTime time.Time) (bool, error) {
 	waitCh := make(chan struct{})
 	retried := provider.MaybeRetryRequest(req, reason, retryWrapper, func() {
 		waitCh <- struct{}{}
@@ -514,6 +526,9 @@ func shouldRetryHTTPRequest(ctx context.Context, req *gocbcore.HttpRequest, reas
 					operationID:   req.Identifier(),
 					retryReasons:  req.RetryReasons(),
 					retryAttempts: req.RetryAttempts(),
+					elapsed:       time.Now().Sub(startTime),
+					remote:        req.Endpoint,
+					operation:     "cbas",
 				}
 			}
 

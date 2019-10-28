@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/google/uuid"
+
 	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
@@ -187,6 +189,7 @@ func (bm *BucketManager) GetBucket(bucketName string, opts *GetBucketOptions) (*
 }
 
 func (bm *BucketManager) get(ctx context.Context, bucketName string, strategy *retryStrategyWrapper) (*BucketSettings, error) {
+	startTime := time.Now()
 	req := &gocbcore.HttpRequest{
 		Service:       gocbcore.ServiceType(MgmtService),
 		Path:          fmt.Sprintf("/pools/default/buckets/%s", bucketName),
@@ -194,6 +197,7 @@ func (bm *BucketManager) get(ctx context.Context, bucketName string, strategy *r
 		Context:       ctx,
 		IsIdempotent:  true,
 		RetryStrategy: strategy,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := bm.httpClient.DoHttpRequest(req)
@@ -203,6 +207,8 @@ func (bm *BucketManager) get(ctx context.Context, bucketName string, strategy *r
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -247,6 +253,7 @@ type GetAllBucketsOptions struct {
 
 // GetAllBuckets returns a list of all active buckets on the cluster.
 func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]BucketSettings, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &GetAllBucketsOptions{}
 	}
@@ -268,6 +275,7 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 		Context:       ctx,
 		IsIdempotent:  true,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := bm.httpClient.DoHttpRequest(req)
@@ -277,6 +285,8 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -325,6 +335,7 @@ type CreateBucketOptions struct {
 
 // CreateBucket creates a bucket on the cluster.
 func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *CreateBucketOptions) error {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &CreateBucketOptions{}
 	}
@@ -356,6 +367,7 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 		ContentType:   "application/x-www-form-urlencoded",
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := bm.httpClient.DoHttpRequest(req)
@@ -365,6 +377,8 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -404,6 +418,7 @@ type UpdateBucketOptions struct {
 
 // UpdateBucket updates a bucket on the cluster.
 func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucketOptions) error {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &UpdateBucketOptions{}
 	}
@@ -431,6 +446,7 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 		ContentType:   "application/x-www-form-urlencoded",
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := bm.httpClient.DoHttpRequest(req)
@@ -440,6 +456,8 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -475,6 +493,7 @@ type DropBucketOptions struct {
 
 // DropBucket will delete a bucket from the cluster by name.
 func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &DropBucketOptions{}
 	}
@@ -495,6 +514,7 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 		Method:        "DELETE",
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := bm.httpClient.DoHttpRequest(req)
@@ -504,6 +524,8 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -540,6 +562,7 @@ type FlushBucketOptions struct {
 // FlushBucket will delete all the of the data from a bucket.
 // Keep in mind that you must have flushing enabled in the buckets configuration.
 func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) error {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &FlushBucketOptions{}
 	}
@@ -560,6 +583,7 @@ func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) erro
 		Method:        "POST",
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := bm.httpClient.DoHttpRequest(req)
@@ -569,6 +593,8 @@ func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) erro
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 

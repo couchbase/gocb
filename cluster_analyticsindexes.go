@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
@@ -573,6 +575,7 @@ type GetPendingMutationsAnalyticsOptions struct {
 
 // GetPendingMutations returns the number of pending mutations for all indexes in the form of dataverse.dataset:mutations.
 func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAnalyticsOptions) (map[string]int, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &GetPendingMutationsAnalyticsOptions{}
 	}
@@ -593,6 +596,7 @@ func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAn
 		Path:          fmt.Sprintf("/analytics/node/agg/stats/remaining"),
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := am.httpClient.DoHttpRequest(req)
@@ -602,6 +606,8 @@ func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAn
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "cbas",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 

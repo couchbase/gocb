@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/couchbase/gocbcore/v8"
 )
 
@@ -57,6 +59,7 @@ type manifestCollection struct {
 
 // CollectionExists verifies whether or not a collection exists on the bucket.
 func (cm *CollectionManager) CollectionExists(spec CollectionSpec, opts *CollectionExistsOptions) (bool, error) {
+	startTime := time.Now()
 	if spec.Name == "" {
 		return false, invalidArgumentsError{
 			message: "collection name cannot be empty",
@@ -93,10 +96,21 @@ func (cm *CollectionManager) CollectionExists(spec CollectionSpec, opts *Collect
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
 		IsIdempotent:  true,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := cm.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return false, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return false, err
 	}
 
@@ -168,6 +182,7 @@ type ScopeExistsOptions struct {
 
 // ScopeExists verifies whether or not a scope exists on the bucket.
 func (cm *CollectionManager) ScopeExists(scopeName string, opts *ScopeExistsOptions) (bool, error) {
+	startTime := time.Now()
 	if scopeName == "" {
 		return false, invalidArgumentsError{
 			message: "scope name cannot be empty",
@@ -195,10 +210,21 @@ func (cm *CollectionManager) ScopeExists(scopeName string, opts *ScopeExistsOpti
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
 		IsIdempotent:  true,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := cm.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return false, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return false, err
 	}
 
@@ -259,6 +285,7 @@ type GetScopeOptions struct {
 
 // GetScope gets a scope from the bucket.
 func (cm *CollectionManager) GetScope(scopeName string, opts *GetScopeOptions) (*ScopeSpec, error) {
+	startTime := time.Now()
 	if scopeName == "" {
 		return nil, invalidArgumentsError{
 			message: "scope name cannot be empty",
@@ -286,10 +313,21 @@ func (cm *CollectionManager) GetScope(scopeName string, opts *GetScopeOptions) (
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
 		IsIdempotent:  true,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := cm.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return nil, err
 	}
 
@@ -378,6 +416,7 @@ type GetAllScopesOptions struct {
 
 // GetAllScopes gets all scopes from the bucket.
 func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpec, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &GetAllScopesOptions{}
 	}
@@ -399,10 +438,21 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
 		IsIdempotent:  true,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := cm.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return nil, err
 	}
 
@@ -480,6 +530,7 @@ type CreateCollectionOptions struct {
 
 // CreateCollection creates a new collection on the bucket.
 func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateCollectionOptions) error {
+	startTime := time.Now()
 	if spec.Name == "" {
 		return invalidArgumentsError{
 			message: "collection name cannot be empty",
@@ -517,10 +568,21 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 		ContentType:   "application/x-www-form-urlencoded",
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := cm.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return err
 	}
 
@@ -557,6 +619,7 @@ type DropCollectionOptions struct {
 
 // DropCollection removes a collection.
 func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropCollectionOptions) error {
+	startTime := time.Now()
 	if spec.Name == "" {
 		return invalidArgumentsError{
 			message: "collection name cannot be empty",
@@ -589,10 +652,21 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 		Method:        "DELETE",
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := cm.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return err
 	}
 
@@ -629,6 +703,7 @@ type CreateScopeOptions struct {
 
 // CreateScope creates a new scope on the bucket.
 func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOptions) error {
+	startTime := time.Now()
 	if scopeName == "" {
 		return invalidArgumentsError{
 			message: "scope name cannot be empty",
@@ -660,10 +735,21 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 		ContentType:   "application/x-www-form-urlencoded",
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := cm.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return err
 	}
 
@@ -700,6 +786,7 @@ type DropScopeOptions struct {
 
 // DropScope removes a scope.
 func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions) error {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &DropScopeOptions{}
 	}
@@ -720,10 +807,21 @@ func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions)
 		Method:        "DELETE",
 		Context:       ctx,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := cm.httpClient.DoHttpRequest(req)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return err
 	}
 

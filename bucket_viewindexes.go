@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/pkg/errors"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
@@ -76,6 +78,12 @@ func (vm *ViewIndexManager) GetDesignDocument(name string, namespace DesignDocum
 		opts = &GetDesignDocumentOptions{}
 	}
 
+	return vm.getDesignDocument(name, namespace, time.Now(), opts)
+}
+
+func (vm *ViewIndexManager) getDesignDocument(name string, namespace DesignDocumentNamespace, startTime time.Time,
+	opts *GetDesignDocumentOptions) (*DesignDocument, error) {
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, vm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -95,6 +103,7 @@ func (vm *ViewIndexManager) GetDesignDocument(name string, namespace DesignDocum
 		Context:       ctx,
 		IsIdempotent:  true,
 		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 
 	resp, err := vm.httpClient.DoHttpRequest(req)
@@ -104,6 +113,8 @@ func (vm *ViewIndexManager) GetDesignDocument(name string, namespace DesignDocum
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "view",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -147,6 +158,7 @@ type GetAllDesignDocumentsOptions struct {
 
 // GetAllDesignDocuments will retrieve all design documents for the given bucket.
 func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamespace, opts *GetAllDesignDocumentsOptions) ([]*DesignDocument, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &GetAllDesignDocumentsOptions{}
 	}
@@ -177,6 +189,8 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamesp
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "view",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -238,6 +252,11 @@ func (vm *ViewIndexManager) UpsertDesignDocument(ddoc DesignDocument, namespace 
 		opts = &UpsertDesignDocumentOptions{}
 	}
 
+	return vm.upsertDesignDocument(ddoc, namespace, time.Now(), opts)
+}
+
+func (vm *ViewIndexManager) upsertDesignDocument(ddoc DesignDocument, namespace DesignDocumentNamespace, startTime time.Time,
+	opts *UpsertDesignDocumentOptions) error {
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, vm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -271,6 +290,8 @@ func (vm *ViewIndexManager) UpsertDesignDocument(ddoc DesignDocument, namespace 
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "view",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -305,6 +326,11 @@ func (vm *ViewIndexManager) DropDesignDocument(name string, namespace DesignDocu
 		opts = &DropDesignDocumentOptions{}
 	}
 
+	return vm.dropDesignDocument(name, namespace, time.Now(), opts)
+}
+
+func (vm *ViewIndexManager) dropDesignDocument(name string, namespace DesignDocumentNamespace, startTime time.Time,
+	opts *DropDesignDocumentOptions) error {
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, vm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -332,6 +358,8 @@ func (vm *ViewIndexManager) DropDesignDocument(name string, namespace DesignDocu
 				operationID:   req.UniqueId,
 				retryReasons:  req.RetryReasons(),
 				retryAttempts: req.RetryAttempts(),
+				operation:     "view",
+				elapsed:       time.Now().Sub(startTime),
 			}
 		}
 
@@ -366,6 +394,7 @@ type PublishDesignDocumentOptions struct {
 
 // PublishDesignDocument publishes a design document to the given bucket.
 func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesignDocumentOptions) error {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &PublishDesignDocumentOptions{}
 	}
@@ -375,7 +404,7 @@ func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesi
 		defer cancel()
 	}
 
-	devdoc, err := vm.GetDesignDocument(name, false, &GetDesignDocumentOptions{
+	devdoc, err := vm.getDesignDocument(name, false, startTime, &GetDesignDocumentOptions{
 		Context:       ctx,
 		RetryStrategy: opts.RetryStrategy,
 	})
@@ -389,7 +418,7 @@ func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesi
 		return err
 	}
 
-	err = vm.UpsertDesignDocument(*devdoc, true, &UpsertDesignDocumentOptions{
+	err = vm.upsertDesignDocument(*devdoc, true, startTime, &UpsertDesignDocumentOptions{
 		Context:       ctx,
 		RetryStrategy: opts.RetryStrategy,
 	})

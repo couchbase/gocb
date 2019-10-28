@@ -98,9 +98,10 @@ type SearchMetadata struct {
 
 // SearchResult allows access to the results of a search query.
 type SearchResult struct {
-	metadata SearchMetadata
-	err      error
-	facets   map[string]FacetResult
+	metadata  SearchMetadata
+	err       error
+	facets    map[string]FacetResult
+	startTime time.Time
 
 	httpStatus   int
 	streamResult *streamingResult
@@ -223,7 +224,11 @@ func (r *SearchResult) Close() error {
 		r.cancel()
 	}
 	if ctxErr == context.DeadlineExceeded {
-		return timeoutError{}
+		return timeoutError{
+			elapsed:   time.Now().Sub(r.startTime),
+			remote:    r.metadata.sourceAddr,
+			operation: "fts",
+		}
 	}
 	if r.err != nil {
 		return r.err
@@ -419,6 +424,7 @@ func (r *SearchResult) readAttribute(decoder *json.Decoder, t json.Token) (bool,
 
 // SearchQuery performs a n1ql query and returns a list of rows or an error.
 func (c *Cluster) SearchQuery(indexName string, q SearchQuery, opts *SearchOptions) (*SearchResult, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &SearchOptions{}
 	}
@@ -432,11 +438,11 @@ func (c *Cluster) SearchQuery(indexName string, q SearchQuery, opts *SearchOptio
 		return nil, err
 	}
 
-	return c.searchQuery(ctx, indexName, q, opts, provider)
+	return c.searchQuery(ctx, indexName, q, opts, provider, startTime)
 }
 
 func (c *Cluster) searchQuery(ctx context.Context, qIndexName string, q interface{}, opts *SearchOptions,
-	provider httpProvider) (*SearchResult, error) {
+	provider httpProvider, startTime time.Time) (*SearchResult, error) {
 
 	optsData, err := opts.toOptionsData()
 	if err != nil {
@@ -505,7 +511,7 @@ func (c *Cluster) searchQuery(ctx context.Context, qIndexName string, q interfac
 		wrapper = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	res, err := c.executeSearchQuery(ctx, queryData, qIndexName, provider, cancel, opts.Serializer, wrapper)
+	res, err := c.executeSearchQuery(ctx, queryData, qIndexName, provider, cancel, opts.Serializer, wrapper, startTime)
 	if err != nil {
 		// only cancel on error, if we cancel when things have gone to plan then we'll prematurely close the stream
 		if cancel != nil {
@@ -518,7 +524,8 @@ func (c *Cluster) searchQuery(ctx context.Context, qIndexName string, q interfac
 }
 
 func (c *Cluster) executeSearchQuery(ctx context.Context, query jsonx.DelayedObject,
-	qIndexName string, provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer, wrapper *retryStrategyWrapper) (*SearchResult, error) {
+	qIndexName string, provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer,
+	wrapper *retryStrategyWrapper, startTime time.Time) (*SearchResult, error) {
 
 	qBytes, err := json.Marshal(query)
 	if err != nil {
@@ -544,9 +551,11 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, query jsonx.DelayedObj
 
 			if err == context.DeadlineExceeded {
 				return nil, timeoutError{
-					operationID:   req.UniqueId,
 					retryReasons:  req.RetryReasons(),
 					retryAttempts: req.RetryAttempts(),
+					elapsed:       time.Now().Sub(startTime),
+					remote:        req.Endpoint,
+					operation:     "fts",
 				}
 			}
 
@@ -594,7 +603,7 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, query jsonx.DelayedObj
 			}
 		case 429:
 			shouldRetry, retryErr := shouldRetryHTTPRequest(ctx, req, gocbcore.ServiceResponseCodeIndicatedRetryReason,
-				wrapper, provider)
+				wrapper, provider, startTime)
 			if shouldRetry {
 				continue
 			}
@@ -634,6 +643,7 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, query jsonx.DelayedObj
 			},
 			httpStatus: resp.StatusCode,
 			serializer: serializer,
+			startTime:  startTime,
 		}
 
 		streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)

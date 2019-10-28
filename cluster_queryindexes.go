@@ -259,6 +259,11 @@ func (qm *QueryIndexManager) GetAllIndexes(bucketName string, opts *GetAllQueryI
 		opts = &GetAllQueryIndexesOptions{}
 	}
 
+	return qm.getAllIndexes(bucketName, time.Now(), opts)
+}
+
+func (qm *QueryIndexManager) getAllIndexes(bucketName string, startTime time.Time, opts *GetAllQueryIndexesOptions) ([]QueryIndex, error) {
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, qm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -270,6 +275,7 @@ func (qm *QueryIndexManager) GetAllIndexes(bucketName string, opts *GetAllQueryI
 		PositionalParameters: []interface{}{bucketName},
 		RetryStrategy:        opts.RetryStrategy,
 		ReadOnly:             true,
+		startTime:            startTime,
 	}
 
 	rows, err := qm.executeQuery(q, queryOpts)
@@ -299,6 +305,7 @@ type BuildDeferredQueryIndexOptions struct {
 
 // BuildDeferredIndexes builds all indexes which are currently in deferred state.
 func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *BuildDeferredQueryIndexOptions) ([]string, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &BuildDeferredQueryIndexOptions{}
 	}
@@ -342,6 +349,7 @@ func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *Build
 	rows, err := qm.executeQuery(qs, &QueryOptions{
 		Context:       ctx,
 		RetryStrategy: opts.RetryStrategy,
+		startTime:     startTime,
 	})
 	if err != nil {
 		return nil, err
@@ -396,6 +404,7 @@ type WatchQueryIndexTimeout struct {
 
 // WatchIndexes waits for a set of indexes to come online.
 func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string, timeout WatchQueryIndexTimeout, opts *WatchQueryIndexOptions) error {
+	startTime := time.Now()
 	if timeout.Context == nil && timeout.Timeout == 0 {
 		return invalidArgumentsError{
 			message: "either a context or a timeout value must be supplied to watch",
@@ -417,7 +426,7 @@ func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string,
 
 	curInterval := 50 * time.Millisecond
 	for {
-		indexes, err := qm.GetAllIndexes(bucketName, &GetAllQueryIndexesOptions{
+		indexes, err := qm.getAllIndexes(bucketName, startTime, &GetAllQueryIndexesOptions{
 			Context:       ctx,
 			RetryStrategy: opts.RetryStrategy,
 		})
