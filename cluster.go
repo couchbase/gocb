@@ -56,6 +56,8 @@ type ClusterOptions struct {
 
 	ThresholdLoggerDisabled bool
 	ThresholdLoggingOptions *ThresholdLoggingOptions
+
+	CircuitBreakerConfig CircuitBreakerConfig
 }
 
 // ClusterCloseOptions is the set of options available when disconnecting from a Cluster.
@@ -171,6 +173,7 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 			OrphanLoggerSampleSize: opts.OrphanLoggerSampleSize,
 			UseServerDurations:     useServerDurations,
 			Tracer:                 initialTracer,
+			CircuitBreakerConfig:   opts.CircuitBreakerConfig,
 		},
 
 		queryCache: make(map[string]*n1qlCache),

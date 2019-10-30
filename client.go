@@ -52,6 +52,14 @@ func (c *stdClient) buildConfig() error {
 	defer c.lock.Unlock()
 
 	auth := c.cluster.auth
+	breakerCfg := c.cluster.sb.CircuitBreakerConfig
+
+	var completionCallback func(err error) bool
+	if breakerCfg.CompletionCallback != nil {
+		completionCallback = func(err error) bool {
+			return breakerCfg.CompletionCallback(maybeEnhanceKVErr(err, "", false))
+		}
+	}
 
 	config := &gocbcore.AgentConfig{
 		UserString:           Identifier(),
@@ -72,6 +80,15 @@ func (c *stdClient) buildConfig() error {
 		ZombieLoggerSampleSize: c.cluster.sb.OrphanLoggerSampleSize,
 		NoRootTraceSpans:       true,
 		Tracer:                 &requestTracerWrapper{c.cluster.sb.Tracer},
+		CircuitBreakerConfig: gocbcore.CircuitBreakerConfig{
+			Enabled:                  !breakerCfg.Disabled,
+			VolumeThreshold:          breakerCfg.VolumeThreshold,
+			ErrorThresholdPercentage: breakerCfg.ErrorThresholdPercentage,
+			SleepWindow:              breakerCfg.SleepWindow,
+			RollingWindow:            breakerCfg.RollingWindow,
+			CanaryTimeout:            breakerCfg.CanaryTimeout,
+			CompletionCallback:       completionCallback,
+		},
 	}
 
 	err := config.FromConnStr(c.cluster.connSpec().String())

@@ -47,6 +47,8 @@ type stateBlock struct {
 	OrphanLoggerSampleSize int
 
 	Tracer requestTracer
+
+	CircuitBreakerConfig CircuitBreakerConfig
 }
 
 func (sb *stateBlock) getCachedClient() client {
