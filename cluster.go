@@ -469,6 +469,7 @@ func (c *Cluster) Users() (*UserManager, error) {
 		httpClient:           provider,
 		globalTimeout:        c.sb.ManagementTimeout,
 		defaultRetryStrategy: c.sb.RetryStrategyWrapper,
+		tracer:               c.sb.Tracer,
 	}, nil
 }
 
@@ -484,6 +485,7 @@ func (c *Cluster) Buckets() (*BucketManager, error) {
 		httpClient:           provider,
 		globalTimeout:        c.sb.ManagementTimeout,
 		defaultRetryStrategy: c.sb.RetryStrategyWrapper,
+		tracer:               c.sb.Tracer,
 	}, nil
 }
 
@@ -496,9 +498,10 @@ func (c *Cluster) AnalyticsIndexes() (*AnalyticsIndexManager, error) {
 	}
 	return &AnalyticsIndexManager{
 		httpClient:           provider,
-		executeQuery:         c.AnalyticsQuery,
+		executeQuery:         c.analyticsQuery,
 		globalTimeout:        c.sb.ManagementTimeout,
 		defaultRetryStrategy: c.sb.RetryStrategyWrapper,
+		tracer:               c.sb.Tracer,
 	}, nil
 }
 
@@ -506,9 +509,10 @@ func (c *Cluster) AnalyticsIndexes() (*AnalyticsIndexManager, error) {
 // Volatile: This API is subject to change at any time.
 func (c *Cluster) QueryIndexes() (*QueryIndexManager, error) {
 	return &QueryIndexManager{
-		executeQuery:         c.Query,
+		executeQuery:         c.query,
 		globalTimeout:        c.sb.ManagementTimeout,
 		defaultRetryStrategy: c.sb.RetryStrategyWrapper,
+		tracer:               c.sb.Tracer,
 	}, nil
 }
 
@@ -523,5 +527,6 @@ func (c *Cluster) SearchIndexes() (*SearchIndexManager, error) {
 		httpClient:           provider,
 		globalTimeout:        c.sb.ManagementTimeout,
 		defaultRetryStrategy: c.sb.RetryStrategyWrapper,
+		tracer:               c.sb.Tracer,
 	}, nil
 }

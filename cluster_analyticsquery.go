@@ -308,20 +308,25 @@ func (r *AnalyticsResult) readAttribute(decoder *json.Decoder, t json.Token) (bo
 
 // AnalyticsQuery performs an analytics query and returns a list of rows or an error.
 func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*AnalyticsResult, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &AnalyticsOptions{}
 	}
+
+	span := c.sb.Tracer.StartSpan("AnalyticsQuery", nil).
+		SetTag("couchbase.service", "cbas")
+	defer span.Finish()
+
+	return c.analyticsQuery(span.Context(), statement, startTime, opts)
+}
+
+func (c *Cluster) analyticsQuery(tracectx requestSpanContext, statement string, startTime time.Time,
+	opts *AnalyticsOptions) (*AnalyticsResult, error) {
 
 	provider, err := c.getHTTPProvider()
 	if err != nil {
 		return nil, err
 	}
-
-	return c.analyticsQuery(statement, opts, provider)
-}
-
-func (c *Cluster) analyticsQuery(statement string, opts *AnalyticsOptions,
-	provider httpProvider) (*AnalyticsResult, error) {
 
 	queryOpts, err := opts.toMap(statement)
 	if err != nil {
@@ -364,7 +369,8 @@ func (c *Cluster) analyticsQuery(statement string, opts *AnalyticsOptions,
 		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	res, err := c.executeAnalyticsQuery(ctx, queryOpts, provider, cancel, opts.ReadOnly, opts.Serializer, retryWrapper)
+	res, err := c.executeAnalyticsQuery(ctx, tracectx, queryOpts, provider, cancel, opts.ReadOnly, opts.Serializer,
+		retryWrapper, startTime)
 	if err != nil {
 		// only cancel on error, if we cancel when things have gone to plan then we'll prematurely close the stream
 		if cancel != nil {
@@ -376,17 +382,18 @@ func (c *Cluster) analyticsQuery(statement string, opts *AnalyticsOptions,
 	return res, nil
 }
 
-func (c *Cluster) executeAnalyticsQuery(ctx context.Context, opts map[string]interface{},
+func (c *Cluster) executeAnalyticsQuery(ctx context.Context, tracectx requestSpanContext, opts map[string]interface{},
 	provider httpProvider, cancel context.CancelFunc, idempotent bool, serializer JSONSerializer,
-	retryWrapper *retryStrategyWrapper) (*AnalyticsResult, error) {
-	startTime := time.Now()
+	retryWrapper *retryStrategyWrapper, startTime time.Time) (*AnalyticsResult, error) {
 	// priority is sent as a header not in the body
 	priority, priorityCastOK := opts["priority"].(int)
 	if priorityCastOK {
 		delete(opts, "priority")
 	}
 
+	espan := c.sb.Tracer.StartSpan("encoding", tracectx)
 	reqJSON, err := json.Marshal(opts)
+	espan.Finish()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal query request body")
 	}
@@ -415,7 +422,9 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, opts map[string]int
 	}
 
 	for {
+		dspan := c.sb.Tracer.StartSpan("dispatch", tracectx)
 		resp, err := provider.DoHttpRequest(req)
+		dspan.Finish()
 		if err != nil {
 			if err == gocbcore.ErrNoCbasService {
 				return nil, serviceNotAvailableError{message: gocbcore.ErrNoCbasService.Error()}

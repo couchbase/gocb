@@ -428,6 +428,10 @@ func (c *Cluster) SearchQuery(indexName string, q SearchQuery, opts *SearchOptio
 	if opts == nil {
 		opts = &SearchOptions{}
 	}
+
+	span := c.sb.Tracer.StartSpan("SearchQuery", nil).SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	ctx := opts.Context
 	if ctx == nil {
 		ctx = context.Background()
@@ -438,10 +442,10 @@ func (c *Cluster) SearchQuery(indexName string, q SearchQuery, opts *SearchOptio
 		return nil, err
 	}
 
-	return c.searchQuery(ctx, indexName, q, opts, provider, startTime)
+	return c.searchQuery(ctx, span.Context(), indexName, q, opts, provider, startTime)
 }
 
-func (c *Cluster) searchQuery(ctx context.Context, qIndexName string, q interface{}, opts *SearchOptions,
+func (c *Cluster) searchQuery(ctx context.Context, tracectx requestSpanContext, qIndexName string, q interface{}, opts *SearchOptions,
 	provider httpProvider, startTime time.Time) (*SearchResult, error) {
 
 	optsData, err := opts.toOptionsData()
@@ -449,7 +453,9 @@ func (c *Cluster) searchQuery(ctx context.Context, qIndexName string, q interfac
 		return nil, err
 	}
 
+	espan := c.sb.Tracer.StartSpan("encode", tracectx)
 	qBytes, err := json.Marshal(*optsData)
+	espan.Finish()
 	if err != nil {
 		return nil, err
 	}
@@ -511,7 +517,7 @@ func (c *Cluster) searchQuery(ctx context.Context, qIndexName string, q interfac
 		wrapper = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	res, err := c.executeSearchQuery(ctx, queryData, qIndexName, provider, cancel, opts.Serializer, wrapper, startTime)
+	res, err := c.executeSearchQuery(ctx, tracectx, queryData, qIndexName, provider, cancel, opts.Serializer, wrapper, startTime)
 	if err != nil {
 		// only cancel on error, if we cancel when things have gone to plan then we'll prematurely close the stream
 		if cancel != nil {
@@ -523,7 +529,7 @@ func (c *Cluster) searchQuery(ctx context.Context, qIndexName string, q interfac
 	return res, nil
 }
 
-func (c *Cluster) executeSearchQuery(ctx context.Context, query jsonx.DelayedObject,
+func (c *Cluster) executeSearchQuery(ctx context.Context, tracectx requestSpanContext, query jsonx.DelayedObject,
 	qIndexName string, provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer,
 	wrapper *retryStrategyWrapper, startTime time.Time) (*SearchResult, error) {
 
@@ -543,7 +549,9 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, query jsonx.DelayedObj
 	}
 
 	for {
+		dspan := c.sb.Tracer.StartSpan("dispatch", tracectx)
 		resp, err := provider.DoHttpRequest(req)
+		dspan.Finish()
 		if err != nil {
 			if err == gocbcore.ErrNoFtsService {
 				return nil, serviceNotAvailableError{message: gocbcore.ErrNoFtsService.Error()}

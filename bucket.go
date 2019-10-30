@@ -94,6 +94,7 @@ func (b *Bucket) ViewIndexes() (*ViewIndexManager, error) {
 		httpClient:           provider,
 		globalTimeout:        b.sb.ManagementTimeout,
 		defaultRetryStrategy: b.sb.RetryStrategyWrapper,
+		tracer:               b.sb.Tracer,
 	}, nil
 }
 
@@ -110,5 +111,6 @@ func (b *Bucket) CollectionManager() (*CollectionManager, error) {
 		bucketName:           b.Name(),
 		globalTimeout:        b.sb.ManagementTimeout,
 		defaultRetryStrategy: b.sb.RetryStrategyWrapper,
+		tracer:               b.sb.Tracer,
 	}, nil
 }

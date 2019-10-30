@@ -18,6 +18,7 @@ type SearchIndexManager struct {
 	httpClient           httpProvider
 	globalTimeout        time.Duration
 	defaultRetryStrategy *retryStrategyWrapper
+	tracer               requestTracer
 }
 
 type searchIndexDefs struct {
@@ -49,6 +50,10 @@ func (sim *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]
 		opts = &GetAllSearchIndexOptions{}
 	}
 
+	span := sim.tracer.StartSpan("GetAllIndexes", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -69,7 +74,9 @@ func (sim *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := sim.tracer.StartSpan("dispatch", span.Context())
 	res, err := sim.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return nil, timeoutError{
@@ -131,6 +138,10 @@ func (sim *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOp
 		opts = &GetSearchIndexOptions{}
 	}
 
+	span := sim.tracer.StartSpan("GetIndex", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -150,7 +161,10 @@ func (sim *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOp
 		RetryStrategy: retryStrategy,
 		UniqueId:      uuid.New().String(),
 	}
+
+	dspan := sim.tracer.StartSpan("dispatch", span.Context())
 	resp, err := sim.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return nil, timeoutError{
@@ -236,6 +250,10 @@ func (sim *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Up
 		opts = &UpsertSearchIndexOptions{}
 	}
 
+	span := sim.tracer.StartSpan("UpsertIndex", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -246,7 +264,9 @@ func (sim *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Up
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	espan := sim.tracer.StartSpan("encode", span.Context())
 	b, err := json.Marshal(indexDefinition)
+	espan.Finish()
 	if err != nil {
 		return err
 	}
@@ -263,7 +283,9 @@ func (sim *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Up
 	}
 	req.Headers["cache-control"] = "no-cache"
 
+	dspan := sim.tracer.StartSpan("dispatch", span.Context())
 	res, err := sim.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return timeoutError{
@@ -316,6 +338,10 @@ func (sim *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndex
 		opts = &DropSearchIndexOptions{}
 	}
 
+	span := sim.tracer.StartSpan("DropIndex", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -334,7 +360,9 @@ func (sim *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndex
 		RetryStrategy: retryStrategy,
 		UniqueId:      uuid.New().String(),
 	}
+	dspan := sim.tracer.StartSpan("dispatch", span.Context())
 	res, err := sim.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return timeoutError{
@@ -387,6 +415,10 @@ func (sim *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{}
 		opts = &AnalyzeDocumentOptions{}
 	}
 
+	span := sim.tracer.StartSpan("AnalyzeDocument", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -412,7 +444,9 @@ func (sim *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{}
 		IsIdempotent:  true,
 		UniqueId:      uuid.New().String(),
 	}
+	dspan := sim.tracer.StartSpan("dispatch", span.Context())
 	res, err := sim.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return nil, timeoutError{
@@ -475,6 +509,10 @@ func (sim *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *
 		opts = &GetIndexedDocumentsCountOptions{}
 	}
 
+	span := sim.tracer.StartSpan("GetIndexedDocumentsCount", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -494,7 +532,9 @@ func (sim *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *
 		IsIdempotent:  true,
 		UniqueId:      uuid.New().String(),
 	}
+	dspan := sim.tracer.StartSpan("dispatch", span.Context())
 	res, err := sim.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return 0, timeoutError{
@@ -538,8 +578,8 @@ func (sim *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *
 	return count.Count, nil
 }
 
-func (sim *SearchIndexManager) performControlRequest(ctx context.Context, uri, method string, strategy RetryStrategy,
-	startTime time.Time) error {
+func (sim *SearchIndexManager) performControlRequest(ctx context.Context, tracectx requestSpanContext, uri,
+	method string, strategy RetryStrategy, startTime time.Time) error {
 	retryStrategy := sim.defaultRetryStrategy
 	if strategy == nil {
 		retryStrategy = newRetryStrategyWrapper(strategy)
@@ -553,7 +593,10 @@ func (sim *SearchIndexManager) performControlRequest(ctx context.Context, uri, m
 		RetryStrategy: retryStrategy,
 		UniqueId:      uuid.New().String(),
 	}
+
+	dspan := sim.tracer.StartSpan("dispatch", tracectx)
 	res, err := sim.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return timeoutError{
@@ -603,6 +646,10 @@ func (sim *SearchIndexManager) PauseIngest(indexName string, opts *PauseIngestSe
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
+	span := sim.tracer.StartSpan("PauseIngest", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	if opts == nil {
 		opts = &PauseIngestSearchIndexOptions{}
 	}
@@ -612,7 +659,7 @@ func (sim *SearchIndexManager) PauseIngest(indexName string, opts *PauseIngestSe
 		defer cancel()
 	}
 
-	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/ingestControl/pause", indexName),
+	return sim.performControlRequest(ctx, span.Context(), fmt.Sprintf("/api/index/%s/ingestControl/pause", indexName),
 		"POST", opts.RetryStrategy, startTime)
 }
 
@@ -630,6 +677,10 @@ func (sim *SearchIndexManager) ResumeIngest(indexName string, opts *ResumeIngest
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
+	span := sim.tracer.StartSpan("ResumeIngest", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	if opts == nil {
 		opts = &ResumeIngestSearchIndexOptions{}
 	}
@@ -639,7 +690,7 @@ func (sim *SearchIndexManager) ResumeIngest(indexName string, opts *ResumeIngest
 		defer cancel()
 	}
 
-	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/ingestControl/resume", indexName),
+	return sim.performControlRequest(ctx, span.Context(), fmt.Sprintf("/api/index/%s/ingestControl/resume", indexName),
 		"POST", opts.RetryStrategy, startTime)
 }
 
@@ -661,12 +712,16 @@ func (sim *SearchIndexManager) AllowQuerying(indexName string, opts *AllowQueryi
 		opts = &AllowQueryingSearchIndexOptions{}
 	}
 
+	span := sim.tracer.StartSpan("AllowQuerying", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/queryControl/allow", indexName),
+	return sim.performControlRequest(ctx, span.Context(), fmt.Sprintf("/api/index/%s/queryControl/allow", indexName),
 		"POST", opts.RetryStrategy, startTime)
 }
 
@@ -688,12 +743,16 @@ func (sim *SearchIndexManager) DisallowQuerying(indexName string, opts *AllowQue
 		opts = &AllowQueryingSearchIndexOptions{}
 	}
 
+	span := sim.tracer.StartSpan("DisallowQuerying", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/queryControl/disallow", indexName),
+	return sim.performControlRequest(ctx, span.Context(), fmt.Sprintf("/api/index/%s/queryControl/disallow", indexName),
 		"POST", opts.RetryStrategy, startTime)
 }
 
@@ -715,12 +774,16 @@ func (sim *SearchIndexManager) FreezePlan(indexName string, opts *AllowQueryingS
 		opts = &AllowQueryingSearchIndexOptions{}
 	}
 
+	span := sim.tracer.StartSpan("FreezePlan", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/planFreezeControl/freeze", indexName),
+	return sim.performControlRequest(ctx, span.Context(), fmt.Sprintf("/api/index/%s/planFreezeControl/freeze", indexName),
 		"POST", opts.RetryStrategy, startTime)
 }
 
@@ -742,11 +805,15 @@ func (sim *SearchIndexManager) UnfreezePlan(indexName string, opts *AllowQueryin
 		opts = &AllowQueryingSearchIndexOptions{}
 	}
 
+	span := sim.tracer.StartSpan("UnfreezePlan", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/planFreezeControl/unfreeze", indexName),
+	return sim.performControlRequest(ctx, span.Context(), fmt.Sprintf("/api/index/%s/planFreezeControl/unfreeze", indexName),
 		"POST", opts.RetryStrategy, startTime)
 }

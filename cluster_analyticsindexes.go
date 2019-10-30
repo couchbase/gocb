@@ -16,10 +16,12 @@ import (
 // AnalyticsIndexManager provides methods for performing Couchbase Analytics index management.
 // Volatile: This API is subject to change at any time.
 type AnalyticsIndexManager struct {
-	httpClient           httpProvider
-	executeQuery         func(statement string, opts *AnalyticsOptions) (*AnalyticsResult, error)
+	httpClient   httpProvider
+	executeQuery func(tracectx requestSpanContext, statement string, startTime time.Time,
+		opts *AnalyticsOptions) (*AnalyticsResult, error)
 	globalTimeout        time.Duration
 	defaultRetryStrategy *retryStrategyWrapper
+	tracer               requestTracer
 }
 
 // AnalyticsDataset contains information about an analytics dataset,
@@ -55,9 +57,13 @@ func (am *AnalyticsIndexManager) CreateDataverse(dataverseName string, opts *Cre
 		}
 	}
 
+	startTime := time.Now()
 	if opts == nil {
 		opts = &CreateAnalyticsDataverseOptions{}
 	}
+
+	span := am.tracer.StartSpan("CreateDataverse", nil).SetTag("couchbase.service", "cbas")
+	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, am.globalTimeout)
 	if cancel != nil {
@@ -70,7 +76,7 @@ func (am *AnalyticsIndexManager) CreateDataverse(dataverseName string, opts *Cre
 	}
 
 	q := fmt.Sprintf("CREATE DATAVERSE `%s` %s", dataverseName, ignoreStr)
-	result, err := am.executeQuery(q, &AnalyticsOptions{
+	result, err := am.executeQuery(span.Context(), q, startTime, &AnalyticsOptions{
 		Context:       ctx,
 		RetryStrategy: opts.RetryStrategy,
 	})
@@ -100,9 +106,14 @@ type DropAnalyticsDataverseOptions struct {
 
 // DropDataverse drops an analytics dataset.
 func (am *AnalyticsIndexManager) DropDataverse(dataverseName string, opts *DropAnalyticsDataverseOptions) error {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &DropAnalyticsDataverseOptions{}
 	}
+
+	span := am.tracer.StartSpan("DropDataverse", nil).
+		SetTag("couchbase.service", "cbas")
+	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, am.globalTimeout)
 	if cancel != nil {
@@ -115,7 +126,7 @@ func (am *AnalyticsIndexManager) DropDataverse(dataverseName string, opts *DropA
 	}
 
 	q := fmt.Sprintf("DROP DATAVERSE %s %s", dataverseName, ignoreStr)
-	result, err := am.executeQuery(q, &AnalyticsOptions{
+	result, err := am.executeQuery(span.Context(), q, startTime, &AnalyticsOptions{
 		Context:       ctx,
 		RetryStrategy: opts.RetryStrategy,
 	})
@@ -148,11 +159,16 @@ type CreateAnalyticsDatasetOptions struct {
 
 // CreateDataset creates a new analytics dataset.
 func (am *AnalyticsIndexManager) CreateDataset(datasetName, bucketName string, opts *CreateAnalyticsDatasetOptions) error {
+	startTime := time.Now()
 	if datasetName == "" {
 		return invalidArgumentsError{
 			message: "dataset name cannot be empty",
 		}
 	}
+
+	span := am.tracer.StartSpan("CreateDataset", nil).
+		SetTag("couchbase.service", "cbas")
+	defer span.Finish()
 
 	if opts == nil {
 		opts = &CreateAnalyticsDatasetOptions{}
@@ -183,7 +199,7 @@ func (am *AnalyticsIndexManager) CreateDataset(datasetName, bucketName string, o
 	}
 
 	q := fmt.Sprintf("CREATE DATASET %s %s ON `%s` %s", ignoreStr, datasetName, bucketName, where)
-	result, err := am.executeQuery(q, &AnalyticsOptions{
+	result, err := am.executeQuery(span.Context(), q, startTime, &AnalyticsOptions{
 		Context:       ctx,
 		RetryStrategy: opts.RetryStrategy,
 	})
@@ -214,9 +230,14 @@ type DropAnalyticsDatasetOptions struct {
 
 // DropDataset drops an analytics dataset.
 func (am *AnalyticsIndexManager) DropDataset(datasetName string, opts *DropAnalyticsDatasetOptions) error {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &DropAnalyticsDatasetOptions{}
 	}
+
+	span := am.tracer.StartSpan("DropDataset", nil).
+		SetTag("couchbase.service", "cbas")
+	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, am.globalTimeout)
 	if cancel != nil {
@@ -235,7 +256,7 @@ func (am *AnalyticsIndexManager) DropDataset(datasetName string, opts *DropAnaly
 	}
 
 	q := fmt.Sprintf("DROP DATASET %s %s", datasetName, ignoreStr)
-	result, err := am.executeQuery(q, &AnalyticsOptions{
+	result, err := am.executeQuery(span.Context(), q, startTime, &AnalyticsOptions{
 		Context:       ctx,
 		RetryStrategy: opts.RetryStrategy,
 	})
@@ -263,17 +284,23 @@ type GetAllAnalyticsDatasetsOptions struct {
 
 // GetAllDatasets gets all analytics datasets.
 func (am *AnalyticsIndexManager) GetAllDatasets(opts *GetAllAnalyticsDatasetsOptions) ([]AnalyticsDataset, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &GetAllAnalyticsDatasetsOptions{}
 	}
+
+	span := am.tracer.StartSpan("GetAllDatasets", nil).
+		SetTag("couchbase.service", "cbas")
+	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, am.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	result, err := am.executeQuery(
+	result, err := am.executeQuery(span.Context(),
 		"SELECT d.* FROM Metadata.`Dataset` d WHERE d.DataverseName <> \"Metadata\"",
+		startTime,
 		&AnalyticsOptions{
 			Context:       ctx,
 			ReadOnly:      true,
@@ -328,9 +355,14 @@ func (am *AnalyticsIndexManager) CreateIndex(datasetName, indexName string, fiel
 		}
 	}
 
+	startTime := time.Now()
 	if opts == nil {
 		opts = &CreateAnalyticsIndexOptions{}
 	}
+
+	span := am.tracer.StartSpan("CreateIndex", nil).
+		SetTag("couchbase.service", "cbas")
+	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, am.globalTimeout)
 	if cancel != nil {
@@ -354,7 +386,7 @@ func (am *AnalyticsIndexManager) CreateIndex(datasetName, indexName string, fiel
 	}
 
 	q := fmt.Sprintf("CREATE INDEX `%s` %s ON %s (%s)", indexName, ignoreStr, datasetName, strings.Join(indexFields, ","))
-	result, err := am.executeQuery(q, &AnalyticsOptions{
+	result, err := am.executeQuery(span.Context(), q, startTime, &AnalyticsOptions{
 		Context:       ctx,
 		RetryStrategy: opts.RetryStrategy,
 	})
@@ -385,9 +417,14 @@ type DropAnalyticsIndexOptions struct {
 
 // DropIndex drops an analytics index.
 func (am *AnalyticsIndexManager) DropIndex(datasetName, indexName string, opts *DropAnalyticsIndexOptions) error {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &DropAnalyticsIndexOptions{}
 	}
+
+	span := am.tracer.StartSpan("DropIndex", nil).
+		SetTag("couchbase.service", "cbas")
+	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, am.globalTimeout)
 	if cancel != nil {
@@ -406,7 +443,7 @@ func (am *AnalyticsIndexManager) DropIndex(datasetName, indexName string, opts *
 	}
 
 	q := fmt.Sprintf("DROP INDEX %s.%s %s", datasetName, indexName, ignoreStr)
-	result, err := am.executeQuery(q, &AnalyticsOptions{
+	result, err := am.executeQuery(span.Context(), q, startTime, &AnalyticsOptions{
 		Context:       ctx,
 		RetryStrategy: opts.RetryStrategy,
 	})
@@ -434,17 +471,23 @@ type GetAllAnalyticsIndexesOptions struct {
 
 // GetAllIndexes gets all analytics indexes.
 func (am *AnalyticsIndexManager) GetAllIndexes(opts *GetAllAnalyticsIndexesOptions) ([]AnalyticsIndex, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &GetAllAnalyticsIndexesOptions{}
 	}
+
+	span := am.tracer.StartSpan("GetAllIndexes", nil).
+		SetTag("couchbase.service", "cbas")
+	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, am.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	result, err := am.executeQuery(
+	result, err := am.executeQuery(span.Context(),
 		"SELECT d.* FROM Metadata.`Index` d WHERE d.DataverseName <> \"Metadata\"",
+		startTime,
 		&AnalyticsOptions{
 			Context:       ctx,
 			RetryStrategy: opts.RetryStrategy,
@@ -487,9 +530,14 @@ type ConnectAnalyticsLinkOptions struct {
 
 // ConnectLink connects an analytics link.
 func (am *AnalyticsIndexManager) ConnectLink(opts *ConnectAnalyticsLinkOptions) error {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &ConnectAnalyticsLinkOptions{}
 	}
+
+	span := am.tracer.StartSpan("ConnectLink", nil).
+		SetTag("couchbase.service", "cbas")
+	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, am.globalTimeout)
 	if cancel != nil {
@@ -500,8 +548,9 @@ func (am *AnalyticsIndexManager) ConnectLink(opts *ConnectAnalyticsLinkOptions) 
 		opts.LinkName = "Local"
 	}
 
-	result, err := am.executeQuery(
+	result, err := am.executeQuery(span.Context(),
 		fmt.Sprintf("CONNECT LINK %s", opts.LinkName),
+		startTime,
 		&AnalyticsOptions{
 			Context:       ctx,
 			RetryStrategy: opts.RetryStrategy,
@@ -532,9 +581,14 @@ type DisconnectAnalyticsLinkOptions struct {
 
 // DisconnectLink disconnects an analytics link.
 func (am *AnalyticsIndexManager) DisconnectLink(opts *DisconnectAnalyticsLinkOptions) error {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &DisconnectAnalyticsLinkOptions{}
 	}
+
+	span := am.tracer.StartSpan("DisconnectLink", nil).
+		SetTag("couchbase.service", "cbas")
+	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, am.globalTimeout)
 	if cancel != nil {
@@ -545,8 +599,9 @@ func (am *AnalyticsIndexManager) DisconnectLink(opts *DisconnectAnalyticsLinkOpt
 		opts.LinkName = "Local"
 	}
 
-	result, err := am.executeQuery(
+	result, err := am.executeQuery(span.Context(),
 		fmt.Sprintf("DISCONNECT LINK %s", opts.LinkName),
+		startTime,
 		&AnalyticsOptions{
 			Context:       ctx,
 			RetryStrategy: opts.RetryStrategy,
@@ -580,6 +635,10 @@ func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAn
 		opts = &GetPendingMutationsAnalyticsOptions{}
 	}
 
+	span := am.tracer.StartSpan("GetPendingMutations", nil).
+		SetTag("couchbase.service", "cbas")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, am.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -599,7 +658,9 @@ func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAn
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := am.tracer.StartSpan("dispatch", span.Context())
 	resp, err := am.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return nil, timeoutError{

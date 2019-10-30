@@ -150,6 +150,7 @@ type ThresholdLoggingOptions struct {
 	QueryThreshold         time.Duration
 	SearchThreshold        time.Duration
 	AnalyticsThreshold     time.Duration
+	ManagementThreshold    time.Duration
 }
 
 // thresholdLoggingTracer is a specialized Tracer implementation which will automatically
@@ -157,22 +158,25 @@ type ThresholdLoggingOptions struct {
 // only safe for use within the Couchbase SDK, uses by external event sources are
 // likely to fail.
 type thresholdLoggingTracer struct {
-	Interval           time.Duration
-	SampleSize         uint32
-	KVThreshold        time.Duration
-	ViewsThreshold     time.Duration
-	QueryThreshold     time.Duration
-	SearchThreshold    time.Duration
-	AnalyticsThreshold time.Duration
+	Interval            time.Duration
+	SampleSize          uint32
+	KVThreshold         time.Duration
+	ViewsThreshold      time.Duration
+	QueryThreshold      time.Duration
+	SearchThreshold     time.Duration
+	AnalyticsThreshold  time.Duration
+	ManagementThreshold time.Duration
 
-	killCh         chan struct{}
-	refCount       int32
-	nextTick       time.Time
-	kvGroup        thresholdLogGroup
-	viewsGroup     thresholdLogGroup
-	queryGroup     thresholdLogGroup
-	searchGroup    thresholdLogGroup
-	analyticsGroup thresholdLogGroup
+	killCh          chan struct{}
+	refCount        int32
+	nextTick        time.Time
+	kvGroup         thresholdLogGroup
+	viewsGroup      thresholdLogGroup
+	queryGroup      thresholdLogGroup
+	searchGroup     thresholdLogGroup
+	analyticsGroup  thresholdLogGroup
+	managementGroup thresholdLogGroup
+	mgmtGroup       thresholdLogGroup
 }
 
 func newThresholdLoggingTracer(opts *ThresholdLoggingOptions) *thresholdLoggingTracer {
@@ -200,15 +204,19 @@ func newThresholdLoggingTracer(opts *ThresholdLoggingOptions) *thresholdLoggingT
 	if opts.AnalyticsThreshold == 0 {
 		opts.AnalyticsThreshold = 1 * time.Second
 	}
+	if opts.ManagementThreshold == 0 {
+		opts.ManagementThreshold = 1 * time.Second
+	}
 
 	t := &thresholdLoggingTracer{
-		Interval:           opts.Interval,
-		SampleSize:         opts.SampleSize,
-		KVThreshold:        opts.KVThreshold,
-		ViewsThreshold:     opts.ViewsThreshold,
-		QueryThreshold:     opts.QueryThreshold,
-		SearchThreshold:    opts.SearchThreshold,
-		AnalyticsThreshold: opts.AnalyticsThreshold,
+		Interval:            opts.Interval,
+		SampleSize:          opts.SampleSize,
+		KVThreshold:         opts.KVThreshold,
+		ViewsThreshold:      opts.ViewsThreshold,
+		QueryThreshold:      opts.QueryThreshold,
+		SearchThreshold:     opts.SearchThreshold,
+		AnalyticsThreshold:  opts.AnalyticsThreshold,
+		ManagementThreshold: opts.ManagementThreshold,
 	}
 
 	t.kvGroup.init("kv", t.KVThreshold, t.SampleSize)
@@ -216,6 +224,7 @@ func newThresholdLoggingTracer(opts *ThresholdLoggingOptions) *thresholdLoggingT
 	t.queryGroup.init("query", t.QueryThreshold, t.SampleSize)
 	t.searchGroup.init("search", t.SearchThreshold, t.SampleSize)
 	t.analyticsGroup.init("analytics", t.AnalyticsThreshold, t.SampleSize)
+	t.managementGroup.init("management", t.ManagementThreshold, t.SampleSize)
 
 	if t.killCh == nil {
 		t.killCh = make(chan struct{})
@@ -254,6 +263,7 @@ func (t *thresholdLoggingTracer) logRecordedRecords() {
 	t.queryGroup.logRecordedRecords(t.SampleSize)
 	t.searchGroup.logRecordedRecords(t.SampleSize)
 	t.analyticsGroup.logRecordedRecords(t.SampleSize)
+	t.managementGroup.logRecordedRecords(t.SampleSize)
 }
 
 func (t *thresholdLoggingTracer) startLoggerRoutine() {
@@ -285,6 +295,8 @@ func (t *thresholdLoggingTracer) recordOp(span *thresholdLogSpan) {
 		t.searchGroup.recordOp(span)
 	case "cbas":
 		t.analyticsGroup.recordOp(span)
+	case "mgmt":
+		t.managementGroup.recordOp(span)
 	}
 }
 

@@ -20,6 +20,7 @@ type CollectionManager struct {
 	bucketName           string
 	globalTimeout        time.Duration
 	defaultRetryStrategy *retryStrategyWrapper
+	tracer               requestTracer
 }
 
 // CollectionSpec describes the specification of a collection.
@@ -76,6 +77,10 @@ func (cm *CollectionManager) CollectionExists(spec CollectionSpec, opts *Collect
 		opts = &CollectionExistsOptions{}
 	}
 
+	span := cm.tracer.StartSpan("CollectionExists", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -99,7 +104,9 @@ func (cm *CollectionManager) CollectionExists(spec CollectionSpec, opts *Collect
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := cm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := cm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return false, timeoutError{
@@ -193,6 +200,10 @@ func (cm *CollectionManager) ScopeExists(scopeName string, opts *ScopeExistsOpti
 		opts = &ScopeExistsOptions{}
 	}
 
+	span := cm.tracer.StartSpan("ScopeExists", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -213,7 +224,9 @@ func (cm *CollectionManager) ScopeExists(scopeName string, opts *ScopeExistsOpti
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := cm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := cm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return false, timeoutError{
@@ -296,6 +309,10 @@ func (cm *CollectionManager) GetScope(scopeName string, opts *GetScopeOptions) (
 		opts = &GetScopeOptions{}
 	}
 
+	span := cm.tracer.StartSpan("GetScope", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -316,7 +333,9 @@ func (cm *CollectionManager) GetScope(scopeName string, opts *GetScopeOptions) (
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := cm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := cm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return nil, timeoutError{
@@ -421,6 +440,10 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 		opts = &GetAllScopesOptions{}
 	}
 
+	span := cm.tracer.StartSpan("GetAllScopes", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -441,7 +464,9 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := cm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := cm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return nil, timeoutError{
@@ -547,6 +572,10 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 		opts = &CreateCollectionOptions{}
 	}
 
+	span := cm.tracer.StartSpan("CreateCollection", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -571,7 +600,9 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := cm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := cm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return timeoutError{
@@ -636,6 +667,10 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 		opts = &DropCollectionOptions{}
 	}
 
+	span := cm.tracer.StartSpan("DropCollection", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -655,7 +690,9 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := cm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := cm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return timeoutError{
@@ -714,6 +751,10 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 		opts = &CreateScopeOptions{}
 	}
 
+	span := cm.tracer.StartSpan("CreateScope", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -738,7 +779,9 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := cm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := cm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return timeoutError{
@@ -791,6 +834,10 @@ func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions)
 		opts = &DropScopeOptions{}
 	}
 
+	span := cm.tracer.StartSpan("DropScope", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -810,7 +857,9 @@ func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions)
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := cm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := cm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return timeoutError{

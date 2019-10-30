@@ -1456,6 +1456,7 @@ func testGetClusterForHTTP(provider *mockHTTPProvider, n1qlTimeout, analyticsTim
 	c.sb.AnalyticsTimeout = analyticsTimeout
 	c.sb.SearchTimeout = searchTimeout
 	c.sb.RetryStrategyWrapper = newRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
+	c.sb.Tracer = &noopTracer{}
 
 	c.sb.Transcoder = NewJSONTranscoder(&DefaultJSONSerializer{})
 	c.sb.Serializer = &DefaultJSONSerializer{}

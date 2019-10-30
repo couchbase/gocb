@@ -6,9 +6,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/google/uuid"
-
 	gocbcore "github.com/couchbase/gocbcore/v8"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
 
@@ -323,31 +322,42 @@ type clusterCapabilityProvider interface {
 	SupportsClusterCapability(capability gocbcore.ClusterCapability) bool
 }
 
-type doQueryFn func(ctx context.Context, opts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc) (*QueryResult, error)
+type querySettings struct {
+	tracectx   requestSpanContext
+	serializer JSONSerializer
+	queryOpts  map[string]interface{}
+	provider   httpProvider
+	wrapper    *retryStrategyWrapper
+	startTime  time.Time
+}
 
 // Query executes the N1QL query statement on the server n1qlEp.
 // This function assumes that `opts` already contains all the required
 // settings. This function will inject any additional connection or request-level
 // settings into the `opts` map (currently this is only the timeout).
 func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResult, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &QueryOptions{}
 	}
 
-	if opts.startTime.IsZero() {
-		opts.startTime = time.Now()
+	span := c.sb.Tracer.StartSpan("Query", nil).SetTag("couchbase.service", "n1ql")
+	defer span.Finish()
+
+	result, err := c.query(span.Context(), statement, startTime, opts)
+	if err != nil {
+		span.Finish()
+		return nil, err
 	}
 
+	return result, nil
+}
+
+func (c *Cluster) query(tracectx requestSpanContext, statement string, startTime time.Time, opts *QueryOptions) (*QueryResult, error) {
 	provider, err := c.getHTTPProvider()
 	if err != nil {
 		return nil, err
 	}
-
-	return c.query(statement, opts, provider, opts.startTime)
-}
-
-func (c *Cluster) query(statement string, opts *QueryOptions, provider httpProvider, startTime time.Time) (*QueryResult, error) {
 
 	queryOpts, err := opts.toMap(statement)
 	if err != nil {
@@ -391,11 +401,19 @@ func (c *Cluster) query(statement string, opts *QueryOptions, provider httpProvi
 		wrapper = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	settings := querySettings{
+		tracectx:   tracectx,
+		queryOpts:  queryOpts,
+		provider:   provider,
+		serializer: opts.Serializer,
+		wrapper:    wrapper,
+		startTime:  startTime,
+	}
 	var res *QueryResult
 	if opts.AdHoc {
-		res, err = c.doPreparedN1qlQuery(ctx, queryOpts, provider, cancel, opts.Serializer, wrapper, startTime)
+		res, err = c.doPreparedN1qlQuery(ctx, cancel, settings)
 	} else {
-		res, err = c.executeN1qlQuery(ctx, queryOpts, provider, cancel, opts.Serializer, wrapper, startTime)
+		res, err = c.executeN1qlQuery(ctx, cancel, settings)
 	}
 
 	if err != nil {
@@ -409,10 +427,8 @@ func (c *Cluster) query(statement string, opts *QueryOptions, provider httpProvi
 	return res, nil
 }
 
-func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer,
-	wrapper *retryStrategyWrapper, startTime time.Time) (*QueryResult, error) {
-	if capabilitySupporter, ok := provider.(clusterCapabilityProvider); ok {
+func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, cancel context.CancelFunc, settings querySettings) (*QueryResult, error) {
+	if capabilitySupporter, ok := settings.provider.(clusterCapabilityProvider); ok {
 		if !c.supportsEnhancedPreparedStatements() &&
 			capabilitySupporter.SupportsClusterCapability(gocbcore.ClusterCapabilityEnhancedPreparedStatements) {
 			c.setSupportsEnhancedPreparedStatements(true)
@@ -422,7 +438,7 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]
 		}
 	}
 
-	stmtStr, isStr := queryOpts["statement"].(string)
+	stmtStr, isStr := settings.queryOpts["statement"].(string)
 	if !isStr {
 		return nil, invalidArgumentsError{message: "query statement could not be parsed"}
 	}
@@ -433,13 +449,13 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]
 
 	if cachedStmt != nil {
 		// Attempt to execute our cached query plan
-		delete(queryOpts, "statement")
-		queryOpts["prepared"] = cachedStmt.name
+		delete(settings.queryOpts, "statement")
+		settings.queryOpts["prepared"] = cachedStmt.name
 		if !cachedStmt.enhanced {
-			queryOpts["encoded_plan"] = cachedStmt.encodedPlan
+			settings.queryOpts["encoded_plan"] = cachedStmt.encodedPlan
 		}
 
-		results, err := c.executeN1qlQuery(ctx, queryOpts, provider, cancel, serializer, wrapper, startTime)
+		results, err := c.executeN1qlQuery(ctx, cancel, settings)
 		if err == nil {
 			return results, nil
 		}
@@ -447,7 +463,7 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]
 
 	// Prepare the query
 	if c.supportsEnhancedPreparedStatements() {
-		results, err := c.prepareEnhancedN1qlQuery(ctx, queryOpts, provider, cancel, serializer, wrapper, startTime)
+		results, err := c.prepareEnhancedN1qlQuery(ctx, cancel, settings)
 		if err != nil {
 			return nil, err
 		}
@@ -460,7 +476,7 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]
 	}
 
 	var err error
-	cachedStmt, err = c.prepareN1qlQuery(ctx, queryOpts, cancel, provider, wrapper, startTime)
+	cachedStmt, err = c.prepareN1qlQuery(ctx, cancel, settings)
 	if err != nil {
 		return nil, err
 	}
@@ -471,37 +487,52 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]
 	c.clusterLock.Unlock()
 
 	// Update with new prepared data
-	delete(queryOpts, "statement")
-	queryOpts["prepared"] = cachedStmt.name
-	queryOpts["encoded_plan"] = cachedStmt.encodedPlan
+	delete(settings.queryOpts, "statement")
+	settings.queryOpts["prepared"] = cachedStmt.name
+	settings.queryOpts["encoded_plan"] = cachedStmt.encodedPlan
 
-	return c.executeN1qlQuery(ctx, queryOpts, provider, cancel, serializer, wrapper, startTime)
+	return c.executeN1qlQuery(ctx, cancel, settings)
 }
 
-func (c *Cluster) prepareEnhancedN1qlQuery(ctx context.Context, opts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer,
-	wrapper *retryStrategyWrapper, startTime time.Time) (*QueryResult, error) {
-
+func (c *Cluster) prepareEnhancedN1qlQuery(ctx context.Context, cancel context.CancelFunc,
+	settings querySettings) (*QueryResult, error) {
 	prepOpts := make(map[string]interface{})
-	for k, v := range opts {
+	for k, v := range settings.queryOpts {
 		prepOpts[k] = v
 	}
-	prepOpts["statement"] = "PREPARE " + opts["statement"].(string)
+	prepOpts["statement"] = "PREPARE " + settings.queryOpts["statement"].(string)
 	prepOpts["auto_execute"] = true
 
-	return c.executeN1qlQuery(ctx, prepOpts, provider, cancel, serializer, wrapper, startTime)
+	return c.executeN1qlQuery(ctx, cancel, querySettings{
+		queryOpts:  prepOpts,
+		provider:   settings.provider,
+		serializer: settings.serializer,
+		tracectx:   settings.tracectx,
+		wrapper:    settings.wrapper,
+		startTime:  settings.startTime,
+	})
 }
 
-func (c *Cluster) prepareN1qlQuery(ctx context.Context, opts map[string]interface{},
-	cancel context.CancelFunc, provider httpProvider, wrapper *retryStrategyWrapper, startTime time.Time) (*n1qlCache, error) {
-
+func (c *Cluster) prepareN1qlQuery(ctx context.Context, cancel context.CancelFunc,
+	settings querySettings) (*n1qlCache, error) {
 	prepOpts := make(map[string]interface{})
-	for k, v := range opts {
+	for k, v := range settings.queryOpts {
 		prepOpts[k] = v
 	}
-	prepOpts["statement"] = "PREPARE " + opts["statement"].(string)
+	prepOpts["statement"] = "PREPARE " + settings.queryOpts["statement"].(string)
 
-	prepRes, err := c.executeN1qlQuery(ctx, prepOpts, provider, cancel, &DefaultJSONSerializer{}, wrapper, startTime)
+	prepRes, err := c.executeN1qlQuery(ctx, cancel, querySettings{
+		queryOpts:  prepOpts,
+		provider:   settings.provider,
+		serializer: &DefaultJSONSerializer{},
+		tracectx:   settings.tracectx,
+		wrapper:    settings.wrapper,
+		startTime:  settings.startTime,
+	})
+
+	// // There's no need to pass cancel here, if there's an error then we'll cancel further up the stack
+	// // and if there isn't then we run another query later where we will cancel
+	// prepRes, err := c.doRetryableQuery(ctx, nil, )
 	if err != nil {
 		return nil, err
 	}
@@ -527,15 +558,17 @@ type n1qlPrepData struct {
 // This function assumes that `opts` already contains all the required
 // settings. This function will inject any additional connection or request-level
 // settings into the `opts` map.
-func (c *Cluster) executeN1qlQuery(ctx context.Context, opts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer,
-	wrapper *retryStrategyWrapper, startTime time.Time) (*QueryResult, error) {
-	reqJSON, err := json.Marshal(opts)
+func (c *Cluster) executeN1qlQuery(ctx context.Context, cancel context.CancelFunc,
+	settings querySettings) (*QueryResult, error) {
+
+	espan := c.sb.Tracer.StartSpan("encode", settings.tracectx)
+	reqJSON, err := json.Marshal(settings.queryOpts)
+	espan.Finish()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal query request body")
 	}
 
-	readonly, ok := opts["readonly"].(bool)
+	readonly, ok := settings.queryOpts["readonly"].(bool)
 	if !ok {
 		readonly = false
 	}
@@ -547,10 +580,10 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, opts map[string]interfac
 		Context:       ctx,
 		Body:          reqJSON,
 		IsIdempotent:  readonly,
-		RetryStrategy: wrapper,
+		RetryStrategy: settings.wrapper,
 	}
 
-	contextID, ok := opts["client_context_id"].(string)
+	contextID, ok := settings.queryOpts["client_context_id"].(string)
 	if ok {
 		req.UniqueId = contextID
 	} else {
@@ -561,7 +594,9 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, opts map[string]interfac
 	enhancedStatements := c.supportsEnhancedPreparedStatements()
 
 	for {
-		resp, err := provider.DoHttpRequest(req)
+		dspan := c.sb.Tracer.StartSpan("dispatch", settings.tracectx)
+		resp, err := settings.provider.DoHttpRequest(req)
+		dspan.Finish()
 		if err != nil {
 			if err == gocbcore.ErrNoN1qlService {
 				return nil, serviceNotAvailableError{message: gocbcore.ErrNoN1qlService.Error()}
@@ -572,7 +607,7 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, opts map[string]interfac
 					operationID:   req.Identifier(),
 					retryReasons:  req.RetryReasons(),
 					retryAttempts: req.RetryAttempts(),
-					elapsed:       time.Now().Sub(startTime),
+					elapsed:       time.Now().Sub(settings.startTime),
 					remote:        req.Endpoint,
 					operation:     "n1ql",
 				}
@@ -595,9 +630,9 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, opts map[string]interfac
 				clientContextID: contextID,
 			},
 			httpStatus:         resp.StatusCode,
-			serializer:         serializer,
+			serializer:         settings.serializer,
 			enhancedStatements: c.supportsEnhancedPreparedStatements(),
-			startTime:          startTime,
+			startTime:          settings.startTime,
 		}
 
 		streamResult, err := newStreamingResults(resp.Body, results.readAttribute)
@@ -635,7 +670,7 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, opts map[string]interfac
 
 			if IsRetryableError(results.err) {
 				shouldRetry, retryErr := shouldRetryHTTPRequest(ctx, req, gocbcore.ServiceResponseCodeIndicatedRetryReason,
-					wrapper, provider, startTime)
+					settings.wrapper, settings.provider, settings.startTime)
 				if shouldRetry {
 					continue
 				}

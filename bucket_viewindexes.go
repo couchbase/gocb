@@ -33,6 +33,7 @@ type ViewIndexManager struct {
 	httpClient           httpProvider
 	globalTimeout        time.Duration
 	defaultRetryStrategy *retryStrategyWrapper
+	tracer               requestTracer
 }
 
 // View represents a Couchbase view within a design document.
@@ -78,11 +79,14 @@ func (vm *ViewIndexManager) GetDesignDocument(name string, namespace DesignDocum
 		opts = &GetDesignDocumentOptions{}
 	}
 
-	return vm.getDesignDocument(name, namespace, time.Now(), opts)
+	span := vm.tracer.StartSpan("GetDesignDocument", nil).SetTag("couchbase.service", "view")
+	defer span.Finish()
+
+	return vm.getDesignDocument(span.Context(), name, namespace, time.Now(), opts)
 }
 
-func (vm *ViewIndexManager) getDesignDocument(name string, namespace DesignDocumentNamespace, startTime time.Time,
-	opts *GetDesignDocumentOptions) (*DesignDocument, error) {
+func (vm *ViewIndexManager) getDesignDocument(tracectx requestSpanContext, name string, namespace DesignDocumentNamespace,
+	startTime time.Time, opts *GetDesignDocumentOptions) (*DesignDocument, error) {
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, vm.globalTimeout)
 	if cancel != nil {
@@ -106,7 +110,9 @@ func (vm *ViewIndexManager) getDesignDocument(name string, namespace DesignDocum
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := vm.tracer.StartSpan("dispatch", tracectx)
 	resp, err := vm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return nil, timeoutError{
@@ -163,6 +169,9 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamesp
 		opts = &GetAllDesignDocumentsOptions{}
 	}
 
+	span := vm.tracer.StartSpan("GetAllDesignDocuments", nil).SetTag("couchbase.service", "view")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, vm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -182,7 +191,9 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamesp
 		RetryStrategy: retryStrategy,
 	}
 
+	espan := vm.tracer.StartSpan("encode", span.Context())
 	resp, err := vm.httpClient.DoHttpRequest(req)
+	espan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return nil, timeoutError{
@@ -252,17 +263,22 @@ func (vm *ViewIndexManager) UpsertDesignDocument(ddoc DesignDocument, namespace 
 		opts = &UpsertDesignDocumentOptions{}
 	}
 
-	return vm.upsertDesignDocument(ddoc, namespace, time.Now(), opts)
+	span := vm.tracer.StartSpan("UpsertDesignDocument", nil).SetTag("couchbase.service", "view")
+	defer span.Finish()
+
+	return vm.upsertDesignDocument(span.Context(), ddoc, namespace, time.Now(), opts)
 }
 
-func (vm *ViewIndexManager) upsertDesignDocument(ddoc DesignDocument, namespace DesignDocumentNamespace, startTime time.Time,
+func (vm *ViewIndexManager) upsertDesignDocument(tracectx requestSpanContext, ddoc DesignDocument, namespace DesignDocumentNamespace, startTime time.Time,
 	opts *UpsertDesignDocumentOptions) error {
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, vm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
+	espan := vm.tracer.StartSpan("encode", tracectx)
 	data, err := json.Marshal(&ddoc)
+	espan.Finish()
 	if err != nil {
 		return err
 	}
@@ -283,7 +299,9 @@ func (vm *ViewIndexManager) upsertDesignDocument(ddoc DesignDocument, namespace 
 		RetryStrategy: retryStrategy,
 	}
 
+	dspan := vm.tracer.StartSpan("dispatch", nil)
 	resp, err := vm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return timeoutError{
@@ -326,11 +344,14 @@ func (vm *ViewIndexManager) DropDesignDocument(name string, namespace DesignDocu
 		opts = &DropDesignDocumentOptions{}
 	}
 
-	return vm.dropDesignDocument(name, namespace, time.Now(), opts)
+	span := vm.tracer.StartSpan("DropDesignDocument", nil).SetTag("couchbase.service", "view")
+	defer span.Finish()
+
+	return vm.dropDesignDocument(span.Context(), name, namespace, time.Now(), opts)
 }
 
-func (vm *ViewIndexManager) dropDesignDocument(name string, namespace DesignDocumentNamespace, startTime time.Time,
-	opts *DropDesignDocumentOptions) error {
+func (vm *ViewIndexManager) dropDesignDocument(tracectx requestSpanContext, name string, namespace DesignDocumentNamespace,
+	startTime time.Time, opts *DropDesignDocumentOptions) error {
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, vm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -351,7 +372,9 @@ func (vm *ViewIndexManager) dropDesignDocument(name string, namespace DesignDocu
 		RetryStrategy: retryStrategy,
 	}
 
+	dspan := vm.tracer.StartSpan("dispatch", tracectx)
 	resp, err := vm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return timeoutError{
@@ -399,12 +422,16 @@ func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesi
 		opts = &PublishDesignDocumentOptions{}
 	}
 
+	span := vm.tracer.StartSpan("PublishDesignDocument", nil).
+		SetTag("couchbase.service", "view")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, vm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	devdoc, err := vm.getDesignDocument(name, false, startTime, &GetDesignDocumentOptions{
+	devdoc, err := vm.getDesignDocument(span.Context(), name, false, startTime, &GetDesignDocumentOptions{
 		Context:       ctx,
 		RetryStrategy: opts.RetryStrategy,
 	})
@@ -418,7 +445,7 @@ func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesi
 		return err
 	}
 
-	err = vm.upsertDesignDocument(*devdoc, true, startTime, &UpsertDesignDocumentOptions{
+	err = vm.upsertDesignDocument(span.Context(), *devdoc, true, startTime, &UpsertDesignDocumentOptions{
 		Context:       ctx,
 		RetryStrategy: opts.RetryStrategy,
 	})

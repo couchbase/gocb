@@ -9,9 +9,10 @@ import (
 // QueryIndexManager provides methods for performing Couchbase N1ql index management.
 // Volatile: This API is subject to change at any time.
 type QueryIndexManager struct {
-	executeQuery         func(statement string, opts *QueryOptions) (*QueryResult, error)
+	executeQuery         func(requestSpanContext, string, time.Time, *QueryOptions) (*QueryResult, error)
 	globalTimeout        time.Duration
 	defaultRetryStrategy *retryStrategyWrapper
+	tracer               requestTracer
 }
 
 // QueryIndex represents a Couchbase GSI index.
@@ -33,7 +34,8 @@ type createQueryIndexOptions struct {
 	Deferred       bool
 }
 
-func (qm *QueryIndexManager) createIndex(bucketName, indexName string, fields []string, opts createQueryIndexOptions) error {
+func (qm *QueryIndexManager) createIndex(tracectx requestSpanContext, bucketName, indexName string, fields []string,
+	startTime time.Time, opts createQueryIndexOptions) error {
 	var qs string
 
 	if len(fields) == 0 {
@@ -59,9 +61,9 @@ func (qm *QueryIndexManager) createIndex(bucketName, indexName string, fields []
 		qs += " WITH {\"defer_build\": true}"
 	}
 
-	rows, err := qm.executeQuery(qs, &QueryOptions{
-		Context:       opts.Context,
+	rows, err := qm.executeQuery(tracectx, qs, startTime, &QueryOptions{
 		RetryStrategy: opts.RetryStrategy,
+		Context:       opts.Context,
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "already exist") {
@@ -102,16 +104,21 @@ func (qm *QueryIndexManager) CreateIndex(bucketName, indexName string, fields []
 		}
 	}
 
+	startTime := time.Now()
 	if opts == nil {
 		opts = &CreateQueryIndexOptions{}
 	}
+
+	span := qm.tracer.StartSpan("CreateIndex", nil).
+		SetTag("couchbase.service", "n1ql")
+	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, qm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	return qm.createIndex(bucketName, indexName, fields, createQueryIndexOptions{
+	return qm.createIndex(span.Context(), bucketName, indexName, fields, startTime, createQueryIndexOptions{
 		IgnoreIfExists: opts.IgnoreIfExists,
 		Deferred:       opts.Deferred,
 		Context:        ctx,
@@ -132,16 +139,21 @@ type CreatePrimaryQueryIndexOptions struct {
 
 // CreatePrimaryIndex creates a primary index.  An empty customName uses the default naming.
 func (qm *QueryIndexManager) CreatePrimaryIndex(bucketName string, opts *CreatePrimaryQueryIndexOptions) error {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &CreatePrimaryQueryIndexOptions{}
 	}
+
+	span := qm.tracer.StartSpan("CreatePrimaryIndex", nil).
+		SetTag("couchbase.service", "n1ql")
+	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, qm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	return qm.createIndex(bucketName, opts.CustomName, nil, createQueryIndexOptions{
+	return qm.createIndex(span.Context(), bucketName, opts.CustomName, nil, startTime, createQueryIndexOptions{
 		IgnoreIfExists: opts.IgnoreIfExists,
 		Deferred:       opts.Deferred,
 		Context:        ctx,
@@ -156,7 +168,8 @@ type dropQueryIndexOptions struct {
 	IgnoreIfNotExists bool
 }
 
-func (qm *QueryIndexManager) dropIndex(bucketName, indexName string, opts dropQueryIndexOptions) error {
+func (qm *QueryIndexManager) dropIndex(tracectx requestSpanContext, bucketName, indexName string, startTime time.Time,
+	opts dropQueryIndexOptions) error {
 	var qs string
 
 	if indexName == "" {
@@ -165,7 +178,7 @@ func (qm *QueryIndexManager) dropIndex(bucketName, indexName string, opts dropQu
 		qs += "DROP INDEX `" + bucketName + "`.`" + indexName + "`"
 	}
 
-	rows, err := qm.executeQuery(qs, &QueryOptions{
+	rows, err := qm.executeQuery(tracectx, qs, startTime, &QueryOptions{
 		Context:       opts.Context,
 		RetryStrategy: opts.RetryStrategy,
 	})
@@ -202,16 +215,21 @@ func (qm *QueryIndexManager) DropIndex(bucketName, indexName string, opts *DropQ
 		}
 	}
 
+	startTime := time.Now()
 	if opts == nil {
 		opts = &DropQueryIndexOptions{}
 	}
+
+	span := qm.tracer.StartSpan("DropIndex", nil).
+		SetTag("couchbase.service", "n1ql")
+	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, qm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	return qm.dropIndex(bucketName, indexName, dropQueryIndexOptions{
+	return qm.dropIndex(span.Context(), bucketName, indexName, startTime, dropQueryIndexOptions{
 		Context:           ctx,
 		IgnoreIfNotExists: opts.IgnoreIfNotExists,
 		RetryStrategy:     opts.RetryStrategy,
@@ -230,16 +248,21 @@ type DropPrimaryQueryIndexOptions struct {
 
 // DropPrimaryIndex drops the primary index.  Pass an empty customName for unnamed primary indexes.
 func (qm *QueryIndexManager) DropPrimaryIndex(bucketName string, opts *DropPrimaryQueryIndexOptions) error {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &DropPrimaryQueryIndexOptions{}
 	}
+
+	span := qm.tracer.StartSpan("DropPrimaryIndex", nil).
+		SetTag("couchbase.service", "n1ql")
+	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, qm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	return qm.dropIndex(bucketName, opts.CustomName, dropQueryIndexOptions{
+	return qm.dropIndex(span.Context(), bucketName, opts.CustomName, startTime, dropQueryIndexOptions{
 		IgnoreIfNotExists: opts.IgnoreIfNotExists,
 		Context:           ctx,
 		RetryStrategy:     opts.RetryStrategy,
@@ -259,10 +282,15 @@ func (qm *QueryIndexManager) GetAllIndexes(bucketName string, opts *GetAllQueryI
 		opts = &GetAllQueryIndexesOptions{}
 	}
 
-	return qm.getAllIndexes(bucketName, time.Now(), opts)
+	span := qm.tracer.StartSpan("GetAllIndexes", nil).
+		SetTag("couchbase.service", "n1ql")
+	defer span.Finish()
+
+	return qm.getAllIndexes(span.Context(), bucketName, time.Now(), opts)
 }
 
-func (qm *QueryIndexManager) getAllIndexes(bucketName string, startTime time.Time, opts *GetAllQueryIndexesOptions) ([]QueryIndex, error) {
+func (qm *QueryIndexManager) getAllIndexes(tracectx requestSpanContext, bucketName string, startTime time.Time,
+	opts *GetAllQueryIndexesOptions) ([]QueryIndex, error) {
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, qm.globalTimeout)
 	if cancel != nil {
@@ -275,10 +303,9 @@ func (qm *QueryIndexManager) getAllIndexes(bucketName string, startTime time.Tim
 		PositionalParameters: []interface{}{bucketName},
 		RetryStrategy:        opts.RetryStrategy,
 		ReadOnly:             true,
-		startTime:            startTime,
 	}
 
-	rows, err := qm.executeQuery(q, queryOpts)
+	rows, err := qm.executeQuery(tracectx, q, startTime, queryOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -310,12 +337,16 @@ func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *Build
 		opts = &BuildDeferredQueryIndexOptions{}
 	}
 
+	span := qm.tracer.StartSpan("BuildDeferredIndexes", nil).
+		SetTag("couchbase.service", "n1ql")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, qm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	indexList, err := qm.GetAllIndexes(bucketName, &GetAllQueryIndexesOptions{
+	indexList, err := qm.getAllIndexes(span.Context(), bucketName, startTime, &GetAllQueryIndexesOptions{
 		Context:       ctx,
 		RetryStrategy: opts.RetryStrategy,
 	})
@@ -346,10 +377,9 @@ func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *Build
 	}
 	qs += ")"
 
-	rows, err := qm.executeQuery(qs, &QueryOptions{
+	rows, err := qm.executeQuery(span.Context(), qs, startTime, &QueryOptions{
 		Context:       ctx,
 		RetryStrategy: opts.RetryStrategy,
-		startTime:     startTime,
 	})
 	if err != nil {
 		return nil, err
@@ -415,6 +445,10 @@ func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string,
 		opts = &WatchQueryIndexOptions{}
 	}
 
+	span := qm.tracer.StartSpan("WatchIndexes", nil).
+		SetTag("couchbase.service", "n1ql")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(timeout.Context, timeout.Timeout, qm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -426,7 +460,7 @@ func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string,
 
 	curInterval := 50 * time.Millisecond
 	for {
-		indexes, err := qm.getAllIndexes(bucketName, startTime, &GetAllQueryIndexesOptions{
+		indexes, err := qm.getAllIndexes(span.Context(), bucketName, startTime, &GetAllQueryIndexesOptions{
 			Context:       ctx,
 			RetryStrategy: opts.RetryStrategy,
 		})

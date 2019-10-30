@@ -297,6 +297,11 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 	if opts == nil {
 		opts = &ViewOptions{}
 	}
+
+	span := b.sb.Tracer.StartSpan("ViewQuery", nil).
+		SetTag("couchbase.service", "view")
+	defer span.Finish()
+
 	ctx := opts.Context
 	if ctx == nil {
 		ctx = context.Background()
@@ -335,7 +340,7 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 		wrapper = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	res, err := b.executeViewQuery(ctx, "_view", designDoc, viewName, *urlValues, provider, cancel,
+	res, err := b.executeViewQuery(ctx, span.Context(), "_view", designDoc, viewName, *urlValues, provider, cancel,
 		opts.Serializer, wrapper, startTime)
 	if err != nil {
 		cancel()
@@ -345,7 +350,7 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 	return res, nil
 }
 
-func (b *Bucket) executeViewQuery(ctx context.Context, viewType, ddoc, viewName string,
+func (b *Bucket) executeViewQuery(ctx context.Context, tracectx requestSpanContext, viewType, ddoc, viewName string,
 	options url.Values, provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer,
 	wrapper *retryStrategyWrapper, startTime time.Time) (*ViewResult, error) {
 	reqUri := fmt.Sprintf("/_design/%s/%s/%s?%s", ddoc, viewType, viewName, options.Encode())
@@ -358,7 +363,9 @@ func (b *Bucket) executeViewQuery(ctx context.Context, viewType, ddoc, viewName 
 		RetryStrategy: wrapper,
 	}
 
+	dspan := b.sb.Tracer.StartSpan("dispatch", tracectx)
 	resp, err := provider.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == gocbcore.ErrNoCapiService {
 			return nil, serviceNotAvailableError{message: gocbcore.ErrNoCapiService.Error()}

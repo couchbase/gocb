@@ -20,6 +20,7 @@ type UserManager struct {
 	httpClient           httpProvider
 	globalTimeout        time.Duration
 	defaultRetryStrategy *retryStrategyWrapper
+	tracer               requestTracer
 }
 
 // Role represents a specific permission.
@@ -170,6 +171,10 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 		opts = &GetAllUsersOptions{}
 	}
 
+	span := um.tracer.StartSpan("GetAllUsers", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	if opts.DomainName == "" {
 		opts.DomainName = string(LocalDomain)
 	}
@@ -194,7 +199,9 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := um.tracer.StartSpan("dispatch", span.Context())
 	resp, err := um.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return nil, timeoutError{
@@ -253,6 +260,10 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 		opts = &GetUserOptions{}
 	}
 
+	span := um.tracer.StartSpan("GetUser", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	if opts.DomainName == "" {
 		opts.DomainName = string(LocalDomain)
 	}
@@ -277,7 +288,9 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := um.tracer.StartSpan("dispatch", span.Context())
 	resp, err := um.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return nil, timeoutError{
@@ -331,6 +344,10 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 		opts = &UpsertUserOptions{}
 	}
 
+	span := um.tracer.StartSpan("UpsertUser", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	if opts.DomainName == "" {
 		opts.DomainName = string(LocalDomain)
 	}
@@ -371,7 +388,9 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := um.tracer.StartSpan("dispatch", span.Context())
 	resp, err := um.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return timeoutError{
@@ -417,6 +436,10 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 		opts = &DropUserOptions{}
 	}
 
+	span := um.tracer.StartSpan("DropUser", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	if opts.DomainName == "" {
 		opts.DomainName = string(LocalDomain)
 	}
@@ -440,7 +463,9 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := um.tracer.StartSpan("dispatch", span.Context())
 	resp, err := um.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return timeoutError{
@@ -484,6 +509,10 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 		opts = &GetRolesOptions{}
 	}
 
+	span := um.tracer.StartSpan("GetRoles", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, um.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -504,7 +533,9 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := um.tracer.StartSpan("dispatch", span.Context())
 	resp, err := um.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return nil, timeoutError{
@@ -572,6 +603,10 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 		opts = &GetGroupOptions{}
 	}
 
+	span := um.tracer.StartSpan("GetGroup", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, um.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -592,7 +627,9 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := um.tracer.StartSpan("dispatch", span.Context())
 	resp, err := um.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return nil, timeoutError{
@@ -643,6 +680,10 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 		opts = &GetAllGroupsOptions{}
 	}
 
+	span := um.tracer.StartSpan("GetAllGroups", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, um.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -663,7 +704,9 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := um.tracer.StartSpan("dispatch", span.Context())
 	resp, err := um.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return nil, timeoutError{
@@ -717,6 +760,10 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 		opts = &UpsertGroupOptions{}
 	}
 
+	span := um.tracer.StartSpan("UpsertGroup", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, um.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -752,7 +799,9 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := um.tracer.StartSpan("dispatch", span.Context())
 	resp, err := um.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return timeoutError{
@@ -800,6 +849,10 @@ func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error
 		opts = &DropGroupOptions{}
 	}
 
+	span := um.tracer.StartSpan("DropGroup", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, um.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -819,7 +872,9 @@ func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := um.tracer.StartSpan("dispatch", span.Context())
 	resp, err := um.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return timeoutError{

@@ -20,6 +20,7 @@ type BucketManager struct {
 	httpClient           httpProvider
 	globalTimeout        time.Duration
 	defaultRetryStrategy *retryStrategyWrapper
+	tracer               requestTracer
 }
 
 // BucketType specifies the kind of bucket.
@@ -175,6 +176,10 @@ func (bm *BucketManager) GetBucket(bucketName string, opts *GetBucketOptions) (*
 		opts = &GetBucketOptions{}
 	}
 
+	span := bm.tracer.StartSpan("GetBucket", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, bm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -185,10 +190,11 @@ func (bm *BucketManager) GetBucket(bucketName string, opts *GetBucketOptions) (*
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	return bm.get(ctx, bucketName, retryStrategy)
+	return bm.get(ctx, span.Context(), bucketName, retryStrategy)
 }
 
-func (bm *BucketManager) get(ctx context.Context, bucketName string, strategy *retryStrategyWrapper) (*BucketSettings, error) {
+func (bm *BucketManager) get(ctx context.Context, tracectx requestSpanContext, bucketName string,
+	strategy *retryStrategyWrapper) (*BucketSettings, error) {
 	startTime := time.Now()
 	req := &gocbcore.HttpRequest{
 		Service:       gocbcore.ServiceType(MgmtService),
@@ -200,7 +206,9 @@ func (bm *BucketManager) get(ctx context.Context, bucketName string, strategy *r
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := bm.tracer.StartSpan("dispatch", tracectx)
 	resp, err := bm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return nil, timeoutError{
@@ -258,6 +266,10 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 		opts = &GetAllBucketsOptions{}
 	}
 
+	span := bm.tracer.StartSpan("GetAllBuckets", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, bm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -278,7 +290,9 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := bm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := bm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return nil, timeoutError{
@@ -340,6 +354,10 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 		opts = &CreateBucketOptions{}
 	}
 
+	span := bm.tracer.StartSpan("CreateBucket", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, bm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -370,7 +388,9 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := bm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := bm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return timeoutError{
@@ -423,6 +443,10 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 		opts = &UpdateBucketOptions{}
 	}
 
+	span := bm.tracer.StartSpan("UpdateBucket", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, bm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -449,7 +473,9 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := bm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := bm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return timeoutError{
@@ -498,6 +524,10 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 		opts = &DropBucketOptions{}
 	}
 
+	span := bm.tracer.StartSpan("DropBucket", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, bm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -517,7 +547,9 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := bm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := bm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return timeoutError{
@@ -567,6 +599,10 @@ func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) erro
 		opts = &FlushBucketOptions{}
 	}
 
+	span := bm.tracer.StartSpan("FlushBucket", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, bm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
@@ -586,7 +622,9 @@ func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) erro
 		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := bm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := bm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return timeoutError{
