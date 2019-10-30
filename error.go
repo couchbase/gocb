@@ -405,16 +405,6 @@ func IsKeyLockedError(err error) bool {
 	return false
 }
 
-// IsBucketMissingError verifies whether or not the cause for an error is a bucket missing error.
-func IsBucketMissingError(err error) bool {
-	cause := errors.Cause(err)
-	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
-		return kvErr.StatusCode() == int(gocbcore.StatusNoBucket)
-	}
-
-	return false
-}
-
 // IsConfigurationError verifies whether or not the cause for an error is a configuration error.
 func IsConfigurationError(err error) bool {
 	switch errType := errors.Cause(err).(type) {
