@@ -7,14 +7,18 @@ import (
 	"io/ioutil"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/couchbase/gocbcore/v8"
 )
 
 // SearchIndexManager provides methods for performing Couchbase FTS index management.
 // Experimental: This API is subject to change at any time.
 type SearchIndexManager struct {
-	httpClient    httpProvider
-	globalTimeout time.Duration
+	httpClient           httpProvider
+	globalTimeout        time.Duration
+	defaultRetryStrategy *retryStrategyWrapper
+	tracer               requestTracer
 }
 
 type searchIndexDefs struct {
@@ -34,30 +38,56 @@ type searchIndexesResp struct {
 
 // GetAllSearchIndexOptions is the set of options available to the search indexes GetAllIndexes operation.
 type GetAllSearchIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // GetAllIndexes retrieves all of the search indexes for the cluster.
 func (sim *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]SearchIndex, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &GetAllSearchIndexOptions{}
 	}
+
+	span := sim.tracer.StartSpan("GetAllIndexes", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(SearchService),
-		Method:  "GET",
-		Path:    "/api/index",
-		Context: ctx,
+	retryStrategy := sim.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	req := &gocbcore.HttpRequest{
+		Service:       gocbcore.ServiceType(SearchService),
+		Method:        "GET",
+		Path:          "/api/index",
+		Context:       ctx,
+		IsIdempotent:  true,
+		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
+	}
+
+	dspan := sim.tracer.StartSpan("dispatch", span.Context())
 	res, err := sim.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "fts",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return nil, err
 	}
 
@@ -96,29 +126,56 @@ func (sim *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]
 
 // GetSearchIndexOptions is the set of options available to the search indexes GetIndex operation.
 type GetSearchIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // GetIndex retrieves a specific search index by name.
 func (sim *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOptions) (*SearchIndex, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &GetSearchIndexOptions{}
 	}
+
+	span := sim.tracer.StartSpan("GetIndex", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(SearchService),
-		Method:  "GET",
-		Path:    fmt.Sprintf("/api/index/%s", indexName),
-		Context: ctx,
+	retryStrategy := sim.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
+
+	req := &gocbcore.HttpRequest{
+		Service:       gocbcore.ServiceType(SearchService),
+		Method:        "GET",
+		Path:          fmt.Sprintf("/api/index/%s", indexName),
+		Context:       ctx,
+		IsIdempotent:  true,
+		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
+	}
+
+	dspan := sim.tracer.StartSpan("dispatch", span.Context())
 	resp, err := sim.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "fts",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return nil, err
 	}
 
@@ -151,8 +208,9 @@ func (sim *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOp
 
 // UpsertSearchIndexOptions is the set of options available to the search index manager UpsertIndex operation.
 type UpsertSearchIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // SearchIndex is used to define a search index.
@@ -180,6 +238,7 @@ type SearchIndex struct {
 
 // UpsertIndex creates or updates a search index.
 func (sim *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *UpsertSearchIndexOptions) error {
+	startTime := time.Now()
 	if indexDefinition.Name == "" {
 		return invalidArgumentsError{"index name cannot be empty"}
 	}
@@ -191,28 +250,53 @@ func (sim *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Up
 		opts = &UpsertSearchIndexOptions{}
 	}
 
+	span := sim.tracer.StartSpan("UpsertIndex", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
+	retryStrategy := sim.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
+	espan := sim.tracer.StartSpan("encode", span.Context())
 	b, err := json.Marshal(indexDefinition)
+	espan.Finish()
 	if err != nil {
 		return err
 	}
 
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(SearchService),
-		Method:  "PUT",
-		Path:    fmt.Sprintf("/api/index/%s", indexDefinition.Name),
-		Headers: make(map[string]string),
-		Context: ctx,
-		Body:    b,
+		Service:       gocbcore.ServiceType(SearchService),
+		Method:        "PUT",
+		Path:          fmt.Sprintf("/api/index/%s", indexDefinition.Name),
+		Headers:       make(map[string]string),
+		Context:       ctx,
+		Body:          b,
+		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 	req.Headers["cache-control"] = "no-cache"
 
+	dspan := sim.tracer.StartSpan("dispatch", span.Context())
 	res, err := sim.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "fts",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return err
 	}
 
@@ -238,12 +322,14 @@ func (sim *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Up
 
 // DropSearchIndexOptions is the set of options available to the search index DropIndex operation.
 type DropSearchIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // DropIndex removes the search index with the specific name.
 func (sim *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndexOptions) error {
+	startTime := time.Now()
 	if indexName == "" {
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
@@ -252,19 +338,42 @@ func (sim *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndex
 		opts = &DropSearchIndexOptions{}
 	}
 
+	span := sim.tracer.StartSpan("DropIndex", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(SearchService),
-		Method:  "DELETE",
-		Path:    fmt.Sprintf("/api/index/%s", indexName),
-		Context: ctx,
+	retryStrategy := sim.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
+
+	req := &gocbcore.HttpRequest{
+		Service:       gocbcore.ServiceType(SearchService),
+		Method:        "DELETE",
+		Path:          fmt.Sprintf("/api/index/%s", indexName),
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
+	}
+	dspan := sim.tracer.StartSpan("dispatch", span.Context())
 	res, err := sim.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "fts",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return err
 	}
 
@@ -290,12 +399,14 @@ func (sim *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndex
 
 // AnalyzeDocumentOptions is the set of options available to the search index AnalyzeDocument operation.
 type AnalyzeDocumentOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // AnalyzeDocument returns how a doc is analyzed against a specific index.
 func (sim *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{}, opts *AnalyzeDocumentOptions) ([]interface{}, error) {
+	startTime := time.Now()
 	if indexName == "" {
 		return nil, invalidArgumentsError{"indexName cannot be empty"}
 	}
@@ -304,9 +415,18 @@ func (sim *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{}
 		opts = &AnalyzeDocumentOptions{}
 	}
 
+	span := sim.tracer.StartSpan("AnalyzeDocument", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
+	}
+
+	retryStrategy := sim.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
 	b, err := json.Marshal(doc)
@@ -315,14 +435,29 @@ func (sim *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{}
 	}
 
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(SearchService),
-		Method:  "POST",
-		Path:    fmt.Sprintf("/api/index/%s/analyzeDoc", indexName),
-		Context: ctx,
-		Body:    b,
+		Service:       gocbcore.ServiceType(SearchService),
+		Method:        "POST",
+		Path:          fmt.Sprintf("/api/index/%s/analyzeDoc", indexName),
+		Context:       ctx,
+		Body:          b,
+		RetryStrategy: retryStrategy,
+		IsIdempotent:  true,
+		UniqueId:      uuid.New().String(),
 	}
+	dspan := sim.tracer.StartSpan("dispatch", span.Context())
 	res, err := sim.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "fts",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return nil, err
 	}
 
@@ -358,12 +493,14 @@ func (sim *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{}
 
 // GetIndexedDocumentsCountOptions is the set of options available to the search index GetIndexedDocumentsCount operation.
 type GetIndexedDocumentsCountOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // GetIndexedDocumentsCount retrieves the document count for a search index.
 func (sim *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *GetIndexedDocumentsCountOptions) (int, error) {
+	startTime := time.Now()
 	if indexName == "" {
 		return 0, invalidArgumentsError{"indexName cannot be empty"}
 	}
@@ -372,19 +509,43 @@ func (sim *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *
 		opts = &GetIndexedDocumentsCountOptions{}
 	}
 
+	span := sim.tracer.StartSpan("GetIndexedDocumentsCount", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(SearchService),
-		Method:  "GET",
-		Path:    fmt.Sprintf("/api/index/%s/count", indexName),
-		Context: ctx,
+	retryStrategy := sim.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
+
+	req := &gocbcore.HttpRequest{
+		Service:       gocbcore.ServiceType(SearchService),
+		Method:        "GET",
+		Path:          fmt.Sprintf("/api/index/%s/count", indexName),
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
+		IsIdempotent:  true,
+		UniqueId:      uuid.New().String(),
+	}
+	dspan := sim.tracer.StartSpan("dispatch", span.Context())
 	res, err := sim.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return 0, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "fts",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return 0, err
 	}
 
@@ -417,15 +578,36 @@ func (sim *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *
 	return count.Count, nil
 }
 
-func (sim *SearchIndexManager) performControlRequest(ctx context.Context, uri, method string) error {
-	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(SearchService),
-		Method:  method,
-		Path:    uri,
-		Context: ctx,
+func (sim *SearchIndexManager) performControlRequest(ctx context.Context, tracectx requestSpanContext, uri,
+	method string, strategy RetryStrategy, startTime time.Time) error {
+	retryStrategy := sim.defaultRetryStrategy
+	if strategy == nil {
+		retryStrategy = newRetryStrategyWrapper(strategy)
 	}
+
+	req := &gocbcore.HttpRequest{
+		Service:       gocbcore.ServiceType(SearchService),
+		Method:        method,
+		Path:          uri,
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
+	}
+
+	dspan := sim.tracer.StartSpan("dispatch", tracectx)
 	res, err := sim.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "fts",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return err
 	}
 
@@ -452,15 +634,21 @@ func (sim *SearchIndexManager) performControlRequest(ctx context.Context, uri, m
 
 // PauseIngestSearchIndexOptions is the set of options available to the search index PauseIngest operation.
 type PauseIngestSearchIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // PauseIngest pauses updates and maintenance for an index.
 func (sim *SearchIndexManager) PauseIngest(indexName string, opts *PauseIngestSearchIndexOptions) error {
+	startTime := time.Now()
 	if indexName == "" {
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
+
+	span := sim.tracer.StartSpan("PauseIngest", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
 
 	if opts == nil {
 		opts = &PauseIngestSearchIndexOptions{}
@@ -471,20 +659,27 @@ func (sim *SearchIndexManager) PauseIngest(indexName string, opts *PauseIngestSe
 		defer cancel()
 	}
 
-	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/ingestControl/pause", indexName), "POST")
+	return sim.performControlRequest(ctx, span.Context(), fmt.Sprintf("/api/index/%s/ingestControl/pause", indexName),
+		"POST", opts.RetryStrategy, startTime)
 }
 
 // ResumeIngestSearchIndexOptions is the set of options available to the search index ResumeIngest operation.
 type ResumeIngestSearchIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // ResumeIngest resumes updates and maintenance for an index.
 func (sim *SearchIndexManager) ResumeIngest(indexName string, opts *ResumeIngestSearchIndexOptions) error {
+	startTime := time.Now()
 	if indexName == "" {
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
+
+	span := sim.tracer.StartSpan("ResumeIngest", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
 
 	if opts == nil {
 		opts = &ResumeIngestSearchIndexOptions{}
@@ -495,17 +690,20 @@ func (sim *SearchIndexManager) ResumeIngest(indexName string, opts *ResumeIngest
 		defer cancel()
 	}
 
-	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/ingestControl/resume", indexName), "POST")
+	return sim.performControlRequest(ctx, span.Context(), fmt.Sprintf("/api/index/%s/ingestControl/resume", indexName),
+		"POST", opts.RetryStrategy, startTime)
 }
 
 // AllowQueryingSearchIndexOptions is the set of options available to the search index AllowQuerying operation.
 type AllowQueryingSearchIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // AllowQuerying allows querying against an index.
 func (sim *SearchIndexManager) AllowQuerying(indexName string, opts *AllowQueryingSearchIndexOptions) error {
+	startTime := time.Now()
 	if indexName == "" {
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
@@ -514,22 +712,29 @@ func (sim *SearchIndexManager) AllowQuerying(indexName string, opts *AllowQueryi
 		opts = &AllowQueryingSearchIndexOptions{}
 	}
 
+	span := sim.tracer.StartSpan("AllowQuerying", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/queryControl/allow", indexName), "POST")
+	return sim.performControlRequest(ctx, span.Context(), fmt.Sprintf("/api/index/%s/queryControl/allow", indexName),
+		"POST", opts.RetryStrategy, startTime)
 }
 
 // DisallowQueryingSearchIndexOptions is the set of options available to the search index DisallowQuerying operation.
 type DisallowQueryingSearchIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // DisallowQuerying disallows querying against an index.
 func (sim *SearchIndexManager) DisallowQuerying(indexName string, opts *AllowQueryingSearchIndexOptions) error {
+	startTime := time.Now()
 	if indexName == "" {
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
@@ -538,22 +743,29 @@ func (sim *SearchIndexManager) DisallowQuerying(indexName string, opts *AllowQue
 		opts = &AllowQueryingSearchIndexOptions{}
 	}
 
+	span := sim.tracer.StartSpan("DisallowQuerying", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/queryControl/disallow", indexName), "POST")
+	return sim.performControlRequest(ctx, span.Context(), fmt.Sprintf("/api/index/%s/queryControl/disallow", indexName),
+		"POST", opts.RetryStrategy, startTime)
 }
 
 // FreezePlanSearchIndexOptions is the set of options available to the search index FreezePlan operation.
 type FreezePlanSearchIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // FreezePlan freezes the assignment of index partitions to nodes.
 func (sim *SearchIndexManager) FreezePlan(indexName string, opts *AllowQueryingSearchIndexOptions) error {
+	startTime := time.Now()
 	if indexName == "" {
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
@@ -562,22 +774,29 @@ func (sim *SearchIndexManager) FreezePlan(indexName string, opts *AllowQueryingS
 		opts = &AllowQueryingSearchIndexOptions{}
 	}
 
+	span := sim.tracer.StartSpan("FreezePlan", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/planFreezeControl/freeze", indexName), "POST")
+	return sim.performControlRequest(ctx, span.Context(), fmt.Sprintf("/api/index/%s/planFreezeControl/freeze", indexName),
+		"POST", opts.RetryStrategy, startTime)
 }
 
 // UnfreezePlanSearchIndexOptions is the set of options available to the search index UnfreezePlan operation.
 type UnfreezePlanSearchIndexOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // UnfreezePlan unfreezes the assignment of index partitions to nodes.
 func (sim *SearchIndexManager) UnfreezePlan(indexName string, opts *AllowQueryingSearchIndexOptions) error {
+	startTime := time.Now()
 	if indexName == "" {
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
@@ -586,10 +805,15 @@ func (sim *SearchIndexManager) UnfreezePlan(indexName string, opts *AllowQueryin
 		opts = &AllowQueryingSearchIndexOptions{}
 	}
 
+	span := sim.tracer.StartSpan("UnfreezePlan", nil).
+		SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, sim.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	return sim.performControlRequest(ctx, fmt.Sprintf("/api/index/%s/planFreezeControl/unfreeze", indexName), "POST")
+	return sim.performControlRequest(ctx, span.Context(), fmt.Sprintf("/api/index/%s/planFreezeControl/unfreeze", indexName),
+		"POST", opts.RetryStrategy, startTime)
 }

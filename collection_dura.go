@@ -3,19 +3,25 @@ package gocb
 import (
 	"context"
 
+	"github.com/opentracing/opentracing-go"
+
 	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
-func (c *Collection) observeOnceSeqNo(ctx context.Context, mt MutationToken, replicaIdx int, commCh chan uint) (pendingOp, error) {
+func (c *Collection) observeOnceSeqNo(ctx context.Context, tracectx opentracing.SpanContext, mt MutationToken,
+	replicaIdx int, commCh chan uint) (pendingOp, error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
 
+	span := c.startKvOpTrace("ObserveOnce", tracectx)
+
 	return agent.ObserveVbEx(gocbcore.ObserveVbOptions{
-		VbId:       mt.token.VbId,
-		VbUuid:     mt.token.VbUuid,
-		ReplicaIdx: replicaIdx,
+		VbId:         mt.token.VbId,
+		VbUuid:       mt.token.VbUuid,
+		ReplicaIdx:   replicaIdx,
+		TraceContext: span.Context(),
 	}, func(res *gocbcore.ObserveVbResult, err error) {
 		if err != nil || res == nil {
 			commCh <- 0
@@ -36,7 +42,7 @@ func (c *Collection) observeOnceSeqNo(ctx context.Context, mt MutationToken, rep
 	})
 }
 
-func (c *Collection) observeOne(ctx context.Context, key []byte, mt MutationToken,
+func (c *Collection) observeOne(ctx context.Context, tracectx opentracing.SpanContext, key []byte, mt MutationToken,
 	cas Cas, forDelete bool, replicaIdx int, replicaCh, persistCh chan bool, scopeName, collectionName string) {
 
 	sentReplicated := false
@@ -61,7 +67,7 @@ func (c *Collection) observeOne(ctx context.Context, key []byte, mt MutationToke
 
 	commCh := make(chan uint)
 	for {
-		op, err := c.observeOnceSeqNo(ctx, mt, replicaIdx, commCh)
+		op, err := c.observeOnceSeqNo(ctx, tracectx, mt, replicaIdx, commCh)
 		if err != nil {
 			failMe()
 			return
@@ -114,6 +120,7 @@ type durabilitySettings struct {
 	forDelete      bool
 	collectionName string
 	scopeName      string
+	tracectx       opentracing.SpanContext
 }
 
 func (c *Collection) durability(settings durabilitySettings) error {
@@ -138,7 +145,7 @@ func (c *Collection) durability(settings durabilitySettings) error {
 	persistCh := make(chan bool, numServers)
 
 	for replicaIdx := 0; replicaIdx < numServers; replicaIdx++ {
-		go c.observeOne(settings.ctx, keyBytes, settings.mt, settings.cas, settings.forDelete,
+		go c.observeOne(settings.ctx, settings.tracectx, keyBytes, settings.mt, settings.cas, settings.forDelete,
 			replicaIdx, replicaCh, persistCh, settings.scopeName, settings.collectionName)
 	}
 

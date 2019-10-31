@@ -20,13 +20,18 @@ type AppendOptions struct {
 	PersistTo       uint
 	ReplicateTo     uint
 	Cas             Cas
+	RetryStrategy   RetryStrategy
 }
 
 // Append appends a byte value to a document.
 func (c *BinaryCollection) Append(id string, val []byte, opts *AppendOptions) (mutOut *MutationResult, errOut error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &AppendOptions{}
 	}
+
+	span := c.collection.startKvOpTrace("Append", nil)
+	defer span.Finish()
 
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
 	ctx, cancel := c.collection.context(opts.Context, opts.Timeout)
@@ -39,7 +44,7 @@ func (c *BinaryCollection) Append(id string, val []byte, opts *AppendOptions) (m
 		return nil, err
 	}
 
-	res, err := c.append(ctx, id, val, *opts)
+	res, err := c.append(ctx, span.Context(), id, val, startTime, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -60,10 +65,16 @@ func (c *BinaryCollection) Append(id string, val []byte, opts *AppendOptions) (m
 	})
 }
 
-func (c *BinaryCollection) append(ctx context.Context, id string, val []byte, opts AppendOptions) (mutOut *MutationResult, errOut error) {
+func (c *BinaryCollection) append(ctx context.Context, tracectx requestSpanContext, id string, val []byte,
+	startTime time.Time, opts AppendOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.collection.getKvProvider()
 	if err != nil {
 		return nil, err
+	}
+
+	retryWrapper := c.collection.sb.RetryStrategyWrapper
+	if opts.RetryStrategy != nil {
+		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
 	coerced, durabilityTimeout := c.collection.durabilityTimeout(ctx, opts.DurabilityLevel)
@@ -73,7 +84,7 @@ func (c *BinaryCollection) append(ctx context.Context, id string, val []byte, op
 		defer cancel()
 	}
 
-	ctrl := c.collection.newOpManager(ctx)
+	ctrl := c.collection.newOpManager(ctx, startTime, "Append")
 	err = ctrl.wait(agent.AppendEx(gocbcore.AdjoinOptions{
 		Key:                    []byte(id),
 		Value:                  val,
@@ -82,6 +93,8 @@ func (c *BinaryCollection) append(ctx context.Context, id string, val []byte, op
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
 		Cas:                    gocbcore.Cas(opts.Cas),
+		RetryStrategy:          retryWrapper,
+		TraceContext:           tracectx,
 	}, func(res *gocbcore.AdjoinResult, err error) {
 		if err != nil {
 			errOut = err
@@ -117,13 +130,18 @@ type PrependOptions struct {
 	PersistTo       uint
 	ReplicateTo     uint
 	Cas             Cas
+	RetryStrategy   RetryStrategy
 }
 
 // Prepend prepends a byte value to a document.
 func (c *BinaryCollection) Prepend(id string, val []byte, opts *PrependOptions) (mutOut *MutationResult, errOut error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &PrependOptions{}
 	}
+
+	span := c.collection.startKvOpTrace("Prepend", nil)
+	defer span.Finish()
 
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
 	ctx, cancel := c.collection.context(opts.Context, opts.Timeout)
@@ -136,7 +154,7 @@ func (c *BinaryCollection) Prepend(id string, val []byte, opts *PrependOptions) 
 		return nil, err
 	}
 
-	res, err := c.prepend(ctx, id, val, *opts)
+	res, err := c.prepend(ctx, span.Context(), id, val, startTime, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -157,10 +175,16 @@ func (c *BinaryCollection) Prepend(id string, val []byte, opts *PrependOptions) 
 	})
 }
 
-func (c *BinaryCollection) prepend(ctx context.Context, id string, val []byte, opts PrependOptions) (mutOut *MutationResult, errOut error) {
+func (c *BinaryCollection) prepend(ctx context.Context, tracectx requestSpanContext, id string, val []byte,
+	startTime time.Time, opts PrependOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.collection.getKvProvider()
 	if err != nil {
 		return nil, err
+	}
+
+	retryWrapper := c.collection.sb.RetryStrategyWrapper
+	if opts.RetryStrategy != nil {
+		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
 	coerced, durabilityTimeout := c.collection.durabilityTimeout(ctx, opts.DurabilityLevel)
@@ -170,7 +194,7 @@ func (c *BinaryCollection) prepend(ctx context.Context, id string, val []byte, o
 		defer cancel()
 	}
 
-	ctrl := c.collection.newOpManager(ctx)
+	ctrl := c.collection.newOpManager(ctx, startTime, "Prepend")
 	err = ctrl.wait(agent.PrependEx(gocbcore.AdjoinOptions{
 		Key:                    []byte(id),
 		Value:                  val,
@@ -179,6 +203,8 @@ func (c *BinaryCollection) prepend(ctx context.Context, id string, val []byte, o
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
 		Cas:                    gocbcore.Cas(opts.Cas),
+		RetryStrategy:          retryWrapper,
+		TraceContext:           tracectx,
 	}, func(res *gocbcore.AdjoinResult, err error) {
 		if err != nil {
 			errOut = err
@@ -222,15 +248,20 @@ type CounterOptions struct {
 	PersistTo       uint
 	ReplicateTo     uint
 	Cas             Cas
+	RetryStrategy   RetryStrategy
 }
 
 // Increment performs an atomic addition for an integer document. Passing a
 // non-negative `initial` value will cause the document to be created if it did not
 // already exist.
 func (c *BinaryCollection) Increment(id string, opts *CounterOptions) (countOut *CounterResult, errOut error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &CounterOptions{}
 	}
+
+	span := c.collection.startKvOpTrace("Increment", nil)
+	defer span.Finish()
 
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
 	ctx, cancel := c.collection.context(opts.Context, opts.Timeout)
@@ -238,7 +269,7 @@ func (c *BinaryCollection) Increment(id string, opts *CounterOptions) (countOut 
 		defer cancel()
 	}
 
-	res, err := c.increment(ctx, id, *opts)
+	res, err := c.increment(ctx, span.Context(), id, startTime, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -259,10 +290,16 @@ func (c *BinaryCollection) Increment(id string, opts *CounterOptions) (countOut 
 	})
 }
 
-func (c *BinaryCollection) increment(ctx context.Context, id string, opts CounterOptions) (countOut *CounterResult, errOut error) {
+func (c *BinaryCollection) increment(ctx context.Context, tracectx requestSpanContext, id string,
+	startTime time.Time, opts CounterOptions) (countOut *CounterResult, errOut error) {
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
 	if opts.Initial >= 0 {
 		realInitial = uint64(opts.Initial)
+	}
+
+	retryWrapper := c.collection.sb.RetryStrategyWrapper
+	if opts.RetryStrategy != nil {
+		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
 	agent, err := c.collection.getKvProvider()
@@ -277,7 +314,7 @@ func (c *BinaryCollection) increment(ctx context.Context, id string, opts Counte
 		defer cancel()
 	}
 
-	ctrl := c.collection.newOpManager(ctx)
+	ctrl := c.collection.newOpManager(ctx, startTime, "Increment")
 	err = ctrl.wait(agent.IncrementEx(gocbcore.CounterOptions{
 		Key:                    []byte(id),
 		Delta:                  opts.Delta,
@@ -288,6 +325,8 @@ func (c *BinaryCollection) increment(ctx context.Context, id string, opts Counte
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
 		Cas:                    gocbcore.Cas(opts.Cas),
+		RetryStrategy:          retryWrapper,
+		TraceContext:           tracectx,
 	}, func(res *gocbcore.CounterResult, err error) {
 		if err != nil {
 			errOut = err
@@ -325,9 +364,13 @@ func (c *BinaryCollection) increment(ctx context.Context, id string, opts Counte
 // non-negative `initial` value will cause the document to be created if it did not
 // already exist.
 func (c *BinaryCollection) Decrement(id string, opts *CounterOptions) (countOut *CounterResult, errOut error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &CounterOptions{}
 	}
+
+	span := c.collection.startKvOpTrace("Decrement", nil)
+	defer span.Finish()
 
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
 	ctx, cancel := c.collection.context(opts.Context, opts.Timeout)
@@ -340,7 +383,7 @@ func (c *BinaryCollection) Decrement(id string, opts *CounterOptions) (countOut 
 		return nil, err
 	}
 
-	res, err := c.decrement(ctx, id, *opts)
+	res, err := c.decrement(ctx, span.Context(), id, startTime, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -361,7 +404,8 @@ func (c *BinaryCollection) Decrement(id string, opts *CounterOptions) (countOut 
 	})
 }
 
-func (c *BinaryCollection) decrement(ctx context.Context, id string, opts CounterOptions) (countOut *CounterResult, errOut error) {
+func (c *BinaryCollection) decrement(ctx context.Context, tracectx requestSpanContext, id string,
+	startTime time.Time, opts CounterOptions) (countOut *CounterResult, errOut error) {
 	agent, err := c.collection.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -372,6 +416,11 @@ func (c *BinaryCollection) decrement(ctx context.Context, id string, opts Counte
 		realInitial = uint64(opts.Initial)
 	}
 
+	retryWrapper := c.collection.sb.RetryStrategyWrapper
+	if opts.RetryStrategy != nil {
+		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	coerced, durabilityTimeout := c.collection.durabilityTimeout(ctx, opts.DurabilityLevel)
 	if coerced {
 		var cancel context.CancelFunc
@@ -379,7 +428,7 @@ func (c *BinaryCollection) decrement(ctx context.Context, id string, opts Counte
 		defer cancel()
 	}
 
-	ctrl := c.collection.newOpManager(ctx)
+	ctrl := c.collection.newOpManager(ctx, startTime, "Decrement")
 	err = ctrl.wait(agent.DecrementEx(gocbcore.CounterOptions{
 		Key:                    []byte(id),
 		Delta:                  opts.Delta,
@@ -390,6 +439,8 @@ func (c *BinaryCollection) decrement(ctx context.Context, id string, opts Counte
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
 		Cas:                    gocbcore.Cas(opts.Cas),
+		RetryStrategy:          retryWrapper,
+		TraceContext:           tracectx,
 	}, func(res *gocbcore.CounterResult, err error) {
 		if err != nil {
 			errOut = err

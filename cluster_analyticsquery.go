@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/google/uuid"
+
 	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
 )
@@ -69,6 +71,7 @@ type AnalyticsResult struct {
 	metadata   AnalyticsMetadata
 	err        error
 	httpStatus int
+	startTime  time.Time
 
 	streamResult *streamingResult
 	cancel       context.CancelFunc
@@ -124,9 +127,25 @@ func (r *AnalyticsResult) Close() error {
 		r.cancel()
 	}
 	if ctxErr == context.DeadlineExceeded {
-		return timeoutError{}
+		return timeoutError{
+			operationID: r.metadata.clientContextID,
+			elapsed:     time.Now().Sub(r.startTime),
+			remote:      r.metadata.sourceAddr,
+			operation:   "cbas",
+		}
 	}
 	if r.err != nil {
+		if qErr, ok := r.err.(AnalyticsQueryError); ok {
+			if qErr.Code() == 21002 {
+				return timeoutError{
+					operationID: r.metadata.clientContextID,
+					elapsed:     time.Now().Sub(r.startTime),
+					remote:      r.metadata.sourceAddr,
+					operation:   "cbas",
+				}
+			}
+		}
+
 		return r.err
 	}
 	return err
@@ -289,24 +308,25 @@ func (r *AnalyticsResult) readAttribute(decoder *json.Decoder, t json.Token) (bo
 
 // AnalyticsQuery performs an analytics query and returns a list of rows or an error.
 func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*AnalyticsResult, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &AnalyticsOptions{}
 	}
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
+
+	span := c.sb.Tracer.StartSpan("AnalyticsQuery", nil).
+		SetTag("couchbase.service", "cbas")
+	defer span.Finish()
+
+	return c.analyticsQuery(span.Context(), statement, startTime, opts)
+}
+
+func (c *Cluster) analyticsQuery(tracectx requestSpanContext, statement string, startTime time.Time,
+	opts *AnalyticsOptions) (*AnalyticsResult, error) {
 
 	provider, err := c.getHTTPProvider()
 	if err != nil {
 		return nil, err
 	}
-
-	return c.analyticsQuery(ctx, statement, opts, provider)
-}
-
-func (c *Cluster) analyticsQuery(ctx context.Context, statement string, opts *AnalyticsOptions,
-	provider httpProvider) (*AnalyticsResult, error) {
 
 	queryOpts, err := opts.toMap(statement)
 	if err != nil {
@@ -322,15 +342,11 @@ func (c *Cluster) analyticsQuery(ctx context.Context, statement string, opts *An
 		}
 	}
 
-	if ctx == nil {
-		ctx = context.Background()
+	if opts.Context == nil {
+		opts.Context = context.Background()
 	}
 
-	// We need to try to create the context with timeout + 1 second so that the server closes the connection rather
-	// than us. This is just a better user experience.
-	timeoutPlusBuffer := timeout + time.Second
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithTimeout(ctx, timeoutPlusBuffer)
+	ctx, cancel := context.WithTimeout(opts.Context, timeout)
 
 	now := time.Now()
 	d, _ := ctx.Deadline()
@@ -348,22 +364,13 @@ func (c *Cluster) analyticsQuery(ctx context.Context, statement string, opts *An
 		opts.Serializer = c.sb.Serializer
 	}
 
-	var retries uint
-	var res *AnalyticsResult
-	for {
-		retries++
-		res, err = c.executeAnalyticsQuery(ctx, queryOpts, provider, cancel, opts.Serializer)
-		if err == nil {
-			break
-		}
-
-		if !IsRetryableError(err) || c.sb.AnalyticsRetryBehavior == nil || !c.sb.AnalyticsRetryBehavior.CanRetry(retries) {
-			break
-		}
-
-		time.Sleep(c.sb.AnalyticsRetryBehavior.NextInterval(retries))
+	retryWrapper := c.sb.RetryStrategyWrapper
+	if opts.RetryStrategy != nil {
+		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	res, err := c.executeAnalyticsQuery(ctx, tracectx, queryOpts, provider, cancel, opts.ReadOnly, opts.Serializer,
+		retryWrapper, startTime)
 	if err != nil {
 		// only cancel on error, if we cancel when things have gone to plan then we'll prematurely close the stream
 		if cancel != nil {
@@ -375,25 +382,38 @@ func (c *Cluster) analyticsQuery(ctx context.Context, statement string, opts *An
 	return res, nil
 }
 
-func (c *Cluster) executeAnalyticsQuery(ctx context.Context, opts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer) (*AnalyticsResult, error) {
+func (c *Cluster) executeAnalyticsQuery(ctx context.Context, tracectx requestSpanContext, opts map[string]interface{},
+	provider httpProvider, cancel context.CancelFunc, idempotent bool, serializer JSONSerializer,
+	retryWrapper *retryStrategyWrapper, startTime time.Time) (*AnalyticsResult, error) {
 	// priority is sent as a header not in the body
 	priority, priorityCastOK := opts["priority"].(int)
 	if priorityCastOK {
 		delete(opts, "priority")
 	}
 
+	espan := c.sb.Tracer.StartSpan("encoding", tracectx)
 	reqJSON, err := json.Marshal(opts)
+	espan.Finish()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal query request body")
 	}
 
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.CbasService,
-		Path:    "/analytics/service",
-		Method:  "POST",
-		Context: ctx,
-		Body:    reqJSON,
+		Service:       gocbcore.CbasService,
+		Path:          "/analytics/service",
+		Method:        "POST",
+		Context:       ctx,
+		Body:          reqJSON,
+		IsIdempotent:  idempotent,
+		RetryStrategy: retryWrapper,
+	}
+
+	contextID, ok := opts["client_context_id"].(string)
+	if ok {
+		req.UniqueId = contextID
+	} else {
+		req.UniqueId = uuid.New().String()
+		logWarnf("Failed to assert analytics options client_context_id to string. Replacing with %s", req.UniqueId)
 	}
 
 	if priorityCastOK {
@@ -401,66 +421,128 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, opts map[string]int
 		req.Headers["Analytics-Priority"] = strconv.Itoa(priority)
 	}
 
-	resp, err := provider.DoHttpRequest(req)
-	if err != nil {
-		if err == gocbcore.ErrNoCbasService {
-			return nil, serviceNotAvailableError{message: gocbcore.ErrNoCbasService.Error()}
+	for {
+		dspan := c.sb.Tracer.StartSpan("dispatch", tracectx)
+		resp, err := provider.DoHttpRequest(req)
+		dspan.Finish()
+		if err != nil {
+			if err == gocbcore.ErrNoCbasService {
+				return nil, serviceNotAvailableError{message: gocbcore.ErrNoCbasService.Error()}
+			}
+
+			if err == context.DeadlineExceeded {
+				return nil, timeoutError{
+					operationID:   req.Identifier(),
+					retryReasons:  req.RetryReasons(),
+					retryAttempts: req.RetryAttempts(),
+					elapsed:       time.Now().Sub(startTime),
+					remote:        req.Endpoint,
+					operation:     "cbas",
+				}
+			}
+
+			return nil, err
 		}
 
-		// as we're effectively manually timing out the request using cancellation we need
-		// to check if the original context has timed out as err itself will only show as canceled
-		if ctx.Err() == context.DeadlineExceeded {
-			return nil, timeoutError{}
-		}
-		return nil, errors.Wrap(err, "could not complete analytics http request")
-	}
-
-	epInfo, err := url.Parse(resp.Endpoint)
-	if err != nil {
-		logWarnf("Failed to parse N1QL source address")
-		epInfo = &url.URL{
-			Host: "",
-		}
-	}
-
-	queryResults := &AnalyticsResult{
-		metadata: AnalyticsMetadata{
-			sourceAddr: epInfo.Host,
-		},
-		httpStatus:   resp.StatusCode,
-		httpProvider: provider,
-		serializer:   serializer,
-	}
-
-	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)
-	if err != nil {
-		return nil, err
-	}
-
-	err = streamResult.readAttributes()
-	if err != nil {
-		bodyErr := streamResult.Close()
-		if bodyErr != nil {
-			logDebugf("Failed to close socket (%s)", bodyErr.Error())
-		}
-		return nil, err
-	}
-
-	queryResults.streamResult = streamResult
-
-	if streamResult.HasRows() {
-		queryResults.cancel = cancel
-		queryResults.ctx = ctx
-	} else {
-		bodyErr := streamResult.Close()
-		if bodyErr != nil {
-			logDebugf("Failed to close response body, %s", bodyErr.Error())
+		epInfo, err := url.Parse(resp.Endpoint)
+		if err != nil {
+			logWarnf("Failed to parse N1QL source address")
+			epInfo = &url.URL{
+				Host: "",
+			}
 		}
 
-		// There are no rows and there are errors so fast fail
-		if queryResults.err != nil {
-			return nil, queryResults.err
+		results := &AnalyticsResult{
+			metadata: AnalyticsMetadata{
+				sourceAddr: epInfo.Host,
+			},
+			httpStatus:   resp.StatusCode,
+			httpProvider: provider,
+			serializer:   serializer,
+			startTime:    startTime,
+		}
+
+		streamResult, err := newStreamingResults(resp.Body, results.readAttribute)
+		if err != nil {
+			return nil, err
+		}
+
+		err = streamResult.readAttributes()
+		if err != nil {
+			bodyErr := streamResult.Close()
+			if bodyErr != nil {
+				logDebugf("Failed to close socket (%s)", bodyErr.Error())
+			}
+
+			return nil, err
+		}
+
+		results.streamResult = streamResult
+
+		if streamResult.HasRows() {
+			results.cancel = cancel
+			results.ctx = ctx
+		} else {
+			bodyErr := streamResult.Close()
+			if bodyErr != nil {
+				logDebugf("Failed to close response body, %s", bodyErr.Error())
+			}
+
+			// If this isn't retryable then return immediately, otherwise attempt a retry. If that fails then return
+			// immediately.
+			if IsRetryableError(results.err) {
+				shouldRetry, retryErr := shouldRetryHTTPRequest(ctx, req, gocbcore.ServiceResponseCodeIndicatedRetryReason,
+					retryWrapper, provider, startTime)
+				if shouldRetry {
+					continue
+				}
+
+				if retryErr != nil {
+					return nil, retryErr
+				}
+			}
+
+			// If there are no rows then must be an error but we'll just make sure that users can't ever
+			// end up in a state where result and error is nil.
+			if results.err == nil {
+				return nil, errors.New("Unknown error")
+			}
+			return nil, results.err
+		}
+
+		return results, nil
+	}
+}
+
+func shouldRetryHTTPRequest(ctx context.Context, req *gocbcore.HttpRequest, reason gocbcore.RetryReason,
+	retryWrapper *retryStrategyWrapper, provider httpProvider, startTime time.Time) (bool, error) {
+	waitCh := make(chan struct{})
+	retried := provider.MaybeRetryRequest(req, reason, retryWrapper, func() {
+		waitCh <- struct{}{}
+	})
+	if retried {
+		select {
+		case <-waitCh:
+			return true, nil
+		case <-ctx.Done():
+			if req.CancelRetry() {
+				// Read the channel so that we don't leave it hanging
+				<-waitCh
+			}
+
+			if ctx.Err() == context.DeadlineExceeded {
+				return false, timeoutError{
+					operationID:   req.Identifier(),
+					retryReasons:  req.RetryReasons(),
+					retryAttempts: req.RetryAttempts(),
+					elapsed:       time.Now().Sub(startTime),
+					remote:        req.Endpoint,
+					operation:     "cbas",
+				}
+			}
+
+			return false, ctx.Err()
 		}
 	}
-	return queryResults, nil
+	return false, nil
 }

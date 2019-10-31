@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -227,9 +228,13 @@ func TestSearchQueryRetries(t *testing.T) {
 	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
 		retries++
 
+		if retries == 3 {
+			return nil, context.DeadlineExceeded
+		}
+
 		return &gocbcore.HttpResponse{
 			Endpoint:   "http://localhost:8093",
-			StatusCode: 419,
+			StatusCode: 429,
 		}, nil
 	}
 
@@ -237,16 +242,15 @@ func TestSearchQueryRetries(t *testing.T) {
 		doFn: doHTTP,
 	}
 
-	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
-	cluster.sb.SearchRetryBehavior = standardDelayRetryBehavior(3, 1, 100*time.Millisecond, linearDelayFunction)
+	cluster := testGetClusterForHTTP(provider, 0, 0, timeout)
 
 	_, err := cluster.SearchQuery("test", NewMatchQuery("test"), nil)
-	if err == nil {
-		t.Fatal("Expected query execution to error")
+	if !IsTimeoutError(err) {
+		t.Fatalf("Expected query execution to be timeout error, was %v", err)
 	}
 
 	if retries != 3 {
-		t.Fatalf("Expected query to be retried 3 time but ws retried %d times", retries)
+		t.Fatalf("Expected query to be retried 3 time but was retried %d times", retries)
 	}
 }
 

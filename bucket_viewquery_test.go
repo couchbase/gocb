@@ -542,6 +542,7 @@ func testGetBucketForHTTP(provider *mockHTTPProvider, viewTimeout time.Duration)
 		sb: stateBlock{
 			Transcoder:   NewJSONTranscoder(&DefaultJSONSerializer{}),
 			cachedClient: cli,
+			Tracer:       &noopTracer{},
 		},
 	}
 	b.sb.ViewTimeout = viewTimeout

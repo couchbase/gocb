@@ -29,6 +29,11 @@ func newBucket(sb *stateBlock, bucketName string, opts BucketOptions) *Bucket {
 
 			Transcoder: sb.Transcoder,
 			Serializer: sb.Serializer,
+
+			RetryStrategyWrapper: sb.RetryStrategyWrapper,
+
+			UseServerDurations: sb.UseServerDurations,
+			Tracer:             sb.Tracer,
 		},
 	}
 }
@@ -85,9 +90,11 @@ func (b *Bucket) ViewIndexes() (*ViewIndexManager, error) {
 	}
 
 	return &ViewIndexManager{
-		bucketName:    b.Name(),
-		httpClient:    provider,
-		globalTimeout: b.sb.ManagementTimeout,
+		bucketName:           b.Name(),
+		httpClient:           provider,
+		globalTimeout:        b.sb.ManagementTimeout,
+		defaultRetryStrategy: b.sb.RetryStrategyWrapper,
+		tracer:               b.sb.Tracer,
 	}, nil
 }
 
@@ -100,8 +107,10 @@ func (b *Bucket) CollectionManager() (*CollectionManager, error) {
 	}
 
 	return &CollectionManager{
-		httpClient:    provider,
-		bucketName:    b.Name(),
-		globalTimeout: b.sb.ManagementTimeout,
+		httpClient:           provider,
+		bucketName:           b.Name(),
+		globalTimeout:        b.sb.ManagementTimeout,
+		defaultRetryStrategy: b.sb.RetryStrategyWrapper,
+		tracer:               b.sb.Tracer,
 	}, nil
 }

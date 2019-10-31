@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"time"
 
@@ -97,9 +98,10 @@ type SearchMetadata struct {
 
 // SearchResult allows access to the results of a search query.
 type SearchResult struct {
-	metadata SearchMetadata
-	err      error
-	facets   map[string]FacetResult
+	metadata  SearchMetadata
+	err       error
+	facets    map[string]FacetResult
+	startTime time.Time
 
 	httpStatus   int
 	streamResult *streamingResult
@@ -222,7 +224,11 @@ func (r *SearchResult) Close() error {
 		r.cancel()
 	}
 	if ctxErr == context.DeadlineExceeded {
-		return timeoutError{}
+		return timeoutError{
+			elapsed:   time.Now().Sub(r.startTime),
+			remote:    r.metadata.sourceAddr,
+			operation: "fts",
+		}
 	}
 	if r.err != nil {
 		return r.err
@@ -418,9 +424,14 @@ func (r *SearchResult) readAttribute(decoder *json.Decoder, t json.Token) (bool,
 
 // SearchQuery performs a n1ql query and returns a list of rows or an error.
 func (c *Cluster) SearchQuery(indexName string, q SearchQuery, opts *SearchOptions) (*SearchResult, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &SearchOptions{}
 	}
+
+	span := c.sb.Tracer.StartSpan("SearchQuery", nil).SetTag("couchbase.service", "fts")
+	defer span.Finish()
+
 	ctx := opts.Context
 	if ctx == nil {
 		ctx = context.Background()
@@ -431,18 +442,20 @@ func (c *Cluster) SearchQuery(indexName string, q SearchQuery, opts *SearchOptio
 		return nil, err
 	}
 
-	return c.searchQuery(ctx, indexName, q, opts, provider)
+	return c.searchQuery(ctx, span.Context(), indexName, q, opts, provider, startTime)
 }
 
-func (c *Cluster) searchQuery(ctx context.Context, qIndexName string, q interface{}, opts *SearchOptions,
-	provider httpProvider) (*SearchResult, error) {
+func (c *Cluster) searchQuery(ctx context.Context, tracectx requestSpanContext, qIndexName string, q interface{}, opts *SearchOptions,
+	provider httpProvider, startTime time.Time) (*SearchResult, error) {
 
 	optsData, err := opts.toOptionsData()
 	if err != nil {
 		return nil, err
 	}
 
+	espan := c.sb.Tracer.StartSpan("encode", tracectx)
 	qBytes, err := json.Marshal(*optsData)
+	espan.Finish()
 	if err != nil {
 		return nil, err
 	}
@@ -499,23 +512,12 @@ func (c *Cluster) searchQuery(ctx context.Context, qIndexName string, q interfac
 		opts.Serializer = &DefaultJSONSerializer{}
 	}
 
-	var retries uint
-	var res *SearchResult
-	for {
-		retries++
-		res, err = c.executeSearchQuery(ctx, queryData, qIndexName, provider, cancel, opts.Serializer)
-		if err == nil {
-			break
-		}
-
-		if !IsRetryableError(err) || c.sb.SearchRetryBehavior == nil || !c.sb.SearchRetryBehavior.CanRetry(retries) {
-			break
-		}
-
-		time.Sleep(c.sb.SearchRetryBehavior.NextInterval(retries))
-
+	wrapper := c.sb.RetryStrategyWrapper
+	if opts.RetryStrategy != nil {
+		wrapper = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	res, err := c.executeSearchQuery(ctx, tracectx, queryData, qIndexName, provider, cancel, opts.Serializer, wrapper, startTime)
 	if err != nil {
 		// only cancel on error, if we cancel when things have gone to plan then we'll prematurely close the stream
 		if cancel != nil {
@@ -527,8 +529,9 @@ func (c *Cluster) searchQuery(ctx context.Context, qIndexName string, q interfac
 	return res, nil
 }
 
-func (c *Cluster) executeSearchQuery(ctx context.Context, query jsonx.DelayedObject,
-	qIndexName string, provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer) (*SearchResult, error) {
+func (c *Cluster) executeSearchQuery(ctx context.Context, tracectx requestSpanContext, query jsonx.DelayedObject,
+	qIndexName string, provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer,
+	wrapper *retryStrategyWrapper, startTime time.Time) (*SearchResult, error) {
 
 	qBytes, err := json.Marshal(query)
 	if err != nil {
@@ -536,119 +539,151 @@ func (c *Cluster) executeSearchQuery(ctx context.Context, query jsonx.DelayedObj
 	}
 
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.FtsService,
-		Path:    fmt.Sprintf("/api/index/%s/query", qIndexName),
-		Method:  "POST",
-		Context: ctx,
-		Body:    qBytes,
+		Service:       gocbcore.FtsService,
+		Path:          fmt.Sprintf("/api/index/%s/query", qIndexName),
+		Method:        "POST",
+		Context:       ctx,
+		Body:          qBytes,
+		IsIdempotent:  true,
+		RetryStrategy: wrapper,
 	}
 
-	resp, err := provider.DoHttpRequest(req)
-	if err != nil {
-		if err == gocbcore.ErrNoFtsService {
-			return nil, serviceNotAvailableError{message: gocbcore.ErrNoFtsService.Error()}
+	for {
+		dspan := c.sb.Tracer.StartSpan("dispatch", tracectx)
+		resp, err := provider.DoHttpRequest(req)
+		dspan.Finish()
+		if err != nil {
+			if err == gocbcore.ErrNoFtsService {
+				return nil, serviceNotAvailableError{message: gocbcore.ErrNoFtsService.Error()}
+			}
+
+			if err == context.DeadlineExceeded {
+				return nil, timeoutError{
+					retryReasons:  req.RetryReasons(),
+					retryAttempts: req.RetryAttempts(),
+					elapsed:       time.Now().Sub(startTime),
+					remote:        req.Endpoint,
+					operation:     "fts",
+				}
+			}
+
+			return nil, errors.Wrap(err, "could not complete search http request")
 		}
 
-		// as we're effectively manually timing out the request using cancellation we need
-		// to check if the original context has timed out as err itself will only show as canceled
-		if ctx.Err() == context.DeadlineExceeded {
-			return nil, timeoutError{}
+		epInfo, err := url.Parse(resp.Endpoint)
+		if err != nil {
+			logWarnf("Failed to parse N1QL source address")
+			epInfo = &url.URL{
+				Host: "",
+			}
 		}
-		return nil, errors.Wrap(err, "could not complete search http request")
-	}
 
-	epInfo, err := url.Parse(resp.Endpoint)
-	if err != nil {
-		logWarnf("Failed to parse N1QL source address")
-		epInfo = &url.URL{
-			Host: "",
+		switch resp.StatusCode {
+		case 400:
+			// This goes against the FTS RFC but makes a better experience in Go
+			buf := new(bytes.Buffer)
+			_, err := buf.ReadFrom(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			respErrs := []string{buf.String()}
+			var errs []SearchError
+			for _, err := range respErrs {
+				errs = append(errs, searchError{
+					message: err,
+				})
+			}
+			return nil, searchMultiError{
+				errors:     errs,
+				endpoint:   epInfo.Host,
+				httpStatus: resp.StatusCode,
+			}
+		case 401:
+			// This goes against the FTS RFC but makes a better experience in Go
+			return nil, searchMultiError{
+				errors: []SearchError{
+					searchError{
+						message: "The requested consistency level could not be satisfied before the timeout was reached",
+					},
+				},
+				endpoint:   epInfo.Host,
+				httpStatus: resp.StatusCode,
+			}
+		case 429:
+			shouldRetry, retryErr := shouldRetryHTTPRequest(ctx, req, gocbcore.ServiceResponseCodeIndicatedRetryReason,
+				wrapper, provider, startTime)
+			if shouldRetry {
+				continue
+			}
+
+			if retryErr != nil {
+				return nil, retryErr
+			}
+
+			// Drop out here and we'll create an error below.
 		}
-	}
 
-	switch resp.StatusCode {
-	case 400:
-		// This goes against the FTS RFC but makes a better experience in Go
-		buf := new(bytes.Buffer)
-		_, err := buf.ReadFrom(resp.Body)
+		if resp.StatusCode != 200 {
+			errMsg := "An unknown error occurred"
+			errBytes, bodyErr := ioutil.ReadAll(resp.Body)
+			if bodyErr == nil {
+				errMsg = string(errBytes)
+			} else {
+				logDebugf("Failed to ready message from body (%s)", bodyErr.Error())
+			}
+
+			err = searchMultiError{
+				errors: []SearchError{
+					searchError{
+						message: errMsg,
+					},
+				},
+				endpoint:   epInfo.Host,
+				httpStatus: resp.StatusCode,
+			}
+
+			return nil, err
+		}
+
+		queryResults := &SearchResult{
+			metadata: SearchMetadata{
+				sourceAddr: epInfo.Host,
+			},
+			httpStatus: resp.StatusCode,
+			serializer: serializer,
+			startTime:  startTime,
+		}
+
+		streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)
 		if err != nil {
 			return nil, err
 		}
-		respErrs := []string{buf.String()}
-		var errs []SearchError
-		for _, err := range respErrs {
-			errs = append(errs, searchError{
-				message: err,
-			})
-		}
-		return nil, searchMultiError{
-			errors:     errs,
-			endpoint:   epInfo.Host,
-			httpStatus: resp.StatusCode,
-		}
-	case 401:
-		// This goes against the FTS RFC but makes a better experience in Go
-		return nil, searchMultiError{
-			errors: []SearchError{
-				searchError{
-					message: "The requested consistency level could not be satisfied before the timeout was reached",
-				},
-			},
-			endpoint:   epInfo.Host,
-			httpStatus: resp.StatusCode,
-		}
-	}
 
-	if resp.StatusCode != 200 {
-		err = searchMultiError{
-			errors: []SearchError{
-				searchError{
-					message: "An unknown error occurred",
-				},
-			},
-			endpoint:   epInfo.Host,
-			httpStatus: resp.StatusCode,
+		err = streamResult.readAttributes()
+		if err != nil {
+			bodyErr := streamResult.Close()
+			if bodyErr != nil {
+				logDebugf("Failed to close socket (%s)", bodyErr.Error())
+			}
+
+			return nil, err
 		}
 
-		return nil, err
-	}
+		queryResults.streamResult = streamResult
 
-	queryResults := &SearchResult{
-		metadata: SearchMetadata{
-			sourceAddr: epInfo.Host,
-		},
-		httpStatus: resp.StatusCode,
-		serializer: serializer,
-	}
+		if streamResult.HasRows() {
+			queryResults.cancel = cancel
+			queryResults.ctx = ctx
+		} else {
+			bodyErr := streamResult.Close()
+			if bodyErr != nil {
+				logDebugf("Failed to close response body, %s", bodyErr.Error())
+			}
 
-	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)
-	if err != nil {
-		return nil, err
-	}
+			// We've already handled the retry case above.
 
-	err = streamResult.readAttributes()
-	if err != nil {
-		bodyErr := streamResult.Close()
-		if bodyErr != nil {
-			logDebugf("Failed to close socket (%s)", bodyErr.Error())
-		}
-		return nil, err
-	}
-
-	queryResults.streamResult = streamResult
-
-	if streamResult.HasRows() {
-		queryResults.cancel = cancel
-		queryResults.ctx = ctx
-	} else {
-		bodyErr := streamResult.Close()
-		if bodyErr != nil {
-			logDebugf("Failed to close response body, %s", bodyErr.Error())
-		}
-
-		// There are no rows and there are errors so fast fail
-		if queryResults.err != nil {
 			return nil, queryResults.err
 		}
+		return queryResults, nil
 	}
-	return queryResults, nil
 }

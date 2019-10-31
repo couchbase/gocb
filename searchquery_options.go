@@ -74,7 +74,8 @@ type SearchOptions struct {
 
 	// JSONSerializer is used to deserialize each row in the result. This should be a JSON deserializer as results are JSON.
 	// NOTE: if not set then query will always default to DefaultJSONSerializer.
-	Serializer JSONSerializer
+	Serializer    JSONSerializer
+	RetryStrategy RetryStrategy
 }
 
 func (opts *SearchOptions) toOptionsData() (*searchQueryOptionsData, error) {

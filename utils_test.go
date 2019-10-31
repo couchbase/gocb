@@ -133,6 +133,7 @@ func testGetCollection(t *testing.T, provider *mockKvProvider) *Collection {
 			ViewTimeout:      75000 * time.Millisecond,
 			KvTimeout:        2500 * time.Millisecond,
 			Transcoder:       NewJSONTranscoder(&DefaultJSONSerializer{}),
+			Tracer:           &noopTracer{},
 		},
 	}
 	col := b.DefaultCollection()

@@ -8,15 +8,19 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/couchbase/gocbcore/v8"
 )
 
 // CollectionManager provides methods for performing collections management.
 // Volatile: This API is subject to change at any time.
 type CollectionManager struct {
-	httpClient    httpProvider
-	bucketName    string
-	globalTimeout time.Duration
+	httpClient           httpProvider
+	bucketName           string
+	globalTimeout        time.Duration
+	defaultRetryStrategy *retryStrategyWrapper
+	tracer               requestTracer
 }
 
 // CollectionSpec describes the specification of a collection.
@@ -33,8 +37,9 @@ type ScopeSpec struct {
 
 // CollectionExistsOptions is the set of options available to the CollectionExists operation.
 type CollectionExistsOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // These 3 types are temporary. They are necessary for now as the server beta was released with ns_server returning
@@ -55,6 +60,7 @@ type manifestCollection struct {
 
 // CollectionExists verifies whether or not a collection exists on the bucket.
 func (cm *CollectionManager) CollectionExists(spec CollectionSpec, opts *CollectionExistsOptions) (bool, error) {
+	startTime := time.Now()
 	if spec.Name == "" {
 		return false, invalidArgumentsError{
 			message: "collection name cannot be empty",
@@ -71,23 +77,47 @@ func (cm *CollectionManager) CollectionExists(spec CollectionSpec, opts *Collect
 		opts = &CollectionExistsOptions{}
 	}
 
+	span := cm.tracer.StartSpan("CollectionExists", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
+	}
+
+	retryStrategy := cm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
 	posts := url.Values{}
 	posts.Add("name", spec.Name)
 
 	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Path:    fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
-		Method:  "GET",
-		Context: ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
+		Method:        "GET",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
+		IsIdempotent:  true,
+		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := cm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := cm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return false, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return false, err
 	}
 
@@ -152,12 +182,14 @@ func (cm *CollectionManager) CollectionExists(spec CollectionSpec, opts *Collect
 
 // ScopeExistsOptions is the set of options available to the ScopeExists operation.
 type ScopeExistsOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // ScopeExists verifies whether or not a scope exists on the bucket.
 func (cm *CollectionManager) ScopeExists(scopeName string, opts *ScopeExistsOptions) (bool, error) {
+	startTime := time.Now()
 	if scopeName == "" {
 		return false, invalidArgumentsError{
 			message: "scope name cannot be empty",
@@ -168,20 +200,44 @@ func (cm *CollectionManager) ScopeExists(scopeName string, opts *ScopeExistsOpti
 		opts = &ScopeExistsOptions{}
 	}
 
+	span := cm.tracer.StartSpan("ScopeExists", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Path:    fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
-		Method:  "GET",
-		Context: ctx,
+	retryStrategy := cm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	req := &gocbcore.HttpRequest{
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
+		Method:        "GET",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
+		IsIdempotent:  true,
+		UniqueId:      uuid.New().String(),
+	}
+
+	dspan := cm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := cm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return false, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return false, err
 	}
 
@@ -235,12 +291,14 @@ func (cm *CollectionManager) ScopeExists(scopeName string, opts *ScopeExistsOpti
 
 // GetScopeOptions is the set of options available to the GetScope operation.
 type GetScopeOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // GetScope gets a scope from the bucket.
 func (cm *CollectionManager) GetScope(scopeName string, opts *GetScopeOptions) (*ScopeSpec, error) {
+	startTime := time.Now()
 	if scopeName == "" {
 		return nil, invalidArgumentsError{
 			message: "scope name cannot be empty",
@@ -251,20 +309,44 @@ func (cm *CollectionManager) GetScope(scopeName string, opts *GetScopeOptions) (
 		opts = &GetScopeOptions{}
 	}
 
+	span := cm.tracer.StartSpan("GetScope", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Path:    fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
-		Method:  "GET",
-		Context: ctx,
+	retryStrategy := cm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	req := &gocbcore.HttpRequest{
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
+		Method:        "GET",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
+		IsIdempotent:  true,
+		UniqueId:      uuid.New().String(),
+	}
+
+	dspan := cm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := cm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return nil, err
 	}
 
@@ -346,30 +428,56 @@ func (cm *CollectionManager) GetScope(scopeName string, opts *GetScopeOptions) (
 
 // GetAllScopesOptions is the set of options available to the GetAllScopes operation.
 type GetAllScopesOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // GetAllScopes gets all scopes from the bucket.
 func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpec, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &GetAllScopesOptions{}
 	}
+
+	span := cm.tracer.StartSpan("GetAllScopes", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Path:    fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
-		Method:  "GET",
-		Context: ctx,
+	retryStrategy := cm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	req := &gocbcore.HttpRequest{
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
+		Method:        "GET",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
+		IsIdempotent:  true,
+		UniqueId:      uuid.New().String(),
+	}
+
+	dspan := cm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := cm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return nil, timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return nil, err
 	}
 
@@ -440,12 +548,14 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 
 // CreateCollectionOptions is the set of options available to the CreateCollection operation.
 type CreateCollectionOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // CreateCollection creates a new collection on the bucket.
 func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateCollectionOptions) error {
+	startTime := time.Now()
 	if spec.Name == "" {
 		return invalidArgumentsError{
 			message: "collection name cannot be empty",
@@ -462,25 +572,48 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 		opts = &CreateCollectionOptions{}
 	}
 
+	span := cm.tracer.StartSpan("CreateCollection", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
+	}
+
+	retryStrategy := cm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
 	posts := url.Values{}
 	posts.Add("name", spec.Name)
 
 	req := &gocbcore.HttpRequest{
-		Service:     gocbcore.ServiceType(MgmtService),
-		Path:        fmt.Sprintf("/pools/default/buckets/%s/collections/%s", cm.bucketName, spec.ScopeName),
-		Method:      "POST",
-		Body:        []byte(posts.Encode()),
-		ContentType: "application/x-www-form-urlencoded",
-		Context:     ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections/%s", cm.bucketName, spec.ScopeName),
+		Method:        "POST",
+		Body:          []byte(posts.Encode()),
+		ContentType:   "application/x-www-form-urlencoded",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := cm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := cm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return err
 	}
 
@@ -510,12 +643,14 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 
 // DropCollectionOptions is the set of options available to the DropCollection operation.
 type DropCollectionOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // DropCollection removes a collection.
 func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropCollectionOptions) error {
+	startTime := time.Now()
 	if spec.Name == "" {
 		return invalidArgumentsError{
 			message: "collection name cannot be empty",
@@ -532,20 +667,43 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 		opts = &DropCollectionOptions{}
 	}
 
+	span := cm.tracer.StartSpan("DropCollection", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Path:    fmt.Sprintf("/pools/default/buckets/%s/collections/%s/%s", cm.bucketName, spec.ScopeName, spec.Name),
-		Method:  "DELETE",
-		Context: ctx,
+	retryStrategy := cm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	req := &gocbcore.HttpRequest{
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections/%s/%s", cm.bucketName, spec.ScopeName, spec.Name),
+		Method:        "DELETE",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
+	}
+
+	dspan := cm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := cm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return err
 	}
 
@@ -575,12 +733,14 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 
 // CreateScopeOptions is the set of options available to the CreateScope operation.
 type CreateScopeOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // CreateScope creates a new scope on the bucket.
 func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOptions) error {
+	startTime := time.Now()
 	if scopeName == "" {
 		return invalidArgumentsError{
 			message: "scope name cannot be empty",
@@ -591,25 +751,48 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 		opts = &CreateScopeOptions{}
 	}
 
+	span := cm.tracer.StartSpan("CreateScope", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
+
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
+	}
+
+	retryStrategy := cm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
 	posts := url.Values{}
 	posts.Add("name", scopeName)
 
 	req := &gocbcore.HttpRequest{
-		Service:     gocbcore.ServiceType(MgmtService),
-		Path:        fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
-		Method:      "POST",
-		Body:        []byte(posts.Encode()),
-		ContentType: "application/x-www-form-urlencoded",
-		Context:     ctx,
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
+		Method:        "POST",
+		Body:          []byte(posts.Encode()),
+		ContentType:   "application/x-www-form-urlencoded",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
 	}
 
+	dspan := cm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := cm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return err
 	}
 
@@ -639,30 +822,55 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 
 // DropScopeOptions is the set of options available to the DropScope operation.
 type DropScopeOptions struct {
-	Timeout time.Duration
-	Context context.Context
+	Timeout       time.Duration
+	Context       context.Context
+	RetryStrategy RetryStrategy
 }
 
 // DropScope removes a scope.
 func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions) error {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &DropScopeOptions{}
 	}
+
+	span := cm.tracer.StartSpan("DropScope", nil).
+		SetTag("couchbase.service", "mgmt")
+	defer span.Finish()
 
 	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, cm.globalTimeout)
 	if cancel != nil {
 		defer cancel()
 	}
 
-	req := &gocbcore.HttpRequest{
-		Service: gocbcore.ServiceType(MgmtService),
-		Path:    fmt.Sprintf("/pools/default/buckets/%s/collections/%s", cm.bucketName, scopeName),
-		Method:  "DELETE",
-		Context: ctx,
+	retryStrategy := cm.defaultRetryStrategy
+	if opts.RetryStrategy == nil {
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	req := &gocbcore.HttpRequest{
+		Service:       gocbcore.ServiceType(MgmtService),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections/%s", cm.bucketName, scopeName),
+		Method:        "DELETE",
+		Context:       ctx,
+		RetryStrategy: retryStrategy,
+		UniqueId:      uuid.New().String(),
+	}
+
+	dspan := cm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := cm.httpClient.DoHttpRequest(req)
+	dspan.Finish()
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return timeoutError{
+				operationID:   req.UniqueId,
+				retryReasons:  req.RetryReasons(),
+				retryAttempts: req.RetryAttempts(),
+				operation:     "mgmt",
+				elapsed:       time.Now().Sub(startTime),
+			}
+		}
+
 		return err
 	}
 

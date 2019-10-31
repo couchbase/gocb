@@ -324,6 +324,103 @@ func TestBasicAnalyticsQuery(t *testing.T) {
 	testAssertAnalyticsQueryResult(t, &expectedResult, res, true)
 }
 
+func TestBasicAnalyticsRetries(t *testing.T) {
+	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
+	timeout := 60 * time.Second
+
+	dataBytes, err := loadRawTestDataset("beer_sample_analytics_temp_error")
+	if err != nil {
+		t.Fatalf("Could not read test dataset: %v", err)
+	}
+
+	successDataBytes, err := loadRawTestDataset("beer_sample_analytics_dataset")
+	if err != nil {
+		t.Fatalf("Could not read test dataset: %v", err)
+	}
+
+	var retries int
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		retries++
+
+		if retries == 3 {
+			return &gocbcore.HttpResponse{
+				Endpoint:   "http://localhost:8093",
+				StatusCode: 200,
+				Body:       &testReadCloser{bytes.NewBuffer(successDataBytes), nil},
+			}, nil
+		}
+
+		return &gocbcore.HttpResponse{
+			Endpoint:   "http://localhost:8093",
+			StatusCode: 200,
+			Body:       &testReadCloser{bytes.NewBuffer(dataBytes), nil},
+		}, nil
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+	}
+
+	cluster := testGetClusterForHTTP(provider, 0, timeout, 0)
+
+	_, err = cluster.AnalyticsQuery(statement, nil)
+	if err != nil {
+		t.Fatalf("Expected query execution to not error %v", err)
+	}
+
+	if retries != 3 {
+		t.Fatalf("Expected query to be retried 3 time but ws retried %d times", retries)
+	}
+}
+
+func TestBasicAnalyticsRetriesTimeout(t *testing.T) {
+	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
+	timeout := 60 * time.Second
+
+	dataBytes, err := loadRawTestDataset("beer_sample_analytics_temp_error")
+	if err != nil {
+		t.Fatalf("Could not read test dataset: %v", err)
+	}
+
+	var retries int
+	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		retries++
+
+		if retries == 3 {
+			return nil, context.DeadlineExceeded
+		}
+
+		return &gocbcore.HttpResponse{
+			Endpoint:   "http://localhost:8093",
+			StatusCode: 200,
+			Body:       &testReadCloser{bytes.NewBuffer(dataBytes), nil},
+		}, nil
+	}
+
+	provider := &mockHTTPProvider{
+		doFn: doHTTP,
+	}
+
+	cluster := testGetClusterForHTTP(provider, 0, timeout, 0)
+
+	_, err = cluster.AnalyticsQuery(statement, &AnalyticsOptions{
+		ClientContextID: "contextID",
+	})
+
+	if !IsTimeoutError(err) {
+		t.Fatalf("Expected query execution to timeout error %v", err)
+	}
+
+	if retries != 3 {
+		t.Fatalf("Expected query to be retried 3 time but ws retried %d times", retries)
+	}
+
+	tErr := err.(TimeoutErrorWithDetail)
+	if tErr.OperationID() != "contextID" {
+		t.Fatalf("Expected OperationID to be contextID but was %s", tErr.OperationID())
+	}
+}
+
 func TestBasicAnalyticsQuerySerializer(t *testing.T) {
 	dataBytes, err := loadRawTestDataset("beer_sample_query_dataset")
 	if err != nil {
@@ -436,7 +533,7 @@ func TestAnalyticsQueryServiceNotFound(t *testing.T) {
 	statement := "select `beer-sample`.* from `beer-sample` WHERE `type` = ? ORDER BY brewery_id, name"
 	timeout := 60 * time.Second
 
-	cluster := testGetClusterForHTTP(provider, timeout, 0, 0)
+	cluster := testGetClusterForHTTP(provider, 0, timeout, 0)
 
 	res, err := cluster.AnalyticsQuery(statement, nil)
 	if err == nil {
@@ -461,6 +558,8 @@ func TestAnalyticsQueryClientSideTimeout(t *testing.T) {
 
 	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
 		testAssertAnalyticsQueryRequest(t, req)
+
+		req.Endpoint = "testendpoint"
 
 		var opts map[string]interface{}
 		err := json.Unmarshal(req.Body, &opts)
@@ -497,12 +596,31 @@ func TestAnalyticsQueryClientSideTimeout(t *testing.T) {
 	_, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		ServerSideTimeout: timeout,
 		Context:           ctx,
+		ClientContextID:   "testclientcontext",
 	})
-	if err == nil || !IsTimeoutError(err) {
+	if !IsTimeoutError(err) {
 		t.Fatal(err)
+	}
+
+	tErr := err.(TimeoutErrorWithDetail)
+	if tErr.RemoteAddress() != "testendpoint" {
+		t.Fatalf("Expected RemoteAddress to be testendpoint but was %s", tErr.RemoteAddress())
+	}
+
+	if tErr.OperationID() != "testclientcontext" {
+		t.Fatalf("Expected OperationID to be testclientcontext but was %s", tErr.OperationID())
+	}
+
+	if tErr.Operation() != "cbas" {
+		t.Fatalf("Expected Operation to be cbas but was %s", tErr.Operation())
+	}
+
+	if tErr.Elapsed() == 0 {
+		t.Fatalf("Expected Elapsed to be non zero")
 	}
 }
 
+// If a server side timeout occurs for some reason then we should retry until the context/timeout value is met.
 func TestAnalyticsQueryStreamTimeout(t *testing.T) {
 	dataBytes, err := loadRawTestDataset("analytics_timeout")
 	if err != nil {
@@ -515,8 +633,13 @@ func TestAnalyticsQueryStreamTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
+	retries := 0
+
 	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+		retries++
 		testAssertAnalyticsQueryRequest(t, req)
+
+		req.Endpoint = "testendpoint"
 
 		var opts map[string]interface{}
 		err := json.Unmarshal(req.Body, &opts)
@@ -543,7 +666,12 @@ func TestAnalyticsQueryStreamTimeout(t *testing.T) {
 			Body:       &testReadCloser{bytes.NewBuffer(dataBytes), nil},
 		}
 
-		return resp, nil
+		select {
+		case <-req.Context.Done():
+			return nil, req.Context.Err()
+		default:
+			return resp, nil
+		}
 	}
 
 	provider := &mockHTTPProvider{
@@ -555,9 +683,27 @@ func TestAnalyticsQueryStreamTimeout(t *testing.T) {
 	_, err = cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		ServerSideTimeout: timeout,
 		Context:           ctx,
+		ClientContextID:   "testclientcontext",
 	})
-	if err == nil || !IsTimeoutError(err) {
+	if !IsTimeoutError(err) {
 		t.Fatalf("Error should have been timeout but was %v", err)
+	}
+
+	tErr := err.(TimeoutErrorWithDetail)
+	if tErr.RemoteAddress() != "testendpoint" {
+		t.Fatalf("Expected RemoteAddress to be testendpoint but was %s", tErr.RemoteAddress())
+	}
+
+	if tErr.OperationID() != "testclientcontext" {
+		t.Fatalf("Expected OperationID to be testclientcontext but was %s", tErr.OperationID())
+	}
+
+	if tErr.Operation() != "cbas" {
+		t.Fatalf("Expected Operation to be cbas but was %s", tErr.Operation())
+	}
+
+	if tErr.Elapsed() == 0 {
+		t.Fatalf("Expected Elapsed to be non zero")
 	}
 }
 
@@ -571,6 +717,8 @@ func TestAnalyticsQueryConnectContextTimeout(t *testing.T) {
 
 	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
 		testAssertAnalyticsQueryRequest(t, req)
+
+		req.Endpoint = "testendpoint"
 
 		var opts map[string]interface{}
 		err := json.Unmarshal(req.Body, &opts)
@@ -607,9 +755,27 @@ func TestAnalyticsQueryConnectContextTimeout(t *testing.T) {
 	_, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		ServerSideTimeout: timeout,
 		Context:           ctx,
+		ClientContextID:   "testclientcontext",
 	})
-	if err == nil || !IsTimeoutError(err) {
+	if !IsTimeoutError(err) {
 		t.Fatal(err)
+	}
+
+	tErr := err.(TimeoutErrorWithDetail)
+	if tErr.RemoteAddress() != "testendpoint" {
+		t.Fatalf("Expected RemoteAddress to be testendpoint but was %s", tErr.RemoteAddress())
+	}
+
+	if tErr.OperationID() != "testclientcontext" {
+		t.Fatalf("Expected OperationID to be testclientcontext but was %s", tErr.OperationID())
+	}
+
+	if tErr.Operation() != "cbas" {
+		t.Fatalf("Expected Operation to be cbas but was %s", tErr.Operation())
+	}
+
+	if tErr.Elapsed() == 0 {
+		t.Fatalf("Expected Elapsed to be non zero")
 	}
 }
 
@@ -622,6 +788,8 @@ func TestAnalyticsQueryConnectClusterTimeoutClusterWins(t *testing.T) {
 	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
 		testAssertAnalyticsQueryRequest(t, req)
 
+		req.Endpoint = "testendpoint"
+
 		var opts map[string]interface{}
 		err := json.Unmarshal(req.Body, &opts)
 		if err != nil {
@@ -655,10 +823,28 @@ func TestAnalyticsQueryConnectClusterTimeoutClusterWins(t *testing.T) {
 	cluster := testGetClusterForHTTP(provider, clusterTimeout, 0, 0)
 
 	_, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
-		Context: ctx,
+		Context:         ctx,
+		ClientContextID: "testclientcontext",
 	})
-	if err == nil || !IsTimeoutError(err) {
+	if !IsTimeoutError(err) {
 		t.Fatal(err)
+	}
+
+	tErr := err.(TimeoutErrorWithDetail)
+	if tErr.RemoteAddress() != "testendpoint" {
+		t.Fatalf("Expected RemoteAddress to be testendpoint but was %s", tErr.RemoteAddress())
+	}
+
+	if tErr.OperationID() != "testclientcontext" {
+		t.Fatalf("Expected OperationID to be testclientcontext but was %s", tErr.OperationID())
+	}
+
+	if tErr.Operation() != "cbas" {
+		t.Fatalf("Expected Operation to be cbas but was %s", tErr.Operation())
+	}
+
+	if tErr.Elapsed() == 0 {
+		t.Fatalf("Expected Elapsed to be non zero")
 	}
 }
 
@@ -671,6 +857,8 @@ func TestAnalyticsQueryConnectClusterTimeoutContextWins(t *testing.T) {
 	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
 		testAssertAnalyticsQueryRequest(t, req)
 
+		req.Endpoint = "testendpoint"
+
 		var opts map[string]interface{}
 		err := json.Unmarshal(req.Body, &opts)
 		if err != nil {
@@ -704,10 +892,28 @@ func TestAnalyticsQueryConnectClusterTimeoutContextWins(t *testing.T) {
 	cluster := testGetClusterForHTTP(provider, clusterTimeout, 0, 0)
 
 	_, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
-		Context: ctx,
+		Context:         ctx,
+		ClientContextID: "testclientcontext",
 	})
-	if err == nil || !IsTimeoutError(err) {
+	if !IsTimeoutError(err) {
 		t.Fatal(err)
+	}
+
+	tErr := err.(TimeoutErrorWithDetail)
+	if tErr.RemoteAddress() != "testendpoint" {
+		t.Fatalf("Expected RemoteAddress to be testendpoint but was %s", tErr.RemoteAddress())
+	}
+
+	if tErr.OperationID() != "testclientcontext" {
+		t.Fatalf("Expected OperationID to be testclientcontext but was %s", tErr.OperationID())
+	}
+
+	if tErr.Operation() != "cbas" {
+		t.Fatalf("Expected Operation to be cbas but was %s", tErr.Operation())
+	}
+
+	if tErr.Elapsed() == 0 {
+		t.Fatalf("Expected Elapsed to be non zero")
 	}
 }
 

@@ -52,6 +52,14 @@ func (c *stdClient) buildConfig() error {
 	defer c.lock.Unlock()
 
 	auth := c.cluster.auth
+	breakerCfg := c.cluster.sb.CircuitBreakerConfig
+
+	var completionCallback func(err error) bool
+	if breakerCfg.CompletionCallback != nil {
+		completionCallback = func(err error) bool {
+			return breakerCfg.CompletionCallback(maybeEnhanceKVErr(err, "", false))
+		}
+	}
 
 	config := &gocbcore.AgentConfig{
 		UserString:           Identifier(),
@@ -60,12 +68,26 @@ func (c *stdClient) buildConfig() error {
 		ServerConnectTimeout: 7000 * time.Millisecond,
 		NmvRetryDelay:        100 * time.Millisecond,
 		UseKvErrorMaps:       true,
-		UseDurations:         true,
+		UseDurations:         c.cluster.sb.UseServerDurations,
 		UseCollections:       true,
 		UseEnhancedErrors:    true,
 		BucketName:           c.state.BucketName,
 		AuthMechanisms: []gocbcore.AuthMechanism{
 			gocbcore.ScramSha512AuthMechanism, gocbcore.ScramSha256AuthMechanism, gocbcore.ScramSha1AuthMechanism, gocbcore.PlainAuthMechanism,
+		},
+		UseZombieLogger:        c.cluster.sb.OrphanLoggerEnabled,
+		ZombieLoggerInterval:   c.cluster.sb.OrphanLoggerInterval,
+		ZombieLoggerSampleSize: c.cluster.sb.OrphanLoggerSampleSize,
+		NoRootTraceSpans:       true,
+		Tracer:                 &requestTracerWrapper{c.cluster.sb.Tracer},
+		CircuitBreakerConfig: gocbcore.CircuitBreakerConfig{
+			Enabled:                  !breakerCfg.Disabled,
+			VolumeThreshold:          breakerCfg.VolumeThreshold,
+			ErrorThresholdPercentage: breakerCfg.ErrorThresholdPercentage,
+			SleepWindow:              breakerCfg.SleepWindow,
+			RollingWindow:            breakerCfg.RollingWindow,
+			CanaryTimeout:            breakerCfg.CanaryTimeout,
+			CompletionCallback:       completionCallback,
 		},
 	}
 

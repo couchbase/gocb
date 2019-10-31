@@ -14,9 +14,10 @@ type LookupInSpec struct {
 
 // LookupInOptions are the set of options available to LookupIn.
 type LookupInOptions struct {
-	Context    context.Context
-	Timeout    time.Duration
-	Serializer JSONSerializer
+	Context       context.Context
+	Timeout       time.Duration
+	Serializer    JSONSerializer
+	RetryStrategy RetryStrategy
 }
 
 // GetSpecOptions are the options available to LookupIn subdoc Get operations.
@@ -114,9 +115,13 @@ func CountSpec(path string, opts *CountSpecOptions) LookupInSpec {
 
 // LookupIn performs a set of subdocument lookup operations on the document identified by id.
 func (c *Collection) LookupIn(id string, ops []LookupInSpec, opts *LookupInOptions) (docOut *LookupInResult, errOut error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &LookupInOptions{}
 	}
+
+	span := c.startKvOpTrace("LookupIn", nil)
+	defer span.Finish()
 
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
@@ -124,7 +129,7 @@ func (c *Collection) LookupIn(id string, ops []LookupInSpec, opts *LookupInOptio
 		defer cancel()
 	}
 
-	res, err := c.lookupIn(ctx, id, ops, *opts)
+	res, err := c.lookupIn(ctx, span.Context(), id, ops, startTime, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +137,8 @@ func (c *Collection) LookupIn(id string, ops []LookupInSpec, opts *LookupInOptio
 	return res, nil
 }
 
-func (c *Collection) lookupIn(ctx context.Context, id string, ops []LookupInSpec, opts LookupInOptions) (docOut *LookupInResult, errOut error) {
+func (c *Collection) lookupIn(ctx context.Context, tracectx requestSpanContext, id string, ops []LookupInSpec,
+	startTime time.Time, opts LookupInOptions) (docOut *LookupInResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -152,12 +158,19 @@ func (c *Collection) lookupIn(ctx context.Context, id string, ops []LookupInSpec
 		serializer = &DefaultJSONSerializer{}
 	}
 
-	ctrl := c.newOpManager(ctx)
+	retryWrapper := c.sb.RetryStrategyWrapper
+	if opts.RetryStrategy != nil {
+		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
+	ctrl := c.newOpManager(ctx, startTime, "LookupIn")
 	err = ctrl.wait(agent.LookupInEx(gocbcore.LookupInOptions{
 		Key:            []byte(id),
 		Ops:            subdocs,
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
+		RetryStrategy:  retryWrapper,
+		TraceContext:   tracectx,
 	}, func(res *gocbcore.LookupInResult, err error) {
 		if err != nil && !gocbcore.IsErrorStatus(err, gocbcore.StatusSubDocBadMulti) {
 			errOut = maybeEnhanceKVErr(err, id, false)
@@ -230,6 +243,7 @@ type MutateInOptions struct {
 	DurabilityLevel DurabilityLevel
 	StoreSemantic   StoreSemantics
 	Serializer      JSONSerializer
+	RetryStrategy   RetryStrategy
 	// Internal: This should never be used and is not supported.
 	AccessDeleted bool
 }
@@ -616,9 +630,13 @@ func DecrementSpec(path string, delta int64, opts *CounterSpecOptions) MutateInS
 
 // MutateIn performs a set of subdocument mutations on the document specified by id.
 func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptions) (mutOut *MutateInResult, errOut error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &MutateInOptions{}
 	}
+
+	span := c.startKvOpTrace("MutateIn", nil)
+	defer span.Finish()
 
 	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
 	ctx, cancel := c.context(opts.Context, opts.Timeout)
@@ -631,7 +649,7 @@ func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptio
 		return nil, err
 	}
 
-	res, err := c.mutate(ctx, id, ops, *opts)
+	res, err := c.mutate(ctx, span.Context(), id, ops, startTime, *opts)
 	if err != nil {
 		return nil, err
 	}
@@ -652,7 +670,8 @@ func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptio
 	})
 }
 
-func (c *Collection) mutate(ctx context.Context, id string, ops []MutateInSpec, opts MutateInOptions) (mutOut *MutateInResult, errOut error) {
+func (c *Collection) mutate(ctx context.Context, tracectx requestSpanContext, id string, ops []MutateInSpec,
+	startTime time.Time, opts MutateInOptions) (mutOut *MutateInResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -711,11 +730,13 @@ func (c *Collection) mutate(ctx context.Context, id string, ops []MutateInSpec, 
 
 		var marshaled []byte
 		var err error
+		etrace := c.startKvOpTrace("encode", tracectx)
 		if op.op.MultiValue {
 			marshaled, err = c.encodeMultiArray(op.op.Value, serializer)
 		} else {
 			marshaled, err = serializer.Serialize(op.op.Value)
 		}
+		etrace.Finish()
 		if err != nil {
 			return nil, err
 		}
@@ -728,6 +749,11 @@ func (c *Collection) mutate(ctx context.Context, id string, ops []MutateInSpec, 
 		})
 	}
 
+	retryWrapper := c.sb.RetryStrategyWrapper
+	if opts.RetryStrategy != nil {
+		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
 	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
 	if coerced {
 		var cancel context.CancelFunc
@@ -735,7 +761,7 @@ func (c *Collection) mutate(ctx context.Context, id string, ops []MutateInSpec, 
 		defer cancel()
 	}
 
-	ctrl := c.newOpManager(ctx)
+	ctrl := c.newOpManager(ctx, startTime, "MutateIn")
 	err = ctrl.wait(agent.MutateInEx(gocbcore.MutateInOptions{
 		Key:                    []byte(id),
 		Flags:                  gocbcore.SubdocDocFlag(flags),
@@ -746,6 +772,8 @@ func (c *Collection) mutate(ctx context.Context, id string, ops []MutateInSpec, 
 		ScopeName:              c.scopeName(),
 		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
 		DurabilityLevelTimeout: durabilityTimeout,
+		RetryStrategy:          retryWrapper,
+		TraceContext:           tracectx,
 	}, func(res *gocbcore.MutateInResult, err error) {
 		if err != nil {
 			errOut = maybeEnhanceKVErr(err, id, isInsertDocument)

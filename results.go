@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
@@ -498,6 +499,8 @@ type GetAllReplicasResult struct {
 	cancel      context.CancelFunc
 	maxReplicas int
 	transcoder  Transcoder
+	startTime   time.Time
+	span        requestSpan
 }
 
 // Next fetches the new replica.
@@ -519,6 +522,7 @@ func (r *GetAllReplicasResult) Next(valuePtr *GetReplicaResult) bool {
 			Key:            r.opts.Key,
 			CollectionName: r.opts.CollectionName,
 			ScopeName:      r.opts.ScopeName,
+			TraceContext:   r.span.Context(),
 		}, func(res *gocbcore.GetResult, err error) {
 			if err != nil {
 				r.err = maybeEnhanceKVErr(err, string(r.opts.Key), false)
@@ -569,7 +573,16 @@ func (r *GetAllReplicasResult) Next(valuePtr *GetReplicaResult) bool {
 		if op.Cancel() {
 			ctxErr := r.ctx.Err()
 			if ctxErr == context.DeadlineExceeded {
-				r.err = timeoutError{}
+				err := timeoutError{}
+				err.operation = fmt.Sprintf("kv:GetAllReplicas")
+				err.operationID = op.Identifier()
+				err.retryAttempts = op.RetryAttempts()
+				err.retryReasons = op.RetryReasons()
+				err.elapsed = time.Now().Sub(r.startTime)
+				err.local = op.LocalEndpoint()
+				err.remote = op.RemoteEndpoint()
+				err.connectionID = op.ConnectionId()
+				r.err = err
 			} else {
 				r.err = ctxErr
 			}
@@ -586,6 +599,9 @@ func (r *GetAllReplicasResult) Next(valuePtr *GetReplicaResult) bool {
 func (r *GetAllReplicasResult) Close() error {
 	if r.cancel != nil {
 		r.cancel()
+	}
+	if r.span != nil {
+		r.span.Finish()
 	}
 	r.closed = true
 	return r.err

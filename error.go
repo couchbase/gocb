@@ -3,6 +3,7 @@ package gocb
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
@@ -126,20 +127,106 @@ func (err durabilityError) DurabilityError() bool {
 	return true
 }
 
+// TimeoutErrorWithDetail occurs when an operation times out.
+// This error type contains extra details about why the operation
+// timed out.
+type TimeoutErrorWithDetail interface {
+	Timeout() bool
+	OperationID() string
+	RetryAttempts() uint32
+	RetryReasons() []RetryReason
+	LocalAddress() string
+	RemoteAddress() string
+	Elapsed() time.Duration
+	Operation() string
+}
+
 // TimeoutError occurs when an operation times out.
 type TimeoutError interface {
 	Timeout() bool
 }
 
 type timeoutError struct {
+	operationID   string
+	retryReasons  []gocbcore.RetryReason
+	retryAttempts uint32
+	operation     string
+	local         string
+	remote        string
+	elapsed       time.Duration
+	connectionID  string
 }
 
 func (err timeoutError) Error() string {
-	return "operation timed out"
+	base := "operation timed out"
+	if err.operationID != "" {
+		base = fmt.Sprintf("%s, lastOperationID: %s", base, err.operationID)
+	}
+	if err.retryAttempts > 0 {
+		base = fmt.Sprintf("%s, retried: %d", base, err.retryAttempts)
+	}
+	if len(err.retryReasons) > 0 {
+		var reasons []string
+		for _, reason := range err.retryReasons {
+			reasons = append(reasons, reason.Description())
+		}
+		base = fmt.Sprintf("%s, retryReasons: [%s]", base, strings.Join(reasons, ","))
+	}
+	if err.local != "" {
+		base = fmt.Sprintf("%s, lastDispatchedFrom: %s", base, err.local)
+	}
+	if err.remote != "" {
+		base = fmt.Sprintf("%s, lastDispatchedTo: %s", base, err.remote)
+	}
+	if err.connectionID != "" {
+		base = fmt.Sprintf("%s, lastConnectionID: %s", base, err.connectionID)
+	}
+	if err.elapsed != 0 {
+		base = fmt.Sprintf("%s, totalMicros: %d", base, err.elapsed/time.Microsecond)
+	}
+	if err.operation != "" {
+		if err.elapsed != 0 {
+			base = fmt.Sprintf("%s, operation: %s", base, err.operation)
+		}
+	}
+
+	return base
 }
 
 func (err timeoutError) Timeout() bool {
 	return true
+}
+
+func (err timeoutError) OperationID() string {
+	return err.operationID
+}
+
+func (err timeoutError) RetryAttempts() uint32 {
+	return err.retryAttempts
+}
+
+func (err timeoutError) RetryReasons() []RetryReason {
+	var reasons []RetryReason
+	for _, reason := range err.retryReasons {
+		reasons = append(reasons, RetryReason(reason))
+	}
+	return reasons
+}
+
+func (err timeoutError) LocalAddress() string {
+	return err.local
+}
+
+func (err timeoutError) RemoteAddress() string {
+	return err.remote
+}
+
+func (err timeoutError) Elapsed() time.Duration {
+	return err.elapsed
+}
+
+func (err timeoutError) Operation() string {
+	return err.operation
 }
 
 type serviceNotAvailableError struct {
@@ -313,16 +400,6 @@ func IsKeyLockedError(err error) bool {
 	cause := errors.Cause(err)
 	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
 		return kvErr.StatusCode() == int(gocbcore.StatusLocked)
-	}
-
-	return false
-}
-
-// IsBucketMissingError verifies whether or not the cause for an error is a bucket missing error.
-func IsBucketMissingError(err error) bool {
-	cause := errors.Cause(err)
-	if kvErr, ok := cause.(KeyValueError); ok && kvErr.KeyValueError() {
-		return kvErr.StatusCode() == int(gocbcore.StatusNoBucket)
 	}
 
 	return false
@@ -832,10 +909,28 @@ func IsServiceNotConfiguredError(err error) bool {
 	}
 }
 
+// IsFeatureNotFoundError verifies that an error occurred because the requested feature is not supported by the server.
+func IsFeatureNotFoundError(err error) bool {
+	switch errType := errors.Cause(err).(type) {
+	case FeatureNotFoundError:
+		return errType.FeatureNotFoundError()
+	case HTTPError:
+		return errType.HTTPStatus() == 404 && errType.Error() == "Not Found."
+	default:
+		return false
+	}
+}
+
 // HTTPError indicates that an error occurred with a valid HTTP response for an operation.
 type HTTPError interface {
 	error
 	HTTPStatus() int
+}
+
+// FeatureNotFoundError indicates that an error occurred because the requested feature is not supported by the server.
+type FeatureNotFoundError interface {
+	error
+	FeatureNotFoundError() bool
 }
 
 // InvalidArgumentsError indicates that invalid arguments were provided to an operation.
@@ -993,14 +1088,6 @@ func (e analyticsQueryError) retryable() bool {
 	return false
 }
 
-// Timeout indicates whether or not this error is a timeout.
-func (e analyticsQueryError) Timeout() bool {
-	if e.ErrorCode == 21002 {
-		return true
-	}
-	return false
-}
-
 // HTTPStatus returns the HTTP status code for the operation.
 func (e analyticsQueryError) HTTPStatus() int {
 	return e.httpStatus
@@ -1057,18 +1144,13 @@ func (e queryError) retryable() bool {
 
 		return false
 	}
-	if e.ErrorCode == 4050 || e.ErrorCode == 4070 || e.ErrorCode == 5000 {
+	if e.ErrorCode == 4040 || e.ErrorCode == 4050 || e.ErrorCode == 4070 {
+		return true
+	}
+	if e.ErrorCode == 5000 && strings.Contains(e.Message(), "queryport.indexNotFound") {
 		return true
 	}
 
-	return false
-}
-
-// Timeout indicates whether or not this error is a timeout.
-func (e queryError) Timeout() bool {
-	if e.ErrorCode == 1080 {
-		return true
-	}
 	return false
 }
 
@@ -1153,7 +1235,7 @@ func (e searchMultiError) Errors() []SearchError {
 
 // PartialResults indicates whether or not the operation also yielded results.
 func (e searchMultiError) retryable() bool {
-	return e.httpStatus == 419
+	return e.httpStatus == 429
 }
 
 // ConfigurationError occurs when the client is configured incorrectly.
@@ -1239,6 +1321,10 @@ func (e viewIndexError) DesignDocumentPublishDropFailError() bool {
 	return e.publishDropFail
 }
 
+func (e viewIndexError) FeatureNotFoundError() bool {
+	return e.statusCode == 404 && e.message == "Not Found."
+}
+
 // BucketManagerError occurs for errors created By Couchbase Server when performing bucket management.
 type BucketManagerError interface {
 	error
@@ -1248,10 +1334,8 @@ type BucketManagerError interface {
 }
 
 type bucketManagerError struct {
-	statusCode    int
-	message       string
-	bucketMissing bool
-	bucketExists  bool
+	statusCode int
+	message    string
 }
 
 func (e bucketManagerError) Error() string {
@@ -1265,12 +1349,16 @@ func (e bucketManagerError) HTTPStatus() int {
 
 // BucketNotFoundError indicates that a bucket could not be found.
 func (e bucketManagerError) BucketNotFoundError() bool {
-	return e.bucketMissing
+	return e.statusCode == 404 && strings.Contains(e.message, "Requested resource not found")
 }
 
 // BucketExistsError indicates that a bucket already exists.
 func (e bucketManagerError) BucketExistsError() bool {
-	return e.bucketExists
+	return e.statusCode == 404 && strings.Contains(e.message, "Bucket with given name already exists")
+}
+
+func (e bucketManagerError) FeatureNotFoundError() bool {
+	return e.statusCode == 404 && e.message == "Not Found."
 }
 
 // QueryIndexesError occurs for errors created By Couchbase Server when performing query index management.
@@ -1279,13 +1367,13 @@ type QueryIndexesError interface {
 	HTTPStatus() int
 	QueryIndexNotFoundError() bool
 	QueryIndexExistsError() bool
+	BucketNotFoundError() bool
 }
 
 type queryIndexError struct {
 	statusCode   int
 	message      string
 	indexMissing bool
-	indexExists  bool
 }
 
 func (e queryIndexError) Error() string {
@@ -1309,7 +1397,16 @@ func (e queryIndexError) QueryIndexNotFoundError() bool {
 
 // QueryIndexExistsError indicates that an index already exists.
 func (e queryIndexError) QueryIndexExistsError() bool {
-	return e.indexExists
+	return e.statusCode == 409 && strings.Contains(strings.ToLower(e.message), "already exists")
+}
+
+// BucketNotFoundError indicates that a bucket with a given name could not be found.
+func (e queryIndexError) BucketNotFoundError() bool {
+	return e.statusCode == 500 && strings.Contains(strings.ToLower(e.message), "no bucket named")
+}
+
+func (e queryIndexError) FeatureNotFoundError() bool {
+	return e.statusCode == 404 && e.message == "Not Found."
 }
 
 // UserManagerError occurs for errors created By Couchbase Server when performing user management.
@@ -1335,8 +1432,7 @@ func (e userManagerError) HTTPStatus() int {
 
 // UserNotFoundError indicates that a specified user could not be found.
 func (e userManagerError) UserNotFoundError() bool {
-	if strings.Contains(strings.ToLower(e.message), "unknown user") ||
-		strings.Contains(strings.ToLower(e.message), "not found") {
+	if strings.Contains(strings.ToLower(e.message), "unknown user.") {
 		return true
 	}
 
@@ -1345,11 +1441,15 @@ func (e userManagerError) UserNotFoundError() bool {
 
 // GroupNotFoundError indicates that a specified group could not be found.
 func (e userManagerError) GroupNotFoundError() bool {
-	if strings.Contains(strings.ToLower(e.message), "not found") {
+	if strings.Contains(strings.ToLower(e.message), "unknown group.") {
 		return true
 	}
 
 	return false
+}
+
+func (e userManagerError) FeatureNotFoundError() bool {
+	return e.statusCode == 404 && e.message == "Not Found."
 }
 
 // AnalyticsIndexesError occurs for errors created By Couchbase Server when performing analytics index management.
@@ -1445,6 +1545,10 @@ func (e analyticsIndexesError) AnalyticsLinkNotFoundError() bool {
 	return false
 }
 
+func (e analyticsIndexesError) FeatureNotFoundError() bool {
+	return e.statusCode == 404 && e.message == "Not Found."
+}
+
 // SearchIndexesError occurs for errors created By Couchbase Server when performing search index management.
 type SearchIndexesError interface {
 	error
@@ -1473,11 +1577,15 @@ func (e searchIndexError) Code() int {
 
 // SearchIndexNotFoundError indicates that an index could not be found.
 func (e searchIndexError) SearchIndexNotFoundError() bool {
-	if strings.Contains(strings.ToLower(e.message), "not found") {
+	if strings.Contains(strings.ToLower(e.message), "index not found") {
 		return true
 	}
 
 	return false
+}
+
+func (e searchIndexError) FeatureNotFoundError() bool {
+	return e.statusCode == 404 && e.message == "Not Found."
 }
 
 func maybeEnhanceKVErr(err error, key string, isInsertOp bool) error {

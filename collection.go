@@ -51,3 +51,17 @@ func (c *Collection) getKvProvider() (kvProvider, error) {
 func (c *Collection) Name() string {
 	return c.sb.CollectionName
 }
+
+func (c *Collection) startKvOpTrace(operationName string, tracectx requestSpanContext) requestSpan {
+	if tracectx == nil {
+		return c.sb.Tracer.StartSpan(operationName, nil).
+			SetTag("couchbase.bucket", c.sb.BucketName).
+			SetTag("couchbase.collection", c.sb.CollectionName).
+			SetTag("couchbase.service", "kv")
+	}
+
+	return c.sb.Tracer.StartSpan(operationName, tracectx).
+		SetTag("couchbase.bucket", c.sb.BucketName).
+		SetTag("couchbase.collection", c.sb.CollectionName).
+		SetTag("couchbase.service", "kv")
+}

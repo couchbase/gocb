@@ -34,7 +34,8 @@ type AnalyticsOptions struct {
 
 	// JSONSerializer is used to deserialize each row in the result. This should be a JSON deserializer as results are JSON.
 	// NOTE: if not set then query will always default to DefaultJSONSerializer.
-	Serializer JSONSerializer
+	Serializer    JSONSerializer
+	RetryStrategy RetryStrategy
 }
 
 func (opts *AnalyticsOptions) toMap(statement string) (map[string]interface{}, error) {
@@ -46,7 +47,7 @@ func (opts *AnalyticsOptions) toMap(statement string) (map[string]interface{}, e
 	}
 
 	if opts.ClientContextID == "" {
-		execOpts["client_context_id"] = uuid.New()
+		execOpts["client_context_id"] = uuid.New().String()
 	} else {
 		execOpts["client_context_id"] = opts.ClientContextID
 	}

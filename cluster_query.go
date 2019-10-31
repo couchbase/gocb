@@ -7,6 +7,7 @@ import (
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
 
@@ -72,6 +73,7 @@ type QueryResult struct {
 	preparedName string
 	err          error
 	httpStatus   int
+	startTime    time.Time
 
 	streamResult       *streamingResult
 	cancel             context.CancelFunc
@@ -127,9 +129,25 @@ func (r *QueryResult) Close() error {
 		r.cancel()
 	}
 	if ctxErr == context.DeadlineExceeded {
-		return timeoutError{}
+		return timeoutError{
+			operationID: r.metadata.clientContextID,
+			elapsed:     time.Now().Sub(r.startTime),
+			remote:      r.metadata.sourceAddr,
+			operation:   "n1ql",
+		}
 	}
 	if r.err != nil {
+		if qErr, ok := r.err.(QueryError); ok {
+			if qErr.Code() == 1080 {
+				return timeoutError{
+					operationID: r.metadata.clientContextID,
+					elapsed:     time.Now().Sub(r.startTime),
+					remote:      r.metadata.sourceAddr,
+					operation:   "n1ql",
+				}
+			}
+		}
+
 		return r.err
 	}
 	return err
@@ -297,38 +315,49 @@ func (r *QueryResult) readAttribute(decoder *json.Decoder, t json.Token) (bool, 
 
 type httpProvider interface {
 	DoHttpRequest(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error)
+	MaybeRetryRequest(req gocbcore.RetryRequest, reason gocbcore.RetryReason, retryStrategy gocbcore.RetryStrategy, retryFunc func()) bool
 }
 
 type clusterCapabilityProvider interface {
 	SupportsClusterCapability(capability gocbcore.ClusterCapability) bool
 }
 
-type doQueryFn func(ctx context.Context, opts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc) (*QueryResult, error)
+type querySettings struct {
+	tracectx   requestSpanContext
+	serializer JSONSerializer
+	queryOpts  map[string]interface{}
+	provider   httpProvider
+	wrapper    *retryStrategyWrapper
+	startTime  time.Time
+}
 
 // Query executes the N1QL query statement on the server n1qlEp.
 // This function assumes that `opts` already contains all the required
 // settings. This function will inject any additional connection or request-level
 // settings into the `opts` map (currently this is only the timeout).
 func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResult, error) {
+	startTime := time.Now()
 	if opts == nil {
 		opts = &QueryOptions{}
 	}
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
+
+	span := c.sb.Tracer.StartSpan("Query", nil).SetTag("couchbase.service", "n1ql")
+	defer span.Finish()
+
+	result, err := c.query(span.Context(), statement, startTime, opts)
+	if err != nil {
+		span.Finish()
+		return nil, err
 	}
 
+	return result, nil
+}
+
+func (c *Cluster) query(tracectx requestSpanContext, statement string, startTime time.Time, opts *QueryOptions) (*QueryResult, error) {
 	provider, err := c.getHTTPProvider()
 	if err != nil {
 		return nil, err
 	}
-
-	return c.query(ctx, statement, opts, provider)
-}
-
-func (c *Cluster) query(ctx context.Context, statement string, opts *QueryOptions,
-	provider httpProvider) (*QueryResult, error) {
 
 	queryOpts, err := opts.toMap(statement)
 	if err != nil {
@@ -345,15 +374,11 @@ func (c *Cluster) query(ctx context.Context, statement string, opts *QueryOption
 		}
 	}
 
-	if ctx == nil {
-		ctx = context.Background()
+	if opts.Context == nil {
+		opts.Context = context.Background()
 	}
 
-	// We need to try to create the context with timeout + 1 second so that the server closes the connection rather
-	// than us. This is just a better user experience.
-	timeoutPlusBuffer := timeout + time.Second
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithTimeout(ctx, timeoutPlusBuffer)
+	ctx, cancel := context.WithTimeout(opts.Context, timeout)
 
 	now := time.Now()
 	d, _ := ctx.Deadline()
@@ -371,11 +396,24 @@ func (c *Cluster) query(ctx context.Context, statement string, opts *QueryOption
 		opts.Serializer = c.sb.Serializer
 	}
 
+	wrapper := c.sb.RetryStrategyWrapper
+	if opts.RetryStrategy != nil {
+		wrapper = newRetryStrategyWrapper(opts.RetryStrategy)
+	}
+
+	settings := querySettings{
+		tracectx:   tracectx,
+		queryOpts:  queryOpts,
+		provider:   provider,
+		serializer: opts.Serializer,
+		wrapper:    wrapper,
+		startTime:  startTime,
+	}
 	var res *QueryResult
 	if opts.AdHoc {
-		res, err = c.doPreparedN1qlQuery(ctx, queryOpts, provider, cancel, opts.Serializer)
+		res, err = c.doPreparedN1qlQuery(ctx, cancel, settings)
 	} else {
-		res, err = c.doRetryableQuery(ctx, queryOpts, provider, cancel, opts.Serializer)
+		res, err = c.executeN1qlQuery(ctx, cancel, settings)
 	}
 
 	if err != nil {
@@ -389,9 +427,8 @@ func (c *Cluster) query(ctx context.Context, statement string, opts *QueryOption
 	return res, nil
 }
 
-func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer) (*QueryResult, error) {
-	if capabilitySupporter, ok := provider.(clusterCapabilityProvider); ok {
+func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, cancel context.CancelFunc, settings querySettings) (*QueryResult, error) {
+	if capabilitySupporter, ok := settings.provider.(clusterCapabilityProvider); ok {
 		if !c.supportsEnhancedPreparedStatements() &&
 			capabilitySupporter.SupportsClusterCapability(gocbcore.ClusterCapabilityEnhancedPreparedStatements) {
 			c.setSupportsEnhancedPreparedStatements(true)
@@ -401,7 +438,7 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]
 		}
 	}
 
-	stmtStr, isStr := queryOpts["statement"].(string)
+	stmtStr, isStr := settings.queryOpts["statement"].(string)
 	if !isStr {
 		return nil, invalidArgumentsError{message: "query statement could not be parsed"}
 	}
@@ -412,27 +449,21 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]
 
 	if cachedStmt != nil {
 		// Attempt to execute our cached query plan
-		delete(queryOpts, "statement")
-		queryOpts["prepared"] = cachedStmt.name
+		delete(settings.queryOpts, "statement")
+		settings.queryOpts["prepared"] = cachedStmt.name
 		if !cachedStmt.enhanced {
-			queryOpts["encoded_plan"] = cachedStmt.encodedPlan
+			settings.queryOpts["encoded_plan"] = cachedStmt.encodedPlan
 		}
 
-		results, err := c.doRetryableQuery(ctx, queryOpts, provider, cancel, serializer)
+		results, err := c.executeN1qlQuery(ctx, cancel, settings)
 		if err == nil {
 			return results, nil
-		}
-
-		// If we get error 4050, 4070 or 5000, we should attempt
-		//   to re-prepare the statement immediately before failing.
-		if !IsRetryableError(err) {
-			return nil, err
 		}
 	}
 
 	// Prepare the query
 	if c.supportsEnhancedPreparedStatements() {
-		results, err := c.prepareEnhancedN1qlQuery(ctx, queryOpts, provider, cancel, serializer)
+		results, err := c.prepareEnhancedN1qlQuery(ctx, cancel, settings)
 		if err != nil {
 			return nil, err
 		}
@@ -445,7 +476,7 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]
 	}
 
 	var err error
-	cachedStmt, err = c.prepareN1qlQuery(ctx, queryOpts, provider)
+	cachedStmt, err = c.prepareN1qlQuery(ctx, cancel, settings)
 	if err != nil {
 		return nil, err
 	}
@@ -456,38 +487,52 @@ func (c *Cluster) doPreparedN1qlQuery(ctx context.Context, queryOpts map[string]
 	c.clusterLock.Unlock()
 
 	// Update with new prepared data
-	delete(queryOpts, "statement")
-	queryOpts["prepared"] = cachedStmt.name
-	queryOpts["encoded_plan"] = cachedStmt.encodedPlan
+	delete(settings.queryOpts, "statement")
+	settings.queryOpts["prepared"] = cachedStmt.name
+	settings.queryOpts["encoded_plan"] = cachedStmt.encodedPlan
 
-	return c.doRetryableQuery(ctx, queryOpts, provider, cancel, serializer)
+	return c.executeN1qlQuery(ctx, cancel, settings)
 }
 
-func (c *Cluster) prepareEnhancedN1qlQuery(ctx context.Context, opts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer) (*QueryResult, error) {
-
+func (c *Cluster) prepareEnhancedN1qlQuery(ctx context.Context, cancel context.CancelFunc,
+	settings querySettings) (*QueryResult, error) {
 	prepOpts := make(map[string]interface{})
-	for k, v := range opts {
+	for k, v := range settings.queryOpts {
 		prepOpts[k] = v
 	}
-	prepOpts["statement"] = "PREPARE " + opts["statement"].(string)
+	prepOpts["statement"] = "PREPARE " + settings.queryOpts["statement"].(string)
 	prepOpts["auto_execute"] = true
 
-	return c.doRetryableQuery(ctx, prepOpts, provider, cancel, serializer)
+	return c.executeN1qlQuery(ctx, cancel, querySettings{
+		queryOpts:  prepOpts,
+		provider:   settings.provider,
+		serializer: settings.serializer,
+		tracectx:   settings.tracectx,
+		wrapper:    settings.wrapper,
+		startTime:  settings.startTime,
+	})
 }
 
-func (c *Cluster) prepareN1qlQuery(ctx context.Context, opts map[string]interface{},
-	provider httpProvider) (*n1qlCache, error) {
-
+func (c *Cluster) prepareN1qlQuery(ctx context.Context, cancel context.CancelFunc,
+	settings querySettings) (*n1qlCache, error) {
 	prepOpts := make(map[string]interface{})
-	for k, v := range opts {
+	for k, v := range settings.queryOpts {
 		prepOpts[k] = v
 	}
-	prepOpts["statement"] = "PREPARE " + opts["statement"].(string)
+	prepOpts["statement"] = "PREPARE " + settings.queryOpts["statement"].(string)
 
-	// There's no need to pass cancel here, if there's an error then we'll cancel further up the stack
-	// and if there isn't then we run another query later where we will cancel
-	prepRes, err := c.doRetryableQuery(ctx, prepOpts, provider, nil, &DefaultJSONSerializer{})
+	prepRes, err := c.executeN1qlQuery(ctx, cancel, querySettings{
+		queryOpts:  prepOpts,
+		provider:   settings.provider,
+		serializer: &DefaultJSONSerializer{},
+		tracectx:   settings.tracectx,
+		wrapper:    settings.wrapper,
+		startTime:  settings.startTime,
+	})
+
+	// // There's no need to pass cancel here, if there's an error then we'll cancel further up the stack
+	// // and if there isn't then we run another query later where we will cancel
+	// prepRes, err := c.doRetryableQuery(ctx, nil, )
 	if err != nil {
 		return nil, err
 	}
@@ -504,37 +549,6 @@ func (c *Cluster) prepareN1qlQuery(ctx context.Context, opts map[string]interfac
 	}, nil
 }
 
-func (c *Cluster) doRetryableQuery(ctx context.Context, queryOpts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc, serializer JSONSerializer) (*QueryResult, error) {
-	var res *QueryResult
-	var err error
-	var retries uint
-	var endpoint string
-	enhancedStatements := c.supportsEnhancedPreparedStatements()
-	for {
-		retries++
-		res, err = c.executeN1qlQuery(ctx, queryOpts, provider, cancel, endpoint, serializer)
-		if err == nil {
-			break
-		}
-
-		if !IsRetryableError(err) || c.sb.N1qlRetryBehavior == nil || !c.sb.N1qlRetryBehavior.CanRetry(retries) {
-			break
-		}
-
-		if enhancedStatements {
-			qErr, ok := err.(QueryError)
-			if ok {
-				endpoint = qErr.Endpoint()
-			}
-		}
-
-		time.Sleep(c.sb.N1qlRetryBehavior.NextInterval(retries))
-	}
-
-	return res, err
-}
-
 type n1qlPrepData struct {
 	EncodedPlan string `json:"encoded_plan"`
 	Name        string `json:"name"`
@@ -544,82 +558,131 @@ type n1qlPrepData struct {
 // This function assumes that `opts` already contains all the required
 // settings. This function will inject any additional connection or request-level
 // settings into the `opts` map.
-func (c *Cluster) executeN1qlQuery(ctx context.Context, opts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc, endpoint string, serializer JSONSerializer) (*QueryResult, error) {
-	reqJSON, err := json.Marshal(opts)
+func (c *Cluster) executeN1qlQuery(ctx context.Context, cancel context.CancelFunc,
+	settings querySettings) (*QueryResult, error) {
+
+	espan := c.sb.Tracer.StartSpan("encode", settings.tracectx)
+	reqJSON, err := json.Marshal(settings.queryOpts)
+	espan.Finish()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal query request body")
 	}
 
+	readonly, ok := settings.queryOpts["readonly"].(bool)
+	if !ok {
+		readonly = false
+	}
+
 	req := &gocbcore.HttpRequest{
-		Service:  gocbcore.N1qlService,
-		Path:     "/query/service",
-		Method:   "POST",
-		Context:  ctx,
-		Body:     reqJSON,
-		Endpoint: endpoint,
+		Service:       gocbcore.N1qlService,
+		Path:          "/query/service",
+		Method:        "POST",
+		Context:       ctx,
+		Body:          reqJSON,
+		IsIdempotent:  readonly,
+		RetryStrategy: settings.wrapper,
 	}
 
-	resp, err := provider.DoHttpRequest(req)
-	if err != nil {
-		if err == gocbcore.ErrNoN1qlService {
-			return nil, serviceNotAvailableError{message: gocbcore.ErrNoN1qlService.Error()}
-		}
-
-		// as we're effectively manually timing out the request using cancellation we need
-		// to check if the original context has timed out as err itself will only show as canceled
-		if ctx.Err() == context.DeadlineExceeded {
-			return nil, timeoutError{}
-		}
-		return nil, errors.Wrap(err, "could not complete query http request")
-	}
-
-	epInfo, err := url.Parse(resp.Endpoint)
-	if err != nil {
-		logWarnf("Failed to parse N1QL source address")
-		epInfo = &url.URL{
-			Host: "",
-		}
-	}
-
-	queryResults := &QueryResult{
-		metadata: QueryMetadata{
-			sourceAddr: epInfo.Host,
-		},
-		httpStatus:         resp.StatusCode,
-		serializer:         serializer,
-		enhancedStatements: c.supportsEnhancedPreparedStatements(),
-	}
-
-	streamResult, err := newStreamingResults(resp.Body, queryResults.readAttribute)
-	if err != nil {
-		return nil, err
-	}
-
-	err = streamResult.readAttributes()
-	if err != nil {
-		bodyErr := streamResult.Close()
-		if bodyErr != nil {
-			logDebugf("Failed to close socket (%s)", bodyErr.Error())
-		}
-		return nil, err
-	}
-
-	queryResults.streamResult = streamResult
-
-	if streamResult.HasRows() {
-		queryResults.cancel = cancel
-		queryResults.ctx = ctx
+	contextID, ok := settings.queryOpts["client_context_id"].(string)
+	if ok {
+		req.UniqueId = contextID
 	} else {
-		bodyErr := streamResult.Close()
-		if bodyErr != nil {
-			logDebugf("Failed to close response body, %s", bodyErr.Error())
+		req.UniqueId = uuid.New().String()
+		logWarnf("Failed to assert analytics options client_context_id to string. Replacing with %s", req.UniqueId)
+	}
+
+	enhancedStatements := c.supportsEnhancedPreparedStatements()
+
+	for {
+		dspan := c.sb.Tracer.StartSpan("dispatch", settings.tracectx)
+		resp, err := settings.provider.DoHttpRequest(req)
+		dspan.Finish()
+		if err != nil {
+			if err == gocbcore.ErrNoN1qlService {
+				return nil, serviceNotAvailableError{message: gocbcore.ErrNoN1qlService.Error()}
+			}
+
+			if err == context.DeadlineExceeded {
+				return nil, timeoutError{
+					operationID:   req.Identifier(),
+					retryReasons:  req.RetryReasons(),
+					retryAttempts: req.RetryAttempts(),
+					elapsed:       time.Now().Sub(settings.startTime),
+					remote:        req.Endpoint,
+					operation:     "n1ql",
+				}
+			}
+
+			return nil, errors.Wrap(err, "could not complete query http request")
 		}
 
-		// There are no rows and there are errors so fast fail
-		if queryResults.err != nil {
-			return nil, queryResults.err
+		epInfo, err := url.Parse(resp.Endpoint)
+		if err != nil {
+			logWarnf("Failed to parse N1QL source address")
+			epInfo = &url.URL{
+				Host: "",
+			}
 		}
+
+		results := &QueryResult{
+			metadata: QueryMetadata{
+				sourceAddr:      epInfo.Host,
+				clientContextID: contextID,
+			},
+			httpStatus:         resp.StatusCode,
+			serializer:         settings.serializer,
+			enhancedStatements: c.supportsEnhancedPreparedStatements(),
+			startTime:          settings.startTime,
+		}
+
+		streamResult, err := newStreamingResults(resp.Body, results.readAttribute)
+		if err != nil {
+			return nil, err
+		}
+
+		err = streamResult.readAttributes()
+		if err != nil {
+			bodyErr := streamResult.Close()
+			if bodyErr != nil {
+				logDebugf("Failed to close socket (%s)", bodyErr.Error())
+			}
+
+			return nil, err
+		}
+
+		results.streamResult = streamResult
+
+		if streamResult.HasRows() {
+			results.cancel = cancel
+			results.ctx = ctx
+		} else {
+			bodyErr := streamResult.Close()
+			if bodyErr != nil {
+				logDebugf("Failed to close response body, %s", bodyErr.Error())
+			}
+
+			if enhancedStatements {
+				qErr, ok := results.err.(QueryError)
+				if ok {
+					req.Endpoint = qErr.Endpoint()
+				}
+			}
+
+			if IsRetryableError(results.err) {
+				shouldRetry, retryErr := shouldRetryHTTPRequest(ctx, req, gocbcore.ServiceResponseCodeIndicatedRetryReason,
+					settings.wrapper, settings.provider, settings.startTime)
+				if shouldRetry {
+					continue
+				}
+
+				if retryErr != nil {
+					return nil, retryErr
+				}
+			}
+
+			return nil, results.err
+		}
+
+		return results, nil
 	}
-	return queryResults, nil
 }

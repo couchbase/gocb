@@ -21,16 +21,14 @@ type stateBlock struct {
 	ScopeName      string
 	CollectionName string
 
+	UseServerDurations bool
+
 	ConnectTimeout  time.Duration
 	KvTimeout       time.Duration
 	DuraTimeout     time.Duration
 	DuraPollTimeout time.Duration
 	PersistTo       uint
 	ReplicateTo     uint
-
-	N1qlRetryBehavior      retryBehavior
-	AnalyticsRetryBehavior retryBehavior
-	SearchRetryBehavior    retryBehavior
 
 	QueryTimeout      time.Duration
 	AnalyticsTimeout  time.Duration
@@ -42,6 +40,15 @@ type stateBlock struct {
 
 	Transcoder Transcoder
 	Serializer JSONSerializer
+
+	RetryStrategyWrapper   *retryStrategyWrapper
+	OrphanLoggerEnabled    bool
+	OrphanLoggerInterval   time.Duration
+	OrphanLoggerSampleSize int
+
+	Tracer requestTracer
+
+	CircuitBreakerConfig CircuitBreakerConfig
 }
 
 func (sb *stateBlock) getCachedClient() client {
