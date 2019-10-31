@@ -332,6 +332,7 @@ type thresholdLogSpan struct {
 	lastOperationID       string
 	lastLocalID           string
 	documentKey           string
+	lock                  sync.Mutex
 }
 
 func (n *thresholdLogSpan) Context() requestSpanContext {
@@ -384,6 +385,7 @@ func (n *thresholdLogSpan) Finish() {
 	}
 
 	if n.parent != nil {
+		n.parent.lock.Lock()
 		n.parent.totalServerDuration += n.totalServerDuration
 		n.parent.totalDispatchDuration += n.totalDispatchDuration
 		n.parent.totalEncodeDuration += n.totalEncodeDuration
@@ -400,6 +402,7 @@ func (n *thresholdLogSpan) Finish() {
 		if n.documentKey != "" {
 			n.parent.documentKey = n.documentKey
 		}
+		n.parent.lock.Unlock()
 	}
 
 	if n.serviceName != "" {
