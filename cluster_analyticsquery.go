@@ -488,26 +488,23 @@ func (c *Cluster) executeAnalyticsQuery(ctx context.Context, tracectx requestSpa
 				logDebugf("Failed to close response body, %s", bodyErr.Error())
 			}
 
-			// If this isn't retryable then return immediately, otherwise attempt a retry. If that fails then return
-			// immediately.
-			if IsRetryableError(results.err) {
-				shouldRetry, retryErr := shouldRetryHTTPRequest(ctx, req, gocbcore.ServiceResponseCodeIndicatedRetryReason,
-					retryWrapper, provider, startTime)
-				if shouldRetry {
-					continue
+			if results.err != nil {
+				// If this isn't retryable then return immediately, otherwise attempt a retry. If that fails then return
+				// immediately.
+				if IsRetryableError(results.err) {
+					shouldRetry, retryErr := shouldRetryHTTPRequest(ctx, req, gocbcore.ServiceResponseCodeIndicatedRetryReason,
+						retryWrapper, provider, startTime)
+					if shouldRetry {
+						continue
+					}
+
+					if retryErr != nil {
+						return nil, retryErr
+					}
 				}
 
-				if retryErr != nil {
-					return nil, retryErr
-				}
+				return nil, results.err
 			}
-
-			// If there are no rows then must be an error but we'll just make sure that users can't ever
-			// end up in a state where result and error is nil.
-			if results.err == nil {
-				return nil, errors.New("Unknown error")
-			}
-			return nil, results.err
 		}
 
 		return results, nil
