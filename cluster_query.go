@@ -661,26 +661,28 @@ func (c *Cluster) executeN1qlQuery(ctx context.Context, cancel context.CancelFun
 				logDebugf("Failed to close response body, %s", bodyErr.Error())
 			}
 
-			if enhancedStatements {
-				qErr, ok := results.err.(QueryError)
-				if ok {
-					req.Endpoint = qErr.Endpoint()
+			if results.err != nil {
+				if enhancedStatements {
+					qErr, ok := results.err.(QueryError)
+					if ok {
+						req.Endpoint = qErr.Endpoint()
+					}
 				}
+
+				if IsRetryableError(results.err) {
+					shouldRetry, retryErr := shouldRetryHTTPRequest(ctx, req, gocbcore.ServiceResponseCodeIndicatedRetryReason,
+						settings.wrapper, settings.provider, settings.startTime)
+					if shouldRetry {
+						continue
+					}
+
+					if retryErr != nil {
+						return nil, retryErr
+					}
+				}
+
+				return nil, results.err
 			}
-
-			if IsRetryableError(results.err) {
-				shouldRetry, retryErr := shouldRetryHTTPRequest(ctx, req, gocbcore.ServiceResponseCodeIndicatedRetryReason,
-					settings.wrapper, settings.provider, settings.startTime)
-				if shouldRetry {
-					continue
-				}
-
-				if retryErr != nil {
-					return nil, retryErr
-				}
-			}
-
-			return nil, results.err
 		}
 
 		return results, nil
