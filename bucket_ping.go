@@ -1,7 +1,6 @@
 package gocb
 
 import (
-	"context"
 	"encoding/json"
 	"sync"
 	"time"
@@ -103,7 +102,7 @@ func (b *Bucket) pingKv(provider kvProvider) (pingsOut *gocbcore.PingKvResult, e
 
 	op, err := provider.PingKvEx(gocbcore.PingKvOptions{}, func(result *gocbcore.PingKvResult, err error) {
 		if err != nil {
-			errOut = err
+			errOut = maybeEnhanceKVErr(err, b.Name(), "", "", "")
 			signal <- true
 			return
 		}
@@ -122,11 +121,9 @@ func (b *Bucket) pingKv(provider kvProvider) (pingsOut *gocbcore.PingKvResult, e
 		return
 	case <-timeoutTmr.C:
 		gocbcore.ReleaseTimer(timeoutTmr, true)
-		if !op.Cancel() {
-			<-signal
-			return
-		}
-		return nil, timeoutError{}
+		op.Cancel(ErrAmbiguousTimeout)
+		<-signal
+		return
 	}
 }
 
@@ -185,17 +182,14 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 			timeout = b.sb.AnalyticsTimeout
 		}
 
-		ctx, cancelFunc := context.WithTimeout(context.Background(), timeout)
-		defer cancelFunc()
-
-		req := gocbcore.HttpRequest{
+		req := gocbcore.HTTPRequest{
 			Method:  "GET",
 			Path:    url,
 			Service: gocbcore.ServiceType(service),
-			Context: ctx,
+			Timeout: timeout,
 		}
 
-		resp, err := provider.DoHttpRequest(&req)
+		resp, err := provider.DoHTTPRequest(&req)
 		if err != nil {
 			return 0, req.Endpoint, err
 		}
@@ -251,7 +245,7 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 						State:      state,
 						Latency:    ping.Latency,
 						Scope:      ping.Scope,
-						ID:         ping.Id,
+						ID:         ping.ID,
 						Detail:     detail,
 					})
 				}

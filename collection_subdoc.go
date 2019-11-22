@@ -1,215 +1,116 @@
 package gocb
 
 import (
-	"context"
+	"encoding/json"
+	"errors"
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
-// LookupInSpec is the representation of an operation available when calling LookupIn
-type LookupInSpec struct {
-	op gocbcore.SubDocOp
-}
-
 // LookupInOptions are the set of options available to LookupIn.
 type LookupInOptions struct {
-	Context       context.Context
 	Timeout       time.Duration
-	Serializer    JSONSerializer
 	RetryStrategy RetryStrategy
-}
-
-// GetSpecOptions are the options available to LookupIn subdoc Get operations.
-type GetSpecOptions struct {
-	IsXattr bool
-}
-
-// GetSpec indicates a path to be retrieved from the document.  The value of the path
-// can later be retrieved from the LookupResult.
-// The path syntax follows N1QL's path syntax (e.g. `foo.bar.baz`).
-func GetSpec(path string, opts *GetSpecOptions) LookupInSpec {
-	if opts == nil {
-		opts = &GetSpecOptions{}
-	}
-	return getSpecWithFlags(path, opts.IsXattr)
-}
-
-func getSpecWithFlags(path string, isXattr bool) LookupInSpec {
-	var flags gocbcore.SubdocFlag
-	if isXattr {
-		flags |= gocbcore.SubdocFlag(SubdocFlagXattr)
-	}
-
-	if path == "" {
-		op := gocbcore.SubDocOp{
-			Op:    gocbcore.SubDocOpGetDoc,
-			Flags: gocbcore.SubdocFlag(SubdocFlagNone),
-		}
-
-		return LookupInSpec{op: op}
-	}
-
-	op := gocbcore.SubDocOp{
-		Op:    gocbcore.SubDocOpGet,
-		Path:  path,
-		Flags: flags,
-	}
-
-	return LookupInSpec{op: op}
-}
-
-// ExistsSpecOptions are the options available to LookupIn subdoc Exists operations.
-type ExistsSpecOptions struct {
-	IsXattr bool
-}
-
-// ExistsSpec is similar to Path(), but does not actually retrieve the value from the server.
-// This may save bandwidth if you only need to check for the existence of a
-// path (without caring for its content). You can check the status of this
-// operation by using .ContentAt (and ignoring the value) or .Exists() on the LookupResult.
-func ExistsSpec(path string, opts *ExistsSpecOptions) LookupInSpec {
-	if opts == nil {
-		opts = &ExistsSpecOptions{}
-	}
-
-	var flags gocbcore.SubdocFlag
-	if opts.IsXattr {
-		flags |= gocbcore.SubdocFlag(SubdocFlagXattr)
-	}
-
-	op := gocbcore.SubDocOp{
-		Op:    gocbcore.SubDocOpExists,
-		Path:  path,
-		Flags: gocbcore.SubdocFlag(flags),
-	}
-
-	return LookupInSpec{op: op}
-}
-
-// CountSpecOptions are the options available to LookupIn subdoc Count operations.
-type CountSpecOptions struct {
-	IsXattr bool
-}
-
-// CountSpec allows you to retrieve the number of items in an array or keys within an
-// dictionary within an element of a document.
-func CountSpec(path string, opts *CountSpecOptions) LookupInSpec {
-	if opts == nil {
-		opts = &CountSpecOptions{}
-	}
-
-	var flags gocbcore.SubdocFlag
-	if opts.IsXattr {
-		flags |= gocbcore.SubdocFlag(SubdocFlagXattr)
-	}
-
-	op := gocbcore.SubDocOp{
-		Op:    gocbcore.SubDocOpGetCount,
-		Path:  path,
-		Flags: gocbcore.SubdocFlag(flags),
-	}
-
-	return LookupInSpec{op: op}
 }
 
 // LookupIn performs a set of subdocument lookup operations on the document identified by id.
 func (c *Collection) LookupIn(id string, ops []LookupInSpec, opts *LookupInOptions) (docOut *LookupInResult, errOut error) {
-	startTime := time.Now()
 	if opts == nil {
 		opts = &LookupInOptions{}
 	}
 
-	span := c.startKvOpTrace("LookupIn", nil)
-	defer span.Finish()
+	opm := c.newKvOpManager("LookupIn", nil)
+	defer opm.Finish()
 
-	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
-	ctx, cancel := c.context(opts.Context, opts.Timeout)
-	if cancel != nil {
-		defer cancel()
-	}
+	opm.SetDocumentID(id)
+	opm.SetRetryStrategy(opts.RetryStrategy)
+	opm.SetTimeout(opts.Timeout)
 
-	res, err := c.lookupIn(ctx, span.Context(), id, ops, startTime, *opts)
-	if err != nil {
+	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
 	}
 
-	return res, nil
+	return c.internalLookupIn(opm, ops)
 }
 
-func (c *Collection) lookupIn(ctx context.Context, tracectx requestSpanContext, id string, ops []LookupInSpec,
-	startTime time.Time, opts LookupInOptions) (docOut *LookupInResult, errOut error) {
+func (c *Collection) internalLookupIn(
+	opm *kvOpManager,
+	ops []LookupInSpec,
+) (docOut *LookupInResult, errOut error) {
+	var subdocs []gocbcore.SubDocOp
+	for _, op := range ops {
+		if op.op == gocbcore.SubDocOpGet && op.path == "" {
+			if op.isXattr != false {
+				return nil, errors.New("invalid xattr fetch with no path")
+			}
+
+			subdocs = append(subdocs, gocbcore.SubDocOp{
+				Op:    gocbcore.SubDocOpGetDoc,
+				Flags: gocbcore.SubdocFlag(SubdocFlagNone),
+			})
+			continue
+		} else if op.op == gocbcore.SubDocOpDictSet && op.path == "" {
+			if op.isXattr != false {
+				return nil, errors.New("invalid xattr set with no path")
+			}
+
+			subdocs = append(subdocs, gocbcore.SubDocOp{
+				Op:    gocbcore.SubDocOpSetDoc,
+				Flags: gocbcore.SubdocFlag(SubdocFlagNone),
+			})
+			continue
+		}
+
+		flags := gocbcore.SubdocFlagNone
+		if op.isXattr {
+			flags |= gocbcore.SubdocFlagXattrPath
+		}
+
+		subdocs = append(subdocs, gocbcore.SubDocOp{
+			Op:    op.op,
+			Path:  op.path,
+			Flags: flags,
+		})
+	}
+
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
 
-	var subdocs []gocbcore.SubDocOp
-	for _, op := range ops {
-		subdocs = append(subdocs, op.op)
-	}
-
-	if len(ops) > 16 {
-		return nil, invalidArgumentsError{message: "too many lookupIn ops specified, maximum 16"}
-	}
-
-	serializer := opts.Serializer
-	if serializer == nil {
-		serializer = &DefaultJSONSerializer{}
-	}
-
-	retryWrapper := c.sb.RetryStrategyWrapper
-	if opts.RetryStrategy != nil {
-		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	ctrl := c.newOpManager(ctx, startTime, "LookupIn")
-	err = ctrl.wait(agent.LookupInEx(gocbcore.LookupInOptions{
-		Key:            []byte(id),
+	err = opm.Wait(agent.LookupInEx(gocbcore.LookupInOptions{
+		Key:            opm.DocumentID(),
 		Ops:            subdocs,
-		CollectionName: c.name(),
-		ScopeName:      c.scopeName(),
-		RetryStrategy:  retryWrapper,
-		TraceContext:   tracectx,
+		CollectionName: opm.CollectionName(),
+		ScopeName:      opm.ScopeName(),
+		RetryStrategy:  opm.RetryStrategy(),
+		TraceContext:   opm.TraceSpan(),
 	}, func(res *gocbcore.LookupInResult, err error) {
-		if err != nil && !gocbcore.IsErrorStatus(err, gocbcore.StatusSubDocBadMulti) {
-			errOut = maybeEnhanceKVErr(err, id, false)
-			ctrl.resolve()
-			return
+		if err != nil && res == nil {
+			errOut = opm.EnhanceErr(err)
 		}
 
 		if res != nil {
-			resSet := &LookupInResult{}
-			resSet.serializer = serializer
-			resSet.cas = Cas(res.Cas)
-			resSet.contents = make([]lookupInPartial, len(subdocs))
-
+			docOut = &LookupInResult{}
+			docOut.cas = Cas(res.Cas)
+			docOut.contents = make([]lookupInPartial, len(subdocs))
 			for i, opRes := range res.Ops {
-				// resSet.contents[i].path = opts.spec.ops[i].Path
-				resSet.contents[i].err = maybeEnhanceKVErr(opRes.Err, id, false)
-				if opRes.Value != nil {
-					resSet.contents[i].data = append([]byte(nil), opRes.Value...)
-				}
+				docOut.contents[i].err = opm.EnhanceErr(opRes.Err)
+				docOut.contents[i].data = json.RawMessage(opRes.Value)
 			}
-
-			docOut = resSet
 		}
 
-		ctrl.resolve()
+		if err == nil {
+			opm.Resolve(nil)
+		} else {
+			opm.Reject()
+		}
 	}))
 	if err != nil {
 		errOut = err
 	}
-
 	return
-}
-
-type subDocOp struct {
-	Op         gocbcore.SubDocOpType
-	Flags      gocbcore.SubdocFlag
-	Path       string
-	Value      interface{}
-	MultiValue bool
 }
 
 // StoreSemantics is used to define the document level action to take during a MutateIn operation.
@@ -227,588 +128,161 @@ const (
 	StoreSemanticsInsert = StoreSemantics(2)
 )
 
-// MutateInSpec is the representation of an operation available when calling MutateIn
-type MutateInSpec struct {
-	op subDocOp
-}
-
 // MutateInOptions are the set of options available to MutateIn.
 type MutateInOptions struct {
 	Timeout         time.Duration
-	Context         context.Context
 	Expiry          uint32
 	Cas             Cas
 	PersistTo       uint
 	ReplicateTo     uint
 	DurabilityLevel DurabilityLevel
 	StoreSemantic   StoreSemantics
-	Serializer      JSONSerializer
 	RetryStrategy   RetryStrategy
-	// Internal: This should never be used and is not supported.
-	AccessDeleted bool
 }
 
-func (c *Collection) encodeMultiArray(in interface{}, serializer JSONSerializer) ([]byte, error) {
-	out, err := serializer.Serialize(in)
+// MutateIn performs a set of subdocument mutations on the document specified by id.
+func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptions) (mutOut *MutateInResult, errOut error) {
+	if opts == nil {
+		opts = &MutateInOptions{}
+	}
+
+	opm := c.newKvOpManager("MutateIn", nil)
+	defer opm.Finish()
+
+	opm.SetDocumentID(id)
+	opm.SetRetryStrategy(opts.RetryStrategy)
+	opm.SetTimeout(opts.Timeout)
+
+	if err := opm.CheckReadyForOp(); err != nil {
+		return nil, err
+	}
+
+	return c.internalMutateIn(opm, opts.StoreSemantic, opts.Expiry, opts.Cas, ops)
+}
+
+func jsonMarshalMultiArray(in interface{}) ([]byte, error) {
+	out, err := json.Marshal(in)
 	if err != nil {
 		return nil, err
 	}
 
 	// Assert first character is a '['
 	if len(out) < 2 || out[0] != '[' {
-		return nil, invalidArgumentsError{message: "not a JSON array"}
+		return nil, makeInvalidArgumentsError("not a JSON array")
 	}
 
 	out = out[1 : len(out)-1]
 	return out, nil
 }
 
-// InsertSpecOptions are the options available to subdocument Insert operations.
-type InsertSpecOptions struct {
-	CreatePath bool
-	IsXattr    bool
+func jsonMarshalMutateSpec(op MutateInSpec) ([]byte, gocbcore.SubdocFlag, error) {
+	if op.value == nil {
+		return nil, gocbcore.SubdocFlagNone, nil
+	}
+
+	if macro, ok := op.value.(MutationMacro); ok {
+		return []byte(macro), gocbcore.SubdocFlagExpandMacros, nil
+	}
+
+	if op.multiValue {
+		bytes, err := jsonMarshalMultiArray(op.value)
+		return bytes, gocbcore.SubdocFlagNone, err
+	}
+
+	bytes, err := json.Marshal(op.value)
+	return bytes, gocbcore.SubdocFlagNone, err
 }
 
-// InsertSpec inserts a value at the specified path within the document.
-func InsertSpec(path string, val interface{}, opts *InsertSpecOptions) MutateInSpec {
-	if opts == nil {
-		opts = &InsertSpecOptions{}
-	}
-	var flags SubdocFlag
-	_, ok := val.(MutationMacro)
-	if ok {
-		flags |= SubdocFlagUseMacros
-		opts.IsXattr = true
-	}
-
-	if opts.CreatePath {
-		flags |= SubdocFlagCreatePath
-	}
-	if opts.IsXattr {
-		flags |= SubdocFlagXattr
-	}
-
-	op := subDocOp{
-		Op:    gocbcore.SubDocOpDictAdd,
-		Path:  path,
-		Flags: gocbcore.SubdocFlag(flags),
-		Value: val,
-	}
-
-	return MutateInSpec{op: op}
-}
-
-// UpsertSpecOptions are the options available to subdocument Upsert operations.
-type UpsertSpecOptions struct {
-	CreatePath bool
-	IsXattr    bool
-}
-
-// UpsertSpec creates a new value at the specified path within the document if it does not exist, if it does exist then it
-// updates it.
-func UpsertSpec(path string, val interface{}, opts *UpsertSpecOptions) MutateInSpec {
-	if opts == nil {
-		opts = &UpsertSpecOptions{}
-	}
-	var flags SubdocFlag
-	_, ok := val.(MutationMacro)
-	if ok {
-		flags |= SubdocFlagUseMacros
-		opts.IsXattr = true
-	}
-
-	if opts.CreatePath {
-		flags |= SubdocFlagCreatePath
-	}
-	if opts.IsXattr {
-		flags |= SubdocFlagXattr
-	}
-
-	op := subDocOp{
-		Op:    gocbcore.SubDocOpDictSet,
-		Path:  path,
-		Flags: gocbcore.SubdocFlag(flags),
-		Value: val,
-	}
-
-	return MutateInSpec{op: op}
-}
-
-// ReplaceSpecOptions are the options available to subdocument Replace operations.
-type ReplaceSpecOptions struct {
-	IsXattr bool
-}
-
-// ReplaceSpec replaces the value of the field at path.
-func ReplaceSpec(path string, val interface{}, opts *ReplaceSpecOptions) MutateInSpec {
-	if opts == nil {
-		opts = &ReplaceSpecOptions{}
-	}
-	var flags SubdocFlag
-	if opts.IsXattr {
-		flags |= SubdocFlagXattr
-	}
-
-	if path == "" {
-		op := subDocOp{
-			Op:    gocbcore.SubDocOpSetDoc,
-			Flags: gocbcore.SubdocFlag(flags),
-			Value: val,
-		}
-
-		return MutateInSpec{op: op}
-	}
-
-	op := subDocOp{
-		Op:    gocbcore.SubDocOpReplace,
-		Path:  path,
-		Flags: gocbcore.SubdocFlag(flags),
-		Value: val,
-	}
-
-	return MutateInSpec{op: op}
-}
-
-// RemoveSpecOptions are the options available to subdocument Remove operations.
-type RemoveSpecOptions struct {
-	IsXattr bool
-}
-
-// RemoveSpec removes the field at path.
-func RemoveSpec(path string, opts *RemoveSpecOptions) MutateInSpec {
-	if opts == nil {
-		opts = &RemoveSpecOptions{}
-	}
-	var flags SubdocFlag
-	if opts.IsXattr {
-		flags |= SubdocFlagXattr
-	}
-
-	op := subDocOp{
-		Op:    gocbcore.SubDocOpDelete,
-		Path:  path,
-		Flags: gocbcore.SubdocFlag(flags),
-	}
-
-	return MutateInSpec{op: op}
-}
-
-// ArrayAppendSpecOptions are the options available to subdocument ArrayAppend operations.
-type ArrayAppendSpecOptions struct {
-	CreatePath bool
-	IsXattr    bool
-	// HasMultiple adds multiple values as elements to an array.
-	// When used `value` in the spec must be an array type
-	// ArrayAppend("path", []int{1,2,3,4}, ArrayAppendSpecOptions{HasMultiple:true}) =>
-	//   "path" [..., 1,2,3,4]
-	//
-	// This is a more efficient version (at both the network and server levels)
-	// of doing
-	// spec.ArrayAppend("path", 1, nil)
-	// spec.ArrayAppend("path", 2, nil)
-	// spec.ArrayAppend("path", 3, nil)
-	HasMultiple bool
-}
-
-// ArrayAppendSpec adds an element(s) to the end (i.e. right) of an array
-func ArrayAppendSpec(path string, val interface{}, opts *ArrayAppendSpecOptions) MutateInSpec {
-	if opts == nil {
-		opts = &ArrayAppendSpecOptions{}
-	}
-	var flags SubdocFlag
-	_, ok := val.(MutationMacro)
-	if ok {
-		flags |= SubdocFlagUseMacros
-		opts.IsXattr = true
-	}
-	if opts.CreatePath {
-		flags |= SubdocFlagCreatePath
-	}
-	if opts.IsXattr {
-		flags |= SubdocFlagXattr
-	}
-
-	op := subDocOp{
-		Op:    gocbcore.SubDocOpArrayPushLast,
-		Path:  path,
-		Flags: gocbcore.SubdocFlag(flags),
-		Value: val,
-	}
-
-	if opts.HasMultiple {
-		op.MultiValue = true
-	}
-
-	return MutateInSpec{op: op}
-}
-
-// ArrayPrependSpecOptions are the options available to subdocument ArrayPrepend operations.
-type ArrayPrependSpecOptions struct {
-	CreatePath bool
-	IsXattr    bool
-	// HasMultiple adds multiple values as elements to an array.
-	// When used `value` in the spec must be an array type
-	// ArrayPrepend("path", []int{1,2,3,4}, ArrayPrependSpecOptions{HasMultiple:true}) =>
-	//   "path" [1,2,3,4, ....]
-	//
-	// This is a more efficient version (at both the network and server levels)
-	// of doing
-	// spec.ArrayPrepend("path", 1, nil)
-	// spec.ArrayPrepend("path", 2, nil)
-	// spec.ArrayPrepend("path", 3, nil)
-	HasMultiple bool
-}
-
-// ArrayPrependSpec adds an element to the beginning (i.e. left) of an array
-func ArrayPrependSpec(path string, val interface{}, opts *ArrayPrependSpecOptions) MutateInSpec {
-	if opts == nil {
-		opts = &ArrayPrependSpecOptions{}
-	}
-	var flags SubdocFlag
-	_, ok := val.(MutationMacro)
-	if ok {
-		flags |= SubdocFlagUseMacros
-		opts.IsXattr = true
-	}
-	if opts.CreatePath {
-		flags |= SubdocFlagCreatePath
-	}
-	if opts.IsXattr {
-		flags |= SubdocFlagXattr
-	}
-
-	op := subDocOp{
-		Op:    gocbcore.SubDocOpArrayPushFirst,
-		Path:  path,
-		Flags: gocbcore.SubdocFlag(flags),
-		Value: val,
-	}
-
-	if opts.HasMultiple {
-		op.MultiValue = true
-	}
-
-	return MutateInSpec{op: op}
-}
-
-// ArrayInsertSpecOptions are the options available to subdocument ArrayInsert operations.
-type ArrayInsertSpecOptions struct {
-	CreatePath bool
-	IsXattr    bool
-	// HasMultiple adds multiple values as elements to an array.
-	// When used `value` in the spec must be an array type
-	// ArrayInsert("path[1]", []int{1,2,3,4}, ArrayInsertSpecOptions{HasMultiple:true}) =>
-	//   "path" [..., 1,2,3,4]
-	//
-	// This is a more efficient version (at both the network and server levels)
-	// of doing
-	// spec.ArrayInsert("path[2]", 1, nil)
-	// spec.ArrayInsert("path[3]", 2, nil)
-	// spec.ArrayInsert("path[4]", 3, nil)
-	HasMultiple bool
-}
-
-// ArrayInsertSpec inserts an element at a given position within an array. The position should be
-// specified as part of the path, e.g. path.to.array[3]
-func ArrayInsertSpec(path string, val interface{}, opts *ArrayInsertSpecOptions) MutateInSpec {
-	if opts == nil {
-		opts = &ArrayInsertSpecOptions{}
-	}
-	var flags SubdocFlag
-	_, ok := val.(MutationMacro)
-	if ok {
-		flags |= SubdocFlagUseMacros
-		opts.IsXattr = true
-	}
-	if opts.CreatePath {
-		flags |= SubdocFlagCreatePath
-	}
-	if opts.IsXattr {
-		flags |= SubdocFlagXattr
-	}
-
-	op := subDocOp{
-		Op:    gocbcore.SubDocOpArrayInsert,
-		Path:  path,
-		Flags: gocbcore.SubdocFlag(flags),
-		Value: val,
-	}
-
-	if opts.HasMultiple {
-		op.MultiValue = true
-	}
-
-	return MutateInSpec{op: op}
-}
-
-// ArrayAddUniqueSpecOptions are the options available to subdocument ArrayAddUnique operations.
-type ArrayAddUniqueSpecOptions struct {
-	CreatePath bool
-	IsXattr    bool
-}
-
-// ArrayAddUniqueSpec adds an dictionary add unique operation to this mutation operation set.
-func ArrayAddUniqueSpec(path string, val interface{}, opts *ArrayAddUniqueSpecOptions) MutateInSpec {
-	if opts == nil {
-		opts = &ArrayAddUniqueSpecOptions{}
-	}
-	var flags SubdocFlag
-	_, ok := val.(MutationMacro)
-	if ok {
-		flags |= SubdocFlagUseMacros
-		opts.IsXattr = true
-	}
-
-	if opts.CreatePath {
-		flags |= SubdocFlagCreatePath
-	}
-	if opts.IsXattr {
-		flags |= SubdocFlagXattr
-	}
-
-	op := subDocOp{
-		Op:    gocbcore.SubDocOpArrayAddUnique,
-		Path:  path,
-		Flags: gocbcore.SubdocFlag(flags),
-		Value: val,
-	}
-
-	return MutateInSpec{op: op}
-}
-
-// CounterSpecOptions are the options available to subdocument Increment and Decrement operations.
-type CounterSpecOptions struct {
-	CreatePath bool
-	IsXattr    bool
-}
-
-// IncrementSpec adds an increment operation to this mutation operation set.
-func IncrementSpec(path string, delta int64, opts *CounterSpecOptions) MutateInSpec {
-	if opts == nil {
-		opts = &CounterSpecOptions{}
-	}
-	var flags SubdocFlag
-	if opts.CreatePath {
-		flags |= SubdocFlagCreatePath
-	}
-	if opts.IsXattr {
-		flags |= SubdocFlagXattr
-	}
-
-	op := subDocOp{
-		Op:    gocbcore.SubDocOpCounter,
-		Path:  path,
-		Flags: gocbcore.SubdocFlag(flags),
-		Value: delta,
-	}
-
-	return MutateInSpec{op: op}
-}
-
-// DecrementSpec adds a decrement operation to this mutation operation set.
-func DecrementSpec(path string, delta int64, opts *CounterSpecOptions) MutateInSpec {
-	if opts == nil {
-		opts = &CounterSpecOptions{}
-	}
-	var flags SubdocFlag
-	if opts.CreatePath {
-		flags |= SubdocFlagCreatePath
-	}
-	if opts.IsXattr {
-		flags |= SubdocFlagXattr
-	}
-
-	op := subDocOp{
-		Op:    gocbcore.SubDocOpCounter,
-		Path:  path,
-		Flags: gocbcore.SubdocFlag(flags),
-		Value: -delta,
-	}
-
-	return MutateInSpec{op: op}
-}
-
-// MutateIn performs a set of subdocument mutations on the document specified by id.
-func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptions) (mutOut *MutateInResult, errOut error) {
-	startTime := time.Now()
-	if opts == nil {
-		opts = &MutateInOptions{}
-	}
-
-	span := c.startKvOpTrace("MutateIn", nil)
-	defer span.Finish()
-
-	// Only update ctx if necessary, this means that the original ctx.Done() signal will be triggered as expected
-	ctx, cancel := c.context(opts.Context, opts.Timeout)
-	if cancel != nil {
-		defer cancel()
-	}
-
-	err := c.verifyObserveOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := c.mutate(ctx, span.Context(), id, ops, startTime, *opts)
-	if err != nil {
-		return nil, err
-	}
-
-	if opts.PersistTo == 0 && opts.ReplicateTo == 0 {
-		return res, nil
-	}
-	return res, c.durability(durabilitySettings{
-		ctx:            opts.Context,
-		key:            id,
-		cas:            res.Cas(),
-		mt:             *res.MutationToken(),
-		replicaTo:      opts.ReplicateTo,
-		persistTo:      opts.PersistTo,
-		forDelete:      false,
-		scopeName:      c.scopeName(),
-		collectionName: c.name(),
-	})
-}
-
-func (c *Collection) mutate(ctx context.Context, tracectx requestSpanContext, id string, ops []MutateInSpec,
-	startTime time.Time, opts MutateInOptions) (mutOut *MutateInResult, errOut error) {
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	if (opts.PersistTo != 0 || opts.ReplicateTo != 0) && !c.sb.UseMutationTokens {
-		return nil, invalidArgumentsError{"cannot use observe based durability without mutation tokens"}
-	}
-
-	var isInsertDocument bool
-	var flags SubdocDocFlag
-	action := opts.StoreSemantic
-	if action == StoreSemanticsUpsert {
-		flags |= SubdocDocFlagMkDoc
-	}
-	if action == StoreSemanticsInsert {
-		isInsertDocument = true
-		flags |= SubdocDocFlagAddDoc
-	}
-	if action > 2 {
-		return nil, invalidArgumentsError{message: "invalid StoreSemantics value provided"}
-	}
-
-	if opts.AccessDeleted {
-		flags |= SubdocDocFlagAccessDeleted
-	}
-
-	serializer := opts.Serializer
-	if serializer == nil {
-		serializer = &DefaultJSONSerializer{}
+func (c *Collection) internalMutateIn(
+	opm *kvOpManager,
+	action StoreSemantics,
+	expiry uint32,
+	cas Cas,
+	ops []MutateInSpec,
+) (mutOut *MutateInResult, errOut error) {
+	var docFlags gocbcore.SubdocDocFlag
+	if action == StoreSemanticsReplace {
+		// this is the default behaviour
+	} else if action == StoreSemanticsUpsert {
+		docFlags |= gocbcore.SubdocDocFlagMkDoc
+	} else if action == StoreSemanticsInsert {
+		docFlags |= gocbcore.SubdocDocFlagAddDoc
+	} else {
+		return nil, makeInvalidArgumentsError("invalid StoreSemantics value provided")
 	}
 
 	var subdocs []gocbcore.SubDocOp
 	for _, op := range ops {
-		if op.op.Path == "" {
-			switch op.op.Op {
+		if op.path == "" {
+			switch op.op {
 			case gocbcore.SubDocOpDictAdd:
-				return nil, invalidArgumentsError{"cannot specify a blank path with InsertSpec"}
+				return nil, makeInvalidArgumentsError("cannot specify a blank path with InsertSpec")
 			case gocbcore.SubDocOpDictSet:
-				return nil, invalidArgumentsError{"cannot specify a blank path with UpsertSpec"}
+				return nil, makeInvalidArgumentsError("cannot specify a blank path with UpsertSpec")
 			case gocbcore.SubDocOpDelete:
-				return nil, invalidArgumentsError{"cannot specify a blank path with DeleteSpec"}
+				return nil, makeInvalidArgumentsError("cannot specify a blank path with DeleteSpec")
 			default:
 			}
 		}
 
-		if op.op.Value == nil {
-			subdocs = append(subdocs, gocbcore.SubDocOp{
-				Op:    op.op.Op,
-				Flags: op.op.Flags,
-				Path:  op.op.Path,
-			})
-
-			continue
-		}
-
-		var marshaled []byte
-		var err error
-		etrace := c.startKvOpTrace("encode", tracectx)
-		if op.op.MultiValue {
-			marshaled, err = c.encodeMultiArray(op.op.Value, serializer)
-		} else {
-			marshaled, err = serializer.Serialize(op.op.Value)
-		}
+		etrace := c.startKvOpTrace("encode", opm.TraceSpan())
+		bytes, flags, err := jsonMarshalMutateSpec(op)
 		etrace.Finish()
 		if err != nil {
 			return nil, err
 		}
 
+		if op.createPath {
+			flags |= gocbcore.SubdocFlagMkDirP
+		}
+
+		if op.isXattr {
+			flags |= gocbcore.SubdocFlagXattrPath
+		}
+
 		subdocs = append(subdocs, gocbcore.SubDocOp{
-			Op:    op.op.Op,
-			Flags: op.op.Flags,
-			Path:  op.op.Path,
-			Value: marshaled,
+			Op:    op.op,
+			Flags: flags,
+			Path:  op.path,
+			Value: bytes,
 		})
 	}
 
-	retryWrapper := c.sb.RetryStrategyWrapper
-	if opts.RetryStrategy != nil {
-		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
+	agent, err := c.getKvProvider()
+	if err != nil {
+		return nil, err
 	}
-
-	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
-	if coerced {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
-		defer cancel()
-	}
-
-	ctrl := c.newOpManager(ctx, startTime, "MutateIn")
-	err = ctrl.wait(agent.MutateInEx(gocbcore.MutateInOptions{
-		Key:                    []byte(id),
-		Flags:                  gocbcore.SubdocDocFlag(flags),
-		Cas:                    gocbcore.Cas(opts.Cas),
+	err = opm.Wait(agent.MutateInEx(gocbcore.MutateInOptions{
+		Key:                    opm.DocumentID(),
+		Flags:                  docFlags,
+		Cas:                    gocbcore.Cas(cas),
 		Ops:                    subdocs,
-		Expiry:                 opts.Expiry,
-		CollectionName:         c.name(),
-		ScopeName:              c.scopeName(),
-		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
-		DurabilityLevelTimeout: durabilityTimeout,
-		RetryStrategy:          retryWrapper,
-		TraceContext:           tracectx,
+		Expiry:                 expiry,
+		CollectionName:         opm.CollectionName(),
+		ScopeName:              opm.ScopeName(),
+		DurabilityLevel:        opm.DurabilityLevel(),
+		DurabilityLevelTimeout: opm.DurabilityTimeout(),
+		RetryStrategy:          opm.RetryStrategy(),
+		TraceContext:           opm.TraceSpan(),
 	}, func(res *gocbcore.MutateInResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, id, isInsertDocument)
-			ctrl.resolve()
+			errOut = opm.EnhanceErr(err)
+			opm.Reject()
 			return
 		}
 
-		mutRes := &MutateInResult{
-			MutationResult: MutationResult{
-				Result: Result{
-					cas: Cas(res.Cas),
-				},
-			},
-			contents: make([]mutateInPartial, len(res.Ops)),
-		}
-
-		if res.MutationToken.VbUuid != 0 {
-			mutTok := &MutationToken{
-				token:      res.MutationToken,
-				bucketName: c.sb.BucketName,
-			}
-			mutRes.mt = mutTok
-		}
-
+		mutOut = &MutateInResult{}
+		mutOut.cas = Cas(res.Cas)
+		mutOut.mt = opm.EnhanceMt(res.MutationToken)
+		mutOut.contents = make([]mutateInPartial, len(res.Ops))
 		for i, op := range res.Ops {
-			mutRes.contents[i] = mutateInPartial{data: op.Value}
+			mutOut.contents[i] = mutateInPartial{data: op.Value}
 		}
 
-		mutOut = mutRes
-
-		ctrl.resolve()
+		opm.Resolve(mutOut.mt)
 	}))
 	if err != nil {
 		errOut = err
 	}
-
 	return
 }

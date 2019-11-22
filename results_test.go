@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
@@ -64,7 +65,7 @@ func TestGetResultContent(t *testing.T) {
 
 	res := GetResult{
 		contents:   dataset,
-		transcoder: NewJSONTranscoder(&DefaultJSONSerializer{}),
+		transcoder: NewJSONTranscoder(),
 	}
 
 	var doc testBeerDocument
@@ -80,20 +81,20 @@ func TestGetResultContent(t *testing.T) {
 }
 
 func TestGetResultFromSubDoc(t *testing.T) {
-	ops := make([]gocbcore.SubDocOp, 3)
-	ops[0] = gocbcore.SubDocOp{
-		Path: "id",
-	}
-	ops[1] = gocbcore.SubDocOp{
-		Path: "name",
-	}
-	ops[2] = gocbcore.SubDocOp{
-		Path: "address.house.number",
+	ops := []LookupInSpec{
+		{
+			path: "id",
+		},
+		{
+			path: "name",
+		},
+		{
+			path: "address.house.number",
+		},
 	}
 
 	results := &LookupInResult{
-		contents:   make([]lookupInPartial, 3),
-		serializer: &DefaultJSONSerializer{},
+		contents: make([]lookupInPartial, 3),
 	}
 
 	var err error
@@ -122,12 +123,8 @@ func TestGetResultFromSubDoc(t *testing.T) {
 		Address address `json:"address"`
 	}
 	var doc person
-	getResult := GetResult{transcoder: NewJSONTranscoder(&DefaultJSONSerializer{})}
-	err = getResult.fromSubDoc([]LookupInSpec{
-		{op: ops[0]},
-		{op: ops[1]},
-		{op: ops[2]},
-	}, results)
+	getResult := GetResult{transcoder: NewJSONTranscoder()}
+	err = getResult.fromSubDoc(ops, results)
 	if err != nil {
 		t.Fatalf("Failed to create result from subdoc: %v", err)
 	}
@@ -203,7 +200,6 @@ func TestLookupInResultContentAt(t *testing.T) {
 				data: contents3,
 			},
 		},
-		serializer: &DefaultJSONSerializer{},
 	}
 
 	var name string
@@ -250,7 +246,7 @@ func TestLookupInResultContentAt(t *testing.T) {
 
 	var shouldFail string
 	err = res.ContentAt(3, &shouldFail)
-	if !IsInvalidIndexError(err) {
+	if !errors.Is(err, ErrInvalidArgument) {
 		t.Fatalf("ContentAt should have failed with InvalidIndexError, was %v", err)
 	}
 

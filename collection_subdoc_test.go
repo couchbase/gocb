@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -73,8 +74,8 @@ func TestInsertLookupIn(t *testing.T) {
 		t.Fatalf("Expected lookup on a non existent field to return error")
 	}
 
-	if !IsPathNotFoundError(err) {
-		t.Fatalf("Expected error to be path not found but was %v", err)
+	if !errors.Is(err, ErrPathNotFound) {
+		t.Fatalf("Expected error to be path not found but was %+v", err)
 	}
 
 	var count int

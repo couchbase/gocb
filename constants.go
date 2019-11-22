@@ -8,26 +8,26 @@ const (
 	persistenceTimeoutFloor = 1500
 )
 
-// IndexType provides information on the type of indexer used for an index.
-type IndexType string
+// QueryIndexType provides information on the type of indexer used for an index.
+type QueryIndexType string
 
 const (
-	// IndexTypeN1ql indicates that GSI was used to build the index.
-	IndexTypeN1ql = IndexType("gsi")
+	// QueryIndexTypeN1ql indicates that GSI was used to build the index.
+	QueryIndexTypeN1ql = QueryIndexType("gsi")
 
-	// IndexTypeView indicates that views were used to build the index.
-	IndexTypeView = IndexType("views")
+	// QueryIndexTypeView indicates that views were used to build the index.
+	QueryIndexTypeView = QueryIndexType("views")
 )
 
 // ServiceType specifies a particular Couchbase service type.
 type ServiceType gocbcore.ServiceType
 
 const (
-	// KeyValueService represents a memcached service.
-	KeyValueService = ServiceType(gocbcore.MemdService)
-
 	// MgmtService represents a management service (typically ns_server).
 	MgmtService = ServiceType(gocbcore.MgmtService)
+
+	// KeyValueService represents a memcached service.
+	KeyValueService = ServiceType(gocbcore.MemdService)
 
 	// CapiService represents a CouchAPI service (typically for views).
 	CapiService = ServiceType(gocbcore.CapiService)
@@ -85,7 +85,7 @@ const (
 	SubdocDocFlagMkDoc = SubdocDocFlag(gocbcore.SubdocDocFlagMkDoc)
 
 	// SubdocDocFlagAddDoc indices that the document should be created only if it does not already exist.
-	SubdocDocFlagAddDoc = SubdocDocFlag(gocbcore.SubdocDocFlagReplaceDoc)
+	SubdocDocFlagAddDoc = SubdocDocFlag(gocbcore.SubdocDocFlagAddDoc)
 
 	// SubdocDocFlagAccessDeleted indicates that you wish to receive soft-deleted documents.
 	SubdocDocFlagAccessDeleted = SubdocDocFlag(gocbcore.SubdocDocFlagAccessDeleted)

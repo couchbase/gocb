@@ -39,7 +39,6 @@ type stateBlock struct {
 	UseMutationTokens bool
 
 	Transcoder Transcoder
-	Serializer JSONSerializer
 
 	RetryStrategyWrapper   *retryStrategyWrapper
 	OrphanLoggerEnabled    bool

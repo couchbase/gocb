@@ -113,8 +113,8 @@ func testGetCollection(t *testing.T, provider *mockKvProvider) *Collection {
 	clients := make(map[string]client)
 	cli := &mockClient{
 		bucketName:        "mock",
-		collectionId:      0,
-		scopeId:           0,
+		collectionID:      0,
+		scopeID:           0,
 		useMutationTokens: true,
 		mockKvProvider:    provider,
 	}
@@ -132,7 +132,7 @@ func testGetCollection(t *testing.T, provider *mockKvProvider) *Collection {
 			SearchTimeout:    75000 * time.Millisecond,
 			ViewTimeout:      75000 * time.Millisecond,
 			KvTimeout:        2500 * time.Millisecond,
-			Transcoder:       NewJSONTranscoder(&DefaultJSONSerializer{}),
+			Transcoder:       NewJSONTranscoder(),
 			Tracer:           &noopTracer{},
 		},
 	}

@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/couchbaselabs/gojcbmock"
 )
@@ -16,7 +17,6 @@ const (
 )
 
 var globalBucket *Bucket
-var globalTravelBucket *Bucket
 var globalCollection *Collection
 var globalCluster *testCluster
 
@@ -53,7 +53,10 @@ func TestMain(m *testing.M) {
 			{Name: "default", Type: gojcbmock.BCouchbase},
 		}...)
 
-		mock.Control(gojcbmock.NewCommand(gojcbmock.CSetCCCP, map[string]interface{}{"enabled": true}))
+		mock.Control(gojcbmock.NewCommand(gojcbmock.CSetCCCP,
+			map[string]interface{}{"enabled": "true"}))
+		mock.Control(gojcbmock.NewCommand(gojcbmock.CSetSASLMechanisms,
+			map[string]interface{}{"mechs": []string{"SCRAM-SHA512"}}))
 
 		if err != nil {
 			panic(err.Error())
@@ -85,6 +88,8 @@ func TestMain(m *testing.M) {
 
 	cluster, err := Connect(connStr, ClusterOptions{Authenticator: auth})
 
+	time.Sleep(1000)
+
 	if err != nil {
 		panic(err.Error())
 	}
@@ -102,12 +107,6 @@ func TestMain(m *testing.M) {
 		globalCollection = globalBucket.Collection(*collectionName)
 	} else {
 		globalCollection = globalBucket.DefaultCollection()
-	}
-
-	globalTravelBucket = globalCluster.Bucket("travel-sample", nil)
-	_, err = globalTravelBucket.DefaultCollection().Get("invalid", nil)
-	if !(err == nil || IsKeyNotFoundError(err)) {
-		globalTravelBucket = nil
 	}
 
 	os.Exit(m.Run())

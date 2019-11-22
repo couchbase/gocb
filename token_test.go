@@ -14,24 +14,24 @@ func TestMutationState_Add(t *testing.T) {
 
 	fakeToken1 := MutationToken{
 		token: gocbcore.MutationToken{
-			VbId:   1,
-			VbUuid: gocbcore.VbUuid(9),
+			VbID:   1,
+			VbUUID: gocbcore.VbUUID(9),
 			SeqNo:  gocbcore.SeqNo(12),
 		},
 		bucketName: fakeBucket.Name(),
 	}
 	fakeToken2 := MutationToken{
 		token: gocbcore.MutationToken{
-			VbId:   2,
-			VbUuid: gocbcore.VbUuid(1),
+			VbID:   2,
+			VbUUID: gocbcore.VbUUID(1),
 			SeqNo:  gocbcore.SeqNo(22),
 		},
 		bucketName: fakeBucket.Name(),
 	}
 	fakeToken3 := MutationToken{
 		token: gocbcore.MutationToken{
-			VbId:   2,
-			VbUuid: gocbcore.VbUuid(4),
+			VbID:   2,
+			VbUUID: gocbcore.VbUUID(4),
 			SeqNo:  gocbcore.SeqNo(99),
 		},
 		bucketName: fakeBucket.Name(),
@@ -72,16 +72,16 @@ func TestMutationState_toSeachMutationState(t *testing.T) {
 
 	fakeToken1 := MutationToken{
 		token: gocbcore.MutationToken{
-			VbId:   1,
-			VbUuid: gocbcore.VbUuid(9),
+			VbID:   1,
+			VbUUID: gocbcore.VbUUID(9),
 			SeqNo:  gocbcore.SeqNo(12),
 		},
 		bucketName: fakeBucket.Name(),
 	}
 	fakeToken2 := MutationToken{
 		token: gocbcore.MutationToken{
-			VbId:   2,
-			VbUuid: gocbcore.VbUuid(1),
+			VbID:   2,
+			VbUUID: gocbcore.VbUUID(1),
 			SeqNo:  gocbcore.SeqNo(22),
 		},
 		bucketName: fakeBucket.Name(),

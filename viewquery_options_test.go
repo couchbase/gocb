@@ -1,7 +1,6 @@
 package gocb
 
 import (
-	"context"
 	"fmt"
 	"math/rand"
 	"net/url"
@@ -199,11 +198,6 @@ func testCreateViewQueryOptions(seed int64) *ViewOptions {
 	randVal = rand.Intn(2)
 	if randVal == 1 {
 		opts.Raw = map[string]string{"key1": "param1", "$key2": "param2"}
-	}
-
-	randVal = rand.Intn(2)
-	if randVal == 1 {
-		opts.Context = context.Background()
 	}
 
 	return opts

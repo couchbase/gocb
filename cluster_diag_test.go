@@ -36,13 +36,13 @@ func TestDiagnostics(t *testing.T) {
 				LocalAddr:    "10.112.191.101",
 				RemoteAddr:   "10.112.191.102",
 				Scope:        "bucket",
-				Id:           "0xc000094120",
+				ID:           "0xc000094120",
 			},
 			{
 				LastActivity: date2,
 				LocalAddr:    "",
 				RemoteAddr:   "",
-				Id:           "",
+				ID:           "",
 			},
 		},
 	}
@@ -53,8 +53,8 @@ func TestDiagnostics(t *testing.T) {
 	cli := &mockClient{
 		mockDiagnosticsProvider: provider,
 		bucketName:              "mock",
-		collectionId:            0,
-		scopeId:                 0,
+		collectionID:            0,
+		scopeID:                 0,
 		useMutationTokens:       false,
 	}
 
@@ -105,8 +105,8 @@ func TestDiagnostics(t *testing.T) {
 		if service.Scope != expected.Scope {
 			t.Fatalf("Expected service Scope to be %s but was %s", expected.Scope, service.Scope)
 		}
-		if service.ID != expected.Id {
-			t.Fatalf("Expected service ID to be %s but was %s", expected.Id, service.ID)
+		if service.ID != expected.ID {
+			t.Fatalf("Expected service ID to be %s but was %s", expected.ID, service.ID)
 		}
 
 		if expected.LocalAddr == "" {
@@ -199,8 +199,8 @@ func TestDiagnosticsWithID(t *testing.T) {
 	cli := &mockClient{
 		mockDiagnosticsProvider: provider,
 		bucketName:              "mock",
-		collectionId:            0,
-		scopeId:                 0,
+		collectionID:            0,
+		scopeID:                 0,
 		useMutationTokens:       false,
 	}
 

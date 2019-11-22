@@ -95,7 +95,7 @@ func TestBinaryPrepend(t *testing.T) {
 func TestBinaryIncrement(t *testing.T) {
 	colBinary := globalCollection.Binary()
 
-	res, err := colBinary.Increment("binaryIncrement", &CounterOptions{
+	res, err := colBinary.Increment("binaryIncrement", &IncrementOptions{
 		Delta: 10,
 	})
 	if err != nil {
@@ -110,7 +110,7 @@ func TestBinaryIncrement(t *testing.T) {
 		t.Fatalf("Expected counter value to be 0 but was %d", res.Content())
 	}
 
-	res, err = colBinary.Increment("binaryIncrement", &CounterOptions{
+	res, err = colBinary.Increment("binaryIncrement", &IncrementOptions{
 		Delta: 10,
 	})
 	if err != nil {
@@ -125,7 +125,7 @@ func TestBinaryIncrement(t *testing.T) {
 		t.Fatalf("Expected counter value to be 10 but was %d", res.Content())
 	}
 
-	res, err = colBinary.Increment("binaryIncrement", &CounterOptions{
+	res, err = colBinary.Increment("binaryIncrement", &IncrementOptions{
 		Delta: 10,
 	})
 	if err != nil {
@@ -159,7 +159,7 @@ func TestBinaryIncrement(t *testing.T) {
 func TestBinaryDecrement(t *testing.T) {
 	colBinary := globalCollection.Binary()
 
-	res, err := colBinary.Decrement("binaryDecrement", &CounterOptions{
+	res, err := colBinary.Decrement("binaryDecrement", &DecrementOptions{
 		Delta:   10,
 		Initial: 100,
 	})
@@ -175,7 +175,7 @@ func TestBinaryDecrement(t *testing.T) {
 		t.Fatalf("Expected counter value to be 100 but was %d", res.Content())
 	}
 
-	res, err = colBinary.Decrement("binaryDecrement", &CounterOptions{
+	res, err = colBinary.Decrement("binaryDecrement", &DecrementOptions{
 		Delta: 10,
 	})
 	if err != nil {
@@ -190,7 +190,7 @@ func TestBinaryDecrement(t *testing.T) {
 		t.Fatalf("Expected counter value to be 90 but was %d", res.Content())
 	}
 
-	res, err = colBinary.Decrement("binaryDecrement", &CounterOptions{
+	res, err = colBinary.Decrement("binaryDecrement", &DecrementOptions{
 		Delta: 10,
 	})
 	if err != nil {

@@ -369,32 +369,32 @@ func (q *WildcardQuery) Boost(boost float32) *WildcardQuery {
 	return q
 }
 
-// DocIdQuery represents a FTS document id query.
-type DocIdQuery struct {
+// DocIDQuery represents a FTS document id query.
+type DocIDQuery struct {
 	ftsQueryBase
 }
 
-// NewDocIdQuery creates a new DocIdQuery.
-func NewDocIdQuery(ids ...string) *DocIdQuery {
-	q := &DocIdQuery{newFtsQueryBase()}
+// NewDocIDQuery creates a new DocIdQuery.
+func NewDocIDQuery(ids ...string) *DocIDQuery {
+	q := &DocIDQuery{newFtsQueryBase()}
 	q.options["ids"] = []string{}
 	return q.AddDocIds(ids...)
 }
 
 // AddDocIds adds addition document ids to this query.
-func (q *DocIdQuery) AddDocIds(ids ...string) *DocIdQuery {
+func (q *DocIDQuery) AddDocIds(ids ...string) *DocIDQuery {
 	q.options["ids"] = append(q.options["ids"].([]string), ids...)
 	return q
 }
 
 // Field specifies the field for this query.
-func (q *DocIdQuery) Field(field string) *DocIdQuery {
+func (q *DocIDQuery) Field(field string) *DocIDQuery {
 	q.options["field"] = field
 	return q
 }
 
 // Boost specifies the boost for this query.
-func (q *DocIdQuery) Boost(boost float32) *DocIdQuery {
+func (q *DocIDQuery) Boost(boost float32) *DocIDQuery {
 	q.options["boost"] = boost
 	return q
 }

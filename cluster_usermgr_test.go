@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -123,20 +124,7 @@ func TestUserManagerWithGroupsCrud(t *testing.T) {
 	expectedUserAndMeta := &UserAndMetadata{
 		Domain: "local",
 		User:   expectedUser,
-		EffectiveRoles: []Role{
-			{
-				Name:   "bucket_admin",
-				Bucket: globalBucket.Name(),
-			},
-			{
-				Name:   "replication_target",
-				Bucket: globalBucket.Name(),
-			},
-			{
-				Name: "security_admin",
-			},
-		},
-		EffectiveRolesAndOrigins: []RoleAndOrigins{
+		EffectiveRoles: []RoleAndOrigins{
 			{
 				Role: Role{
 					Name:   "bucket_admin",
@@ -208,7 +196,7 @@ func TestUserManagerWithGroupsCrud(t *testing.T) {
 		t.Fatalf("Expected GetUser to error")
 	}
 
-	if !IsUserNotFoundError(err) {
+	if !errors.Is(err, ErrUserNotFound) {
 		t.Fatalf("Expected error to be user not found but was %v", err)
 	}
 }
@@ -247,13 +235,7 @@ func TestUserManagerCrud(t *testing.T) {
 	expectedUserAndMeta := &UserAndMetadata{
 		Domain: "local",
 		User:   expectedUser,
-		EffectiveRoles: []Role{
-			{
-				Name:   "bucket_admin",
-				Bucket: globalBucket.Name(),
-			},
-		},
-		EffectiveRolesAndOrigins: []RoleAndOrigins{
+		EffectiveRoles: []RoleAndOrigins{
 			{
 				Role: Role{
 					Name:   "bucket_admin",
@@ -296,7 +278,7 @@ func TestUserManagerCrud(t *testing.T) {
 		t.Fatalf("Expected GetUser to error")
 	}
 
-	if !IsUserNotFoundError(err) {
+	if !errors.Is(err, ErrUserNotFound) {
 		t.Fatalf("Expected error to be user not found but was %v", err)
 	}
 }
@@ -350,9 +332,5 @@ func assertUser(t *testing.T, user *UserAndMetadata, expected *UserAndMetadata) 
 
 	if len(user.EffectiveRoles) != len(expected.EffectiveRoles) {
 		t.Fatalf("Expected user EffectiveRoles to be length %v but was %v", expected.EffectiveRoles, user.EffectiveRoles)
-	}
-
-	if len(user.EffectiveRolesAndOrigins) != len(expected.EffectiveRolesAndOrigins) {
-		t.Fatalf("Expected user EffectiveRolesAndOrigins to be length %v but was %v", expected.EffectiveRolesAndOrigins, user.EffectiveRolesAndOrigins)
 	}
 }

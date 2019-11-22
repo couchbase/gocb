@@ -1,7 +1,6 @@
 package gocb
 
 import (
-	"context"
 	"time"
 
 	"github.com/couchbase/gocbcore/v8"
@@ -12,13 +11,8 @@ type bulkOp struct {
 	span   requestSpan
 }
 
-func (op *bulkOp) cancel() bool {
-	if op.pendop == nil {
-		return true
-	}
-	res := op.pendop.Cancel()
-	op.pendop = nil
-	return res
+func (op *bulkOp) cancel(err error) {
+	op.pendop.Cancel(err)
 }
 
 func (op *bulkOp) finish() {
@@ -32,14 +26,13 @@ type BulkOp interface {
 	execute(tracectx requestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
 		retryWrapper *retryStrategyWrapper, startSpanFunc func(string, requestSpanContext) requestSpan)
 	markError(err error)
-	cancel() bool
+	cancel(err error)
 	finish()
 }
 
 // BulkOpOptions are the set of options available when performing BulkOps using Do.
 type BulkOpOptions struct {
 	Timeout time.Duration
-	Context context.Context
 
 	// Transcoder is used to encode values for operations that perform mutations and to decode values for
 	// operations that fetch values. It does not apply to all BulkOp operations.
@@ -55,21 +48,10 @@ func (c *Collection) Do(ops []BulkOp, opts *BulkOpOptions) error {
 
 	span := c.startKvOpTrace("Do", nil)
 
-	if opts.Timeout == 0 {
-		// no operation level timeouts set, use cluster level
-		opts.Timeout = c.sb.KvTimeout * time.Duration(len(ops))
+	timeout := c.sb.KvTimeout * time.Duration(len(ops))
+	if opts.Timeout != 0 {
+		timeout = opts.Timeout
 	}
-
-	var ctx context.Context
-	var cancel context.CancelFunc
-	if opts.Context == nil {
-		// no context provided so just make a new one
-		ctx, cancel = context.WithTimeout(context.Background(), opts.Timeout)
-	} else {
-		// a context has been provided so add whatever timeout to it. WithTimeout will pick the shortest anyway.
-		ctx, cancel = context.WithTimeout(opts.Context, opts.Timeout)
-	}
-	defer cancel()
 
 	retryWrapper := c.sb.RetryStrategyWrapper
 	if opts.RetryStrategy != nil {
@@ -92,28 +74,23 @@ func (c *Collection) Do(ops []BulkOp, opts *BulkOpOptions) error {
 	for _, item := range ops {
 		item.execute(span.Context(), c, agent, opts.Transcoder, signal, retryWrapper, c.startKvOpTrace)
 	}
+
+	deadline := time.Now().Add(timeout)
 	for range ops {
 		select {
 		case item := <-signal:
 			// We're really just clearing the pendop from this thread,
 			//   since it already completed, no cancel actually occurs
-			item.cancel()
 			item.finish()
-		case <-ctx.Done():
+		case <-time.After(deadline.Sub(time.Now())):
+			// cancel everything
 			for _, item := range ops {
-				if !item.cancel() {
-					<-signal
-					item.finish()
-					continue
-				}
-
-				// We use this method to mark the individual items as
-				// having timed out so we don't move `Err` in bulkOp
-				// and break backwards compatibility.
-				item.markError(timeoutError{})
-				item.finish()
+				item.cancel(ErrAmbiguousTimeout)
 			}
-			return timeoutError{}
+
+			// read an item to keep the loop intact
+			item := <-signal
+			item.finish()
 		}
 	}
 	return nil
@@ -144,7 +121,7 @@ func (item *GetOp) execute(tracectx requestSpanContext, c *Collection, provider 
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
 	}, func(res *gocbcore.GetResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.ID, false)
+		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
 		if item.Err == nil {
 			item.Result = &GetResult{
 				Result: Result{
@@ -192,7 +169,7 @@ func (item *GetAndTouchOp) execute(tracectx requestSpanContext, c *Collection, p
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
 	}, func(res *gocbcore.GetAndTouchResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.ID, false)
+		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
 		if item.Err == nil {
 			item.Result = &GetResult{
 				Result: Result{
@@ -240,7 +217,7 @@ func (item *TouchOp) execute(tracectx requestSpanContext, c *Collection, provide
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
 	}, func(res *gocbcore.TouchResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.ID, false)
+		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
 		if item.Err == nil {
 			item.Result = &MutationResult{
 				Result: Result{
@@ -248,7 +225,7 @@ func (item *TouchOp) execute(tracectx requestSpanContext, c *Collection, provide
 				},
 			}
 
-			if res.MutationToken.VbUuid != 0 {
+			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
 					bucketName: c.sb.BucketName,
@@ -293,7 +270,7 @@ func (item *RemoveOp) execute(tracectx requestSpanContext, c *Collection, provid
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
 	}, func(res *gocbcore.DeleteResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.ID, false)
+		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
 		if item.Err == nil {
 			item.Result = &MutationResult{
 				Result: Result{
@@ -301,7 +278,7 @@ func (item *RemoveOp) execute(tracectx requestSpanContext, c *Collection, provid
 				},
 			}
 
-			if res.MutationToken.VbUuid != 0 {
+			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
 					bucketName: c.sb.BucketName,
@@ -359,7 +336,8 @@ func (item *UpsertOp) execute(tracectx requestSpanContext, c *Collection, provid
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
 	}, func(res *gocbcore.StoreResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.ID, false)
+		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
+
 		if item.Err == nil {
 			item.Result = &MutationResult{
 				Result: Result{
@@ -367,7 +345,7 @@ func (item *UpsertOp) execute(tracectx requestSpanContext, c *Collection, provid
 				},
 			}
 
-			if res.MutationToken.VbUuid != 0 {
+			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
 					bucketName: c.sb.BucketName,
@@ -425,7 +403,7 @@ func (item *InsertOp) execute(tracectx requestSpanContext, c *Collection, provid
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
 	}, func(res *gocbcore.StoreResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.ID, true)
+		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
 		if item.Err == nil {
 			item.Result = &MutationResult{
 				Result: Result{
@@ -433,7 +411,7 @@ func (item *InsertOp) execute(tracectx requestSpanContext, c *Collection, provid
 				},
 			}
 
-			if res.MutationToken.VbUuid != 0 {
+			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
 					bucketName: c.sb.BucketName,
@@ -493,7 +471,7 @@ func (item *ReplaceOp) execute(tracectx requestSpanContext, c *Collection, provi
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
 	}, func(res *gocbcore.StoreResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.ID, true)
+		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
 		if item.Err == nil {
 			item.Result = &MutationResult{
 				Result: Result{
@@ -501,7 +479,7 @@ func (item *ReplaceOp) execute(tracectx requestSpanContext, c *Collection, provi
 				},
 			}
 
-			if res.MutationToken.VbUuid != 0 {
+			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
 					bucketName: c.sb.BucketName,
@@ -546,7 +524,7 @@ func (item *AppendOp) execute(tracectx requestSpanContext, c *Collection, provid
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
 	}, func(res *gocbcore.AdjoinResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.ID, true)
+		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
 		if item.Err == nil {
 			item.Result = &MutationResult{
 				Result: Result{
@@ -554,7 +532,7 @@ func (item *AppendOp) execute(tracectx requestSpanContext, c *Collection, provid
 				},
 			}
 
-			if res.MutationToken.VbUuid != 0 {
+			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
 					bucketName: c.sb.BucketName,
@@ -599,7 +577,7 @@ func (item *PrependOp) execute(tracectx requestSpanContext, c *Collection, provi
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
 	}, func(res *gocbcore.AdjoinResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.ID, true)
+		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
 		if item.Err == nil {
 			item.Result = &MutationResult{
 				Result: Result{
@@ -607,7 +585,7 @@ func (item *PrependOp) execute(tracectx requestSpanContext, c *Collection, provi
 				},
 			}
 
-			if res.MutationToken.VbUuid != 0 {
+			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
 					bucketName: c.sb.BucketName,
@@ -662,7 +640,7 @@ func (item *IncrementOp) execute(tracectx requestSpanContext, c *Collection, pro
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
 	}, func(res *gocbcore.CounterResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.ID, true)
+		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
 		if item.Err == nil {
 			item.Result = &CounterResult{
 				MutationResult: MutationResult{
@@ -673,7 +651,7 @@ func (item *IncrementOp) execute(tracectx requestSpanContext, c *Collection, pro
 				content: res.Value,
 			}
 
-			if res.MutationToken.VbUuid != 0 {
+			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
 					bucketName: c.sb.BucketName,
@@ -728,7 +706,7 @@ func (item *DecrementOp) execute(tracectx requestSpanContext, c *Collection, pro
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
 	}, func(res *gocbcore.CounterResult, err error) {
-		item.Err = maybeEnhanceKVErr(err, item.ID, true)
+		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
 		if item.Err == nil {
 			item.Result = &CounterResult{
 				MutationResult: MutationResult{
@@ -739,7 +717,7 @@ func (item *DecrementOp) execute(tracectx requestSpanContext, c *Collection, pro
 				content: res.Value,
 			}
 
-			if res.MutationToken.VbUuid != 0 {
+			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
 					bucketName: c.sb.BucketName,

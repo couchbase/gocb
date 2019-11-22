@@ -6,6 +6,21 @@ import (
 	"github.com/couchbase/gocbcore/v8"
 )
 
+func translateCoreRetryReasons(reasons []gocbcore.RetryReason) []RetryReason {
+	var reasonsOut []RetryReason
+
+	for _, retryReason := range reasons {
+		gocbReason, ok := retryReason.(RetryReason)
+		if !ok {
+			logErrorf("Failed to assert gocbcore retry reason to gocb retry reason: %v", retryReason)
+			continue
+		}
+		reasonsOut = append(reasonsOut, gocbReason)
+	}
+
+	return reasonsOut
+}
+
 // RetryRequest is a request that can possibly be retried.
 type RetryRequest interface {
 	RetryAttempts() uint32
@@ -14,31 +29,24 @@ type RetryRequest interface {
 	RetryReasons() []RetryReason
 }
 
-type retryRequest struct {
-	attempts   uint32
-	identifier string
-	idempotent bool
-	reasons    []RetryReason
+type wrappedRetryRequest struct {
+	req gocbcore.RetryRequest
 }
 
-func (mgr *retryRequest) RetryAttempts() uint32 {
-	return mgr.attempts
+func (req *wrappedRetryRequest) RetryAttempts() uint32 {
+	return req.req.RetryAttempts()
 }
 
-func (mgr *retryRequest) IncrementRetryAttempts() {
-	mgr.attempts++
+func (req *wrappedRetryRequest) Identifier() string {
+	return req.req.Identifier()
 }
 
-func (mgr *retryRequest) Identifier() string {
-	return mgr.identifier
+func (req *wrappedRetryRequest) Idempotent() bool {
+	return req.req.Idempotent()
 }
 
-func (mgr *retryRequest) Idempotent() bool {
-	return mgr.idempotent
-}
-
-func (mgr *retryRequest) RetryReasons() []RetryReason {
-	return mgr.reasons
+func (req *wrappedRetryRequest) RetryReasons() []RetryReason {
+	return translateCoreRetryReasons(req.req.RetryReasons())
 }
 
 // RetryReason represents the reason for an operation possibly being retried.
@@ -46,6 +54,28 @@ type RetryReason interface {
 	AllowsNonIdempotentRetry() bool
 	AlwaysRetry() bool
 	Description() string
+}
+
+type retryReason struct {
+	allowsNonIdempotentRetry bool
+	alwaysRetry              bool
+	description              string
+}
+
+func (rr retryReason) AllowsNonIdempotentRetry() bool {
+	return rr.allowsNonIdempotentRetry
+}
+
+func (rr retryReason) AlwaysRetry() bool {
+	return rr.alwaysRetry
+}
+
+func (rr retryReason) Description() string {
+	return rr.description
+}
+
+func (rr retryReason) String() string {
+	return rr.description
 }
 
 var (
@@ -90,6 +120,22 @@ var (
 	// SocketCloseInFlightRetryReason indicates that the operation failed because the socket was closed whilst the operation
 	// was in flight.
 	SocketCloseInFlightRetryReason = RetryReason(gocbcore.SocketCloseInFlightRetryReason)
+
+	// CircuitBreakerOpenRetryReason indicates that the operation failed because the circuit breaker on the connection
+	// was open.
+	CircuitBreakerOpenRetryReason = RetryReason(gocbcore.CircuitBreakerOpenRetryReason)
+
+	// QueryIndexNotFoundRetryReason indicates that the operation failed to to a missing query index
+	QueryIndexNotFoundRetryReason = RetryReason(gocbcore.QueryIndexNotFoundRetryReason)
+
+	// QueryPreparedStatementFailureRetryReason indicates that the operation failed due to a prepared statement failure
+	QueryPreparedStatementFailureRetryReason = RetryReason(gocbcore.QueryPreparedStatementFailureRetryReason)
+
+	// AnalyticsTemporaryFailureRetryReason indicates that an analytics operation failed due to a temporary failure
+	AnalyticsTemporaryFailureRetryReason = RetryReason(gocbcore.AnalyticsTemporaryFailureRetryReason)
+
+	// SearchTooManyRequestsRetryReason indicates that a search operation failed due to too many requests
+	SearchTooManyRequestsRetryReason = RetryReason(gocbcore.SearchTooManyRequestsRetryReason)
 )
 
 // RetryAction is used by a RetryStrategy to calculate the duration to wait before retrying an operation.
@@ -134,36 +180,11 @@ type retryStrategyWrapper struct {
 
 // RetryAfter calculates and returns a RetryAction describing how long to wait before retrying an operation.
 func (rs *retryStrategyWrapper) RetryAfter(req gocbcore.RetryRequest, reason gocbcore.RetryReason) gocbcore.RetryAction {
-	gocbRequest := &retryRequest{
-		attempts:   req.RetryAttempts(),
-		identifier: req.Identifier(),
-		idempotent: req.Idempotent(),
+	wreq := &wrappedRetryRequest{
+		req: req,
 	}
-	for _, retryReason := range req.RetryReasons() {
-		gocbReason, ok := retryReason.(RetryReason)
-		if !ok {
-			logErrorf("Failed to assert gocbcore retry reason to gocb retry reason: %v", reason)
-			continue
-		}
-		gocbRequest.reasons = append(gocbRequest.reasons, gocbReason)
-	}
-
-	wrappedAction := rs.wrapped.RetryAfter(gocbRequest, RetryReason(reason))
-	return wrappedAction
-}
-
-// FailFastRetryStrategy represents a strategy that will never retry.
-type FailFastRetryStrategy struct {
-}
-
-// NewFailFastRetryStrategy returns a new FailFastRetryStrategy.
-func NewFailFastRetryStrategy() *FailFastRetryStrategy {
-	return &FailFastRetryStrategy{}
-}
-
-// RetryAfter calculates and returns a RetryAction describing how long to wait before retrying an operation.
-func (rs *FailFastRetryStrategy) RetryAfter(req RetryRequest, reason RetryReason) RetryAction {
-	return &NoRetryRetryAction{}
+	wrappedAction := rs.wrapped.RetryAfter(wreq, RetryReason(reason))
+	return gocbcore.RetryAction(wrappedAction)
 }
 
 // BackoffCalculator defines how backoff durations will be calculated by the retry API.g
@@ -172,7 +193,7 @@ type BackoffCalculator func(retryAttempts uint32) time.Duration
 // BestEffortRetryStrategy represents a strategy that will keep retrying until it succeeds (or the caller times out
 // the request).
 type BestEffortRetryStrategy struct {
-	backoffCalculator BackoffCalculator
+	BackoffCalculator BackoffCalculator
 }
 
 // NewBestEffortRetryStrategy returns a new BestEffortRetryStrategy which will use the supplied calculator function
@@ -182,14 +203,28 @@ func NewBestEffortRetryStrategy(calculator BackoffCalculator) *BestEffortRetrySt
 		calculator = gocbcore.ControlledBackoff
 	}
 
-	return &BestEffortRetryStrategy{backoffCalculator: calculator}
+	return &BestEffortRetryStrategy{BackoffCalculator: calculator}
 }
 
 // RetryAfter calculates and returns a RetryAction describing how long to wait before retrying an operation.
 func (rs *BestEffortRetryStrategy) RetryAfter(req RetryRequest, reason RetryReason) RetryAction {
 	if req.Idempotent() || reason.AllowsNonIdempotentRetry() {
-		return &WithDurationRetryAction{WithDuration: rs.backoffCalculator(req.RetryAttempts())}
+		return &WithDurationRetryAction{WithDuration: rs.BackoffCalculator(req.RetryAttempts())}
 	}
 
+	return &NoRetryRetryAction{}
+}
+
+// failFastRetryStrategy represents a strategy that will never retry.
+type failFastRetryStrategy struct {
+}
+
+// newFailFastRetryStrategy returns a new FailFastRetryStrategy.
+func newFailFastRetryStrategy() *failFastRetryStrategy {
+	return &failFastRetryStrategy{}
+}
+
+// RetryAfter calculates and returns a RetryAction describing how long to wait before retrying an operation.
+func (rs *failFastRetryStrategy) RetryAfter(req RetryRequest, reason RetryReason) RetryAction {
 	return &NoRetryRetryAction{}
 }

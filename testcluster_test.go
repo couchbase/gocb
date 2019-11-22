@@ -1,10 +1,9 @@
 package gocb
 
 import (
+	"errors"
 	"math"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/couchbaselabs/gojcbmock"
 )
@@ -60,6 +59,19 @@ var (
 	FtsAnalyzeFeature                     = FeatureCode(27)
 	AnalyticsIndexPendingMutationsFeature = FeatureCode(28)
 )
+
+type testClusterErrorWrap struct {
+	InnerError error
+	Message    string
+}
+
+func (e testClusterErrorWrap) Error() string {
+	return e.Message + ": " + e.InnerError.Error()
+}
+
+func (e testClusterErrorWrap) Unwrap() error {
+	return e.InnerError
+}
 
 type testCluster struct {
 	*Cluster
@@ -199,13 +211,17 @@ func (c *testCluster) CreateBreweryDataset(col *Collection) error {
 	var dataset []testBreweryDocument
 	err := loadJSONTestDataset("beer_sample_brewery_five", &dataset)
 	if err != nil {
-		return errors.Wrap(err, "could not read test dataset")
+		return testClusterErrorWrap{
+			InnerError: err,
+			Message:    "could not read test dataset"}
 	}
 
 	for _, doc := range dataset {
 		_, err = col.Upsert(doc.Name, doc, nil)
 		if err != nil {
-			return errors.Wrap(err, "could not create dataset")
+			return testClusterErrorWrap{
+				InnerError: err,
+				Message:    "could not create dataset"}
 		}
 	}
 
@@ -223,12 +239,12 @@ func waitForCollection(bucket *Bucket, name string) error {
 			col := bucket.Collection(name)
 			_, err := col.Get("test", nil)
 			if err != nil {
-				if IsCollectionNotFoundError(err) {
+				if errors.Is(err, ErrCollectionNotFound) {
 					time.Sleep(100 * time.Millisecond)
 					continue
 				}
 
-				if !IsKeyNotFoundError(err) {
+				if !errors.Is(err, ErrDocumentNotFound) {
 					return err
 				}
 			}

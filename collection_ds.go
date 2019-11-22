@@ -1,9 +1,8 @@
 package gocb
 
 import (
+	"errors"
 	"fmt"
-
-	"github.com/pkg/errors"
 )
 
 // CouchbaseList represents a list document.
@@ -340,7 +339,7 @@ func (cs *CouchbaseSet) Remove(val string) error {
 			ops := make([]MutateInSpec, 1)
 			ops[0] = RemoveSpec(fmt.Sprintf("[%d]", indexToRemove), nil)
 			_, err = cs.underlying.collection.MutateIn(cs.id, ops, &MutateInOptions{Cas: cas})
-			if IsCasMismatchError(err) {
+			if errors.Is(err, ErrCasMismatch) {
 				continue
 			}
 			if err != nil {
@@ -449,7 +448,7 @@ func (cs *CouchbaseQueue) Pop(valuePtr interface{}) error {
 		mutateOps := make([]MutateInSpec, 1)
 		mutateOps[0] = RemoveSpec("[-1]", nil)
 		_, err = cs.underlying.collection.MutateIn(cs.id, mutateOps, &MutateInOptions{Cas: cas})
-		if IsCasMismatchError(err) {
+		if errors.Is(err, ErrCasMismatch) {
 			continue
 		}
 		if err != nil {

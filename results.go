@@ -1,11 +1,9 @@
 package gocb
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
@@ -48,7 +46,7 @@ func (d *GetResult) fromFullProjection(ops []LookupInSpec, result *LookupInResul
 	}
 
 	if len(result.contents) != 1 {
-		return invalidArgumentsError{message: "fromFullProjection should only be called with 1 subdoc result"}
+		return makeInvalidArgumentsError("fromFullProjection should only be called with 1 subdoc result")
 	}
 
 	resultContent := result.contents[0]
@@ -80,25 +78,16 @@ func (d *GetResult) fromFullProjection(ops []LookupInSpec, result *LookupInResul
 func (d *GetResult) fromSubDoc(ops []LookupInSpec, result *LookupInResult) error {
 	content := make(map[string]interface{})
 
-	var errs projectionErrors
 	for i, op := range ops {
 		err := result.contents[i].err
 		if err != nil {
-			kvErr, ok := err.(kvError)
-			if !ok {
-				// this shouldn't happen, if it does then let's just bail.
-				return err
-			}
-
-			errs.errors = append(errs.errors, kvErr)
-			continue
+			// We return the first error that has occured, this will be
+			// a SubDocument error and will indicate the real reason.
+			return err
 		}
-		parts := d.pathParts(op.op.Path)
-		d.set(parts, content, result.contents[i].data)
-	}
 
-	if len(errs.errors) > 0 {
-		return errs
+		parts := d.pathParts(op.path)
+		d.set(parts, content, result.contents[i].data)
 	}
 
 	bytes, err := json.Marshal(content)
@@ -189,7 +178,6 @@ func (d *GetResult) set(paths []subdocPath, content interface{}, value interface
 	}
 
 	if path.isArray {
-		// TODO: in the future consider an array of arrays
 		if cMap, ok := content.(map[string]interface{}); ok {
 			cMap[path.path] = make([]interface{}, 0)
 			cMap[path.path] = d.set(paths[1:], cMap[path.path], value)
@@ -217,9 +205,8 @@ func (d *GetResult) set(paths []subdocPath, content interface{}, value interface
 // LookupInResult is the return type for LookupIn.
 type LookupInResult struct {
 	Result
-	serializer JSONSerializer
-	contents   []lookupInPartial
-	pathMap    map[string]int
+	contents []lookupInPartial
+	pathMap  map[string]int
 }
 
 type lookupInPartial struct {
@@ -227,7 +214,7 @@ type lookupInPartial struct {
 	err  error
 }
 
-func (pr *lookupInPartial) as(valuePtr interface{}, serializer JSONSerializer) error {
+func (pr *lookupInPartial) as(valuePtr interface{}) error {
 	if pr.err != nil {
 		return pr.err
 	}
@@ -241,11 +228,11 @@ func (pr *lookupInPartial) as(valuePtr interface{}, serializer JSONSerializer) e
 		return nil
 	}
 
-	return serializer.Deserialize(pr.data, valuePtr)
+	return json.Unmarshal(pr.data, valuePtr)
 }
 
 func (pr *lookupInPartial) exists() bool {
-	err := pr.as(nil, nil)
+	err := pr.as(nil)
 	return err == nil
 }
 
@@ -253,9 +240,9 @@ func (pr *lookupInPartial) exists() bool {
 // the operation as it was added to the builder.
 func (lir *LookupInResult) ContentAt(idx int, valuePtr interface{}) error {
 	if idx >= len(lir.contents) {
-		return invalidIndexError{}
+		return makeInvalidArgumentsError("invalid index")
 	}
-	return lir.contents[idx].as(valuePtr, lir.serializer)
+	return lir.contents[idx].as(valuePtr)
 }
 
 // Exists verifies that the item at idx exists.
@@ -368,14 +355,14 @@ func newStreamingResults(stream io.ReadCloser, attributeCb streamingResultCb) (*
 		if bodyErr != nil {
 			logDebugf("Failed to close socket (%s)", bodyErr.Error())
 		}
-		return nil, clientError{message: "could not read response body, no data found"}
+		return nil, errors.New("could not read response body, no data found")
 	}
 	if delim != '{' {
 		bodyErr := stream.Close()
 		if bodyErr != nil {
 			logDebugf("Failed to close socket (%s)", bodyErr.Error())
 		}
-		return nil, clientError{message: "could not read response body, opening token should have been { but found: " + string(delim)}
+		return nil, errors.New("could not read response body, opening token should have been { but found: " + string(delim))
 	}
 
 	return &streamingResult{
@@ -487,122 +474,4 @@ type GetReplicaResult struct {
 // IsReplica returns whether or not this result came from a replica server.
 func (r *GetReplicaResult) IsReplica() bool {
 	return r.isReplica
-}
-
-// GetAllReplicasResult is the return type of GetAllReplica operations.
-type GetAllReplicasResult struct {
-	ctx         context.Context
-	provider    kvProvider
-	opts        gocbcore.GetOneReplicaOptions
-	err         error
-	closed      bool
-	cancel      context.CancelFunc
-	maxReplicas int
-	transcoder  Transcoder
-	startTime   time.Time
-	span        requestSpan
-}
-
-// Next fetches the new replica.
-func (r *GetAllReplicasResult) Next(valuePtr *GetReplicaResult) bool {
-	if r.err != nil || r.closed {
-		return false
-	}
-
-	if r.opts.ReplicaIdx > r.maxReplicas {
-		r.closed = true
-		return false
-	}
-
-	waitCh := make(chan bool)
-	var op gocbcore.PendingOp
-	var err error
-	if r.opts.ReplicaIdx == 0 {
-		op, err = r.provider.GetEx(gocbcore.GetOptions{
-			Key:            r.opts.Key,
-			CollectionName: r.opts.CollectionName,
-			ScopeName:      r.opts.ScopeName,
-			TraceContext:   r.span.Context(),
-		}, func(res *gocbcore.GetResult, err error) {
-			if err != nil {
-				r.err = maybeEnhanceKVErr(err, string(r.opts.Key), false)
-				waitCh <- false
-				return
-			}
-			*valuePtr = GetReplicaResult{
-				GetResult: GetResult{
-					Result: Result{
-						cas: Cas(res.Cas),
-					},
-					transcoder: r.transcoder,
-					contents:   res.Value,
-					flags:      res.Flags,
-				},
-			}
-			waitCh <- true
-		})
-	} else {
-		op, err = r.provider.GetOneReplicaEx(r.opts, func(res *gocbcore.GetReplicaResult, err error) {
-			if err != nil {
-				r.err = maybeEnhanceKVErr(err, string(r.opts.Key), false)
-				waitCh <- false
-				return
-			}
-			*valuePtr = GetReplicaResult{
-				GetResult: GetResult{
-					Result: Result{
-						cas: Cas(res.Cas),
-					},
-					transcoder: r.transcoder,
-					contents:   res.Value,
-					flags:      res.Flags,
-				},
-				isReplica: true,
-			}
-			waitCh <- true
-		})
-	}
-	if err != nil {
-		r.err = err
-		return false
-	}
-	r.opts.ReplicaIdx++
-
-	select {
-	case <-r.ctx.Done():
-		if op.Cancel() {
-			ctxErr := r.ctx.Err()
-			if ctxErr == context.DeadlineExceeded {
-				err := timeoutError{}
-				err.operation = fmt.Sprintf("kv:GetAllReplicas")
-				err.operationID = op.Identifier()
-				err.retryAttempts = op.RetryAttempts()
-				err.retryReasons = op.RetryReasons()
-				err.elapsed = time.Now().Sub(r.startTime)
-				err.local = op.LocalEndpoint()
-				err.remote = op.RemoteEndpoint()
-				err.connectionID = op.ConnectionId()
-				r.err = err
-			} else {
-				r.err = ctxErr
-			}
-			return false
-		}
-
-		return <-waitCh
-	case success := <-waitCh:
-		return success
-	}
-}
-
-// Close ends the stream and returns any errors that occurred.
-func (r *GetAllReplicasResult) Close() error {
-	if r.cancel != nil {
-		r.cancel()
-	}
-	if r.span != nil {
-		r.span.Finish()
-	}
-	r.closed = true
-	return r.err
 }

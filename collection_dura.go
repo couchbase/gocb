@@ -1,132 +1,114 @@
 package gocb
 
 import (
-	"context"
-
-	"github.com/opentracing/opentracing-go"
+	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
-func (c *Collection) observeOnceSeqNo(ctx context.Context, tracectx opentracing.SpanContext, mt MutationToken,
-	replicaIdx int, commCh chan uint) (pendingOp, error) {
+func (c *Collection) observeOnceSeqNo(
+	tracectx requestSpanContext,
+	docID string,
+	mt gocbcore.MutationToken,
+	replicaIdx int,
+	cancelCh chan struct{},
+) (didReplicate, didPersist bool, errOut error) {
+	opm := c.newKvOpManager("observeOnceSeqNo", tracectx)
+	defer opm.Finish()
+
+	opm.SetDocumentID(docID)
+	opm.SetCancelCh(cancelCh)
+
 	agent, err := c.getKvProvider()
 	if err != nil {
-		return nil, err
+		return false, false, err
 	}
-
-	span := c.startKvOpTrace("ObserveOnce", tracectx)
-
-	return agent.ObserveVbEx(gocbcore.ObserveVbOptions{
-		VbId:         mt.token.VbId,
-		VbUuid:       mt.token.VbUuid,
+	err = opm.Wait(agent.ObserveVbEx(gocbcore.ObserveVbOptions{
+		VbID:         mt.VbID,
+		VbUUID:       mt.VbUUID,
 		ReplicaIdx:   replicaIdx,
-		TraceContext: span.Context(),
+		TraceContext: opm.TraceSpan(),
 	}, func(res *gocbcore.ObserveVbResult, err error) {
 		if err != nil || res == nil {
-			commCh <- 0
+			errOut = opm.EnhanceErr(err)
 			return
 		}
 
-		didReplicate := res.CurrentSeqNo >= mt.token.SeqNo
-		didPersist := res.PersistSeqNo >= mt.token.SeqNo
+		didReplicate = res.CurrentSeqNo >= mt.SeqNo
+		didPersist = res.PersistSeqNo >= mt.SeqNo
 
-		var out uint
-		if didReplicate {
-			out |= 1
-		}
-		if didPersist {
-			out |= 2
-		}
-		commCh <- out
-	})
+		opm.Resolve(nil)
+	}))
+	if err != nil {
+		errOut = err
+	}
+	return
 }
 
-func (c *Collection) observeOne(ctx context.Context, tracectx opentracing.SpanContext, key []byte, mt MutationToken,
-	cas Cas, forDelete bool, replicaIdx int, replicaCh, persistCh chan bool, scopeName, collectionName string) {
-
+func (c *Collection) observeOne(
+	tracectx requestSpanContext,
+	docID string,
+	mt gocbcore.MutationToken,
+	replicaIdx int,
+	replicaCh, persistCh chan struct{},
+	cancelCh chan struct{},
+) {
 	sentReplicated := false
 	sentPersisted := false
 
-	failMe := func() {
-		if !sentReplicated {
-			replicaCh <- false
+ObserveLoop:
+	for {
+		select {
+		case <-cancelCh:
+			break ObserveLoop
+		default:
+			// not cancelled yet
+		}
+
+		didReplicate, didPersist, err := c.observeOnceSeqNo(tracectx, docID, mt, replicaIdx, cancelCh)
+		if err != nil {
+			logDebugf("ObserveOnce failed unexpected: %s", err)
+			return
+		}
+
+		if didReplicate && !sentReplicated {
+			replicaCh <- struct{}{}
 			sentReplicated = true
 		}
-		if !sentPersisted {
-			persistCh <- false
+
+		if didPersist && !sentPersisted {
+			persistCh <- struct{}{}
 			sentPersisted = true
 		}
-	}
 
-	// Doing this will set the context deadline to whichever is shorter, what is already set or the timeout
-	// value
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithTimeout(ctx, c.sb.DuraTimeout)
-	defer cancel()
-
-	commCh := make(chan uint)
-	for {
-		op, err := c.observeOnceSeqNo(ctx, tracectx, mt, replicaIdx, commCh)
-		if err != nil {
-			failMe()
-			return
+		// If we've got persisted and replicated, we can just stop
+		if sentPersisted && sentReplicated {
+			break ObserveLoop
 		}
 
+		waitTmr := gocbcore.AcquireTimer(c.sb.DuraPollTimeout)
 		select {
-		case val := <-commCh:
-			// Got Value
-			if (val&1) != 0 && !sentReplicated {
-				replicaCh <- true
-				sentReplicated = true
-			}
-			if (val&2) != 0 && !sentPersisted {
-				persistCh <- true
-				sentPersisted = true
-			}
-
-			if sentReplicated && sentPersisted {
-				return
-			}
-
-			waitTmr := gocbcore.AcquireTimer(c.sb.DuraPollTimeout)
-			select {
-			case <-waitTmr.C:
-				gocbcore.ReleaseTimer(waitTmr, true)
-				// Fall through to outside for loop
-			case <-ctx.Done():
-				op.Cancel()
-				gocbcore.ReleaseTimer(waitTmr, false)
-				failMe()
-				return
-			}
-
-		case <-ctx.Done():
-			// Timed out
-			op.Cancel()
-			failMe()
-			return
+		case <-waitTmr.C:
+			gocbcore.ReleaseTimer(waitTmr, true)
+		case <-cancelCh:
+			gocbcore.ReleaseTimer(waitTmr, false)
 		}
 	}
 }
 
-type durabilitySettings struct {
-	ctx            context.Context
-	key            string
-	cas            Cas
-	mt             MutationToken
-	replicaTo      uint
-	persistTo      uint
-	forDelete      bool
-	collectionName string
-	scopeName      string
-	tracectx       opentracing.SpanContext
-}
+func (c *Collection) waitForDurability(
+	tracectx requestSpanContext,
+	docID string,
+	mt gocbcore.MutationToken,
+	replicaTo uint,
+	persistTo uint,
+	deadline time.Time,
+	cancelCh chan struct{},
+) error {
+	opm := c.newKvOpManager("waitForDurability", tracectx)
+	defer opm.Finish()
 
-func (c *Collection) durability(settings durabilitySettings) error {
-	if settings.ctx == nil {
-		settings.ctx = context.Background()
-	}
+	opm.SetDocumentID(docID)
 
 	agent, err := c.getKvProvider()
 	if err != nil {
@@ -134,43 +116,40 @@ func (c *Collection) durability(settings durabilitySettings) error {
 	}
 
 	numServers := agent.NumReplicas() + 1
-
-	if settings.replicaTo > uint(numServers-1) || settings.persistTo > uint(numServers) {
-		return durabilityError{reason: "Not enough replicas to match durability requirements."}
+	if replicaTo > uint(numServers-1) || persistTo > uint(numServers) {
+		return opm.EnhanceErr(ErrDurabilityImpossible)
 	}
 
-	keyBytes := []byte(settings.key)
-
-	replicaCh := make(chan bool, numServers)
-	persistCh := make(chan bool, numServers)
+	subOpCancelCh := make(chan struct{}, 1)
+	replicaCh := make(chan struct{}, numServers)
+	persistCh := make(chan struct{}, numServers)
 
 	for replicaIdx := 0; replicaIdx < numServers; replicaIdx++ {
-		go c.observeOne(settings.ctx, settings.tracectx, keyBytes, settings.mt, settings.cas, settings.forDelete,
-			replicaIdx, replicaCh, persistCh, settings.scopeName, settings.collectionName)
+		go c.observeOne(opm.TraceSpan(), docID, mt, replicaIdx, replicaCh, persistCh, subOpCancelCh)
 	}
 
-	results := int(0)
-	replicas := uint(0)
-	persists := uint(0)
+	numReplicated := uint(0)
+	numPersisted := uint(0)
 
 	for {
 		select {
-		case rV := <-replicaCh:
-			if rV {
-				replicas++
-			}
-			results++
-		case pV := <-persistCh:
-			if pV {
-				persists++
-			}
-			results++
+		case <-replicaCh:
+			numReplicated++
+		case <-persistCh:
+			numPersisted++
+		case <-time.After(deadline.Sub(time.Now())):
+			// deadline exceeded
+			close(subOpCancelCh)
+			return opm.EnhanceErr(ErrAmbiguousTimeout)
+		case <-cancelCh:
+			// parent asked for cancellation
+			close(subOpCancelCh)
+			return opm.EnhanceErr(ErrRequestCanceled)
 		}
 
-		if replicas >= settings.replicaTo && persists >= settings.persistTo {
+		if numReplicated >= replicaTo && numPersisted >= persistTo {
+			close(subOpCancelCh)
 			return nil
-		} else if results == (numServers * 2) {
-			return durabilityError{reason: "Failed to meet durability requirements in time."}
 		}
 	}
 }

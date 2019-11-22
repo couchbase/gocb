@@ -25,7 +25,7 @@ func TestPingAll(t *testing.T) {
 		"server3": {
 			Endpoint: "server3",
 			Latency:  100 * time.Millisecond,
-			Error:    gocbcore.ErrCancelled,
+			Error:    gocbcore.ErrRequestCanceled,
 			Scope:    "default",
 		},
 	}
@@ -38,7 +38,7 @@ func TestPingAll(t *testing.T) {
 		},
 	}
 
-	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
+	doHTTP := func(req *gocbcore.HTTPRequest) (*gocbcore.HTTPResponse, error) {
 		var endpoint string
 		switch req.Service {
 		case gocbcore.N1qlService:
@@ -47,7 +47,7 @@ func TestPingAll(t *testing.T) {
 
 			req.Endpoint = endpoint
 
-			return &gocbcore.HttpResponse{
+			return &gocbcore.HTTPResponse{
 				Endpoint:   endpoint,
 				StatusCode: 200,
 				Body:       &testReadCloser{bytes.NewBufferString(""), nil},
@@ -61,7 +61,7 @@ func TestPingAll(t *testing.T) {
 
 			req.Endpoint = endpoint
 
-			return &gocbcore.HttpResponse{
+			return &gocbcore.HTTPResponse{
 				Endpoint:   endpoint,
 				StatusCode: 200,
 				Body:       &testReadCloser{bytes.NewBufferString(""), nil},
@@ -82,8 +82,8 @@ func TestPingAll(t *testing.T) {
 	clients := make(map[string]client)
 	cli := &mockClient{
 		bucketName:        "mock",
-		collectionId:      0,
-		scopeId:           0,
+		collectionID:      0,
+		scopeID:           0,
 		useMutationTokens: false,
 		mockKvProvider:    kvProvider,
 		mockHTTPProvider:  httpProvider,
@@ -91,6 +91,9 @@ func TestPingAll(t *testing.T) {
 	clients["mock"] = cli
 	c := &Cluster{
 		connections: clients,
+		sb: stateBlock{
+			KvTimeout: 1000 * time.Millisecond,
+		},
 	}
 
 	b := &Bucket{
@@ -185,70 +188,5 @@ func TestPingAll(t *testing.T) {
 				t.Fatalf("Unexpected service type: %d", serviceType)
 			}
 		}
-	}
-}
-
-func TestPingTimeoutQueryOnly(t *testing.T) {
-	doHTTP := func(req *gocbcore.HttpRequest) (*gocbcore.HttpResponse, error) {
-		req.Endpoint = "http://localhost:8094"
-		<-req.Context.Done()
-		return nil, req.Context.Err()
-	}
-
-	provider := &mockHTTPProvider{
-		doFn: doHTTP,
-	}
-
-	clients := make(map[string]client)
-	cli := &mockClient{
-		bucketName:        "mock",
-		collectionId:      0,
-		scopeId:           0,
-		useMutationTokens: false,
-		mockHTTPProvider:  provider,
-	}
-	clients["mock-false"] = cli
-	c := &Cluster{
-		connections: clients,
-	}
-	c.sb.QueryTimeout = 10 * time.Millisecond
-
-	b := &Bucket{
-		sb: stateBlock{
-			clientStateBlock: clientStateBlock{
-				BucketName: "mock",
-			},
-
-			AnalyticsTimeout: c.sb.AnalyticsTimeout,
-			QueryTimeout:     c.sb.QueryTimeout,
-			SearchTimeout:    c.sb.SearchTimeout,
-			cachedClient:     cli,
-		},
-	}
-
-	report, err := b.Ping(&PingOptions{ServiceTypes: []ServiceType{QueryService}, ReportID: "myreportid"})
-	if err != nil {
-		t.Fatalf("Expected ping to not return error but was %v", err)
-	}
-
-	if report.ID != "myreportid" {
-		t.Fatalf("Expected report ID to be myreportid but was %s", report.ID)
-	}
-
-	if len(report.Services) != 1 {
-		t.Fatalf("Expected report to have 1 service but has %d", len(report.Services))
-	}
-
-	service := report.Services[QueryService][0]
-	if service.RemoteAddr != "http://localhost:8094" {
-		t.Fatalf("Expected service RemoteAddr to be http://localhost:8094 but was %s", service.RemoteAddr)
-	}
-
-	if service.State != "error" {
-		t.Fatalf("Expected service State to be error, was %s", service.State)
-	}
-
-	if service.Latency != 0 {
-		t.Fatalf("Expected service latency to be 0 but was %d", service.Latency)
 	}
 }

@@ -1,20 +1,22 @@
 package gocb
 
 import (
-	"context"
-	"fmt"
 	"sync"
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
+	"github.com/pkg/errors"
 )
 
 type client interface {
 	Hash() string
 	connect() error
 	buildConfig() error
-	openCollection(ctx context.Context, scopeName string, collectionName string)
 	getKvProvider() (kvProvider, error)
+	getViewProvider() (viewProvider, error)
+	getQueryProvider() (queryProvider, error)
+	getAnalyticsProvider() (analyticsProvider, error)
+	getSearchProvider() (searchProvider, error)
 	getHTTPProvider() (httpProvider, error)
 	getDiagnosticsProvider() (diagnosticsProvider, error)
 	close() error
@@ -51,30 +53,24 @@ func (c *stdClient) buildConfig() error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	auth := c.cluster.auth
 	breakerCfg := c.cluster.sb.CircuitBreakerConfig
 
 	var completionCallback func(err error) bool
 	if breakerCfg.CompletionCallback != nil {
 		completionCallback = func(err error) bool {
-			return breakerCfg.CompletionCallback(maybeEnhanceKVErr(err, "", false))
+			wrappedErr := maybeEnhanceKVErr(err, c.state.BucketName, "", "", "")
+			return breakerCfg.CompletionCallback(wrappedErr)
 		}
 	}
 
 	config := &gocbcore.AgentConfig{
-		UserString:           Identifier(),
-		ConnectTimeout:       c.cluster.sb.ConnectTimeout,
-		UseMutationTokens:    c.cluster.sb.UseMutationTokens,
-		ServerConnectTimeout: 7000 * time.Millisecond,
-		NmvRetryDelay:        100 * time.Millisecond,
-		UseKvErrorMaps:       true,
-		UseDurations:         c.cluster.sb.UseServerDurations,
-		UseCollections:       true,
-		UseEnhancedErrors:    true,
-		BucketName:           c.state.BucketName,
-		AuthMechanisms: []gocbcore.AuthMechanism{
-			gocbcore.ScramSha512AuthMechanism, gocbcore.ScramSha256AuthMechanism, gocbcore.ScramSha1AuthMechanism, gocbcore.PlainAuthMechanism,
-		},
+		UserAgent:              Identifier(),
+		ConnectTimeout:         c.cluster.sb.ConnectTimeout,
+		UseMutationTokens:      c.cluster.sb.UseMutationTokens,
+		KVConnectTimeout:       7000 * time.Millisecond,
+		UseDurations:           c.cluster.sb.UseServerDurations,
+		UseCollections:         true,
+		BucketName:             c.state.BucketName,
 		UseZombieLogger:        c.cluster.sb.OrphanLoggerEnabled,
 		ZombieLoggerInterval:   c.cluster.sb.OrphanLoggerInterval,
 		ZombieLoggerSampleSize: c.cluster.sb.OrphanLoggerSampleSize,
@@ -96,22 +92,6 @@ func (c *stdClient) buildConfig() error {
 		return err
 	}
 
-	useCertificates := config.TlsConfig != nil && len(config.TlsConfig.Certificates) > 0
-	if useCertificates {
-		if auth == nil {
-			return configurationError{message: "invalid mixed authentication configuration, client certificate and CertAuthenticator must be used together"}
-		}
-		_, ok := auth.(CertAuthenticator)
-		if !ok {
-			return configurationError{message: "invalid mixed authentication configuration, client certificate and CertAuthenticator must be used together"}
-		}
-	}
-
-	_, ok := auth.(CertAuthenticator)
-	if ok && !useCertificates {
-		return configurationError{message: "invalid mixed authentication configuration, client certificate and CertAuthenticator must be used together"}
-	}
-
 	config.Auth = &coreAuthWrapper{
 		auth: c.cluster.authenticator(),
 	}
@@ -125,7 +105,7 @@ func (c *stdClient) connect() error {
 	defer c.lock.Unlock()
 	agent, err := gocbcore.CreateAgent(c.config)
 	if err != nil {
-		return maybeEnhanceKVErr(err, "", false)
+		return maybeEnhanceKVErr(err, c.state.BucketName, "", "", "")
 	}
 
 	c.agent = agent
@@ -147,7 +127,51 @@ func (c *stdClient) getKvProvider() (kvProvider, error) {
 	}
 
 	if c.agent == nil {
-		return nil, configurationError{message: "cluster not yet connected"}
+		return nil, errors.New("cluster not yet connected")
+	}
+	return c.agent, nil
+}
+
+func (c *stdClient) getViewProvider() (viewProvider, error) {
+	if c.bootstrapErr != nil {
+		return nil, c.bootstrapErr
+	}
+
+	if c.agent == nil {
+		return nil, errors.New("cluster not yet connected")
+	}
+	return c.agent, nil
+}
+
+func (c *stdClient) getQueryProvider() (queryProvider, error) {
+	if c.bootstrapErr != nil {
+		return nil, c.bootstrapErr
+	}
+
+	if c.agent == nil {
+		return nil, errors.New("cluster not yet connected")
+	}
+	return c.agent, nil
+}
+
+func (c *stdClient) getAnalyticsProvider() (analyticsProvider, error) {
+	if c.bootstrapErr != nil {
+		return nil, c.bootstrapErr
+	}
+
+	if c.agent == nil {
+		return nil, errors.New("cluster not yet connected")
+	}
+	return c.agent, nil
+}
+
+func (c *stdClient) getSearchProvider() (searchProvider, error) {
+	if c.bootstrapErr != nil {
+		return nil, c.bootstrapErr
+	}
+
+	if c.agent == nil {
+		return nil, errors.New("cluster not yet connected")
 	}
 	return c.agent, nil
 }
@@ -158,7 +182,7 @@ func (c *stdClient) getHTTPProvider() (httpProvider, error) {
 	}
 
 	if c.agent == nil {
-		return nil, configurationError{message: "cluster not yet connected"}
+		return nil, errors.New("cluster not yet connected")
 	}
 	return c.agent, nil
 }
@@ -169,56 +193,6 @@ func (c *stdClient) getDiagnosticsProvider() (diagnosticsProvider, error) {
 	}
 
 	return c.agent, nil
-}
-
-func (c *stdClient) openCollection(ctx context.Context, scopeName string, collectionName string) {
-	if scopeName == "_default" && collectionName == "_default" {
-		return
-	}
-
-	if c.agent == nil {
-		c.bootstrapErr = configurationError{message: "cluster not yet connected"}
-		return
-	}
-
-	// if the collection/scope are none default and the collection ID can't be found then error
-	if !c.agent.HasCollectionsSupport() {
-		c.bootstrapErr = configurationError{message: "Collections not supported by server"}
-		return
-	}
-
-	waitCh := make(chan struct{})
-	var colErr error
-
-	op, err := c.agent.GetCollectionID(scopeName, collectionName, gocbcore.GetCollectionIDOptions{}, func(manifestID uint64, cid uint32, err error) {
-		if err != nil {
-			colErr = maybeEnhanceKVErr(err, fmt.Sprintf("%s.%s", scopeName, collectionName), false)
-			waitCh <- struct{}{}
-			return
-		}
-
-		waitCh <- struct{}{}
-	})
-	if err != nil {
-		c.bootstrapErr = maybeEnhanceKVErr(err, fmt.Sprintf("%s.%s", scopeName, collectionName), false)
-		return
-	}
-
-	select {
-	case <-ctx.Done():
-		if op.Cancel() {
-			if err == context.DeadlineExceeded {
-				colErr = timeoutError{}
-			} else {
-				colErr = ctx.Err()
-			}
-		} else {
-			<-waitCh
-		}
-	case <-waitCh:
-	}
-
-	c.bootstrapErr = colErr
 }
 
 func (c *stdClient) connected() bool {
@@ -237,7 +211,7 @@ func (c *stdClient) close() error {
 	c.lock.Lock()
 	if c.agent == nil {
 		c.lock.Unlock()
-		return configurationError{message: "cluster not yet connected"}
+		return errors.New("cluster not yet connected")
 	}
 	c.isConnected = false
 	c.lock.Unlock()

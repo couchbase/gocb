@@ -41,20 +41,20 @@ func (q *SearchSortScore) Descending(descending bool) *SearchSortScore {
 	return q
 }
 
-// SearchSortId represents a FTS Document ID sort.
-type SearchSortId struct {
+// SearchSortID represents a FTS Document ID sort.
+type SearchSortID struct {
 	ftsSortBase
 }
 
-// NewSearchSortId creates a new SearchSortScore.
-func NewSearchSortId() *SearchSortId {
-	q := &SearchSortId{newFtsSortBase()}
+// NewSearchSortID creates a new SearchSortScore.
+func NewSearchSortID() *SearchSortID {
+	q := &SearchSortID{newFtsSortBase()}
 	q.options["by"] = "id"
 	return q
 }
 
 // Descending specifies the ordering of the results.
-func (q *SearchSortId) Descending(descending bool) *SearchSortId {
+func (q *SearchSortID) Descending(descending bool) *SearchSortID {
 	q.options["desc"] = descending
 	return q
 }

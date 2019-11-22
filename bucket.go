@@ -28,7 +28,6 @@ func newBucket(sb *stateBlock, bucketName string, opts BucketOptions) *Bucket {
 			ManagementTimeout: sb.ManagementTimeout,
 
 			Transcoder: sb.Transcoder,
-			Serializer: sb.Serializer,
 
 			RetryStrategyWrapper: sb.RetryStrategyWrapper,
 
@@ -84,17 +83,9 @@ func (b *Bucket) stateBlock() stateBlock {
 // ViewIndexes returns a ViewIndexManager instance for managing views.
 // Volatile: This API is subject to change at any time.
 func (b *Bucket) ViewIndexes() (*ViewIndexManager, error) {
-	provider, err := b.sb.getCachedClient().getHTTPProvider()
-	if err != nil {
-		return nil, err
-	}
-
 	return &ViewIndexManager{
-		bucketName:           b.Name(),
-		httpClient:           provider,
-		globalTimeout:        b.sb.ManagementTimeout,
-		defaultRetryStrategy: b.sb.RetryStrategyWrapper,
-		tracer:               b.sb.Tracer,
+		bucket: b,
+		tracer: b.sb.Tracer,
 	}, nil
 }
 

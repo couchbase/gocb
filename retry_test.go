@@ -134,7 +134,7 @@ func TestBestEffortRetryStrategy_RetryAfterDefaultCalculator(t *testing.T) {
 }
 
 func TestFailFastRetryStrategy_RetryAfterNoRetry(t *testing.T) {
-	strategy := NewFailFastRetryStrategy()
+	strategy := newFailFastRetryStrategy()
 	action := strategy.RetryAfter(&mockRetryRequest{}, RetryReason(gocbcore.UnknownRetryReason))
 	if action.Duration() != 0 {
 		t.Fatalf("Expected duration to be %d but was %d", 0, action.Duration())
@@ -142,7 +142,7 @@ func TestFailFastRetryStrategy_RetryAfterNoRetry(t *testing.T) {
 }
 
 func TestFailFastRetryStrategy_RetryAfterAlwaysRetry(t *testing.T) {
-	strategy := NewFailFastRetryStrategy()
+	strategy := newFailFastRetryStrategy()
 	action := strategy.RetryAfter(&mockRetryRequest{}, RetryReason(gocbcore.KVCollectionOutdatedRetryReason))
 	if action.Duration() != 0 {
 		t.Fatalf("Expected duration to be %d but was %d", 0, action.Duration())
@@ -150,7 +150,7 @@ func TestFailFastRetryStrategy_RetryAfterAlwaysRetry(t *testing.T) {
 }
 
 func TestFailFastRetryStrategy_RetryAfterAllowsNonIdempotent(t *testing.T) {
-	strategy := NewFailFastRetryStrategy()
+	strategy := newFailFastRetryStrategy()
 	action := strategy.RetryAfter(&mockRetryRequest{}, RetryReason(gocbcore.KVLockedRetryReason))
 	if action.Duration() != 0 {
 		t.Fatalf("Expected duration to be %d but was %d", 0, action.Duration())

@@ -1,10 +1,8 @@
 package gocb
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"time"
 
@@ -80,8 +78,8 @@ type bucketDataIn struct {
 	} `json:"controllers"`
 	ReplicaIndex bool `json:"replicaIndex"`
 	Quota        struct {
-		Ram    int `json:"ram"`
-		RawRam int `json:"rawRAM"`
+		RAM    int `json:"ram"`
+		RawRAM int `json:"rawRAM"`
 	} `json:"quota"`
 	ReplicaNumber          int    `json:"replicaNumber"`
 	BucketType             string `json:"bucketType"`
@@ -123,7 +121,7 @@ func bucketDataInToSettings(bucketData *bucketDataIn) (string, BucketSettings) {
 		// Password:               bucketData.SaslPassword,
 		FlushEnabled:         bucketData.Controllers.Flush != "",
 		ReplicaIndexDisabled: !bucketData.ReplicaIndex,
-		RAMQuotaMB:           bucketData.Quota.RawRam,
+		RAMQuotaMB:           bucketData.Quota.RawRAM,
 		NumReplicas:          bucketData.ReplicaNumber,
 		EvictionPolicy:       EvictionPolicyType(bucketData.EvictionPolicy),
 		MaxTTL:               bucketData.MaxTTL,
@@ -148,25 +146,9 @@ func bucketDataInToSettings(bucketData *bucketDataIn) (string, BucketSettings) {
 	return bucketData.Name, settings
 }
 
-func contextFromMaybeTimeout(ctx context.Context, timeout time.Duration, globalTimeout time.Duration) (context.Context, context.CancelFunc) {
-	if timeout == 0 {
-		// no operation level timeouts set, use global level
-		timeout = globalTimeout
-	}
-
-	if ctx == nil {
-		// no context provided so just make a new one
-		return context.WithTimeout(context.Background(), timeout)
-	}
-
-	// a context has been provided so add whatever timeout to it. WithTimeout will pick the shortest anyway.
-	return context.WithTimeout(ctx, timeout)
-}
-
 // GetBucketOptions is the set of options available to the bucket manager GetBucket operation.
 type GetBucketOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
@@ -180,59 +162,34 @@ func (bm *BucketManager) GetBucket(bucketName string, opts *GetBucketOptions) (*
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, bm.globalTimeout)
-	if cancel != nil {
-		defer cancel()
-	}
-
 	retryStrategy := bm.defaultRetryStrategy
 	if opts.RetryStrategy == nil {
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	return bm.get(ctx, span.Context(), bucketName, retryStrategy)
+	return bm.get(span.Context(), bucketName, retryStrategy)
 }
 
-func (bm *BucketManager) get(ctx context.Context, tracectx requestSpanContext, bucketName string,
+func (bm *BucketManager) get(tracectx requestSpanContext, bucketName string,
 	strategy *retryStrategyWrapper) (*BucketSettings, error) {
-	startTime := time.Now()
-	req := &gocbcore.HttpRequest{
+	req := &gocbcore.HTTPRequest{
 		Service:       gocbcore.ServiceType(MgmtService),
 		Path:          fmt.Sprintf("/pools/default/buckets/%s", bucketName),
 		Method:        "GET",
-		Context:       ctx,
 		IsIdempotent:  true,
 		RetryStrategy: strategy,
-		UniqueId:      uuid.New().String(),
+		UniqueID:      uuid.New().String(),
 	}
 
 	dspan := bm.tracer.StartSpan("dispatch", tracectx)
-	resp, err := bm.httpClient.DoHttpRequest(req)
+	resp, err := bm.httpClient.DoHTTPRequest(req)
 	dspan.Finish()
 	if err != nil {
-		if err == context.DeadlineExceeded {
-			return nil, timeoutError{
-				operationID:   req.UniqueId,
-				retryReasons:  req.RetryReasons(),
-				retryAttempts: req.RetryAttempts(),
-				operation:     "mgmt",
-				elapsed:       time.Now().Sub(startTime),
-			}
-		}
-
-		return nil, err
+		return nil, makeGenericHTTPError(err, req, resp)
 	}
 
 	if resp.StatusCode != 200 {
-		data, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return nil, err
-		}
-		err = resp.Body.Close()
-		if err != nil {
-			logDebugf("Failed to close socket (%s)", err)
-		}
-		return nil, bucketManagerError{message: string(data), statusCode: resp.StatusCode}
+		return nil, makeHTTPBadStatusError("failed to get bucket", req, resp)
 	}
 
 	var bucketData *bucketDataIn
@@ -255,13 +212,11 @@ func (bm *BucketManager) get(ctx context.Context, tracectx requestSpanContext, b
 // GetAllBucketsOptions is the set of options available to the bucket manager GetAll operation.
 type GetAllBucketsOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
 // GetAllBuckets returns a list of all active buckets on the cluster.
 func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]BucketSettings, error) {
-	startTime := time.Now()
 	if opts == nil {
 		opts = &GetAllBucketsOptions{}
 	}
@@ -270,53 +225,29 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, bm.globalTimeout)
-	if cancel != nil {
-		defer cancel()
-	}
-
 	retryStrategy := bm.defaultRetryStrategy
 	if opts.RetryStrategy == nil {
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	req := &gocbcore.HttpRequest{
+	req := &gocbcore.HTTPRequest{
 		Service:       gocbcore.ServiceType(MgmtService),
 		Path:          "/pools/default/buckets",
 		Method:        "GET",
-		Context:       ctx,
 		IsIdempotent:  true,
 		RetryStrategy: retryStrategy,
-		UniqueId:      uuid.New().String(),
+		UniqueID:      uuid.New().String(),
 	}
 
 	dspan := bm.tracer.StartSpan("dispatch", span.Context())
-	resp, err := bm.httpClient.DoHttpRequest(req)
+	resp, err := bm.httpClient.DoHTTPRequest(req)
 	dspan.Finish()
 	if err != nil {
-		if err == context.DeadlineExceeded {
-			return nil, timeoutError{
-				operationID:   req.UniqueId,
-				retryReasons:  req.RetryReasons(),
-				retryAttempts: req.RetryAttempts(),
-				operation:     "mgmt",
-				elapsed:       time.Now().Sub(startTime),
-			}
-		}
-
-		return nil, err
+		return nil, makeGenericHTTPError(err, req, resp)
 	}
 
 	if resp.StatusCode != 200 {
-		data, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return nil, err
-		}
-		err = resp.Body.Close()
-		if err != nil {
-			logDebugf("Failed to close socket (%s)", err)
-		}
-		return nil, bucketManagerError{message: string(data), statusCode: resp.StatusCode}
+		return nil, makeHTTPBadStatusError("failed to get all buckets", req, resp)
 	}
 
 	var bucketsData []*bucketDataIn
@@ -343,13 +274,11 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 // CreateBucketOptions is the set of options available to the bucket manager CreateBucket operation.
 type CreateBucketOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
 // CreateBucket creates a bucket on the cluster.
 func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *CreateBucketOptions) error {
-	startTime := time.Now()
 	if opts == nil {
 		opts = &CreateBucketOptions{}
 	}
@@ -357,11 +286,6 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 	span := bm.tracer.StartSpan("CreateBucket", nil).
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
-
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, bm.globalTimeout)
-	if cancel != nil {
-		defer cancel()
-	}
 
 	retryStrategy := bm.defaultRetryStrategy
 	if opts.RetryStrategy == nil {
@@ -377,48 +301,25 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 		posts.Add("conflictResolutionType", string(settings.ConflictResolutionType))
 	}
 
-	req := &gocbcore.HttpRequest{
+	req := &gocbcore.HTTPRequest{
 		Service:       gocbcore.ServiceType(MgmtService),
 		Path:          "/pools/default/buckets",
 		Method:        "POST",
 		Body:          []byte(posts.Encode()),
 		ContentType:   "application/x-www-form-urlencoded",
-		Context:       ctx,
 		RetryStrategy: retryStrategy,
-		UniqueId:      uuid.New().String(),
+		UniqueID:      uuid.New().String(),
 	}
 
 	dspan := bm.tracer.StartSpan("dispatch", span.Context())
-	resp, err := bm.httpClient.DoHttpRequest(req)
+	resp, err := bm.httpClient.DoHTTPRequest(req)
 	dspan.Finish()
 	if err != nil {
-		if err == context.DeadlineExceeded {
-			return timeoutError{
-				operationID:   req.UniqueId,
-				retryReasons:  req.RetryReasons(),
-				retryAttempts: req.RetryAttempts(),
-				operation:     "mgmt",
-				elapsed:       time.Now().Sub(startTime),
-			}
-		}
-
-		return err
+		return makeGenericHTTPError(err, req, resp)
 	}
 
 	if resp.StatusCode != 202 {
-		data, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-		err = resp.Body.Close()
-		if err != nil {
-			logDebugf("Failed to close socket (%s)", err)
-		}
-		bodyMessage := string(data)
-		return bucketManagerError{
-			message:    bodyMessage,
-			statusCode: resp.StatusCode,
-		}
+		return makeHTTPBadStatusError("failed to create bucket", req, resp)
 	}
 
 	err = resp.Body.Close()
@@ -432,13 +333,11 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 // UpdateBucketOptions is the set of options available to the bucket manager UpdateBucket operation.
 type UpdateBucketOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
 // UpdateBucket updates a bucket on the cluster.
 func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucketOptions) error {
-	startTime := time.Now()
 	if opts == nil {
 		opts = &UpdateBucketOptions{}
 	}
@@ -446,11 +345,6 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 	span := bm.tracer.StartSpan("UpdateBucket", nil).
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
-
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, bm.globalTimeout)
-	if cancel != nil {
-		defer cancel()
-	}
 
 	retryStrategy := bm.defaultRetryStrategy
 	if opts.RetryStrategy == nil {
@@ -462,44 +356,25 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 		return err
 	}
 
-	req := &gocbcore.HttpRequest{
+	req := &gocbcore.HTTPRequest{
 		Service:       gocbcore.ServiceType(MgmtService),
 		Path:          fmt.Sprintf("/pools/default/buckets/%s", settings.Name),
 		Method:        "POST",
 		Body:          []byte(posts.Encode()),
 		ContentType:   "application/x-www-form-urlencoded",
-		Context:       ctx,
 		RetryStrategy: retryStrategy,
-		UniqueId:      uuid.New().String(),
+		UniqueID:      uuid.New().String(),
 	}
 
 	dspan := bm.tracer.StartSpan("dispatch", span.Context())
-	resp, err := bm.httpClient.DoHttpRequest(req)
+	resp, err := bm.httpClient.DoHTTPRequest(req)
 	dspan.Finish()
 	if err != nil {
-		if err == context.DeadlineExceeded {
-			return timeoutError{
-				operationID:   req.UniqueId,
-				retryReasons:  req.RetryReasons(),
-				retryAttempts: req.RetryAttempts(),
-				operation:     "mgmt",
-				elapsed:       time.Now().Sub(startTime),
-			}
-		}
-
-		return err
+		return makeGenericHTTPError(err, req, resp)
 	}
 
 	if resp.StatusCode != 200 {
-		data, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-		err = resp.Body.Close()
-		if err != nil {
-			logDebugf("Failed to close socket (%s)", err)
-		}
-		return bucketManagerError{message: string(data), statusCode: resp.StatusCode}
+		return makeHTTPBadStatusError("failed to update bucket", req, resp)
 	}
 
 	err = resp.Body.Close()
@@ -513,13 +388,11 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 // DropBucketOptions is the set of options available to the bucket manager DropBucket operation.
 type DropBucketOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
 // DropBucket will delete a bucket from the cluster by name.
 func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error {
-	startTime := time.Now()
 	if opts == nil {
 		opts = &DropBucketOptions{}
 	}
@@ -528,52 +401,28 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, bm.globalTimeout)
-	if cancel != nil {
-		defer cancel()
-	}
-
 	retryStrategy := bm.defaultRetryStrategy
 	if opts.RetryStrategy == nil {
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	req := &gocbcore.HttpRequest{
+	req := &gocbcore.HTTPRequest{
 		Service:       gocbcore.ServiceType(MgmtService),
 		Path:          fmt.Sprintf("/pools/default/buckets/%s", name),
 		Method:        "DELETE",
-		Context:       ctx,
 		RetryStrategy: retryStrategy,
-		UniqueId:      uuid.New().String(),
+		UniqueID:      uuid.New().String(),
 	}
 
 	dspan := bm.tracer.StartSpan("dispatch", span.Context())
-	resp, err := bm.httpClient.DoHttpRequest(req)
+	resp, err := bm.httpClient.DoHTTPRequest(req)
 	dspan.Finish()
 	if err != nil {
-		if err == context.DeadlineExceeded {
-			return timeoutError{
-				operationID:   req.UniqueId,
-				retryReasons:  req.RetryReasons(),
-				retryAttempts: req.RetryAttempts(),
-				operation:     "mgmt",
-				elapsed:       time.Now().Sub(startTime),
-			}
-		}
-
-		return err
+		return makeGenericHTTPError(err, req, resp)
 	}
 
 	if resp.StatusCode != 200 {
-		data, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-		err = resp.Body.Close()
-		if err != nil {
-			logDebugf("Failed to close socket (%s)", err)
-		}
-		return bucketManagerError{message: string(data), statusCode: resp.StatusCode}
+		return makeHTTPBadStatusError("failed to drop bucket", req, resp)
 	}
 
 	err = resp.Body.Close()
@@ -587,14 +436,12 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 // FlushBucketOptions is the set of options available to the bucket manager FlushBucket operation.
 type FlushBucketOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
 // FlushBucket will delete all the of the data from a bucket.
 // Keep in mind that you must have flushing enabled in the buckets configuration.
 func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) error {
-	startTime := time.Now()
 	if opts == nil {
 		opts = &FlushBucketOptions{}
 	}
@@ -603,52 +450,28 @@ func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) erro
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, bm.globalTimeout)
-	if cancel != nil {
-		defer cancel()
-	}
-
 	retryStrategy := bm.defaultRetryStrategy
 	if opts.RetryStrategy == nil {
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	req := &gocbcore.HttpRequest{
+	req := &gocbcore.HTTPRequest{
 		Service:       gocbcore.ServiceType(MgmtService),
 		Path:          fmt.Sprintf("/pools/default/buckets/%s/controller/doFlush", name),
 		Method:        "POST",
-		Context:       ctx,
 		RetryStrategy: retryStrategy,
-		UniqueId:      uuid.New().String(),
+		UniqueID:      uuid.New().String(),
 	}
 
 	dspan := bm.tracer.StartSpan("dispatch", span.Context())
-	resp, err := bm.httpClient.DoHttpRequest(req)
+	resp, err := bm.httpClient.DoHTTPRequest(req)
 	dspan.Finish()
 	if err != nil {
-		if err == context.DeadlineExceeded {
-			return timeoutError{
-				operationID:   req.UniqueId,
-				retryReasons:  req.RetryReasons(),
-				retryAttempts: req.RetryAttempts(),
-				operation:     "mgmt",
-				elapsed:       time.Now().Sub(startTime),
-			}
-		}
-
-		return err
+		return makeGenericHTTPError(err, req, resp)
 	}
 
 	if resp.StatusCode != 200 {
-		data, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-		err = resp.Body.Close()
-		if err != nil {
-			logDebugf("Failed to close socket (%s)", err)
-		}
-		return bucketManagerError{message: string(data), statusCode: resp.StatusCode}
+		return makeHTTPBadStatusError("failed to flush bucket", req, resp)
 	}
 
 	err = resp.Body.Close()
@@ -663,11 +486,11 @@ func (bm *BucketManager) settingsToPostData(settings *BucketSettings) (url.Value
 	posts := url.Values{}
 
 	if settings.Name == "" {
-		return nil, invalidArgumentsError{message: "Name invalid, must be set."}
+		return nil, makeInvalidArgumentsError("Name invalid, must be set.")
 	}
 
 	if settings.RAMQuotaMB < 100 {
-		return nil, invalidArgumentsError{message: "Memory quota invalid, must be greater than 100MB"}
+		return nil, makeInvalidArgumentsError("Memory quota invalid, must be greater than 100MB")
 	}
 
 	posts.Add("name", settings.Name)
@@ -692,13 +515,13 @@ func (bm *BucketManager) settingsToPostData(settings *BucketSettings) (url.Value
 	case MemcachedBucketType:
 		posts.Add("bucketType", string(settings.BucketType))
 		if settings.NumReplicas > 0 {
-			return nil, invalidArgumentsError{message: "replicas cannot be used with memcached buckets"}
+			return nil, makeInvalidArgumentsError("replicas cannot be used with memcached buckets")
 		}
 	case EphemeralBucketType:
 		posts.Add("bucketType", string(settings.BucketType))
 		posts.Add("replicaNumber", fmt.Sprintf("%d", settings.NumReplicas))
 	default:
-		return nil, invalidArgumentsError{message: "Unrecognized bucket type"}
+		return nil, makeInvalidArgumentsError("Unrecognized bucket type")
 	}
 
 	posts.Add("ramQuotaMB", fmt.Sprintf("%d", settings.RAMQuotaMB))

@@ -1,11 +1,11 @@
 package gocb
 
 import (
-	"context"
-	"fmt"
+	"sync/atomic"
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
+	"github.com/pkg/errors"
 )
 
 type kvProvider interface {
@@ -13,7 +13,6 @@ type kvProvider interface {
 	SetEx(opts gocbcore.SetOptions, cb gocbcore.StoreExCallback) (gocbcore.PendingOp, error)
 	ReplaceEx(opts gocbcore.ReplaceOptions, cb gocbcore.StoreExCallback) (gocbcore.PendingOp, error)
 	GetEx(opts gocbcore.GetOptions, cb gocbcore.GetExCallback) (gocbcore.PendingOp, error)
-	GetAnyReplicaEx(opts gocbcore.GetAnyReplicaOptions, cb gocbcore.GetReplicaExCallback) (gocbcore.PendingOp, error)
 	GetOneReplicaEx(opts gocbcore.GetOneReplicaOptions, cb gocbcore.GetReplicaExCallback) (gocbcore.PendingOp, error)
 	ObserveEx(opts gocbcore.ObserveOptions, cb gocbcore.ObserveExCallback) (gocbcore.PendingOp, error)
 	ObserveVbEx(opts gocbcore.ObserveVbOptions, cb gocbcore.ObserveVbExCallback) (gocbcore.PendingOp, error)
@@ -28,94 +27,8 @@ type kvProvider interface {
 	DecrementEx(opts gocbcore.CounterOptions, cb gocbcore.CounterExCallback) (gocbcore.PendingOp, error)
 	AppendEx(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinExCallback) (gocbcore.PendingOp, error)
 	PrependEx(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinExCallback) (gocbcore.PendingOp, error)
-	PingKvEx(opts gocbcore.PingKvOptions, cb gocbcore.PingKvExCallback) (gocbcore.CancellablePendingOp, error)
+	PingKvEx(opts gocbcore.PingKvOptions, cb gocbcore.PingKvExCallback) (gocbcore.PendingOp, error)
 	NumReplicas() int
-}
-
-func (c *Collection) context(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
-	if timeout == 0 {
-		// no operation level timeouts set, use cluster level
-		timeout = c.sb.KvTimeout
-	}
-
-	if ctx == nil {
-		// no context provided so just make a new one
-		return context.WithTimeout(context.Background(), timeout)
-	}
-
-	// a context has been provided so add whatever timeout to it. WithTimeout will pick the shortest anyway.
-	return context.WithTimeout(ctx, timeout)
-}
-
-type opManager struct {
-	signal    chan struct{}
-	ctx       context.Context
-	startTime time.Time
-	operation string
-}
-
-func (c *Collection) newOpManager(ctx context.Context, start time.Time, operation string) *opManager {
-	return &opManager{
-		signal:    make(chan struct{}, 1),
-		ctx:       ctx,
-		startTime: start,
-		operation: operation,
-	}
-}
-
-func (ctrl *opManager) resolve() {
-	ctrl.signal <- struct{}{}
-}
-
-func (ctrl *opManager) wait(op gocbcore.PendingOp, err error) (errOut error) {
-	if err != nil {
-		return err
-	}
-
-	select {
-	case <-ctrl.ctx.Done():
-		if op.Cancel() {
-			ctxErr := ctrl.ctx.Err()
-			if ctxErr == context.DeadlineExceeded {
-				err := timeoutError{}
-				err.operation = fmt.Sprintf("kv:%s", ctrl.operation)
-				err.operationID = op.Identifier()
-				err.retryAttempts = op.RetryAttempts()
-				err.retryReasons = op.RetryReasons()
-				err.elapsed = time.Now().Sub(ctrl.startTime)
-				err.local = op.LocalEndpoint()
-				err.remote = op.RemoteEndpoint()
-				err.connectionID = op.ConnectionId()
-				errOut = err
-			} else {
-				errOut = ctxErr
-			}
-		} else {
-			<-ctrl.signal
-		}
-	case <-ctrl.signal:
-	}
-
-	return
-}
-
-func (c *Collection) durabilityTimeout(ctx context.Context, durabilityLevel DurabilityLevel) (bool, uint16) {
-	var durabilityTimeout uint16
-	var coerced bool
-	if durabilityLevel > 0 {
-		d, _ := ctx.Deadline()
-		timeout := d.Sub(time.Now()) / time.Millisecond
-		adjustedTimeout := float32(timeout) * 0.9
-		if adjustedTimeout < persistenceTimeoutFloor {
-			logWarnf("Coercing durability timeout to %d from %d", persistenceTimeoutFloor, adjustedTimeout)
-			adjustedTimeout = persistenceTimeoutFloor
-			coerced = true
-		}
-
-		durabilityTimeout = uint16(adjustedTimeout)
-	}
-
-	return coerced, durabilityTimeout
 }
 
 // Cas represents the specific state of a document on the cluster.
@@ -123,22 +36,9 @@ type Cas gocbcore.Cas
 
 type pendingOp gocbcore.PendingOp
 
-func (c *Collection) verifyObserveOptions(persistTo, replicateTo uint, durabilityLevel DurabilityLevel) error {
-	if (persistTo != 0 || replicateTo != 0) && !c.sb.UseMutationTokens {
-		return invalidArgumentsError{"cannot use observe based durability without mutation tokens"}
-	}
-
-	if (persistTo != 0 || replicateTo != 0) && durabilityLevel > 0 {
-		return invalidArgumentsError{message: "cannot mix observe based durability and synchronous durability"}
-	}
-
-	return nil
-}
-
 // UpsertOptions are options that can be applied to an Upsert operation.
 type UpsertOptions struct {
 	Timeout time.Duration
-	Context context.Context
 	// The expiry length in seconds
 	Expiry          uint32
 	PersistTo       uint
@@ -151,7 +51,6 @@ type UpsertOptions struct {
 // InsertOptions are options that can be applied to an Insert operation.
 type InsertOptions struct {
 	Timeout time.Duration
-	Context context.Context
 	// The expiry length in seconds
 	Expiry          uint32
 	PersistTo       uint
@@ -163,233 +62,115 @@ type InsertOptions struct {
 
 // Insert creates a new document in the Collection.
 func (c *Collection) Insert(id string, val interface{}, opts *InsertOptions) (mutOut *MutationResult, errOut error) {
-	startTime := time.Now()
 	if opts == nil {
 		opts = &InsertOptions{}
 	}
 
-	span := c.startKvOpTrace("Insert", nil)
-	defer span.Finish()
+	opm := c.newKvOpManager("Insert", nil)
+	defer opm.Finish()
 
-	ctx, cancel := c.context(opts.Context, opts.Timeout)
-	if cancel != nil {
-		defer cancel()
-	}
+	opm.SetDocumentID(id)
+	opm.SetTranscoder(opts.Transcoder)
+	opm.SetValue(val)
+	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
+	opm.SetRetryStrategy(opts.RetryStrategy)
+	opm.SetTimeout(opts.Timeout)
 
-	err := c.verifyObserveOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
-	if err != nil {
+	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
 	}
 
-	res, err := c.insert(ctx, span.Context(), id, val, startTime, *opts)
-	if err != nil {
-		return nil, err
-	}
-
-	if opts.PersistTo == 0 && opts.ReplicateTo == 0 {
-		return res, nil
-	}
-	return res, c.durability(durabilitySettings{
-		ctx:            opts.Context,
-		key:            id,
-		cas:            res.Cas(),
-		mt:             *res.MutationToken(),
-		replicaTo:      opts.ReplicateTo,
-		persistTo:      opts.PersistTo,
-		forDelete:      false,
-		scopeName:      c.scopeName(),
-		collectionName: c.name(),
-	})
-}
-
-func (c *Collection) insert(ctx context.Context, tracectx requestSpanContext, id string, val interface{},
-	startTime time.Time, opts InsertOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
-		errOut = err
-		return
+		return nil, err
 	}
-
-	transcoder := opts.Transcoder
-	if transcoder == nil {
-		transcoder = c.sb.Transcoder
-	}
-
-	espan := c.startKvOpTrace("encode", tracectx)
-	bytes, flags, err := transcoder.Encode(val)
-	espan.Finish()
-	if err != nil {
-		errOut = err
-		return
-	}
-
-	retryWrapper := c.sb.RetryStrategyWrapper
-	if opts.RetryStrategy != nil {
-		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
-	if coerced {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
-		defer cancel()
-	}
-
-	ctrl := c.newOpManager(ctx, startTime, "Insert")
-	err = ctrl.wait(agent.AddEx(gocbcore.AddOptions{
-		Key:                    []byte(id),
-		Value:                  bytes,
-		Flags:                  flags,
+	err = opm.Wait(agent.AddEx(gocbcore.AddOptions{
+		Key:                    opm.DocumentID(),
+		Value:                  opm.ValueBytes(),
+		Flags:                  opm.ValueFlags(),
 		Expiry:                 opts.Expiry,
-		CollectionName:         c.name(),
-		ScopeName:              c.scopeName(),
-		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
-		DurabilityLevelTimeout: durabilityTimeout,
-		RetryStrategy:          retryWrapper,
-		TraceContext:           tracectx,
+		CollectionName:         opm.CollectionName(),
+		ScopeName:              opm.ScopeName(),
+		DurabilityLevel:        opm.DurabilityLevel(),
+		DurabilityLevelTimeout: opm.DurabilityTimeout(),
+		RetryStrategy:          opm.RetryStrategy(),
+		TraceContext:           opm.TraceSpan(),
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, id, true)
-			ctrl.resolve()
+			errOut = opm.EnhanceErr(err)
+			opm.Reject()
 			return
 		}
 
 		mutOut = &MutationResult{}
 		mutOut.cas = Cas(res.Cas)
+		mutOut.mt = opm.EnhanceMt(res.MutationToken)
 
-		if res.MutationToken.VbUuid != 0 {
-			mutTok := &MutationToken{
-				token:      res.MutationToken,
-				bucketName: c.sb.BucketName,
-			}
-			mutOut.mt = mutTok
-		}
-
-		ctrl.resolve()
+		opm.Resolve(mutOut.mt)
 	}))
 	if err != nil {
 		errOut = err
 	}
-
 	return
 }
 
 // Upsert creates a new document in the Collection if it does not exist, if it does exist then it updates it.
 func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mutOut *MutationResult, errOut error) {
-	startTime := time.Now()
 	if opts == nil {
 		opts = &UpsertOptions{}
 	}
 
-	span := c.startKvOpTrace("Upsert", nil)
-	defer span.Finish()
+	opm := c.newKvOpManager("Upsert", nil)
+	defer opm.Finish()
 
-	ctx, cancel := c.context(opts.Context, opts.Timeout)
-	if cancel != nil {
-		defer cancel()
-	}
+	opm.SetDocumentID(id)
+	opm.SetTranscoder(opts.Transcoder)
+	opm.SetValue(val)
+	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
+	opm.SetRetryStrategy(opts.RetryStrategy)
+	opm.SetTimeout(opts.Timeout)
 
-	err := c.verifyObserveOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
-	if err != nil {
+	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
 	}
 
-	res, err := c.upsert(ctx, span.Context(), id, val, startTime, *opts)
-	if err != nil {
-		return nil, err
-	}
-
-	if opts.PersistTo == 0 && opts.ReplicateTo == 0 {
-		return res, nil
-	}
-	return res, c.durability(durabilitySettings{
-		ctx:            opts.Context,
-		key:            id,
-		cas:            res.Cas(),
-		mt:             *res.MutationToken(),
-		replicaTo:      opts.ReplicateTo,
-		persistTo:      opts.PersistTo,
-		forDelete:      false,
-		scopeName:      c.scopeName(),
-		collectionName: c.name(),
-	})
-}
-func (c *Collection) upsert(ctx context.Context, tracectx requestSpanContext, id string, val interface{},
-	startTime time.Time, opts UpsertOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
-		errOut = err
-		return
+		return nil, err
 	}
-
-	transcoder := opts.Transcoder
-	if transcoder == nil {
-		transcoder = c.sb.Transcoder
-	}
-
-	retryWrapper := c.sb.RetryStrategyWrapper
-	if opts.RetryStrategy != nil {
-		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	espan := c.startKvOpTrace("encode", tracectx)
-	bytes, flags, err := transcoder.Encode(val)
-	espan.Finish()
-	if err != nil {
-		errOut = err
-		return
-	}
-
-	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
-	if coerced {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
-		defer cancel()
-	}
-
-	ctrl := c.newOpManager(ctx, startTime, "Upsert")
-	err = ctrl.wait(agent.SetEx(gocbcore.SetOptions{
-		Key:                    []byte(id),
-		Value:                  bytes,
-		Flags:                  flags,
+	err = opm.Wait(agent.SetEx(gocbcore.SetOptions{
+		Key:                    opm.DocumentID(),
+		Value:                  opm.ValueBytes(),
+		Flags:                  opm.ValueFlags(),
 		Expiry:                 opts.Expiry,
-		CollectionName:         c.name(),
-		ScopeName:              c.scopeName(),
-		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
-		DurabilityLevelTimeout: durabilityTimeout,
-		RetryStrategy:          retryWrapper,
-		TraceContext:           tracectx,
+		CollectionName:         opm.CollectionName(),
+		ScopeName:              opm.ScopeName(),
+		DurabilityLevel:        opm.DurabilityLevel(),
+		DurabilityLevelTimeout: opm.DurabilityTimeout(),
+		RetryStrategy:          opm.RetryStrategy(),
+		TraceContext:           opm.TraceSpan(),
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, id, false)
-			ctrl.resolve()
+			errOut = opm.EnhanceErr(err)
+			opm.Reject()
 			return
 		}
 
 		mutOut = &MutationResult{}
 		mutOut.cas = Cas(res.Cas)
+		mutOut.mt = opm.EnhanceMt(res.MutationToken)
 
-		if res.MutationToken.VbUuid != 0 {
-			mutTok := &MutationToken{
-				token:      res.MutationToken,
-				bucketName: c.sb.BucketName,
-			}
-			mutOut.mt = mutTok
-		}
-
-		ctrl.resolve()
+		opm.Resolve(mutOut.mt)
 	}))
 	if err != nil {
 		errOut = err
 	}
-
 	return
 }
 
 // ReplaceOptions are the options available to a Replace operation.
 type ReplaceOptions struct {
 	Timeout         time.Duration
-	Context         context.Context
 	Expiry          uint32
 	Cas             Cas
 	PersistTo       uint
@@ -401,121 +182,62 @@ type ReplaceOptions struct {
 
 // Replace updates a document in the collection.
 func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (mutOut *MutationResult, errOut error) {
-	startTime := time.Now()
 	if opts == nil {
 		opts = &ReplaceOptions{}
 	}
 
-	span := c.startKvOpTrace("Replace", nil)
-	defer span.Finish()
+	opm := c.newKvOpManager("Replace", nil)
+	defer opm.Finish()
 
-	ctx, cancel := c.context(opts.Context, opts.Timeout)
-	if cancel != nil {
-		defer cancel()
-	}
+	opm.SetDocumentID(id)
+	opm.SetTranscoder(opts.Transcoder)
+	opm.SetValue(val)
+	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
+	opm.SetRetryStrategy(opts.RetryStrategy)
+	opm.SetTimeout(opts.Timeout)
 
-	err := c.verifyObserveOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
-	if err != nil {
+	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
 	}
 
-	res, err := c.replace(ctx, span.Context(), id, val, startTime, *opts)
-	if err != nil {
-		return nil, err
-	}
-
-	if opts.PersistTo == 0 && opts.ReplicateTo == 0 {
-		return res, nil
-	}
-	return res, c.durability(durabilitySettings{
-		ctx:            opts.Context,
-		key:            id,
-		cas:            res.Cas(),
-		mt:             *res.MutationToken(),
-		replicaTo:      opts.ReplicateTo,
-		persistTo:      opts.PersistTo,
-		forDelete:      false,
-		scopeName:      c.scopeName(),
-		collectionName: c.name(),
-	})
-}
-
-func (c *Collection) replace(ctx context.Context, tracectx requestSpanContext, id string, val interface{},
-	startTime time.Time, opts ReplaceOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
-
-	transcoder := opts.Transcoder
-	if transcoder == nil {
-		transcoder = c.sb.Transcoder
-	}
-
-	retryWrapper := c.sb.RetryStrategyWrapper
-	if opts.RetryStrategy != nil {
-		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	espan := c.startKvOpTrace("encode", tracectx)
-	bytes, flags, err := transcoder.Encode(val)
-	espan.Finish()
-	if err != nil {
-		errOut = err
-		return
-	}
-
-	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
-	if coerced {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
-		defer cancel()
-	}
-
-	ctrl := c.newOpManager(ctx, startTime, "Replace")
-	err = ctrl.wait(agent.ReplaceEx(gocbcore.ReplaceOptions{
-		Key:                    []byte(id),
-		Value:                  bytes,
-		Flags:                  flags,
+	err = opm.Wait(agent.ReplaceEx(gocbcore.ReplaceOptions{
+		Key:                    opm.DocumentID(),
+		Value:                  opm.ValueBytes(),
+		Flags:                  opm.ValueFlags(),
 		Expiry:                 opts.Expiry,
 		Cas:                    gocbcore.Cas(opts.Cas),
-		CollectionName:         c.name(),
-		ScopeName:              c.scopeName(),
-		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
-		DurabilityLevelTimeout: durabilityTimeout,
-		RetryStrategy:          retryWrapper,
-		TraceContext:           tracectx,
+		CollectionName:         opm.CollectionName(),
+		ScopeName:              opm.ScopeName(),
+		DurabilityLevel:        opm.DurabilityLevel(),
+		DurabilityLevelTimeout: opm.DurabilityTimeout(),
+		RetryStrategy:          opm.RetryStrategy(),
+		TraceContext:           opm.TraceSpan(),
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, id, false)
-			ctrl.resolve()
+			errOut = opm.EnhanceErr(err)
+			opm.Reject()
 			return
 		}
 
 		mutOut = &MutationResult{}
 		mutOut.cas = Cas(res.Cas)
+		mutOut.mt = opm.EnhanceMt(res.MutationToken)
 
-		if res.MutationToken.VbUuid != 0 {
-			mutTok := &MutationToken{
-				token:      res.MutationToken,
-				bucketName: c.sb.BucketName,
-			}
-			mutOut.mt = mutTok
-		}
-
-		ctrl.resolve()
+		opm.Resolve(mutOut.mt)
 	}))
 	if err != nil {
 		errOut = err
 	}
-
 	return
 }
 
 // GetOptions are the options available to a Get operation.
 type GetOptions struct {
 	Timeout    time.Duration
-	Context    context.Context
 	WithExpiry bool
 	// Project causes the Get operation to only fetch the fields indicated
 	// by the paths. The result of the operation is then treated as a
@@ -529,44 +251,102 @@ type GetOptions struct {
 // fetch, a subdocument full document fetch also fetching document expiry (when WithExpiry is set),
 // or a subdocument fetch (when Project is used).
 func (c *Collection) Get(id string, opts *GetOptions) (docOut *GetResult, errOut error) {
-	startTime := time.Now()
 	if opts == nil {
 		opts = &GetOptions{}
 	}
 
-	span := c.startKvOpTrace("Get", nil)
-	defer span.Finish()
-
-	ctx, cancel := c.context(opts.Context, opts.Timeout)
-	if cancel != nil {
-		defer cancel()
+	if len(opts.Project) == 0 && !opts.WithExpiry {
+		return c.getDirect(id, opts)
 	}
 
-	if opts.Transcoder == nil {
-		opts.Transcoder = c.sb.Transcoder
+	return c.getProjected(id, opts)
+}
+
+func (c *Collection) getDirect(id string, opts *GetOptions) (docOut *GetResult, errOut error) {
+	if opts == nil {
+		opts = &GetOptions{}
+	}
+
+	opm := c.newKvOpManager("Get", nil)
+	defer opm.Finish()
+
+	opm.SetDocumentID(id)
+	opm.SetTranscoder(opts.Transcoder)
+	opm.SetRetryStrategy(opts.RetryStrategy)
+	opm.SetTimeout(opts.Timeout)
+
+	if err := opm.CheckReadyForOp(); err != nil {
+		return nil, err
+	}
+
+	agent, err := c.getKvProvider()
+	if err != nil {
+		return nil, err
+	}
+	err = opm.Wait(agent.GetEx(gocbcore.GetOptions{
+		Key:            opm.DocumentID(),
+		CollectionName: opm.CollectionName(),
+		ScopeName:      opm.ScopeName(),
+		RetryStrategy:  opm.RetryStrategy(),
+		TraceContext:   opm.TraceSpan(),
+	}, func(res *gocbcore.GetResult, err error) {
+		if err != nil {
+			errOut = opm.EnhanceErr(err)
+			opm.Reject()
+			return
+		}
+
+		doc := &GetResult{
+			Result: Result{
+				cas: Cas(res.Cas),
+			},
+			transcoder: opm.Transcoder(),
+			contents:   res.Value,
+			flags:      res.Flags,
+		}
+
+		docOut = doc
+
+		opm.Resolve(nil)
+	}))
+	if err != nil {
+		errOut = err
+	}
+	return
+}
+
+func (c *Collection) getProjected(id string, opts *GetOptions) (docOut *GetResult, errOut error) {
+	if opts == nil {
+		opts = &GetOptions{}
+	}
+
+	opm := c.newKvOpManager("Get", nil)
+	defer opm.Finish()
+
+	opm.SetDocumentID(id)
+	opm.SetTranscoder(opts.Transcoder)
+	opm.SetRetryStrategy(opts.RetryStrategy)
+	opm.SetTimeout(opts.Timeout)
+
+	if opts.Transcoder != nil {
+		return nil, errors.New("Cannot specify custom transcoder for projected gets")
+	}
+
+	if err := opm.CheckReadyForOp(); err != nil {
+		return nil, err
+	}
+
+	numProjects := len(opts.Project)
+	if opts.WithExpiry {
+		numProjects = 1 + numProjects
 	}
 
 	projections := opts.Project
-	if len(projections) == 0 && !opts.WithExpiry {
-		// Standard fulldoc
-		doc, err := c.get(ctx, span.Context(), id, startTime, opts)
-		if err != nil {
-			return nil, err
-		}
-		return doc, nil
-	}
-
-	if len(projections) > 16 {
-		// Too many for subdoc so we need to do a full doc fetch
-		projections = nil
-	}
-	if len(projections) > 15 && opts.WithExpiry {
-		// Expiration will push us over subdoc limit so we need to do a full doc fetch
+	if numProjects > 16 {
 		projections = nil
 	}
 
 	var ops []LookupInSpec
-	lookupOpts := &LookupInOptions{Context: ctx}
 
 	if opts.WithExpiry {
 		ops = append(ops, GetSpec("$document.exptime", &GetSpecOptions{IsXattr: true}))
@@ -580,7 +360,7 @@ func (c *Collection) Get(id string, opts *GetOptions) (docOut *GetResult, errOut
 		}
 	}
 
-	result, err := c.lookupIn(ctx, span.Context(), id, ops, startTime, *lookupOpts)
+	result, err := c.internalLookupIn(opm, ops)
 	if err != nil {
 		return nil, err
 	}
@@ -596,7 +376,7 @@ func (c *Collection) Get(id string, opts *GetOptions) (docOut *GetResult, errOut
 		result.contents = result.contents[1:]
 	}
 
-	doc.transcoder = opts.Transcoder
+	doc.transcoder = opm.Transcoder()
 	doc.cas = result.cas
 	if projections == nil {
 		err = doc.fromFullProjection(ops, result, opts.Project)
@@ -613,110 +393,44 @@ func (c *Collection) Get(id string, opts *GetOptions) (docOut *GetResult, errOut
 	return doc, nil
 }
 
-// get performs a full document fetch against the collection
-func (c *Collection) get(ctx context.Context, tracectx requestSpanContext, id string,
-	startTime time.Time, opts *GetOptions) (docOut *GetResult, errOut error) {
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	retryWrapper := c.sb.RetryStrategyWrapper
-	if opts.RetryStrategy != nil {
-		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	span := c.startKvOpTrace("get", tracectx)
-	defer span.Finish()
-
-	ctrl := c.newOpManager(ctx, startTime, "Get")
-	err = ctrl.wait(agent.GetEx(gocbcore.GetOptions{
-		Key:            []byte(id),
-		CollectionName: c.name(),
-		ScopeName:      c.scopeName(),
-		RetryStrategy:  retryWrapper,
-		TraceContext:   span.Context(),
-	}, func(res *gocbcore.GetResult, err error) {
-		if err != nil {
-			errOut = maybeEnhanceKVErr(err, id, false)
-			ctrl.resolve()
-			return
-		}
-		if res != nil {
-			doc := &GetResult{
-				Result: Result{
-					cas: Cas(res.Cas),
-				},
-				transcoder: opts.Transcoder,
-				contents:   res.Value,
-				flags:      res.Flags,
-			}
-
-			docOut = doc
-		}
-		ctrl.resolve()
-	}))
-	if err != nil {
-		errOut = err
-	}
-
-	return
-}
-
 // ExistsOptions are the options available to the Exists command.
 type ExistsOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
 // Exists checks if a document exists for the given id.
 func (c *Collection) Exists(id string, opts *ExistsOptions) (docOut *ExistsResult, errOut error) {
-	startTime := time.Now()
 	if opts == nil {
 		opts = &ExistsOptions{}
 	}
 
-	span := c.startKvOpTrace("Exists", nil)
-	defer span.Finish()
+	opm := c.newKvOpManager("Exists", nil)
+	defer opm.Finish()
 
-	ctx, cancel := c.context(opts.Context, opts.Timeout)
-	if cancel != nil {
-		defer cancel()
-	}
+	opm.SetDocumentID(id)
+	opm.SetRetryStrategy(opts.RetryStrategy)
+	opm.SetTimeout(opts.Timeout)
 
-	res, err := c.exists(ctx, span.Context(), id, startTime, *opts)
-	if err != nil {
+	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
 	}
 
-	return res, nil
-}
-
-func (c *Collection) exists(ctx context.Context, tracectx requestSpanContext, id string, startTime time.Time,
-	opts ExistsOptions) (docOut *ExistsResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
-
-	retryWrapper := c.sb.RetryStrategyWrapper
-	if opts.RetryStrategy != nil {
-		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	ctrl := c.newOpManager(ctx, startTime, "Exists")
-	err = ctrl.wait(agent.ObserveEx(gocbcore.ObserveOptions{
-		Key:            []byte(id),
+	err = opm.Wait(agent.ObserveEx(gocbcore.ObserveOptions{
+		Key:            opm.DocumentID(),
 		ReplicaIdx:     0,
-		CollectionName: c.name(),
-		ScopeName:      c.scopeName(),
-		RetryStrategy:  retryWrapper,
-		TraceContext:   tracectx,
+		CollectionName: opm.CollectionName(),
+		ScopeName:      opm.ScopeName(),
+		RetryStrategy:  opm.RetryStrategy(),
+		TraceContext:   opm.TraceSpan,
 	}, func(res *gocbcore.ObserveResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, id, false)
-			ctrl.resolve()
+			errOut = opm.EnhanceErr(err)
+			opm.Reject()
 			return
 		}
 		if res != nil {
@@ -730,110 +444,140 @@ func (c *Collection) exists(ctx context.Context, tracectx requestSpanContext, id
 			docOut = doc
 		}
 
-		ctrl.resolve()
+		opm.Resolve(nil)
 	}))
 	if err != nil {
 		errOut = err
 	}
-
 	return
 }
 
-// GetAnyReplicaOptions are the options available to the GetAnyReplica command.
-type GetAnyReplicaOptions struct {
-	Timeout       time.Duration
-	Context       context.Context
-	Transcoder    Transcoder
-	RetryStrategy RetryStrategy
-}
+func (c *Collection) getOneReplica(
+	span requestSpanContext,
+	id string,
+	replicaIdx int,
+	transcoder Transcoder,
+	retryStrategy RetryStrategy,
+	cancelCh chan struct{},
+) (docOut *GetReplicaResult, errOut error) {
+	opm := c.newKvOpManager("getOneReplica", span)
+	defer opm.Finish()
 
-// GetAnyReplica returns the value of a particular document from a replica server.
-func (c *Collection) GetAnyReplica(id string, opts *GetAnyReplicaOptions) (docOut *GetReplicaResult, errOut error) {
-	startTime := time.Now()
-	if opts == nil {
-		opts = &GetAnyReplicaOptions{}
-	}
+	opm.SetDocumentID(id)
+	opm.SetTranscoder(transcoder)
+	opm.SetRetryStrategy(retryStrategy)
+	opm.SetCancelCh(cancelCh)
 
-	span := c.startKvOpTrace("GetAnyReplica", nil)
-	defer span.Finish()
-
-	ctx, cancel := c.context(opts.Context, opts.Timeout)
-	if cancel != nil {
-		defer cancel()
-	}
-
-	res, err := c.getAnyReplica(ctx, span.Context(), id, startTime, *opts)
-	if err != nil {
-		return nil, err
-	}
-
-	return res, nil
-}
-
-func (c *Collection) getAnyReplica(ctx context.Context, tracetx requestSpanContext, id string, startTime time.Time,
-	opts GetAnyReplicaOptions) (docOut *GetReplicaResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
+	if replicaIdx == 0 {
+		err = opm.Wait(agent.GetEx(gocbcore.GetOptions{
+			Key:            opm.DocumentID(),
+			CollectionName: opm.CollectionName(),
+			ScopeName:      opm.ScopeName(),
+			RetryStrategy:  opm.RetryStrategy(),
+			TraceContext:   opm.TraceSpan(),
+		}, func(res *gocbcore.GetResult, err error) {
+			if err != nil {
+				errOut = opm.EnhanceErr(err)
+				opm.Reject()
+				return
+			}
 
-	if opts.Transcoder == nil {
-		opts.Transcoder = c.sb.Transcoder
+			docOut = &GetReplicaResult{}
+			docOut.cas = Cas(res.Cas)
+			docOut.transcoder = opm.Transcoder()
+			docOut.contents = res.Value
+			docOut.flags = res.Flags
+			docOut.isReplica = false
+
+			opm.Resolve(nil)
+		}))
+		if err != nil {
+			errOut = err
+		}
+		return
 	}
 
-	retryWrapper := c.sb.RetryStrategyWrapper
-	if opts.RetryStrategy != nil {
-		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	ctrl := c.newOpManager(ctx, startTime, "GetAnyReplica")
-	err = ctrl.wait(agent.GetAnyReplicaEx(gocbcore.GetAnyReplicaOptions{
-		Key:            []byte(id),
-		CollectionName: c.name(),
-		ScopeName:      c.scopeName(),
-		RetryStrategy:  retryWrapper,
-		TraceContext:   tracetx,
+	err = opm.Wait(agent.GetOneReplicaEx(gocbcore.GetOneReplicaOptions{
+		Key:            opm.DocumentID(),
+		ReplicaIdx:     replicaIdx,
+		CollectionName: opm.CollectionName(),
+		ScopeName:      opm.ScopeName(),
+		RetryStrategy:  opm.RetryStrategy(),
+		TraceContext:   opm.TraceSpan(),
 	}, func(res *gocbcore.GetReplicaResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, id, false)
-			ctrl.resolve()
+			errOut = opm.EnhanceErr(err)
+			opm.Reject()
 			return
 		}
 
-		doc := &GetReplicaResult{
-			GetResult: GetResult{
-				Result: Result{
-					cas: Cas(res.Cas),
-				},
-				transcoder: opts.Transcoder,
-				contents:   res.Value,
-				flags:      res.Flags,
-			},
-			isReplica: !res.IsActive,
-		}
-		docOut = doc
+		docOut = &GetReplicaResult{}
+		docOut.cas = Cas(res.Cas)
+		docOut.transcoder = opm.Transcoder()
+		docOut.contents = res.Value
+		docOut.flags = res.Flags
+		docOut.isReplica = true
 
-		ctrl.resolve()
+		opm.Resolve(nil)
 	}))
 	if err != nil {
 		errOut = err
 	}
-
 	return
 }
 
 // GetAllReplicaOptions are the options available to the GetAllReplicas command.
 type GetAllReplicaOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	Transcoder    Transcoder
 	RetryStrategy RetryStrategy
+}
+
+// GetAllReplicasResult represents the results of a GetAllReplicas operation.
+type GetAllReplicasResult struct {
+	totalRequests uint32
+	totalResults  uint32
+	resCh         chan *GetReplicaResult
+	cancelCh      chan struct{}
+}
+
+func (r *GetAllReplicasResult) addResult(res *GetReplicaResult) {
+	resultCount := atomic.AddUint32(&r.totalResults, 1)
+	if resultCount <= r.totalRequests {
+		r.resCh <- res
+	}
+	if resultCount == r.totalRequests {
+		close(r.cancelCh)
+		close(r.resCh)
+	}
+}
+
+// Next fetches the next replica result.
+func (r *GetAllReplicasResult) Next() *GetReplicaResult {
+	return <-r.resCh
+}
+
+// Close cancels all remaining get replica requests.
+func (r *GetAllReplicasResult) Close() error {
+	resultCount := atomic.SwapUint32(&r.totalResults, 0xffffffff)
+
+	// We only have to close everything if the addResult method didn't already
+	// close them due to already having completed every request
+	if resultCount < r.totalRequests {
+		close(r.cancelCh)
+		close(r.resCh)
+	}
+
+	return nil
 }
 
 // GetAllReplicas returns the value of a particular document from all replica servers. This will return an iterable
 // which streams results one at a time.
 func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docOut *GetAllReplicasResult, errOut error) {
-	startTime := time.Now()
 	if opts == nil {
 		opts = &GetAllReplicaOptions{}
 	}
@@ -841,43 +585,107 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 	span := c.startKvOpTrace("GetAllReplicas", nil)
 	defer span.Finish()
 
-	ctx, cancel := c.context(opts.Context, opts.Timeout)
+	// Timeout needs to be adjusted here, since we use it at the bottom of this
+	// function, but the remaining options are all passed downwards and get handled
+	// by those functions rather than us.
+	timeout := opts.Timeout
+	if timeout == 0 || timeout > c.sb.KvTimeout {
+		timeout = c.sb.KvTimeout
+	}
+
+	deadline := time.Now().Add(timeout)
+	transcoder := opts.Transcoder
+	retryStrategy := opts.RetryStrategy
+
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
 
-	retryWrapper := c.sb.RetryStrategyWrapper
-	if opts.RetryStrategy != nil {
-		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
+	numServers := agent.NumReplicas() + 1
+	outCh := make(chan *GetReplicaResult, numServers)
+	cancelCh := make(chan struct{})
+
+	repRes := &GetAllReplicasResult{
+		totalRequests: uint32(numServers),
+		resCh:         outCh,
+		cancelCh:      cancelCh,
 	}
 
-	if opts.Transcoder == nil {
-		opts.Transcoder = c.sb.Transcoder
+	// Loop all the servers and populate the result object
+	for replicaIdx := 0; replicaIdx < numServers; replicaIdx++ {
+		go func(replicaIdx int) {
+			res, err := c.getOneReplica(span, id, replicaIdx, transcoder, retryStrategy, cancelCh)
+			if err != nil {
+				logDebugf("Failed to fetch replica from replica %d: %s", replicaIdx, err)
+			} else {
+				repRes.addResult(res)
+			}
+		}(replicaIdx)
 	}
 
-	return &GetAllReplicasResult{
-		ctx: ctx,
-		opts: gocbcore.GetOneReplicaOptions{
-			Key:            []byte(id),
-			CollectionName: c.name(),
-			ScopeName:      c.scopeName(),
-			RetryStrategy:  retryWrapper,
-			TraceContext:   span.Context(),
-		},
-		transcoder:  opts.Transcoder,
-		provider:    agent,
-		cancel:      cancel,
-		maxReplicas: agent.NumReplicas(),
-		startTime:   startTime,
-		span:        span,
-	}, nil
+	// Start a timer to close it after the deadline
+	go func() {
+		select {
+		case <-time.After(deadline.Sub(time.Now())):
+			// If we timeout, we should close the result
+			repRes.Close()
+			return
+		case <-cancelCh:
+			// If the cancel channel closes, we are done
+			return
+		}
+	}()
+
+	return repRes, nil
+}
+
+// GetAnyReplicaOptions are the options available to the GetAnyReplica command.
+type GetAnyReplicaOptions struct {
+	Timeout       time.Duration
+	Transcoder    Transcoder
+	RetryStrategy RetryStrategy
+}
+
+// GetAnyReplica returns the value of a particular document from a replica server.
+func (c *Collection) GetAnyReplica(id string, opts *GetAnyReplicaOptions) (docOut *GetReplicaResult, errOut error) {
+	if opts == nil {
+		opts = &GetAnyReplicaOptions{}
+	}
+
+	span := c.startKvOpTrace("GetAnyReplica", nil)
+	defer span.Finish()
+
+	repRes, err := c.GetAllReplicas(id, &GetAllReplicaOptions{
+		Timeout:       opts.Timeout,
+		Transcoder:    opts.Transcoder,
+		RetryStrategy: opts.RetryStrategy,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Try to fetch at least one result
+	res := repRes.Next()
+	if res == nil {
+		return nil, &KeyValueError{
+			InnerError:     ErrDocumentUnretrievable,
+			BucketName:     c.sb.BucketName,
+			ScopeName:      c.sb.ScopeName,
+			CollectionName: c.sb.CollectionName,
+		}
+	}
+
+	// Close the results channel since we don't care about any of the
+	// remaining result objects at this point.
+	repRes.Close()
+
+	return res, nil
 }
 
 // RemoveOptions are the options available to the Remove command.
 type RemoveOptions struct {
 	Timeout         time.Duration
-	Context         context.Context
 	Cas             Cas
 	PersistTo       uint
 	ReplicateTo     uint
@@ -887,168 +695,103 @@ type RemoveOptions struct {
 
 // Remove removes a document from the collection.
 func (c *Collection) Remove(id string, opts *RemoveOptions) (mutOut *MutationResult, errOut error) {
-	startTime := time.Now()
 	if opts == nil {
 		opts = &RemoveOptions{}
 	}
 
-	span := c.startKvOpTrace("Remove", nil)
-	defer span.Finish()
+	opm := c.newKvOpManager("Remove", nil)
+	defer opm.Finish()
 
-	ctx, cancel := c.context(opts.Context, opts.Timeout)
-	if cancel != nil {
-		defer cancel()
-	}
+	opm.SetDocumentID(id)
+	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
+	opm.SetRetryStrategy(opts.RetryStrategy)
+	opm.SetTimeout(opts.Timeout)
 
-	err := c.verifyObserveOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
-	if err != nil {
+	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
 	}
 
-	res, err := c.remove(ctx, span.Context(), id, startTime, *opts)
-	if err != nil {
-		return nil, err
-	}
-
-	if opts.PersistTo == 0 && opts.ReplicateTo == 0 {
-		return res, nil
-	}
-	return res, c.durability(durabilitySettings{
-		ctx:            opts.Context,
-		key:            id,
-		cas:            res.Cas(),
-		mt:             *res.MutationToken(),
-		replicaTo:      opts.ReplicateTo,
-		persistTo:      opts.PersistTo,
-		forDelete:      true,
-		scopeName:      c.scopeName(),
-		collectionName: c.name(),
-	})
-}
-
-func (c *Collection) remove(ctx context.Context, tracectx requestSpanContext, id string, startTime time.Time,
-	opts RemoveOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
-
-	retryWrapper := c.sb.RetryStrategyWrapper
-	if opts.RetryStrategy != nil {
-		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	coerced, durabilityTimeout := c.durabilityTimeout(ctx, opts.DurabilityLevel)
-	if coerced {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, time.Duration(durabilityTimeout)*time.Millisecond)
-		defer cancel()
-	}
-
-	ctrl := c.newOpManager(ctx, startTime, "Remove")
-	err = ctrl.wait(agent.DeleteEx(gocbcore.DeleteOptions{
-		Key:                    []byte(id),
+	err = opm.Wait(agent.DeleteEx(gocbcore.DeleteOptions{
+		Key:                    opm.DocumentID(),
 		Cas:                    gocbcore.Cas(opts.Cas),
-		CollectionName:         c.name(),
-		ScopeName:              c.scopeName(),
-		DurabilityLevel:        gocbcore.DurabilityLevel(opts.DurabilityLevel),
-		DurabilityLevelTimeout: durabilityTimeout,
-		RetryStrategy:          retryWrapper,
-		TraceContext:           tracectx,
+		CollectionName:         opm.CollectionName(),
+		ScopeName:              opm.ScopeName(),
+		DurabilityLevel:        opm.DurabilityLevel(),
+		DurabilityLevelTimeout: opm.DurabilityTimeout(),
+		RetryStrategy:          opm.RetryStrategy(),
+		TraceContext:           opm.TraceSpan(),
 	}, func(res *gocbcore.DeleteResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, id, false)
-			ctrl.resolve()
+			errOut = opm.EnhanceErr(err)
+			opm.Reject()
 			return
 		}
 
 		mutOut = &MutationResult{}
 		mutOut.cas = Cas(res.Cas)
+		mutOut.mt = opm.EnhanceMt(res.MutationToken)
 
-		if res.MutationToken.VbUuid != 0 {
-			mutTok := &MutationToken{
-				token:      res.MutationToken,
-				bucketName: c.sb.BucketName,
-			}
-			mutOut.mt = mutTok
-		}
-
-		ctrl.resolve()
+		opm.Resolve(mutOut.mt)
 	}))
 	if err != nil {
 		errOut = err
 	}
-
 	return
 }
 
 // GetAndTouchOptions are the options available to the GetAndTouch operation.
 type GetAndTouchOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	Transcoder    Transcoder
 	RetryStrategy RetryStrategy
 }
 
 // GetAndTouch retrieves a document and simultaneously updates its expiry time.
 func (c *Collection) GetAndTouch(id string, expiry uint32, opts *GetAndTouchOptions) (docOut *GetResult, errOut error) {
-	startTime := time.Now()
 	if opts == nil {
 		opts = &GetAndTouchOptions{}
 	}
 
-	span := c.startKvOpTrace("GetAndTouch", nil)
-	defer span.Finish()
+	opm := c.newKvOpManager("GetAndTouch", nil)
+	defer opm.Finish()
 
-	ctx, cancel := c.context(opts.Context, opts.Timeout)
-	if cancel != nil {
-		defer cancel()
-	}
+	opm.SetDocumentID(id)
+	opm.SetTranscoder(opts.Transcoder)
+	opm.SetRetryStrategy(opts.RetryStrategy)
+	opm.SetTimeout(opts.Timeout)
 
-	res, err := c.getAndTouch(ctx, span.Context(), id, expiry, startTime, *opts)
-	if err != nil {
+	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
 	}
 
-	return res, nil
-}
-
-func (c *Collection) getAndTouch(ctx context.Context, tracectx requestSpanContext, id string, expiry uint32,
-	startTime time.Time, opts GetAndTouchOptions) (docOut *GetResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
-
-	if opts.Transcoder == nil {
-		opts.Transcoder = c.sb.Transcoder
-	}
-
-	retryWrapper := c.sb.RetryStrategyWrapper
-	if opts.RetryStrategy != nil {
-		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	ctrl := c.newOpManager(ctx, startTime, "GetAndTouch")
-	err = ctrl.wait(agent.GetAndTouchEx(gocbcore.GetAndTouchOptions{
-		Key:            []byte(id),
+	err = opm.Wait(agent.GetAndTouchEx(gocbcore.GetAndTouchOptions{
+		Key:            opm.DocumentID(),
 		Expiry:         expiry,
-		CollectionName: c.name(),
-		ScopeName:      c.scopeName(),
-		RetryStrategy:  retryWrapper,
-		TraceContext:   tracectx,
+		CollectionName: opm.CollectionName(),
+		ScopeName:      opm.ScopeName(),
+		RetryStrategy:  opm.RetryStrategy(),
+		TraceContext:   opm.TraceSpan(),
 	}, func(res *gocbcore.GetAndTouchResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, id, false)
-			ctrl.resolve()
+			errOut = opm.EnhanceErr(err)
+			opm.Reject()
 			return
 		}
+
 		if res != nil {
 			doc := &GetResult{
 				Result: Result{
 					cas: Cas(res.Cas),
 				},
-				transcoder: opts.Transcoder,
+				transcoder: opm.Transcoder(),
 				contents:   res.Value,
 				flags:      res.Flags,
 			}
@@ -1056,19 +799,17 @@ func (c *Collection) getAndTouch(ctx context.Context, tracectx requestSpanContex
 			docOut = doc
 		}
 
-		ctrl.resolve()
+		opm.Resolve(nil)
 	}))
 	if err != nil {
 		errOut = err
 	}
-
 	return
 }
 
 // GetAndLockOptions are the options available to the GetAndLock operation.
 type GetAndLockOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	Transcoder    Transcoder
 	RetryStrategy RetryStrategy
 }
@@ -1077,63 +818,46 @@ type GetAndLockOptions struct {
 // A lockTime value of over 30 seconds will be treated as 30 seconds. The resolution used to send this value to
 // the server is seconds and is calculated using uint32(lockTime/time.Second).
 func (c *Collection) GetAndLock(id string, lockTime time.Duration, opts *GetAndLockOptions) (docOut *GetResult, errOut error) {
-	startTime := time.Now()
 	if opts == nil {
 		opts = &GetAndLockOptions{}
 	}
 
-	span := c.startKvOpTrace("GetAndLock", nil)
-	defer span.Finish()
+	opm := c.newKvOpManager("GetAndLock", nil)
+	defer opm.Finish()
 
-	ctx, cancel := c.context(opts.Context, opts.Timeout)
-	if cancel != nil {
-		defer cancel()
-	}
+	opm.SetDocumentID(id)
+	opm.SetTranscoder(opts.Transcoder)
+	opm.SetRetryStrategy(opts.RetryStrategy)
+	opm.SetTimeout(opts.Timeout)
 
-	res, err := c.getAndLock(ctx, span.Context(), id, uint32(lockTime/time.Second), startTime, *opts)
-	if err != nil {
+	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
 	}
 
-	return res, nil
-}
-
-func (c *Collection) getAndLock(ctx context.Context, tracectx requestSpanContext, id string, lockTime uint32,
-	startTime time.Time, opts GetAndLockOptions) (docOut *GetResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
-
-	if opts.Transcoder == nil {
-		opts.Transcoder = c.sb.Transcoder
-	}
-
-	retryWrapper := c.sb.RetryStrategyWrapper
-	if opts.RetryStrategy != nil {
-		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	ctrl := c.newOpManager(ctx, startTime, "GetAndLock")
-	err = ctrl.wait(agent.GetAndLockEx(gocbcore.GetAndLockOptions{
-		Key:            []byte(id),
-		LockTime:       lockTime,
-		CollectionName: c.name(),
-		ScopeName:      c.scopeName(),
-		RetryStrategy:  retryWrapper,
-		TraceContext:   tracectx,
+	err = opm.Wait(agent.GetAndLockEx(gocbcore.GetAndLockOptions{
+		Key:            opm.DocumentID(),
+		LockTime:       uint32(lockTime / time.Second),
+		CollectionName: opm.CollectionName(),
+		ScopeName:      opm.ScopeName(),
+		RetryStrategy:  opm.RetryStrategy(),
+		TraceContext:   opm.TraceSpan(),
 	}, func(res *gocbcore.GetAndLockResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, id, false)
-			ctrl.resolve()
+			errOut = opm.EnhanceErr(err)
+			opm.Reject()
 			return
 		}
+
 		if res != nil {
 			doc := &GetResult{
 				Result: Result{
 					cas: Cas(res.Cas),
 				},
-				transcoder: opts.Transcoder,
+				transcoder: opm.Transcoder(),
 				contents:   res.Value,
 				flags:      res.Flags,
 			}
@@ -1141,166 +865,117 @@ func (c *Collection) getAndLock(ctx context.Context, tracectx requestSpanContext
 			docOut = doc
 		}
 
-		ctrl.resolve()
+		opm.Resolve(nil)
 	}))
 	if err != nil {
 		errOut = err
 	}
-
 	return
 }
 
 // UnlockOptions are the options available to the GetAndLock operation.
 type UnlockOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
 // Unlock unlocks a document which was locked with GetAndLock.
 func (c *Collection) Unlock(id string, cas Cas, opts *UnlockOptions) (mutOut *MutationResult, errOut error) {
-	startTime := time.Now()
 	if opts == nil {
 		opts = &UnlockOptions{}
 	}
 
-	span := c.startKvOpTrace("Unlock", nil)
-	defer span.Finish()
+	opm := c.newKvOpManager("Unlock", nil)
+	defer opm.Finish()
 
-	ctx, cancel := c.context(opts.Context, opts.Timeout)
-	if cancel != nil {
-		defer cancel()
-	}
+	opm.SetDocumentID(id)
+	opm.SetRetryStrategy(opts.RetryStrategy)
+	opm.SetTimeout(opts.Timeout)
 
-	res, err := c.unlock(ctx, span.Context(), id, cas, startTime, *opts)
-	if err != nil {
+	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
 	}
 
-	return res, nil
-}
-
-func (c *Collection) unlock(ctx context.Context, tracectx requestSpanContext, id string, cas Cas,
-	startTime time.Time, opts UnlockOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
-
-	retryWrapper := c.sb.RetryStrategyWrapper
-	if opts.RetryStrategy != nil {
-		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	ctrl := c.newOpManager(ctx, startTime, "Unlock")
-	err = ctrl.wait(agent.UnlockEx(gocbcore.UnlockOptions{
-		Key:            []byte(id),
+	err = opm.Wait(agent.UnlockEx(gocbcore.UnlockOptions{
+		Key:            opm.DocumentID(),
 		Cas:            gocbcore.Cas(cas),
-		CollectionName: c.name(),
-		ScopeName:      c.scopeName(),
-		RetryStrategy:  retryWrapper,
-		TraceContext:   tracectx,
+		CollectionName: opm.CollectionName(),
+		ScopeName:      opm.ScopeName(),
+		RetryStrategy:  opm.RetryStrategy(),
+		TraceContext:   opm.TraceSpan(),
 	}, func(res *gocbcore.UnlockResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, id, false)
-			ctrl.resolve()
+			errOut = opm.EnhanceErr(err)
+			opm.Reject()
 			return
 		}
 
 		mutOut = &MutationResult{}
 		mutOut.cas = Cas(res.Cas)
+		mutOut.mt = opm.EnhanceMt(res.MutationToken)
 
-		if res.MutationToken.VbUuid != 0 {
-			mutTok := &MutationToken{
-				token:      res.MutationToken,
-				bucketName: c.sb.BucketName,
-			}
-			mutOut.mt = mutTok
-		}
-
-		ctrl.resolve()
+		opm.Resolve(mutOut.mt)
 	}))
 	if err != nil {
 		errOut = err
 	}
-
 	return
 }
 
 // TouchOptions are the options available to the Touch operation.
 type TouchOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
 // Touch touches a document, specifying a new expiry time for it.
 func (c *Collection) Touch(id string, expiry uint32, opts *TouchOptions) (mutOut *MutationResult, errOut error) {
-	startTime := time.Now()
 	if opts == nil {
 		opts = &TouchOptions{}
 	}
 
-	span := c.startKvOpTrace("Touch", nil)
-	defer span.Finish()
+	opm := c.newKvOpManager("Touch", nil)
+	defer opm.Finish()
 
-	ctx, cancel := c.context(opts.Context, opts.Timeout)
-	if cancel != nil {
-		defer cancel()
-	}
+	opm.SetDocumentID(id)
+	opm.SetRetryStrategy(opts.RetryStrategy)
+	opm.SetTimeout(opts.Timeout)
 
-	res, err := c.touch(ctx, span.Context(), id, expiry, startTime, *opts)
-	if err != nil {
+	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
 	}
 
-	return res, nil
-}
-
-func (c *Collection) touch(ctx context.Context, tracectx requestSpanContext, id string, expiry uint32,
-	startTime time.Time, opts TouchOptions) (mutOut *MutationResult, errOut error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
-
-	retryWrapper := c.sb.RetryStrategyWrapper
-	if opts.RetryStrategy != nil {
-		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	ctrl := c.newOpManager(ctx, startTime, "Touch")
-	err = ctrl.wait(agent.TouchEx(gocbcore.TouchOptions{
-		Key:            []byte(id),
+	err = opm.Wait(agent.TouchEx(gocbcore.TouchOptions{
+		Key:            opm.DocumentID(),
 		Expiry:         expiry,
-		CollectionName: c.name(),
-		ScopeName:      c.scopeName(),
-		RetryStrategy:  retryWrapper,
-		TraceContext:   tracectx,
+		CollectionName: opm.CollectionName(),
+		ScopeName:      opm.ScopeName(),
+		RetryStrategy:  opm.RetryStrategy(),
+		TraceContext:   opm.TraceSpan(),
 	}, func(res *gocbcore.TouchResult, err error) {
 		if err != nil {
-			errOut = maybeEnhanceKVErr(err, id, false)
-			ctrl.resolve()
+			errOut = opm.EnhanceErr(err)
+			opm.Reject()
 			return
 		}
 
 		mutOut = &MutationResult{}
 		mutOut.cas = Cas(res.Cas)
+		mutOut.mt = opm.EnhanceMt(res.MutationToken)
 
-		if res.MutationToken.VbUuid != 0 {
-			mutTok := &MutationToken{
-				token:      res.MutationToken,
-				bucketName: c.sb.BucketName,
-			}
-			mutOut.mt = mutTok
-		}
-
-		ctrl.resolve()
+		opm.Resolve(mutOut.mt)
 	}))
 	if err != nil {
 		errOut = err
 	}
-
 	return
 }
 

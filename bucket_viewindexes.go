@@ -1,18 +1,10 @@
 package gocb
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
-
-	"github.com/pkg/errors"
-
-	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
 // DesignDocumentNamespace represents which namespace a design document resides in.
@@ -29,11 +21,18 @@ const (
 // ViewIndexManager provides methods for performing View management.
 // Volatile: This API is subject to change at any time.
 type ViewIndexManager struct {
-	bucketName           string
-	httpClient           httpProvider
-	globalTimeout        time.Duration
-	defaultRetryStrategy *retryStrategyWrapper
-	tracer               requestTracer
+	bucket *Bucket
+
+	tracer requestTracer
+}
+
+func (vm *ViewIndexManager) doMgmtRequest(req mgmtRequest) (*mgmtResponse, error) {
+	resp, err := vm.bucket.executeMgmtRequest(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }
 
 // View represents a Couchbase view within a design document.
@@ -55,7 +54,6 @@ type DesignDocument struct {
 // GetDesignDocumentOptions is the set of options available to the ViewIndexManager GetDesignDocument operation.
 type GetDesignDocumentOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
@@ -88,60 +86,27 @@ func (vm *ViewIndexManager) GetDesignDocument(name string, namespace DesignDocum
 func (vm *ViewIndexManager) getDesignDocument(tracectx requestSpanContext, name string, namespace DesignDocumentNamespace,
 	startTime time.Time, opts *GetDesignDocumentOptions) (*DesignDocument, error) {
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, vm.globalTimeout)
-	if cancel != nil {
-		defer cancel()
-	}
-
 	name = vm.ddocName(name, namespace)
 
-	retryStrategy := vm.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	req := &gocbcore.HttpRequest{
-		Service:       gocbcore.ServiceType(CapiService),
+	req := mgmtRequest{
+		Service:       CapiService,
 		Path:          fmt.Sprintf("/_design/%s", name),
 		Method:        "GET",
-		Context:       ctx,
 		IsIdempotent:  true,
-		RetryStrategy: retryStrategy,
-		UniqueId:      uuid.New().String(),
+		RetryStrategy: opts.RetryStrategy,
+		Timeout:       opts.Timeout,
 	}
-
-	dspan := vm.tracer.StartSpan("dispatch", tracectx)
-	resp, err := vm.httpClient.DoHttpRequest(req)
-	dspan.Finish()
+	resp, err := vm.doMgmtRequest(req)
 	if err != nil {
-		if err == context.DeadlineExceeded {
-			return nil, timeoutError{
-				operationID:   req.UniqueId,
-				retryReasons:  req.RetryReasons(),
-				retryAttempts: req.RetryAttempts(),
-				operation:     "view",
-				elapsed:       time.Now().Sub(startTime),
-			}
-		}
-
 		return nil, err
 	}
 
 	if resp.StatusCode != 200 {
-		data, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return nil, err
-		}
-		err = resp.Body.Close()
-		if err != nil {
-			logDebugf("Failed to close socket (%s)", err)
+		if resp.StatusCode == 404 {
+			return nil, makeGenericMgmtError(ErrDesignDocumentNotFound, &req, resp)
 		}
 
-		return nil, viewIndexError{
-			statusCode:   resp.StatusCode,
-			message:      string(data),
-			indexMissing: resp.StatusCode == 404,
-		}
+		return nil, makeMgmtBadStatusError("failed to get design document", &req, resp)
 	}
 
 	ddocObj := DesignDocument{}
@@ -158,13 +123,11 @@ func (vm *ViewIndexManager) getDesignDocument(tracectx requestSpanContext, name 
 // GetAllDesignDocumentsOptions is the set of options available to the ViewIndexManager GetAllDesignDocuments operation.
 type GetAllDesignDocumentsOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
 // GetAllDesignDocuments will retrieve all design documents for the given bucket.
 func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamespace, opts *GetAllDesignDocumentsOptions) ([]*DesignDocument, error) {
-	startTime := time.Now()
 	if opts == nil {
 		opts = &GetAllDesignDocumentsOptions{}
 	}
@@ -172,61 +135,30 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamesp
 	span := vm.tracer.StartSpan("GetAllDesignDocuments", nil).SetTag("couchbase.service", "view")
 	defer span.Finish()
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, vm.globalTimeout)
-	if cancel != nil {
-		defer cancel()
-	}
-
-	retryStrategy := vm.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	req := &gocbcore.HttpRequest{
-		Service:       gocbcore.ServiceType(MgmtService),
-		Path:          fmt.Sprintf("/pools/default/buckets/%s/ddocs", vm.bucketName),
+	req := mgmtRequest{
+		Service:       MgmtService,
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/ddocs", vm.bucket.Name()),
 		Method:        "GET",
-		Context:       ctx,
 		IsIdempotent:  true,
-		RetryStrategy: retryStrategy,
+		Timeout:       opts.Timeout,
+		RetryStrategy: opts.RetryStrategy,
 	}
-
-	espan := vm.tracer.StartSpan("encode", span.Context())
-	resp, err := vm.httpClient.DoHttpRequest(req)
-	espan.Finish()
+	resp, err := vm.doMgmtRequest(req)
 	if err != nil {
-		if err == context.DeadlineExceeded {
-			return nil, timeoutError{
-				operationID:   req.UniqueId,
-				retryReasons:  req.RetryReasons(),
-				retryAttempts: req.RetryAttempts(),
-				operation:     "view",
-				elapsed:       time.Now().Sub(startTime),
-			}
-		}
-
 		return nil, err
 	}
 
 	if resp.StatusCode != 200 {
-		data, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return nil, err
-		}
-		err = resp.Body.Close()
-		if err != nil {
-			logDebugf("Failed to close socket (%s)", err)
-		}
-		return nil, viewIndexError{statusCode: resp.StatusCode, message: string(data)}
+		return nil, makeMgmtBadStatusError("failed to get all design documents", &req, resp)
 	}
 
 	var ddocsObj struct {
 		Rows []struct {
 			Doc struct {
 				Meta struct {
-					Id string
+					ID string
 				}
-				Json DesignDocument
+				JSON DesignDocument
 			}
 		}
 	}
@@ -238,10 +170,10 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamesp
 
 	var ddocs []*DesignDocument
 	for index, ddocData := range ddocsObj.Rows {
-		ddoc := &ddocsObj.Rows[index].Doc.Json
+		ddoc := &ddocsObj.Rows[index].Doc.JSON
 		isProd := !strings.HasPrefix(ddoc.Name, "dev_")
 		if isProd == bool(namespace) {
-			ddoc.Name = strings.TrimPrefix(ddocData.Doc.Meta.Id[8:], "dev_")
+			ddoc.Name = strings.TrimPrefix(ddocData.Doc.Meta.ID[8:], "dev_")
 			ddocs = append(ddocs, ddoc)
 		}
 	}
@@ -252,7 +184,6 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamesp
 // UpsertDesignDocumentOptions is the set of options available to the ViewIndexManager UpsertDesignDocument operation.
 type UpsertDesignDocumentOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
@@ -269,13 +200,13 @@ func (vm *ViewIndexManager) UpsertDesignDocument(ddoc DesignDocument, namespace 
 	return vm.upsertDesignDocument(span.Context(), ddoc, namespace, time.Now(), opts)
 }
 
-func (vm *ViewIndexManager) upsertDesignDocument(tracectx requestSpanContext, ddoc DesignDocument, namespace DesignDocumentNamespace, startTime time.Time,
-	opts *UpsertDesignDocumentOptions) error {
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, vm.globalTimeout)
-	if cancel != nil {
-		defer cancel()
-	}
-
+func (vm *ViewIndexManager) upsertDesignDocument(
+	tracectx requestSpanContext,
+	ddoc DesignDocument,
+	namespace DesignDocumentNamespace,
+	startTime time.Time,
+	opts *UpsertDesignDocumentOptions,
+) error {
 	espan := vm.tracer.StartSpan("encode", tracectx)
 	data, err := json.Marshal(&ddoc)
 	espan.Finish()
@@ -285,47 +216,21 @@ func (vm *ViewIndexManager) upsertDesignDocument(tracectx requestSpanContext, dd
 
 	ddoc.Name = vm.ddocName(ddoc.Name, namespace)
 
-	retryStrategy := vm.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	req := &gocbcore.HttpRequest{
-		Service:       gocbcore.ServiceType(CapiService),
+	req := mgmtRequest{
+		Service:       CapiService,
 		Path:          fmt.Sprintf("/_design/%s", ddoc.Name),
 		Method:        "PUT",
 		Body:          data,
-		Context:       ctx,
-		RetryStrategy: retryStrategy,
+		Timeout:       opts.Timeout,
+		RetryStrategy: opts.RetryStrategy,
 	}
-
-	dspan := vm.tracer.StartSpan("dispatch", nil)
-	resp, err := vm.httpClient.DoHttpRequest(req)
-	dspan.Finish()
+	resp, err := vm.doMgmtRequest(req)
 	if err != nil {
-		if err == context.DeadlineExceeded {
-			return timeoutError{
-				operationID:   req.UniqueId,
-				retryReasons:  req.RetryReasons(),
-				retryAttempts: req.RetryAttempts(),
-				operation:     "view",
-				elapsed:       time.Now().Sub(startTime),
-			}
-		}
-
 		return err
 	}
 
 	if resp.StatusCode != 201 {
-		data, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-		err = resp.Body.Close()
-		if err != nil {
-			logDebugf("Failed to close socket (%s)", err)
-		}
-		return viewIndexError{statusCode: resp.StatusCode, message: string(data)}
+		return makeMgmtBadStatusError("failed to upsert design document", &req, resp)
 	}
 
 	return nil
@@ -334,7 +239,6 @@ func (vm *ViewIndexManager) upsertDesignDocument(tracectx requestSpanContext, dd
 // DropDesignDocumentOptions is the set of options available to the ViewIndexManager Upsert operation.
 type DropDesignDocumentOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
@@ -352,57 +256,27 @@ func (vm *ViewIndexManager) DropDesignDocument(name string, namespace DesignDocu
 
 func (vm *ViewIndexManager) dropDesignDocument(tracectx requestSpanContext, name string, namespace DesignDocumentNamespace,
 	startTime time.Time, opts *DropDesignDocumentOptions) error {
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, vm.globalTimeout)
-	if cancel != nil {
-		defer cancel()
-	}
 
 	name = vm.ddocName(name, namespace)
 
-	retryStrategy := vm.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	req := &gocbcore.HttpRequest{
-		Service:       gocbcore.ServiceType(CapiService),
+	req := mgmtRequest{
+		Service:       CapiService,
 		Path:          fmt.Sprintf("/_design/%s", name),
 		Method:        "DELETE",
-		Context:       ctx,
-		RetryStrategy: retryStrategy,
+		Timeout:       opts.Timeout,
+		RetryStrategy: opts.RetryStrategy,
 	}
-
-	dspan := vm.tracer.StartSpan("dispatch", tracectx)
-	resp, err := vm.httpClient.DoHttpRequest(req)
-	dspan.Finish()
+	resp, err := vm.doMgmtRequest(req)
 	if err != nil {
-		if err == context.DeadlineExceeded {
-			return timeoutError{
-				operationID:   req.UniqueId,
-				retryReasons:  req.RetryReasons(),
-				retryAttempts: req.RetryAttempts(),
-				operation:     "view",
-				elapsed:       time.Now().Sub(startTime),
-			}
-		}
-
 		return err
 	}
 
 	if resp.StatusCode != 200 {
-		data, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return err
+		if resp.StatusCode == 404 {
+			return makeGenericMgmtError(ErrDesignDocumentNotFound, &req, resp)
 		}
-		err = resp.Body.Close()
-		if err != nil {
-			logDebugf("Failed to close socket (%s)", err)
-		}
-		return viewIndexError{
-			statusCode:   resp.StatusCode,
-			message:      string(data),
-			indexMissing: resp.StatusCode == 404,
-		}
+
+		return makeMgmtBadStatusError("failed to drop design document", &req, resp)
 	}
 
 	return nil
@@ -411,7 +285,6 @@ func (vm *ViewIndexManager) dropDesignDocument(tracectx requestSpanContext, name
 // PublishDesignDocumentOptions is the set of options available to the ViewIndexManager PublishDesignDocument operation.
 type PublishDesignDocumentOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
@@ -426,31 +299,18 @@ func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesi
 		SetTag("couchbase.service", "view")
 	defer span.Finish()
 
-	ctx, cancel := contextFromMaybeTimeout(opts.Context, opts.Timeout, vm.globalTimeout)
-	if cancel != nil {
-		defer cancel()
-	}
-
 	devdoc, err := vm.getDesignDocument(span.Context(), name, false, startTime, &GetDesignDocumentOptions{
-		Context:       ctx,
 		RetryStrategy: opts.RetryStrategy,
 	})
 	if err != nil {
-		indexErr, ok := err.(viewIndexError)
-		if ok {
-			if indexErr.indexMissing {
-				return viewIndexError{message: "Development design document does not exist", indexMissing: true}
-			}
-		}
 		return err
 	}
 
 	err = vm.upsertDesignDocument(span.Context(), *devdoc, true, startTime, &UpsertDesignDocumentOptions{
-		Context:       ctx,
 		RetryStrategy: opts.RetryStrategy,
 	})
 	if err != nil {
-		return errors.Wrap(err, "failed to create ")
+		return err
 	}
 
 	return nil

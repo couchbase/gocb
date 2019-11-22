@@ -1,6 +1,9 @@
 package gocb
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestCollectionManagerCrud(t *testing.T) {
 	if !globalCluster.SupportsFeature(CollectionsFeature) {
@@ -18,7 +21,7 @@ func TestCollectionManagerCrud(t *testing.T) {
 	}
 
 	err = mgr.CreateScope("testScope", nil)
-	if !IsScopeExistsError(err) {
+	if !errors.Is(err, ErrScopeExists) {
 		t.Fatalf("Expected create scope to error with ScopeExists but was %v", err)
 	}
 
@@ -34,50 +37,8 @@ func TestCollectionManagerCrud(t *testing.T) {
 		Name:      "testCollection",
 		ScopeName: "testScope",
 	}, nil)
-	if !IsCollectionExistsError(err) {
+	if !errors.Is(err, ErrCollectionExists) {
 		t.Fatalf("Expected create collection to error with CollectionExists but was %v", err)
-	}
-
-	exists, err := mgr.CollectionExists(CollectionSpec{
-		Name:      "testCollection",
-		ScopeName: "testScope",
-	}, nil)
-	if err != nil {
-		t.Fatalf("Failed to check if collection exists %v", err)
-	}
-
-	if !exists {
-		t.Fatalf("Expected collection to exist")
-	}
-
-	exists, err = mgr.CollectionExists(CollectionSpec{
-		Name:      "testCollectionIDontExist",
-		ScopeName: "testScope",
-	}, nil)
-	if err != nil {
-		t.Fatalf("Failed to check if collection exists %v", err)
-	}
-
-	if exists {
-		t.Fatalf("Expected collection to not exist but did")
-	}
-
-	exists, err = mgr.ScopeExists("testScope", nil)
-	if err != nil {
-		t.Fatalf("Failed to check if scope exists %v", err)
-	}
-
-	if !exists {
-		t.Fatalf("Expected scope to exist")
-	}
-
-	exists, err = mgr.ScopeExists("testScopeIDontExist", nil)
-	if err != nil {
-		t.Fatalf("Failed to check if scope exists %v", err)
-	}
-
-	if exists {
-		t.Fatalf("Expected scope to not exist")
 	}
 
 	scopes, err := mgr.GetAllScopes(nil)

@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -124,7 +125,7 @@ func TestSearchIndexesCrud(t *testing.T) {
 		t.Fatalf("Expected GetIndex err to be not nil but was")
 	}
 
-	if !IsSearchIndexNotFoundError(err) {
+	if !errors.Is(err, ErrIndexNotFound) {
 		t.Fatalf("Expected GetIndex to return a not found error but was %v", err)
 	}
 
@@ -133,7 +134,7 @@ func TestSearchIndexesCrud(t *testing.T) {
 		t.Fatalf("Expected GetIndex err to be not nil but was")
 	}
 
-	if !IsSearchIndexNotFoundError(err) {
+	if !errors.Is(err, ErrIndexNotFound) {
 		t.Fatalf("Expected GetIndex to return a not found error but was %v", err)
 	}
 }
@@ -153,8 +154,8 @@ func TestSearchIndexesUpsertIndexNoName(t *testing.T) {
 		t.Fatalf("Expected UpsertIndex err to be not nil but was")
 	}
 
-	if !IsInvalidArgumentsError(err) {
-		t.Fatalf("Expected error to he InvalidArgumentsError but was %v", err)
+	if !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("Expected error to be InvalidArgument but was %v", err)
 	}
 }
 

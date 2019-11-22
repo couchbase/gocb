@@ -1,7 +1,6 @@
 package gocb
 
 import (
-	"context"
 	"strconv"
 	"strings"
 	"time"
@@ -21,54 +20,33 @@ const (
 
 // QueryOptions represents the options available when executing a N1QL query.
 type QueryOptions struct {
-	ScanConsistency QueryScanConsistency
-	ConsistentWith  *MutationState
-	AdHoc           bool
-	Profile         QueryProfileType
-	// ScanCap specifies the maximum buffered channel size between the indexer
-	// client and the query service for index scans. This parameter controls
-	// when to use scan backfill. Use a negative number to disable.
-	ScanCap int
-	// PipelineBatch controls the number of items execution operators can
-	// batch for fetch from the KV node.
-	PipelineBatch int
-	// PipelineCap controls the maximum number of items each execution operator
-	// can buffer between various operators.
-	PipelineCap int
-	// ScanWait specifies the maximum time wait for a scan.
-	ScanWait time.Duration
-	// ReadOnly controls whether a query can change a resulting recordset.  If
-	// readonly is true, then only SELECT statements are permitted.
-	ReadOnly bool
-	// MaxParallelism controls the number of logical cores to use in parallel for this query.
-	MaxParallelism  int
-	ClientContextID string
-	// Timeout and context are used to control cancellation of the data stream. Any timeout or deadline will also be
-	// propagated to the server.
-	Timeout              time.Duration
-	Context              context.Context
+	ScanConsistency      QueryScanConsistency
+	ConsistentWith       *MutationState
+	Profile              QueryProfileType
+	ScanCap              int
+	PipelineBatch        int
+	PipelineCap          int
+	ScanWait             time.Duration
+	ReadOnly             bool
+	MaxParallelism       int
+	ClientContextID      string
 	PositionalParameters []interface{}
 	NamedParameters      map[string]interface{}
-	// Metrics specifies whether or not to fetch metrics when executing the query.
-	Metrics bool
-	// Raw allows specifying custom query options.
-	Raw map[string]interface{}
+	Metrics              bool
+	Raw                  map[string]interface{}
 
-	// JSONSerializer is used to deserialize each row in the result. This should be a JSON deserializer as results are JSON.
-	// NOTE: if not set then query will always default to DefaultJSONSerializer.
-	Serializer    JSONSerializer
+	AdHoc         bool
+	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+
+	parentSpan requestSpanContext
 }
 
-func (opts *QueryOptions) toMap(statement string) (map[string]interface{}, error) {
+func (opts *QueryOptions) toMap() (map[string]interface{}, error) {
 	execOpts := make(map[string]interface{})
-	execOpts["statement"] = statement
-	if opts.Timeout != 0 {
-		execOpts["timeout"] = opts.Timeout.String()
-	}
 
 	if opts.ScanConsistency != 0 && opts.ConsistentWith != nil {
-		return nil, invalidArgumentsError{message: "ScanConsistency and ConsistentWith must be used exclusively"}
+		return nil, makeInvalidArgumentsError("ScanConsistency and ConsistentWith must be used exclusively")
 	}
 
 	if opts.ScanConsistency != 0 {
@@ -77,7 +55,7 @@ func (opts *QueryOptions) toMap(statement string) (map[string]interface{}, error
 		} else if opts.ScanConsistency == QueryScanConsistencyRequestPlus {
 			execOpts["scan_consistency"] = "request_plus"
 		} else {
-			return nil, invalidArgumentsError{message: "Unexpected consistency option"}
+			return nil, makeInvalidArgumentsError("Unexpected consistency option")
 		}
 	}
 
@@ -95,7 +73,7 @@ func (opts *QueryOptions) toMap(statement string) (map[string]interface{}, error
 	}
 
 	if opts.PositionalParameters != nil && opts.NamedParameters != nil {
-		return nil, invalidArgumentsError{message: "Positional and named parameters must be used exclusively"}
+		return nil, makeInvalidArgumentsError("Positional and named parameters must be used exclusively")
 	}
 
 	if opts.PositionalParameters != nil {

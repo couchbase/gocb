@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
-	"github.com/pkg/errors"
 )
 
 func TestEncode(t *testing.T) {
@@ -43,7 +42,7 @@ func TestEncode(t *testing.T) {
 		wantErr       bool
 	}
 	tests := map[Transcoder][]test{
-		NewJSONTranscoder(nil): {
+		NewJSONTranscoder(): {
 			{
 				name:    "byte array",
 				args:    byteArray,
@@ -58,74 +57,74 @@ func TestEncode(t *testing.T) {
 				name:          "string",
 				args:          rawString,
 				expected:      stringValue,
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
 				name:          "string pointer",
 				args:          &rawString,
 				expected:      stringValue,
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
 				name:          "json",
 				args:          jsonStruct,
 				expected:      jsonValue,
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
 				name:          "json pointer",
 				args:          &jsonStruct,
 				expected:      jsonValue,
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
 				name:          "json.RawMessage",
 				args:          rawMsg,
 				expected:      rawMsg,
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
 				name:          "json.RawMessage pointer",
 				args:          &rawMsg,
 				expected:      rawMsg,
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
 				name:          "number",
 				args:          rawNumber,
 				expected:      numberValue,
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
 				name:          "number pointer",
 				args:          &rawNumber,
 				expected:      numberValue,
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
 				name:          "interface",
 				args:          rawInterface,
 				expected:      stringValue,
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
 				name:          "interface pointer",
 				args:          &rawInterface,
 				expected:      stringValue,
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 		},
-		NewLegacyTranscoder(nil): {
+		NewLegacyTranscoder(): {
 			{
 				name:          "byte array",
 				args:          byteArray,
@@ -158,42 +157,42 @@ func TestEncode(t *testing.T) {
 				name:          "json",
 				args:          jsonStruct,
 				expected:      jsonValue,
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
 				name:          "json pointer",
 				args:          &jsonStruct,
 				expected:      jsonValue,
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
 				name:          "json.RawMessage",
 				args:          rawMsg,
 				expected:      rawMsg,
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
 				name:          "json.RawMessage pointer",
 				args:          &rawMsg,
 				expected:      rawMsg,
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
 				name:          "number",
 				args:          rawNumber,
 				expected:      numberValue,
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
 				name:          "number pointer",
 				args:          &rawNumber,
 				expected:      numberValue,
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
@@ -216,28 +215,28 @@ func TestEncode(t *testing.T) {
 				name:          "byte array",
 				args:          byteArray,
 				expected:      byteArray,
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
 				name:          "byte point array",
 				args:          &byteArray,
 				expected:      byteArray,
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
 				name:          "string",
 				args:          rawString,
 				expected:      []byte(rawString),
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
 				name:          "string pointer",
 				args:          &rawString,
 				expected:      []byte(rawString),
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
@@ -254,14 +253,14 @@ func TestEncode(t *testing.T) {
 				name:          "json.RawMessage",
 				args:          rawMsg,
 				expected:      rawMsg,
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
 				name:          "json.RawMessage pointer",
 				args:          &rawMsg,
 				expected:      rawMsg,
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
@@ -278,14 +277,14 @@ func TestEncode(t *testing.T) {
 				name:          "interface",
 				args:          rawInterface,
 				expected:      []byte(rawString),
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 			{
 				name:          "interface pointer",
 				args:          &rawInterface,
 				expected:      []byte(rawString),
-				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JsonType, gocbcore.NoCompression),
+				expectedFlags: gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression),
 				wantErr:       false,
 			},
 		},
@@ -454,7 +453,7 @@ func TestDecodeJSON(t *testing.T) {
 		wantErr  bool
 	}
 	tests := map[Transcoder][]test{
-		NewJSONTranscoder(nil): {
+		NewJSONTranscoder(): {
 			{
 				bytes:    jsonValue,
 				flags:    0x2000000,
@@ -462,7 +461,7 @@ func TestDecodeJSON(t *testing.T) {
 				wantErr:  false,
 			},
 		},
-		NewLegacyTranscoder(nil): {
+		NewLegacyTranscoder(): {
 			{
 				bytes:    jsonValue,
 				flags:    0x2000000,
@@ -529,7 +528,7 @@ func TestDecodeJSONInterface(t *testing.T) {
 		wantErr  bool
 	}
 	tests := map[Transcoder][]test{
-		NewJSONTranscoder(nil): {
+		NewJSONTranscoder(): {
 			{
 				bytes:    jsonValue,
 				flags:    0x2000000,
@@ -537,7 +536,7 @@ func TestDecodeJSONInterface(t *testing.T) {
 				wantErr:  false,
 			},
 		},
-		NewLegacyTranscoder(nil): {
+		NewLegacyTranscoder(): {
 			{
 				bytes:    jsonValue,
 				flags:    0x2000000,
@@ -601,7 +600,7 @@ func TestDecodeJSONString(t *testing.T) {
 		wantErr  bool
 	}
 	tests := map[Transcoder][]test{
-		NewJSONTranscoder(nil): {
+		NewJSONTranscoder(): {
 			{
 				bytes:    jsonValue,
 				flags:    0x2000000,
@@ -609,7 +608,7 @@ func TestDecodeJSONString(t *testing.T) {
 				wantErr:  false,
 			},
 		},
-		NewLegacyTranscoder(nil): {
+		NewLegacyTranscoder(): {
 			{
 				bytes:    jsonValue,
 				flags:    0x2000000,
@@ -673,7 +672,7 @@ func TestDecodeJSONNumber(t *testing.T) {
 		wantErr  bool
 	}
 	tests := map[Transcoder][]test{
-		NewJSONTranscoder(nil): {
+		NewJSONTranscoder(): {
 			{
 				bytes:    jsonValue,
 				flags:    0x2000000,
@@ -681,7 +680,7 @@ func TestDecodeJSONNumber(t *testing.T) {
 				wantErr:  false,
 			},
 		},
-		NewLegacyTranscoder(nil): {
+		NewLegacyTranscoder(): {
 			{
 				bytes:    jsonValue,
 				flags:    0x2000000,
@@ -739,14 +738,14 @@ func TestDecodeBinary(t *testing.T) {
 		wantErr  bool
 	}
 	tests := map[Transcoder][]test{
-		NewJSONTranscoder(nil): {
+		NewJSONTranscoder(): {
 			{
 				bytes:   binary,
 				flags:   3 << 24,
 				wantErr: true,
 			},
 		},
-		NewLegacyTranscoder(nil): {
+		NewLegacyTranscoder(): {
 			{
 				bytes:    binary,
 				flags:    3 << 24,
@@ -805,14 +804,14 @@ func TestDecodeString(t *testing.T) {
 		wantErr  bool
 	}
 	tests := map[Transcoder][]test{
-		NewJSONTranscoder(nil): {
+		NewJSONTranscoder(): {
 			{
 				bytes:   []byte(rawString),
 				flags:   4 << 24,
 				wantErr: true,
 			},
 		},
-		NewLegacyTranscoder(nil): {
+		NewLegacyTranscoder(): {
 			{
 				bytes:    []byte(rawString),
 				flags:    4 << 24,
@@ -859,29 +858,4 @@ func TestDecodeString(t *testing.T) {
 			})
 		}
 	}
-}
-
-type MockSerializer struct {
-	serializeResult []byte
-	err             error
-}
-
-func (s *MockSerializer) Serialize(value interface{}) ([]byte, error) {
-	if s.err != nil {
-		return nil, s.err
-	}
-	return s.serializeResult, nil
-}
-
-func (s *MockSerializer) Deserialize(bytes []byte, out interface{}) error {
-	if s.err != nil {
-		return s.err
-	}
-
-	switch typedOut := out.(type) {
-	case *[]byte:
-		*typedOut = bytes
-		return nil
-	}
-	return errors.New("MockSerializer expects an out value of []byte")
 }

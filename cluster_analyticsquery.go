@@ -1,36 +1,13 @@
 package gocb
 
 import (
-	"context"
 	"encoding/json"
-	"net/url"
-	"strconv"
 	"time"
 
-	"github.com/google/uuid"
-
 	gocbcore "github.com/couchbase/gocbcore/v8"
-	"github.com/pkg/errors"
 )
 
-// AnalyticsWarning represents any warning generating during the execution of an Analytics query.
-type AnalyticsWarning struct {
-	Code    uint32 `json:"code"`
-	Message string `json:"msg"`
-}
-
-type analyticsResponse struct {
-	RequestID       string                   `json:"requestID"`
-	ClientContextID string                   `json:"clientContextID"`
-	Results         []json.RawMessage        `json:"results,omitempty"`
-	Errors          []analyticsQueryError    `json:"errors,omitempty"`
-	Warnings        []AnalyticsWarning       `json:"warnings,omitempty"`
-	Status          string                   `json:"status,omitempty"`
-	Signature       interface{}              `json:"signature,omitempty"`
-	Metrics         analyticsResponseMetrics `json:"metrics,omitempty"`
-}
-
-type analyticsResponseMetrics struct {
+type jsonAnalyticsMetrics struct {
 	ElapsedTime      string `json:"elapsedTime"`
 	ExecutionTime    string `json:"executionTime"`
 	ResultCount      uint   `json:"resultCount"`
@@ -40,6 +17,20 @@ type analyticsResponseMetrics struct {
 	ErrorCount       uint   `json:"errorCount,omitempty"`
 	WarningCount     uint   `json:"warningCount,omitempty"`
 	ProcessedObjects uint   `json:"processedObjects,omitempty"`
+}
+
+type jsonAnalyticsWarning struct {
+	Code    uint32 `json:"code"`
+	Message string `json:"msg"`
+}
+
+type jsonAnalyticsResponse struct {
+	RequestID       string                 `json:"requestID"`
+	ClientContextID string                 `json:"clientContextID"`
+	Status          string                 `json:"status"`
+	Warnings        []jsonAnalyticsWarning `json:"warnings"`
+	Metrics         jsonAnalyticsMetrics   `json:"metrics"`
+	Signature       interface{}            `json:"signature"`
 }
 
 // AnalyticsMetrics encapsulates various metrics gathered during a queries execution.
@@ -55,100 +46,121 @@ type AnalyticsMetrics struct {
 	ProcessedObjects uint
 }
 
-// AnalyticsMetadata provides access to the metadata properties of an Analytics query result.
-type AnalyticsMetadata struct {
-	requestID       string
-	clientContextID string
-	status          string
-	warnings        []AnalyticsWarning
-	signature       interface{}
-	metrics         AnalyticsMetrics
-	sourceAddr      string
+func (metrics *AnalyticsMetrics) fromData(data jsonAnalyticsMetrics) error {
+	elapsedTime, err := time.ParseDuration(data.ElapsedTime)
+	if err != nil {
+		logDebugf("Failed to parse query metrics elapsed time: %s", err)
+	}
+
+	executionTime, err := time.ParseDuration(data.ExecutionTime)
+	if err != nil {
+		logDebugf("Failed to parse query metrics execution time: %s", err)
+	}
+
+	metrics.ElapsedTime = elapsedTime
+	metrics.ExecutionTime = executionTime
+	metrics.ResultCount = data.ResultCount
+	metrics.ResultSize = data.ResultSize
+	metrics.MutationCount = data.MutationCount
+	metrics.SortCount = data.SortCount
+	metrics.ErrorCount = data.ErrorCount
+	metrics.WarningCount = data.WarningCount
+	metrics.ProcessedObjects = data.ProcessedObjects
+
+	return nil
 }
 
-// AnalyticsResult allows access to the results of an Analytics query.
+// AnalyticsWarning encapsulates any warnings returned by a query.
+type AnalyticsWarning struct {
+	Code    uint32
+	Message string
+}
+
+func (warning *AnalyticsWarning) fromData(data jsonAnalyticsWarning) error {
+	warning.Code = data.Code
+	warning.Message = data.Message
+
+	return nil
+}
+
+// AnalyticsMetaData provides access to the meta-data properties of a N1QL query result.
+type AnalyticsMetaData struct {
+	RequestID       string
+	ClientContextID string
+	Metrics         AnalyticsMetrics
+	Signature       interface{}
+	Warnings        []AnalyticsWarning
+	Profile         interface{}
+
+	preparedName string
+}
+
+func (meta *AnalyticsMetaData) fromData(data jsonAnalyticsResponse) error {
+	metrics := AnalyticsMetrics{}
+	if err := metrics.fromData(data.Metrics); err != nil {
+		return err
+	}
+
+	warnings := make([]AnalyticsWarning, len(data.Warnings))
+	for wIdx, jsonWarning := range data.Warnings {
+		warnings[wIdx].fromData(jsonWarning)
+	}
+
+	meta.RequestID = data.RequestID
+	meta.ClientContextID = data.ClientContextID
+	meta.Metrics = metrics
+	meta.Signature = data.Signature
+	meta.Warnings = warnings
+
+	return nil
+}
+
+// AnalyticsResult allows access to the results of a N1QL query.
 type AnalyticsResult struct {
-	metadata   AnalyticsMetadata
-	err        error
-	httpStatus int
-	startTime  time.Time
+	reader *gocbcore.AnalyticsRowReader
 
-	streamResult *streamingResult
-	cancel       context.CancelFunc
-	httpProvider httpProvider
-	ctx          context.Context
+	rowBytes []byte
+}
 
-	serializer JSONSerializer
+func newAnalyticsResult(reader *gocbcore.AnalyticsRowReader) (*AnalyticsResult, error) {
+	return &AnalyticsResult{
+		reader: reader,
+	}, nil
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
-func (r *AnalyticsResult) Next(valuePtr interface{}) bool {
-	if r.err != nil {
+func (r *AnalyticsResult) Next() bool {
+	rowBytes := r.reader.NextRow()
+	if rowBytes == nil {
 		return false
 	}
 
-	row := r.NextBytes()
-	if row == nil {
-		return false
-	}
-
-	r.err = r.serializer.Deserialize(row, valuePtr)
-	if r.err != nil {
-		return false
-	}
-
+	r.rowBytes = rowBytes
 	return true
 }
 
-// NextBytes returns the next result from the results as a byte array.
-func (r *AnalyticsResult) NextBytes() []byte {
-	if r.streamResult.Closed() {
+// Value returns the value of the current row
+func (r *AnalyticsResult) Value(valuePtr interface{}) error {
+	if r.rowBytes == nil {
+		return ErrNoResult
+	}
+
+	if bytesPtr, ok := valuePtr.(*json.RawMessage); ok {
+		*bytesPtr = r.rowBytes
 		return nil
 	}
 
-	raw, err := r.streamResult.NextBytes()
-	if err != nil {
-		r.err = err
-		return nil
-	}
+	return json.Unmarshal(r.rowBytes, valuePtr)
+}
 
-	return raw
+// Err returns any errors that have occurred on the stream
+func (r *AnalyticsResult) Err() error {
+	return r.reader.Err()
 }
 
 // Close marks the results as closed, returning any errors that occurred during reading the results.
 func (r *AnalyticsResult) Close() error {
-	if r.streamResult.Closed() {
-		return r.err
-	}
-
-	err := r.streamResult.Close()
-	ctxErr := r.ctx.Err()
-	if r.cancel != nil {
-		r.cancel()
-	}
-	if ctxErr == context.DeadlineExceeded {
-		return timeoutError{
-			operationID: r.metadata.clientContextID,
-			elapsed:     time.Now().Sub(r.startTime),
-			remote:      r.metadata.sourceAddr,
-			operation:   "cbas",
-		}
-	}
-	if r.err != nil {
-		if qErr, ok := r.err.(AnalyticsQueryError); ok {
-			if qErr.Code() == 21002 {
-				return timeoutError{
-					operationID: r.metadata.clientContextID,
-					elapsed:     time.Now().Sub(r.startTime),
-					remote:      r.metadata.sourceAddr,
-					operation:   "cbas",
-				}
-			}
-		}
-
-		return r.err
-	}
-	return err
+	return r.reader.Close()
 }
 
 // One assigns the first value from the results into the value pointer.
@@ -156,390 +168,125 @@ func (r *AnalyticsResult) Close() error {
 // results, as such this should only be used for very small resultsets - ideally
 // of, at most, length 1.
 func (r *AnalyticsResult) One(valuePtr interface{}) error {
-	if !r.Next(valuePtr) {
-		err := r.Close()
-		if err != nil {
-			return err
-		}
-		return noResultsError{}
+	// Read the bytes from the first row
+	valueBytes := r.reader.NextRow()
+	if valueBytes == nil {
+		return ErrNoResult
 	}
 
-	// We have to purge the remaining rows in order to get to the remaining
-	// response attributes
-	for r.NextBytes() != nil {
+	// Skip through the remaining rows
+	for r.reader.NextRow() != nil {
+		// do nothing with the row
 	}
 
-	err := r.Close()
+	return json.Unmarshal(valueBytes, valuePtr)
+}
+
+// MetaData returns any meta-data that was available from this query.  Note that
+// the meta-data will only be available once the object has been closed (either
+// implicitly or explicitly).
+func (r *AnalyticsResult) MetaData() (*AnalyticsMetaData, error) {
+	metaDataBytes, err := r.reader.MetaData()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
-}
-
-// Metadata returns metadata for this result.
-func (r *AnalyticsResult) Metadata() (*AnalyticsMetadata, error) {
-	if !r.streamResult.Closed() {
-		return nil, clientError{message: "result must be closed before accessing meta-data"}
+	var jsonResp jsonAnalyticsResponse
+	err = json.Unmarshal(metaDataBytes, &jsonResp)
+	if err != nil {
+		return nil, err
 	}
 
-	return &r.metadata, nil
-}
-
-// Warnings returns any warnings that occurred during query execution.
-func (r *AnalyticsMetadata) Warnings() []AnalyticsWarning {
-	return r.warnings
-}
-
-// Status returns the status for the results.
-func (r *AnalyticsMetadata) Status() string {
-	return r.status
-}
-
-// Signature returns TODO
-func (r *AnalyticsMetadata) Signature() interface{} {
-	return r.signature
-}
-
-// Metrics returns metrics about execution of this result.
-func (r *AnalyticsMetadata) Metrics() AnalyticsMetrics {
-	return r.metrics
-}
-
-// RequestID returns the request ID used for this query.
-func (r *AnalyticsMetadata) RequestID() string {
-	return r.requestID
-}
-
-// ClientContextID returns the context ID used for this query.
-func (r *AnalyticsMetadata) ClientContextID() string {
-	return r.clientContextID
-}
-
-func (r *AnalyticsResult) readAttribute(decoder *json.Decoder, t json.Token) (bool, error) {
-	switch t {
-	case "requestID":
-		err := decoder.Decode(&r.metadata.requestID)
-		if err != nil {
-			return false, err
-		}
-	case "clientContextID":
-		err := decoder.Decode(&r.metadata.clientContextID)
-		if err != nil {
-			return false, err
-		}
-	case "metrics":
-		var metrics analyticsResponseMetrics
-		err := decoder.Decode(&metrics)
-		if err != nil {
-			return false, err
-		}
-		elapsedTime, err := time.ParseDuration(metrics.ElapsedTime)
-		if err != nil {
-			logDebugf("Failed to parse elapsed time duration (%s)", err)
-		}
-
-		executionTime, err := time.ParseDuration(metrics.ExecutionTime)
-		if err != nil {
-			logDebugf("Failed to parse execution time duration (%s)", err)
-		}
-
-		r.metadata.metrics = AnalyticsMetrics{
-			ElapsedTime:      elapsedTime,
-			ExecutionTime:    executionTime,
-			ResultCount:      metrics.ResultCount,
-			ResultSize:       metrics.ResultSize,
-			MutationCount:    metrics.MutationCount,
-			SortCount:        metrics.SortCount,
-			ErrorCount:       metrics.ErrorCount,
-			WarningCount:     metrics.WarningCount,
-			ProcessedObjects: metrics.ProcessedObjects,
-		}
-	case "errors":
-		var respErrs []analyticsQueryError
-		err := decoder.Decode(&respErrs)
-		if err != nil {
-			return false, err
-		}
-		if len(respErrs) > 0 {
-			// this isn't an error that we want to bail on so store it and keep going
-			respErr := respErrs[0]
-			respErr.endpoint = r.metadata.sourceAddr
-			respErr.httpStatus = 200
-			respErr.contextID = r.metadata.clientContextID
-			r.err = respErr
-		}
-	case "results":
-		// read the opening [, this prevents the decoder from loading the entire results array into memory
-		t, err := decoder.Token()
-		if err != nil {
-			return false, err
-		}
-		if delim, ok := t.(json.Delim); !ok || delim != '[' {
-			return false, clientError{message: "expected results opening token to be [ but was " + t.(string)}
-		}
-
-		return true, nil
-	case "warnings":
-		err := decoder.Decode(&r.metadata.warnings)
-		if err != nil {
-			return false, err
-		}
-	case "signature":
-		err := decoder.Decode(&r.metadata.signature)
-		if err != nil {
-			return false, err
-		}
-	case "status":
-		err := decoder.Decode(&r.metadata.status)
-		if err != nil {
-			return false, err
-		}
-	default:
-		var ignore interface{}
-		err := decoder.Decode(&ignore)
-		if err != nil {
-			return false, err
-		}
+	var metaData AnalyticsMetaData
+	err = metaData.fromData(jsonResp)
+	if err != nil {
+		return nil, err
 	}
 
-	return false, nil
+	return &metaData, nil
 }
 
-// AnalyticsQuery performs an analytics query and returns a list of rows or an error.
+// AnalyticsQuery executes the analytics query statement on the server.
 func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*AnalyticsResult, error) {
-	startTime := time.Now()
 	if opts == nil {
 		opts = &AnalyticsOptions{}
 	}
 
-	span := c.sb.Tracer.StartSpan("AnalyticsQuery", nil).
-		SetTag("couchbase.service", "cbas")
+	span := c.sb.Tracer.StartSpan("Query", opts.parentSpan).
+		SetTag("couchbase.service", "analytics")
 	defer span.Finish()
 
-	return c.analyticsQuery(span.Context(), statement, startTime, opts)
-}
-
-func (c *Cluster) analyticsQuery(tracectx requestSpanContext, statement string, startTime time.Time,
-	opts *AnalyticsOptions) (*AnalyticsResult, error) {
-
-	provider, err := c.getHTTPProvider()
-	if err != nil {
-		return nil, err
+	timeout := c.sb.QueryTimeout
+	if opts.Timeout != 0 && opts.Timeout < timeout {
+		timeout = opts.Timeout
 	}
+	deadline := time.Now().Add(timeout)
 
-	queryOpts, err := opts.toMap(statement)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not parse query options")
-	}
-
-	timeout := c.sb.AnalyticsTimeout
-	tmostr, castok := queryOpts["timeout"].(string)
-	if castok {
-		timeout, err = time.ParseDuration(tmostr)
-		if err != nil {
-			return nil, errors.Wrap(err, "could not parse timeout value")
-		}
-	}
-
-	if opts.Context == nil {
-		opts.Context = context.Background()
-	}
-
-	ctx, cancel := context.WithTimeout(opts.Context, timeout)
-
-	now := time.Now()
-	d, _ := ctx.Deadline()
-	newTimeout := d.Sub(now)
-
-	// We need to take the shorter of the timeouts here so that the server can try to timeout first, if the context
-	// already had a shorter deadline then there's not much we can do about it.
-	if newTimeout > timeout {
-		queryOpts["timeout"] = timeout.String()
-	} else {
-		queryOpts["timeout"] = newTimeout.String()
-	}
-
-	if opts.Serializer == nil {
-		opts.Serializer = c.sb.Serializer
-	}
-
-	retryWrapper := c.sb.RetryStrategyWrapper
+	retryStrategy := c.sb.RetryStrategyWrapper
 	if opts.RetryStrategy != nil {
-		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
+		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	res, err := c.executeAnalyticsQuery(ctx, tracectx, queryOpts, provider, cancel, opts.ReadOnly, opts.Serializer,
-		retryWrapper, startTime)
+	queryOpts, err := opts.toMap()
 	if err != nil {
-		// only cancel on error, if we cancel when things have gone to plan then we'll prematurely close the stream
-		if cancel != nil {
-			cancel()
+		return nil, AnalyticsError{
+			InnerError:      wrapError(err, "failed to generate query options"),
+			Statement:       statement,
+			ClientContextID: opts.ClientContextID,
 		}
-		return nil, err
 	}
 
-	return res, nil
+	priorityInt := 0
+	if opts.Priority {
+		priorityInt = -1
+	}
+
+	queryOpts["statement"] = statement
+
+	return c.execAnalyticsQuery(span, queryOpts, priorityInt, deadline, retryStrategy)
 }
 
-func (c *Cluster) executeAnalyticsQuery(ctx context.Context, tracectx requestSpanContext, opts map[string]interface{},
-	provider httpProvider, cancel context.CancelFunc, idempotent bool, serializer JSONSerializer,
-	retryWrapper *retryStrategyWrapper, startTime time.Time) (*AnalyticsResult, error) {
-	// priority is sent as a header not in the body
-	priority, priorityCastOK := opts["priority"].(int)
-	if priorityCastOK {
-		delete(opts, "priority")
+func maybeGetAnalyticsOption(options map[string]interface{}, name string) string {
+	if value, ok := options[name].(string); ok {
+		return value
 	}
-
-	espan := c.sb.Tracer.StartSpan("encoding", tracectx)
-	reqJSON, err := json.Marshal(opts)
-	espan.Finish()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal query request body")
-	}
-
-	req := &gocbcore.HttpRequest{
-		Service:       gocbcore.CbasService,
-		Path:          "/analytics/service",
-		Method:        "POST",
-		Context:       ctx,
-		Body:          reqJSON,
-		IsIdempotent:  idempotent,
-		RetryStrategy: retryWrapper,
-	}
-
-	contextID, ok := opts["client_context_id"].(string)
-	if ok {
-		req.UniqueId = contextID
-	} else {
-		req.UniqueId = uuid.New().String()
-		logWarnf("Failed to assert analytics options client_context_id to string. Replacing with %s", req.UniqueId)
-	}
-
-	if priorityCastOK {
-		req.Headers = make(map[string]string)
-		req.Headers["Analytics-Priority"] = strconv.Itoa(priority)
-	}
-
-	for {
-		dspan := c.sb.Tracer.StartSpan("dispatch", tracectx)
-		resp, err := provider.DoHttpRequest(req)
-		dspan.Finish()
-		if err != nil {
-			if err == gocbcore.ErrNoCbasService {
-				return nil, serviceNotAvailableError{message: gocbcore.ErrNoCbasService.Error()}
-			}
-
-			if err == context.DeadlineExceeded {
-				return nil, timeoutError{
-					operationID:   req.Identifier(),
-					retryReasons:  req.RetryReasons(),
-					retryAttempts: req.RetryAttempts(),
-					elapsed:       time.Now().Sub(startTime),
-					remote:        req.Endpoint,
-					operation:     "cbas",
-				}
-			}
-
-			return nil, err
-		}
-
-		epInfo, err := url.Parse(resp.Endpoint)
-		if err != nil {
-			logWarnf("Failed to parse N1QL source address")
-			epInfo = &url.URL{
-				Host: "",
-			}
-		}
-
-		results := &AnalyticsResult{
-			metadata: AnalyticsMetadata{
-				sourceAddr: epInfo.Host,
-			},
-			httpStatus:   resp.StatusCode,
-			httpProvider: provider,
-			serializer:   serializer,
-			startTime:    startTime,
-		}
-
-		streamResult, err := newStreamingResults(resp.Body, results.readAttribute)
-		if err != nil {
-			return nil, err
-		}
-
-		err = streamResult.readAttributes()
-		if err != nil {
-			bodyErr := streamResult.Close()
-			if bodyErr != nil {
-				logDebugf("Failed to close socket (%s)", bodyErr.Error())
-			}
-
-			return nil, err
-		}
-
-		results.streamResult = streamResult
-
-		if streamResult.HasRows() {
-			results.cancel = cancel
-			results.ctx = ctx
-		} else {
-			bodyErr := streamResult.Close()
-			if bodyErr != nil {
-				logDebugf("Failed to close response body, %s", bodyErr.Error())
-			}
-
-			if results.err != nil {
-				// If this isn't retryable then return immediately, otherwise attempt a retry. If that fails then return
-				// immediately.
-				if IsRetryableError(results.err) {
-					shouldRetry, retryErr := shouldRetryHTTPRequest(ctx, req, gocbcore.ServiceResponseCodeIndicatedRetryReason,
-						retryWrapper, provider, startTime)
-					if shouldRetry {
-						continue
-					}
-
-					if retryErr != nil {
-						return nil, retryErr
-					}
-				}
-
-				return nil, results.err
-			}
-		}
-
-		return results, nil
-	}
+	return ""
 }
 
-func shouldRetryHTTPRequest(ctx context.Context, req *gocbcore.HttpRequest, reason gocbcore.RetryReason,
-	retryWrapper *retryStrategyWrapper, provider httpProvider, startTime time.Time) (bool, error) {
-	waitCh := make(chan struct{})
-	retried := provider.MaybeRetryRequest(req, reason, retryWrapper, func() {
-		waitCh <- struct{}{}
+func (c *Cluster) execAnalyticsQuery(
+	span requestSpan,
+	options map[string]interface{},
+	priority int,
+	deadline time.Time,
+	retryStrategy *retryStrategyWrapper,
+) (*AnalyticsResult, error) {
+	provider, err := c.getAnalyticsProvider()
+	if err != nil {
+		return nil, AnalyticsError{
+			InnerError:      wrapError(err, "failed to get query provider"),
+			Statement:       maybeGetAnalyticsOption(options, "statement"),
+			ClientContextID: maybeGetAnalyticsOption(options, "client_context_id"),
+		}
+	}
+
+	reqBytes, err := json.Marshal(options)
+	if err != nil {
+		return nil, AnalyticsError{
+			InnerError:      wrapError(err, "failed to marshall query body"),
+			Statement:       maybeGetAnalyticsOption(options, "statement"),
+			ClientContextID: maybeGetAnalyticsOption(options, "client_context_id"),
+		}
+	}
+
+	res, err := provider.AnalyticsQuery(gocbcore.AnalyticsQueryOptions{
+		Payload:       reqBytes,
+		Priority:      priority,
+		RetryStrategy: retryStrategy,
+		Deadline:      deadline,
 	})
-	if retried {
-		select {
-		case <-waitCh:
-			return true, nil
-		case <-ctx.Done():
-			if req.CancelRetry() {
-				// Read the channel so that we don't leave it hanging
-				<-waitCh
-			}
-
-			if ctx.Err() == context.DeadlineExceeded {
-				return false, timeoutError{
-					operationID:   req.Identifier(),
-					retryReasons:  req.RetryReasons(),
-					retryAttempts: req.RetryAttempts(),
-					elapsed:       time.Now().Sub(startTime),
-					remote:        req.Endpoint,
-					operation:     "cbas",
-				}
-			}
-
-			return false, ctx.Err()
-		}
+	if err != nil {
+		return nil, maybeEnhanceAnalyticsError(err)
 	}
-	return false, nil
+
+	return newAnalyticsResult(res)
 }

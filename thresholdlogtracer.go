@@ -285,18 +285,18 @@ func (t *thresholdLoggingTracer) loggerRoutine() {
 
 func (t *thresholdLoggingTracer) recordOp(span *thresholdLogSpan) {
 	switch span.serviceName {
+	case "mgmt":
+		t.managementGroup.recordOp(span)
 	case "kv":
 		t.kvGroup.recordOp(span)
 	case "views":
 		t.viewsGroup.recordOp(span)
-	case "n1ql":
+	case "query":
 		t.queryGroup.recordOp(span)
-	case "fts":
+	case "search":
 		t.searchGroup.recordOp(span)
-	case "cbas":
+	case "analytics":
 		t.analyticsGroup.recordOp(span)
-	case "mgmt":
-		t.managementGroup.recordOp(span)
 	}
 }
 

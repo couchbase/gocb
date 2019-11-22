@@ -1,13 +1,11 @@
 package gocb
 
 import (
-	"context"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"testing"
 	"time"
-
-	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
 func TestErrorNonExistant(t *testing.T) {
@@ -31,8 +29,8 @@ func TestErrorDoubleInsert(t *testing.T) {
 		t.Fatalf("Expected error to be non-nil")
 	}
 
-	if !IsKeyExistsError(err) {
-		t.Fatalf("Expected error to be KeyExistsError but is %s", reflect.TypeOf(err).String())
+	if !errors.Is(err, ErrDocumentExists) {
+		t.Fatalf("Expected error to be DocumentExists but is %s", err)
 	}
 }
 
@@ -786,8 +784,8 @@ func TestRemoveWithCas(t *testing.T) {
 		t.Fatalf("Expected remove to fail")
 	}
 
-	if !IsKeyExistsError(err) {
-		t.Fatalf("Expected error to be KeyExistsError but is %s", reflect.TypeOf(err).String())
+	if !errors.Is(err, ErrCasMismatch) {
+		t.Fatalf("Expected error to be CasMismatch but is %s", err)
 	}
 
 	existsRes, err = globalCollection.Exists("removeWithCas", nil)
@@ -958,14 +956,14 @@ func TestGetAndLock(t *testing.T) {
 	}
 
 	mutRes, err = globalCollection.Upsert("getAndLock", doc, &UpsertOptions{
-		RetryStrategy: NewFailFastRetryStrategy(),
+		RetryStrategy: newFailFastRetryStrategy(),
 	})
 	if err == nil {
 		t.Fatalf("Expected error but was nil")
 	}
 
-	if !IsKeyLockedError(err) {
-		t.Fatalf("Expected error to be KeyExistsError but is %s", reflect.TypeOf(err).String())
+	if !errors.Is(err, ErrDocumentLocked) {
+		t.Fatalf("Expected error to be DocumentLocked but is %s", err)
 	}
 
 	globalCluster.TimeTravel(2000 * time.Millisecond)
@@ -1058,15 +1056,15 @@ func TestUnlockInvalidCas(t *testing.T) {
 	}
 
 	_, err = globalCollection.Unlock("unlockInvalidCas", lockedDoc.Cas()+1, &UnlockOptions{
-		RetryStrategy: NewFailFastRetryStrategy(),
+		RetryStrategy: newFailFastRetryStrategy(),
 	})
 	if err == nil {
 		t.Fatalf("Unlock should have failed")
 	}
 
 	// The server and the mock do not agree on the error for locked documents.
-	if !IsKeyLockedError(err) && !IsTemporaryFailureError(err) {
-		t.Fatalf("Expected error to be TempFailError or IsKeyLockedError but was %s", reflect.TypeOf(err).String())
+	if !errors.Is(err, ErrDocumentLocked) && !errors.Is(err, ErrTemporaryFailure) {
+		t.Fatalf("Expected error to be DocumentLocked or TemporaryFailure but was %s", err)
 	}
 
 	_, err = globalCollection.Unlock("unlockInvalidCas", lockedDoc.Cas()+1, &UnlockOptions{
@@ -1077,21 +1075,8 @@ func TestUnlockInvalidCas(t *testing.T) {
 		t.Fatalf("Unlock should have failed")
 	}
 
-	if !IsTimeoutError(err) {
-		t.Fatalf("Expected error to be TimeoutError but was %s", reflect.TypeOf(err).String())
-	}
-
-	tErr, ok := err.(TimeoutErrorWithDetail)
-	if !ok {
-		t.Fatalf("Expected error to be TimeoutErrorWithDetail but was %+v", err)
-	}
-
-	if len(tErr.RetryReasons()) != 1 {
-		t.Fatalf("Expected 1 retry reason but was %v", tErr.RetryReasons())
-	}
-
-	if tErr.OperationID() == "" {
-		t.Fatalf("Expected OperationID to be not empty")
+	if !errors.Is(err, ErrTimeout) {
+		t.Fatalf("Expected error to be TimeoutError but was %s", err)
 	}
 }
 
@@ -1127,15 +1112,15 @@ func TestDoubleLockFail(t *testing.T) {
 	}
 
 	_, err = globalCollection.GetAndLock("doubleLock", 1, &GetAndLockOptions{
-		RetryStrategy: NewFailFastRetryStrategy(),
+		RetryStrategy: newFailFastRetryStrategy(),
 	})
 	if err == nil {
 		t.Fatalf("Expected GetAndLock to fail")
 	}
 
 	// The server and the mock do not agree on the error for locked documents.
-	if !IsKeyLockedError(err) && !IsTemporaryFailureError(err) {
-		t.Fatalf("Expected error to be TempFailError or IsKeyLockedError but was %s", reflect.TypeOf(err).String())
+	if !errors.Is(err, ErrDocumentLocked) && !errors.Is(err, ErrTemporaryFailure) {
+		t.Fatalf("Expected error to be DocumentLocked or TemporaryFailure but was %s", err)
 	}
 }
 
@@ -1145,8 +1130,8 @@ func TestUnlockMissingDocFail(t *testing.T) {
 		t.Fatalf("Expected Unlock to fail")
 	}
 
-	if !IsKeyNotFoundError(err) {
-		t.Fatalf("Expected error to be KeyNotFoundError but was %v", err)
+	if !errors.Is(err, ErrDocumentNotFound) {
+		t.Fatalf("Expected error to be DocumentNotFound but was %v", err)
 	}
 }
 
@@ -1224,7 +1209,7 @@ func TestTouchMissingDocFail(t *testing.T) {
 		t.Fatalf("Touch should have failed")
 	}
 
-	if !IsKeyNotFoundError(err) {
+	if !errors.Is(err, ErrDocumentNotFound) {
 		t.Fatalf("Expected error to be KeyNotFoundError but was %v", err)
 	}
 }
@@ -1297,8 +1282,12 @@ func TestInsertReplicateToGetAllReplicas(t *testing.T) {
 	actualReplicas := 0
 	numMasters := 0
 
-	var insertedDoc GetReplicaResult
-	for stream.Next(&insertedDoc) {
+	for {
+		insertedDoc := stream.Next()
+		if insertedDoc == nil {
+			break
+		}
+
 		actualReplicas++
 
 		if !insertedDoc.IsReplica() {
@@ -1327,36 +1316,6 @@ func TestInsertReplicateToGetAllReplicas(t *testing.T) {
 
 	if numMasters != 1 {
 		t.Fatalf("Expected number of masters to be 1 but was %d", numMasters)
-	}
-}
-
-func TestDurabilityTimeout(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2000*time.Millisecond)
-	defer cancel()
-	level := DurabilityLevelMajority
-
-	coerced, timeout := globalCollection.durabilityTimeout(ctx, level)
-	if timeout != 1799 { // 1800 minus a bit for the time it takes to get to the calculation
-		t.Fatalf("Timeout value should have been %d but was %d", 1799, timeout)
-	}
-
-	if coerced {
-		t.Fatalf("Expected coerced to be false")
-	}
-}
-
-func TestDurabilityTimeoutCoerce(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
-	defer cancel()
-	level := DurabilityLevelMajority
-
-	coerced, timeout := globalCollection.durabilityTimeout(ctx, level)
-	if timeout != persistenceTimeoutFloor {
-		t.Fatalf("Timeout value should have been %d but was %d", persistenceTimeoutFloor, timeout)
-	}
-
-	if !coerced {
-		t.Fatalf("Expected coerced to be true")
 	}
 }
 
@@ -1438,7 +1397,7 @@ func TestDurabilityGetFromAnyReplica(t *testing.T) {
 
 			_, err := globalCollection.GetAnyReplica(tCase.name, nil)
 			if tCase.expectKeyNotFound {
-				if !IsKeyNotFoundError(err) {
+				if !errors.Is(err, ErrDocumentNotFound) {
 					t.Fatalf("Expected GetFromReplica to not find a key but got error %v", err)
 				}
 			} else {
@@ -1450,75 +1409,6 @@ func TestDurabilityGetFromAnyReplica(t *testing.T) {
 	}
 }
 
-// In this test it is expected that the operation will timeout and ctx.Err() will be DeadlineExceeded.
-func TestGetContextTimeout1(t *testing.T) {
-	var doc testBreweryDocument
-	err := loadJSONTestDataset("beer_sample_single", &doc)
-	if err != nil {
-		t.Fatalf("Could not load dataset: %v", err)
-	}
-
-	provider := &mockKvProvider{
-		cas:                   gocbcore.Cas(0),
-		datatype:              1,
-		value:                 nil,
-		opWait:                3000 * time.Millisecond,
-		opCancellationSuccess: true,
-	}
-	col := testGetCollection(t, provider)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
-	defer cancel()
-	opts := GetOptions{Context: ctx, Timeout: 2000 * time.Millisecond}
-	_, err = col.Get("getDocTimeout", &opts)
-	if err == nil {
-		t.Fatalf("Get succeeded, should have timedout")
-	}
-
-	if !IsTimeoutError(err) {
-		t.Fatalf("Error should have been timeout error, was %s", reflect.TypeOf(err).Name())
-	}
-
-	if ctx.Err() != context.DeadlineExceeded {
-		t.Fatalf("Error should have been DeadlineExceeded error but was %v", ctx.Err())
-	}
-}
-
-// In this test it is expected that the operation will timeout but ctx.Err() will be nil as it is the timeout value
-// that is hit.
-func TestGetContextTimeout2(t *testing.T) {
-	var doc testBreweryDocument
-	err := loadJSONTestDataset("beer_sample_single", &doc)
-	if err != nil {
-		t.Fatalf("Could not load dataset: %v", err)
-	}
-
-	provider := &mockKvProvider{
-		cas:                   gocbcore.Cas(0),
-		datatype:              1,
-		value:                 nil,
-		opWait:                2000 * time.Millisecond,
-		opCancellationSuccess: true,
-	}
-	col := testGetCollection(t, provider)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-	defer cancel()
-	opts := GetOptions{Context: ctx, Timeout: 2 * time.Millisecond}
-	_, err = col.Get("getDocTimeout", &opts)
-	if err == nil {
-		t.Fatalf("Insert succeeded, should have timedout")
-	}
-
-	if !IsTimeoutError(err) {
-		t.Fatalf("Error should have been timeout error, was %s", reflect.TypeOf(err).Name())
-	}
-
-	if ctx.Err() != nil {
-		t.Fatalf("Context error should have been nil")
-	}
-}
-
 func TestGetErrorCollectionUnknown(t *testing.T) {
 	var doc testBreweryDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
@@ -1527,7 +1417,8 @@ func TestGetErrorCollectionUnknown(t *testing.T) {
 	}
 
 	provider := &mockKvProvider{
-		err: &gocbcore.KvError{Code: gocbcore.StatusCollectionUnknown},
+		err:   ErrCollectionNotFound,
+		value: make([]byte, 0),
 	}
 	col := testGetCollection(t, provider)
 
@@ -1540,136 +1431,7 @@ func TestGetErrorCollectionUnknown(t *testing.T) {
 		t.Fatalf("Result should have been nil")
 	}
 
-	if !IsCollectionNotFoundError(err) {
+	if !errors.Is(err, ErrCollectionNotFound) {
 		t.Fatalf("Error should have been collection missing but was %v", err)
-	}
-}
-
-// In this test it is expected that the operation will timeout and ctx.Err() will be DeadlineExceeded.
-func TestInsertContextTimeout1(t *testing.T) {
-	provider := &mockKvProvider{
-		cas:                   gocbcore.Cas(0),
-		datatype:              1,
-		value:                 nil,
-		opWait:                3000 * time.Millisecond,
-		opCancellationSuccess: true,
-	}
-	col := testGetCollection(t, provider)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Millisecond)
-	defer cancel()
-	opts := InsertOptions{Context: ctx, Timeout: 2000 * time.Millisecond}
-	_, err := col.Insert("insertDocTimeout", "test", &opts)
-	if err == nil {
-		t.Fatalf("Insert succeeded, should have timedout")
-	}
-
-	if !IsTimeoutError(err) {
-		t.Fatalf("Error should have been timeout error, was %s", reflect.TypeOf(err).Name())
-	}
-
-	if ctx.Err() != context.DeadlineExceeded {
-		t.Fatalf("Error should have been DeadlineExceeded error but was %v", ctx.Err())
-	}
-}
-
-// In this test it is expected that the operation will timeout but ctx.Err() will be nil as it is the timeout value
-// that is hit.
-func TestInsertContextTimeout2(t *testing.T) {
-	provider := &mockKvProvider{
-		cas:                   gocbcore.Cas(0),
-		datatype:              1,
-		value:                 nil,
-		opWait:                2000 * time.Millisecond,
-		opCancellationSuccess: true,
-	}
-	col := testGetCollection(t, provider)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-	defer cancel()
-	opts := InsertOptions{Context: ctx, Timeout: 2 * time.Millisecond}
-	_, err := col.Insert("insertDocTimeout", "test", &opts)
-	if err == nil {
-		t.Fatalf("Insert succeeded, should have timedout")
-	}
-
-	if !IsTimeoutError(err) {
-		t.Fatalf("Error should have been timeout error, was %s", reflect.TypeOf(err).Name())
-	}
-
-	if ctx.Err() != nil {
-		t.Fatalf("Context error should have been nil")
-	}
-}
-
-func TestCollectionContext(t *testing.T) {
-	type args struct {
-		ctx     context.Context
-		timeout time.Duration
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
-	defer cancel()
-	tests := []struct {
-		name        string
-		sb          stateBlock
-		args        args
-		wantBetween []time.Duration
-	}{
-		{
-			name:        "No parameters should take cluster level timeout",
-			sb:          stateBlock{KvTimeout: 20 * time.Second},
-			args:        args{ctx: nil, timeout: 0},
-			wantBetween: []time.Duration{19 * time.Second, 20 * time.Second},
-		},
-		{
-			name:        "Timeout parameter only should be timeout",
-			sb:          stateBlock{KvTimeout: 20 * time.Second},
-			args:        args{ctx: nil, timeout: 30 * time.Second},
-			wantBetween: []time.Duration{29 * time.Second, 30 * time.Second},
-		},
-		{
-			name:        "Context parameter only should take cluster timeout",
-			sb:          stateBlock{KvTimeout: 20 * time.Second},
-			args:        args{ctx: ctx, timeout: 0},
-			wantBetween: []time.Duration{19 * time.Second, 20 * time.Second},
-		},
-		{
-			name:        "Context and timeout parameters, lower context should take context",
-			sb:          stateBlock{KvTimeout: 20 * time.Second},
-			args:        args{ctx: ctx, timeout: 30 * time.Second},
-			wantBetween: []time.Duration{24 * time.Second, 25 * time.Second},
-		},
-		{
-			name:        "Context and timeout parameters, lower timeout should take timeout",
-			sb:          stateBlock{KvTimeout: 20 * time.Second},
-			args:        args{ctx: ctx, timeout: 15 * time.Second},
-			wantBetween: []time.Duration{14 * time.Second, 15 * time.Second},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := &Collection{
-				sb: tt.sb,
-			}
-			ctx, cancel := c.context(tt.args.ctx, tt.args.timeout)
-			d, ok := ctx.Deadline()
-			if ok {
-				timeout := d.Sub(time.Now())
-				if timeout < tt.wantBetween[0] || timeout > tt.wantBetween[1] {
-					t.Errorf(
-						"Expected context to be between %f and %f but was %f",
-						tt.wantBetween[0].Seconds(),
-						tt.wantBetween[1].Seconds(),
-						timeout.Seconds(),
-					)
-				}
-			} else {
-				t.Errorf("Expected context to have deadline, but didn't")
-			}
-
-			if cancel == nil {
-				t.Errorf("Expected cancel func be not nil")
-			}
-		})
 	}
 }

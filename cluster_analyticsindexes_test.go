@@ -1,6 +1,9 @@
 package gocb
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestAnalyticsIndexesCrud(t *testing.T) {
 	if !globalCluster.SupportsFeature(AnalyticsIndexFeature) {
@@ -29,7 +32,7 @@ func TestAnalyticsIndexesCrud(t *testing.T) {
 		t.Fatalf("Expected CreateDataverse to error")
 	}
 
-	if !IsAnalyticsDataverseAlreadyExistsError(err) {
+	if !errors.Is(err, ErrDataverseExists) {
 		t.Fatalf("Expected error to be dataverse already exists but was %v", err)
 	}
 
@@ -55,7 +58,7 @@ func TestAnalyticsIndexesCrud(t *testing.T) {
 		t.Fatalf("Expected CreateDataverse to error")
 	}
 
-	if !IsAnalyticsDatasetAlreadyExistsError(err) {
+	if !errors.Is(err, ErrDatasetExists) {
 		t.Fatalf("Expected error to be dataset already exists but was %v", err)
 	}
 
@@ -89,7 +92,7 @@ func TestAnalyticsIndexesCrud(t *testing.T) {
 		t.Fatalf("Expected CreateIndex to error")
 	}
 
-	if !IsAnalyticsIndexAlreadyExistsError(err) {
+	if !errors.Is(err, ErrIndexExists) {
 		t.Fatalf("Expected error to be index already exists but was %v", err)
 	}
 
@@ -151,7 +154,7 @@ func TestAnalyticsIndexesCrud(t *testing.T) {
 		t.Fatalf("Expected DropIndex to error")
 	}
 
-	if !IsAnalyticsIndexNotFoundError(err) {
+	if !errors.Is(err, ErrIndexNotFound) {
 		t.Fatalf("Expected error to be index not found but was %v", err)
 	}
 
@@ -177,7 +180,7 @@ func TestAnalyticsIndexesCrud(t *testing.T) {
 		t.Fatalf("Expected DropDataset to error")
 	}
 
-	if !IsAnalyticsDatasetNotFoundError(err) {
+	if !errors.Is(err, ErrDatasetNotFound) {
 		t.Fatalf("Expected error to be dataset not found but was %v", err)
 	}
 
@@ -198,7 +201,7 @@ func TestAnalyticsIndexesCrud(t *testing.T) {
 		t.Fatalf("Expected DropDataverse to error")
 	}
 
-	if !IsAnalyticsDataverseNotFoundError(err) {
+	if !errors.Is(err, ErrDataverseNotFound) {
 		t.Fatalf("Expected error to be dataverse not found but was %v", err)
 	}
 }

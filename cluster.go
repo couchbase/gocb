@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/couchbaselabs/gocbconnstr"
+	"github.com/pkg/errors"
 )
 
 // Cluster represents a connection to a specific Couchbase cluster.
@@ -21,7 +21,7 @@ type Cluster struct {
 	clusterClient   client
 
 	clusterLock sync.RWMutex
-	queryCache  map[string]*n1qlCache
+	queryCache  map[string]*queryCacheEntry
 
 	sb stateBlock
 
@@ -42,9 +42,7 @@ type ClusterOptions struct {
 	ManagementTimeout time.Duration
 	// Transcoder is used for trancoding data used in KV operations.
 	Transcoder Transcoder
-	// Serializer is used for deserialization of data used in query, analytics, view and search operations. This
-	// will default to DefaultJSONSerializer. NOTE: This is entirely independent of Transcoder.
-	Serializer            JSONSerializer
+
 	DisableMutationTokens bool
 	RetryStrategy         RetryStrategy
 
@@ -127,10 +125,7 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 		managementTimeout = opts.SearchTimeout
 	}
 	if opts.Transcoder == nil {
-		opts.Transcoder = NewJSONTranscoder(&DefaultJSONSerializer{})
-	}
-	if opts.Serializer == nil {
-		opts.Serializer = &DefaultJSONSerializer{}
+		opts.Transcoder = NewJSONTranscoder()
 	}
 	if opts.RetryStrategy == nil {
 		opts.RetryStrategy = NewBestEffortRetryStrategy(nil)
@@ -164,7 +159,6 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 			DuraTimeout:            40000 * time.Millisecond,
 			DuraPollTimeout:        100 * time.Millisecond,
 			Transcoder:             opts.Transcoder,
-			Serializer:             opts.Serializer,
 			UseMutationTokens:      !opts.DisableMutationTokens,
 			ManagementTimeout:      managementTimeout,
 			RetryStrategyWrapper:   newRetryStrategyWrapper(opts.RetryStrategy),
@@ -176,7 +170,7 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 			CircuitBreakerConfig:   opts.CircuitBreakerConfig,
 		},
 
-		queryCache: make(map[string]*n1qlCache),
+		queryCache: make(map[string]*queryCacheEntry),
 	}
 
 	err = cluster.parseExtraConnStrOptions(connSpec)
@@ -313,9 +307,7 @@ func (c *Cluster) randomClient() (client, error) {
 	c.connectionsLock.RLock()
 	if len(c.connections) == 0 {
 		c.connectionsLock.RUnlock()
-		return nil, configurationError{
-			message: "not connected to cluster",
-		}
+		return nil, errors.New("not connected to cluster")
 	}
 	var randomClient client
 	var firstError error
@@ -330,9 +322,7 @@ func (c *Cluster) randomClient() (client, error) {
 	c.connectionsLock.RUnlock()
 	if randomClient == nil {
 		if firstError == nil {
-			return nil, configurationError{
-				message: "not connected to cluster",
-			}
+			return nil, errors.New("not connected to cluster")
 		}
 
 		return nil, firstError
@@ -356,7 +346,7 @@ func (c *Cluster) Close(opts *ClusterCloseOptions) error {
 	c.clusterLock.Lock()
 	for key, conn := range c.connections {
 		err := conn.close()
-		if err != nil && gocbcore.ErrorCause(err) != gocbcore.ErrShutdown {
+		if err != nil {
 			logWarnf("Failed to close a client in cluster close: %s", err)
 			overallErr = err
 		}
@@ -365,7 +355,7 @@ func (c *Cluster) Close(opts *ClusterCloseOptions) error {
 	}
 	if c.clusterClient != nil {
 		err := c.clusterClient.close()
-		if err != nil && gocbcore.ErrorCause(err) != gocbcore.ErrShutdown {
+		if err != nil {
 			logWarnf("Failed to close cluster client in cluster close: %s", err)
 			overallErr = err
 		}
@@ -394,9 +384,7 @@ func (c *Cluster) clusterOrRandomClient() (client, error) {
 		cli = c.clusterClient
 		c.connectionsLock.RUnlock()
 		if !cli.supportsGCCCP() {
-			return nil, configurationError{
-				message: "cluster level operations not supported by cluster version",
-			}
+			return nil, errors.New("cluster-level operations not supported due to cluster version")
 		}
 	}
 
@@ -417,24 +405,52 @@ func (c *Cluster) getDiagnosticsProvider() (diagnosticsProvider, error) {
 	return provider, nil
 }
 
+func (c *Cluster) getQueryProvider() (queryProvider, error) {
+	cli, err := c.clusterOrRandomClient()
+	if err != nil {
+		return nil, err
+	}
+
+	provider, err := cli.getQueryProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}
+
+func (c *Cluster) getAnalyticsProvider() (analyticsProvider, error) {
+	cli, err := c.clusterOrRandomClient()
+	if err != nil {
+		return nil, err
+	}
+
+	provider, err := cli.getAnalyticsProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}
+
+func (c *Cluster) getSearchProvider() (searchProvider, error) {
+	cli, err := c.clusterOrRandomClient()
+	if err != nil {
+		return nil, err
+	}
+
+	provider, err := cli.getSearchProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}
+
 func (c *Cluster) getHTTPProvider() (httpProvider, error) {
-	var cli client
-	c.connectionsLock.RLock()
-	if c.clusterClient == nil {
-		c.connectionsLock.RUnlock()
-		var err error
-		cli, err = c.randomClient()
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		cli = c.clusterClient
-		c.connectionsLock.RUnlock()
-		if !cli.supportsGCCCP() {
-			return nil, configurationError{
-				message: "cluster level operations not supported by cluster version",
-			}
-		}
+	cli, err := c.clusterOrRandomClient()
+	if err != nil {
+		return nil, err
 	}
 
 	provider, err := cli.getHTTPProvider()
@@ -492,16 +508,9 @@ func (c *Cluster) Buckets() (*BucketManager, error) {
 // AnalyticsIndexes returns an AnalyticsIndexManager for managing analytics indexes.
 // Volatile: This API is subject to change at any time.
 func (c *Cluster) AnalyticsIndexes() (*AnalyticsIndexManager, error) {
-	provider, err := c.getHTTPProvider()
-	if err != nil {
-		return nil, err
-	}
 	return &AnalyticsIndexManager{
-		httpClient:           provider,
-		executeQuery:         c.analyticsQuery,
-		globalTimeout:        c.sb.ManagementTimeout,
-		defaultRetryStrategy: c.sb.RetryStrategyWrapper,
-		tracer:               c.sb.Tracer,
+		cluster: c,
+		tracer:  c.sb.Tracer,
 	}, nil
 }
 
@@ -509,24 +518,16 @@ func (c *Cluster) AnalyticsIndexes() (*AnalyticsIndexManager, error) {
 // Volatile: This API is subject to change at any time.
 func (c *Cluster) QueryIndexes() (*QueryIndexManager, error) {
 	return &QueryIndexManager{
-		executeQuery:         c.query,
-		globalTimeout:        c.sb.ManagementTimeout,
-		defaultRetryStrategy: c.sb.RetryStrategyWrapper,
-		tracer:               c.sb.Tracer,
+		cluster: c,
+		tracer:  c.sb.Tracer,
 	}, nil
 }
 
 // SearchIndexes returns a SearchIndexManager for managing Search indexes.
 // Volatile: This API is subject to change at any time.
 func (c *Cluster) SearchIndexes() (*SearchIndexManager, error) {
-	provider, err := c.getHTTPProvider()
-	if err != nil {
-		return nil, err
-	}
 	return &SearchIndexManager{
-		httpClient:           provider,
-		globalTimeout:        c.sb.ManagementTimeout,
-		defaultRetryStrategy: c.sb.RetryStrategyWrapper,
-		tracer:               c.sb.Tracer,
+		cluster: c,
+		tracer:  c.sb.Tracer,
 	}, nil
 }

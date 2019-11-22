@@ -16,7 +16,7 @@ type MutationToken struct {
 
 type bucketToken struct {
 	SeqNo  uint64 `json:"seqno"`
-	VbUuid string `json:"vbuuid"`
+	VbUUID string `json:"vbuuid"`
 }
 
 // BucketName returns the name of the bucket that this token belongs to.
@@ -26,12 +26,12 @@ func (mt MutationToken) BucketName() string {
 
 // PartitionUUID returns the UUID of the vbucket that this token belongs to.
 func (mt MutationToken) PartitionUUID() uint64 {
-	return uint64(mt.token.VbUuid)
+	return uint64(mt.token.VbUUID)
 }
 
 // PartitionID returns the ID of the vbucket that this token belongs to.
 func (mt MutationToken) PartitionID() uint64 {
-	return uint64(mt.token.VbId)
+	return uint64(mt.token.VbID)
 }
 
 // SequenceNumber returns the sequence number of the vbucket that this token belongs to.
@@ -40,12 +40,12 @@ func (mt MutationToken) SequenceNumber() uint64 {
 }
 
 func (mt bucketToken) MarshalJSON() ([]byte, error) {
-	info := []interface{}{mt.SeqNo, mt.VbUuid}
+	info := []interface{}{mt.SeqNo, mt.VbUUID}
 	return json.Marshal(info)
 }
 
 func (mt *bucketToken) UnmarshalJSON(data []byte) error {
-	info := []interface{}{&mt.SeqNo, &mt.VbUuid}
+	info := []interface{}{&mt.SeqNo, &mt.VbUUID}
 	return json.Unmarshal(data, &info)
 }
 
@@ -89,15 +89,15 @@ func (mt *MutationState) MarshalJSON() ([]byte, error) {
 			(data)[bucketName] = &tokens
 		}
 
-		vbId := fmt.Sprintf("%d", token.token.VbId)
-		stateToken := (*(data)[bucketName])[vbId]
+		vbID := fmt.Sprintf("%d", token.token.VbID)
+		stateToken := (*(data)[bucketName])[vbID]
 		if stateToken == nil {
 			stateToken = &bucketToken{}
-			(*(data)[bucketName])[vbId] = stateToken
+			(*(data)[bucketName])[vbID] = stateToken
 		}
 
 		stateToken.SeqNo = uint64(token.token.SeqNo)
-		stateToken.VbUuid = fmt.Sprintf("%d", token.token.VbUuid)
+		stateToken.VbUUID = fmt.Sprintf("%d", token.token.VbUUID)
 
 	}
 
@@ -118,15 +118,15 @@ func (mt *MutationState) UnmarshalJSON(data []byte) error {
 			if err != nil {
 				return err
 			}
-			vbUUID, err := strconv.Atoi(stateToken.VbUuid)
+			vbUUID, err := strconv.Atoi(stateToken.VbUUID)
 			if err != nil {
 				return err
 			}
 			token := MutationToken{
 				bucketName: bucketName,
 				token: gocbcore.MutationToken{
-					VbId:   uint16(vbID),
-					VbUuid: gocbcore.VbUuid(vbUUID),
+					VbID:   uint16(vbID),
+					VbUUID: gocbcore.VbUUID(vbUUID),
 					SeqNo:  gocbcore.SeqNo(stateToken.SeqNo),
 				},
 			}
@@ -147,7 +147,7 @@ func (mt *MutationState) toSearchMutationState() searchMutationState {
 			data[token.bucketName] = make(map[string]int)
 		}
 
-		data[token.bucketName][fmt.Sprintf("%d/%d", token.token.VbId, token.token.VbUuid)] = int(token.token.SeqNo)
+		data[token.bucketName][fmt.Sprintf("%d/%d", token.token.VbID, token.token.VbUUID)] = int(token.token.SeqNo)
 	}
 
 	return data

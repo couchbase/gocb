@@ -1,7 +1,6 @@
 package gocb
 
 import (
-	"context"
 	"strings"
 	"time"
 
@@ -20,31 +19,22 @@ const (
 
 // AnalyticsOptions is the set of options available to an Analytics query.
 type AnalyticsOptions struct {
-	// Timeout and context are used to control cancellation of the data stream. Any timeout or deadline will also be
-	// propagated to the server.
-	ServerSideTimeout    time.Duration
-	Context              context.Context
 	ClientContextID      string
-	Raw                  map[string]interface{}
 	Priority             bool
 	PositionalParameters []interface{}
 	NamedParameters      map[string]interface{}
 	ReadOnly             bool
 	ScanConsistency      AnalyticsScanConsistency
+	Raw                  map[string]interface{}
 
-	// JSONSerializer is used to deserialize each row in the result. This should be a JSON deserializer as results are JSON.
-	// NOTE: if not set then query will always default to DefaultJSONSerializer.
-	Serializer    JSONSerializer
+	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+
+	parentSpan requestSpanContext
 }
 
-func (opts *AnalyticsOptions) toMap(statement string) (map[string]interface{}, error) {
+func (opts *AnalyticsOptions) toMap() (map[string]interface{}, error) {
 	execOpts := make(map[string]interface{})
-	execOpts["statement"] = statement
-
-	if opts.ServerSideTimeout != 0 {
-		execOpts["timeout"] = opts.ServerSideTimeout.String()
-	}
 
 	if opts.ClientContextID == "" {
 		execOpts["client_context_id"] = uuid.New().String()
@@ -58,16 +48,12 @@ func (opts *AnalyticsOptions) toMap(statement string) (map[string]interface{}, e
 		} else if opts.ScanConsistency == AnalyticsScanConsistencyRequestPlus {
 			execOpts["scan_consistency"] = "request_plus"
 		} else {
-			return nil, invalidArgumentsError{message: "unexpected consistency option"}
+			return nil, makeInvalidArgumentsError("unexpected consistency option")
 		}
 	}
 
-	if opts.Priority {
-		execOpts["priority"] = -1
-	}
-
 	if opts.PositionalParameters != nil && opts.NamedParameters != nil {
-		return nil, invalidArgumentsError{message: "positional and named parameters must be used exclusively"}
+		return nil, makeInvalidArgumentsError("positional and named parameters must be used exclusively")
 	}
 
 	if opts.PositionalParameters != nil {
@@ -83,14 +69,14 @@ func (opts *AnalyticsOptions) toMap(statement string) (map[string]interface{}, e
 		}
 	}
 
+	if opts.ReadOnly {
+		execOpts["readonly"] = true
+	}
+
 	if opts.Raw != nil {
 		for k, v := range opts.Raw {
 			execOpts[k] = v
 		}
-	}
-
-	if opts.ReadOnly {
-		execOpts["readonly"] = true
 	}
 
 	return execOpts, nil

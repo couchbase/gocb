@@ -15,35 +15,35 @@ type diagnosticsProvider interface {
 
 func diagServiceString(service ServiceType) string {
 	switch service {
+	case MgmtService:
+		return "mgmt"
 	case KeyValueService:
 		return "kv"
 	case CapiService:
-		return "view"
-	case MgmtService:
-		return "mgmt"
+		return "views"
 	case QueryService:
-		return "n1ql"
+		return "query"
 	case SearchService:
-		return "fts"
+		return "search"
 	case AnalyticsService:
-		return "cbas"
+		return "analytics"
 	}
 	return ""
 }
 
 func diagStringService(service string) ServiceType {
 	switch service {
-	case "kv":
-		return KeyValueService
-	case "view":
-		return CapiService
 	case "mgmt":
 		return MgmtService
-	case "n1ql":
+	case "kv":
+		return KeyValueService
+	case "views":
+		return CapiService
+	case "query":
 		return QueryService
-	case "fts":
+	case "search":
 		return SearchService
-	case "cbas":
+	case "analytics":
 		return AnalyticsService
 	}
 	return ServiceType(0)
@@ -189,7 +189,7 @@ func (c *Cluster) Diagnostics(opts *DiagnosticsOptions) (*DiagnosticsResult, err
 			Remote:       conn.RemoteAddr,
 			LastActivity: conn.LastActivity,
 			Scope:        conn.Scope,
-			ID:           conn.Id,
+			ID:           conn.ID,
 		})
 	}
 

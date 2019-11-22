@@ -2,7 +2,6 @@ package gocb
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"net/url"
 	"strconv"
@@ -59,19 +58,16 @@ type ViewOptions struct {
 	InclusiveEnd    bool
 	StartKeyDocID   string
 	EndKeyDocID     string
-	Namespace       DesignDocumentNamespace
+	OnError         ViewErrorMode
+	Debug           bool
 	Raw             map[string]string
-	// Timeout and context are used to control cancellation of the data stream.
-	Context context.Context
-	Timeout time.Duration
-	OnError ViewErrorMode
-	Debug   bool
 
-	// JSONSerializer is used to deserialize each row in the result. This should be a JSON deserializer as results are JSON.
-	// NOTE: if not set then views will always default to DefaultJSONSerializer.
-	Serializer JSONSerializer
+	Namespace DesignDocumentNamespace
 
+	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+
+	parentSpan requestSpanContext
 }
 
 func (opts *ViewOptions) toURLValues() (*url.Values, error) {
@@ -85,7 +81,7 @@ func (opts *ViewOptions) toURLValues() (*url.Values, error) {
 		} else if opts.ScanConsistency == ViewScanConsistencyUpdateAfter {
 			options.Set("stale", "update_after")
 		} else {
-			return nil, invalidArgumentsError{message: "unexpected stale option"}
+			return nil, makeInvalidArgumentsError("unexpected stale option")
 		}
 	}
 
@@ -103,7 +99,7 @@ func (opts *ViewOptions) toURLValues() (*url.Values, error) {
 		} else if opts.Order == ViewOrderingDescending {
 			options.Set("descending", "true")
 		} else {
-			return nil, invalidArgumentsError{message: "unexpected order option"}
+			return nil, makeInvalidArgumentsError("unexpected order option")
 		}
 	}
 
@@ -123,7 +119,7 @@ func (opts *ViewOptions) toURLValues() (*url.Values, error) {
 	}
 
 	if opts.Key != nil {
-		jsonKey, err := opts.marshalJson(opts.Key)
+		jsonKey, err := opts.marshalJSON(opts.Key)
 		if err != nil {
 			return nil, err
 		}
@@ -131,7 +127,7 @@ func (opts *ViewOptions) toURLValues() (*url.Values, error) {
 	}
 
 	if len(opts.Keys) > 0 {
-		jsonKeys, err := opts.marshalJson(opts.Keys)
+		jsonKeys, err := opts.marshalJSON(opts.Keys)
 		if err != nil {
 			return nil, err
 		}
@@ -139,7 +135,7 @@ func (opts *ViewOptions) toURLValues() (*url.Values, error) {
 	}
 
 	if opts.StartKey != nil {
-		jsonStartKey, err := opts.marshalJson(opts.StartKey)
+		jsonStartKey, err := opts.marshalJSON(opts.StartKey)
 		if err != nil {
 			return nil, err
 		}
@@ -149,7 +145,7 @@ func (opts *ViewOptions) toURLValues() (*url.Values, error) {
 	}
 
 	if opts.EndKey != nil {
-		jsonEndKey, err := opts.marshalJson(opts.EndKey)
+		jsonEndKey, err := opts.marshalJSON(opts.EndKey)
 		if err != nil {
 			return nil, err
 		}
@@ -184,7 +180,7 @@ func (opts *ViewOptions) toURLValues() (*url.Values, error) {
 		} else if opts.OnError == ViewErrorModeStop {
 			options.Set("on_error", "stop")
 		} else {
-			return nil, invalidArgumentsError{"unexpected onerror option"}
+			return nil, makeInvalidArgumentsError("unexpected onerror option")
 		}
 	}
 
@@ -201,7 +197,7 @@ func (opts *ViewOptions) toURLValues() (*url.Values, error) {
 	return options, nil
 }
 
-func (opts *ViewOptions) marshalJson(value interface{}) ([]byte, error) {
+func (opts *ViewOptions) marshalJSON(value interface{}) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	enc := json.NewEncoder(buf)
 	enc.SetEscapeHTML(false)
