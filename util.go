@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"net/http"
 	"time"
 )
@@ -16,13 +17,10 @@ func doHttpWithTimeout(cli *http.Client, req *http.Request, timeout time.Duratio
 		return
 	}
 
-	tmoch := make(chan struct{})
-	timer := time.AfterFunc(timeout, func() {
-		tmoch <- struct{}{}
-	})
+	ctx, cancel := context.WithTimeout(req.Context(), timeout)
+	defer cancel()
+	req.WithContext(ctx)
 
-	req.Cancel = tmoch
 	resp, err = cli.Do(req)
-	timer.Stop()
 	return
 }
