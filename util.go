@@ -19,7 +19,7 @@ func doHttpWithTimeout(cli *http.Client, req *http.Request, timeout time.Duratio
 
 	ctx, cancel := context.WithTimeout(req.Context(), timeout)
 	defer cancel()
-	req.WithContext(ctx)
+	req = req.WithContext(ctx)
 
 	resp, err = cli.Do(req)
 	return
