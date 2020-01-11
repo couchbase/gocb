@@ -5,12 +5,11 @@ type Bucket struct {
 	sb stateBlock
 }
 
-// BucketOptions are the options available when connecting to a Bucket.
-type BucketOptions struct {
+type bucketOptions struct {
 	DisableMutationTokens bool
 }
 
-func newBucket(sb *stateBlock, bucketName string, opts BucketOptions) *Bucket {
+func newBucket(sb *stateBlock, bucketName string, opts bucketOptions) *Bucket {
 	return &Bucket{
 		sb: stateBlock{
 			clientStateBlock: clientStateBlock{

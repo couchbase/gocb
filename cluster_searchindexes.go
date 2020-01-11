@@ -7,6 +7,87 @@ import (
 	"time"
 )
 
+type jsonSearchIndexResp struct {
+	Status   string           `json:"status"`
+	IndexDef *jsonSearchIndex `json:"indexDef"`
+}
+
+type jsonSearchIndexDefs struct {
+	IndexDefs   map[string]jsonSearchIndex `json:"indexDefs"`
+	ImplVersion string                     `json:"implVersion"`
+}
+
+type jsonSearchIndexesResp struct {
+	Status    string              `json:"status"`
+	IndexDefs jsonSearchIndexDefs `json:"indexDefs"`
+}
+
+type jsonSearchIndex struct {
+	UUID         string                 `json:"uuid"`
+	Name         string                 `json:"name"`
+	SourceName   string                 `json:"sourceName"`
+	Type         string                 `json:"type"`
+	Params       map[string]interface{} `json:"params"`
+	SourceUUID   string                 `json:"sourceUUID"`
+	SourceParams map[string]interface{} `json:"sourceParams"`
+	SourceType   string                 `json:"sourceType"`
+	PlanParams   map[string]interface{} `json:"planParams"`
+}
+
+// SearchIndex is used to define a search index.
+type SearchIndex struct {
+	// UUID is required for updates. It provides a means of ensuring consistency, the UUID must match the UUID value
+	// for the index on the server.
+	UUID string
+	// Name represents the name of this index.
+	Name string
+	// SourceName is the name of the source of the data for the index e.g. bucket name.
+	SourceName string
+	// Type is the type of index, e.g. fulltext-index or fulltext-alias.
+	Type string
+	// IndexParams are index properties such as store type and mappings.
+	Params map[string]interface{}
+	// SourceUUID is the UUID of the data source, this can be used to more tightly tie the index to a source.
+	SourceUUID string
+	// SourceParams are extra parameters to be defined. These are usually things like advanced connection and tuning
+	// parameters.
+	SourceParams map[string]interface{}
+	// SourceType is the type of the data source, e.g. couchbase or nil depending on the Type field.
+	SourceType string
+	// PlanParams are plan properties such as number of replicas and number of partitions.
+	PlanParams map[string]interface{}
+}
+
+func (si *SearchIndex) fromData(data jsonSearchIndex) error {
+	si.UUID = data.UUID
+	si.Name = data.Name
+	si.SourceName = data.SourceName
+	si.Type = data.Type
+	si.Params = data.Params
+	si.SourceUUID = data.SourceUUID
+	si.SourceParams = data.SourceParams
+	si.SourceType = data.SourceType
+	si.PlanParams = data.PlanParams
+
+	return nil
+}
+
+func (si *SearchIndex) toData() (jsonSearchIndex, error) {
+	var data jsonSearchIndex
+
+	data.UUID = si.UUID
+	data.Name = si.Name
+	data.SourceName = si.SourceName
+	data.Type = si.Type
+	data.Params = si.Params
+	data.SourceUUID = si.SourceUUID
+	data.SourceParams = si.SourceParams
+	data.SourceType = si.SourceType
+	data.PlanParams = si.PlanParams
+
+	return data, nil
+}
+
 // SearchIndexManager provides methods for performing Couchbase FTS index management.
 // Experimental: This API is subject to change at any time.
 type SearchIndexManager struct {
@@ -22,21 +103,6 @@ func (sm *SearchIndexManager) doMgmtRequest(req mgmtRequest) (*mgmtResponse, err
 	}
 
 	return resp, nil
-}
-
-type searchIndexDefs struct {
-	IndexDefs   map[string]SearchIndex `json:"indexDefs,omitempty"`
-	ImplVersion string                 `json:"implVersion,omitempty"`
-}
-
-type searchIndexResp struct {
-	Status   string       `json:"status,omitempty"`
-	IndexDef *SearchIndex `json:"indexDef,omitempty"`
-}
-
-type searchIndexesResp struct {
-	Status    string          `json:"status,omitempty"`
-	IndexDefs searchIndexDefs `json:"indexDefs,omitempty"`
 }
 
 // GetAllSearchIndexOptions is the set of options available to the search indexes GetAllIndexes operation.
@@ -73,7 +139,7 @@ func (sm *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]S
 		return nil, makeMgmtBadStatusError("failed to get all indexes", &req, resp)
 	}
 
-	var indexesResp searchIndexesResp
+	var indexesResp jsonSearchIndexesResp
 	jsonDec := json.NewDecoder(resp.Body)
 	err = jsonDec.Decode(&indexesResp)
 	if err != nil {
@@ -87,7 +153,13 @@ func (sm *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]S
 
 	indexDefs := indexesResp.IndexDefs.IndexDefs
 	var indexes []SearchIndex
-	for _, index := range indexDefs {
+	for _, indexData := range indexDefs {
+		var index SearchIndex
+		err := index.fromData(indexData)
+		if err != nil {
+			return nil, err
+		}
+
 		indexes = append(indexes, index)
 	}
 
@@ -128,7 +200,7 @@ func (sm *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOpt
 		return nil, makeMgmtBadStatusError("failed to get the index", &req, resp)
 	}
 
-	var indexResp searchIndexResp
+	var indexResp jsonSearchIndexResp
 	jsonDec := json.NewDecoder(resp.Body)
 	err = jsonDec.Decode(&indexResp)
 	if err != nil {
@@ -140,7 +212,13 @@ func (sm *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOpt
 		logDebugf("Failed to close socket (%s)", err)
 	}
 
-	return indexResp.IndexDef, nil
+	var indexDef SearchIndex
+	err = indexDef.fromData(*indexResp.IndexDef)
+	if err != nil {
+		return nil, err
+	}
+
+	return &indexDef, nil
 }
 
 // UpsertSearchIndexOptions is the set of options available to the search index manager UpsertIndex operation.
@@ -148,29 +226,6 @@ type UpsertSearchIndexOptions struct {
 	Timeout       time.Duration
 	Context       context.Context
 	RetryStrategy RetryStrategy
-}
-
-// SearchIndex is used to define a search index.
-type SearchIndex struct {
-	// UUID is required for updates. It provides a means of ensuring consistency, the UUID must match the UUID value
-	// for the index on the server.
-	UUID string `json:"uuid"`
-	Name string `json:"name"`
-	// SourceName is the name of the source of the data for the index e.g. bucket name.
-	SourceName string `json:"sourceName,omitempty"`
-	// Type is the type of index, e.g. fulltext-index or fulltext-alias.
-	Type string `json:"type"`
-	// IndexParams are index properties such as store type and mappings.
-	Params map[string]interface{} `json:"params"`
-	// SourceUUID is the UUID of the data source, this can be used to more tightly tie the index to a source.
-	SourceUUID string `json:"sourceUUID,omitempty"`
-	// SourceParams are extra parameters to be defined. These are usually things like advanced connection and tuning
-	// parameters.
-	SourceParams map[string]interface{} `json:"sourceParams,omitempty"`
-	// SourceType is the type of the data source, e.g. couchbase or nil depending on the Type field.
-	SourceType string `json:"sourceType"`
-	// PlanParams are plan properties such as number of replicas and number of partitions.
-	PlanParams map[string]interface{} `json:"planParams,omitempty"`
 }
 
 // UpsertIndex creates or updates a search index.
@@ -190,7 +245,12 @@ func (sm *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Ups
 		SetTag("couchbase.service", "fts")
 	defer span.Finish()
 
-	b, err := json.Marshal(indexDefinition)
+	indexData, err := indexDefinition.toData()
+	if err != nil {
+		return err
+	}
+
+	b, err := json.Marshal(indexData)
 	if err != nil {
 		return err
 	}

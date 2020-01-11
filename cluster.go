@@ -32,7 +32,8 @@ type Cluster struct {
 
 // ClusterOptions is the set of options available for creating a Cluster.
 type ClusterOptions struct {
-	Authenticator     Authenticator
+	Authenticator Authenticator
+
 	ConnectTimeout    time.Duration
 	KVTimeout         time.Duration
 	ViewTimeout       time.Duration
@@ -40,11 +41,13 @@ type ClusterOptions struct {
 	AnalyticsTimeout  time.Duration
 	SearchTimeout     time.Duration
 	ManagementTimeout time.Duration
+
 	// Transcoder is used for trancoding data used in KV operations.
 	Transcoder Transcoder
 
 	DisableMutationTokens bool
-	RetryStrategy         RetryStrategy
+
+	RetryStrategy RetryStrategy
 
 	// Orphan logging records when the SDK receives responses for requests that are no longer in the system (usually
 	// due to being timed out).
@@ -242,9 +245,9 @@ func (c *Cluster) parseExtraConnStrOptions(spec gocbconnstr.ConnSpec) error {
 }
 
 // Bucket connects the cluster to server(s) and returns a new Bucket instance.
-func (c *Cluster) Bucket(bucketName string, opts *BucketOptions) *Bucket {
+func (c *Cluster) Bucket(bucketName string, opts *bucketOptions) *Bucket {
 	if opts == nil {
-		opts = &BucketOptions{}
+		opts = &bucketOptions{}
 	}
 	b := newBucket(&c.sb, bucketName, *opts)
 	cli := c.takeClusterClient()

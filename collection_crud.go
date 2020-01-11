@@ -36,27 +36,15 @@ type Cas gocbcore.Cas
 
 type pendingOp gocbcore.PendingOp
 
-// UpsertOptions are options that can be applied to an Upsert operation.
-type UpsertOptions struct {
-	Timeout time.Duration
-	// The expiry length in seconds
-	Expiry          uint32
-	PersistTo       uint
-	ReplicateTo     uint
-	DurabilityLevel DurabilityLevel
-	Transcoder      Transcoder
-	RetryStrategy   RetryStrategy
-}
-
 // InsertOptions are options that can be applied to an Insert operation.
 type InsertOptions struct {
-	Timeout time.Duration
 	// The expiry length in seconds
 	Expiry          uint32
 	PersistTo       uint
 	ReplicateTo     uint
 	DurabilityLevel DurabilityLevel
 	Transcoder      Transcoder
+	Timeout         time.Duration
 	RetryStrategy   RetryStrategy
 }
 
@@ -112,6 +100,18 @@ func (c *Collection) Insert(id string, val interface{}, opts *InsertOptions) (mu
 		errOut = err
 	}
 	return
+}
+
+// UpsertOptions are options that can be applied to an Upsert operation.
+type UpsertOptions struct {
+	// The expiry length in seconds
+	Expiry          uint32
+	PersistTo       uint
+	ReplicateTo     uint
+	DurabilityLevel DurabilityLevel
+	Transcoder      Transcoder
+	Timeout         time.Duration
+	RetryStrategy   RetryStrategy
 }
 
 // Upsert creates a new document in the Collection if it does not exist, if it does exist then it updates it.
@@ -170,13 +170,13 @@ func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mu
 
 // ReplaceOptions are the options available to a Replace operation.
 type ReplaceOptions struct {
-	Timeout         time.Duration
 	Expiry          uint32
 	Cas             Cas
 	PersistTo       uint
 	ReplicateTo     uint
 	DurabilityLevel DurabilityLevel
 	Transcoder      Transcoder
+	Timeout         time.Duration
 	RetryStrategy   RetryStrategy
 }
 
@@ -237,13 +237,13 @@ func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (
 
 // GetOptions are the options available to a Get operation.
 type GetOptions struct {
-	Timeout    time.Duration
 	WithExpiry bool
 	// Project causes the Get operation to only fetch the fields indicated
 	// by the paths. The result of the operation is then treated as a
 	// standard GetResult.
 	Project       []string
 	Transcoder    Transcoder
+	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 }
 
@@ -532,8 +532,8 @@ func (c *Collection) getOneReplica(
 
 // GetAllReplicaOptions are the options available to the GetAllReplicas command.
 type GetAllReplicaOptions struct {
-	Timeout       time.Duration
 	Transcoder    Transcoder
+	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 }
 
@@ -642,8 +642,8 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 
 // GetAnyReplicaOptions are the options available to the GetAnyReplica command.
 type GetAnyReplicaOptions struct {
-	Timeout       time.Duration
 	Transcoder    Transcoder
+	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 }
 
@@ -685,11 +685,11 @@ func (c *Collection) GetAnyReplica(id string, opts *GetAnyReplicaOptions) (docOu
 
 // RemoveOptions are the options available to the Remove command.
 type RemoveOptions struct {
-	Timeout         time.Duration
 	Cas             Cas
 	PersistTo       uint
 	ReplicateTo     uint
 	DurabilityLevel DurabilityLevel
+	Timeout         time.Duration
 	RetryStrategy   RetryStrategy
 }
 
@@ -745,8 +745,8 @@ func (c *Collection) Remove(id string, opts *RemoveOptions) (mutOut *MutationRes
 
 // GetAndTouchOptions are the options available to the GetAndTouch operation.
 type GetAndTouchOptions struct {
-	Timeout       time.Duration
 	Transcoder    Transcoder
+	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 }
 
@@ -809,8 +809,8 @@ func (c *Collection) GetAndTouch(id string, expiry uint32, opts *GetAndTouchOpti
 
 // GetAndLockOptions are the options available to the GetAndLock operation.
 type GetAndLockOptions struct {
-	Timeout       time.Duration
 	Transcoder    Transcoder
+	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 }
 

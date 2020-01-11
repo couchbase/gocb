@@ -12,15 +12,6 @@ import (
 	"github.com/couchbase/gocbcore/v8"
 )
 
-// CollectionManager provides methods for performing collections management.
-type CollectionManager struct {
-	httpClient           httpProvider
-	bucketName           string
-	globalTimeout        time.Duration
-	defaultRetryStrategy *retryStrategyWrapper
-	tracer               requestTracer
-}
-
 // CollectionSpec describes the specification of a collection.
 type CollectionSpec struct {
 	Name      string
@@ -34,19 +25,28 @@ type ScopeSpec struct {
 }
 
 // These 3 types are temporary. They are necessary for now as the server beta was released with ns_server returning
-// a different manifest format to what it will return in the future.
-type manifest struct {
-	UID    uint64                   `json:"uid"`
-	Scopes map[string]manifestScope `json:"scopes"`
+// a different jsonManifest format to what it will return in the future.
+type jsonManifest struct {
+	UID    uint64                       `json:"uid"`
+	Scopes map[string]jsonManifestScope `json:"scopes"`
 }
 
-type manifestScope struct {
-	UID         uint32                        `json:"uid"`
-	Collections map[string]manifestCollection `json:"collections"`
+type jsonManifestScope struct {
+	UID         uint32                            `json:"uid"`
+	Collections map[string]jsonManifestCollection `json:"collections"`
 }
 
-type manifestCollection struct {
+type jsonManifestCollection struct {
 	UID uint32 `json:"uid"`
+}
+
+// CollectionManager provides methods for performing collections management.
+type CollectionManager struct {
+	httpClient           httpProvider
+	bucketName           string
+	globalTimeout        time.Duration
+	defaultRetryStrategy *retryStrategyWrapper
+	tracer               requestTracer
 }
 
 // GetAllScopesOptions is the set of options available to the GetAllScopes operation.
@@ -117,7 +117,7 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 		}
 	} else {
 		// Temporary support for older server version
-		var oldMfest manifest
+		var oldMfest jsonManifest
 		jsonDec := json.NewDecoder(resp.Body)
 		err = jsonDec.Decode(&oldMfest)
 		if err != nil {

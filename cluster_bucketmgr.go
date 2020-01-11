@@ -7,19 +7,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
 )
-
-// BucketManager provides methods for performing bucket management operations.
-// See BucketManager for methods that allow creating and removing buckets themselves.
-// Volatile: This API is subject to change at any time.
-type BucketManager struct {
-	httpClient           httpProvider
-	globalTimeout        time.Duration
-	defaultRetryStrategy *retryStrategyWrapper
-	tracer               requestTracer
-}
 
 // BucketType specifies the kind of bucket.
 type BucketType string
@@ -71,7 +62,7 @@ const (
 	CompressionModeActive = CompressionMode("active")
 )
 
-type bucketDataIn struct {
+type jsonBucketSettings struct {
 	Name        string `json:"name"`
 	Controllers struct {
 		Flush string `json:"flush"`
@@ -109,41 +100,37 @@ type BucketSettings struct {
 	CompressionMode CompressionMode
 }
 
-// CreateBucketSettings are the settings available when creating a bucket.
-type CreateBucketSettings struct {
-	BucketSettings
-	ConflictResolutionType ConflictResolutionType
+func (bs *BucketSettings) fromData(data jsonBucketSettings) error {
+	bs.Name = data.Name
+	bs.FlushEnabled = data.Controllers.Flush != ""
+	bs.ReplicaIndexDisabled = !data.ReplicaIndex
+	bs.RAMQuotaMB = data.Quota.RawRAM / 1024 / 1024
+	bs.NumReplicas = data.ReplicaNumber
+	bs.EvictionPolicy = EvictionPolicyType(data.EvictionPolicy)
+	bs.MaxTTL = data.MaxTTL
+	bs.CompressionMode = CompressionMode(data.CompressionMode)
+
+	switch data.BucketType {
+	case "membase":
+		bs.BucketType = CouchbaseBucketType
+	case "memcached":
+		bs.BucketType = MemcachedBucketType
+	case "ephemeral":
+		bs.BucketType = EphemeralBucketType
+	default:
+		return errors.New("unrecognized bucket type string")
+	}
+
+	return nil
 }
 
-func bucketDataInToSettings(bucketData *bucketDataIn) (string, BucketSettings) {
-	settings := BucketSettings{
-		Name: bucketData.Name,
-		// Password:               bucketData.SaslPassword,
-		FlushEnabled:         bucketData.Controllers.Flush != "",
-		ReplicaIndexDisabled: !bucketData.ReplicaIndex,
-		RAMQuotaMB:           bucketData.Quota.RawRAM,
-		NumReplicas:          bucketData.ReplicaNumber,
-		EvictionPolicy:       EvictionPolicyType(bucketData.EvictionPolicy),
-		MaxTTL:               bucketData.MaxTTL,
-		CompressionMode:      CompressionMode(bucketData.CompressionMode),
-	}
-
-	if settings.RAMQuotaMB > 0 {
-		settings.RAMQuotaMB = settings.RAMQuotaMB / 1024 / 1024
-	}
-
-	switch bucketData.BucketType {
-	case "membase":
-		settings.BucketType = CouchbaseBucketType
-	case "memcached":
-		settings.BucketType = MemcachedBucketType
-	case "ephemeral":
-		settings.BucketType = EphemeralBucketType
-	default:
-		logDebugf("Unrecognized bucket type string.")
-	}
-
-	return bucketData.Name, settings
+// BucketManager provides methods for performing bucket management operations.
+// See BucketManager for methods that allow creating and removing buckets themselves.
+type BucketManager struct {
+	httpClient           httpProvider
+	globalTimeout        time.Duration
+	defaultRetryStrategy *retryStrategyWrapper
+	tracer               requestTracer
 }
 
 // GetBucketOptions is the set of options available to the bucket manager GetBucket operation.
@@ -192,7 +179,7 @@ func (bm *BucketManager) get(tracectx requestSpanContext, bucketName string,
 		return nil, makeHTTPBadStatusError("failed to get bucket", req, resp)
 	}
 
-	var bucketData *bucketDataIn
+	var bucketData jsonBucketSettings
 	jsonDec := json.NewDecoder(resp.Body)
 	err = jsonDec.Decode(&bucketData)
 	if err != nil {
@@ -204,7 +191,11 @@ func (bm *BucketManager) get(tracectx requestSpanContext, bucketName string,
 		logDebugf("Failed to close socket (%s)", err)
 	}
 
-	_, settings := bucketDataInToSettings(bucketData)
+	var settings BucketSettings
+	err = settings.fromData(bucketData)
+	if err != nil {
+		return nil, err
+	}
 
 	return &settings, nil
 }
@@ -250,7 +241,7 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 		return nil, makeHTTPBadStatusError("failed to get all buckets", req, resp)
 	}
 
-	var bucketsData []*bucketDataIn
+	var bucketsData []*jsonBucketSettings
 	jsonDec := json.NewDecoder(resp.Body)
 	err = jsonDec.Decode(&bucketsData)
 	if err != nil {
@@ -264,11 +255,22 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 
 	buckets := make(map[string]BucketSettings, len(bucketsData))
 	for _, bucketData := range bucketsData {
-		name, settings := bucketDataInToSettings(bucketData)
-		buckets[name] = settings
+		var bucket BucketSettings
+		err := bucket.fromData(*bucketData)
+		if err != nil {
+			return nil, err
+		}
+
+		buckets[bucket.Name] = bucket
 	}
 
 	return buckets, nil
+}
+
+// CreateBucketSettings are the settings available when creating a bucket.
+type CreateBucketSettings struct {
+	BucketSettings
+	ConflictResolutionType ConflictResolutionType
 }
 
 // CreateBucketOptions is the set of options available to the bucket manager CreateBucket operation.

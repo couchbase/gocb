@@ -12,19 +12,69 @@ import (
 	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
-// UserManager provides methods for performing Couchbase user management.
-// Volatile: This API is subject to change at any time.
-type UserManager struct {
-	httpClient           httpProvider
-	globalTimeout        time.Duration
-	defaultRetryStrategy *retryStrategyWrapper
-	tracer               requestTracer
+// AuthDomain specifies the user domain of a specific user
+type AuthDomain string
+
+const (
+	// LocalDomain specifies users that are locally stored in Couchbase.
+	LocalDomain AuthDomain = "local"
+
+	// ExternalDomain specifies users that are externally stored
+	// (in LDAP for instance).
+	ExternalDomain AuthDomain = "external"
+)
+
+type jsonOrigin struct {
+	Type string `json:"type"`
+	Name string `json:"name"`
+}
+
+type jsonRole struct {
+	RoleName   string `json:"role"`
+	BucketName string `json:"bucket_name"`
+}
+
+type jsonRoleDescription struct {
+	jsonRole
+
+	Name        string `json:"string"`
+	Description string `json:"desc"`
+}
+
+type jsonRoleOrigins struct {
+	jsonRole
+
+	Origins []jsonOrigin
+}
+
+type jsonUserMetadata struct {
+	ID              string            `json:"id"`
+	Name            string            `json:"name"`
+	Roles           []jsonRoleOrigins `json:"roles"`
+	Groups          []string          `json:"groups"`
+	Domain          AuthDomain        `json:"domain"`
+	ExternalGroups  []string          `json:"external_groups"`
+	PasswordChanged time.Time         `json:"password_change_date"`
+}
+
+type jsonGroup struct {
+	Name               string     `json:"id"`
+	Description        string     `json:"description"`
+	Roles              []jsonRole `json:"roles"`
+	LDAPGroupReference string     `json:"ldap_group_ref"`
 }
 
 // Role represents a specific permission.
 type Role struct {
 	Name   string `json:"role"`
 	Bucket string `json:"bucket_name"`
+}
+
+func (ro *Role) fromData(data jsonRole) error {
+	ro.Name = data.RoleName
+	ro.Bucket = data.BucketName
+
+	return nil
 }
 
 // RoleAndDescription represents a role with its display name and description.
@@ -35,12 +85,31 @@ type RoleAndDescription struct {
 	Description string
 }
 
+func (rd *RoleAndDescription) fromData(data jsonRoleDescription) error {
+	err := rd.Role.fromData(data.jsonRole)
+	if err != nil {
+		return err
+	}
+
+	rd.DisplayName = data.Name
+	rd.Description = data.Description
+
+	return nil
+}
+
 // Origin indicates why a user has a specific role. Is the Origin Type is "user" then the role is assigned
 // directly to the user. If the type is "group" then it means that the role has been inherited from the group
 // identified by the Name field.
 type Origin struct {
-	Type string `json:"type"`
-	Name string `json:"name"`
+	Type string
+	Name string
+}
+
+func (o *Origin) fromData(data jsonOrigin) error {
+	o.Type = data.Type
+	o.Name = data.Name
+
+	return nil
 }
 
 // RoleAndOrigins associates a role with its origins.
@@ -48,6 +117,27 @@ type RoleAndOrigins struct {
 	Role
 
 	Origins []Origin
+}
+
+func (ro *RoleAndOrigins) fromData(data jsonRoleOrigins) error {
+	err := ro.Role.fromData(data.jsonRole)
+	if err != nil {
+		return err
+	}
+
+	origins := make([]Origin, len(data.Origins))
+	for _, originData := range data.Origins {
+		var origin Origin
+		err := origin.fromData(originData)
+		if err != nil {
+			return err
+		}
+
+		origins = append(origins, origin)
+	}
+	ro.Origins = origins
+
+	return nil
 }
 
 // User represents a user which was retrieved from the server.
@@ -71,84 +161,76 @@ type UserAndMetadata struct {
 	PasswordChanged time.Time
 }
 
-// Group represents a user group on the server.
-type Group struct {
-	Name               string `json:"id"`
-	Description        string `json:"description"`
-	Roles              []Role `json:"roles"`
-	LDAPGroupReference string `json:"ldap_group_ref"`
-}
+func (um *UserAndMetadata) fromData(data jsonUserMetadata) error {
+	um.User.Username = data.ID
+	um.User.DisplayName = data.Name
+	um.User.Groups = data.Groups
 
-// AuthDomain specifies the user domain of a specific user
-type AuthDomain string
-
-const (
-	// LocalDomain specifies users that are locally stored in Couchbase.
-	LocalDomain AuthDomain = "local"
-
-	// ExternalDomain specifies users that are externally stored
-	// (in LDAP for instance).
-	ExternalDomain AuthDomain = "external"
-)
-
-type roleDescriptionsJSON struct {
-	Role        string `json:"role"`
-	BucketName  string `json:"bucket_name"`
-	Name        string `json:"string"`
-	Description string `json:"desc"`
-}
-
-type roleOriginsJSON struct {
-	RoleName   string `json:"role"`
-	BucketName string `json:"bucket_name"`
-	Origins    []Origin
-}
-
-type userMetadataJSON struct {
-	ID              string            `json:"id"`
-	Name            string            `json:"name"`
-	Roles           []roleOriginsJSON `json:"roles"`
-	Groups          []string          `json:"groups"`
-	Domain          AuthDomain        `json:"domain"`
-	ExternalGroups  []string          `json:"external_groups"`
-	PasswordChanged time.Time         `json:"password_change_date"`
-}
-
-func transformUserMetadataJSON(userData *userMetadataJSON) UserAndMetadata {
-	var user UserAndMetadata
-	user.User.Username = userData.ID
-	user.User.DisplayName = userData.Name
-	user.User.Groups = userData.Groups
-
-	user.ExternalGroups = userData.ExternalGroups
-	user.Domain = userData.Domain
-	user.PasswordChanged = userData.PasswordChanged
+	um.ExternalGroups = data.ExternalGroups
+	um.Domain = data.Domain
+	um.PasswordChanged = data.PasswordChanged
 
 	var roles []Role
 	var effectiveRoles []RoleAndOrigins
-	for _, roleData := range userData.Roles {
-		role := Role{
-			Name:   roleData.RoleName,
-			Bucket: roleData.BucketName,
+	for _, roleData := range data.Roles {
+		var effectiveRole RoleAndOrigins
+		err := effectiveRole.fromData(roleData)
+		if err != nil {
+			return err
 		}
-		effectiveRoles = append(effectiveRoles, RoleAndOrigins{
-			Role:    role,
-			Origins: roleData.Origins,
-		})
-		if roleData.Origins == nil {
+
+		effectiveRoles = append(effectiveRoles, effectiveRole)
+
+		role := effectiveRole.Role
+		if effectiveRole.Origins == nil {
 			roles = append(roles, role)
-		}
-		for _, origin := range roleData.Origins {
-			if origin.Type == "user" {
-				roles = append(roles, role)
-				break
+		} else {
+			for _, origin := range effectiveRole.Origins {
+				if origin.Type == "user" {
+					roles = append(roles, role)
+					break
+				}
 			}
 		}
 	}
-	user.EffectiveRoles = effectiveRoles
-	user.User.Roles = roles
+	um.EffectiveRoles = effectiveRoles
+	um.User.Roles = roles
 
-	return user
+	return nil
+}
+
+// Group represents a user group on the server.
+type Group struct {
+	Name               string
+	Description        string
+	Roles              []Role
+	LDAPGroupReference string
+}
+
+func (g *Group) fromData(data jsonGroup) error {
+	g.Name = data.Name
+	g.Description = data.Description
+	g.LDAPGroupReference = data.LDAPGroupReference
+
+	roles := make([]Role, len(data.Roles))
+	for roleIdx, roleData := range data.Roles {
+		err := roles[roleIdx].fromData(roleData)
+		if err != nil {
+			return err
+		}
+	}
+	g.Roles = roles
+
+	return nil
+}
+
+// UserManager provides methods for performing Couchbase user management.
+// Volatile: This API is subject to change at any time.
+type UserManager struct {
+	httpClient           httpProvider
+	globalTimeout        time.Duration
+	defaultRetryStrategy *retryStrategyWrapper
+	tracer               requestTracer
 }
 
 // GetAllUsersOptions is the set of options available to the user manager GetAll operation.
@@ -198,17 +280,24 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 		return nil, makeHTTPBadStatusError("failed to get all users", req, resp)
 	}
 
-	var usersData []userMetadataJSON
+	var usersData []jsonUserMetadata
 	jsonDec := json.NewDecoder(resp.Body)
 	err = jsonDec.Decode(&usersData)
 	if err != nil {
 		return nil, err
 	}
 
-	var users []UserAndMetadata
-	for _, userData := range usersData {
-		user := transformUserMetadataJSON(&userData)
-		users = append(users, user)
+	err = resp.Body.Close()
+	if err != nil {
+		logDebugf("Failed to close socket (%s)", err)
+	}
+
+	users := make([]UserAndMetadata, len(usersData))
+	for userIdx, userData := range usersData {
+		err := users[userIdx].fromData(userData)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return users, nil
@@ -261,14 +350,24 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 		return nil, makeHTTPBadStatusError("failed to get user", req, resp)
 	}
 
-	var userData userMetadataJSON
+	var userData jsonUserMetadata
 	jsonDec := json.NewDecoder(resp.Body)
 	err = jsonDec.Decode(&userData)
 	if err != nil {
 		return nil, err
 	}
 
-	user := transformUserMetadataJSON(&userData)
+	err = resp.Body.Close()
+	if err != nil {
+		logDebugf("Failed to close socket (%s)", err)
+	}
+
+	var user UserAndMetadata
+	err = user.fromData(userData)
+	if err != nil {
+		return nil, err
+	}
+
 	return &user, nil
 }
 
@@ -428,25 +527,24 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 		return nil, makeHTTPBadStatusError("failed to get roles", req, resp)
 	}
 
-	var roleDatas []roleDescriptionsJSON
+	var roleDatas []jsonRoleDescription
 	jsonDec := json.NewDecoder(resp.Body)
 	err = jsonDec.Decode(&roleDatas)
 	if err != nil {
 		return nil, err
 	}
 
-	var roles []RoleAndDescription
-	for _, roleData := range roleDatas {
-		role := RoleAndDescription{
-			Role: Role{
-				Name:   roleData.Role,
-				Bucket: roleData.BucketName,
-			},
-			DisplayName: roleData.Name,
-			Description: roleData.Description,
-		}
+	err = resp.Body.Close()
+	if err != nil {
+		logDebugf("Failed to close socket (%s)", err)
+	}
 
-		roles = append(roles, role)
+	roles := make([]RoleAndDescription, len(roleDatas))
+	for roleIdx, roleData := range roleDatas {
+		err := roles[roleIdx].fromData(roleData)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return roles, nil
@@ -496,9 +594,20 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 		return nil, makeHTTPBadStatusError("failed to get group", req, resp)
 	}
 
-	var group Group
+	var groupData jsonGroup
 	jsonDec := json.NewDecoder(resp.Body)
-	err = jsonDec.Decode(&group)
+	err = jsonDec.Decode(&groupData)
+	if err != nil {
+		return nil, err
+	}
+
+	err = resp.Body.Close()
+	if err != nil {
+		logDebugf("Failed to close socket (%s)", err)
+	}
+
+	var group Group
+	err = group.fromData(groupData)
 	if err != nil {
 		return nil, err
 	}
@@ -547,11 +656,24 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 		return nil, makeHTTPBadStatusError("failed to get all groups", req, resp)
 	}
 
-	var groups []Group
+	var groupDatas []jsonGroup
 	jsonDec := json.NewDecoder(resp.Body)
-	err = jsonDec.Decode(&groups)
+	err = jsonDec.Decode(&groupDatas)
 	if err != nil {
 		return nil, err
+	}
+
+	err = resp.Body.Close()
+	if err != nil {
+		logDebugf("Failed to close socket (%s)", err)
+	}
+
+	groups := make([]Group, len(groupDatas))
+	for groupIdx, groupData := range groupDatas {
+		err = groups[groupIdx].fromData(groupData)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return groups, nil

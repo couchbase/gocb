@@ -48,20 +48,52 @@ func (am *AnalyticsIndexManager) doMgmtRequest(req mgmtRequest) (*mgmtResponse, 
 	return resp, nil
 }
 
-// AnalyticsDataset contains information about an analytics dataset,
-type AnalyticsDataset struct {
-	Name          string `json:"DatasetName"`
+type jsonAnalyticsDataset struct {
+	DatasetName   string `json:"DatasetName"`
 	DataverseName string `json:"DataverseName"`
 	LinkName      string `json:"LinkName"`
 	BucketName    string `json:"BucketName"`
 }
 
-// AnalyticsIndex contains information about an analytics index,
-type AnalyticsIndex struct {
-	Name          string `json:"IndexName"`
+type jsonAnalyticsIndex struct {
+	IndexName     string `json:"IndexName"`
 	DatasetName   string `json:"DatasetName"`
 	DataverseName string `json:"DataverseName"`
 	IsPrimary     bool   `json:"IsPrimary"`
+}
+
+// AnalyticsDataset contains information about an analytics dataset.
+type AnalyticsDataset struct {
+	Name          string
+	DataverseName string
+	LinkName      string
+	BucketName    string
+}
+
+func (ad *AnalyticsDataset) fromData(data jsonAnalyticsDataset) error {
+	ad.Name = data.DatasetName
+	ad.DataverseName = data.DataverseName
+	ad.LinkName = data.LinkName
+	ad.BucketName = data.BucketName
+
+	return nil
+}
+
+// AnalyticsIndex contains information about an analytics index.
+type AnalyticsIndex struct {
+	Name          string
+	DatasetName   string
+	DataverseName string
+	IsPrimary     bool
+}
+
+func (ai *AnalyticsIndex) fromData(data jsonAnalyticsIndex) error {
+	ai.Name = data.IndexName
+	ai.DatasetName = data.DatasetName
+	ai.DataverseName = data.DataverseName
+	ai.IsPrimary = data.IsPrimary
+
+	return nil
 }
 
 // CreateAnalyticsDataverseOptions is the set of options available to the AnalyticsManager CreateDataverse operation.
@@ -269,15 +301,18 @@ func (am *AnalyticsIndexManager) GetAllDatasets(opts *GetAllAnalyticsDatasetsOpt
 		return nil, err
 	}
 
-	var datasets []AnalyticsDataset
-	for _, row := range rows {
-		var dataset AnalyticsDataset
-		err := json.Unmarshal(row, &dataset)
+	datasets := make([]AnalyticsDataset, len(rows))
+	for rowIdx, row := range rows {
+		var datasetData jsonAnalyticsDataset
+		err := json.Unmarshal(row, &datasetData)
 		if err != nil {
 			return nil, err
 		}
 
-		datasets = append(datasets, dataset)
+		err = datasets[rowIdx].fromData(datasetData)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return datasets, nil
@@ -411,15 +446,18 @@ func (am *AnalyticsIndexManager) GetAllIndexes(opts *GetAllAnalyticsIndexesOptio
 		return nil, err
 	}
 
-	var indexes []AnalyticsIndex
-	for _, row := range rows {
-		var index AnalyticsIndex
-		err := json.Unmarshal(row, &index)
+	indexes := make([]AnalyticsIndex, len(rows))
+	for rowIdx, row := range rows {
+		var indexData jsonAnalyticsIndex
+		err := json.Unmarshal(row, &indexData)
 		if err != nil {
 			return nil, err
 		}
 
-		indexes = append(indexes, index)
+		err = indexes[rowIdx].fromData(indexData)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return indexes, nil

@@ -18,6 +18,80 @@ const (
 	DevelopmentDesignDocumentNamespace = false
 )
 
+// View represents a Couchbase view within a design document.
+type jsonView struct {
+	Map    string `json:"map,omitempty"`
+	Reduce string `json:"reduce,omitempty"`
+}
+
+// DesignDocument represents a Couchbase design document containing multiple views.
+type jsonDesignDocument struct {
+	Views map[string]jsonView `json:"views,omitempty"`
+}
+
+// View represents a Couchbase view within a design document.
+type View struct {
+	Map    string
+	Reduce string
+}
+
+func (v *View) fromData(data jsonView) error {
+	v.Map = data.Map
+	v.Reduce = data.Reduce
+
+	return nil
+}
+
+func (v *View) toData() (jsonView, error) {
+	var data jsonView
+
+	data.Map = v.Map
+	data.Reduce = v.Reduce
+
+	return data, nil
+}
+
+// DesignDocument represents a Couchbase design document containing multiple views.
+type DesignDocument struct {
+	Name  string
+	Views map[string]View
+}
+
+func (dd *DesignDocument) fromData(data jsonDesignDocument, name string) error {
+	dd.Name = name
+
+	views := make(map[string]View)
+	for viewName, viewData := range data.Views {
+		var view View
+		err := view.fromData(viewData)
+		if err != nil {
+			return err
+		}
+
+		views[viewName] = view
+	}
+	dd.Views = views
+
+	return nil
+}
+
+func (dd *DesignDocument) toData() (jsonDesignDocument, string, error) {
+	var data jsonDesignDocument
+
+	views := make(map[string]jsonView)
+	for viewName, view := range dd.Views {
+		viewData, err := view.toData()
+		if err != nil {
+			return jsonDesignDocument{}, "", err
+		}
+
+		views[viewName] = viewData
+	}
+	data.Views = views
+
+	return data, dd.Name, nil
+}
+
 // ViewIndexManager provides methods for performing View management.
 // Volatile: This API is subject to change at any time.
 type ViewIndexManager struct {
@@ -33,22 +107,6 @@ func (vm *ViewIndexManager) doMgmtRequest(req mgmtRequest) (*mgmtResponse, error
 	}
 
 	return resp, nil
-}
-
-// View represents a Couchbase view within a design document.
-type View struct {
-	Map    string `json:"map,omitempty"`
-	Reduce string `json:"reduce,omitempty"`
-}
-
-func (v View) hasReduce() bool {
-	return v.Reduce != ""
-}
-
-// DesignDocument represents a Couchbase design document containing multiple views.
-type DesignDocument struct {
-	Name  string          `json:"-"`
-	Views map[string]View `json:"views,omitempty"`
 }
 
 // GetDesignDocumentOptions is the set of options available to the ViewIndexManager GetDesignDocument operation.
@@ -109,15 +167,27 @@ func (vm *ViewIndexManager) getDesignDocument(tracectx requestSpanContext, name 
 		return nil, makeMgmtBadStatusError("failed to get design document", &req, resp)
 	}
 
-	ddocObj := DesignDocument{}
+	var ddocData jsonDesignDocument
 	jsonDec := json.NewDecoder(resp.Body)
-	err = jsonDec.Decode(&ddocObj)
+	err = jsonDec.Decode(&ddocData)
 	if err != nil {
 		return nil, err
 	}
 
-	ddocObj.Name = strings.TrimPrefix(name, "dev_")
-	return &ddocObj, nil
+	err = resp.Body.Close()
+	if err != nil {
+		logDebugf("Failed to close socket (%s)", err)
+	}
+
+	ddocName := strings.TrimPrefix(name, "dev_")
+
+	var ddoc DesignDocument
+	err = ddoc.fromData(ddocData, ddocName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ddoc, nil
 }
 
 // GetAllDesignDocumentsOptions is the set of options available to the ViewIndexManager GetAllDesignDocuments operation.
@@ -127,7 +197,7 @@ type GetAllDesignDocumentsOptions struct {
 }
 
 // GetAllDesignDocuments will retrieve all design documents for the given bucket.
-func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamespace, opts *GetAllDesignDocumentsOptions) ([]*DesignDocument, error) {
+func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamespace, opts *GetAllDesignDocumentsOptions) ([]DesignDocument, error) {
 	if opts == nil {
 		opts = &GetAllDesignDocumentsOptions{}
 	}
@@ -152,29 +222,34 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamesp
 		return nil, makeMgmtBadStatusError("failed to get all design documents", &req, resp)
 	}
 
-	var ddocsObj struct {
+	var ddocsResp struct {
 		Rows []struct {
 			Doc struct {
 				Meta struct {
-					ID string
+					ID string `json:"id"`
 				}
-				JSON DesignDocument
-			}
-		}
+				JSON jsonDesignDocument `json:"json"`
+			} `json:"doc"`
+		} `json:"rows"`
 	}
 	jsonDec := json.NewDecoder(resp.Body)
-	err = jsonDec.Decode(&ddocsObj)
+	err = jsonDec.Decode(&ddocsResp)
 	if err != nil {
 		return nil, err
 	}
 
-	var ddocs []*DesignDocument
-	for index, ddocData := range ddocsObj.Rows {
-		ddoc := &ddocsObj.Rows[index].Doc.JSON
-		isProd := !strings.HasPrefix(ddoc.Name, "dev_")
-		if isProd == bool(namespace) {
-			ddoc.Name = strings.TrimPrefix(ddocData.Doc.Meta.ID[8:], "dev_")
-			ddocs = append(ddocs, ddoc)
+	err = resp.Body.Close()
+	if err != nil {
+		logDebugf("Failed to close socket (%s)", err)
+	}
+
+	ddocs := make([]DesignDocument, len(ddocsResp.Rows))
+	for ddocIdx, ddocData := range ddocsResp.Rows {
+		ddocName := strings.TrimPrefix(ddocData.Doc.Meta.ID[8:], "dev_")
+
+		err := ddocs[ddocIdx].fromData(ddocData.Doc.JSON, ddocName)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -207,18 +282,23 @@ func (vm *ViewIndexManager) upsertDesignDocument(
 	startTime time.Time,
 	opts *UpsertDesignDocumentOptions,
 ) error {
+	ddocData, ddocName, err := ddoc.toData()
+	if err != nil {
+		return err
+	}
+
 	espan := vm.tracer.StartSpan("encode", tracectx)
-	data, err := json.Marshal(&ddoc)
+	data, err := json.Marshal(&ddocData)
 	espan.Finish()
 	if err != nil {
 		return err
 	}
 
-	ddoc.Name = vm.ddocName(ddoc.Name, namespace)
+	ddocName = vm.ddocName(ddocName, namespace)
 
 	req := mgmtRequest{
 		Service:       CapiService,
-		Path:          fmt.Sprintf("/_design/%s", ddoc.Name),
+		Path:          fmt.Sprintf("/_design/%s", ddocName),
 		Method:        "PUT",
 		Body:          data,
 		Timeout:       opts.Timeout,

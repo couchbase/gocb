@@ -37,8 +37,7 @@ func (qm *QueryIndexManager) doQuery(q string, opts *QueryOptions) ([][]byte, er
 	return rows, nil
 }
 
-// QueryIndex represents a Couchbase GSI index.
-type QueryIndex struct {
+type jsonQueryIndex struct {
 	Name      string         `json:"name"`
 	IsPrimary bool           `json:"is_primary"`
 	Type      QueryIndexType `json:"using"`
@@ -46,6 +45,29 @@ type QueryIndex struct {
 	Keyspace  string         `json:"keyspace_id"`
 	Namespace string         `json:"namespace_id"`
 	IndexKey  []string       `json:"index_key"`
+}
+
+// QueryIndex represents a Couchbase GSI index.
+type QueryIndex struct {
+	Name      string
+	IsPrimary bool
+	Type      QueryIndexType
+	State     string
+	Keyspace  string
+	Namespace string
+	IndexKey  []string
+}
+
+func (index *QueryIndex) fromData(data jsonQueryIndex) error {
+	index.Name = data.Name
+	index.IsPrimary = data.IsPrimary
+	index.Type = data.Type
+	index.State = data.State
+	index.Keyspace = data.Keyspace
+	index.Namespace = data.Namespace
+	index.IndexKey = data.IndexKey
+
+	return nil
 }
 
 type createQueryIndexOptions struct {
@@ -305,8 +327,14 @@ func (qm *QueryIndexManager) getAllIndexes(
 
 	var indexes []QueryIndex
 	for _, row := range rows {
+		var jsonIdx jsonQueryIndex
+		err := json.Unmarshal(row, &jsonIdx)
+		if err != nil {
+			return nil, err
+		}
+
 		var index QueryIndex
-		err := json.Unmarshal(row, &index)
+		err = index.fromData(jsonIdx)
 		if err != nil {
 			return nil, err
 		}
