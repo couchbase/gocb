@@ -50,27 +50,6 @@ func TestCollectionManagerCrud(t *testing.T) {
 		t.Fatalf("Expected scopes to contain at least 2 scopes but was %v", scopes)
 	}
 
-	scope, err := mgr.GetScope("testScope", nil)
-	if err != nil {
-		t.Fatalf("Failed to GetScope %v", err)
-	}
-
-	if scope.Name != "testScope" {
-		t.Fatalf("Expected scope name to be testScope but was %s", scope.Name)
-	}
-
-	if len(scope.Collections) != 1 {
-		t.Fatalf("Expected scope to contain 1 collection but was %v", scope.Collections)
-	}
-
-	collection := scope.Collections[0]
-	if collection.Name != "testCollection" {
-		t.Fatalf("Expected collection name to be testCollection but was %s", collection.Name)
-	}
-	if collection.ScopeName != "testScope" {
-		t.Fatalf("Expected collection scope name to be testScope but was %s", collection.ScopeName)
-	}
-
 	err = mgr.DropCollection(CollectionSpec{
 		Name:      "testCollection",
 		ScopeName: "testScope",
