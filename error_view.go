@@ -20,6 +20,7 @@ func translateCoreViewErrorDesc(descs []gocbcore.ViewQueryErrorDesc) []ViewError
 }
 
 // ViewError is the error type of all view query errors.
+// UNCOMMITTED: This API may change in the future.
 type ViewError struct {
 	InnerError         error           `json:"-"`
 	DesignDocumentName string          `json:"design_document_name,omitempty"`

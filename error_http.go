@@ -6,6 +6,7 @@ import (
 )
 
 // HTTPError is the error type of management HTTP errors.
+// UNCOMMITTED: This API may change in the future.
 type HTTPError struct {
 	InnerError    error         `json:"-"`
 	UniqueID      string        `json:"unique_id,omitempty"`

@@ -20,6 +20,7 @@ func translateCoreAnalyticsErrorDesc(descs []gocbcore.AnalyticsErrorDesc) []Anal
 }
 
 // AnalyticsError is the error type of all analytics query errors.
+// UNCOMMITTED: This API may change in the future.
 type AnalyticsError struct {
 	InnerError      error                `json:"-"`
 	Statement       string               `json:"statement,omitempty"`

@@ -1,6 +1,7 @@
 package gocb
 
 // SearchError is the error type of all search query errors.
+// UNCOMMITTED: This API may change in the future.
 type SearchError struct {
 	InnerError    error         `json:"-"`
 	Query         interface{}   `json:"query,omitempty"`

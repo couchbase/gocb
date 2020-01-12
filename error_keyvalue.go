@@ -3,6 +3,7 @@ package gocb
 import gocbcore "github.com/couchbase/gocbcore/v8"
 
 // KeyValueError wraps key-value errors that occur within the SDK.
+// UNCOMMITTED: This API may change in the future.
 type KeyValueError struct {
 	InnerError       error               `json:"-"`
 	StatusCode       gocbcore.StatusCode `json:"status_code,omitempty"`
