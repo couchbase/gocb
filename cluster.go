@@ -97,6 +97,10 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 		return nil, err
 	}
 
+	if connSpec.Scheme == "http" {
+		return nil, errors.New("http scheme is not supported, use couchbase or couchbases instead")
+	}
+
 	connectTimeout := 10000 * time.Millisecond
 	kvTimeout := 2500 * time.Millisecond
 	viewTimeout := 75000 * time.Millisecond
