@@ -478,7 +478,6 @@ func (c *Cluster) setSupportsEnhancedPreparedStatements(supports bool) {
 }
 
 // Users returns a UserManager for managing users.
-// Volatile: This API is subject to change at any time.
 func (c *Cluster) Users() (*UserManager, error) {
 	provider, err := c.getHTTPProvider()
 	if err != nil {
@@ -494,7 +493,6 @@ func (c *Cluster) Users() (*UserManager, error) {
 }
 
 // Buckets returns a BucketManager for managing buckets.
-// Volatile: This API is subject to change at any time.
 func (c *Cluster) Buckets() (*BucketManager, error) {
 	provider, err := c.getHTTPProvider()
 	if err != nil {
@@ -510,7 +508,6 @@ func (c *Cluster) Buckets() (*BucketManager, error) {
 }
 
 // AnalyticsIndexes returns an AnalyticsIndexManager for managing analytics indexes.
-// Volatile: This API is subject to change at any time.
 func (c *Cluster) AnalyticsIndexes() (*AnalyticsIndexManager, error) {
 	return &AnalyticsIndexManager{
 		cluster: c,
@@ -519,7 +516,6 @@ func (c *Cluster) AnalyticsIndexes() (*AnalyticsIndexManager, error) {
 }
 
 // QueryIndexes returns a QueryIndexManager for managing N1QL indexes.
-// Volatile: This API is subject to change at any time.
 func (c *Cluster) QueryIndexes() (*QueryIndexManager, error) {
 	return &QueryIndexManager{
 		cluster: c,
@@ -528,7 +524,6 @@ func (c *Cluster) QueryIndexes() (*QueryIndexManager, error) {
 }
 
 // SearchIndexes returns a SearchIndexManager for managing Search indexes.
-// Volatile: This API is subject to change at any time.
 func (c *Cluster) SearchIndexes() (*SearchIndexManager, error) {
 	return &SearchIndexManager{
 		cluster: c,

@@ -7,11 +7,12 @@ import (
 )
 
 // UserPassPair represents a username and password pair.
+// VOLATILE: This API is subject to change at any time.
 type UserPassPair gocbcore.UserPassPair
 
 // AuthCredsRequest encapsulates the data for a credential request
 // from the new Authenticator interface.
-// UNCOMMITTED
+// VOLATILE: This API is subject to change at any time.
 type AuthCredsRequest struct {
 	Service  ServiceType
 	Endpoint string
@@ -19,19 +20,25 @@ type AuthCredsRequest struct {
 
 // AuthCertRequest encapsulates the data for a certificate request
 // from the new Authenticator interface.
-// UNCOMMITTED
+// VOLATILE: This API is subject to change at any time.
 type AuthCertRequest struct {
 	Service  ServiceType
 	Endpoint string
 }
 
 // Authenticator provides an interface to authenticate to each service.  Note that
-// only authenticators implemented here are stable, and support for custom
-// authenticators is considered volatile.
+// only authenticators implemented via the SDK are stable.
 type Authenticator interface {
+	// VOLATILE: This API is subject to change at any time.
 	SupportsTLS() bool
+
+	// VOLATILE: This API is subject to change at any time.
 	SupportsNonTLS() bool
+
+	// VOLATILE: This API is subject to change at any time.
 	Certificate(req AuthCertRequest) (*tls.Certificate, error)
+
+	// VOLATILE: This API is subject to change at any time.
 	Credentials(req AuthCredsRequest) ([]UserPassPair, error)
 }
 
@@ -41,22 +48,26 @@ type PasswordAuthenticator struct {
 	Password string
 }
 
-// SupportsTLS returns whether this authenticator can authenticate a TLS connection
+// SupportsTLS returns whether this authenticator can authenticate a TLS connection.
+// VOLATILE: This API is subject to change at any time.
 func (ra PasswordAuthenticator) SupportsTLS() bool {
 	return true
 }
 
-// SupportsNonTLS returns whether this authenticator can authenticate a non-TLS connection
+// SupportsNonTLS returns whether this authenticator can authenticate a non-TLS connection.
+// VOLATILE: This API is subject to change at any time.
 func (ra PasswordAuthenticator) SupportsNonTLS() bool {
 	return true
 }
 
-// Certificate returns the certificate to use when connecting to a specified server
+// Certificate returns the certificate to use when connecting to a specified server.
+// VOLATILE: This API is subject to change at any time.
 func (ra PasswordAuthenticator) Certificate(req AuthCertRequest) (*tls.Certificate, error) {
 	return nil, nil
 }
 
 // Credentials returns the credentials for a particular service.
+// VOLATILE: This API is subject to change at any time.
 func (ra PasswordAuthenticator) Credentials(req AuthCredsRequest) ([]UserPassPair, error) {
 	return []UserPassPair{{
 		Username: ra.Username,
@@ -69,22 +80,26 @@ type CertificateAuthenticator struct {
 	ClientCertificate *tls.Certificate
 }
 
-// SupportsTLS returns whether this authenticator can authenticate a TLS connection
+// SupportsTLS returns whether this authenticator can authenticate a TLS connection.
+// VOLATILE: This API is subject to change at any time.
 func (ca CertificateAuthenticator) SupportsTLS() bool {
 	return true
 }
 
-// SupportsNonTLS returns whether this authenticator can authenticate a non-TLS connection
+// SupportsNonTLS returns whether this authenticator can authenticate a non-TLS connection.
+// VOLATILE: This API is subject to change at any time.
 func (ca CertificateAuthenticator) SupportsNonTLS() bool {
 	return false
 }
 
-// Certificate returns the certificate to use when connecting to a specified server
+// Certificate returns the certificate to use when connecting to a specified server.
+// VOLATILE: This API is subject to change at any time.
 func (ca CertificateAuthenticator) Certificate(req AuthCertRequest) (*tls.Certificate, error) {
 	return ca.ClientCertificate, nil
 }
 
 // Credentials returns the credentials for a particular service.
+// VOLATILE: This API is subject to change at any time.
 func (ca CertificateAuthenticator) Credentials(req AuthCredsRequest) ([]UserPassPair, error) {
 	return []UserPassPair{{
 		Username: "",

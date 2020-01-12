@@ -8,7 +8,6 @@ import (
 )
 
 // AnalyticsIndexManager provides methods for performing Couchbase Analytics index management.
-// Volatile: This API is subject to change at any time.
 type AnalyticsIndexManager struct {
 	cluster *Cluster
 

@@ -135,8 +135,6 @@ type PingOptions struct {
 
 // Ping will ping a list of services and verify they are active and
 // responding in an acceptable period of time.
-//
-// Volatile: This API is subject to change at any time.
 func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 	if opts == nil {
 		opts = &PingOptions{}

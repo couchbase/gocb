@@ -6,7 +6,6 @@ import (
 )
 
 // QueryIndexManager provides methods for performing Couchbase N1ql index management.
-// Volatile: This API is subject to change at any time.
 type QueryIndexManager struct {
 	cluster *Cluster
 

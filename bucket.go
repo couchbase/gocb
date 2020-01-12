@@ -55,24 +55,26 @@ func (b *Bucket) Name() string {
 }
 
 // Scope returns an instance of a Scope.
-// Volatile: This API is subject to change at any time.
+// VOLATILE: This API is subject to change at any time.
 func (b *Bucket) Scope(scopeName string) *Scope {
 	return newScope(b, scopeName)
 }
 
-func (b *Bucket) defaultScope() *Scope {
+// DefaultScope returns an instance of the default scope.
+// VOLATILE: This API is subject to change at any time.
+func (b *Bucket) DefaultScope() *Scope {
 	return b.Scope("_default")
 }
 
 // Collection returns an instance of a collection from within the default scope.
-// Volatile: This API is subject to change at any time.
+// VOLATILE: This API is subject to change at any time.
 func (b *Bucket) Collection(collectionName string) *Collection {
-	return b.defaultScope().Collection(collectionName)
+	return b.DefaultScope().Collection(collectionName)
 }
 
 // DefaultCollection returns an instance of the default collection.
 func (b *Bucket) DefaultCollection() *Collection {
-	return b.defaultScope().Collection("_default")
+	return b.DefaultScope().Collection("_default")
 }
 
 func (b *Bucket) stateBlock() stateBlock {
@@ -80,7 +82,6 @@ func (b *Bucket) stateBlock() stateBlock {
 }
 
 // ViewIndexes returns a ViewIndexManager instance for managing views.
-// Volatile: This API is subject to change at any time.
 func (b *Bucket) ViewIndexes() (*ViewIndexManager, error) {
 	return &ViewIndexManager{
 		bucket: b,
@@ -89,7 +90,6 @@ func (b *Bucket) ViewIndexes() (*ViewIndexManager, error) {
 }
 
 // CollectionManager provides functions for managing collections.
-// Volatile: This API is subject to change at any time.
 func (b *Bucket) CollectionManager() (*CollectionManager, error) {
 	provider, err := b.sb.getCachedClient().getHTTPProvider()
 	if err != nil {

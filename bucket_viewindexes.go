@@ -93,7 +93,6 @@ func (dd *DesignDocument) toData() (jsonDesignDocument, string, error) {
 }
 
 // ViewIndexManager provides methods for performing View management.
-// Volatile: This API is subject to change at any time.
 type ViewIndexManager struct {
 	bucket *Bucket
 

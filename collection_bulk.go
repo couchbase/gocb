@@ -22,6 +22,7 @@ func (op *bulkOp) finish() {
 // BulkOp represents a single operation that can be submitted (within a list of more operations) to .Do()
 // You can create a bulk operation by instantiating one of the implementations of BulkOp,
 // such as GetOp, UpsertOp, ReplaceOp, and more.
+// UNCOMMITTED: This API may change in the future.
 type BulkOp interface {
 	execute(tracectx requestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
 		retryWrapper *retryStrategyWrapper, startSpanFunc func(string, requestSpanContext) requestSpan)
@@ -41,6 +42,7 @@ type BulkOpOptions struct {
 }
 
 // Do execute one or more `BulkOp` items in parallel.
+// UNCOMMITTED: This API may change in the future.
 func (c *Collection) Do(ops []BulkOp, opts *BulkOpOptions) error {
 	if opts == nil {
 		opts = &BulkOpOptions{}
@@ -97,6 +99,7 @@ func (c *Collection) Do(ops []BulkOp, opts *BulkOpOptions) error {
 }
 
 // GetOp represents a type of `BulkOp` used for Get operations. See BulkOp.
+// UNCOMMITTED: This API may change in the future.
 type GetOp struct {
 	bulkOp
 
@@ -143,6 +146,7 @@ func (item *GetOp) execute(tracectx requestSpanContext, c *Collection, provider 
 }
 
 // GetAndTouchOp represents a type of `BulkOp` used for GetAndTouch operations. See BulkOp.
+// UNCOMMITTED: This API may change in the future.
 type GetAndTouchOp struct {
 	bulkOp
 
@@ -191,6 +195,7 @@ func (item *GetAndTouchOp) execute(tracectx requestSpanContext, c *Collection, p
 }
 
 // TouchOp represents a type of `BulkOp` used for Touch operations. See BulkOp.
+// UNCOMMITTED: This API may change in the future.
 type TouchOp struct {
 	bulkOp
 
@@ -244,6 +249,7 @@ func (item *TouchOp) execute(tracectx requestSpanContext, c *Collection, provide
 }
 
 // RemoveOp represents a type of `BulkOp` used for Remove operations. See BulkOp.
+// UNCOMMITTED: This API may change in the future.
 type RemoveOp struct {
 	bulkOp
 
@@ -297,6 +303,7 @@ func (item *RemoveOp) execute(tracectx requestSpanContext, c *Collection, provid
 }
 
 // UpsertOp represents a type of `BulkOp` used for Upsert operations. See BulkOp.
+// UNCOMMITTED: This API may change in the future.
 type UpsertOp struct {
 	bulkOp
 
@@ -364,6 +371,7 @@ func (item *UpsertOp) execute(tracectx requestSpanContext, c *Collection, provid
 }
 
 // InsertOp represents a type of `BulkOp` used for Insert operations. See BulkOp.
+// UNCOMMITTED: This API may change in the future.
 type InsertOp struct {
 	bulkOp
 
@@ -430,6 +438,7 @@ func (item *InsertOp) execute(tracectx requestSpanContext, c *Collection, provid
 }
 
 // ReplaceOp represents a type of `BulkOp` used for Replace operations. See BulkOp.
+// UNCOMMITTED: This API may change in the future.
 type ReplaceOp struct {
 	bulkOp
 
@@ -498,6 +507,7 @@ func (item *ReplaceOp) execute(tracectx requestSpanContext, c *Collection, provi
 }
 
 // AppendOp represents a type of `BulkOp` used for Append operations. See BulkOp.
+// UNCOMMITTED: This API may change in the future.
 type AppendOp struct {
 	bulkOp
 
@@ -551,6 +561,7 @@ func (item *AppendOp) execute(tracectx requestSpanContext, c *Collection, provid
 }
 
 // PrependOp represents a type of `BulkOp` used for Prepend operations. See BulkOp.
+// UNCOMMITTED: This API may change in the future.
 type PrependOp struct {
 	bulkOp
 
@@ -604,6 +615,7 @@ func (item *PrependOp) execute(tracectx requestSpanContext, c *Collection, provi
 }
 
 // IncrementOp represents a type of `BulkOp` used for Increment operations. See BulkOp.
+// UNCOMMITTED: This API may change in the future.
 type IncrementOp struct {
 	bulkOp
 
@@ -670,6 +682,7 @@ func (item *IncrementOp) execute(tracectx requestSpanContext, c *Collection, pro
 }
 
 // DecrementOp represents a type of `BulkOp` used for Decrement operations. See BulkOp.
+// UNCOMMITTED: This API may change in the future.
 type DecrementOp struct {
 	bulkOp
 

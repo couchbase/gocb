@@ -146,8 +146,6 @@ type DiagnosticsOptions struct {
 }
 
 // Diagnostics returns information about the internal state of the SDK.
-//
-// Volatile: This API is subject to change at any time.
 func (c *Cluster) Diagnostics(opts *DiagnosticsOptions) (*DiagnosticsResult, error) {
 	if opts == nil {
 		opts = &DiagnosticsOptions{}

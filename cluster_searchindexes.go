@@ -89,7 +89,6 @@ func (si *SearchIndex) toData() (jsonSearchIndex, error) {
 }
 
 // SearchIndexManager provides methods for performing Couchbase FTS index management.
-// Experimental: This API is subject to change at any time.
 type SearchIndexManager struct {
 	cluster *Cluster
 
