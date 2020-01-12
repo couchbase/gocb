@@ -30,10 +30,14 @@ type Cluster struct {
 	supportsGCCCP bool
 }
 
-// ClusterOptions is the set of options available for creating a Cluster.
-type ClusterOptions struct {
-	Authenticator Authenticator
+// IoConfig specifies IO related configuration options.
+type IoConfig struct {
+	DisableMutationTokens  bool
+	DisableServerDurations bool
+}
 
+// TimeoutsConfig specifies options for various operation timeouts.
+type TimeoutsConfig struct {
 	ConnectTimeout    time.Duration
 	KVTimeout         time.Duration
 	ViewTimeout       time.Duration
@@ -41,58 +45,52 @@ type ClusterOptions struct {
 	AnalyticsTimeout  time.Duration
 	SearchTimeout     time.Duration
 	ManagementTimeout time.Duration
+}
+
+// OrphanReporterConfig specifies options for controlling the orphan
+// reporter which records when the SDK receives responses for requests
+// that are no longer in the system (usually due to being timed out).
+type OrphanReporterConfig struct {
+	Disabled       bool
+	ReportInterval time.Duration
+	SampleSize     int
+}
+
+// ClusterOptions is the set of options available for creating a Cluster.
+type ClusterOptions struct {
+	// Authenticator specifies the authenticator to use with the cluster.
+	Authenticator Authenticator
+
+	// Timeouts specifies various operation timeouts.
+	TimeoutsConfig TimeoutsConfig
 
 	// Transcoder is used for trancoding data used in KV operations.
 	Transcoder Transcoder
 
-	DisableMutationTokens bool
-
+	// RetryStrategy is used to automatically retry operations if they fail.
 	RetryStrategy RetryStrategy
 
-	// Orphan logging records when the SDK receives responses for requests that are no longer in the system (usually
-	// due to being timed out).
-	OrphanLoggerDisabled   bool
-	OrphanLoggerInterval   time.Duration
-	OrphanLoggerSampleSize int
+	// Tracer specifies the tracer to use for requests.
+	// VOLATILE: This API is subject to change at any time.
+	Tracer requestTracer
 
-	ThresholdLoggerDisabled bool
-	ThresholdLoggingOptions *ThresholdLoggingOptions
+	// OrphanReporterConfig specifies options for the orphan reporter.
+	OrphanReporterConfig OrphanReporterConfig
 
+	// CircuitBreakerConfig specifies options for the circuit breakers.
 	CircuitBreakerConfig CircuitBreakerConfig
+
+	// IoConfig specifies IO related configuration options.
+	IoConfig IoConfig
 }
 
-// ClusterCloseOptions is the set of options available when disconnecting from a Cluster.
+// ClusterCloseOptions is the set of options available when
+// disconnecting from a Cluster.
 type ClusterCloseOptions struct {
 }
 
-// Connect creates and returns a Cluster instance created using the provided options and connection string.
-// The connection string properties are copied from (and should stay in sync with) the gocbcore agent.FromConnStr comment.
-// Supported connSpecStr options are:
-//   cacertpath (string) - Path to the CA certificate
-//   certpath (string) - Path to your authentication certificate
-//   keypath (string) - Path to your authentication key
-//   config_total_timeout (int) - Maximum period to attempt to connect to cluster in ms.
-//   config_node_timeout (int) - Maximum period to attempt to connect to a node in ms.
-//   http_redial_period (int) - Maximum period to keep HTTP config connections open in ms.
-//   http_retry_delay (int) - Period to wait between retrying nodes for HTTP config in ms.
-//   config_poll_floor_interval (int) - Minimum time to wait between fetching configs via CCCP in ms.
-//   config_poll_interval (int) - Period to wait between CCCP config polling in ms.
-//   kv_pool_size (int) - The number of connections to establish per node.
-//   max_queue_size (int) - The maximum size of the operation queues per node.
-//   use_kverrmaps (bool) - Whether to enable error maps from the server.
-//   use_enhanced_errors (bool) - Whether to enable enhanced error information.
-//   fetch_mutation_tokens (bool) - Whether to fetch mutation tokens for operations.
-//   compression (bool) - Whether to enable network-wise compression of documents.
-//   compression_min_size (int) - The minimal size of the document to consider compression.
-//   compression_min_ratio (float64) - The minimal compress ratio (compressed / original) for the document to be sent compressed.
-//   server_duration (bool) - Whether to enable fetching server operation durations.
-//   http_max_idle_conns (int) - Maximum number of idle http connections in the pool.
-//   http_max_idle_conns_per_host (int) - Maximum number of idle http connections in the pool per host.
-//   http_idle_conn_timeout (int) - Maximum length of time for an idle connection to stay in the pool in ms.
-//   network (string) - The network type to use.
-//   orphaned_response_logging (bool) - Whether to enable orphan response logging.
-//   orphaned_response_logging_interval (int) - How often to log orphan responses in ms.
-//   orphaned_response_logging_sample_size (int) - The number of samples to include in each orphaned response log.
+// Connect creates and returns a Cluster instance created using the
+// provided options and a connection string.
 func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 	connSpec, err := gocbconnstr.Parse(connStr)
 	if err != nil {
@@ -106,26 +104,26 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 	analyticsTimeout := 75000 * time.Millisecond
 	searchTimeout := 75000 * time.Millisecond
 	managementTimeout := 75000 * time.Millisecond
-	if opts.ConnectTimeout > 0 {
-		connectTimeout = opts.ConnectTimeout
+	if opts.TimeoutsConfig.ConnectTimeout > 0 {
+		connectTimeout = opts.TimeoutsConfig.ConnectTimeout
 	}
-	if opts.KVTimeout > 0 {
-		kvTimeout = opts.KVTimeout
+	if opts.TimeoutsConfig.KVTimeout > 0 {
+		kvTimeout = opts.TimeoutsConfig.KVTimeout
 	}
-	if opts.ViewTimeout > 0 {
-		viewTimeout = opts.ViewTimeout
+	if opts.TimeoutsConfig.ViewTimeout > 0 {
+		viewTimeout = opts.TimeoutsConfig.ViewTimeout
 	}
-	if opts.QueryTimeout > 0 {
-		queryTimeout = opts.QueryTimeout
+	if opts.TimeoutsConfig.QueryTimeout > 0 {
+		queryTimeout = opts.TimeoutsConfig.QueryTimeout
 	}
-	if opts.AnalyticsTimeout > 0 {
-		analyticsTimeout = opts.AnalyticsTimeout
+	if opts.TimeoutsConfig.AnalyticsTimeout > 0 {
+		analyticsTimeout = opts.TimeoutsConfig.AnalyticsTimeout
 	}
-	if opts.SearchTimeout > 0 {
-		searchTimeout = opts.SearchTimeout
+	if opts.TimeoutsConfig.SearchTimeout > 0 {
+		searchTimeout = opts.TimeoutsConfig.SearchTimeout
 	}
-	if opts.ManagementTimeout > 0 {
-		managementTimeout = opts.SearchTimeout
+	if opts.TimeoutsConfig.ManagementTimeout > 0 {
+		managementTimeout = opts.TimeoutsConfig.SearchTimeout
 	}
 	if opts.Transcoder == nil {
 		opts.Transcoder = NewJSONTranscoder()
@@ -134,17 +132,20 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 		opts.RetryStrategy = NewBestEffortRetryStrategy(nil)
 	}
 
+	useMutationTokens := true
 	useServerDurations := true
+	if opts.IoConfig.DisableMutationTokens {
+		useMutationTokens = false
+	}
+	if opts.IoConfig.DisableServerDurations {
+		useServerDurations = false
+	}
+
 	var initialTracer requestTracer
-	if opts.ThresholdLoggerDisabled {
-		initialTracer = &noopTracer{}
+	if opts.Tracer != nil {
+		initialTracer = opts.Tracer
 	} else {
-		// When we expose tracing we will need to setup a composite tracer here in the user also has
-		// a tracer set.
-		initialTracer = newThresholdLoggingTracer(opts.ThresholdLoggingOptions)
-		if opts.ThresholdLoggingOptions != nil && opts.ThresholdLoggingOptions.ServerDurationDisabled {
-			useServerDurations = false
-		}
+		initialTracer = newThresholdLoggingTracer(nil)
 	}
 	tracerAddRef(initialTracer)
 
@@ -162,12 +163,12 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 			DuraTimeout:            40000 * time.Millisecond,
 			DuraPollTimeout:        100 * time.Millisecond,
 			Transcoder:             opts.Transcoder,
-			UseMutationTokens:      !opts.DisableMutationTokens,
+			UseMutationTokens:      useMutationTokens,
 			ManagementTimeout:      managementTimeout,
 			RetryStrategyWrapper:   newRetryStrategyWrapper(opts.RetryStrategy),
-			OrphanLoggerEnabled:    !opts.OrphanLoggerDisabled,
-			OrphanLoggerInterval:   opts.OrphanLoggerInterval,
-			OrphanLoggerSampleSize: opts.OrphanLoggerSampleSize,
+			OrphanLoggerEnabled:    !opts.OrphanReporterConfig.Disabled,
+			OrphanLoggerInterval:   opts.OrphanReporterConfig.ReportInterval,
+			OrphanLoggerSampleSize: opts.OrphanReporterConfig.SampleSize,
 			UseServerDurations:     useServerDurations,
 			Tracer:                 initialTracer,
 			CircuitBreakerConfig:   opts.CircuitBreakerConfig,
