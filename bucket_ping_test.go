@@ -130,7 +130,7 @@ func TestPingAll(t *testing.T) {
 	for serviceType, services := range report.Services {
 		for _, service := range services {
 			switch serviceType {
-			case QueryService:
+			case ServiceTypeQuery:
 				if service.RemoteAddr != "http://localhost:8093" {
 					t.Fatalf("Expected service RemoteAddr to be http://localhost:8093 but was %s", service.RemoteAddr)
 				}
@@ -142,7 +142,7 @@ func TestPingAll(t *testing.T) {
 				if service.Latency < 50*time.Millisecond {
 					t.Fatalf("Expected service latency to be over 50ms but was %d", service.Latency)
 				}
-			case SearchService:
+			case ServiceTypeSearch:
 				if service.RemoteAddr != "http://localhost:8094" {
 					t.Fatalf("Expected service RemoteAddr to be http://localhost:8094 but was %s", service.RemoteAddr)
 				}
@@ -154,7 +154,7 @@ func TestPingAll(t *testing.T) {
 				if service.Latency != 0 {
 					t.Fatalf("Expected service latency to be 0 but was %d", service.Latency)
 				}
-			case AnalyticsService:
+			case ServiceTypeAnalytics:
 				if service.RemoteAddr != "http://localhost:8095" {
 					t.Fatalf("Expected service RemoteAddr to be http://localhost:8095 but was %s", service.RemoteAddr)
 				}
@@ -166,7 +166,7 @@ func TestPingAll(t *testing.T) {
 				if service.Latency < 20*time.Millisecond {
 					t.Fatalf("Expected service latency to be over 20ms but was %d", service.Latency)
 				}
-			case KeyValueService:
+			case ServiceTypeKeyValue:
 				expected, ok := results[service.RemoteAddr]
 				if !ok {
 					t.Fatalf("Unexpected service endpoint: %s", service.RemoteAddr)

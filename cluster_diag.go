@@ -15,17 +15,17 @@ type diagnosticsProvider interface {
 
 func diagServiceString(service ServiceType) string {
 	switch service {
-	case MgmtService:
+	case ServiceTypeManagement:
 		return "mgmt"
-	case KeyValueService:
+	case ServiceTypeKeyValue:
 		return "kv"
-	case CapiService:
+	case ServiceTypeViews:
 		return "views"
-	case QueryService:
+	case ServiceTypeQuery:
 		return "query"
-	case SearchService:
+	case ServiceTypeSearch:
 		return "search"
-	case AnalyticsService:
+	case ServiceTypeAnalytics:
 		return "analytics"
 	}
 	return ""
@@ -34,17 +34,17 @@ func diagServiceString(service ServiceType) string {
 func diagStringService(service string) ServiceType {
 	switch service {
 	case "mgmt":
-		return MgmtService
+		return ServiceTypeManagement
 	case "kv":
-		return KeyValueService
+		return ServiceTypeKeyValue
 	case "views":
-		return CapiService
+		return ServiceTypeViews
 	case "query":
-		return QueryService
+		return ServiceTypeQuery
 	case "search":
-		return SearchService
+		return ServiceTypeSearch
 	case "analytics":
-		return AnalyticsService
+		return ServiceTypeAnalytics
 	}
 	return ServiceType(0)
 }
@@ -181,7 +181,7 @@ func (c *Cluster) Diagnostics(opts *DiagnosticsOptions) (*DiagnosticsResult, err
 		}
 
 		report.Services["kv"] = append(report.Services["kv"], EndPointDiagnostics{
-			Type:         KeyValueService,
+			Type:         ServiceTypeKeyValue,
 			State:        state,
 			Local:        conn.LocalAddr,
 			Remote:       conn.RemoteAddr,

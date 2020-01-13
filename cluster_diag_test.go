@@ -88,7 +88,7 @@ func TestDiagnostics(t *testing.T) {
 	}
 
 	for i, service := range services {
-		if service.Type != KeyValueService {
+		if service.Type != ServiceTypeKeyValue {
 			t.Fatalf("Expected service to be KeyValueService but was %d", service.Type)
 		}
 

@@ -549,7 +549,7 @@ func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAn
 	defer span.Finish()
 
 	req := mgmtRequest{
-		Service:       AnalyticsService,
+		Service:       ServiceTypeAnalytics,
 		Method:        "GET",
 		Path:          fmt.Sprintf("/analytics/node/agg/stats/remaining"),
 		IsIdempotent:  true,

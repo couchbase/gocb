@@ -122,7 +122,7 @@ func (sm *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]S
 	defer span.Finish()
 
 	req := mgmtRequest{
-		Service:       SearchService,
+		Service:       ServiceTypeSearch,
 		Method:        "GET",
 		Path:          "/api/index",
 		IsIdempotent:  true,
@@ -183,7 +183,7 @@ func (sm *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOpt
 	defer span.Finish()
 
 	req := mgmtRequest{
-		Service:       SearchService,
+		Service:       ServiceTypeSearch,
 		Method:        "GET",
 		Path:          fmt.Sprintf("/api/index/%s", indexName),
 		IsIdempotent:  true,
@@ -255,7 +255,7 @@ func (sm *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Ups
 	}
 
 	req := mgmtRequest{
-		Service: SearchService,
+		Service: ServiceTypeSearch,
 		Method:  "PUT",
 		Path:    fmt.Sprintf("/api/index/%s", indexDefinition.Name),
 		Headers: map[string]string{
@@ -299,7 +299,7 @@ func (sm *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndexO
 	defer span.Finish()
 
 	req := mgmtRequest{
-		Service:       SearchService,
+		Service:       ServiceTypeSearch,
 		Method:        "DELETE",
 		Path:          fmt.Sprintf("/api/index/%s", indexName),
 		RetryStrategy: opts.RetryStrategy,
@@ -344,7 +344,7 @@ func (sm *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{},
 	}
 
 	req := mgmtRequest{
-		Service:       SearchService,
+		Service:       ServiceTypeSearch,
 		Method:        "POST",
 		Path:          fmt.Sprintf("/api/index/%s/analyzeDoc", indexName),
 		Body:          b,
@@ -401,7 +401,7 @@ func (sm *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *G
 	defer span.Finish()
 
 	req := mgmtRequest{
-		Service:       SearchService,
+		Service:       ServiceTypeSearch,
 		Method:        "GET",
 		Path:          fmt.Sprintf("/api/index/%s/count", indexName),
 		IsIdempotent:  true,
@@ -441,7 +441,7 @@ func (sm *SearchIndexManager) performControlRequest(
 	retryStrategy RetryStrategy,
 ) error {
 	req := mgmtRequest{
-		Service:       SearchService,
+		Service:       ServiceTypeSearch,
 		Method:        method,
 		Path:          uri,
 		IsIdempotent:  true,

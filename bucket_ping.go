@@ -155,10 +155,10 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 
 	if services == nil {
 		services = []ServiceType{
-			KeyValueService,
-			QueryService,
-			SearchService,
-			AnalyticsService,
+			ServiceTypeKeyValue,
+			ServiceTypeQuery,
+			ServiceTypeSearch,
+			ServiceTypeAnalytics,
 		}
 	}
 
@@ -172,11 +172,11 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 		}
 
 		timeout := 60 * time.Second
-		if service == QueryService {
+		if service == ServiceTypeQuery {
 			timeout = b.sb.QueryTimeout
-		} else if service == SearchService {
+		} else if service == ServiceTypeSearch {
 			timeout = b.sb.SearchTimeout
-		} else if service == AnalyticsService {
+		} else if service == ServiceTypeAnalytics {
 			timeout = b.sb.AnalyticsTimeout
 		}
 
@@ -204,7 +204,7 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 
 	for _, serviceType := range services {
 		switch serviceType {
-		case KeyValueService:
+		case ServiceTypeKeyValue:
 			numServices++
 			go func() {
 				cli := b.sb.getCachedClient()
@@ -224,7 +224,7 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 
 				reportLock.Lock()
 				report.ConfigRev = pings.ConfigRev
-				report.Services[KeyValueService] = make([]PingServiceEntry, 0)
+				report.Services[ServiceTypeKeyValue] = make([]PingServiceEntry, 0)
 				// We intentionally ignore errors here and simply include
 				// any non-error pings that we have received.  Note that
 				// gocbcore's ping command, when cancelled, still returns
@@ -238,7 +238,7 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 						detail = ping.Error.Error()
 					}
 
-					report.Services[KeyValueService] = append(report.Services[KeyValueService], PingServiceEntry{
+					report.Services[ServiceTypeKeyValue] = append(report.Services[ServiceTypeKeyValue], PingServiceEntry{
 						RemoteAddr: ping.Endpoint,
 						State:      state,
 						Latency:    ping.Latency,
@@ -250,23 +250,23 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 				reportLock.Unlock()
 				waitCh <- nil
 			}()
-		case CapiService:
+		case ServiceTypeViews:
 			// View Service is not currently supported as a ping target
-		case QueryService:
+		case ServiceTypeQuery:
 			numServices++
 			go func() {
-				pingLatency, endpoint, err := httpReq(QueryService, "/admin/ping")
+				pingLatency, endpoint, err := httpReq(ServiceTypeQuery, "/admin/ping")
 
 				reportLock.Lock()
-				report.Services[QueryService] = make([]PingServiceEntry, 0)
+				report.Services[ServiceTypeQuery] = make([]PingServiceEntry, 0)
 				if err != nil {
-					report.Services[QueryService] = append(report.Services[QueryService], PingServiceEntry{
+					report.Services[ServiceTypeQuery] = append(report.Services[ServiceTypeQuery], PingServiceEntry{
 						RemoteAddr: endpoint,
 						State:      "error",
 						Detail:     err.Error(),
 					})
 				} else {
-					report.Services[QueryService] = append(report.Services[QueryService], PingServiceEntry{
+					report.Services[ServiceTypeQuery] = append(report.Services[ServiceTypeQuery], PingServiceEntry{
 						RemoteAddr: endpoint,
 						State:      "ok",
 						Latency:    pingLatency,
@@ -276,21 +276,21 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 
 				waitCh <- nil
 			}()
-		case SearchService:
+		case ServiceTypeSearch:
 			numServices++
 			go func() {
-				pingLatency, endpoint, err := httpReq(SearchService, "/api/ping")
+				pingLatency, endpoint, err := httpReq(ServiceTypeSearch, "/api/ping")
 
 				reportLock.Lock()
-				report.Services[SearchService] = make([]PingServiceEntry, 0)
+				report.Services[ServiceTypeSearch] = make([]PingServiceEntry, 0)
 				if err != nil {
-					report.Services[SearchService] = append(report.Services[SearchService], PingServiceEntry{
+					report.Services[ServiceTypeSearch] = append(report.Services[ServiceTypeSearch], PingServiceEntry{
 						RemoteAddr: endpoint,
 						State:      "error",
 						Detail:     err.Error(),
 					})
 				} else {
-					report.Services[SearchService] = append(report.Services[SearchService], PingServiceEntry{
+					report.Services[ServiceTypeSearch] = append(report.Services[ServiceTypeSearch], PingServiceEntry{
 						RemoteAddr: endpoint,
 						State:      "ok",
 						Latency:    pingLatency,
@@ -300,21 +300,21 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 
 				waitCh <- nil
 			}()
-		case AnalyticsService:
+		case ServiceTypeAnalytics:
 			numServices++
 			go func() {
-				pingLatency, endpoint, err := httpReq(AnalyticsService, "/admin/ping")
+				pingLatency, endpoint, err := httpReq(ServiceTypeAnalytics, "/admin/ping")
 
 				reportLock.Lock()
-				report.Services[AnalyticsService] = make([]PingServiceEntry, 0)
+				report.Services[ServiceTypeAnalytics] = make([]PingServiceEntry, 0)
 				if err != nil {
-					report.Services[AnalyticsService] = append(report.Services[AnalyticsService], PingServiceEntry{
+					report.Services[ServiceTypeAnalytics] = append(report.Services[ServiceTypeAnalytics], PingServiceEntry{
 						RemoteAddr: endpoint,
 						State:      "error",
 						Detail:     err.Error(),
 					})
 				} else {
-					report.Services[AnalyticsService] = append(report.Services[AnalyticsService], PingServiceEntry{
+					report.Services[ServiceTypeAnalytics] = append(report.Services[ServiceTypeAnalytics], PingServiceEntry{
 						RemoteAddr: endpoint,
 						State:      "ok",
 						Latency:    pingLatency,

@@ -160,7 +160,7 @@ func (bm *BucketManager) GetBucket(bucketName string, opts *GetBucketOptions) (*
 func (bm *BucketManager) get(tracectx requestSpanContext, bucketName string,
 	strategy *retryStrategyWrapper) (*BucketSettings, error) {
 	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(MgmtService),
+		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Path:          fmt.Sprintf("/pools/default/buckets/%s", bucketName),
 		Method:        "GET",
 		IsIdempotent:  true,
@@ -222,7 +222,7 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 	}
 
 	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(MgmtService),
+		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Path:          "/pools/default/buckets",
 		Method:        "GET",
 		IsIdempotent:  true,
@@ -304,7 +304,7 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 	}
 
 	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(MgmtService),
+		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Path:          "/pools/default/buckets",
 		Method:        "POST",
 		Body:          []byte(posts.Encode()),
@@ -359,7 +359,7 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 	}
 
 	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(MgmtService),
+		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Path:          fmt.Sprintf("/pools/default/buckets/%s", settings.Name),
 		Method:        "POST",
 		Body:          []byte(posts.Encode()),
@@ -409,7 +409,7 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 	}
 
 	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(MgmtService),
+		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Path:          fmt.Sprintf("/pools/default/buckets/%s", name),
 		Method:        "DELETE",
 		RetryStrategy: retryStrategy,
@@ -458,7 +458,7 @@ func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) erro
 	}
 
 	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(MgmtService),
+		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Path:          fmt.Sprintf("/pools/default/buckets/%s/controller/doFlush", name),
 		Method:        "POST",
 		RetryStrategy: retryStrategy,

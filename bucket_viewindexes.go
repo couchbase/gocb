@@ -146,7 +146,7 @@ func (vm *ViewIndexManager) getDesignDocument(tracectx requestSpanContext, name 
 	name = vm.ddocName(name, namespace)
 
 	req := mgmtRequest{
-		Service:       CapiService,
+		Service:       ServiceTypeViews,
 		Path:          fmt.Sprintf("/_design/%s", name),
 		Method:        "GET",
 		IsIdempotent:  true,
@@ -205,7 +205,7 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamesp
 	defer span.Finish()
 
 	req := mgmtRequest{
-		Service:       MgmtService,
+		Service:       ServiceTypeManagement,
 		Path:          fmt.Sprintf("/pools/default/buckets/%s/ddocs", vm.bucket.Name()),
 		Method:        "GET",
 		IsIdempotent:  true,
@@ -296,7 +296,7 @@ func (vm *ViewIndexManager) upsertDesignDocument(
 	ddocName = vm.ddocName(ddocName, namespace)
 
 	req := mgmtRequest{
-		Service:       CapiService,
+		Service:       ServiceTypeViews,
 		Path:          fmt.Sprintf("/_design/%s", ddocName),
 		Method:        "PUT",
 		Body:          data,
@@ -339,7 +339,7 @@ func (vm *ViewIndexManager) dropDesignDocument(tracectx requestSpanContext, name
 	name = vm.ddocName(name, namespace)
 
 	req := mgmtRequest{
-		Service:       CapiService,
+		Service:       ServiceTypeViews,
 		Path:          fmt.Sprintf("/_design/%s", name),
 		Method:        "DELETE",
 		Timeout:       opts.Timeout,

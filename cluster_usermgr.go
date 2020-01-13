@@ -260,7 +260,7 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 	}
 
 	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(MgmtService),
+		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Method:        "GET",
 		Path:          fmt.Sprintf("/settings/rbac/users/%s", opts.DomainName),
 		IsIdempotent:  true,
@@ -330,7 +330,7 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 	}
 
 	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(MgmtService),
+		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Method:        "GET",
 		Path:          fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, name),
 		IsIdempotent:  true,
@@ -413,7 +413,7 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 	reqForm.Add("roles", strings.Join(reqRoleStrs, ","))
 
 	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(MgmtService),
+		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Method:        "PUT",
 		Path:          fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, user.Username),
 		Body:          []byte(reqForm.Encode()),
@@ -464,7 +464,7 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 	}
 
 	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(MgmtService),
+		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Method:        "DELETE",
 		Path:          fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, name),
 		RetryStrategy: retryStrategy,
@@ -507,7 +507,7 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 	}
 
 	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(MgmtService),
+		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Method:        "GET",
 		Path:          "/settings/rbac/roles",
 		RetryStrategy: retryStrategy,
@@ -574,7 +574,7 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 	}
 
 	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(MgmtService),
+		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Method:        "GET",
 		Path:          fmt.Sprintf("/settings/rbac/groups/%s", groupName),
 		RetryStrategy: retryStrategy,
@@ -636,7 +636,7 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 	}
 
 	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(MgmtService),
+		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Method:        "GET",
 		Path:          "/settings/rbac/groups",
 		RetryStrategy: retryStrategy,
@@ -717,7 +717,7 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 	reqForm.Add("roles", strings.Join(reqRoleStrs, ","))
 
 	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(MgmtService),
+		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Method:        "PUT",
 		Path:          fmt.Sprintf("/settings/rbac/groups/%s", group.Name),
 		Body:          []byte(reqForm.Encode()),
@@ -766,7 +766,7 @@ func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error
 	}
 
 	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(MgmtService),
+		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Method:        "DELETE",
 		Path:          fmt.Sprintf("/settings/rbac/groups/%s", groupName),
 		RetryStrategy: retryStrategy,

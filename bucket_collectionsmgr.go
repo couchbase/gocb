@@ -71,7 +71,7 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 	}
 
 	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(MgmtService),
+		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
 		Method:        "GET",
 		RetryStrategy: retryStrategy,
@@ -175,7 +175,7 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 	posts.Add("name", spec.Name)
 
 	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(MgmtService),
+		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections/%s", cm.bucketName, spec.ScopeName),
 		Method:        "POST",
 		Body:          []byte(posts.Encode()),
@@ -244,7 +244,7 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 	}
 
 	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(MgmtService),
+		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections/%s/%s", cm.bucketName, spec.ScopeName, spec.Name),
 		Method:        "DELETE",
 		RetryStrategy: retryStrategy,
@@ -306,7 +306,7 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 	posts.Add("name", scopeName)
 
 	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(MgmtService),
+		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
 		Method:        "POST",
 		Body:          []byte(posts.Encode()),
@@ -363,7 +363,7 @@ func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions)
 	}
 
 	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(MgmtService),
+		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections/%s", cm.bucketName, scopeName),
 		Method:        "DELETE",
 		RetryStrategy: retryStrategy,

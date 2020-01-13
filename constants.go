@@ -58,23 +58,23 @@ const (
 type ServiceType gocbcore.ServiceType
 
 const (
-	// MgmtService represents a management service (typically ns_server).
-	MgmtService = ServiceType(gocbcore.MgmtService)
+	// ServiceTypeManagement represents a management service (typically ns_server).
+	ServiceTypeManagement = ServiceType(gocbcore.MgmtService)
 
-	// KeyValueService represents a memcached service.
-	KeyValueService = ServiceType(gocbcore.MemdService)
+	// ServiceTypeKeyValue represents a memcached service.
+	ServiceTypeKeyValue = ServiceType(gocbcore.MemdService)
 
-	// CapiService represents a CouchAPI service (typically for views).
-	CapiService = ServiceType(gocbcore.CapiService)
+	// ServiceTypeViews represents a CouchAPI service (typically for views).
+	ServiceTypeViews = ServiceType(gocbcore.CapiService)
 
-	// QueryService represents a N1QL service (typically for query).
-	QueryService = ServiceType(gocbcore.N1qlService)
+	// ServiceTypeQuery represents a N1QL service (typically for query).
+	ServiceTypeQuery = ServiceType(gocbcore.N1qlService)
 
-	// SearchService represents a full-text-search service.
-	SearchService = ServiceType(gocbcore.FtsService)
+	// ServiceTypeSearch represents a full-text-search service.
+	ServiceTypeSearch = ServiceType(gocbcore.FtsService)
 
-	// AnalyticsService represents an analytics service.
-	AnalyticsService = ServiceType(gocbcore.CbasService)
+	// ServiceTypeAnalytics represents an analytics service.
+	ServiceTypeAnalytics = ServiceType(gocbcore.CbasService)
 )
 
 // QueryProfileMode specifies the profiling mode to use during a query.
