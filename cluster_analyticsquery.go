@@ -90,7 +90,6 @@ type AnalyticsMetaData struct {
 	Metrics         AnalyticsMetrics
 	Signature       interface{}
 	Warnings        []AnalyticsWarning
-	Profile         interface{}
 
 	preparedName string
 }
