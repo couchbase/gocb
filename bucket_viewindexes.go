@@ -8,14 +8,14 @@ import (
 )
 
 // DesignDocumentNamespace represents which namespace a design document resides in.
-type DesignDocumentNamespace bool
+type DesignDocumentNamespace int
 
 const (
-	// ProductionDesignDocumentNamespace means that a design document resides in the production namespace.
-	ProductionDesignDocumentNamespace = true
+	// DesignDocumentNamespaceProduction means that a design document resides in the production namespace.
+	DesignDocumentNamespaceProduction = DesignDocumentNamespace(0)
 
-	// DevelopmentDesignDocumentNamespace means that a design document resides in the development namespace.
-	DevelopmentDesignDocumentNamespace = false
+	// DesignDocumentNamespaceDevelopment means that a design document resides in the development namespace.
+	DesignDocumentNamespaceDevelopment = DesignDocumentNamespace(1)
 )
 
 // View represents a Couchbase view within a design document.
@@ -114,8 +114,8 @@ type GetDesignDocumentOptions struct {
 	RetryStrategy RetryStrategy
 }
 
-func (vm *ViewIndexManager) ddocName(name string, isProd DesignDocumentNamespace) string {
-	if isProd {
+func (vm *ViewIndexManager) ddocName(name string, namespace DesignDocumentNamespace) string {
+	if namespace == DesignDocumentNamespaceProduction {
 		if strings.HasPrefix(name, "dev_") {
 			name = strings.TrimLeft(name, "dev_")
 		}
@@ -378,16 +378,25 @@ func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesi
 		SetTag("couchbase.service", "view")
 	defer span.Finish()
 
-	devdoc, err := vm.getDesignDocument(span.Context(), name, false, startTime, &GetDesignDocumentOptions{
-		RetryStrategy: opts.RetryStrategy,
-	})
+	devdoc, err := vm.getDesignDocument(
+		span.Context(),
+		name,
+		DesignDocumentNamespaceDevelopment,
+		startTime,
+		&GetDesignDocumentOptions{
+			RetryStrategy: opts.RetryStrategy,
+		})
 	if err != nil {
 		return err
 	}
 
-	err = vm.upsertDesignDocument(span.Context(), *devdoc, true, startTime, &UpsertDesignDocumentOptions{
-		RetryStrategy: opts.RetryStrategy,
-	})
+	err = vm.upsertDesignDocument(span.Context(),
+		*devdoc,
+		DesignDocumentNamespaceProduction,
+		startTime,
+		&UpsertDesignDocumentOptions{
+			RetryStrategy: opts.RetryStrategy,
+		})
 	if err != nil {
 		return err
 	}

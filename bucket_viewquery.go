@@ -196,7 +196,7 @@ func (b *Bucket) execViewQuery(
 
 func (b *Bucket) maybePrefixDevDocument(namespace DesignDocumentNamespace, ddoc string) string {
 	designDoc := ddoc
-	if namespace {
+	if namespace == DesignDocumentNamespaceProduction {
 		designDoc = strings.TrimPrefix(ddoc, "dev_")
 	} else {
 		if !strings.HasPrefix(ddoc, "dev_") {
