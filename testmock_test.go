@@ -293,6 +293,18 @@ func (mko *mockKvProvider) ObserveVbEx(opts gocbcore.ObserveVbOptions, cb gocbco
 	})
 }
 
+func (mko *mockKvProvider) GetMetaEx(opts gocbcore.GetMetaOptions, cb gocbcore.GetMetaExCallback) (gocbcore.PendingOp, error) {
+	return mko.waitForOp(func(err error) {
+		if err != nil {
+			cb(nil, err)
+		} else {
+			cb(&gocbcore.GetMetaResult{
+				Cas: mko.cas,
+			}, nil)
+		}
+	})
+}
+
 func (mko *mockKvProvider) GetAnyReplicaEx(opts gocbcore.GetAnyReplicaOptions, cb gocbcore.GetReplicaExCallback) (gocbcore.PendingOp, error) {
 	return mko.waitForOp(func(err error) {
 		if err != nil {

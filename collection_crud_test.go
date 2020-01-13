@@ -644,6 +644,10 @@ func TestCollectionRetry(t *testing.T) {
 }
 
 func TestUpsertGetRemove(t *testing.T) {
+	if globalCluster.NotSupportsFeature(GetMetaFeature) {
+		t.Skip("Skipping test as GetMeta not supported.")
+	}
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
@@ -752,6 +756,10 @@ func TestUpsertRetries(t *testing.T) {
 }
 
 func TestRemoveWithCas(t *testing.T) {
+	if globalCluster.NotSupportsFeature(GetMetaFeature) {
+		t.Skip("Skipping test as GetMeta not supported.")
+	}
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {

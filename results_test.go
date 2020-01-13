@@ -268,9 +268,9 @@ func TestExistsResultCas(t *testing.T) {
 	}
 }
 
-func TestExistsResultExistsNotFound(t *testing.T) {
+func TestExistsResultNotFound(t *testing.T) {
 	res := ExistsResult{
-		keyState: gocbcore.KeyStateNotFound,
+		docExists: false,
 	}
 
 	if res.Exists() {
@@ -278,29 +278,9 @@ func TestExistsResultExistsNotFound(t *testing.T) {
 	}
 }
 
-func TestExistsResultExistsDeleted(t *testing.T) {
+func TestExistsResultExists(t *testing.T) {
 	res := ExistsResult{
-		keyState: gocbcore.KeyStateDeleted,
-	}
-
-	if res.Exists() {
-		t.Fatalf("Expected result to not exist")
-	}
-}
-
-func TestExistsResultExistsPersisted(t *testing.T) {
-	res := ExistsResult{
-		keyState: gocbcore.KeyStatePersisted,
-	}
-
-	if !res.Exists() {
-		t.Fatalf("Expected result to exist")
-	}
-}
-
-func TestExistsResultExistsNotPersisted(t *testing.T) {
-	res := ExistsResult{
-		keyState: gocbcore.KeyStateNotPersisted,
+		docExists: true,
 	}
 
 	if !res.Exists() {

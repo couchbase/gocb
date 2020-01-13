@@ -58,6 +58,7 @@ var (
 	BucketMgrFeature                      = FeatureCode(26)
 	FtsAnalyzeFeature                     = FeatureCode(27)
 	AnalyticsIndexPendingMutationsFeature = FeatureCode(28)
+	GetMetaFeature                        = FeatureCode(29)
 )
 
 type testClusterErrorWrap struct {
@@ -123,6 +124,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case AnalyticsIndexPendingMutationsFeature:
 			supported = false
+		case GetMetaFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -182,6 +185,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer650)
 		case AnalyticsIndexPendingMutationsFeature:
 			supported = !c.Version.Lower(srvVer650)
+		case GetMetaFeature:
+			supported = true
 		}
 	}
 

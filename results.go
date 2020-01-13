@@ -3,7 +3,6 @@ package gocb
 import (
 	"encoding/json"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
 )
 
@@ -254,12 +253,12 @@ func (lir *LookupInResult) Exists(idx int) bool {
 // ExistsResult is the return type of Exist operations.
 type ExistsResult struct {
 	Result
-	keyState gocbcore.KeyState
+	docExists bool
 }
 
 // Exists returns whether or not the document exists.
 func (d *ExistsResult) Exists() bool {
-	return d.keyState != gocbcore.KeyStateNotFound && d.keyState != gocbcore.KeyStateDeleted
+	return d.docExists
 }
 
 // MutationResult is the return type of any store related operations. It contains Cas and mutation tokens.

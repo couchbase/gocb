@@ -1,11 +1,11 @@
 package gocb
 
 import (
+	"errors"
 	"sync/atomic"
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
-	"github.com/pkg/errors"
 )
 
 type kvProvider interface {
@@ -16,6 +16,7 @@ type kvProvider interface {
 	GetOneReplicaEx(opts gocbcore.GetOneReplicaOptions, cb gocbcore.GetReplicaExCallback) (gocbcore.PendingOp, error)
 	ObserveEx(opts gocbcore.ObserveOptions, cb gocbcore.ObserveExCallback) (gocbcore.PendingOp, error)
 	ObserveVbEx(opts gocbcore.ObserveVbOptions, cb gocbcore.ObserveVbExCallback) (gocbcore.PendingOp, error)
+	GetMetaEx(opts gocbcore.GetMetaOptions, cb gocbcore.GetMetaExCallback) (gocbcore.PendingOp, error)
 	DeleteEx(opts gocbcore.DeleteOptions, cb gocbcore.DeleteExCallback) (gocbcore.PendingOp, error)
 	LookupInEx(opts gocbcore.LookupInOptions, cb gocbcore.LookupInExCallback) (gocbcore.PendingOp, error)
 	MutateInEx(opts gocbcore.MutateInOptions, cb gocbcore.MutateInExCallback) (gocbcore.PendingOp, error)
@@ -420,28 +421,37 @@ func (c *Collection) Exists(id string, opts *ExistsOptions) (docOut *ExistsResul
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.ObserveEx(gocbcore.ObserveOptions{
+	err = opm.Wait(agent.GetMetaEx(gocbcore.GetMetaOptions{
 		Key:            opm.DocumentID(),
-		ReplicaIdx:     0,
 		CollectionName: opm.CollectionName(),
 		ScopeName:      opm.ScopeName(),
 		RetryStrategy:  opm.RetryStrategy(),
 		TraceContext:   opm.TraceSpan,
-	}, func(res *gocbcore.ObserveResult, err error) {
+	}, func(res *gocbcore.GetMetaResult, err error) {
+		if errors.Is(err, ErrDocumentNotFound) {
+			docOut = &ExistsResult{
+				Result: Result{
+					cas: Cas(0),
+				},
+				docExists: false,
+			}
+			opm.Resolve(nil)
+			return
+		}
+
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
 			opm.Reject()
 			return
 		}
+
 		if res != nil {
-			doc := &ExistsResult{
+			docOut = &ExistsResult{
 				Result: Result{
 					cas: Cas(res.Cas),
 				},
-				keyState: res.KeyState,
+				docExists: true,
 			}
-
-			docOut = doc
 		}
 
 		opm.Resolve(nil)
