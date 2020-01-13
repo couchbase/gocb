@@ -250,11 +250,8 @@ func (c *Cluster) parseExtraConnStrOptions(spec gocbconnstr.ConnSpec) error {
 }
 
 // Bucket connects the cluster to server(s) and returns a new Bucket instance.
-func (c *Cluster) Bucket(bucketName string, opts *bucketOptions) *Bucket {
-	if opts == nil {
-		opts = &bucketOptions{}
-	}
-	b := newBucket(&c.sb, bucketName, *opts)
+func (c *Cluster) Bucket(bucketName string) *Bucket {
+	b := newBucket(&c.sb, bucketName)
 	cli := c.takeClusterClient()
 	if cli == nil {
 		// We've already taken the cluster client for a different bucket or something like that so

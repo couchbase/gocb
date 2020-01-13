@@ -101,7 +101,7 @@ func TestMain(m *testing.M) {
 
 	globalCluster = &testCluster{Cluster: cluster, Mock: mock, Version: nodeVersion}
 
-	globalBucket = globalCluster.Bucket(*bucketName, nil)
+	globalBucket = globalCluster.Bucket(*bucketName)
 
 	if *collectionName != "" {
 		globalCollection = globalBucket.Collection(*collectionName)

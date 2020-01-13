@@ -5,11 +5,7 @@ type Bucket struct {
 	sb stateBlock
 }
 
-type bucketOptions struct {
-	DisableMutationTokens bool
-}
-
-func newBucket(sb *stateBlock, bucketName string, opts bucketOptions) *Bucket {
+func newBucket(sb *stateBlock, bucketName string) *Bucket {
 	return &Bucket{
 		sb: stateBlock{
 			clientStateBlock: clientStateBlock{
@@ -23,15 +19,16 @@ func newBucket(sb *stateBlock, bucketName string, opts bucketOptions) *Bucket {
 			ConnectTimeout:    sb.ConnectTimeout,
 			DuraTimeout:       sb.DuraTimeout,
 			DuraPollTimeout:   sb.DuraPollTimeout,
-			UseMutationTokens: sb.UseMutationTokens,
 			ManagementTimeout: sb.ManagementTimeout,
 
 			Transcoder: sb.Transcoder,
 
 			RetryStrategyWrapper: sb.RetryStrategyWrapper,
 
+			Tracer: sb.Tracer,
+
 			UseServerDurations: sb.UseServerDurations,
-			Tracer:             sb.Tracer,
+			UseMutationTokens:  sb.UseMutationTokens,
 		},
 	}
 }
