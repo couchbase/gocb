@@ -250,7 +250,7 @@ func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResult, err
 
 	queryOpts["statement"] = statement
 
-	if !opts.AdHoc {
+	if !opts.Adhoc {
 		return c.execPreparedN1qlQuery(span, queryOpts, deadline, retryStrategy)
 	}
 

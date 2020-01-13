@@ -42,18 +42,18 @@ const (
 	AnalyticsService = ServiceType(gocbcore.CbasService)
 )
 
-// QueryProfileType specifies the profiling mode to use during a query.
-type QueryProfileType string
+// QueryProfileMode specifies the profiling mode to use during a query.
+type QueryProfileMode string
 
 const (
-	// QueryProfileNone disables query profiling
-	QueryProfileNone = QueryProfileType("off")
+	// QueryProfileModeNone disables query profiling
+	QueryProfileModeNone = QueryProfileMode("off")
 
-	// QueryProfilePhases includes phase profiling information in the query response
-	QueryProfilePhases = QueryProfileType("phases")
+	// QueryProfileModePhases includes phase profiling information in the query response
+	QueryProfileModePhases = QueryProfileMode("phases")
 
-	// QueryProfileTimings includes timing profiling information in the query response
-	QueryProfileTimings = QueryProfileType("timings")
+	// QueryProfileModeTimings includes timing profiling information in the query response
+	QueryProfileModeTimings = QueryProfileMode("timings")
 )
 
 // SubdocFlag provides special handling flags for sub-document operations

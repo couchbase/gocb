@@ -22,12 +22,12 @@ const (
 type QueryOptions struct {
 	ScanConsistency      QueryScanConsistency
 	ConsistentWith       *MutationState
-	Profile              QueryProfileType
+	Profile              QueryProfileMode
 	ScanCap              int
 	PipelineBatch        int
 	PipelineCap          int
 	ScanWait             time.Duration
-	ReadOnly             bool
+	Readonly             bool
 	MaxParallelism       int
 	ClientContextID      string
 	PositionalParameters []interface{}
@@ -35,7 +35,7 @@ type QueryOptions struct {
 	Metrics              bool
 	Raw                  map[string]interface{}
 
-	AdHoc         bool
+	Adhoc         bool
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 
@@ -68,8 +68,8 @@ func (opts *QueryOptions) toMap() (map[string]interface{}, error) {
 		execOpts["profile"] = opts.Profile
 	}
 
-	if opts.ReadOnly {
-		execOpts["readonly"] = opts.ReadOnly
+	if opts.Readonly {
+		execOpts["readonly"] = opts.Readonly
 	}
 
 	if opts.PositionalParameters != nil && opts.NamedParameters != nil {

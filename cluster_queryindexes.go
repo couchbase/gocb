@@ -318,7 +318,7 @@ func (qm *QueryIndexManager) getAllIndexes(
 	q := "SELECT `indexes`.* FROM system:indexes WHERE keyspace_id=?"
 	rows, err := qm.doQuery(q, &QueryOptions{
 		PositionalParameters: []interface{}{bucketName},
-		ReadOnly:             true,
+		Readonly:             true,
 		Timeout:              opts.Timeout,
 		RetryStrategy:        opts.RetryStrategy,
 		parentSpan:           tracectx,
