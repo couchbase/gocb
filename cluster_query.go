@@ -32,7 +32,7 @@ type jsonQueryWarning struct {
 type jsonQueryResponse struct {
 	RequestID       string             `json:"requestID"`
 	ClientContextID string             `json:"clientContextID"`
-	Status          string             `json:"status"`
+	Status          QueryStatus        `json:"status"`
 	Warnings        []jsonQueryWarning `json:"warnings"`
 	Metrics         jsonQueryMetrics   `json:"metrics"`
 	Profile         interface{}        `json:"profile"`
@@ -97,6 +97,7 @@ func (warning *QueryWarning) fromData(data jsonQueryWarning) error {
 type QueryMetaData struct {
 	RequestID       string
 	ClientContextID string
+	Status          QueryStatus
 	Metrics         QueryMetrics
 	Signature       interface{}
 	Warnings        []QueryWarning
@@ -118,6 +119,7 @@ func (meta *QueryMetaData) fromData(data jsonQueryResponse) error {
 
 	meta.RequestID = data.RequestID
 	meta.ClientContextID = data.ClientContextID
+	meta.Status = data.Status
 	meta.Metrics = metrics
 	meta.Signature = data.Signature
 	meta.Warnings = warnings
