@@ -271,7 +271,7 @@ func (r *SearchResult) Facets() (map[string]SearchFacetResult, error) {
 }
 
 // SearchQuery executes the analytics query statement on the server.
-func (c *Cluster) SearchQuery(query SearchQuery, opts *SearchOptions) (*SearchResult, error) {
+func (c *Cluster) SearchQuery(indexName string, query SearchQuery, opts *SearchOptions) (*SearchResult, error) {
 	if opts == nil {
 		opts = &SearchOptions{}
 	}
@@ -301,7 +301,7 @@ func (c *Cluster) SearchQuery(query SearchQuery, opts *SearchOptions) (*SearchRe
 
 	searchOpts["query"] = query
 
-	return c.execSearchQuery(span, searchOpts, deadline, retryStrategy)
+	return c.execSearchQuery(span, indexName, searchOpts, deadline, retryStrategy)
 }
 
 func maybeGetSearchOptionQuery(options map[string]interface{}) interface{} {
@@ -313,6 +313,7 @@ func maybeGetSearchOptionQuery(options map[string]interface{}) interface{} {
 
 func (c *Cluster) execSearchQuery(
 	span requestSpan,
+	indexName string,
 	options map[string]interface{},
 	deadline time.Time,
 	retryStrategy *retryStrategyWrapper,
@@ -334,6 +335,7 @@ func (c *Cluster) execSearchQuery(
 	}
 
 	res, err := provider.SearchQuery(gocbcore.SearchQueryOptions{
+		IndexName:     indexName,
 		Payload:       reqBytes,
 		RetryStrategy: retryStrategy,
 		Deadline:      deadline,
