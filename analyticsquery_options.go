@@ -23,7 +23,7 @@ type AnalyticsOptions struct {
 	Priority             bool
 	PositionalParameters []interface{}
 	NamedParameters      map[string]interface{}
-	ReadOnly             bool
+	Readonly             bool
 	ScanConsistency      AnalyticsScanConsistency
 	Raw                  map[string]interface{}
 
@@ -69,7 +69,7 @@ func (opts *AnalyticsOptions) toMap() (map[string]interface{}, error) {
 		}
 	}
 
-	if opts.ReadOnly {
+	if opts.Readonly {
 		execOpts["readonly"] = true
 	}
 
