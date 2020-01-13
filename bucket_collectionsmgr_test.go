@@ -10,12 +10,9 @@ func TestCollectionManagerCrud(t *testing.T) {
 		t.Skip("Skipping test as collections not supported")
 	}
 
-	mgr, err := globalBucket.CollectionManager()
-	if err != nil {
-		t.Fatalf("Failed to get collections manager %v", err)
-	}
+	mgr := globalBucket.Collections()
 
-	err = mgr.CreateScope("testScope", nil)
+	err := mgr.CreateScope("testScope", nil)
 	if err != nil {
 		t.Fatalf("Failed to create scope %v", err)
 	}

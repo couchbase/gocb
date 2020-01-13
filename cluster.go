@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/couchbaselabs/gocbconnstr"
 	"github.com/pkg/errors"
 )
@@ -478,56 +479,63 @@ func (c *Cluster) setSupportsEnhancedPreparedStatements(supports bool) {
 	}
 }
 
-// Users returns a UserManager for managing users.
-func (c *Cluster) Users() (*UserManager, error) {
-	provider, err := c.getHTTPProvider()
+type clusterHTTPWrapper struct {
+	c *Cluster
+}
+
+func (cw clusterHTTPWrapper) DoHTTPRequest(req *gocbcore.HTTPRequest) (*gocbcore.HTTPResponse, error) {
+	provider, err := cw.c.getHTTPProvider()
 	if err != nil {
 		return nil, err
 	}
+
+	return provider.DoHTTPRequest(req)
+}
+
+// Users returns a UserManager for managing users.
+func (c *Cluster) Users() *UserManager {
+	provider := clusterHTTPWrapper{c}
 
 	return &UserManager{
 		httpClient:           provider,
 		globalTimeout:        c.sb.ManagementTimeout,
 		defaultRetryStrategy: c.sb.RetryStrategyWrapper,
 		tracer:               c.sb.Tracer,
-	}, nil
+	}
 }
 
 // Buckets returns a BucketManager for managing buckets.
-func (c *Cluster) Buckets() (*BucketManager, error) {
-	provider, err := c.getHTTPProvider()
-	if err != nil {
-		return nil, err
-	}
+func (c *Cluster) Buckets() *BucketManager {
+	provider := clusterHTTPWrapper{c}
 
 	return &BucketManager{
 		httpClient:           provider,
 		globalTimeout:        c.sb.ManagementTimeout,
 		defaultRetryStrategy: c.sb.RetryStrategyWrapper,
 		tracer:               c.sb.Tracer,
-	}, nil
+	}
 }
 
 // AnalyticsIndexes returns an AnalyticsIndexManager for managing analytics indexes.
-func (c *Cluster) AnalyticsIndexes() (*AnalyticsIndexManager, error) {
+func (c *Cluster) AnalyticsIndexes() *AnalyticsIndexManager {
 	return &AnalyticsIndexManager{
 		cluster: c,
 		tracer:  c.sb.Tracer,
-	}, nil
+	}
 }
 
 // QueryIndexes returns a QueryIndexManager for managing N1QL indexes.
-func (c *Cluster) QueryIndexes() (*QueryIndexManager, error) {
+func (c *Cluster) QueryIndexes() *QueryIndexManager {
 	return &QueryIndexManager{
 		cluster: c,
 		tracer:  c.sb.Tracer,
-	}, nil
+	}
 }
 
 // SearchIndexes returns a SearchIndexManager for managing Search indexes.
-func (c *Cluster) SearchIndexes() (*SearchIndexManager, error) {
+func (c *Cluster) SearchIndexes() *SearchIndexManager {
 	return &SearchIndexManager{
 		cluster: c,
 		tracer:  c.sb.Tracer,
-	}, nil
+	}
 }

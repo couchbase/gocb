@@ -1,5 +1,9 @@
 package gocb
 
+import (
+	gocbcore "github.com/couchbase/gocbcore/v8"
+)
+
 // Bucket represents a single bucket within a cluster.
 type Bucket struct {
 	sb stateBlock
@@ -79,19 +83,29 @@ func (b *Bucket) stateBlock() stateBlock {
 }
 
 // ViewIndexes returns a ViewIndexManager instance for managing views.
-func (b *Bucket) ViewIndexes() (*ViewIndexManager, error) {
+func (b *Bucket) ViewIndexes() *ViewIndexManager {
 	return &ViewIndexManager{
 		bucket: b,
 		tracer: b.sb.Tracer,
-	}, nil
+	}
 }
 
-// CollectionManager provides functions for managing collections.
-func (b *Bucket) CollectionManager() (*CollectionManager, error) {
-	provider, err := b.sb.getCachedClient().getHTTPProvider()
+type bucketHTTPWrapper struct {
+	b *Bucket
+}
+
+func (bw bucketHTTPWrapper) DoHTTPRequest(req *gocbcore.HTTPRequest) (*gocbcore.HTTPResponse, error) {
+	provider, err := bw.b.sb.getCachedClient().getHTTPProvider()
 	if err != nil {
 		return nil, err
 	}
+
+	return provider.DoHTTPRequest(req)
+}
+
+// Collections provides functions for managing collections.
+func (b *Bucket) Collections() *CollectionManager {
+	provider := bucketHTTPWrapper{b}
 
 	return &CollectionManager{
 		httpClient:           provider,
@@ -99,5 +113,5 @@ func (b *Bucket) CollectionManager() (*CollectionManager, error) {
 		globalTimeout:        b.sb.ManagementTimeout,
 		defaultRetryStrategy: b.sb.RetryStrategyWrapper,
 		tracer:               b.sb.Tracer,
-	}, nil
+	}
 }

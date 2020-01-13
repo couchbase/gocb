@@ -10,12 +10,9 @@ func TestAnalyticsIndexesCrud(t *testing.T) {
 		t.Skip("Skipping test, analytics indexes not supported.")
 	}
 
-	mgr, err := globalCluster.AnalyticsIndexes()
-	if err != nil {
-		t.Fatalf("Expected AnalyticsIndexes to not error %v", err)
-	}
+	mgr := globalCluster.AnalyticsIndexes()
 
-	err = mgr.CreateDataverse("testaverse", nil)
+	err := mgr.CreateDataverse("testaverse", nil)
 	if err != nil {
 		t.Fatalf("Expected CreateDataverse to not error %v", err)
 	}

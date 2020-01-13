@@ -10,12 +10,9 @@ func TestUserManagerGroupCrud(t *testing.T) {
 		t.Skip("Skipping test as groups not supported.")
 	}
 
-	mgr, err := globalCluster.Users()
-	if err != nil {
-		t.Fatalf("Expected Groups to not error: %v", err)
-	}
+	mgr := globalCluster.Users()
 
-	err = mgr.UpsertGroup(Group{
+	err := mgr.UpsertGroup(Group{
 		Name:        "test",
 		Description: "this is a test",
 		Roles: []Role{
@@ -76,12 +73,9 @@ func TestUserManagerWithGroupsCrud(t *testing.T) {
 		t.Skip("Skipping test as groups not supported.")
 	}
 
-	mgr, err := globalCluster.Users()
-	if err != nil {
-		t.Fatalf("Expected Users to not error: %v", err)
-	}
+	mgr := globalCluster.Users()
 
-	err = mgr.UpsertGroup(Group{
+	err := mgr.UpsertGroup(Group{
 		Name:        "test",
 		Description: "this is a test",
 		Roles: []Role{
@@ -206,10 +200,7 @@ func TestUserManagerCrud(t *testing.T) {
 		t.Skip("Skipping test as rbac not supported.")
 	}
 
-	mgr, err := globalCluster.Users()
-	if err != nil {
-		t.Fatalf("Expected Users to not error: %v", err)
-	}
+	mgr := globalCluster.Users()
 
 	expectedUser := User{
 		Username:    "barry",
@@ -222,7 +213,7 @@ func TestUserManagerCrud(t *testing.T) {
 			},
 		},
 	}
-	err = mgr.UpsertUser(expectedUser, nil)
+	err := mgr.UpsertUser(expectedUser, nil)
 	if err != nil {
 		t.Fatalf("Expected UpsertUser to not error: %v", err)
 	}
@@ -288,10 +279,7 @@ func TestUserManagerAvailableRoles(t *testing.T) {
 		t.Skip("Skipping test as rbac not supported.")
 	}
 
-	mgr, err := globalCluster.Users()
-	if err != nil {
-		t.Fatalf("Expected Users to not error: %v", err)
-	}
+	mgr := globalCluster.Users()
 
 	roles, err := mgr.GetRoles(nil)
 	if err != nil {

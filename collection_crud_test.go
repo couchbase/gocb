@@ -584,10 +584,7 @@ func TestCollectionRetry(t *testing.T) {
 	collectionName := "insertRetry"
 
 	// cli := globalBucket.sb.getCachedClient()
-	mgr, err := globalBucket.CollectionManager()
-	if err != nil {
-		t.Fatalf("Could not get CollectionManager: %v", err)
-	}
+	mgr := globalBucket.Collections()
 
 	err = mgr.CreateCollection(CollectionSpec{ScopeName: "_default", Name: collectionName}, nil)
 	if err != nil {

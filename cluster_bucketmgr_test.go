@@ -16,12 +16,9 @@ func TestBucketMgrOps(t *testing.T) {
 		t.Skip("Skipping test as bucket manager not supported.")
 	}
 
-	mgr, err := globalCluster.Buckets()
-	if err != nil {
-		t.Fatalf("Failed to create bucket manager %v", err)
-	}
+	mgr := globalCluster.Buckets()
 
-	err = mgr.CreateBucket(CreateBucketSettings{
+	err := mgr.CreateBucket(CreateBucketSettings{
 		BucketSettings: BucketSettings{
 			Name:                 "test22",
 			RAMQuotaMB:           100,

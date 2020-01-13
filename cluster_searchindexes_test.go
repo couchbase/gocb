@@ -10,12 +10,9 @@ func TestSearchIndexesCrud(t *testing.T) {
 		t.Skip("Skipping test as search indexes not supported")
 	}
 
-	mgr, err := globalCluster.SearchIndexes()
-	if err != nil {
-		t.Fatalf("Expected err to be nil but was %v", err)
-	}
+	mgr := globalCluster.SearchIndexes()
 
-	err = mgr.UpsertIndex(SearchIndex{
+	err := mgr.UpsertIndex(SearchIndex{
 		Name:       "test",
 		Type:       "fulltext-index",
 		SourceType: "couchbase",
@@ -144,12 +141,9 @@ func TestSearchIndexesUpsertIndexNoName(t *testing.T) {
 		t.Skip("Skipping test as search indexes not supported")
 	}
 
-	mgr, err := globalCluster.SearchIndexes()
-	if err != nil {
-		t.Fatalf("Expected err to be nil but was %v", err)
-	}
+	mgr := globalCluster.SearchIndexes()
 
-	err = mgr.UpsertIndex(SearchIndex{}, nil)
+	err := mgr.UpsertIndex(SearchIndex{}, nil)
 	if err == nil {
 		t.Fatalf("Expected UpsertIndex err to be not nil but was")
 	}
@@ -164,12 +158,9 @@ func TestSearchIndexesIngestControl(t *testing.T) {
 		t.Skip("Skipping test as search indexes not supported")
 	}
 
-	mgr, err := globalCluster.SearchIndexes()
-	if err != nil {
-		t.Fatalf("Expected err to be nil but was %v", err)
-	}
+	mgr := globalCluster.SearchIndexes()
 
-	err = mgr.UpsertIndex(SearchIndex{
+	err := mgr.UpsertIndex(SearchIndex{
 		Name:       "test",
 		Type:       "fulltext-index",
 		SourceType: "couchbase",
@@ -197,12 +188,9 @@ func TestSearchIndexesQueryControl(t *testing.T) {
 		t.Skip("Skipping test as search indexes not supported")
 	}
 
-	mgr, err := globalCluster.SearchIndexes()
-	if err != nil {
-		t.Fatalf("Expected err to be nil but was %v", err)
-	}
+	mgr := globalCluster.SearchIndexes()
 
-	err = mgr.UpsertIndex(SearchIndex{
+	err := mgr.UpsertIndex(SearchIndex{
 		Name:       "test",
 		Type:       "fulltext-index",
 		SourceType: "couchbase",
@@ -230,12 +218,9 @@ func TestSearchIndexesPartitionControl(t *testing.T) {
 		t.Skip("Skipping test as search indexes not supported")
 	}
 
-	mgr, err := globalCluster.SearchIndexes()
-	if err != nil {
-		t.Fatalf("Expected err to be nil but was %v", err)
-	}
+	mgr := globalCluster.SearchIndexes()
 
-	err = mgr.UpsertIndex(SearchIndex{
+	err := mgr.UpsertIndex(SearchIndex{
 		Name:       "test",
 		Type:       "fulltext-index",
 		SourceType: "couchbase",
