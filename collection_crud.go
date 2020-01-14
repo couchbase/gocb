@@ -2,7 +2,7 @@ package gocb
 
 import (
 	"errors"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
@@ -547,6 +547,7 @@ type GetAllReplicaOptions struct {
 
 // GetAllReplicasResult represents the results of a GetAllReplicas operation.
 type GetAllReplicasResult struct {
+	lock          sync.Mutex
 	totalRequests uint32
 	totalResults  uint32
 	resCh         chan *GetReplicaResult
@@ -554,14 +555,24 @@ type GetAllReplicasResult struct {
 }
 
 func (r *GetAllReplicasResult) addResult(res *GetReplicaResult) {
-	resultCount := atomic.AddUint32(&r.totalResults, 1)
+	// We use a lock here because the alternative means that there is a race
+	// between the channel writes from multiple results and the channels being
+	// closed.  IE: T1-Incr, T2-Incr, T2-Send, T2-Close, T1-Send[PANIC]
+	r.lock.Lock()
+
+	r.totalResults++
+	resultCount := r.totalResults
+
 	if resultCount <= r.totalRequests {
 		r.resCh <- res
 	}
+
 	if resultCount == r.totalRequests {
 		close(r.cancelCh)
 		close(r.resCh)
 	}
+
+	r.lock.Unlock()
 }
 
 // Next fetches the next replica result.
@@ -571,14 +582,20 @@ func (r *GetAllReplicasResult) Next() *GetReplicaResult {
 
 // Close cancels all remaining get replica requests.
 func (r *GetAllReplicasResult) Close() error {
-	resultCount := atomic.SwapUint32(&r.totalResults, 0xffffffff)
+	// See addResult discussion on lock usage.
+	r.lock.Lock()
+
+	prevResultCount := r.totalResults
+	r.totalResults = 0xffffffff
 
 	// We only have to close everything if the addResult method didn't already
 	// close them due to already having completed every request
-	if resultCount < r.totalRequests {
+	if prevResultCount < r.totalRequests {
 		close(r.cancelCh)
 		close(r.resCh)
 	}
+
+	r.lock.Unlock()
 
 	return nil
 }
