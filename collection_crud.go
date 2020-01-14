@@ -890,7 +890,7 @@ type UnlockOptions struct {
 }
 
 // Unlock unlocks a document which was locked with GetAndLock.
-func (c *Collection) Unlock(id string, cas Cas, opts *UnlockOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) Unlock(id string, cas Cas, opts *UnlockOptions) (errOut error) {
 	if opts == nil {
 		opts = &UnlockOptions{}
 	}
@@ -903,12 +903,12 @@ func (c *Collection) Unlock(id string, cas Cas, opts *UnlockOptions) (mutOut *Mu
 	opm.SetTimeout(opts.Timeout)
 
 	if err := opm.CheckReadyForOp(); err != nil {
-		return nil, err
+		return err
 	}
 
 	agent, err := c.getKvProvider()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	err = opm.Wait(agent.UnlockEx(gocbcore.UnlockOptions{
 		Key:            opm.DocumentID(),
@@ -924,11 +924,8 @@ func (c *Collection) Unlock(id string, cas Cas, opts *UnlockOptions) (mutOut *Mu
 			return
 		}
 
-		mutOut = &MutationResult{}
-		mutOut.cas = Cas(res.Cas)
-		mutOut.mt = opm.EnhanceMt(res.MutationToken)
-
-		opm.Resolve(mutOut.mt)
+		mt := opm.EnhanceMt(res.MutationToken)
+		opm.Resolve(mt)
 	}))
 	if err != nil {
 		errOut = err
