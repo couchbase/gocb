@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -22,7 +23,7 @@ type GetResult struct {
 	transcoder Transcoder
 	flags      uint32
 	contents   []byte
-	expiry     *uint32
+	expiry     *time.Duration
 }
 
 // Content assigns the value of the result into the valuePtr using default decoding.
@@ -30,8 +31,10 @@ func (d *GetResult) Content(valuePtr interface{}) error {
 	return d.transcoder.Decode(d.contents, d.flags, valuePtr)
 }
 
-// Expiry returns the expiry value for the result.
-func (d *GetResult) Expiry() *uint32 {
+// Expiry returns the expiry value for the result if it available.  Note that a nil
+// pointer indicates that the Expiry was fetched, while a valid pointer to a zero
+// Duration indicates that the document will never expire.
+func (d *GetResult) Expiry() *time.Duration {
 	return d.expiry
 }
 

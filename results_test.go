@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
 )
@@ -28,7 +29,7 @@ func TestGetResultHasExpiry(t *testing.T) {
 		t.Fatalf("Expiry should have returned nil but returned %d", *res.Expiry())
 	}
 
-	expiry := uint32(32)
+	expiry := 32 * time.Second
 	res.expiry = &expiry
 
 	if *res.Expiry() == 0 {
@@ -37,7 +38,7 @@ func TestGetResultHasExpiry(t *testing.T) {
 }
 
 func TestGetResultExpiry(t *testing.T) {
-	expiry := uint32(10)
+	expiry := 10 * time.Second
 	res := GetResult{
 		expiry: &expiry,
 	}
@@ -46,7 +47,7 @@ func TestGetResultExpiry(t *testing.T) {
 		t.Fatalf("Expiry should have not returned nil")
 	}
 
-	if *res.Expiry() != 10 {
+	if *res.Expiry() != 10*time.Second {
 		t.Fatalf("Expiry value should have been 10 but was %d", res.Expiry())
 	}
 }

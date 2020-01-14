@@ -39,8 +39,7 @@ type pendingOp gocbcore.PendingOp
 
 // InsertOptions are options that can be applied to an Insert operation.
 type InsertOptions struct {
-	// The expiry length in seconds
-	Expiry          uint32
+	Expiry          time.Duration
 	PersistTo       uint
 	ReplicateTo     uint
 	DurabilityLevel DurabilityLevel
@@ -77,7 +76,7 @@ func (c *Collection) Insert(id string, val interface{}, opts *InsertOptions) (mu
 		Key:                    opm.DocumentID(),
 		Value:                  opm.ValueBytes(),
 		Flags:                  opm.ValueFlags(),
-		Expiry:                 opts.Expiry,
+		Expiry:                 durationToExpiry(opts.Expiry),
 		CollectionName:         opm.CollectionName(),
 		ScopeName:              opm.ScopeName(),
 		DurabilityLevel:        opm.DurabilityLevel(),
@@ -105,8 +104,7 @@ func (c *Collection) Insert(id string, val interface{}, opts *InsertOptions) (mu
 
 // UpsertOptions are options that can be applied to an Upsert operation.
 type UpsertOptions struct {
-	// The expiry length in seconds
-	Expiry          uint32
+	Expiry          time.Duration
 	PersistTo       uint
 	ReplicateTo     uint
 	DurabilityLevel DurabilityLevel
@@ -143,7 +141,7 @@ func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mu
 		Key:                    opm.DocumentID(),
 		Value:                  opm.ValueBytes(),
 		Flags:                  opm.ValueFlags(),
-		Expiry:                 opts.Expiry,
+		Expiry:                 durationToExpiry(opts.Expiry),
 		CollectionName:         opm.CollectionName(),
 		ScopeName:              opm.ScopeName(),
 		DurabilityLevel:        opm.DurabilityLevel(),
@@ -171,7 +169,7 @@ func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mu
 
 // ReplaceOptions are the options available to a Replace operation.
 type ReplaceOptions struct {
-	Expiry          uint32
+	Expiry          time.Duration
 	Cas             Cas
 	PersistTo       uint
 	ReplicateTo     uint
@@ -209,7 +207,7 @@ func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (
 		Key:                    opm.DocumentID(),
 		Value:                  opm.ValueBytes(),
 		Flags:                  opm.ValueFlags(),
-		Expiry:                 opts.Expiry,
+		Expiry:                 durationToExpiry(opts.Expiry),
 		Cas:                    gocbcore.Cas(opts.Cas),
 		CollectionName:         opm.CollectionName(),
 		ScopeName:              opm.ScopeName(),
@@ -761,7 +759,7 @@ type GetAndTouchOptions struct {
 }
 
 // GetAndTouch retrieves a document and simultaneously updates its expiry time.
-func (c *Collection) GetAndTouch(id string, expiry uint32, opts *GetAndTouchOptions) (docOut *GetResult, errOut error) {
+func (c *Collection) GetAndTouch(id string, expiry time.Duration, opts *GetAndTouchOptions) (docOut *GetResult, errOut error) {
 	if opts == nil {
 		opts = &GetAndTouchOptions{}
 	}
@@ -784,7 +782,7 @@ func (c *Collection) GetAndTouch(id string, expiry uint32, opts *GetAndTouchOpti
 	}
 	err = opm.Wait(agent.GetAndTouchEx(gocbcore.GetAndTouchOptions{
 		Key:            opm.DocumentID(),
-		Expiry:         expiry,
+		Expiry:         durationToExpiry(expiry),
 		CollectionName: opm.CollectionName(),
 		ScopeName:      opm.ScopeName(),
 		RetryStrategy:  opm.RetryStrategy(),
@@ -940,7 +938,7 @@ type TouchOptions struct {
 }
 
 // Touch touches a document, specifying a new expiry time for it.
-func (c *Collection) Touch(id string, expiry uint32, opts *TouchOptions) (mutOut *MutationResult, errOut error) {
+func (c *Collection) Touch(id string, expiry time.Duration, opts *TouchOptions) (mutOut *MutationResult, errOut error) {
 	if opts == nil {
 		opts = &TouchOptions{}
 	}
@@ -962,7 +960,7 @@ func (c *Collection) Touch(id string, expiry uint32, opts *TouchOptions) (mutOut
 	}
 	err = opm.Wait(agent.TouchEx(gocbcore.TouchOptions{
 		Key:            opm.DocumentID(),
-		Expiry:         expiry,
+		Expiry:         durationToExpiry(expiry),
 		CollectionName: opm.CollectionName(),
 		ScopeName:      opm.ScopeName(),
 		RetryStrategy:  opm.RetryStrategy(),

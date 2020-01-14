@@ -130,13 +130,13 @@ const (
 
 // MutateInOptions are the set of options available to MutateIn.
 type MutateInOptions struct {
-	Timeout         time.Duration
-	Expiry          uint32
+	Expiry          time.Duration
 	Cas             Cas
 	PersistTo       uint
 	ReplicateTo     uint
 	DurabilityLevel DurabilityLevel
 	StoreSemantic   StoreSemantics
+	Timeout         time.Duration
 	RetryStrategy   RetryStrategy
 }
 
@@ -196,7 +196,7 @@ func jsonMarshalMutateSpec(op MutateInSpec) ([]byte, gocbcore.SubdocFlag, error)
 func (c *Collection) internalMutateIn(
 	opm *kvOpManager,
 	action StoreSemantics,
-	expiry uint32,
+	expiry time.Duration,
 	cas Cas,
 	ops []MutateInSpec,
 ) (mutOut *MutateInResult, errOut error) {
@@ -257,7 +257,7 @@ func (c *Collection) internalMutateIn(
 		Flags:                  docFlags,
 		Cas:                    gocbcore.Cas(cas),
 		Ops:                    subdocs,
-		Expiry:                 expiry,
+		Expiry:                 durationToExpiry(expiry),
 		CollectionName:         opm.CollectionName(),
 		ScopeName:              opm.ScopeName(),
 		DurabilityLevel:        opm.DurabilityLevel(),

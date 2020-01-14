@@ -240,3 +240,19 @@ func (c *Collection) newKvOpManager(opName string, tracectx requestSpanContext) 
 		span:   span,
 	}
 }
+
+func durationToExpiry(dura time.Duration) uint32 {
+	// If the duration is 0, that indicates never-expires
+	if dura == 0 {
+		return 0
+	}
+
+	// If the duration is less than one second, we must force the
+	// value to 1 to avoid accidentally making it never expire.
+	if dura < 1*time.Second {
+		return 1
+	}
+
+	// Translate into a uint32 in seconds.
+	return uint32(dura / time.Second)
+}

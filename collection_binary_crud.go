@@ -144,9 +144,9 @@ func (c *BinaryCollection) Prepend(id string, val []byte, opts *PrependOptions) 
 // IncrementOptions are the options available to the Increment operation.
 type IncrementOptions struct {
 	Timeout time.Duration
-	// Expiry is the length of time in seconds that the document will be stored in Couchbase.
+	// Expiry is the length of time that the document will be stored in Couchbase.
 	// A value of 0 will set the document to never expire.
-	Expiry uint32
+	Expiry time.Duration
 	// Initial, if non-negative, is the `initial` value to use for the document if it does not exist.
 	// If present, this is the value that will be returned by a successful operation.
 	Initial int64
@@ -189,7 +189,7 @@ func (c *Collection) binaryIncrement(id string, opts *IncrementOptions) (countOu
 		Key:                    opm.DocumentID(),
 		Delta:                  opts.Delta,
 		Initial:                realInitial,
-		Expiry:                 opts.Expiry,
+		Expiry:                 durationToExpiry(opts.Expiry),
 		CollectionName:         opm.CollectionName(),
 		ScopeName:              opm.ScopeName(),
 		DurabilityLevel:        opm.DurabilityLevel(),
@@ -227,9 +227,9 @@ func (c *BinaryCollection) Increment(id string, opts *IncrementOptions) (countOu
 // DecrementOptions are the options available to the Decrement operation.
 type DecrementOptions struct {
 	Timeout time.Duration
-	// Expiry is the length of time in seconds that the document will be stored in Couchbase.
+	// Expiry is the length of time that the document will be stored in Couchbase.
 	// A value of 0 will set the document to never expire.
-	Expiry uint32
+	Expiry time.Duration
 	// Initial, if non-negative, is the `initial` value to use for the document if it does not exist.
 	// If present, this is the value that will be returned by a successful operation.
 	Initial int64
@@ -272,7 +272,7 @@ func (c *Collection) binaryDecrement(id string, opts *DecrementOptions) (countOu
 		Key:                    opm.DocumentID(),
 		Delta:                  opts.Delta,
 		Initial:                realInitial,
-		Expiry:                 opts.Expiry,
+		Expiry:                 durationToExpiry(opts.Expiry),
 		CollectionName:         opm.CollectionName(),
 		ScopeName:              opm.ScopeName(),
 		DurabilityLevel:        opm.DurabilityLevel(),

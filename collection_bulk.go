@@ -151,7 +151,7 @@ type GetAndTouchOp struct {
 	bulkOp
 
 	ID     string
-	Expiry uint32
+	Expiry time.Duration
 	Result *GetResult
 	Err    error
 }
@@ -167,7 +167,7 @@ func (item *GetAndTouchOp) execute(tracectx requestSpanContext, c *Collection, p
 
 	op, err := provider.GetAndTouchEx(gocbcore.GetAndTouchOptions{
 		Key:            []byte(item.ID),
-		Expiry:         item.Expiry,
+		Expiry:         durationToExpiry(item.Expiry),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
@@ -200,7 +200,7 @@ type TouchOp struct {
 	bulkOp
 
 	ID     string
-	Expiry uint32
+	Expiry time.Duration
 	Result *MutationResult
 	Err    error
 }
@@ -216,7 +216,7 @@ func (item *TouchOp) execute(tracectx requestSpanContext, c *Collection, provide
 
 	op, err := provider.TouchEx(gocbcore.TouchOptions{
 		Key:            []byte(item.ID),
-		Expiry:         item.Expiry,
+		Expiry:         durationToExpiry(item.Expiry),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
@@ -309,7 +309,7 @@ type UpsertOp struct {
 
 	ID     string
 	Value  interface{}
-	Expiry uint32
+	Expiry time.Duration
 	Cas    Cas
 	Result *MutationResult
 	Err    error
@@ -337,7 +337,7 @@ func (item *UpsertOp) execute(tracectx requestSpanContext, c *Collection, provid
 		Key:            []byte(item.ID),
 		Value:          bytes,
 		Flags:          flags,
-		Expiry:         item.Expiry,
+		Expiry:         durationToExpiry(item.Expiry),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
@@ -377,7 +377,7 @@ type InsertOp struct {
 
 	ID     string
 	Value  interface{}
-	Expiry uint32
+	Expiry time.Duration
 	Result *MutationResult
 	Err    error
 }
@@ -405,7 +405,7 @@ func (item *InsertOp) execute(tracectx requestSpanContext, c *Collection, provid
 		Key:            []byte(item.ID),
 		Value:          bytes,
 		Flags:          flags,
-		Expiry:         item.Expiry,
+		Expiry:         durationToExpiry(item.Expiry),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
@@ -444,7 +444,7 @@ type ReplaceOp struct {
 
 	ID     string
 	Value  interface{}
-	Expiry uint32
+	Expiry time.Duration
 	Cas    Cas
 	Result *MutationResult
 	Err    error
@@ -474,7 +474,7 @@ func (item *ReplaceOp) execute(tracectx requestSpanContext, c *Collection, provi
 		Value:          bytes,
 		Flags:          flags,
 		Cas:            gocbcore.Cas(item.Cas),
-		Expiry:         item.Expiry,
+		Expiry:         durationToExpiry(item.Expiry),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
@@ -622,7 +622,7 @@ type IncrementOp struct {
 	ID      string
 	Delta   int64
 	Initial int64
-	Expiry  uint32
+	Expiry  time.Duration
 
 	Result *CounterResult
 	Err    error
@@ -646,7 +646,7 @@ func (item *IncrementOp) execute(tracectx requestSpanContext, c *Collection, pro
 		Key:            []byte(item.ID),
 		Delta:          uint64(item.Delta),
 		Initial:        realInitial,
-		Expiry:         item.Expiry,
+		Expiry:         durationToExpiry(item.Expiry),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
@@ -689,7 +689,7 @@ type DecrementOp struct {
 	ID      string
 	Delta   int64
 	Initial int64
-	Expiry  uint32
+	Expiry  time.Duration
 
 	Result *CounterResult
 	Err    error
@@ -713,7 +713,7 @@ func (item *DecrementOp) execute(tracectx requestSpanContext, c *Collection, pro
 		Key:            []byte(item.ID),
 		Delta:          uint64(item.Delta),
 		Initial:        realInitial,
-		Expiry:         item.Expiry,
+		Expiry:         durationToExpiry(item.Expiry),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
