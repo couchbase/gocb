@@ -100,7 +100,7 @@ func (c *Collection) waitForDurability(
 	tracectx requestSpanContext,
 	docID string,
 	mt gocbcore.MutationToken,
-	replicaTo uint,
+	replicateTo uint,
 	persistTo uint,
 	deadline time.Time,
 	cancelCh chan struct{},
@@ -116,7 +116,7 @@ func (c *Collection) waitForDurability(
 	}
 
 	numServers := agent.NumReplicas() + 1
-	if replicaTo > uint(numServers-1) || persistTo > uint(numServers) {
+	if replicateTo > uint(numServers-1) || persistTo > uint(numServers) {
 		return opm.EnhanceErr(ErrDurabilityImpossible)
 	}
 
@@ -147,7 +147,7 @@ func (c *Collection) waitForDurability(
 			return opm.EnhanceErr(ErrRequestCanceled)
 		}
 
-		if numReplicated >= replicaTo && numPersisted >= persistTo {
+		if numReplicated >= replicateTo && numPersisted >= persistTo {
 			close(subOpCancelCh)
 			return nil
 		}

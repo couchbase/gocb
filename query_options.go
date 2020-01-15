@@ -9,7 +9,7 @@ import (
 )
 
 // QueryScanConsistency indicates the level of data consistency desired for a query.
-type QueryScanConsistency int
+type QueryScanConsistency uint
 
 const (
 	// QueryScanConsistencyNotBounded indicates no data consistency is required.
@@ -23,12 +23,12 @@ type QueryOptions struct {
 	ScanConsistency      QueryScanConsistency
 	ConsistentWith       *MutationState
 	Profile              QueryProfileMode
-	ScanCap              int
-	PipelineBatch        int
-	PipelineCap          int
+	ScanCap              uint32
+	PipelineBatch        uint32
+	PipelineCap          uint32
 	ScanWait             time.Duration
 	Readonly             bool
-	MaxParallelism       int
+	MaxParallelism       uint32
 	ClientContextID      string
 	PositionalParameters []interface{}
 	NamedParameters      map[string]interface{}
@@ -90,15 +90,15 @@ func (opts *QueryOptions) toMap() (map[string]interface{}, error) {
 	}
 
 	if opts.ScanCap != 0 {
-		execOpts["scan_cap"] = strconv.Itoa(opts.ScanCap)
+		execOpts["scan_cap"] = strconv.FormatUint(uint64(opts.ScanCap), 10)
 	}
 
 	if opts.PipelineBatch != 0 {
-		execOpts["pipeline_batch"] = strconv.Itoa(opts.PipelineBatch)
+		execOpts["pipeline_batch"] = strconv.FormatUint(uint64(opts.PipelineBatch), 10)
 	}
 
 	if opts.PipelineCap != 0 {
-		execOpts["pipeline_cap"] = strconv.Itoa(opts.PipelineCap)
+		execOpts["pipeline_cap"] = strconv.FormatUint(uint64(opts.PipelineCap), 10)
 	}
 
 	if opts.ScanWait > 0 {
@@ -112,7 +112,7 @@ func (opts *QueryOptions) toMap() (map[string]interface{}, error) {
 	}
 
 	if opts.MaxParallelism > 0 {
-		execOpts["max_parallelism"] = strconv.Itoa(opts.MaxParallelism)
+		execOpts["max_parallelism"] = strconv.FormatUint(uint64(opts.MaxParallelism), 10)
 	}
 
 	if !opts.Metrics {

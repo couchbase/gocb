@@ -16,12 +16,12 @@ type queryCacheEntry struct {
 type jsonQueryMetrics struct {
 	ElapsedTime   string `json:"elapsedTime"`
 	ExecutionTime string `json:"executionTime"`
-	ResultCount   uint   `json:"resultCount"`
-	ResultSize    uint   `json:"resultSize"`
-	MutationCount uint   `json:"mutationCount,omitempty"`
-	SortCount     uint   `json:"sortCount,omitempty"`
-	ErrorCount    uint   `json:"errorCount,omitempty"`
-	WarningCount  uint   `json:"warningCount,omitempty"`
+	ResultCount   uint64 `json:"resultCount"`
+	ResultSize    uint64 `json:"resultSize"`
+	MutationCount uint64 `json:"mutationCount,omitempty"`
+	SortCount     uint64 `json:"sortCount,omitempty"`
+	ErrorCount    uint64 `json:"errorCount,omitempty"`
+	WarningCount  uint64 `json:"warningCount,omitempty"`
 }
 
 type jsonQueryWarning struct {
@@ -49,12 +49,12 @@ type jsonQueryPrepData struct {
 type QueryMetrics struct {
 	ElapsedTime   time.Duration
 	ExecutionTime time.Duration
-	ResultCount   uint
-	ResultSize    uint
-	MutationCount uint
-	SortCount     uint
-	ErrorCount    uint
-	WarningCount  uint
+	ResultCount   uint64
+	ResultSize    uint64
+	MutationCount uint64
+	SortCount     uint64
+	ErrorCount    uint64
+	WarningCount  uint64
 }
 
 func (metrics *QueryMetrics) fromData(data jsonQueryMetrics) error {

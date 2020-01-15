@@ -52,7 +52,7 @@ func (mt *bucketToken) UnmarshalJSON(data []byte) error {
 type bucketTokens map[string]*bucketToken
 type mutationStateData map[string]*bucketTokens
 
-type searchMutationState map[string]map[string]int
+type searchMutationState map[string]map[string]uint64
 
 // MutationState holds and aggregates MutationToken's across multiple operations.
 type MutationState struct {
@@ -144,10 +144,10 @@ func (mt *MutationState) toSearchMutationState() searchMutationState {
 	for _, token := range mt.tokens {
 		_, ok := data[token.bucketName]
 		if !ok {
-			data[token.bucketName] = make(map[string]int)
+			data[token.bucketName] = make(map[string]uint64)
 		}
 
-		data[token.bucketName][fmt.Sprintf("%d/%d", token.token.VbID, token.token.VbUUID)] = int(token.token.SeqNo)
+		data[token.bucketName][fmt.Sprintf("%d/%d", token.token.VbID, token.token.VbUUID)] = uint64(token.token.SeqNo)
 	}
 
 	return data

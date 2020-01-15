@@ -39,7 +39,7 @@ type jsonEndpointPingReport struct {
 }
 
 type jsonPingReport struct {
-	Version  int                                 `json:"version"`
+	Version  uint16                              `json:"version"`
 	SDK      string                              `json:"sdk,omitempty"`
 	ID       string                              `json:"id,omitempty"`
 	Services map[string][]jsonEndpointPingReport `json:"services,omitempty"`

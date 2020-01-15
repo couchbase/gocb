@@ -46,13 +46,13 @@ func (q *MatchQuery) Analyzer(analyzer string) *MatchQuery {
 }
 
 // PrefixLength specifies the prefix length from this query.
-func (q *MatchQuery) PrefixLength(length int) *MatchQuery {
+func (q *MatchQuery) PrefixLength(length uint64) *MatchQuery {
 	q.options["prefix_length"] = length
 	return q
 }
 
 // Fuzziness specifies the fuziness for this query.
-func (q *MatchQuery) Fuzziness(fuzziness int) *MatchQuery {
+func (q *MatchQuery) Fuzziness(fuzziness uint64) *MatchQuery {
 	q.options["fuzziness"] = fuzziness
 	return q
 }
@@ -273,7 +273,7 @@ type booleanQueryData struct {
 // BooleanQuery represents a search boolean query.
 type BooleanQuery struct {
 	data      booleanQueryData
-	shouldMin int
+	shouldMin uint32
 }
 
 // NewBooleanQuery creates a new BooleanQuery.
@@ -322,7 +322,7 @@ func (q *BooleanQuery) MustNot(query Query) *BooleanQuery {
 }
 
 // ShouldMin specifies the minimum value before the should query will boost.
-func (q *BooleanQuery) ShouldMin(min int) *BooleanQuery {
+func (q *BooleanQuery) ShouldMin(min uint32) *BooleanQuery {
 	q.shouldMin = min
 	return q
 }
@@ -442,13 +442,13 @@ func (q *TermQuery) Field(field string) *TermQuery {
 }
 
 // PrefixLength specifies the prefix length from this query.
-func (q *TermQuery) PrefixLength(length int) *TermQuery {
+func (q *TermQuery) PrefixLength(length uint64) *TermQuery {
 	q.options["prefix_length"] = length
 	return q
 }
 
 // Fuzziness specifies the fuziness for this query.
-func (q *TermQuery) Fuzziness(fuzziness int) *TermQuery {
+func (q *TermQuery) Fuzziness(fuzziness uint64) *TermQuery {
 	q.options["fuzziness"] = fuzziness
 	return q
 }

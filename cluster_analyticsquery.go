@@ -10,13 +10,13 @@ import (
 type jsonAnalyticsMetrics struct {
 	ElapsedTime      string `json:"elapsedTime"`
 	ExecutionTime    string `json:"executionTime"`
-	ResultCount      uint   `json:"resultCount"`
-	ResultSize       uint   `json:"resultSize"`
-	MutationCount    uint   `json:"mutationCount,omitempty"`
-	SortCount        uint   `json:"sortCount,omitempty"`
-	ErrorCount       uint   `json:"errorCount,omitempty"`
-	WarningCount     uint   `json:"warningCount,omitempty"`
-	ProcessedObjects uint   `json:"processedObjects,omitempty"`
+	ResultCount      uint64 `json:"resultCount"`
+	ResultSize       uint64 `json:"resultSize"`
+	MutationCount    uint64 `json:"mutationCount,omitempty"`
+	SortCount        uint64 `json:"sortCount,omitempty"`
+	ErrorCount       uint64 `json:"errorCount,omitempty"`
+	WarningCount     uint64 `json:"warningCount,omitempty"`
+	ProcessedObjects uint64 `json:"processedObjects,omitempty"`
 }
 
 type jsonAnalyticsWarning struct {
@@ -37,13 +37,13 @@ type jsonAnalyticsResponse struct {
 type AnalyticsMetrics struct {
 	ElapsedTime      time.Duration
 	ExecutionTime    time.Duration
-	ResultCount      uint
-	ResultSize       uint
-	MutationCount    uint
-	SortCount        uint
-	ErrorCount       uint
-	WarningCount     uint
-	ProcessedObjects uint
+	ResultCount      uint64
+	ResultSize       uint64
+	MutationCount    uint64
+	SortCount        uint64
+	ErrorCount       uint64
+	WarningCount     uint64
+	ProcessedObjects uint64
 }
 
 func (metrics *AnalyticsMetrics) fromData(data jsonAnalyticsMetrics) error {
@@ -235,7 +235,7 @@ func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*Ana
 		}
 	}
 
-	priorityInt := 0
+	var priorityInt int32
 	if opts.Priority {
 		priorityInt = -1
 	}
@@ -255,7 +255,7 @@ func maybeGetAnalyticsOption(options map[string]interface{}, name string) string
 func (c *Cluster) execAnalyticsQuery(
 	span requestSpan,
 	options map[string]interface{},
-	priority int,
+	priority int32,
 	deadline time.Time,
 	retryStrategy *retryStrategyWrapper,
 ) (*AnalyticsResult, error) {
@@ -279,7 +279,7 @@ func (c *Cluster) execAnalyticsQuery(
 
 	res, err := provider.AnalyticsQuery(gocbcore.AnalyticsQueryOptions{
 		Payload:       reqBytes,
-		Priority:      priority,
+		Priority:      int(priority),
 		RetryStrategy: retryStrategy,
 		Deadline:      deadline,
 	})

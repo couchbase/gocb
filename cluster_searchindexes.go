@@ -387,7 +387,7 @@ type GetIndexedDocumentsCountOptions struct {
 }
 
 // GetIndexedDocumentsCount retrieves the document count for a search index.
-func (sm *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *GetIndexedDocumentsCountOptions) (int, error) {
+func (sm *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *GetIndexedDocumentsCountOptions) (uint64, error) {
 	if opts == nil {
 		opts = &GetIndexedDocumentsCountOptions{}
 	}
@@ -418,7 +418,7 @@ func (sm *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *G
 	}
 
 	var count struct {
-		Count int `json:"count"`
+		Count uint64 `json:"count"`
 	}
 	jsonDec := json.NewDecoder(resp.Body)
 	err = jsonDec.Decode(&count)

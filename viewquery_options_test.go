@@ -121,12 +121,12 @@ func testCreateViewQueryOptions(seed int64) *ViewOptions {
 
 	randVal = rand.Intn(2)
 	if randVal == 1 {
-		opts.Skip = uint(rand.Intn(10))
+		opts.Skip = uint32(rand.Intn(10))
 	}
 
 	randVal = rand.Intn(2)
 	if randVal == 1 {
-		opts.Limit = uint(rand.Intn(10))
+		opts.Limit = uint32(rand.Intn(10))
 	}
 
 	randVal = rand.Intn(4)
@@ -150,7 +150,7 @@ func testCreateViewQueryOptions(seed int64) *ViewOptions {
 
 	randVal = rand.Intn(2)
 	if randVal == 1 {
-		opts.GroupLevel = uint(rand.Intn(5))
+		opts.GroupLevel = uint32(rand.Intn(5))
 	}
 
 	randVal = rand.Intn(2)

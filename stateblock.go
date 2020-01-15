@@ -27,8 +27,6 @@ type stateBlock struct {
 	KvTimeout       time.Duration
 	DuraTimeout     time.Duration
 	DuraPollTimeout time.Duration
-	PersistTo       uint
-	ReplicateTo     uint
 
 	QueryTimeout      time.Duration
 	AnalyticsTimeout  time.Duration
@@ -43,7 +41,7 @@ type stateBlock struct {
 	RetryStrategyWrapper   *retryStrategyWrapper
 	OrphanLoggerEnabled    bool
 	OrphanLoggerInterval   time.Duration
-	OrphanLoggerSampleSize int
+	OrphanLoggerSampleSize uint32
 
 	Tracer requestTracer
 

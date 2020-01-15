@@ -539,7 +539,7 @@ type GetPendingMutationsAnalyticsOptions struct {
 }
 
 // GetPendingMutations returns the number of pending mutations for all indexes in the form of dataverse.dataset:mutations.
-func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAnalyticsOptions) (map[string]int, error) {
+func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAnalyticsOptions) (map[string]uint64, error) {
 	if opts == nil {
 		opts = &GetPendingMutationsAnalyticsOptions{}
 	}
@@ -565,7 +565,7 @@ func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAn
 		return nil, makeMgmtBadStatusError("failed to get pending mutations", &req, resp)
 	}
 
-	pending := make(map[string]int)
+	pending := make(map[string]uint64)
 	jsonDec := json.NewDecoder(resp.Body)
 	err = jsonDec.Decode(&pending)
 	if err != nil {

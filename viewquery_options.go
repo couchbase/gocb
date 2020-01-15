@@ -9,7 +9,7 @@ import (
 )
 
 // ViewScanConsistency specifies the consistency required for a view query.
-type ViewScanConsistency int
+type ViewScanConsistency uint
 
 const (
 	// ViewScanConsistencyNotBounded indicates that no special behaviour should be used.
@@ -21,7 +21,7 @@ const (
 )
 
 // ViewOrdering specifies the ordering for the view queries results.
-type ViewOrdering int
+type ViewOrdering uint
 
 const (
 	// ViewOrderingAscending indicates the query results should be sorted from lowest to highest.
@@ -32,7 +32,7 @@ const (
 
 // ViewErrorMode pecifies the behaviour of the query engine should an error occur during the gathering of
 // view index results which would result in only partial results being available.
-type ViewErrorMode int
+type ViewErrorMode uint
 
 const (
 	// ViewErrorModeContinue indicates to continue gathering results on error.
@@ -45,12 +45,12 @@ const (
 // ViewOptions represents the options available when executing view query.
 type ViewOptions struct {
 	ScanConsistency ViewScanConsistency
-	Skip            uint
-	Limit           uint
+	Skip            uint32
+	Limit           uint32
 	Order           ViewOrdering
 	Reduce          bool
 	Group           bool
-	GroupLevel      uint
+	GroupLevel      uint32
 	Key             interface{}
 	Keys            []interface{}
 	StartKey        interface{}

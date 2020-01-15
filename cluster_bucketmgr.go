@@ -69,14 +69,14 @@ type jsonBucketSettings struct {
 	} `json:"controllers"`
 	ReplicaIndex bool `json:"replicaIndex"`
 	Quota        struct {
-		RAM    int `json:"ram"`
-		RawRAM int `json:"rawRAM"`
+		RAM    uint64 `json:"ram"`
+		RawRAM uint64 `json:"rawRAM"`
 	} `json:"quota"`
-	ReplicaNumber          int    `json:"replicaNumber"`
+	ReplicaNumber          uint32 `json:"replicaNumber"`
 	BucketType             string `json:"bucketType"`
 	ConflictResolutionType string `json:"conflictResolutionType"`
 	EvictionPolicy         string `json:"evictionPolicy"`
-	MaxTTL                 int    `json:"maxTTL"`
+	MaxTTL                 uint32 `json:"maxTTL"`
 	CompressionMode        string `json:"compressionMode"`
 }
 
@@ -89,14 +89,14 @@ type BucketSettings struct {
 	// ReplicaIndexDisabled specifies whether or not to disable replica index.
 	ReplicaIndexDisabled bool // inverted so that zero value matches server default.
 	//  is the memory quota to assign to the bucket and is required.
-	RAMQuotaMB int
+	RAMQuotaMB uint64
 	// NumReplicas is the number of replicas servers per vbucket and is required.
 	// NOTE: If not set this will set 0 replicas.
-	NumReplicas int
+	NumReplicas uint32
 	// BucketType is the type of bucket this is. Defaults to CouchbaseBucketType.
 	BucketType      BucketType
 	EvictionPolicy  EvictionPolicyType
-	MaxTTL          int
+	MaxTTL          time.Duration
 	CompressionMode CompressionMode
 }
 
@@ -107,7 +107,7 @@ func (bs *BucketSettings) fromData(data jsonBucketSettings) error {
 	bs.RAMQuotaMB = data.Quota.RawRAM / 1024 / 1024
 	bs.NumReplicas = data.ReplicaNumber
 	bs.EvictionPolicy = EvictionPolicyType(data.EvictionPolicy)
-	bs.MaxTTL = data.MaxTTL
+	bs.MaxTTL = time.Duration(data.MaxTTL) * time.Second
 	bs.CompressionMode = CompressionMode(data.CompressionMode)
 
 	switch data.BucketType {

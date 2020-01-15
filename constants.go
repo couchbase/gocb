@@ -157,7 +157,7 @@ const (
 )
 
 // ClusterState specifies the current state of the cluster
-type ClusterState int
+type ClusterState uint
 
 const (
 	// ClusterStateOnline indicates that all nodes are online and reachable.
@@ -171,7 +171,7 @@ const (
 )
 
 // EndpointState specifies the current state of an endpoint.
-type EndpointState int
+type EndpointState uint
 
 const (
 	// EndpointStateDisconnected indicates the endpoint socket is unreachable.
@@ -188,7 +188,7 @@ const (
 )
 
 // PingState specifies the result of the ping operation
-type PingState int
+type PingState uint
 
 const (
 	// PingStateOk indicates that the ping operation was successful.

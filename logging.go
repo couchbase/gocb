@@ -24,7 +24,7 @@ const (
 )
 
 // LogRedactLevel specifies the degree with which to redact the logs.
-type LogRedactLevel int
+type LogRedactLevel uint
 
 const (
 	// RedactNone indicates to perform no redactions

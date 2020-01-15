@@ -238,16 +238,16 @@ func (pr *lookupInPartial) exists() bool {
 
 // ContentAt retrieves the value of the operation by its index. The index is the position of
 // the operation as it was added to the builder.
-func (lir *LookupInResult) ContentAt(idx int, valuePtr interface{}) error {
-	if idx >= len(lir.contents) {
+func (lir *LookupInResult) ContentAt(idx uint, valuePtr interface{}) error {
+	if idx >= uint(len(lir.contents)) {
 		return makeInvalidArgumentsError("invalid index")
 	}
 	return lir.contents[idx].as(valuePtr)
 }
 
 // Exists verifies that the item at idx exists.
-func (lir *LookupInResult) Exists(idx int) bool {
-	if idx >= len(lir.contents) {
+func (lir *LookupInResult) Exists(idx uint) bool {
+	if idx >= uint(len(lir.contents)) {
 		return false
 	}
 	return lir.contents[idx].exists()
@@ -301,7 +301,7 @@ func (pr *mutateInPartial) as(valuePtr interface{}) error {
 
 // ContentAt retrieves the value of the operation by its index. The index is the position of
 // the operation as it was added to the builder.
-func (mir MutateInResult) ContentAt(idx int, valuePtr interface{}) error {
+func (mir MutateInResult) ContentAt(idx uint, valuePtr interface{}) error {
 	return mir.contents[idx].as(valuePtr)
 }
 

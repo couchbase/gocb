@@ -25,7 +25,7 @@ type mgmtRequest struct {
 
 type mgmtResponse struct {
 	Endpoint   string
-	StatusCode int
+	StatusCode uint32
 	Body       io.ReadCloser
 }
 
@@ -65,7 +65,7 @@ func (c *Cluster) executeMgmtRequest(req mgmtRequest) (*mgmtResponse, error) {
 
 	resp := &mgmtResponse{
 		Endpoint:   coreresp.Endpoint,
-		StatusCode: coreresp.StatusCode,
+		StatusCode: uint32(coreresp.StatusCode),
 		Body:       coreresp.Body,
 	}
 	return resp, nil
@@ -107,7 +107,7 @@ func (b *Bucket) executeMgmtRequest(req mgmtRequest) (*mgmtResponse, error) {
 
 	resp := &mgmtResponse{
 		Endpoint:   coreresp.Endpoint,
-		StatusCode: coreresp.StatusCode,
+		StatusCode: uint32(coreresp.StatusCode),
 		Body:       coreresp.Body,
 	}
 	return resp, nil

@@ -11,7 +11,7 @@ import (
 )
 
 type jsonViewResponse struct {
-	TotalRows int         `json:"total_rows,omitempty"`
+	TotalRows uint64      `json:"total_rows,omitempty"`
 	DebugInfo interface{} `json:"debug_info,omitempty"`
 }
 
@@ -23,7 +23,7 @@ type jsonViewRow struct {
 
 // ViewMetaData provides access to the meta-data properties of a view query result.
 type ViewMetaData struct {
-	TotalRows int
+	TotalRows uint64
 	Debug     interface{}
 }
 

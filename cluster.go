@@ -54,7 +54,7 @@ type TimeoutsConfig struct {
 type OrphanReporterConfig struct {
 	Disabled       bool
 	ReportInterval time.Duration
-	SampleSize     int
+	SampleSize     uint32
 }
 
 // ClusterOptions is the set of options available for creating a Cluster.

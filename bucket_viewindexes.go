@@ -8,7 +8,7 @@ import (
 )
 
 // DesignDocumentNamespace represents which namespace a design document resides in.
-type DesignDocumentNamespace int
+type DesignDocumentNamespace uint
 
 const (
 	// DesignDocumentNamespaceProduction means that a design document resides in the production namespace.

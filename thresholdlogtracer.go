@@ -84,7 +84,7 @@ type thresholdLogItem struct {
 
 type thresholdLogService struct {
 	Service string             `json:"service"`
-	Count   int                `json:"count"`
+	Count   uint64             `json:"count"`
 	Top     []thresholdLogItem `json:"top"`
 }
 
@@ -130,7 +130,7 @@ func (g *thresholdLogGroup) logRecordedRecords(sampleSize uint32) {
 		})
 	}
 
-	jsonData.Count = len(jsonData.Top)
+	jsonData.Count = uint64(len(jsonData.Top))
 
 	jsonBytes, err := json.Marshal(jsonData)
 	if err != nil {

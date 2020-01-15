@@ -73,7 +73,7 @@ func (c *stdClient) buildConfig() error {
 		BucketName:             c.state.BucketName,
 		UseZombieLogger:        c.cluster.sb.OrphanLoggerEnabled,
 		ZombieLoggerInterval:   c.cluster.sb.OrphanLoggerInterval,
-		ZombieLoggerSampleSize: c.cluster.sb.OrphanLoggerSampleSize,
+		ZombieLoggerSampleSize: int(c.cluster.sb.OrphanLoggerSampleSize),
 		NoRootTraceSpans:       true,
 		Tracer:                 &requestTracerWrapper{c.cluster.sb.Tracer},
 		CircuitBreakerConfig: gocbcore.CircuitBreakerConfig{

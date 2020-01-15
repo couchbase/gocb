@@ -21,7 +21,7 @@ const (
 )
 
 // SearchScanConsistency indicates the level of data consistency desired for a search query.
-type SearchScanConsistency int
+type SearchScanConsistency uint
 
 const (
 	searchScanConsistencyNotSet = SearchScanConsistency(0)
@@ -39,8 +39,8 @@ type SearchHighlightOptions struct {
 // SearchOptions represents a pending search query.
 type SearchOptions struct {
 	ScanConsistency SearchScanConsistency
-	Limit           int
-	Skip            int
+	Limit           uint32
+	Skip            uint32
 	Explain         bool
 	Highlight       *SearchHighlightOptions
 	Fields          []string

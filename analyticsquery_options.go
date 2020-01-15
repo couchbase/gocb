@@ -8,7 +8,7 @@ import (
 )
 
 // AnalyticsScanConsistency indicates the level of data consistency desired for an analytics query.
-type AnalyticsScanConsistency int
+type AnalyticsScanConsistency uint
 
 const (
 	// AnalyticsScanConsistencyNotBounded indicates no data consistency is required.

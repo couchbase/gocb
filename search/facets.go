@@ -10,7 +10,7 @@ type Facet interface {
 
 type termFacetData struct {
 	Field string `json:"field,omitempty"`
-	Size  int    `json:"size,omitempty"`
+	Size  uint64 `json:"size,omitempty"`
 }
 
 // TermFacet is an search term facet.
@@ -24,7 +24,7 @@ func (f TermFacet) MarshalJSON() ([]byte, error) {
 }
 
 // NewTermFacet creates a new TermFacet
-func NewTermFacet(field string, size int) *TermFacet {
+func NewTermFacet(field string, size uint64) *TermFacet {
 	mq := &TermFacet{}
 	mq.data.Field = field
 	mq.data.Size = size
@@ -38,7 +38,7 @@ type numericFacetRange struct {
 }
 type numericFacetData struct {
 	Field         string              `json:"field,omitempty"`
-	Size          int                 `json:"size,omitempty"`
+	Size          uint64              `json:"size,omitempty"`
 	NumericRanges []numericFacetRange `json:"numeric_ranges,omitempty"`
 }
 
@@ -63,7 +63,7 @@ func (f *NumericFacet) AddRange(name string, start, end float64) *NumericFacet {
 }
 
 // NewNumericFacet creates a new numeric range facet.
-func NewNumericFacet(field string, size int) *NumericFacet {
+func NewNumericFacet(field string, size uint64) *NumericFacet {
 	mq := &NumericFacet{}
 	mq.data.Field = field
 	mq.data.Size = size
@@ -77,7 +77,7 @@ type dateFacetRange struct {
 }
 type dateFacetData struct {
 	Field      string           `json:"field,omitempty"`
-	Size       int              `json:"size,omitempty"`
+	Size       uint64           `json:"size,omitempty"`
 	DateRanges []dateFacetRange `json:"date_ranges,omitempty"`
 }
 
@@ -102,7 +102,7 @@ func (f *DateFacet) AddRange(name string, start, end string) *DateFacet {
 }
 
 // NewDateFacet creates a new date range facet.
-func NewDateFacet(field string, size int) *DateFacet {
+func NewDateFacet(field string, size uint64) *DateFacet {
 	mq := &DateFacet{}
 	mq.data.Field = field
 	mq.data.Size = size
