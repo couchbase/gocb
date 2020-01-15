@@ -116,17 +116,27 @@ func (rl *SearchRowLocation) fromData(data jsonRowLocation) error {
 	return nil
 }
 
+// SearchRow represents a single hit returned from a search query.
+type SearchRow struct {
+	Index       string
+	ID          string
+	Score       float64
+	Explanation interface{}
+	Locations   map[string]map[string][]SearchRowLocation
+	Fragments   map[string][]string
+	fieldsBytes []byte
+}
+
+// Fields decodes the fields included in a search hit.
+func (sr *SearchRow) Fields(valuePtr interface{}) error {
+	return json.Unmarshal(sr.fieldsBytes, valuePtr)
+}
+
 // SearchResult allows access to the results of a N1QL query.
 type SearchResult struct {
 	reader *gocbcore.SearchRowReader
 
-	index       string
-	id          string
-	score       float64
-	explanation interface{}
-	locations   map[string]map[string][]SearchRowLocation
-	fragments   map[string][]string
-	fieldsBytes []byte
+	currentRow SearchRow
 }
 
 func newSearchResult(reader *gocbcore.SearchRowReader) (*SearchResult, error) {
@@ -142,14 +152,16 @@ func (r *SearchResult) Next() bool {
 		return false
 	}
 
+	r.currentRow = SearchRow{}
+
 	var rowData jsonSearchRow
 	if err := json.Unmarshal(rowBytes, &rowData); err == nil {
-		r.index = rowData.Index
-		r.id = rowData.ID
-		r.score = rowData.Score
-		r.explanation = rowData.Explanation
-		r.fragments = rowData.Fragments
-		r.fieldsBytes = rowData.Fields
+		r.currentRow.Index = rowData.Index
+		r.currentRow.ID = rowData.ID
+		r.currentRow.Score = rowData.Score
+		r.currentRow.Explanation = rowData.Explanation
+		r.currentRow.Fragments = rowData.Fragments
+		r.currentRow.fieldsBytes = rowData.Fields
 
 		locations := make(map[string]map[string][]SearchRowLocation)
 		for fieldName, fieldData := range rowData.Locations {
@@ -163,45 +175,15 @@ func (r *SearchResult) Next() bool {
 			}
 			locations[fieldName] = terms
 		}
-		r.locations = locations
+		r.currentRow.Locations = locations
 	}
 
 	return true
 }
 
-// Index returns the index of the current hit.
-func (r *SearchResult) Index() string {
-	return r.index
-}
-
-// ID returns the id of the current hit.
-func (r *SearchResult) ID() string {
-	return r.id
-}
-
-// Score returns the score of the current hit.
-func (r *SearchResult) Score() float64 {
-	return r.score
-}
-
-// Explanation returns the explanation of the current hit.
-func (r *SearchResult) Explanation() interface{} {
-	return r.explanation
-}
-
-// Locations returns the locations of the current hit.
-func (r *SearchResult) Locations() map[string]map[string][]SearchRowLocation {
-	return r.locations
-}
-
-// Fragments returns the fragments of the current hit.
-func (r *SearchResult) Fragments() map[string][]string {
-	return r.fragments
-}
-
-// Fields returns the fields of the current hit.
-func (r *SearchResult) Fields(fieldsPtr interface{}) error {
-	return json.Unmarshal(r.fieldsBytes, fieldsPtr)
+// Row returns the contents of the current row.
+func (r *SearchResult) Row() SearchRow {
+	return r.currentRow
 }
 
 // Err returns any errors that have occurred on the stream

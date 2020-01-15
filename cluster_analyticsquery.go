@@ -138,8 +138,8 @@ func (r *AnalyticsResult) Next() bool {
 	return true
 }
 
-// Value returns the value of the current row
-func (r *AnalyticsResult) Value(valuePtr interface{}) error {
+// Row returns the value of the current row
+func (r *AnalyticsResult) Row(valuePtr interface{}) error {
 	if r.rowBytes == nil {
 		return ErrNoResult
 	}

@@ -25,7 +25,7 @@ func (qm *QueryIndexManager) doQuery(q string, opts *QueryOptions) ([][]byte, er
 	var rows [][]byte
 	for result.Next() {
 		var row []byte
-		result.Value(&row)
+		result.Row(&row)
 		rows = append(rows, row)
 	}
 	err = result.Err()

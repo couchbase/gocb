@@ -27,7 +27,7 @@ func (am *AnalyticsIndexManager) doAnalyticsQuery(q string, opts *AnalyticsOptio
 	var rows [][]byte
 	for result.Next() {
 		var row []byte
-		result.Value(&row)
+		result.Row(&row)
 		rows = append(rows, row)
 	}
 	err = result.Err()

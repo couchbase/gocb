@@ -34,29 +34,28 @@ func (meta *ViewMetaData) fromData(data jsonViewResponse) error {
 	return nil
 }
 
-// ViewResult implements an iterator interface which can be used to iterate over the rows of the query results.
-type ViewResult struct {
-	id         string
+// ViewRow represents a single row returned from a view query.
+type ViewRow struct {
+	ID         string
 	keyBytes   []byte
 	valueBytes []byte
-
-	reader *gocbcore.ViewQueryRowReader
 }
 
-func viewMetaParser(metaBytes []byte) (interface{}, error) {
-	var jsonResp jsonViewResponse
-	err := json.Unmarshal(metaBytes, &jsonResp)
-	if err != nil {
-		return nil, err
-	}
+// Key returns the key associated with this view row.
+func (vr *ViewRow) Key(valuePtr interface{}) error {
+	return json.Unmarshal(vr.keyBytes, valuePtr)
+}
 
-	var metaData ViewMetaData
-	err = metaData.fromData(jsonResp)
-	if err != nil {
-		return nil, err
-	}
+// Value returns the value associated with this view row.
+func (vr *ViewRow) Value(valuePtr interface{}) error {
+	return json.Unmarshal(vr.valueBytes, valuePtr)
+}
 
-	return &metaData, nil
+// ViewResult implements an iterator interface which can be used to iterate over the rows of the query results.
+type ViewResult struct {
+	reader *gocbcore.ViewQueryRowReader
+
+	currentRow ViewRow
 }
 
 func newViewResult(reader *gocbcore.ViewQueryRowReader) (*ViewResult, error) {
@@ -72,29 +71,21 @@ func (r *ViewResult) Next() bool {
 		return false
 	}
 
+	r.currentRow = ViewRow{}
+
 	var rowData jsonViewRow
 	if err := json.Unmarshal(rowBytes, &rowData); err == nil {
-		r.id = rowData.ID
-		r.keyBytes = rowData.Key
-		r.valueBytes = rowData.Value
+		r.currentRow.ID = rowData.ID
+		r.currentRow.keyBytes = rowData.Key
+		r.currentRow.valueBytes = rowData.Value
 	}
 
 	return true
 }
 
-// ID returns the document ID of the current row
-func (r *ViewResult) ID() string {
-	return r.id
-}
-
-// Key returns the key of the current row
-func (r *ViewResult) Key(keyPtr interface{}) error {
-	return json.Unmarshal(r.keyBytes, keyPtr)
-}
-
-// Value returns the value of the current row
-func (r *ViewResult) Value(valuePtr interface{}) error {
-	return json.Unmarshal(r.valueBytes, valuePtr)
+// Row returns the contents of the current row.
+func (r *ViewResult) Row() ViewRow {
+	return r.currentRow
 }
 
 // Err returns any errors that have occurred on the stream

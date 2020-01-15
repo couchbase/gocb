@@ -153,8 +153,8 @@ func (r *QueryResult) Next() bool {
 	return true
 }
 
-// Value returns the value of the current row
-func (r *QueryResult) Value(valuePtr interface{}) error {
+// Row returns the contents of the current row
+func (r *QueryResult) Row(valuePtr interface{}) error {
 	if r.rowBytes == nil {
 		return ErrNoResult
 	}
