@@ -1,9 +1,9 @@
-package gocb
+package search
 
 import "encoding/json"
 
-// SearchQuery represents a search query.
-type SearchQuery interface {
+// Query represents a search query.
+type Query interface {
 }
 
 type searchQueryBase struct {
@@ -221,15 +221,15 @@ type ConjunctionQuery struct {
 }
 
 // NewConjunctionQuery creates a new ConjunctionQuery.
-func NewConjunctionQuery(queries ...SearchQuery) *ConjunctionQuery {
+func NewConjunctionQuery(queries ...Query) *ConjunctionQuery {
 	q := &ConjunctionQuery{newSearchQueryBase()}
-	q.options["conjuncts"] = []SearchQuery{}
+	q.options["conjuncts"] = []Query{}
 	return q.And(queries...)
 }
 
 // And adds new predicate queries to this conjunction query.
-func (q *ConjunctionQuery) And(queries ...SearchQuery) *ConjunctionQuery {
-	q.options["conjuncts"] = append(q.options["conjuncts"].([]SearchQuery), queries...)
+func (q *ConjunctionQuery) And(queries ...Query) *ConjunctionQuery {
+	q.options["conjuncts"] = append(q.options["conjuncts"].([]Query), queries...)
 	return q
 }
 
@@ -245,15 +245,15 @@ type DisjunctionQuery struct {
 }
 
 // NewDisjunctionQuery creates a new DisjunctionQuery.
-func NewDisjunctionQuery(queries ...SearchQuery) *DisjunctionQuery {
+func NewDisjunctionQuery(queries ...Query) *DisjunctionQuery {
 	q := &DisjunctionQuery{newSearchQueryBase()}
-	q.options["disjuncts"] = []SearchQuery{}
+	q.options["disjuncts"] = []Query{}
 	return q.Or(queries...)
 }
 
 // Or adds new predicate queries to this disjunction query.
-func (q *DisjunctionQuery) Or(queries ...SearchQuery) *DisjunctionQuery {
-	q.options["disjuncts"] = append(q.options["disjuncts"].([]SearchQuery), queries...)
+func (q *DisjunctionQuery) Or(queries ...Query) *DisjunctionQuery {
+	q.options["disjuncts"] = append(q.options["disjuncts"].([]Query), queries...)
 	return q
 }
 
@@ -283,7 +283,7 @@ func NewBooleanQuery() *BooleanQuery {
 }
 
 // Must specifies a query which must match.
-func (q *BooleanQuery) Must(query SearchQuery) *BooleanQuery {
+func (q *BooleanQuery) Must(query Query) *BooleanQuery {
 	switch val := query.(type) {
 	case ConjunctionQuery:
 		q.data.Must = &val
@@ -296,7 +296,7 @@ func (q *BooleanQuery) Must(query SearchQuery) *BooleanQuery {
 }
 
 // Should specifies a query which should match.
-func (q *BooleanQuery) Should(query SearchQuery) *BooleanQuery {
+func (q *BooleanQuery) Should(query Query) *BooleanQuery {
 	switch val := query.(type) {
 	case DisjunctionQuery:
 		q.data.Should = &val
@@ -309,7 +309,7 @@ func (q *BooleanQuery) Should(query SearchQuery) *BooleanQuery {
 }
 
 // MustNot specifies a query which must not match.
-func (q *BooleanQuery) MustNot(query SearchQuery) *BooleanQuery {
+func (q *BooleanQuery) MustNot(query Query) *BooleanQuery {
 	switch val := query.(type) {
 	case DisjunctionQuery:
 		q.data.MustNot = &val

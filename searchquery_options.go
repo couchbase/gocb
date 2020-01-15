@@ -2,6 +2,8 @@ package gocb
 
 import (
 	"time"
+
+	cbsearch "github.com/couchbase/gocb/v2/search"
 )
 
 // SearchHighlightStyle indicates the type of highlighting to use for a search query.
@@ -42,8 +44,8 @@ type SearchOptions struct {
 	Explain         bool
 	Highlight       *SearchHighlightOptions
 	Fields          []string
-	Sort            []interface{}
-	Facets          map[string]interface{}
+	Sort            []cbsearch.Sort
+	Facets          map[string]cbsearch.Facet
 	ConsistentWith  *MutationState
 	Raw             map[string]interface{}
 

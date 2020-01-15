@@ -1,11 +1,11 @@
-package gocb
+package search
 
 import (
 	"encoding/json"
 )
 
 // SearchSort represents an search sorting for a search query.
-type SearchSort interface {
+type Sort interface {
 }
 
 type searchSortBase struct {

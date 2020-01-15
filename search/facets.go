@@ -1,11 +1,11 @@
-package gocb
+package search
 
 import (
 	"encoding/json"
 )
 
-// SearchFacet represents a facet for a search query.
-type SearchFacet interface {
+// Facet represents a facet for a search query.
+type Facet interface {
 }
 
 type termFacetData struct {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
+	cbsearch "github.com/couchbase/gocb/v2/search"
 	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
@@ -253,7 +254,7 @@ func (r *SearchResult) Facets() (map[string]SearchFacetResult, error) {
 }
 
 // SearchQuery executes the analytics query statement on the server.
-func (c *Cluster) SearchQuery(indexName string, query SearchQuery, opts *SearchOptions) (*SearchResult, error) {
+func (c *Cluster) SearchQuery(indexName string, query cbsearch.Query, opts *SearchOptions) (*SearchResult, error) {
 	if opts == nil {
 		opts = &SearchOptions{}
 	}
