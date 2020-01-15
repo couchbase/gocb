@@ -93,7 +93,7 @@ func (warning *QueryWarning) fromData(data jsonQueryWarning) error {
 	return nil
 }
 
-// QueryMetaData provides access to the meta-data properties of a N1QL query result.
+// QueryMetaData provides access to the meta-data properties of a query result.
 type QueryMetaData struct {
 	RequestID       string
 	ClientContextID string
@@ -129,7 +129,7 @@ func (meta *QueryMetaData) fromData(data jsonQueryResponse) error {
 	return nil
 }
 
-// QueryResult allows access to the results of a N1QL query.
+// QueryResult allows access to the results of a query.
 type QueryResult struct {
 	reader *gocbcore.N1QLRowReader
 
@@ -220,7 +220,7 @@ func (r *QueryResult) MetaData() (*QueryMetaData, error) {
 	return &metaData, nil
 }
 
-// Query executes the N1QL query statement on the server.
+// Query executes the query statement on the server.
 func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResult, error) {
 	if opts == nil {
 		opts = &QueryOptions{}

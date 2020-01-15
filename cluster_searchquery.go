@@ -132,7 +132,7 @@ func (sr *SearchRow) Fields(valuePtr interface{}) error {
 	return json.Unmarshal(sr.fieldsBytes, valuePtr)
 }
 
-// SearchResult allows access to the results of a N1QL query.
+// SearchResult allows access to the results of a search query.
 type SearchResult struct {
 	reader *gocbcore.SearchRowReader
 

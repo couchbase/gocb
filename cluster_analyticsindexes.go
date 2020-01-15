@@ -116,7 +116,7 @@ func (am *AnalyticsIndexManager) CreateDataverse(dataverseName string, opts *Cre
 	}
 
 	span := am.tracer.StartSpan("CreateDataverse", nil).
-		SetTag("couchbase.service", "cbas")
+		SetTag("couchbase.service", "analytics")
 	defer span.Finish()
 
 	var ignoreStr string
@@ -152,7 +152,7 @@ func (am *AnalyticsIndexManager) DropDataverse(dataverseName string, opts *DropA
 	}
 
 	span := am.tracer.StartSpan("DropDataverse", nil).
-		SetTag("couchbase.service", "cbas")
+		SetTag("couchbase.service", "analytics")
 	defer span.Finish()
 
 	var ignoreStr string
@@ -196,7 +196,7 @@ func (am *AnalyticsIndexManager) CreateDataset(datasetName, bucketName string, o
 	}
 
 	span := am.tracer.StartSpan("CreateDataset", nil).
-		SetTag("couchbase.service", "cbas")
+		SetTag("couchbase.service", "analytics")
 	defer span.Finish()
 
 	var ignoreStr string
@@ -247,7 +247,7 @@ func (am *AnalyticsIndexManager) DropDataset(datasetName string, opts *DropAnaly
 	}
 
 	span := am.tracer.StartSpan("DropDataset", nil).
-		SetTag("couchbase.service", "cbas")
+		SetTag("couchbase.service", "analytics")
 	defer span.Finish()
 
 	var ignoreStr string
@@ -287,7 +287,7 @@ func (am *AnalyticsIndexManager) GetAllDatasets(opts *GetAllAnalyticsDatasetsOpt
 	}
 
 	span := am.tracer.StartSpan("GetAllDatasets", nil).
-		SetTag("couchbase.service", "cbas")
+		SetTag("couchbase.service", "analytics")
 	defer span.Finish()
 
 	q := "SELECT d.* FROM Metadata.`Dataset` d WHERE d.DataverseName <> \"Metadata\""
@@ -344,7 +344,7 @@ func (am *AnalyticsIndexManager) CreateIndex(datasetName, indexName string, fiel
 	}
 
 	span := am.tracer.StartSpan("CreateIndex", nil).
-		SetTag("couchbase.service", "cbas")
+		SetTag("couchbase.service", "analytics")
 	defer span.Finish()
 
 	var ignoreStr string
@@ -392,7 +392,7 @@ func (am *AnalyticsIndexManager) DropIndex(datasetName, indexName string, opts *
 	}
 
 	span := am.tracer.StartSpan("DropIndex", nil).
-		SetTag("couchbase.service", "cbas")
+		SetTag("couchbase.service", "analytics")
 	defer span.Finish()
 
 	var ignoreStr string
@@ -432,7 +432,7 @@ func (am *AnalyticsIndexManager) GetAllIndexes(opts *GetAllAnalyticsIndexesOptio
 	}
 
 	span := am.tracer.StartSpan("GetAllIndexes", nil).
-		SetTag("couchbase.service", "cbas")
+		SetTag("couchbase.service", "analytics")
 	defer span.Finish()
 
 	q := "SELECT d.* FROM Metadata.`Index` d WHERE d.DataverseName <> \"Metadata\""
@@ -477,7 +477,7 @@ func (am *AnalyticsIndexManager) ConnectLink(opts *ConnectAnalyticsLinkOptions) 
 	}
 
 	span := am.tracer.StartSpan("ConnectLink", nil).
-		SetTag("couchbase.service", "cbas")
+		SetTag("couchbase.service", "analytics")
 	defer span.Finish()
 
 	if opts.LinkName == "" {
@@ -512,7 +512,7 @@ func (am *AnalyticsIndexManager) DisconnectLink(opts *DisconnectAnalyticsLinkOpt
 	}
 
 	span := am.tracer.StartSpan("DisconnectLink", nil).
-		SetTag("couchbase.service", "cbas")
+		SetTag("couchbase.service", "analytics")
 	defer span.Finish()
 
 	if opts.LinkName == "" {
@@ -545,7 +545,7 @@ func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAn
 	}
 
 	span := am.tracer.StartSpan("GetPendingMutations", nil).
-		SetTag("couchbase.service", "cbas")
+		SetTag("couchbase.service", "analytics")
 	defer span.Finish()
 
 	req := mgmtRequest{

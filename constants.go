@@ -12,8 +12,8 @@ const (
 type QueryIndexType string
 
 const (
-	// QueryIndexTypeN1ql indicates that GSI was used to build the index.
-	QueryIndexTypeN1ql = QueryIndexType("gsi")
+	// QueryIndexTypeGsi indicates that GSI was used to build the index.
+	QueryIndexTypeGsi = QueryIndexType("gsi")
 
 	// QueryIndexTypeView indicates that views were used to build the index.
 	QueryIndexTypeView = QueryIndexType("views")
@@ -58,16 +58,16 @@ const (
 type ServiceType gocbcore.ServiceType
 
 const (
-	// ServiceTypeManagement represents a management service (typically ns_server).
+	// ServiceTypeManagement represents a management service.
 	ServiceTypeManagement = ServiceType(gocbcore.MgmtService)
 
 	// ServiceTypeKeyValue represents a memcached service.
 	ServiceTypeKeyValue = ServiceType(gocbcore.MemdService)
 
-	// ServiceTypeViews represents a CouchAPI service (typically for views).
+	// ServiceTypeViews represents a views service.
 	ServiceTypeViews = ServiceType(gocbcore.CapiService)
 
-	// ServiceTypeQuery represents a N1QL service (typically for query).
+	// ServiceTypeQuery represents a query service.
 	ServiceTypeQuery = ServiceType(gocbcore.N1qlService)
 
 	// ServiceTypeSearch represents a full-text-search service.

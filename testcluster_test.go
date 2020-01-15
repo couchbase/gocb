@@ -36,13 +36,13 @@ var (
 	SslFeature                            = FeatureCode(4)
 	DcpFeature                            = FeatureCode(5)
 	SpatialViewFeature                    = FeatureCode(6)
-	N1qlFeature                           = FeatureCode(7)
+	QueryFeature                          = FeatureCode(7)
 	SubdocFeature                         = FeatureCode(8)
 	KvErrorMapFeature                     = FeatureCode(9)
 	RbacFeature                           = FeatureCode(10)
-	FtsFeature                            = FeatureCode(11)
+	SearchFeature                         = FeatureCode(11)
 	EnhancedErrorsFeature                 = FeatureCode(12)
-	FtsIndexFeature                       = FeatureCode(13)
+	SearchIndexFeature                    = FeatureCode(13)
 	CompressionFeature                    = FeatureCode(14)
 	ServerSideTracingFeature              = FeatureCode(15)
 	AnalyticsFeature                      = FeatureCode(16)
@@ -56,7 +56,7 @@ var (
 	UserManagerFeature                    = FeatureCode(24)
 	AnalyticsIndexFeature                 = FeatureCode(25)
 	BucketMgrFeature                      = FeatureCode(26)
-	FtsAnalyzeFeature                     = FeatureCode(27)
+	SearchAnalyzeFeature                  = FeatureCode(27)
 	AnalyticsIndexPendingMutationsFeature = FeatureCode(28)
 	GetMetaFeature                        = FeatureCode(29)
 )
@@ -92,7 +92,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		switch feature {
 		case RbacFeature:
 			supported = !c.Version.Lower(mockVer156)
-		case FtsIndexFeature:
+		case SearchIndexFeature:
 			supported = false
 		case CompressionFeature:
 			supported = !c.Version.Lower(mockVer1513)
@@ -100,7 +100,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(mockVer1515)
 		case AnalyticsFeature:
 			supported = false
-		case N1qlFeature:
+		case QueryFeature:
 			supported = false
 		case XattrFeature:
 			supported = false
@@ -120,7 +120,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case BucketMgrFeature:
 			supported = false
-		case FtsAnalyzeFeature:
+		case SearchAnalyzeFeature:
 			supported = false
 		case AnalyticsIndexPendingMutationsFeature:
 			supported = false
@@ -141,7 +141,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer400)
 		case SpatialViewFeature:
 			supported = !c.Version.Lower(srvVer400)
-		case N1qlFeature:
+		case QueryFeature:
 			supported = !c.Version.Lower(srvVer400)
 		case SubdocFeature:
 			supported = !c.Version.Lower(srvVer450)
@@ -151,11 +151,11 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer500)
 		case RbacFeature:
 			supported = !c.Version.Lower(srvVer500)
-		case FtsFeature:
+		case SearchFeature:
 			supported = !c.Version.Lower(srvVer500)
 		case EnhancedErrorsFeature:
 			supported = !c.Version.Lower(srvVer500)
-		case FtsIndexFeature:
+		case SearchIndexFeature:
 			supported = !c.Version.Lower(srvVer500)
 		case CompressionFeature:
 			supported = !c.Version.Lower(srvVer550)
@@ -181,7 +181,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer600)
 		case BucketMgrFeature:
 			supported = true
-		case FtsAnalyzeFeature:
+		case SearchAnalyzeFeature:
 			supported = !c.Version.Lower(srvVer650)
 		case AnalyticsIndexPendingMutationsFeature:
 			supported = !c.Version.Lower(srvVer650)

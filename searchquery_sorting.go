@@ -4,33 +4,33 @@ import (
 	"encoding/json"
 )
 
-// FtsSort represents an FTS sorting for a search query.
-type FtsSort interface {
+// SearchSort represents an search sorting for a search query.
+type SearchSort interface {
 }
 
-type ftsSortBase struct {
+type searchSortBase struct {
 	options map[string]interface{}
 }
 
-func newFtsSortBase() ftsSortBase {
-	return ftsSortBase{
+func newSearchSortBase() searchSortBase {
+	return searchSortBase{
 		options: make(map[string]interface{}),
 	}
 }
 
-// MarshalJSON marshal's this query to JSON for the FTS REST API.
-func (q ftsSortBase) MarshalJSON() ([]byte, error) {
+// MarshalJSON marshal's this query to JSON for the search REST API.
+func (q searchSortBase) MarshalJSON() ([]byte, error) {
 	return json.Marshal(q.options)
 }
 
-// SearchSortScore represents a FTS score sort.
+// SearchSortScore represents a search score sort.
 type SearchSortScore struct {
-	ftsSortBase
+	searchSortBase
 }
 
 // NewSearchSortScore creates a new SearchSortScore.
 func NewSearchSortScore() *SearchSortScore {
-	q := &SearchSortScore{newFtsSortBase()}
+	q := &SearchSortScore{newSearchSortBase()}
 	q.options["by"] = "score"
 	return q
 }
@@ -41,14 +41,14 @@ func (q *SearchSortScore) Descending(descending bool) *SearchSortScore {
 	return q
 }
 
-// SearchSortID represents a FTS Document ID sort.
+// SearchSortID represents a search Document ID sort.
 type SearchSortID struct {
-	ftsSortBase
+	searchSortBase
 }
 
 // NewSearchSortID creates a new SearchSortScore.
 func NewSearchSortID() *SearchSortID {
-	q := &SearchSortID{newFtsSortBase()}
+	q := &SearchSortID{newSearchSortBase()}
 	q.options["by"] = "id"
 	return q
 }
@@ -59,32 +59,32 @@ func (q *SearchSortID) Descending(descending bool) *SearchSortID {
 	return q
 }
 
-// SearchSortField represents a FTS field sort.
+// SearchSortField represents a search field sort.
 type SearchSortField struct {
-	ftsSortBase
+	searchSortBase
 }
 
 // NewSearchSortField creates a new SearchSortField.
 func NewSearchSortField(field string) *SearchSortField {
-	q := &SearchSortField{newFtsSortBase()}
+	q := &SearchSortField{newSearchSortBase()}
 	q.options["by"] = "field"
 	q.options["field"] = field
 	return q
 }
 
-// Type allows you to specify the FTS field sort type.
+// Type allows you to specify the search field sort type.
 func (q *SearchSortField) Type(value string) *SearchSortField {
 	q.options["type"] = value
 	return q
 }
 
-// Mode allows you to specify the FTS field sort mode.
+// Mode allows you to specify the search field sort mode.
 func (q *SearchSortField) Mode(mode string) *SearchSortField {
 	q.options["mode"] = mode
 	return q
 }
 
-// Missing allows you to specify the FTS field sort missing behaviour.
+// Missing allows you to specify the search field sort missing behaviour.
 func (q *SearchSortField) Missing(missing string) *SearchSortField {
 	q.options["missing"] = missing
 	return q
@@ -96,14 +96,14 @@ func (q *SearchSortField) Descending(descending bool) *SearchSortField {
 	return q
 }
 
-// SearchSortGeoDistance represents a FTS geo sort.
+// SearchSortGeoDistance represents a search geo sort.
 type SearchSortGeoDistance struct {
-	ftsSortBase
+	searchSortBase
 }
 
 // NewSearchSortGeoDistance creates a new SearchSortGeoDistance.
 func NewSearchSortGeoDistance(field string, lon, lat float64) *SearchSortGeoDistance {
-	q := &SearchSortGeoDistance{newFtsSortBase()}
+	q := &SearchSortGeoDistance{newSearchSortBase()}
 	q.options["by"] = "geo_distance"
 	q.options["field"] = field
 	q.options["location"] = []float64{lon, lat}

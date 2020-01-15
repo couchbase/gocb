@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 )
 
-// FtsFacet represents a facet for a search query.
-type FtsFacet interface {
+// SearchFacet represents a facet for a search query.
+type SearchFacet interface {
 }
 
 type termFacetData struct {
@@ -13,12 +13,12 @@ type termFacetData struct {
 	Size  int    `json:"size,omitempty"`
 }
 
-// TermFacet is an FTS term facet.
+// TermFacet is an search term facet.
 type TermFacet struct {
 	data termFacetData
 }
 
-// MarshalJSON marshal's this facet to JSON for the FTS REST API.
+// MarshalJSON marshal's this facet to JSON for the search REST API.
 func (f TermFacet) MarshalJSON() ([]byte, error) {
 	return json.Marshal(f.data)
 }
@@ -42,12 +42,12 @@ type numericFacetData struct {
 	NumericRanges []numericFacetRange `json:"numeric_ranges,omitempty"`
 }
 
-// NumericFacet is an FTS numeric range facet.
+// NumericFacet is an search numeric range facet.
 type NumericFacet struct {
 	data numericFacetData
 }
 
-// MarshalJSON marshal's this facet to JSON for the FTS REST API.
+// MarshalJSON marshal's this facet to JSON for the search REST API.
 func (f NumericFacet) MarshalJSON() ([]byte, error) {
 	return json.Marshal(f.data)
 }
@@ -81,12 +81,12 @@ type dateFacetData struct {
 	DateRanges []dateFacetRange `json:"date_ranges,omitempty"`
 }
 
-// DateFacet is an FTS date range facet.
+// DateFacet is an search date range facet.
 type DateFacet struct {
 	data dateFacetData
 }
 
-// MarshalJSON marshal's this facet to JSON for the FTS REST API.
+// MarshalJSON marshal's this facet to JSON for the search REST API.
 func (f DateFacet) MarshalJSON() ([]byte, error) {
 	return json.Marshal(f.data)
 }

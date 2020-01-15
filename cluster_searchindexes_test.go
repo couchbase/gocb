@@ -6,7 +6,7 @@ import (
 )
 
 func TestSearchIndexesCrud(t *testing.T) {
-	if !globalCluster.SupportsFeature(FtsIndexFeature) {
+	if !globalCluster.SupportsFeature(SearchIndexFeature) {
 		t.Skip("Skipping test as search indexes not supported")
 	}
 
@@ -83,7 +83,7 @@ func TestSearchIndexesCrud(t *testing.T) {
 		t.Fatalf("Expected GetAll to return more than 0 indexes")
 	}
 
-	if globalCluster.SupportsFeature(FtsAnalyzeFeature) {
+	if globalCluster.SupportsFeature(SearchAnalyzeFeature) {
 		analysis, err := mgr.AnalyzeDocument("test", struct {
 			Field1 string
 			Field2 string
@@ -137,7 +137,7 @@ func TestSearchIndexesCrud(t *testing.T) {
 }
 
 func TestSearchIndexesUpsertIndexNoName(t *testing.T) {
-	if !globalCluster.SupportsFeature(FtsIndexFeature) {
+	if !globalCluster.SupportsFeature(SearchIndexFeature) {
 		t.Skip("Skipping test as search indexes not supported")
 	}
 
@@ -154,7 +154,7 @@ func TestSearchIndexesUpsertIndexNoName(t *testing.T) {
 }
 
 func TestSearchIndexesIngestControl(t *testing.T) {
-	if !globalCluster.SupportsFeature(FtsIndexFeature) {
+	if !globalCluster.SupportsFeature(SearchIndexFeature) {
 		t.Skip("Skipping test as search indexes not supported")
 	}
 
@@ -184,7 +184,7 @@ func TestSearchIndexesIngestControl(t *testing.T) {
 }
 
 func TestSearchIndexesQueryControl(t *testing.T) {
-	if !globalCluster.SupportsFeature(FtsIndexFeature) {
+	if !globalCluster.SupportsFeature(SearchIndexFeature) {
 		t.Skip("Skipping test as search indexes not supported")
 	}
 
@@ -214,7 +214,7 @@ func TestSearchIndexesQueryControl(t *testing.T) {
 }
 
 func TestSearchIndexesPartitionControl(t *testing.T) {
-	if !globalCluster.SupportsFeature(FtsIndexFeature) {
+	if !globalCluster.SupportsFeature(SearchIndexFeature) {
 		t.Skip("Skipping test as search indexes not supported")
 	}
 

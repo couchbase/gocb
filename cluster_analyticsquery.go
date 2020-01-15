@@ -83,7 +83,7 @@ func (warning *AnalyticsWarning) fromData(data jsonAnalyticsWarning) error {
 	return nil
 }
 
-// AnalyticsMetaData provides access to the meta-data properties of a N1QL query result.
+// AnalyticsMetaData provides access to the meta-data properties of a query result.
 type AnalyticsMetaData struct {
 	RequestID       string
 	ClientContextID string
@@ -114,7 +114,7 @@ func (meta *AnalyticsMetaData) fromData(data jsonAnalyticsResponse) error {
 	return nil
 }
 
-// AnalyticsResult allows access to the results of a N1QL query.
+// AnalyticsResult allows access to the results of a query.
 type AnalyticsResult struct {
 	reader *gocbcore.AnalyticsRowReader
 

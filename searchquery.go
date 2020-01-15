@@ -6,29 +6,29 @@ import "encoding/json"
 type SearchQuery interface {
 }
 
-type ftsQueryBase struct {
+type searchQueryBase struct {
 	options map[string]interface{}
 }
 
-func newFtsQueryBase() ftsQueryBase {
-	return ftsQueryBase{
+func newSearchQueryBase() searchQueryBase {
+	return searchQueryBase{
 		options: make(map[string]interface{}),
 	}
 }
 
-// MarshalJSON marshal's this query to JSON for the FTS REST API.
-func (q ftsQueryBase) MarshalJSON() ([]byte, error) {
+// MarshalJSON marshal's this query to JSON for the search REST API.
+func (q searchQueryBase) MarshalJSON() ([]byte, error) {
 	return json.Marshal(q.options)
 }
 
-// MatchQuery represents a FTS match query.
+// MatchQuery represents a search match query.
 type MatchQuery struct {
-	ftsQueryBase
+	searchQueryBase
 }
 
 // NewMatchQuery creates a new MatchQuery.
 func NewMatchQuery(match string) *MatchQuery {
-	q := &MatchQuery{newFtsQueryBase()}
+	q := &MatchQuery{newSearchQueryBase()}
 	q.options["match"] = match
 	return q
 }
@@ -63,14 +63,14 @@ func (q *MatchQuery) Boost(boost float32) *MatchQuery {
 	return q
 }
 
-// MatchPhraseQuery represents a FTS match phrase query.
+// MatchPhraseQuery represents a search match phrase query.
 type MatchPhraseQuery struct {
-	ftsQueryBase
+	searchQueryBase
 }
 
 // NewMatchPhraseQuery creates a new MatchPhraseQuery
 func NewMatchPhraseQuery(phrase string) *MatchPhraseQuery {
-	q := &MatchPhraseQuery{newFtsQueryBase()}
+	q := &MatchPhraseQuery{newSearchQueryBase()}
 	q.options["match_phrase"] = phrase
 	return q
 }
@@ -93,14 +93,14 @@ func (q *MatchPhraseQuery) Boost(boost float32) *MatchPhraseQuery {
 	return q
 }
 
-// RegexpQuery represents a FTS regular expression query.
+// RegexpQuery represents a search regular expression query.
 type RegexpQuery struct {
-	ftsQueryBase
+	searchQueryBase
 }
 
 // NewRegexpQuery creates a new RegexpQuery.
 func NewRegexpQuery(regexp string) *RegexpQuery {
-	q := &RegexpQuery{newFtsQueryBase()}
+	q := &RegexpQuery{newSearchQueryBase()}
 	q.options["regexp"] = regexp
 	return q
 }
@@ -117,14 +117,14 @@ func (q *RegexpQuery) Boost(boost float32) *RegexpQuery {
 	return q
 }
 
-// QueryStringQuery represents a FTS string query.
+// QueryStringQuery represents a search string query.
 type QueryStringQuery struct {
-	ftsQueryBase
+	searchQueryBase
 }
 
 // NewQueryStringQuery creates a new StringQuery.
 func NewQueryStringQuery(query string) *QueryStringQuery {
-	q := &QueryStringQuery{newFtsQueryBase()}
+	q := &QueryStringQuery{newSearchQueryBase()}
 	q.options["query"] = query
 	return q
 }
@@ -135,14 +135,14 @@ func (q *QueryStringQuery) Boost(boost float32) *QueryStringQuery {
 	return q
 }
 
-// NumericRangeQuery represents a FTS numeric range query.
+// NumericRangeQuery represents a search numeric range query.
 type NumericRangeQuery struct {
-	ftsQueryBase
+	searchQueryBase
 }
 
 // NewNumericRangeQuery creates a new NumericRangeQuery.
 func NewNumericRangeQuery() *NumericRangeQuery {
-	q := &NumericRangeQuery{newFtsQueryBase()}
+	q := &NumericRangeQuery{newSearchQueryBase()}
 	return q
 }
 
@@ -172,14 +172,14 @@ func (q *NumericRangeQuery) Boost(boost float32) *NumericRangeQuery {
 	return q
 }
 
-// DateRangeQuery represents a FTS date range query.
+// DateRangeQuery represents a search date range query.
 type DateRangeQuery struct {
-	ftsQueryBase
+	searchQueryBase
 }
 
 // NewDateRangeQuery creates a new DateRangeQuery.
 func NewDateRangeQuery() *DateRangeQuery {
-	q := &DateRangeQuery{newFtsQueryBase()}
+	q := &DateRangeQuery{newSearchQueryBase()}
 	return q
 }
 
@@ -215,14 +215,14 @@ func (q *DateRangeQuery) Boost(boost float32) *DateRangeQuery {
 	return q
 }
 
-// ConjunctionQuery represents a FTS conjunction query.
+// ConjunctionQuery represents a search conjunction query.
 type ConjunctionQuery struct {
-	ftsQueryBase
+	searchQueryBase
 }
 
 // NewConjunctionQuery creates a new ConjunctionQuery.
 func NewConjunctionQuery(queries ...SearchQuery) *ConjunctionQuery {
-	q := &ConjunctionQuery{newFtsQueryBase()}
+	q := &ConjunctionQuery{newSearchQueryBase()}
 	q.options["conjuncts"] = []SearchQuery{}
 	return q.And(queries...)
 }
@@ -239,14 +239,14 @@ func (q *ConjunctionQuery) Boost(boost float32) *ConjunctionQuery {
 	return q
 }
 
-// DisjunctionQuery represents a FTS disjunction query.
+// DisjunctionQuery represents a search disjunction query.
 type DisjunctionQuery struct {
-	ftsQueryBase
+	searchQueryBase
 }
 
 // NewDisjunctionQuery creates a new DisjunctionQuery.
 func NewDisjunctionQuery(queries ...SearchQuery) *DisjunctionQuery {
-	q := &DisjunctionQuery{newFtsQueryBase()}
+	q := &DisjunctionQuery{newSearchQueryBase()}
 	q.options["disjuncts"] = []SearchQuery{}
 	return q.Or(queries...)
 }
@@ -270,7 +270,7 @@ type booleanQueryData struct {
 	Boost   float32           `json:"boost,omitempty"`
 }
 
-// BooleanQuery represents a FTS boolean query.
+// BooleanQuery represents a search boolean query.
 type BooleanQuery struct {
 	data      booleanQueryData
 	shouldMin int
@@ -333,7 +333,7 @@ func (q *BooleanQuery) Boost(boost float32) *BooleanQuery {
 	return q
 }
 
-// MarshalJSON marshal's this query to JSON for the FTS REST API.
+// MarshalJSON marshal's this query to JSON for the search REST API.
 func (q *BooleanQuery) MarshalJSON() ([]byte, error) {
 	if q.data.Should != nil {
 		q.data.Should.options["min"] = q.shouldMin
@@ -345,14 +345,14 @@ func (q *BooleanQuery) MarshalJSON() ([]byte, error) {
 	return bytes, err
 }
 
-// WildcardQuery represents a FTS wildcard query.
+// WildcardQuery represents a search wildcard query.
 type WildcardQuery struct {
-	ftsQueryBase
+	searchQueryBase
 }
 
 // NewWildcardQuery creates a new WildcardQuery.
 func NewWildcardQuery(wildcard string) *WildcardQuery {
-	q := &WildcardQuery{newFtsQueryBase()}
+	q := &WildcardQuery{newSearchQueryBase()}
 	q.options["wildcard"] = wildcard
 	return q
 }
@@ -369,14 +369,14 @@ func (q *WildcardQuery) Boost(boost float32) *WildcardQuery {
 	return q
 }
 
-// DocIDQuery represents a FTS document id query.
+// DocIDQuery represents a search document id query.
 type DocIDQuery struct {
-	ftsQueryBase
+	searchQueryBase
 }
 
 // NewDocIDQuery creates a new DocIdQuery.
 func NewDocIDQuery(ids ...string) *DocIDQuery {
-	q := &DocIDQuery{newFtsQueryBase()}
+	q := &DocIDQuery{newSearchQueryBase()}
 	q.options["ids"] = []string{}
 	return q.AddDocIds(ids...)
 }
@@ -399,14 +399,14 @@ func (q *DocIDQuery) Boost(boost float32) *DocIDQuery {
 	return q
 }
 
-// BooleanFieldQuery represents a FTS boolean field query.
+// BooleanFieldQuery represents a search boolean field query.
 type BooleanFieldQuery struct {
-	ftsQueryBase
+	searchQueryBase
 }
 
 // NewBooleanFieldQuery creates a new BooleanFieldQuery.
 func NewBooleanFieldQuery(val bool) *BooleanFieldQuery {
-	q := &BooleanFieldQuery{newFtsQueryBase()}
+	q := &BooleanFieldQuery{newSearchQueryBase()}
 	q.options["bool"] = val
 	return q
 }
@@ -423,14 +423,14 @@ func (q *BooleanFieldQuery) Boost(boost float32) *BooleanFieldQuery {
 	return q
 }
 
-// TermQuery represents a FTS term query.
+// TermQuery represents a search term query.
 type TermQuery struct {
-	ftsQueryBase
+	searchQueryBase
 }
 
 // NewTermQuery creates a new TermQuery.
 func NewTermQuery(term string) *TermQuery {
-	q := &TermQuery{newFtsQueryBase()}
+	q := &TermQuery{newSearchQueryBase()}
 	q.options["term"] = term
 	return q
 }
@@ -459,14 +459,14 @@ func (q *TermQuery) Boost(boost float32) *TermQuery {
 	return q
 }
 
-// PhraseQuery represents a FTS phrase query.
+// PhraseQuery represents a search phrase query.
 type PhraseQuery struct {
-	ftsQueryBase
+	searchQueryBase
 }
 
 // NewPhraseQuery creates a new PhraseQuery.
 func NewPhraseQuery(terms ...string) *PhraseQuery {
-	q := &PhraseQuery{newFtsQueryBase()}
+	q := &PhraseQuery{newSearchQueryBase()}
 	q.options["terms"] = terms
 	return q
 }
@@ -483,14 +483,14 @@ func (q *PhraseQuery) Boost(boost float32) *PhraseQuery {
 	return q
 }
 
-// PrefixQuery represents a FTS prefix query.
+// PrefixQuery represents a search prefix query.
 type PrefixQuery struct {
-	ftsQueryBase
+	searchQueryBase
 }
 
 // NewPrefixQuery creates a new PrefixQuery.
 func NewPrefixQuery(prefix string) *PrefixQuery {
-	q := &PrefixQuery{newFtsQueryBase()}
+	q := &PrefixQuery{newSearchQueryBase()}
 	q.options["prefix"] = prefix
 	return q
 }
@@ -507,38 +507,38 @@ func (q *PrefixQuery) Boost(boost float32) *PrefixQuery {
 	return q
 }
 
-// MatchAllQuery represents a FTS match all query.
+// MatchAllQuery represents a search match all query.
 type MatchAllQuery struct {
-	ftsQueryBase
+	searchQueryBase
 }
 
 // NewMatchAllQuery creates a new MatchAllQuery.
 func NewMatchAllQuery() *MatchAllQuery {
-	q := &MatchAllQuery{newFtsQueryBase()}
+	q := &MatchAllQuery{newSearchQueryBase()}
 	q.options["match_all"] = nil
 	return q
 }
 
-// MatchNoneQuery represents a FTS match none query.
+// MatchNoneQuery represents a search match none query.
 type MatchNoneQuery struct {
-	ftsQueryBase
+	searchQueryBase
 }
 
 // NewMatchNoneQuery creates a new MatchNoneQuery.
 func NewMatchNoneQuery() *MatchNoneQuery {
-	q := &MatchNoneQuery{newFtsQueryBase()}
+	q := &MatchNoneQuery{newSearchQueryBase()}
 	q.options["match_none"] = nil
 	return q
 }
 
-// TermRangeQuery represents a FTS term range query.
+// TermRangeQuery represents a search term range query.
 type TermRangeQuery struct {
-	ftsQueryBase
+	searchQueryBase
 }
 
 // NewTermRangeQuery creates a new TermRangeQuery.
 func NewTermRangeQuery(term string) *TermRangeQuery {
-	q := &TermRangeQuery{newFtsQueryBase()}
+	q := &TermRangeQuery{newSearchQueryBase()}
 	q.options["term"] = term
 	return q
 }
@@ -569,14 +569,14 @@ func (q *TermRangeQuery) Boost(boost float32) *TermRangeQuery {
 	return q
 }
 
-// GeoDistanceQuery represents a FTS geographical distance query.
+// GeoDistanceQuery represents a search geographical distance query.
 type GeoDistanceQuery struct {
-	ftsQueryBase
+	searchQueryBase
 }
 
 // NewGeoDistanceQuery creates a new GeoDistanceQuery.
 func NewGeoDistanceQuery(lon, lat float64, distance string) *GeoDistanceQuery {
-	q := &GeoDistanceQuery{newFtsQueryBase()}
+	q := &GeoDistanceQuery{newSearchQueryBase()}
 	q.options["location"] = []float64{lon, lat}
 	q.options["distance"] = distance
 	return q
@@ -594,14 +594,14 @@ func (q *GeoDistanceQuery) Boost(boost float32) *GeoDistanceQuery {
 	return q
 }
 
-// GeoBoundingBoxQuery represents a FTS geographical bounding box query.
+// GeoBoundingBoxQuery represents a search geographical bounding box query.
 type GeoBoundingBoxQuery struct {
-	ftsQueryBase
+	searchQueryBase
 }
 
 // NewGeoBoundingBoxQuery creates a new GeoBoundingBoxQuery.
 func NewGeoBoundingBoxQuery(tlLon, tlLat, brLon, brLat float64) *GeoBoundingBoxQuery {
-	q := &GeoBoundingBoxQuery{newFtsQueryBase()}
+	q := &GeoBoundingBoxQuery{newSearchQueryBase()}
 	q.options["top_left"] = []float64{tlLon, tlLat}
 	q.options["bottom_right"] = []float64{brLon, brLat}
 	return q

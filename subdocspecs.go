@@ -26,7 +26,7 @@ type GetSpecOptions struct {
 
 // GetSpec indicates a path to be retrieved from the document.  The value of the path
 // can later be retrieved from the LookupResult.
-// The path syntax follows N1QL's path syntax (e.g. `foo.bar.baz`).
+// The path syntax follows query's path syntax (e.g. `foo.bar.baz`).
 func GetSpec(path string, opts *GetSpecOptions) LookupInSpec {
 	if opts == nil {
 		opts = &GetSpecOptions{}

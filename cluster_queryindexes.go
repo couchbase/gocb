@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// QueryIndexManager provides methods for performing Couchbase N1ql index management.
+// QueryIndexManager provides methods for performing Couchbase query index management.
 type QueryIndexManager struct {
 	cluster *Cluster
 
@@ -150,7 +150,7 @@ func (qm *QueryIndexManager) CreateIndex(bucketName, indexName string, fields []
 	}
 
 	span := qm.tracer.StartSpan("CreateIndex", nil).
-		SetTag("couchbase.service", "n1ql")
+		SetTag("couchbase.service", "query")
 	defer span.Finish()
 
 	return qm.createIndex(span.Context(), bucketName, indexName, fields, createQueryIndexOptions{
@@ -178,7 +178,7 @@ func (qm *QueryIndexManager) CreatePrimaryIndex(bucketName string, opts *CreateP
 	}
 
 	span := qm.tracer.StartSpan("CreatePrimaryIndex", nil).
-		SetTag("couchbase.service", "n1ql")
+		SetTag("couchbase.service", "query")
 	defer span.Finish()
 
 	return qm.createIndex(
@@ -247,7 +247,7 @@ func (qm *QueryIndexManager) DropIndex(bucketName, indexName string, opts *DropQ
 	}
 
 	span := qm.tracer.StartSpan("DropIndex", nil).
-		SetTag("couchbase.service", "n1ql")
+		SetTag("couchbase.service", "query")
 	defer span.Finish()
 
 	return qm.dropIndex(
@@ -277,7 +277,7 @@ func (qm *QueryIndexManager) DropPrimaryIndex(bucketName string, opts *DropPrima
 	}
 
 	span := qm.tracer.StartSpan("DropPrimaryIndex", nil).
-		SetTag("couchbase.service", "n1ql")
+		SetTag("couchbase.service", "query")
 	defer span.Finish()
 
 	return qm.dropIndex(
@@ -304,7 +304,7 @@ func (qm *QueryIndexManager) GetAllIndexes(bucketName string, opts *GetAllQueryI
 	}
 
 	span := qm.tracer.StartSpan("GetAllIndexes", nil).
-		SetTag("couchbase.service", "n1ql")
+		SetTag("couchbase.service", "query")
 	defer span.Finish()
 
 	return qm.getAllIndexes(span.Context(), bucketName, opts)
@@ -360,7 +360,7 @@ func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *Build
 	}
 
 	span := qm.tracer.StartSpan("BuildDeferredIndexes", nil).
-		SetTag("couchbase.service", "n1ql")
+		SetTag("couchbase.service", "query")
 	defer span.Finish()
 
 	indexList, err := qm.getAllIndexes(
@@ -448,7 +448,7 @@ func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string,
 	}
 
 	span := qm.tracer.StartSpan("WatchIndexes", nil).
-		SetTag("couchbase.service", "n1ql")
+		SetTag("couchbase.service", "query")
 	defer span.Finish()
 
 	if opts.WatchPrimary {

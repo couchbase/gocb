@@ -215,10 +215,10 @@ func (c *Cluster) parseExtraConnStrOptions(spec gocbconnstr.ConnSpec) error {
 		return optValue[len(optValue)-1], true
 	}
 
-	if valStr, ok := fetchOption("n1ql_timeout"); ok {
+	if valStr, ok := fetchOption("query_timeout"); ok {
 		val, err := strconv.ParseInt(valStr, 10, 64)
 		if err != nil {
-			return fmt.Errorf("n1ql_timeout option must be a number")
+			return fmt.Errorf("query_timeout option must be a number")
 		}
 		c.sb.QueryTimeout = time.Duration(val) * time.Millisecond
 	}
@@ -524,7 +524,7 @@ func (c *Cluster) AnalyticsIndexes() *AnalyticsIndexManager {
 	}
 }
 
-// QueryIndexes returns a QueryIndexManager for managing N1QL indexes.
+// QueryIndexes returns a QueryIndexManager for managing query indexes.
 func (c *Cluster) QueryIndexes() *QueryIndexManager {
 	return &QueryIndexManager{
 		cluster: c,
@@ -532,7 +532,7 @@ func (c *Cluster) QueryIndexes() *QueryIndexManager {
 	}
 }
 
-// SearchIndexes returns a SearchIndexManager for managing Search indexes.
+// SearchIndexes returns a SearchIndexManager for managing search indexes.
 func (c *Cluster) SearchIndexes() *SearchIndexManager {
 	return &SearchIndexManager{
 		cluster: c,

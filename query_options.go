@@ -18,7 +18,7 @@ const (
 	QueryScanConsistencyRequestPlus = QueryScanConsistency(2)
 )
 
-// QueryOptions represents the options available when executing a N1QL query.
+// QueryOptions represents the options available when executing a query.
 type QueryOptions struct {
 	ScanConsistency      QueryScanConsistency
 	ConsistentWith       *MutationState

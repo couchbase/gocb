@@ -88,7 +88,7 @@ func (si *SearchIndex) toData() (jsonSearchIndex, error) {
 	return data, nil
 }
 
-// SearchIndexManager provides methods for performing Couchbase FTS index management.
+// SearchIndexManager provides methods for performing Couchbase search index management.
 type SearchIndexManager struct {
 	cluster *Cluster
 
@@ -118,7 +118,7 @@ func (sm *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]S
 	}
 
 	span := sm.tracer.StartSpan("GetAllIndexes", nil).
-		SetTag("couchbase.service", "fts")
+		SetTag("couchbase.service", "search")
 	defer span.Finish()
 
 	req := mgmtRequest{
@@ -179,7 +179,7 @@ func (sm *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOpt
 	}
 
 	span := sm.tracer.StartSpan("GetIndex", nil).
-		SetTag("couchbase.service", "fts")
+		SetTag("couchbase.service", "search")
 	defer span.Finish()
 
 	req := mgmtRequest{
@@ -241,7 +241,7 @@ func (sm *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Ups
 	}
 
 	span := sm.tracer.StartSpan("UpsertIndex", nil).
-		SetTag("couchbase.service", "fts")
+		SetTag("couchbase.service", "search")
 	defer span.Finish()
 
 	indexData, err := indexDefinition.toData()
@@ -295,7 +295,7 @@ func (sm *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndexO
 	}
 
 	span := sm.tracer.StartSpan("DropIndex", nil).
-		SetTag("couchbase.service", "fts")
+		SetTag("couchbase.service", "search")
 	defer span.Finish()
 
 	req := mgmtRequest{
@@ -335,7 +335,7 @@ func (sm *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{},
 	}
 
 	span := sm.tracer.StartSpan("AnalyzeDocument", nil).
-		SetTag("couchbase.service", "fts")
+		SetTag("couchbase.service", "search")
 	defer span.Finish()
 
 	b, err := json.Marshal(doc)
@@ -397,7 +397,7 @@ func (sm *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *G
 	}
 
 	span := sm.tracer.StartSpan("GetIndexedDocumentsCount", nil).
-		SetTag("couchbase.service", "fts")
+		SetTag("couchbase.service", "search")
 	defer span.Finish()
 
 	req := mgmtRequest{
@@ -478,7 +478,7 @@ func (sm *SearchIndexManager) PauseIngest(indexName string, opts *PauseIngestSea
 	}
 
 	span := sm.tracer.StartSpan("PauseIngest", nil).
-		SetTag("couchbase.service", "fts")
+		SetTag("couchbase.service", "search")
 	defer span.Finish()
 
 	return sm.performControlRequest(
@@ -507,7 +507,7 @@ func (sm *SearchIndexManager) ResumeIngest(indexName string, opts *ResumeIngestS
 	}
 
 	span := sm.tracer.StartSpan("ResumeIngest", nil).
-		SetTag("couchbase.service", "fts")
+		SetTag("couchbase.service", "search")
 	defer span.Finish()
 
 	return sm.performControlRequest(
@@ -536,7 +536,7 @@ func (sm *SearchIndexManager) AllowQuerying(indexName string, opts *AllowQueryin
 	}
 
 	span := sm.tracer.StartSpan("AllowQuerying", nil).
-		SetTag("couchbase.service", "fts")
+		SetTag("couchbase.service", "search")
 	defer span.Finish()
 
 	return sm.performControlRequest(
@@ -565,7 +565,7 @@ func (sm *SearchIndexManager) DisallowQuerying(indexName string, opts *AllowQuer
 	}
 
 	span := sm.tracer.StartSpan("DisallowQuerying", nil).
-		SetTag("couchbase.service", "fts")
+		SetTag("couchbase.service", "search")
 	defer span.Finish()
 
 	return sm.performControlRequest(
@@ -594,7 +594,7 @@ func (sm *SearchIndexManager) FreezePlan(indexName string, opts *AllowQueryingSe
 	}
 
 	span := sm.tracer.StartSpan("FreezePlan", nil).
-		SetTag("couchbase.service", "fts")
+		SetTag("couchbase.service", "search")
 	defer span.Finish()
 
 	return sm.performControlRequest(
@@ -623,7 +623,7 @@ func (sm *SearchIndexManager) UnfreezePlan(indexName string, opts *AllowQuerying
 	}
 
 	span := sm.tracer.StartSpan("UnfreezePlan", nil).
-		SetTag("couchbase.service", "fts")
+		SetTag("couchbase.service", "search")
 	defer span.Finish()
 
 	return sm.performControlRequest(
