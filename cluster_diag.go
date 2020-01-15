@@ -5,134 +5,65 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
-	"github.com/couchbase/gocbcore/v8"
 )
-
-type diagnosticsProvider interface {
-	Diagnostics() (*gocbcore.DiagnosticInfo, error)
-}
-
-func diagServiceString(service ServiceType) string {
-	switch service {
-	case ServiceTypeManagement:
-		return "mgmt"
-	case ServiceTypeKeyValue:
-		return "kv"
-	case ServiceTypeViews:
-		return "views"
-	case ServiceTypeQuery:
-		return "query"
-	case ServiceTypeSearch:
-		return "search"
-	case ServiceTypeAnalytics:
-		return "analytics"
-	}
-	return ""
-}
-
-func diagStringService(service string) ServiceType {
-	switch service {
-	case "mgmt":
-		return ServiceTypeManagement
-	case "kv":
-		return ServiceTypeKeyValue
-	case "views":
-		return ServiceTypeViews
-	case "query":
-		return ServiceTypeQuery
-	case "search":
-		return ServiceTypeSearch
-	case "analytics":
-		return ServiceTypeAnalytics
-	}
-	return ServiceType(0)
-}
-
-// DiagConnState represents the state of a connection in a diagnostics report.
-type DiagConnState int
-
-const (
-	// DiagStateOk indicates that the connection state is ok.
-	DiagStateOk = DiagConnState(0)
-
-	// DiagStateDisconnected indicates that the connection is disconnected.
-	DiagStateDisconnected = DiagConnState(1)
-)
-
-func diagStateString(state DiagConnState) string {
-	switch state {
-	case DiagStateOk:
-		return "ok"
-	case DiagStateDisconnected:
-		return "disconnected"
-	}
-	return ""
-}
 
 // EndPointDiagnostics represents a single entry in a diagnostics report.
 type EndPointDiagnostics struct {
 	Type         ServiceType
-	State        DiagConnState
+	ID           string
 	Local        string
 	Remote       string
 	LastActivity time.Time
-	Scope        string
-	ID           string
+	State        EndpointState
+	Namespace    string
 }
 
 // DiagnosticsResult encapsulates the results of a Diagnostics operation.
 type DiagnosticsResult struct {
 	ID       string
-	Version  int64
-	SDK      string
 	Services map[string][]EndPointDiagnostics
+	sdk      string
 }
 
 type jsonDiagnosticEntry struct {
-	State          string `json:"state"`
-	Remote         string `json:"remote"`
-	Local          string `json:"local"`
-	LastActivityUs uint64 `json:"last_activity_us"`
-	Scope          string `json:"scope,omitempty"`
-	ID             string `json:"id"`
+	ID             string `json:"id,omitempty"`
+	LastActivityUs uint64 `json:"last_activity_us,omitempty"`
+	Remote         string `json:"remote,omitempty"`
+	Local          string `json:"local,omitempty"`
+	State          string `json:"state,omitempty"`
+	Details        string `json:"details,omitempty"`
+	Namespace      string `json:"namespace,omitempty"`
 }
 
 type jsonDiagnosticReport struct {
-	Version  int64                            `json:"version"`
-	ID       string                           `json:"id"`
-	SDK      string                           `json:"sdk"`
+	Version  int16                            `json:"version"`
+	SDK      string                           `json:"sdk,omitempty"`
+	ID       string                           `json:"id,omitempty"`
 	Services map[string][]jsonDiagnosticEntry `json:"services"`
 }
 
 // MarshalJSON generates a JSON representation of this diagnostics report.
 func (report *DiagnosticsResult) MarshalJSON() ([]byte, error) {
 	jsonReport := jsonDiagnosticReport{
-		Version:  1,
+		Version:  2,
+		SDK:      report.sdk,
 		ID:       report.ID,
 		Services: make(map[string][]jsonDiagnosticEntry),
-		SDK:      report.SDK,
 	}
 
 	for _, serviceType := range report.Services {
 		for _, service := range serviceType {
-			serviceStr := diagServiceString(service.Type)
-			if serviceStr == "" {
-				serviceStr = "unknown"
-			}
-
-			stateStr := diagStateString(service.State)
-			if stateStr == "" {
-				stateStr = "unknown"
-			}
+			serviceStr := serviceTypeToString(service.Type)
+			stateStr := endpointStateToString(service.State)
 
 			jsonReport.Services[serviceStr] = append(jsonReport.Services[serviceStr], jsonDiagnosticEntry{
-				State:          stateStr,
+				ID:             service.ID,
+				LastActivityUs: uint64(time.Now().Sub(service.LastActivity).Nanoseconds()),
 				Remote:         service.Remote,
 				Local:          service.Local,
-				LastActivityUs: uint64(time.Now().Sub(service.LastActivity).Nanoseconds()),
-				Scope:          service.Scope,
-				ID:             service.ID,
+				State:          stateStr,
+				Details:        "",
+				Namespace:      service.Namespace,
 			})
 		}
 	}
@@ -167,17 +98,16 @@ func (c *Cluster) Diagnostics(opts *DiagnosticsOptions) (*DiagnosticsResult, err
 
 	report := &DiagnosticsResult{
 		ID:       opts.ReportID,
-		Version:  agentReport.ConfigRev,
-		SDK:      Identifier(),
 		Services: make(map[string][]EndPointDiagnostics),
+		sdk:      Identifier(),
 	}
 
 	report.Services["kv"] = make([]EndPointDiagnostics, 0)
 
 	for _, conn := range agentReport.MemdConns {
-		state := DiagStateDisconnected
+		state := EndpointStateDisconnected
 		if conn.LocalAddr != "" {
-			state = DiagStateOk
+			state = EndpointStateConnected
 		}
 
 		report.Services["kv"] = append(report.Services["kv"], EndPointDiagnostics{
@@ -186,7 +116,7 @@ func (c *Cluster) Diagnostics(opts *DiagnosticsOptions) (*DiagnosticsResult, err
 			Local:        conn.LocalAddr,
 			Remote:       conn.RemoteAddr,
 			LastActivity: conn.LastActivity,
-			Scope:        conn.Scope,
+			Namespace:    conn.Scope,
 			ID:           conn.ID,
 		})
 	}

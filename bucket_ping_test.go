@@ -123,65 +123,61 @@ func TestPingAll(t *testing.T) {
 		t.Fatalf("Expected services length to be 6 but was %d", len(report.Services))
 	}
 
-	if report.ConfigRev != 64 {
-		t.Fatalf("Expected report ConfigRev to be 64, was %d", report.ConfigRev)
-	}
-
 	for serviceType, services := range report.Services {
 		for _, service := range services {
 			switch serviceType {
 			case ServiceTypeQuery:
-				if service.RemoteAddr != "http://localhost:8093" {
-					t.Fatalf("Expected service RemoteAddr to be http://localhost:8093 but was %s", service.RemoteAddr)
+				if service.Remote != "http://localhost:8093" {
+					t.Fatalf("Expected service RemoteAddr to be http://localhost:8093 but was %s", service.Remote)
 				}
 
-				if service.State != "ok" {
-					t.Fatalf("Expected service state to be ok but was %s", service.State)
+				if service.State != PingStateOk {
+					t.Fatalf("Expected service state to be ok but was %d", service.State)
 				}
 
 				if service.Latency < 50*time.Millisecond {
 					t.Fatalf("Expected service latency to be over 50ms but was %d", service.Latency)
 				}
 			case ServiceTypeSearch:
-				if service.RemoteAddr != "http://localhost:8094" {
-					t.Fatalf("Expected service RemoteAddr to be http://localhost:8094 but was %s", service.RemoteAddr)
+				if service.Remote != "http://localhost:8094" {
+					t.Fatalf("Expected service RemoteAddr to be http://localhost:8094 but was %s", service.Remote)
 				}
 
-				if service.State != "error" {
-					t.Fatalf("Expected service State to be error but was %s", service.State)
+				if service.State != PingStateError {
+					t.Fatalf("Expected service State to be error but was %d", service.State)
 				}
 
 				if service.Latency != 0 {
 					t.Fatalf("Expected service latency to be 0 but was %d", service.Latency)
 				}
 			case ServiceTypeAnalytics:
-				if service.RemoteAddr != "http://localhost:8095" {
-					t.Fatalf("Expected service RemoteAddr to be http://localhost:8095 but was %s", service.RemoteAddr)
+				if service.Remote != "http://localhost:8095" {
+					t.Fatalf("Expected service RemoteAddr to be http://localhost:8095 but was %s", service.Remote)
 				}
 
-				if service.State != "ok" {
-					t.Fatalf("Expected service state to be ok but was %s", service.State)
+				if service.State != PingStateOk {
+					t.Fatalf("Expected service state to be ok but was %d", service.State)
 				}
 
 				if service.Latency < 20*time.Millisecond {
 					t.Fatalf("Expected service latency to be over 20ms but was %d", service.Latency)
 				}
 			case ServiceTypeKeyValue:
-				expected, ok := results[service.RemoteAddr]
+				expected, ok := results[service.Remote]
 				if !ok {
-					t.Fatalf("Unexpected service endpoint: %s", service.RemoteAddr)
+					t.Fatalf("Unexpected service endpoint: %s", service.Remote)
 				}
 				if service.Latency != expected.Latency {
 					t.Fatalf("Expected service Latency to be %s but was %s", expected.Latency, service.Latency)
 				}
 
 				if expected.Error != nil {
-					if service.State != "error" {
-						t.Fatalf("Service success should have been error, was %s", service.State)
+					if service.State != PingStateError {
+						t.Fatalf("Service success should have been error, was %d", service.State)
 					}
 				} else {
-					if service.State != "ok" {
-						t.Fatalf("Service success should have been ok, was %s", service.State)
+					if service.State != PingStateOk {
+						t.Fatalf("Service success should have been ok, was %d", service.State)
 					}
 				}
 			default:

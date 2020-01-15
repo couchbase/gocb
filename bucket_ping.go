@@ -9,92 +9,71 @@ import (
 	"github.com/google/uuid"
 )
 
-// PingServiceEntry represents a single entry in a ping report.
-type PingServiceEntry struct {
-	RemoteAddr string
-	State      string
-	Latency    time.Duration
-	Scope      string
-	ID         string
-	Detail     string
+// EndpointPingReport represents a single entry in a ping report.
+type EndpointPingReport struct {
+	ID        string
+	Local     string
+	Remote    string
+	State     PingState
+	Error     string
+	Namespace string
+	Latency   time.Duration
 }
 
 // PingResult encapsulates the details from a executed ping operation.
 type PingResult struct {
-	Services  map[ServiceType][]PingServiceEntry
-	ConfigRev int64
-	ID        string
+	ID       string
+	Services map[ServiceType][]EndpointPingReport
+
+	sdk string
 }
 
-type jsonPingServiceEntry struct {
-	Remote    string `json:"remote"`
-	LatencyUs uint64 `json:"latency_us"`
-	Scope     string `json:"scope,omitempty"`
+type jsonEndpointPingReport struct {
 	ID        string `json:"id,omitempty"`
-	State     string `json:"state"`
-	Detail    string `json:"detail"`
+	Local     string `json:"local,omitempty"`
+	Remote    string `json:"remote,omitempty"`
+	State     string `json:"state,omitempty"`
+	Error     string `json:"error,omitempty"`
+	Namespace string `json:"namespace,omitempty"`
+	LatencyUs uint64 `json:"latency_us"`
 }
 
 type jsonPingReport struct {
-	Version   int                               `json:"version"`
-	ID        string                            `json:"id"`
-	Sdk       string                            `json:"sdk"`
-	Services  map[string][]jsonPingServiceEntry `json:"services"`
-	ConfigRev int64                             `json:"config_rev"`
+	Version  int                                 `json:"version"`
+	SDK      string                              `json:"sdk,omitempty"`
+	ID       string                              `json:"id,omitempty"`
+	Services map[string][]jsonEndpointPingReport `json:"services,omitempty"`
 }
 
 // MarshalJSON generates a JSON representation of this ping report.
 func (report *PingResult) MarshalJSON() ([]byte, error) {
 	jsonReport := jsonPingReport{
-		Version:  1,
+		Version:  2,
+		SDK:      report.sdk,
 		ID:       report.ID,
-		Sdk:      Identifier() + " " + "gocbcore/" + gocbcore.Version(),
-		Services: make(map[string][]jsonPingServiceEntry),
+		Services: make(map[string][]jsonEndpointPingReport),
 	}
 
-	for key, serviceType := range report.Services {
-		serviceStr := diagServiceString(key)
+	for serviceType, serviceInfo := range report.Services {
+		serviceStr := serviceTypeToString(serviceType)
 		if _, ok := jsonReport.Services[serviceStr]; !ok {
-			jsonReport.Services[serviceStr] = make([]jsonPingServiceEntry, 0)
+			jsonReport.Services[serviceStr] = make([]jsonEndpointPingReport, 0)
 		}
-		for _, service := range serviceType {
-			jsonReport.Services[serviceStr] = append(jsonReport.Services[serviceStr], jsonPingServiceEntry{
-				Remote:    service.RemoteAddr,
-				LatencyUs: uint64(service.Latency / time.Nanosecond),
-				State:     service.State,
-				Scope:     service.Scope,
+
+		for _, service := range serviceInfo {
+			jsonReport.Services[serviceStr] = append(jsonReport.Services[serviceStr], jsonEndpointPingReport{
 				ID:        service.ID,
-				Detail:    service.Detail,
+				Local:     service.Local,
+				Remote:    service.Remote,
+				State:     pingStateToString(service.State),
+				Error:     service.Error,
+				Namespace: service.Namespace,
+				LatencyUs: uint64(service.Latency / time.Nanosecond),
 			})
 		}
 	}
 
 	return json.Marshal(&jsonReport)
-}
-
-func (jsonReport *jsonPingReport) toReport() *PingResult {
-	report := &PingResult{
-		ID: jsonReport.ID,
-	}
-
-	for key, jsonServices := range jsonReport.Services {
-		serviceType := diagStringService(key)
-		if _, ok := report.Services[serviceType]; !ok {
-			report.Services[serviceType] = make([]PingServiceEntry, 0)
-		}
-		for _, jsonService := range jsonServices {
-			report.Services[serviceType] = append(report.Services[serviceType], PingServiceEntry{
-				RemoteAddr: jsonService.Remote,
-				Latency:    time.Duration(jsonService.LatencyUs) * time.Nanosecond,
-				State:      jsonService.State,
-				Scope:      jsonService.Scope,
-				ID:         jsonService.ID,
-				Detail:     jsonService.Detail,
-			})
-		}
-	}
-
-	return report
 }
 
 func (b *Bucket) pingKv(provider kvProvider) (pingsOut *gocbcore.PingKvResult, errOut error) {
@@ -143,7 +122,8 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 	numServices := 0
 	waitCh := make(chan error, 10)
 	report := &PingResult{
-		Services: make(map[ServiceType][]PingServiceEntry),
+		sdk:      Identifier() + " " + "gocbcore/" + gocbcore.Version(),
+		Services: make(map[ServiceType][]EndpointPingReport),
 	}
 	var reportLock sync.Mutex
 	services := opts.ServiceTypes
@@ -223,28 +203,27 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 				}
 
 				reportLock.Lock()
-				report.ConfigRev = pings.ConfigRev
-				report.Services[ServiceTypeKeyValue] = make([]PingServiceEntry, 0)
+				report.Services[ServiceTypeKeyValue] = make([]EndpointPingReport, 0)
 				// We intentionally ignore errors here and simply include
 				// any non-error pings that we have received.  Note that
 				// gocbcore's ping command, when cancelled, still returns
 				// any pings that had occurred before the operation was
 				// cancelled and then marks the rest as errors.
 				for _, ping := range pings.Services {
-					state := "ok"
+					state := PingStateOk
 					detail := ""
 					if ping.Error != nil {
-						state = "error"
+						state = PingStateError
 						detail = ping.Error.Error()
 					}
 
-					report.Services[ServiceTypeKeyValue] = append(report.Services[ServiceTypeKeyValue], PingServiceEntry{
-						RemoteAddr: ping.Endpoint,
-						State:      state,
-						Latency:    ping.Latency,
-						Scope:      ping.Scope,
-						ID:         ping.ID,
-						Detail:     detail,
+					report.Services[ServiceTypeKeyValue] = append(report.Services[ServiceTypeKeyValue], EndpointPingReport{
+						Remote:    ping.Endpoint,
+						State:     state,
+						Latency:   ping.Latency,
+						Namespace: ping.Scope,
+						ID:        ping.ID,
+						Error:     detail,
 					})
 				}
 				reportLock.Unlock()
@@ -258,18 +237,18 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 				pingLatency, endpoint, err := httpReq(ServiceTypeQuery, "/admin/ping")
 
 				reportLock.Lock()
-				report.Services[ServiceTypeQuery] = make([]PingServiceEntry, 0)
+				report.Services[ServiceTypeQuery] = make([]EndpointPingReport, 0)
 				if err != nil {
-					report.Services[ServiceTypeQuery] = append(report.Services[ServiceTypeQuery], PingServiceEntry{
-						RemoteAddr: endpoint,
-						State:      "error",
-						Detail:     err.Error(),
+					report.Services[ServiceTypeQuery] = append(report.Services[ServiceTypeQuery], EndpointPingReport{
+						Remote: endpoint,
+						State:  PingStateError,
+						Error:  err.Error(),
 					})
 				} else {
-					report.Services[ServiceTypeQuery] = append(report.Services[ServiceTypeQuery], PingServiceEntry{
-						RemoteAddr: endpoint,
-						State:      "ok",
-						Latency:    pingLatency,
+					report.Services[ServiceTypeQuery] = append(report.Services[ServiceTypeQuery], EndpointPingReport{
+						Remote:  endpoint,
+						State:   PingStateOk,
+						Latency: pingLatency,
 					})
 				}
 				reportLock.Unlock()
@@ -282,18 +261,18 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 				pingLatency, endpoint, err := httpReq(ServiceTypeSearch, "/api/ping")
 
 				reportLock.Lock()
-				report.Services[ServiceTypeSearch] = make([]PingServiceEntry, 0)
+				report.Services[ServiceTypeSearch] = make([]EndpointPingReport, 0)
 				if err != nil {
-					report.Services[ServiceTypeSearch] = append(report.Services[ServiceTypeSearch], PingServiceEntry{
-						RemoteAddr: endpoint,
-						State:      "error",
-						Detail:     err.Error(),
+					report.Services[ServiceTypeSearch] = append(report.Services[ServiceTypeSearch], EndpointPingReport{
+						Remote: endpoint,
+						State:  PingStateError,
+						Error:  err.Error(),
 					})
 				} else {
-					report.Services[ServiceTypeSearch] = append(report.Services[ServiceTypeSearch], PingServiceEntry{
-						RemoteAddr: endpoint,
-						State:      "ok",
-						Latency:    pingLatency,
+					report.Services[ServiceTypeSearch] = append(report.Services[ServiceTypeSearch], EndpointPingReport{
+						Remote:  endpoint,
+						State:   PingStateOk,
+						Latency: pingLatency,
 					})
 				}
 				reportLock.Unlock()
@@ -306,18 +285,18 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 				pingLatency, endpoint, err := httpReq(ServiceTypeAnalytics, "/admin/ping")
 
 				reportLock.Lock()
-				report.Services[ServiceTypeAnalytics] = make([]PingServiceEntry, 0)
+				report.Services[ServiceTypeAnalytics] = make([]EndpointPingReport, 0)
 				if err != nil {
-					report.Services[ServiceTypeAnalytics] = append(report.Services[ServiceTypeAnalytics], PingServiceEntry{
-						RemoteAddr: endpoint,
-						State:      "error",
-						Detail:     err.Error(),
+					report.Services[ServiceTypeAnalytics] = append(report.Services[ServiceTypeAnalytics], EndpointPingReport{
+						Remote: endpoint,
+						State:  PingStateError,
+						Error:  err.Error(),
 					})
 				} else {
-					report.Services[ServiceTypeAnalytics] = append(report.Services[ServiceTypeAnalytics], PingServiceEntry{
-						RemoteAddr: endpoint,
-						State:      "ok",
-						Latency:    pingLatency,
+					report.Services[ServiceTypeAnalytics] = append(report.Services[ServiceTypeAnalytics], EndpointPingReport{
+						Remote:  endpoint,
+						State:   PingStateOk,
+						Latency: pingLatency,
 					})
 				}
 				reportLock.Unlock()

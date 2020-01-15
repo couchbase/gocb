@@ -74,10 +74,6 @@ func TestDiagnostics(t *testing.T) {
 		t.Fatalf("Report ID should have been not empty")
 	}
 
-	if report.Version != info.ConfigRev {
-		t.Fatalf("Report Version should have been %d but was %d", info.ConfigRev, report.Version)
-	}
-
 	services, ok := report.Services["kv"]
 	if !ok {
 		t.Fatalf("Report missing kv service")
@@ -102,20 +98,20 @@ func TestDiagnostics(t *testing.T) {
 		if service.LastActivity != expected.LastActivity {
 			t.Fatalf("Expected service LastActivity to be %s but was %s", expected.LastActivity, service.LastActivity)
 		}
-		if service.Scope != expected.Scope {
-			t.Fatalf("Expected service Scope to be %s but was %s", expected.Scope, service.Scope)
+		if service.Namespace != expected.Scope {
+			t.Fatalf("Expected service Scope to be %s but was %s", expected.Scope, service.Namespace)
 		}
 		if service.ID != expected.ID {
 			t.Fatalf("Expected service ID to be %s but was %s", expected.ID, service.ID)
 		}
 
 		if expected.LocalAddr == "" {
-			if service.State != DiagStateDisconnected {
+			if service.State != EndpointStateDisconnected {
 				t.Fatalf("Expected service state to be disconnected but was %d", service.State)
 			}
 		} else {
-			if service.State != DiagStateOk {
-				t.Fatalf("Expected service state to be ok but was %d", service.State)
+			if service.State != EndpointStateConnected {
+				t.Fatalf("Expected service state to be connected but was %d", service.State)
 			}
 		}
 	}
@@ -135,11 +131,7 @@ func TestDiagnostics(t *testing.T) {
 		t.Fatalf("Expected json report ID to be %s but was %s", report.ID, jsonReport.ID)
 	}
 
-	if jsonReport.Version != report.Version {
-		t.Fatalf("Expected json report Version to be %d but was %d", report.Version, jsonReport.Version)
-	}
-
-	if jsonReport.Version != 1 {
+	if jsonReport.Version != 2 {
 		t.Fatalf("Expected json report Version to be 1 but was %d", jsonReport.Version)
 	}
 
@@ -171,8 +163,8 @@ func TestDiagnostics(t *testing.T) {
 		if service.LastActivityUs == 0 {
 			t.Fatalf("Expected service LastActivityUs to be non zero but was %d", service.LastActivityUs)
 		}
-		if service.Scope != expected.Scope {
-			t.Fatalf("Expected service Scope to be %s but was %s", expected.Scope, service.Scope)
+		if service.Namespace != expected.Namespace {
+			t.Fatalf("Expected service Scope to be %s but was %s", expected.Namespace, service.Namespace)
 		}
 		if service.ID != expected.ID {
 			t.Fatalf("Expected service Scope to be %s but was %s", expected.ID, service.ID)
@@ -183,7 +175,7 @@ func TestDiagnostics(t *testing.T) {
 				t.Fatalf("Expected service state to be disconnected but was %s", service.State)
 			}
 		} else {
-			if service.State != "ok" {
+			if service.State != "connected" {
 				t.Fatalf("Expected service state to be ok but was %s", service.State)
 			}
 		}

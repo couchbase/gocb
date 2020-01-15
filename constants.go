@@ -155,3 +155,48 @@ const (
 	// MutationMacroValueCRC32c can be used to tell the server to use the value_crc32c macro.
 	MutationMacroValueCRC32c = MutationMacro("${Mutation.value_crc32c}")
 )
+
+// ClusterState specifies the current state of the cluster
+type ClusterState int
+
+const (
+	// ClusterStateOnline indicates that all nodes are online and reachable.
+	ClusterStateOnline = ClusterState(1)
+
+	// ClusterStateDegraded indicates that all services will function, but possibly not optimally.
+	ClusterStateDegraded = ClusterState(2)
+
+	// ClusterStateOffline indicates that no nodes were reachable.
+	ClusterStateOffline = ClusterState(3)
+)
+
+// EndpointState specifies the current state of an endpoint.
+type EndpointState int
+
+const (
+	// EndpointStateDisconnected indicates the endpoint socket is unreachable.
+	EndpointStateDisconnected = EndpointState(1)
+
+	// EndpointStateConnecting indicates the endpoint socket is connecting.
+	EndpointStateConnecting = EndpointState(2)
+
+	// EndpointStateConnected indicates the endpoint socket is connected and ready.
+	EndpointStateConnected = EndpointState(3)
+
+	// EndpointStateDisconnecting indicates the endpoint socket is disconnecting.
+	EndpointStateDisconnecting = EndpointState(4)
+)
+
+// PingState specifies the result of the ping operation
+type PingState int
+
+const (
+	// PingStateOk indicates that the ping operation was successful.
+	PingStateOk = PingState(1)
+
+	// PingStateTimeout indicates that the ping operation timed out.
+	PingStateTimeout = PingState(2)
+
+	// PingStateError indicates that the ping operation failed.
+	PingStateError = PingState(3)
+)

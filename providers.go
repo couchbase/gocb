@@ -27,3 +27,7 @@ type searchProvider interface {
 type clusterCapabilityProvider interface {
 	SupportsClusterCapability(capability gocbcore.ClusterCapability) bool
 }
+
+type diagnosticsProvider interface {
+	Diagnostics() (*gocbcore.DiagnosticInfo, error)
+}
