@@ -62,6 +62,12 @@ type ClusterOptions struct {
 	// Authenticator specifies the authenticator to use with the cluster.
 	Authenticator Authenticator
 
+	// Username & Password specifies the cluster username and password to
+	// authenticate with.  This is equivalent to passing PasswordAuthenticator
+	// as the Authenticator parameter with the same values.
+	Username string
+	Password string
+
 	// Timeouts specifies various operation timeouts.
 	TimeoutsConfig TimeoutsConfig
 
@@ -93,6 +99,12 @@ type ClusterCloseOptions struct {
 // Connect creates and returns a Cluster instance created using the
 // provided options and a connection string.
 func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
+	if opts.Authenticator == nil {
+		opts.Authenticator = PasswordAuthenticator{
+			Username: opts.Username,
+			Password: opts.Password,
+		}
+	}
 	connSpec, err := gocbconnstr.Parse(connStr)
 	if err != nil {
 		return nil, err
