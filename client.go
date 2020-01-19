@@ -65,6 +65,8 @@ func (c *stdClient) buildConfig() error {
 
 	config := &gocbcore.AgentConfig{
 		UserAgent:              Identifier(),
+		TLSRootCAs:             c.cluster.sb.SecurityConfig.TLSRootCAs,
+		TLSSkipVerify:          c.cluster.sb.SecurityConfig.TLSSkipVerify,
 		ConnectTimeout:         c.cluster.sb.ConnectTimeout,
 		UseMutationTokens:      c.cluster.sb.UseMutationTokens,
 		KVConnectTimeout:       7000 * time.Millisecond,

@@ -46,6 +46,7 @@ type stateBlock struct {
 	Tracer requestTracer
 
 	CircuitBreakerConfig CircuitBreakerConfig
+	SecurityConfig       SecurityConfig
 }
 
 func (sb *stateBlock) getCachedClient() client {

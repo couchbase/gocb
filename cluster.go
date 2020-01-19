@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"crypto/x509"
 	"fmt"
 	"strconv"
 	"sync"
@@ -57,6 +58,13 @@ type OrphanReporterConfig struct {
 	SampleSize     uint32
 }
 
+// SecurityConfig specifies options for controlling security related
+// items such as TLS root certificates and verification skipping.
+type SecurityConfig struct {
+	TLSRootCAs    *x509.CertPool
+	TLSSkipVerify bool
+}
+
 // ClusterOptions is the set of options available for creating a Cluster.
 type ClusterOptions struct {
 	// Authenticator specifies the authenticator to use with the cluster.
@@ -89,6 +97,9 @@ type ClusterOptions struct {
 
 	// IoConfig specifies IO related configuration options.
 	IoConfig IoConfig
+
+	// SecurityConfig specifies security related configuration options.
+	SecurityConfig SecurityConfig
 }
 
 // ClusterCloseOptions is the set of options available when
@@ -189,6 +200,7 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 			UseServerDurations:     useServerDurations,
 			Tracer:                 initialTracer,
 			CircuitBreakerConfig:   opts.CircuitBreakerConfig,
+			SecurityConfig:         opts.SecurityConfig,
 		},
 
 		queryCache: make(map[string]*queryCacheEntry),
