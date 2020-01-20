@@ -585,8 +585,11 @@ func (r *GetAllReplicasResult) Close() error {
 	// See addResult discussion on lock usage.
 	r.lock.Lock()
 
+	// Note that this number increment must be high enough to be clear that
+	// the result set was closed, but low enough that it won't overflow if
+	// additional result objects are processed after the close.
 	prevResultCount := r.totalResults
-	r.totalResults = 0xffffffff
+	r.totalResults += 100000
 
 	// We only have to close everything if the addResult method didn't already
 	// close them due to already having completed every request
