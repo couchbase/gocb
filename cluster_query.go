@@ -114,7 +114,10 @@ func (meta *QueryMetaData) fromData(data jsonQueryResponse) error {
 
 	warnings := make([]QueryWarning, len(data.Warnings))
 	for wIdx, jsonWarning := range data.Warnings {
-		warnings[wIdx].fromData(jsonWarning)
+		err := warnings[wIdx].fromData(jsonWarning)
+		if err != nil {
+			return err
+		}
 	}
 
 	meta.RequestID = data.RequestID

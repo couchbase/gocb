@@ -102,7 +102,10 @@ func (meta *AnalyticsMetaData) fromData(data jsonAnalyticsResponse) error {
 
 	warnings := make([]AnalyticsWarning, len(data.Warnings))
 	for wIdx, jsonWarning := range data.Warnings {
-		warnings[wIdx].fromData(jsonWarning)
+		err := warnings[wIdx].fromData(jsonWarning)
+		if err != nil {
+			return err
+		}
 	}
 
 	meta.RequestID = data.RequestID
