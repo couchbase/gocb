@@ -7,6 +7,9 @@ import (
 )
 
 func tryReadHTTPBody(resp *gocbcore.HTTPResponse) string {
-	bytes, _ := ioutil.ReadAll(resp.Body)
+	bytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		logDebugf("failed to read http body: %s", err)
+	}
 	return string(bytes)
 }

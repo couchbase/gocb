@@ -654,7 +654,10 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 		select {
 		case <-time.After(deadline.Sub(time.Now())):
 			// If we timeout, we should close the result
-			repRes.Close()
+			err := repRes.Close()
+			if err != nil {
+				logDebugf("failed to close GetAllReplicas response: %s", err)
+			}
 			return
 		case <-cancelCh:
 			// If the cancel channel closes, we are done
@@ -703,7 +706,10 @@ func (c *Collection) GetAnyReplica(id string, opts *GetAnyReplicaOptions) (docOu
 
 	// Close the results channel since we don't care about any of the
 	// remaining result objects at this point.
-	repRes.Close()
+	err = repRes.Close()
+	if err != nil {
+		logDebugf("failed to close GetAnyReplica response: %s", err)
+	}
 
 	return res, nil
 }

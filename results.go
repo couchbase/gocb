@@ -81,7 +81,7 @@ func (d *GetResult) fromSubDoc(ops []LookupInSpec, result *LookupInResult) error
 	for i, op := range ops {
 		err := result.contents[i].err
 		if err != nil {
-			// We return the first error that has occured, this will be
+			// We return the first error that has occurred, this will be
 			// a SubDocument error and will indicate the real reason.
 			return err
 		}

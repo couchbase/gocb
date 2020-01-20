@@ -170,7 +170,10 @@ func (r *SearchResult) Next() bool {
 			for termName, termData := range fieldData {
 				locations := make([]SearchRowLocation, len(termData))
 				for locIdx, locData := range termData {
-					locations[locIdx].fromData(locData)
+					err := locations[locIdx].fromData(locData)
+					if err != nil {
+						logWarnf("failed to parse search query location data: %s", err)
+					}
 				}
 				terms[termName] = locations
 			}
