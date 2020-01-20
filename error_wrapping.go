@@ -15,8 +15,8 @@ func serializeWrappedError(err error) string {
 }
 
 func maybeEnhanceCoreErr(err error) error {
-	if kvErr, ok := err.(gocbcore.KeyValueError); ok {
-		return KeyValueError{
+	if kvErr, ok := err.(*gocbcore.KeyValueError); ok {
+		return &KeyValueError{
 			InnerError:       kvErr.InnerError,
 			StatusCode:       kvErr.StatusCode,
 			BucketName:       kvErr.BucketName,
@@ -32,8 +32,8 @@ func maybeEnhanceCoreErr(err error) error {
 			RetryAttempts:    kvErr.RetryAttempts,
 		}
 	}
-	if viewErr, ok := err.(gocbcore.ViewError); ok {
-		return ViewError{
+	if viewErr, ok := err.(*gocbcore.ViewError); ok {
+		return &ViewError{
 			InnerError:         viewErr.InnerError,
 			DesignDocumentName: viewErr.DesignDocumentName,
 			ViewName:           viewErr.ViewName,
@@ -43,8 +43,8 @@ func maybeEnhanceCoreErr(err error) error {
 			RetryAttempts:      viewErr.RetryAttempts,
 		}
 	}
-	if queryErr, ok := err.(gocbcore.N1QLError); ok {
-		return QueryError{
+	if queryErr, ok := err.(*gocbcore.N1QLError); ok {
+		return &QueryError{
 			InnerError:      queryErr.InnerError,
 			Statement:       queryErr.Statement,
 			ClientContextID: queryErr.ClientContextID,
@@ -54,8 +54,8 @@ func maybeEnhanceCoreErr(err error) error {
 			RetryAttempts:   queryErr.RetryAttempts,
 		}
 	}
-	if analyticsErr, ok := err.(gocbcore.AnalyticsError); ok {
-		return AnalyticsError{
+	if analyticsErr, ok := err.(*gocbcore.AnalyticsError); ok {
+		return &AnalyticsError{
 			InnerError:      analyticsErr.InnerError,
 			Statement:       analyticsErr.Statement,
 			ClientContextID: analyticsErr.ClientContextID,
@@ -65,8 +65,8 @@ func maybeEnhanceCoreErr(err error) error {
 			RetryAttempts:   analyticsErr.RetryAttempts,
 		}
 	}
-	if httpErr, ok := err.(gocbcore.HTTPError); ok {
-		return HTTPError{
+	if httpErr, ok := err.(*gocbcore.HTTPError); ok {
+		return &HTTPError{
 			InnerError:    httpErr.InnerError,
 			UniqueID:      httpErr.UniqueID,
 			Endpoint:      httpErr.Endpoint,
