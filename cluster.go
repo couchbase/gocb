@@ -414,7 +414,9 @@ func (c *Cluster) clusterOrRandomClient() (client, error) {
 		cli = c.clusterClient
 		c.connectionsLock.RUnlock()
 		if !cli.supportsGCCCP() {
-			return nil, errors.New("cluster-level operations not supported due to cluster version")
+			return nil, errors.New("the cluster does not support cluster-level queries " +
+				"(only Couchbase Server 6.5 and later) and no bucket is open. If an older Couchbase Server version " +
+				"is used, at least one bucket needs to be opened")
 		}
 	}
 
