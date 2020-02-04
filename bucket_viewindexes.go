@@ -145,13 +145,18 @@ func (vm *ViewIndexManager) getDesignDocument(tracectx requestSpanContext, name 
 
 	name = vm.ddocName(name, namespace)
 
+	timeout := vm.bucket.stateBlock().ManagementTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	req := mgmtRequest{
 		Service:       ServiceTypeViews,
 		Path:          fmt.Sprintf("/_design/%s", name),
 		Method:        "GET",
 		IsIdempotent:  true,
 		RetryStrategy: opts.RetryStrategy,
-		Timeout:       opts.Timeout,
+		Timeout:       timeout,
 	}
 	resp, err := vm.doMgmtRequest(req)
 	if err != nil {
@@ -204,12 +209,17 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamesp
 	span := vm.tracer.StartSpan("GetAllDesignDocuments", nil).SetTag("couchbase.service", "view")
 	defer span.Finish()
 
+	timeout := vm.bucket.stateBlock().ManagementTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
 		Path:          fmt.Sprintf("/pools/default/buckets/%s/ddocs", vm.bucket.Name()),
 		Method:        "GET",
 		IsIdempotent:  true,
-		Timeout:       opts.Timeout,
+		Timeout:       timeout,
 		RetryStrategy: opts.RetryStrategy,
 	}
 	resp, err := vm.doMgmtRequest(req)
@@ -293,6 +303,11 @@ func (vm *ViewIndexManager) upsertDesignDocument(
 		return err
 	}
 
+	timeout := vm.bucket.stateBlock().ManagementTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	ddocName = vm.ddocName(ddocName, namespace)
 
 	req := mgmtRequest{
@@ -300,7 +315,7 @@ func (vm *ViewIndexManager) upsertDesignDocument(
 		Path:          fmt.Sprintf("/_design/%s", ddocName),
 		Method:        "PUT",
 		Body:          data,
-		Timeout:       opts.Timeout,
+		Timeout:       timeout,
 		RetryStrategy: opts.RetryStrategy,
 	}
 	resp, err := vm.doMgmtRequest(req)
@@ -338,11 +353,16 @@ func (vm *ViewIndexManager) dropDesignDocument(tracectx requestSpanContext, name
 
 	name = vm.ddocName(name, namespace)
 
+	timeout := vm.bucket.stateBlock().ManagementTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	req := mgmtRequest{
 		Service:       ServiceTypeViews,
 		Path:          fmt.Sprintf("/_design/%s", name),
 		Method:        "DELETE",
-		Timeout:       opts.Timeout,
+		Timeout:       timeout,
 		RetryStrategy: opts.RetryStrategy,
 	}
 	resp, err := vm.doMgmtRequest(req)
@@ -378,6 +398,11 @@ func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesi
 		SetTag("couchbase.service", "view")
 	defer span.Finish()
 
+	timeout := vm.bucket.stateBlock().ManagementTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	devdoc, err := vm.getDesignDocument(
 		span.Context(),
 		name,
@@ -385,6 +410,7 @@ func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesi
 		startTime,
 		&GetDesignDocumentOptions{
 			RetryStrategy: opts.RetryStrategy,
+			Timeout:       timeout,
 		})
 	if err != nil {
 		return err
@@ -396,6 +422,7 @@ func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesi
 		startTime,
 		&UpsertDesignDocumentOptions{
 			RetryStrategy: opts.RetryStrategy,
+			Timeout:       timeout,
 		})
 	if err != nil {
 		return err

@@ -154,11 +154,17 @@ func (bm *BucketManager) GetBucket(bucketName string, opts *GetBucketOptions) (*
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	return bm.get(span.Context(), bucketName, retryStrategy)
+	timeout := bm.globalTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
+	return bm.get(span.Context(), bucketName, retryStrategy, timeout)
 }
 
 func (bm *BucketManager) get(tracectx requestSpanContext, bucketName string,
-	strategy *retryStrategyWrapper) (*BucketSettings, error) {
+	strategy *retryStrategyWrapper, timeout time.Duration) (*BucketSettings, error) {
+
 	req := &gocbcore.HTTPRequest{
 		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Path:          fmt.Sprintf("/pools/default/buckets/%s", bucketName),
@@ -166,6 +172,7 @@ func (bm *BucketManager) get(tracectx requestSpanContext, bucketName string,
 		IsIdempotent:  true,
 		RetryStrategy: strategy,
 		UniqueID:      uuid.New().String(),
+		Timeout:       timeout,
 	}
 
 	dspan := bm.tracer.StartSpan("dispatch", tracectx)
@@ -221,6 +228,11 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	timeout := bm.globalTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	req := &gocbcore.HTTPRequest{
 		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Path:          "/pools/default/buckets",
@@ -228,6 +240,7 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 		IsIdempotent:  true,
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
+		Timeout:       timeout,
 	}
 
 	dspan := bm.tracer.StartSpan("dispatch", span.Context())
@@ -294,6 +307,11 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	timeout := bm.globalTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	posts, err := bm.settingsToPostData(&settings.BucketSettings)
 	if err != nil {
 		return err
@@ -311,6 +329,7 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 		ContentType:   "application/x-www-form-urlencoded",
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
+		Timeout:       timeout,
 	}
 
 	dspan := bm.tracer.StartSpan("dispatch", span.Context())
@@ -353,6 +372,11 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	timeout := bm.globalTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	posts, err := bm.settingsToPostData(&settings)
 	if err != nil {
 		return err
@@ -366,6 +390,7 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 		ContentType:   "application/x-www-form-urlencoded",
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
+		Timeout:       timeout,
 	}
 
 	dspan := bm.tracer.StartSpan("dispatch", span.Context())
@@ -408,12 +433,18 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	timeout := bm.globalTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	req := &gocbcore.HTTPRequest{
 		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Path:          fmt.Sprintf("/pools/default/buckets/%s", name),
 		Method:        "DELETE",
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
+		Timeout:       timeout,
 	}
 
 	dspan := bm.tracer.StartSpan("dispatch", span.Context())
@@ -457,12 +488,18 @@ func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) erro
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	timeout := bm.globalTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	req := &gocbcore.HTTPRequest{
 		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Path:          fmt.Sprintf("/pools/default/buckets/%s/controller/doFlush", name),
 		Method:        "POST",
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
+		Timeout:       timeout,
 	}
 
 	dspan := bm.tracer.StartSpan("dispatch", span.Context())

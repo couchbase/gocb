@@ -552,13 +552,18 @@ func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAn
 		SetTag("couchbase.service", "analytics")
 	defer span.Finish()
 
+	timeout := am.cluster.sb.ManagementTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	req := mgmtRequest{
 		Service:       ServiceTypeAnalytics,
 		Method:        "GET",
 		Path:          fmt.Sprintf("/analytics/node/agg/stats/remaining"),
 		IsIdempotent:  true,
 		RetryStrategy: opts.RetryStrategy,
-		Timeout:       opts.Timeout,
+		Timeout:       timeout,
 	}
 	resp, err := am.doMgmtRequest(req)
 	if err != nil {

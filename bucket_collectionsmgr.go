@@ -70,6 +70,11 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	timeout := cm.globalTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	req := &gocbcore.HTTPRequest{
 		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
@@ -77,6 +82,7 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 		RetryStrategy: retryStrategy,
 		IsIdempotent:  true,
 		UniqueID:      uuid.New().String(),
+		Timeout:       timeout,
 	}
 
 	dspan := cm.tracer.StartSpan("dispatch", span.Context())
@@ -171,6 +177,11 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	timeout := cm.globalTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	posts := url.Values{}
 	posts.Add("name", spec.Name)
 
@@ -182,6 +193,7 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 		ContentType:   "application/x-www-form-urlencoded",
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
+		Timeout:       timeout,
 	}
 
 	dspan := cm.tracer.StartSpan("dispatch", span.Context())
@@ -243,12 +255,18 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	timeout := cm.globalTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	req := &gocbcore.HTTPRequest{
 		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections/%s/%s", cm.bucketName, spec.ScopeName, spec.Name),
 		Method:        "DELETE",
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
+		Timeout:       timeout,
 	}
 
 	dspan := cm.tracer.StartSpan("dispatch", span.Context())
@@ -302,6 +320,11 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	timeout := cm.globalTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	posts := url.Values{}
 	posts.Add("name", scopeName)
 
@@ -313,6 +336,7 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 		ContentType:   "application/x-www-form-urlencoded",
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
+		Timeout:       timeout,
 	}
 
 	dspan := cm.tracer.StartSpan("dispatch", span.Context())
@@ -362,12 +386,18 @@ func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions)
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	timeout := cm.globalTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	req := &gocbcore.HTTPRequest{
 		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections/%s", cm.bucketName, scopeName),
 		Method:        "DELETE",
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
+		Timeout:       timeout,
 	}
 
 	dspan := cm.tracer.StartSpan("dispatch", span.Context())

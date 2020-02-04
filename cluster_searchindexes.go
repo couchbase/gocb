@@ -440,6 +440,10 @@ func (sm *SearchIndexManager) performControlRequest(
 	timeout time.Duration,
 	retryStrategy RetryStrategy,
 ) error {
+	if timeout == 0 || timeout > sm.cluster.sb.ManagementTimeout {
+		timeout = sm.cluster.sb.ManagementTimeout
+	}
+
 	req := mgmtRequest{
 		Service:       ServiceTypeSearch,
 		Method:        method,
@@ -448,6 +452,7 @@ func (sm *SearchIndexManager) performControlRequest(
 		Timeout:       timeout,
 		RetryStrategy: retryStrategy,
 	}
+
 	resp, err := sm.doMgmtRequest(req)
 	if err != nil {
 		return err

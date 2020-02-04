@@ -259,6 +259,11 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	timeout := um.globalTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	req := &gocbcore.HTTPRequest{
 		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Method:        "GET",
@@ -266,6 +271,7 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 		IsIdempotent:  true,
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
+		Timeout:       timeout,
 	}
 
 	dspan := um.tracer.StartSpan("dispatch", span.Context())
@@ -329,6 +335,11 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	timeout := um.globalTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	req := &gocbcore.HTTPRequest{
 		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Method:        "GET",
@@ -336,6 +347,7 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 		IsIdempotent:  true,
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
+		Timeout:       timeout,
 	}
 
 	dspan := um.tracer.StartSpan("dispatch", span.Context())
@@ -397,6 +409,11 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	timeout := um.globalTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	var reqRoleStrs []string
 	for _, roleData := range user.Roles {
 		reqRoleStrs = append(reqRoleStrs, fmt.Sprintf("%s[%s]", roleData.Name, roleData.Bucket))
@@ -420,6 +437,7 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 		ContentType:   "application/x-www-form-urlencoded",
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
+		Timeout:       timeout,
 	}
 
 	dspan := um.tracer.StartSpan("dispatch", span.Context())
@@ -463,12 +481,18 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	timeout := um.globalTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	req := &gocbcore.HTTPRequest{
 		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Method:        "DELETE",
 		Path:          fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, name),
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
+		Timeout:       timeout,
 	}
 
 	dspan := um.tracer.StartSpan("dispatch", span.Context())
@@ -506,6 +530,11 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	timeout := um.globalTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	req := &gocbcore.HTTPRequest{
 		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Method:        "GET",
@@ -513,6 +542,7 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 		RetryStrategy: retryStrategy,
 		IsIdempotent:  true,
 		UniqueID:      uuid.New().String(),
+		Timeout:       timeout,
 	}
 
 	dspan := um.tracer.StartSpan("dispatch", span.Context())
@@ -573,6 +603,11 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	timeout := um.globalTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	req := &gocbcore.HTTPRequest{
 		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Method:        "GET",
@@ -580,6 +615,7 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 		RetryStrategy: retryStrategy,
 		IsIdempotent:  true,
 		UniqueID:      uuid.New().String(),
+		Timeout:       timeout,
 	}
 
 	dspan := um.tracer.StartSpan("dispatch", span.Context())
@@ -635,6 +671,11 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	timeout := um.globalTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	req := &gocbcore.HTTPRequest{
 		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Method:        "GET",
@@ -642,6 +683,7 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 		RetryStrategy: retryStrategy,
 		IsIdempotent:  true,
 		UniqueID:      uuid.New().String(),
+		Timeout:       timeout,
 	}
 
 	dspan := um.tracer.StartSpan("dispatch", span.Context())
@@ -702,6 +744,11 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	timeout := um.globalTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	var reqRoleStrs []string
 	for _, roleData := range group.Roles {
 		if roleData.Bucket == "" {
@@ -724,6 +771,7 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 		ContentType:   "application/x-www-form-urlencoded",
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
+		Timeout:       timeout,
 	}
 
 	dspan := um.tracer.StartSpan("dispatch", span.Context())
@@ -765,12 +813,18 @@ func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
+	timeout := um.globalTimeout
+	if opts.Timeout > timeout {
+		timeout = opts.Timeout
+	}
+
 	req := &gocbcore.HTTPRequest{
 		Service:       gocbcore.ServiceType(ServiceTypeManagement),
 		Method:        "DELETE",
 		Path:          fmt.Sprintf("/settings/rbac/groups/%s", groupName),
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
+		Timeout:       timeout,
 	}
 
 	dspan := um.tracer.StartSpan("dispatch", span.Context())
