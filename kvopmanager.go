@@ -189,6 +189,9 @@ func (m *kvOpManager) Resolve(token *MutationToken) {
 }
 
 func (m *kvOpManager) Wait(op gocbcore.PendingOp, err error) error {
+	if err != nil {
+		return err
+	}
 	if m.err != nil {
 		op.Cancel(errors.New("performed operation with invalid data"))
 	}
