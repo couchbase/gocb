@@ -24,7 +24,7 @@ func (qm *QueryIndexManager) doQuery(q string, opts *QueryOptions) ([][]byte, er
 
 	var rows [][]byte
 	for result.Next() {
-		var row []byte
+		var row json.RawMessage
 		err := result.Row(&row)
 		if err != nil {
 			logWarnf("management operation failed to read row: %s", err)
@@ -463,7 +463,7 @@ func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string,
 
 	curInterval := 50 * time.Millisecond
 	for {
-		if !deadline.Before(time.Now()) {
+		if deadline.Before(time.Now()) {
 			return ErrUnambiguousTimeout
 		}
 
