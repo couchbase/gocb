@@ -23,10 +23,10 @@ type stateBlock struct {
 
 	UseServerDurations bool
 
-	ConnectTimeout  time.Duration
-	KvTimeout       time.Duration
-	DuraTimeout     time.Duration
-	DuraPollTimeout time.Duration
+	ConnectTimeout   time.Duration
+	KvTimeout        time.Duration
+	KvDurableTimeout time.Duration
+	DuraPollTimeout  time.Duration
 
 	QueryTimeout      time.Duration
 	AnalyticsTimeout  time.Duration

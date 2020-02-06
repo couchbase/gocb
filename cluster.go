@@ -40,8 +40,10 @@ type IoConfig struct {
 
 // TimeoutsConfig specifies options for various operation timeouts.
 type TimeoutsConfig struct {
-	ConnectTimeout    time.Duration
-	KVTimeout         time.Duration
+	ConnectTimeout time.Duration
+	KVTimeout      time.Duration
+	// Volatile: This option is subject to change at any time.
+	KVDurableTimeout  time.Duration
 	ViewTimeout       time.Duration
 	QueryTimeout      time.Duration
 	AnalyticsTimeout  time.Duration
@@ -127,6 +129,7 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 
 	connectTimeout := 10000 * time.Millisecond
 	kvTimeout := 2500 * time.Millisecond
+	kvDurableTimeout := 10000 * time.Millisecond
 	viewTimeout := 75000 * time.Millisecond
 	queryTimeout := 75000 * time.Millisecond
 	analyticsTimeout := 75000 * time.Millisecond
@@ -137,6 +140,9 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 	}
 	if opts.TimeoutsConfig.KVTimeout > 0 {
 		kvTimeout = opts.TimeoutsConfig.KVTimeout
+	}
+	if opts.TimeoutsConfig.KVDurableTimeout > 0 {
+		kvDurableTimeout = opts.TimeoutsConfig.KVDurableTimeout
 	}
 	if opts.TimeoutsConfig.ViewTimeout > 0 {
 		viewTimeout = opts.TimeoutsConfig.ViewTimeout
@@ -188,7 +194,7 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 			SearchTimeout:          searchTimeout,
 			ViewTimeout:            viewTimeout,
 			KvTimeout:              kvTimeout,
-			DuraTimeout:            40000 * time.Millisecond,
+			KvDurableTimeout:       kvDurableTimeout,
 			DuraPollTimeout:        100 * time.Millisecond,
 			Transcoder:             opts.Transcoder,
 			UseMutationTokens:      useMutationTokens,

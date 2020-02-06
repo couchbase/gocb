@@ -467,6 +467,7 @@ func (c *Collection) getOneReplica(
 	transcoder Transcoder,
 	retryStrategy RetryStrategy,
 	cancelCh chan struct{},
+	timeout time.Duration,
 ) (docOut *GetReplicaResult, errOut error) {
 	opm := c.newKvOpManager("getOneReplica", span)
 	defer opm.Finish()
@@ -475,6 +476,7 @@ func (c *Collection) getOneReplica(
 	opm.SetTranscoder(transcoder)
 	opm.SetRetryStrategy(retryStrategy)
 	opm.SetCancelCh(cancelCh)
+	opm.SetTimeout(timeout)
 
 	agent, err := c.getKvProvider()
 	if err != nil {
@@ -643,7 +645,10 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 	// Loop all the servers and populate the result object
 	for replicaIdx := 0; replicaIdx < numServers; replicaIdx++ {
 		go func(replicaIdx int) {
-			res, err := c.getOneReplica(span, id, replicaIdx, transcoder, retryStrategy, cancelCh)
+			// This timeout value will cause the getOneReplica operation to timeout after our deadline has expired,
+			// as the deadline has already begun. getOneReplica timing out before our deadline would cause inconsistent
+			// behaviour.
+			res, err := c.getOneReplica(span, id, replicaIdx, transcoder, retryStrategy, cancelCh, timeout)
 			if err != nil {
 				logDebugf("Failed to fetch replica from replica %d: %s", replicaIdx, err)
 			} else {

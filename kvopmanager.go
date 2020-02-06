@@ -18,7 +18,7 @@ type kvOpManager struct {
 	span            requestSpan
 	documentID      string
 	transcoder      Transcoder
-	deadline        time.Time
+	timeout         time.Duration
 	bytes           []byte
 	flags           uint32
 	persistTo       uint
@@ -26,6 +26,19 @@ type kvOpManager struct {
 	durabilityLevel DurabilityLevel
 	retryStrategy   *retryStrategyWrapper
 	cancelCh        chan struct{}
+}
+
+func (m *kvOpManager) getTimeout() time.Duration {
+	if m.timeout > 0 {
+		return m.timeout
+	}
+
+	defaultTimeout := m.parent.sb.KvTimeout
+	if m.durabilityLevel > DurabilityLevelMajority || m.persistTo > 0 {
+		defaultTimeout = m.parent.sb.KvDurableTimeout
+	}
+
+	return defaultTimeout
 }
 
 func (m *kvOpManager) SetDocumentID(id string) {
@@ -37,10 +50,7 @@ func (m *kvOpManager) SetCancelCh(cancelCh chan struct{}) {
 }
 
 func (m *kvOpManager) SetTimeout(timeout time.Duration) {
-	if timeout == 0 || timeout > m.parent.sb.KvTimeout {
-		timeout = m.parent.sb.KvTimeout
-	}
-	m.deadline = time.Now().Add(timeout)
+	m.timeout = timeout
 }
 
 func (m *kvOpManager) SetTranscoder(transcoder Transcoder) {
@@ -139,7 +149,8 @@ func (m *kvOpManager) DurabilityLevel() gocbcore.DurabilityLevel {
 }
 
 func (m *kvOpManager) DurabilityTimeout() uint16 {
-	duraTimeout := m.deadline.Sub(time.Now()) * 10 / 9
+	timeout := m.getTimeout()
+	duraTimeout := timeout * 10 / 9
 	return uint16(duraTimeout / time.Millisecond)
 }
 
@@ -152,8 +163,8 @@ func (m *kvOpManager) CheckReadyForOp() error {
 		return m.err
 	}
 
-	if m.deadline.IsZero() {
-		return errors.New("op manager had no deadline specified")
+	if m.getTimeout() == 0 {
+		return errors.New("op manager had no timeout specified")
 	}
 
 	return nil
@@ -198,10 +209,8 @@ func (m *kvOpManager) Wait(op gocbcore.PendingOp, err error) error {
 
 	// We do this to allow operations with no deadline to still proceed
 	// without immediately timing out due to bad math on the sub time below.
-	waitDeadline := m.deadline
-	if waitDeadline.IsZero() {
-		waitDeadline = time.Now().Add(24 * time.Hour)
-	}
+	waitTimeout := m.getTimeout()
+	waitDeadline := time.Now().Add(waitTimeout)
 
 	select {
 	case <-m.signal:
@@ -226,7 +235,7 @@ func (m *kvOpManager) Wait(op gocbcore.PendingOp, err error) error {
 			m.mutationToken.token,
 			m.replicateTo,
 			m.persistTo,
-			m.deadline,
+			waitDeadline,
 			m.cancelCh,
 		)
 	}

@@ -12,12 +12,14 @@ func (c *Collection) observeOnceSeqNo(
 	mt gocbcore.MutationToken,
 	replicaIdx int,
 	cancelCh chan struct{},
+	timeout time.Duration,
 ) (didReplicate, didPersist bool, errOut error) {
 	opm := c.newKvOpManager("observeOnceSeqNo", tracectx)
 	defer opm.Finish()
 
 	opm.SetDocumentID(docID)
 	opm.SetCancelCh(cancelCh)
+	opm.SetTimeout(timeout)
 
 	agent, err := c.getKvProvider()
 	if err != nil {
@@ -52,6 +54,7 @@ func (c *Collection) observeOne(
 	replicaIdx int,
 	replicaCh, persistCh chan struct{},
 	cancelCh chan struct{},
+	timeout time.Duration,
 ) {
 	sentReplicated := false
 	sentPersisted := false
@@ -65,7 +68,7 @@ ObserveLoop:
 			// not cancelled yet
 		}
 
-		didReplicate, didPersist, err := c.observeOnceSeqNo(tracectx, docID, mt, replicaIdx, cancelCh)
+		didReplicate, didPersist, err := c.observeOnceSeqNo(tracectx, docID, mt, replicaIdx, cancelCh, timeout)
 		if err != nil {
 			logDebugf("ObserveOnce failed unexpected: %s", err)
 			return
@@ -125,7 +128,7 @@ func (c *Collection) waitForDurability(
 	persistCh := make(chan struct{}, numServers)
 
 	for replicaIdx := 0; replicaIdx < numServers; replicaIdx++ {
-		go c.observeOne(opm.TraceSpan(), docID, mt, replicaIdx, replicaCh, persistCh, subOpCancelCh)
+		go c.observeOne(opm.TraceSpan(), docID, mt, replicaIdx, replicaCh, persistCh, subOpCancelCh, deadline.Sub(time.Now()))
 	}
 
 	numReplicated := uint(0)
