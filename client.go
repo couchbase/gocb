@@ -18,6 +18,7 @@ type client interface {
 	getAnalyticsProvider() (analyticsProvider, error)
 	getSearchProvider() (searchProvider, error)
 	getHTTPProvider() (httpProvider, error)
+	getClusterCapabilityProvider() (clusterCapabilityProvider, error)
 	getDiagnosticsProvider() (diagnosticsProvider, error)
 	close() error
 	setBootstrapError(err error)
@@ -194,6 +195,17 @@ func (c *stdClient) getDiagnosticsProvider() (diagnosticsProvider, error) {
 		return nil, c.bootstrapErr
 	}
 
+	return c.agent, nil
+}
+
+func (c *stdClient) getClusterCapabilityProvider() (clusterCapabilityProvider, error) {
+	if c.bootstrapErr != nil {
+		return nil, c.bootstrapErr
+	}
+
+	if c.agent == nil {
+		return nil, errors.New("cluster not yet connected")
+	}
 	return c.agent, nil
 }
 

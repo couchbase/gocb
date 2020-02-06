@@ -493,6 +493,39 @@ func (c *Cluster) getHTTPProvider() (httpProvider, error) {
 	return provider, nil
 }
 
+func (c *Cluster) getClusterCapabilityProvider() (clusterCapabilityProvider, error) {
+	cli, err := c.clusterOrRandomClient()
+	if err != nil {
+		return nil, err
+	}
+
+	provider, err := cli.getClusterCapabilityProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}
+
+func (c *Cluster) updateEnhancedPreparedStatementSupport() error {
+	provider, err := c.getClusterCapabilityProvider()
+	if err != nil {
+		return err
+	}
+
+	// In an upgrade scenario where we've moved from a cluster version without support to one with then we need to
+	// invalidate the cache.
+	if !c.supportsEnhancedPreparedStatements() &&
+		provider.SupportsClusterCapability(gocbcore.ClusterCapabilityEnhancedPreparedStatements) {
+		c.setSupportsEnhancedPreparedStatements(true)
+		c.clusterLock.Lock()
+		c.queryCache = make(map[string]*queryCacheEntry)
+		c.clusterLock.Unlock()
+	}
+
+	return nil
+}
+
 func (c *Cluster) supportsEnhancedPreparedStatements() bool {
 	return atomic.LoadInt32(&c.supportsEnhancedStatements) > 0
 }
