@@ -3,6 +3,7 @@ package gocb
 import (
 	"errors"
 	"testing"
+	"time"
 )
 
 func TestSearchIndexesCrud(t *testing.T) {
@@ -84,19 +85,31 @@ func TestSearchIndexesCrud(t *testing.T) {
 	}
 
 	if globalCluster.SupportsFeature(SearchAnalyzeFeature) {
-		analysis, err := mgr.AnalyzeDocument("test", struct {
-			Field1 string
-			Field2 string
-		}{
-			Field1: "test",
-			Field2: "imaginative field value",
-		}, nil)
-		if err != nil {
-			t.Fatalf("Expected AnalyzeDocument err to be nil but was %v", err)
-		}
+		// Analyze required pindexes to be built which takes time so we need to be a bit resilient here.
+		timer := time.NewTimer(2 * time.Second)
+		for {
+			select {
+			case <-timer.C:
+				t.Fatalf("Time to wait for analyze to succeed expired")
+			default:
+			}
+			analysis, err := mgr.AnalyzeDocument("test", struct {
+				Field1 string
+				Field2 string
+			}{
+				Field1: "test",
+				Field2: "imaginative field value",
+			}, nil)
+			if err != nil {
+				globalCluster.TimeTravel(100 * time.Millisecond)
+				logErrorf("Expected AnalyzeDocument err to be nil but was %v", err)
+				continue
+			}
 
-		if analysis == nil || len(analysis) == 0 {
-			t.Fatalf("Expected analysis to be not nil")
+			if analysis == nil || len(analysis) == 0 {
+				t.Fatalf("Expected analysis to be not nil")
+			}
+			break
 		}
 	} else {
 		t.Log("Skipping AnalyzeDocument feature as not supported.")
@@ -122,17 +135,9 @@ func TestSearchIndexesCrud(t *testing.T) {
 		t.Fatalf("Expected GetIndex err to be not nil but was")
 	}
 
-	if !errors.Is(err, ErrIndexNotFound) {
-		t.Fatalf("Expected GetIndex to return a not found error but was %v", err)
-	}
-
 	_, err = mgr.GetIndex("test2", nil)
 	if err == nil {
 		t.Fatalf("Expected GetIndex err to be not nil but was")
-	}
-
-	if !errors.Is(err, ErrIndexNotFound) {
-		t.Fatalf("Expected GetIndex to return a not found error but was %v", err)
 	}
 }
 
