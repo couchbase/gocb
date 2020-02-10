@@ -26,7 +26,7 @@ func (am *AnalyticsIndexManager) doAnalyticsQuery(q string, opts *AnalyticsOptio
 
 	var rows [][]byte
 	for result.Next() {
-		var row []byte
+		var row json.RawMessage
 		err := result.Row(&row)
 		if err != nil {
 			logWarnf("management operation failed to read row: %s", err)
