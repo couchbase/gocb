@@ -448,7 +448,7 @@ func (c *Collection) Exists(id string, opts *ExistsOptions) (docOut *ExistsResul
 				Result: Result{
 					cas: Cas(res.Cas),
 				},
-				docExists: true,
+				docExists: res.Deleted == 0,
 			}
 		}
 

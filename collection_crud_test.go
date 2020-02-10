@@ -564,6 +564,40 @@ func TestInsertGet(t *testing.T) {
 	}
 }
 
+func TestExists(t *testing.T) {
+	if globalCluster.NotSupportsFeature(GetMetaFeature) {
+		t.Skip("Skipping test as GetMeta not supported.")
+	}
+
+	_, err := globalCollection.Insert("exists", "test", nil)
+	if err != nil {
+		t.Fatalf("Insert failed, error was %v", err)
+	}
+
+	existsRes, err := globalCollection.Exists("exists", nil)
+	if err != nil {
+		t.Fatalf("Exists failed, error was %v", err)
+	}
+
+	if !existsRes.Exists() {
+		t.Fatalf("Expected exists to return true")
+	}
+
+	_, err = globalCollection.Remove("exists", nil)
+	if err != nil {
+		t.Fatalf("Remove failed, error was %v", err)
+	}
+
+	existsRes, err = globalCollection.Exists("exists", nil)
+	if err != nil {
+		t.Fatalf("Exists failed, error was %v", err)
+	}
+
+	if existsRes.Exists() {
+		t.Fatalf("Expected exists to return false")
+	}
+}
+
 // Following test tests that if a collection is deleted and recreated midway through a set of operations
 // then the operations will still succeed due to the cid being refreshed under the hood.
 func TestCollectionRetry(t *testing.T) {
