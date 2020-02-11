@@ -3,14 +3,33 @@ package gocb
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
 )
+
+func tryParseUserMgrErrorMessage(req *gocbcore.HTTPRequest, resp *gocbcore.HTTPResponse) error {
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		logDebugf("Failed to read search index response body: %s", err)
+		return nil
+	}
+
+	var bodyErr error
+	if strings.Contains(strings.ToLower(string(b)), "unknown user") {
+		bodyErr = ErrUserNotFound
+	} else {
+		bodyErr = errors.New(string(b))
+	}
+
+	return makeGenericHTTPError(bodyErr, req, resp)
+}
 
 // AuthDomain specifies the user domain of a specific user
 type AuthDomain string
@@ -358,6 +377,10 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		usrErr := tryParseUserMgrErrorMessage(req, resp)
+		if usrErr != nil {
+			return nil, usrErr
+		}
 		return nil, makeHTTPBadStatusError("failed to get user", req, resp)
 	}
 
