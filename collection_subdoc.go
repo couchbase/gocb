@@ -181,7 +181,7 @@ func jsonMarshalMutateSpec(op MutateInSpec) ([]byte, gocbcore.SubdocFlag, error)
 	}
 
 	if macro, ok := op.value.(MutationMacro); ok {
-		return []byte(macro), gocbcore.SubdocFlagExpandMacros, nil
+		return []byte(macro), gocbcore.SubdocFlagExpandMacros | gocbcore.SubdocFlagXattrPath, nil
 	}
 
 	if op.multiValue {
@@ -221,6 +221,8 @@ func (c *Collection) internalMutateIn(
 				return nil, makeInvalidArgumentsError("cannot specify a blank path with UpsertSpec")
 			case gocbcore.SubDocOpDelete:
 				return nil, makeInvalidArgumentsError("cannot specify a blank path with DeleteSpec")
+			case gocbcore.SubDocOpReplace:
+				op.op = gocbcore.SubDocOpSetDoc
 			default:
 			}
 		}

@@ -147,13 +147,13 @@ type MutationMacro string
 
 const (
 	// MutationMacroCAS can be used to tell the server to use the CAS macro.
-	MutationMacroCAS = MutationMacro("${Mutation.CAS}")
+	MutationMacroCAS = MutationMacro("\"${Mutation.CAS}\"")
 
 	// MutationMacroSeqNo can be used to tell the server to use the seqno macro.
-	MutationMacroSeqNo = MutationMacro("${Mutation.seqno}")
+	MutationMacroSeqNo = MutationMacro("\"${Mutation.seqno}\"")
 
 	// MutationMacroValueCRC32c can be used to tell the server to use the value_crc32c macro.
-	MutationMacroValueCRC32c = MutationMacro("${Mutation.value_crc32c}")
+	MutationMacroValueCRC32c = MutationMacro("\"${Mutation.value_crc32c}\"")
 )
 
 // ClusterState specifies the current state of the cluster
