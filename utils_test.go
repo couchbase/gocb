@@ -5,7 +5,6 @@ import (
 	"io"
 	"io/ioutil"
 	"testing"
-	"time"
 
 	"github.com/pkg/errors"
 )
@@ -106,37 +105,4 @@ type testReadCloser struct {
 
 func (trc *testReadCloser) Close() error {
 	return trc.closeErr
-}
-
-// Not a test, just gets a collection instance.
-func testGetCollection(provider *mockKvProvider) *Collection {
-	clients := make(map[string]client)
-	cli := &mockClient{
-		bucketName:        "mock",
-		collectionID:      0,
-		scopeID:           0,
-		useMutationTokens: true,
-		mockKvProvider:    provider,
-	}
-	clients["mock"] = cli
-
-	b := &Bucket{
-		sb: stateBlock{
-			clientStateBlock: clientStateBlock{
-				BucketName: "mock",
-			},
-
-			cachedClient:     cli,
-			AnalyticsTimeout: 75000 * time.Millisecond,
-			QueryTimeout:     75000 * time.Millisecond,
-			SearchTimeout:    75000 * time.Millisecond,
-			ViewTimeout:      75000 * time.Millisecond,
-			KvTimeout:        2500 * time.Millisecond,
-			KvDurableTimeout: 10000 * time.Millisecond,
-			Transcoder:       NewJSONTranscoder(),
-			Tracer:           &noopTracer{},
-		},
-	}
-	col := b.DefaultCollection()
-	return col
 }

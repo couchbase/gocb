@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"time"
 
+	"github.com/stretchr/testify/mock"
+
 	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/pkg/errors"
 )
@@ -37,63 +39,62 @@ func (suite *UnitTestSuite) TestPingAll() {
 		},
 	}
 
-	doHTTP := func(req *gocbcore.HTTPRequest) (*gocbcore.HTTPResponse, error) {
-		var endpoint string
-		switch req.Service {
-		case gocbcore.N1qlService:
-			<-time.After(50 * time.Millisecond)
-			endpoint = "http://localhost:8093"
+	pendingOp := new(mockPendingOp)
+	pendingOp.AssertNotCalled(suite.T(), "Cancel", mock.AnythingOfType("error"))
 
-			req.Endpoint = endpoint
+	kvProvider := new(mockKvProvider)
+	kvProvider.
+		On("PingKvEx", gocbcore.PingKvOptions{}, mock.AnythingOfType("gocbcore.PingKvExCallback")).
+		Run(func(args mock.Arguments) {
+			cb := args.Get(1).(gocbcore.PingKvExCallback)
+			cb(pingResult, nil)
+		}).
+		Return(pendingOp, nil)
 
-			return &gocbcore.HTTPResponse{
-				Endpoint:   endpoint,
-				StatusCode: 200,
-				Body:       &testReadCloser{bytes.NewBufferString(""), nil},
-			}, nil
-		case gocbcore.FtsService:
+	httpProvider := new(mockHttpProvider)
+	httpProvider.
+		On("DoHTTPRequest", mock.MatchedBy(func(req *gocbcore.HTTPRequest) bool {
+			return req.Service == gocbcore.N1qlService
+		})).
+		Run(func(args mock.Arguments) {
+			req := args.Get(0).(*gocbcore.HTTPRequest)
+			req.Endpoint = "http://localhost:8093"
+		}).
+		After(50*time.Millisecond).
+		Return(&gocbcore.HTTPResponse{
+			Endpoint:   "http://localhost:8093",
+			StatusCode: 200,
+			Body:       &testReadCloser{bytes.NewBufferString(""), nil},
+		}, nil)
+
+	httpProvider.
+		On("DoHTTPRequest", mock.MatchedBy(func(req *gocbcore.HTTPRequest) bool {
+			return req.Service == gocbcore.FtsService
+		})).
+		Run(func(args mock.Arguments) {
+			req := args.Get(0).(*gocbcore.HTTPRequest)
 			req.Endpoint = "http://localhost:8094"
-			return nil, errors.New("some error occurred")
-		case gocbcore.CbasService:
-			<-time.After(20 * time.Millisecond)
-			endpoint = "http://localhost:8095"
+		}).
+		Return(nil, errors.New("some error occurred"))
 
-			req.Endpoint = endpoint
+	httpProvider.
+		On("DoHTTPRequest", mock.MatchedBy(func(req *gocbcore.HTTPRequest) bool {
+			return req.Service == gocbcore.CbasService
+		})).
+		Run(func(args mock.Arguments) {
+			req := args.Get(0).(*gocbcore.HTTPRequest)
+			req.Endpoint = "http://localhost:8095"
+		}).
+		After(20*time.Millisecond).
+		Return(&gocbcore.HTTPResponse{
+			Endpoint:   "http://localhost:8095",
+			StatusCode: 200,
+			Body:       &testReadCloser{bytes.NewBufferString(""), nil},
+		}, nil)
 
-			return &gocbcore.HTTPResponse{
-				Endpoint:   endpoint,
-				StatusCode: 200,
-				Body:       &testReadCloser{bytes.NewBufferString(""), nil},
-			}, nil
-		default:
-			return nil, errors.New("unexpected service type")
-		}
-	}
-
-	kvProvider := &mockKvProvider{
-		value: pingResult,
-	}
-
-	httpProvider := &mockHTTPProvider{
-		doFn: doHTTP,
-	}
-
-	clients := make(map[string]client)
-	cli := &mockClient{
-		bucketName:        "mock",
-		collectionID:      0,
-		scopeID:           0,
-		useMutationTokens: false,
-		mockKvProvider:    kvProvider,
-		mockHTTPProvider:  httpProvider,
-	}
-	clients["mock"] = cli
-	c := &Cluster{
-		connections: clients,
-		sb: stateBlock{
-			KvTimeout: 1000 * time.Millisecond,
-		},
-	}
+	cli := new(mockClient)
+	cli.On("getKvProvider").Return(kvProvider, nil)
+	cli.On("getHTTPProvider").Return(httpProvider, nil)
 
 	b := &Bucket{
 		sb: stateBlock{
@@ -101,10 +102,10 @@ func (suite *UnitTestSuite) TestPingAll() {
 				BucketName: "mock",
 			},
 
-			KvTimeout:        c.sb.KvTimeout,
-			AnalyticsTimeout: c.sb.AnalyticsTimeout,
-			QueryTimeout:     c.sb.QueryTimeout,
-			SearchTimeout:    c.sb.SearchTimeout,
+			KvTimeout:        1000 * time.Second,
+			AnalyticsTimeout: 1000 * time.Second,
+			QueryTimeout:     1000 * time.Second,
+			SearchTimeout:    1000 * time.Second,
 			cachedClient:     cli,
 		},
 	}
@@ -119,7 +120,7 @@ func (suite *UnitTestSuite) TestPingAll() {
 	}
 
 	if len(report.Services) != 4 {
-		suite.T().Fatalf("Expected services length to be 6 but was %d", len(report.Services))
+		suite.T().Fatalf("Expected services length to be 4 but was %d", len(report.Services))
 	}
 
 	for serviceType, services := range report.Services {

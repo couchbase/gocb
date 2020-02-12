@@ -7,15 +7,6 @@ import (
 	"github.com/couchbase/gocbcore/v8"
 )
 
-type mockDiagnosticsProvider struct {
-	info *gocbcore.DiagnosticInfo
-	err  error
-}
-
-func (provider *mockDiagnosticsProvider) Diagnostics() (*gocbcore.DiagnosticInfo, error) {
-	return provider.info, provider.err
-}
-
 func (suite *UnitTestSuite) TestDiagnostics() {
 	layout := "2006-01-02T15:04:05.000Z"
 	date1, err := time.Parse(layout, "2014-11-12T11:45:26.371Z")
@@ -46,16 +37,14 @@ func (suite *UnitTestSuite) TestDiagnostics() {
 		},
 	}
 
-	provider := &mockDiagnosticsProvider{
-		info: info,
-	}
-	cli := &mockClient{
-		mockDiagnosticsProvider: provider,
-		bucketName:              "mock",
-		collectionID:            0,
-		scopeID:                 0,
-		useMutationTokens:       false,
-	}
+	provider := new(mockDiagnosticsProvider)
+	provider.
+		On("Diagnostics").
+		Return(info, nil)
+
+	cli := new(mockClient)
+	cli.On("getDiagnosticsProvider").Return(provider, nil)
+	cli.On("connected").Return(true)
 
 	clients := make(map[string]client)
 	clients["mock-false"] = cli
@@ -182,18 +171,16 @@ func (suite *UnitTestSuite) TestDiagnostics() {
 }
 
 func (suite *UnitTestSuite) TestDiagnosticsWithID() {
-	provider := &mockDiagnosticsProvider{
-		info: &gocbcore.DiagnosticInfo{
+	provider := new(mockDiagnosticsProvider)
+	provider.
+		On("Diagnostics").
+		Return(&gocbcore.DiagnosticInfo{
 			ConfigRev: 1,
-		},
-	}
-	cli := &mockClient{
-		mockDiagnosticsProvider: provider,
-		bucketName:              "mock",
-		collectionID:            0,
-		scopeID:                 0,
-		useMutationTokens:       false,
-	}
+		}, nil)
+
+	cli := new(mockClient)
+	cli.On("getDiagnosticsProvider").Return(provider, nil)
+	cli.On("connected").Return(true)
 
 	clients := make(map[string]client)
 	clients["mock-false"] = cli

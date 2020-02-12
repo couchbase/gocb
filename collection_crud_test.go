@@ -6,6 +6,10 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/mock"
+
+	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
 func (suite *IntegrationTestSuite) TestErrorNonExistant() {
@@ -1448,18 +1452,44 @@ func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 	}
 }
 
-func (suite *IntegrationTestSuite) TestGetErrorCollectionUnknown() {
+func (suite *UnitTestSuite) TestGetErrorCollectionUnknown() {
 	var doc testBreweryDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
 		suite.T().Fatalf("Could not load dataset: %v", err)
 	}
 
-	provider := &mockKvProvider{
-		err:   ErrCollectionNotFound,
-		value: make([]byte, 0),
+	pendingOp := new(mockPendingOp)
+	pendingOp.AssertNotCalled(suite.T(), "Cancel", mock.AnythingOfType("error"))
+
+	provider := new(mockKvProvider)
+	provider.
+		On("GetEx", mock.AnythingOfType("gocbcore.GetOptions"), mock.AnythingOfType("gocbcore.GetExCallback")).
+		Run(func(args mock.Arguments) {
+			cb := args.Get(1).(gocbcore.GetExCallback)
+			cb(nil, gocbcore.ErrCollectionNotFound)
+		}).
+		Return(pendingOp, nil)
+
+	cli := new(mockClient)
+	cli.On("getKvProvider").Return(provider, nil)
+
+	col := &Collection{
+		sb: stateBlock{
+			clientStateBlock: clientStateBlock{
+				BucketName: "mock",
+			},
+
+			CollectionName: "",
+			ScopeName:      "",
+
+			cachedClient:         cli,
+			KvTimeout:            2500 * time.Millisecond,
+			Transcoder:           NewJSONTranscoder(),
+			Tracer:               &noopTracer{},
+			RetryStrategyWrapper: newRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
+		},
 	}
-	col := testGetCollection(provider)
 
 	res, err := col.Get("getDocErrCollectionUnknown", nil)
 	if err == nil {

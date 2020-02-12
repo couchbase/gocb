@@ -3,6 +3,7 @@ devsetup:
 	go get "golang.org/x/lint/golint"
 	go get "github.com/gordonklaus/ineffassign"
 	go get "github.com/client9/misspell/cmd/misspell"
+	go get github.com/vektra/mockery/.../
 	git submodule update --remote --init --recursive
 
 test:
@@ -40,4 +41,11 @@ bench:
 updatetestcases:
 	git submodule update --remote --init --recursive
 
-.PHONY: all test devsetup fasttest lint cover checkerrs checkfmt checkvet checkiea checkspell check bench updatetestcases
+updatemocks:
+	mockery -name client -output . -testonly -inpkg
+	mockery -name kvProvider -output . -testonly -inpkg
+	mockery -name httpProvider -output . -testonly -inpkg
+	mockery -name diagnosticsProvider -output . -testonly -inpkg
+	# pendingOp is manually mocked
+
+.PHONY: all test devsetup fasttest lint cover checkerrs checkfmt checkvet checkiea checkspell check bench updatetestcases updatemocks
