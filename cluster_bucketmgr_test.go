@@ -7,13 +7,13 @@ import (
 	"github.com/couchbase/gocbcore/v8"
 )
 
-func TestBucketMgrOps(t *testing.T) {
+func (suite *IntegrationTestSuite) TestBucketMgrOps() {
 	if testing.Short() {
-		t.Skip("Skipping test in short mode.")
+		suite.T().Skip("Skipping test in short mode.")
 	}
 
 	if globalCluster.NotSupportsFeature(BucketMgrFeature) {
-		t.Skip("Skipping test as bucket manager not supported.")
+		suite.T().Skip("Skipping test as bucket manager not supported.")
 	}
 
 	mgr := globalCluster.Buckets()
@@ -33,7 +33,7 @@ func TestBucketMgrOps(t *testing.T) {
 		ConflictResolutionType: ConflictResolutionTypeSequenceNumber,
 	}, nil)
 	if err != nil {
-		t.Fatalf("Failed to create bucket manager %v", err)
+		suite.T().Fatalf("Failed to create bucket manager %v", err)
 	}
 
 	// Buckets don't become available immediately so we need to do a bit of polling to see if it comes online.
@@ -44,7 +44,7 @@ func TestBucketMgrOps(t *testing.T) {
 			// Check that we can get and re-upsert a bucket.
 			bucket, err = mgr.GetBucket("test22", nil)
 			if err != nil {
-				t.Logf("Failed to get bucket %v", err)
+				suite.T().Logf("Failed to get bucket %v", err)
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}
@@ -59,22 +59,22 @@ func TestBucketMgrOps(t *testing.T) {
 	select {
 	case <-timer.C:
 		gocbcore.ReleaseTimer(timer, true)
-		t.Fatalf("Wait timeout expired for bucket to become available")
+		suite.T().Fatalf("Wait timeout expired for bucket to become available")
 	case <-bucketSignal:
 	}
 
 	err = mgr.UpdateBucket(*bucket, nil)
 	if err != nil {
-		t.Fatalf("Failed to upsert bucket after get %v", err)
+		suite.T().Fatalf("Failed to upsert bucket after get %v", err)
 	}
 
 	buckets, err := mgr.GetAllBuckets(nil)
 	if err != nil {
-		t.Fatalf("Failed to get all buckets %v", err)
+		suite.T().Fatalf("Failed to get all buckets %v", err)
 	}
 
 	if len(buckets) == 0 {
-		t.Fatalf("Bucket settings list was length 0")
+		suite.T().Fatalf("Bucket settings list was length 0")
 	}
 
 	var b *BucketSettings
@@ -85,16 +85,16 @@ func TestBucketMgrOps(t *testing.T) {
 	}
 
 	if b == nil {
-		t.Fatalf("Test bucket was not found in list of bucket settings, %v", buckets)
+		suite.T().Fatalf("Test bucket was not found in list of bucket settings, %v", buckets)
 	}
 
 	err = mgr.FlushBucket("test22", nil)
 	if err != nil {
-		t.Fatalf("Failed to flush bucket manager %v", err)
+		suite.T().Fatalf("Failed to flush bucket manager %v", err)
 	}
 
 	err = mgr.DropBucket("test22", nil)
 	if err != nil {
-		t.Fatalf("Failed to drop bucket manager %v", err)
+		suite.T().Fatalf("Failed to drop bucket manager %v", err)
 	}
 }

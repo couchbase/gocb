@@ -1,7 +1,6 @@
 package gocb
 
 import (
-	"testing"
 	"time"
 
 	"github.com/couchbase/gocbcore/v8"
@@ -73,7 +72,7 @@ func mockBackoffCalculator(retryAttempts uint32) time.Duration {
 	return time.Millisecond * time.Duration(retryAttempts)
 }
 
-func TestRetryWrapper_ForwardsAttempt(t *testing.T) {
+func (suite *UnitTestSuite) TestRetryWrapper_ForwardsAttempt() {
 	expectedAction := &NoRetryRetryAction{}
 	strategy := newRetryStrategyWrapper(&mockRetryStrategy{action: expectedAction})
 
@@ -82,77 +81,77 @@ func TestRetryWrapper_ForwardsAttempt(t *testing.T) {
 	}
 	action := strategy.RetryAfter(request, gocbcore.UnknownRetryReason)
 	if action != expectedAction {
-		t.Fatalf("Expected retry action to be %v but was %v", expectedAction, action)
+		suite.T().Fatalf("Expected retry action to be %v but was %v", expectedAction, action)
 	}
 }
 
-func TestBestEffortRetryStrategy_RetryAfterNoRetry(t *testing.T) {
+func (suite *UnitTestSuite) TestBestEffortRetryStrategy_RetryAfterNoRetry() {
 	strategy := NewBestEffortRetryStrategy(mockBackoffCalculator)
 	action := strategy.RetryAfter(&mockRetryRequest{}, RetryReason(gocbcore.UnknownRetryReason))
 	if action.Duration() != 0 {
-		t.Fatalf("Expected duration to be %d but was %d", 0, action.Duration())
+		suite.T().Fatalf("Expected duration to be %d but was %d", 0, action.Duration())
 	}
 }
 
-func TestBestEffortRetryStrategy_RetryAfterAlwaysRetry(t *testing.T) {
+func (suite *UnitTestSuite) TestBestEffortRetryStrategy_RetryAfterAlwaysRetry() {
 	strategy := NewBestEffortRetryStrategy(mockBackoffCalculator)
 	action := strategy.RetryAfter(&mockRetryRequest{}, RetryReason(gocbcore.KVCollectionOutdatedRetryReason))
 	if action.Duration() != 0 {
-		t.Fatalf("Expected duration to be %d but was %d", 0, action.Duration())
+		suite.T().Fatalf("Expected duration to be %d but was %d", 0, action.Duration())
 	}
 
 	action = strategy.RetryAfter(&mockRetryRequest{attempts: 5}, RetryReason(gocbcore.KVCollectionOutdatedRetryReason))
 	if action.Duration() != 5*time.Millisecond {
-		t.Fatalf("Expected duration to be %d but was %d", 5*time.Millisecond, action.Duration())
+		suite.T().Fatalf("Expected duration to be %d but was %d", 5*time.Millisecond, action.Duration())
 	}
 }
 
-func TestBestEffortRetryStrategy_RetryAfterAllowsNonIdempotent(t *testing.T) {
+func (suite *UnitTestSuite) TestBestEffortRetryStrategy_RetryAfterAllowsNonIdempotent() {
 	strategy := NewBestEffortRetryStrategy(mockBackoffCalculator)
 	action := strategy.RetryAfter(&mockRetryRequest{}, RetryReason(gocbcore.KVLockedRetryReason))
 	if action.Duration() != 0 {
-		t.Fatalf("Expected duration to be %d but was %d", 0, action.Duration())
+		suite.T().Fatalf("Expected duration to be %d but was %d", 0, action.Duration())
 	}
 
 	action = strategy.RetryAfter(&mockRetryRequest{attempts: 5}, RetryReason(gocbcore.KVLockedRetryReason))
 	if action.Duration() != 5*time.Millisecond {
-		t.Fatalf("Expected duration to be %d but was %d", 5*time.Millisecond, action.Duration())
+		suite.T().Fatalf("Expected duration to be %d but was %d", 5*time.Millisecond, action.Duration())
 	}
 }
 
-func TestBestEffortRetryStrategy_RetryAfterDefaultCalculator(t *testing.T) {
+func (suite *UnitTestSuite) TestBestEffortRetryStrategy_RetryAfterDefaultCalculator() {
 	strategy := NewBestEffortRetryStrategy(nil)
 	action := strategy.RetryAfter(&mockRetryRequest{}, RetryReason(gocbcore.KVCollectionOutdatedRetryReason))
 	if action.Duration() != 1*time.Millisecond {
-		t.Fatalf("Expected duration to be %d but was %d", 1*time.Millisecond, action.Duration())
+		suite.T().Fatalf("Expected duration to be %d but was %d", 1*time.Millisecond, action.Duration())
 	}
 
 	action = strategy.RetryAfter(&mockRetryRequest{attempts: 5}, RetryReason(gocbcore.KVLockedRetryReason))
 	if action.Duration() != 1000*time.Millisecond {
-		t.Fatalf("Expected duration to be %d but was %d", 1000*time.Millisecond, action.Duration())
+		suite.T().Fatalf("Expected duration to be %d but was %d", 1000*time.Millisecond, action.Duration())
 	}
 }
 
-func TestFailFastRetryStrategy_RetryAfterNoRetry(t *testing.T) {
+func (suite *UnitTestSuite) TestFailFastRetryStrategy_RetryAfterNoRetry() {
 	strategy := newFailFastRetryStrategy()
 	action := strategy.RetryAfter(&mockRetryRequest{}, RetryReason(gocbcore.UnknownRetryReason))
 	if action.Duration() != 0 {
-		t.Fatalf("Expected duration to be %d but was %d", 0, action.Duration())
+		suite.T().Fatalf("Expected duration to be %d but was %d", 0, action.Duration())
 	}
 }
 
-func TestFailFastRetryStrategy_RetryAfterAlwaysRetry(t *testing.T) {
+func (suite *UnitTestSuite) TestFailFastRetryStrategy_RetryAfterAlwaysRetry() {
 	strategy := newFailFastRetryStrategy()
 	action := strategy.RetryAfter(&mockRetryRequest{}, RetryReason(gocbcore.KVCollectionOutdatedRetryReason))
 	if action.Duration() != 0 {
-		t.Fatalf("Expected duration to be %d but was %d", 0, action.Duration())
+		suite.T().Fatalf("Expected duration to be %d but was %d", 0, action.Duration())
 	}
 }
 
-func TestFailFastRetryStrategy_RetryAfterAllowsNonIdempotent(t *testing.T) {
+func (suite *UnitTestSuite) TestFailFastRetryStrategy_RetryAfterAllowsNonIdempotent() {
 	strategy := newFailFastRetryStrategy()
 	action := strategy.RetryAfter(&mockRetryRequest{}, RetryReason(gocbcore.KVLockedRetryReason))
 	if action.Duration() != 0 {
-		t.Fatalf("Expected duration to be %d but was %d", 0, action.Duration())
+		suite.T().Fatalf("Expected duration to be %d but was %d", 0, action.Duration())
 	}
 }

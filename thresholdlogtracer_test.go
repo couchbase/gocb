@@ -1,11 +1,10 @@
 package gocb
 
 import (
-	"testing"
 	"time"
 )
 
-func TestThresholdGroup(t *testing.T) {
+func (suite *UnitTestSuite) TestThresholdGroup() {
 	time.Sleep(100 * time.Millisecond)
 
 	var grp thresholdLogGroup
@@ -14,7 +13,7 @@ func TestThresholdGroup(t *testing.T) {
 	grp.recordOp(&thresholdLogSpan{duration: 2 * time.Millisecond})
 
 	if len(grp.ops) != 1 {
-		t.Fatalf("Failed to ignore duration below threshold")
+		suite.T().Fatalf("Failed to ignore duration below threshold")
 	}
 
 	grp.recordOp(&thresholdLogSpan{duration: 6 * time.Millisecond})
@@ -24,15 +23,15 @@ func TestThresholdGroup(t *testing.T) {
 	grp.recordOp(&thresholdLogSpan{duration: 9 * time.Millisecond})
 
 	if len(grp.ops) != 3 {
-		t.Fatalf("Failed to reach real capacity")
+		suite.T().Fatalf("Failed to reach real capacity")
 	}
 	if grp.ops[0].duration != 5*time.Millisecond {
-		t.Fatalf("Failed to insert in correct order (1)")
+		suite.T().Fatalf("Failed to insert in correct order (1)")
 	}
 	if grp.ops[1].duration != 6*time.Millisecond {
-		t.Fatalf("Failed to insert in correct order (2)")
+		suite.T().Fatalf("Failed to insert in correct order (2)")
 	}
 	if grp.ops[2].duration != 9*time.Millisecond {
-		t.Fatalf("Failed to insert in correct order (3)")
+		suite.T().Fatalf("Failed to insert in correct order (3)")
 	}
 }

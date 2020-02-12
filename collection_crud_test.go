@@ -8,73 +8,73 @@ import (
 	"time"
 )
 
-func TestErrorNonExistant(t *testing.T) {
+func (suite *IntegrationTestSuite) TestErrorNonExistant() {
 	res, err := globalCollection.Get("doesnt-exist", nil)
 	if err == nil {
-		t.Fatalf("Expected error to be non-nil")
+		suite.T().Fatalf("Expected error to be non-nil")
 	}
 
 	if res != nil {
-		t.Fatalf("Expected result to be nil but was %v", res)
+		suite.T().Fatalf("Expected result to be nil but was %v", res)
 	}
 }
 
-func TestErrorDoubleInsert(t *testing.T) {
+func (suite *IntegrationTestSuite) TestErrorDoubleInsert() {
 	_, err := globalCollection.Insert("doubleInsert", "test", nil)
 	if err != nil {
-		t.Fatalf("Expected error to be nil but was %v", err)
+		suite.T().Fatalf("Expected error to be nil but was %v", err)
 	}
 	_, err = globalCollection.Insert("doubleInsert", "test", nil)
 	if err == nil {
-		t.Fatalf("Expected error to be non-nil")
+		suite.T().Fatalf("Expected error to be non-nil")
 	}
 
 	if !errors.Is(err, ErrDocumentExists) {
-		t.Fatalf("Expected error to be DocumentExists but is %s", err)
+		suite.T().Fatalf("Expected error to be DocumentExists but is %s", err)
 	}
 }
 
-func TestInsertGetWithExpiry(t *testing.T) {
+func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {
 	if globalCluster.NotSupportsFeature(XattrFeature) {
-		t.Skip("Skipping test as xattrs not supported.")
+		suite.T().Skip("Skipping test as xattrs not supported.")
 	}
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
+		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
 	mutRes, err := globalCollection.Insert("expiryDoc", doc, &InsertOptions{Expiry: 10})
 	if err != nil {
-		t.Fatalf("Insert failed, error was %v", err)
+		suite.T().Fatalf("Insert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Insert CAS was 0")
+		suite.T().Fatalf("Insert CAS was 0")
 	}
 
 	insertedDoc, err := globalCollection.Get("expiryDoc", &GetOptions{WithExpiry: true})
 	if err != nil {
-		t.Fatalf("Get failed, error was %v", err)
+		suite.T().Fatalf("Get failed, error was %v", err)
 	}
 
 	var insertedDocContent testBeerDocument
 	err = insertedDoc.Content(&insertedDocContent)
 	if err != nil {
-		t.Fatalf("Content failed, error was %v", err)
+		suite.T().Fatalf("Content failed, error was %v", err)
 	}
 
 	if doc != insertedDocContent {
-		t.Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
+		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
 	}
 
 	if *insertedDoc.Expiry() == 0 {
-		t.Fatalf("Expected expiry value to be populated")
+		suite.T().Fatalf("Expected expiry value to be populated")
 	}
 }
 
-func TestInsertGetProjection(t *testing.T) {
+func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 	type PersonDimensions struct {
 		Height int `json:"height"`
 		Weight int `json:"weight"`
@@ -106,16 +106,16 @@ func TestInsertGetProjection(t *testing.T) {
 	var person Person
 	err := loadJSONTestDataset("projection_doc", &person)
 	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
+		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
 	mutRes, err := globalCollection.Upsert("projectDoc", person, nil)
 	if err != nil {
-		t.Fatalf("Insert failed, error was %v", err)
+		suite.T().Fatalf("Insert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Insert CAS was 0")
+		suite.T().Fatalf("Insert CAS was 0")
 	}
 
 	type tCase struct {
@@ -332,28 +332,28 @@ func TestInsertGetProjection(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
+		suite.T().Run(testCase.name, func(t *testing.T) {
 			doc, err := globalCollection.Get("projectDoc", &GetOptions{
 				Project: testCase.project,
 			})
 			if err != nil {
-				t.Fatalf("Get failed, error was %v", err)
+				suite.T().Fatalf("Get failed, error was %v", err)
 			}
 
 			var actual Person
 			err = doc.Content(&actual)
 			if err != nil {
-				t.Fatalf("Content failed, error was %v", err)
+				suite.T().Fatalf("Content failed, error was %v", err)
 			}
 
 			if !reflect.DeepEqual(actual, testCase.expected) {
-				t.Fatalf("Projection failed, expected %+v but was %+v", testCase.expected, actual)
+				suite.T().Fatalf("Projection failed, expected %+v but was %+v", testCase.expected, actual)
 			}
 		})
 	}
 }
 
-func TestInsertGetProjection18Fields(t *testing.T) {
+func (suite *IntegrationTestSuite) TestInsertGetProjection18Fields() {
 	type docType struct {
 		Field1  int `json:"field1"`
 		Field2  int `json:"field2"`
@@ -380,11 +380,11 @@ func TestInsertGetProjection18Fields(t *testing.T) {
 
 	mutRes, err := globalCollection.Insert("projectDocTooManyFields", doc, nil)
 	if err != nil {
-		t.Fatalf("Insert failed, error was %v", err)
+		suite.T().Fatalf("Insert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Insert CAS was 0")
+		suite.T().Fatalf("Insert CAS was 0")
 	}
 
 	getDoc, err := globalCollection.Get("projectDocTooManyFields", &GetOptions{
@@ -392,44 +392,44 @@ func TestInsertGetProjection18Fields(t *testing.T) {
 			"field10", "field11", "field12", "field13", "field14", "field15", "field16", "field17"},
 	})
 	if err != nil {
-		t.Fatalf("Get failed, error was %v", err)
+		suite.T().Fatalf("Get failed, error was %v", err)
 	}
 
 	var getDocContent map[string]interface{}
 	err = getDoc.Content(&getDocContent)
 	if err != nil {
-		t.Fatalf("Content failed, error was %v", err)
+		suite.T().Fatalf("Content failed, error was %v", err)
 	}
 
 	bytes, err := json.Marshal(doc)
 	if err != nil {
-		t.Fatalf("Marshal failed, error was %v", err)
+		suite.T().Fatalf("Marshal failed, error was %v", err)
 	}
 
 	var originalDocContent map[string]interface{}
 	err = json.Unmarshal(bytes, &originalDocContent)
 	if err != nil {
-		t.Fatalf("Unmarshal failed, error was %v", err)
+		suite.T().Fatalf("Unmarshal failed, error was %v", err)
 	}
 
 	if len(getDocContent) != 17 {
-		t.Fatalf("Expected doc content to have 17 fields, had %d", len(getDocContent))
+		suite.T().Fatalf("Expected doc content to have 17 fields, had %d", len(getDocContent))
 	}
 
 	if _, ok := getDocContent["field18"]; ok {
-		t.Fatalf("Expected doc to not contain field18")
+		suite.T().Fatalf("Expected doc to not contain field18")
 	}
 
 	for k, v := range originalDocContent {
 		if v != getDocContent[k] && k != "field18" {
-			t.Fatalf("%s not equal, expected %d but was %d", k, v, originalDocContent[k])
+			suite.T().Fatalf("%s not equal, expected %d but was %d", k, v, originalDocContent[k])
 		}
 	}
 }
 
-func TestInsertGetProjection16FieldsExpiry(t *testing.T) {
+func (suite *IntegrationTestSuite) TestInsertGetProjection16FieldsExpiry() {
 	if globalCluster.NotSupportsFeature(XattrFeature) {
-		t.Skip("Skipping test as xattrs not supported.")
+		suite.T().Skip("Skipping test as xattrs not supported.")
 	}
 
 	type docType struct {
@@ -460,11 +460,11 @@ func TestInsertGetProjection16FieldsExpiry(t *testing.T) {
 		Expiry: 60,
 	})
 	if err != nil {
-		t.Fatalf("Insert failed, error was %v", err)
+		suite.T().Fatalf("Insert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Insert CAS was 0")
+		suite.T().Fatalf("Insert CAS was 0")
 	}
 
 	insertedDoc, err := globalCollection.Get("projectDocTooManyFieldsExpiry", &GetOptions{
@@ -473,146 +473,146 @@ func TestInsertGetProjection16FieldsExpiry(t *testing.T) {
 		WithExpiry: true,
 	})
 	if err != nil {
-		t.Fatalf("Get failed, error was %v", err)
+		suite.T().Fatalf("Get failed, error was %v", err)
 	}
 
 	var insertedDocContent map[string]interface{}
 	err = insertedDoc.Content(&insertedDocContent)
 	if err != nil {
-		t.Fatalf("Content failed, error was %v", err)
+		suite.T().Fatalf("Content failed, error was %v", err)
 	}
 
 	bytes, err := json.Marshal(doc)
 	if err != nil {
-		t.Fatalf("Marshal failed, error was %v", err)
+		suite.T().Fatalf("Marshal failed, error was %v", err)
 	}
 
 	var originalDocContent map[string]interface{}
 	err = json.Unmarshal(bytes, &originalDocContent)
 	if err != nil {
-		t.Fatalf("Unmarshal failed, error was %v", err)
+		suite.T().Fatalf("Unmarshal failed, error was %v", err)
 	}
 
 	if len(insertedDocContent) != 16 {
-		t.Fatalf("Expected doc content to have 16 fields, had %d", len(insertedDocContent))
+		suite.T().Fatalf("Expected doc content to have 16 fields, had %d", len(insertedDocContent))
 	}
 
 	for k, v := range originalDocContent {
 		if v != originalDocContent[k] {
-			t.Fatalf("%s not equal, expected %d but was %d", k, v, originalDocContent[k])
+			suite.T().Fatalf("%s not equal, expected %d but was %d", k, v, originalDocContent[k])
 		}
 	}
 
 	if *insertedDoc.Expiry() == 0 {
-		t.Fatalf("Expected expiry value to be populated")
+		suite.T().Fatalf("Expected expiry value to be populated")
 	}
 }
 
-func TestInsertGetProjectionPathMissing(t *testing.T) {
+func (suite *IntegrationTestSuite) TestInsertGetProjectionPathMissing() {
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
+		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
 	mutRes, err := globalCollection.Insert("projectMissingDoc", doc, nil)
 	if err != nil {
-		t.Fatalf("Insert failed, error was %v", err)
+		suite.T().Fatalf("Insert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Insert CAS was 0")
+		suite.T().Fatalf("Insert CAS was 0")
 	}
 
 	_, err = globalCollection.Get("projectMissingDoc", &GetOptions{
 		Project: []string{"name", "thisfielddoesntexist"},
 	})
 	if err == nil {
-		t.Fatalf("Get should have failed")
+		suite.T().Fatalf("Get should have failed")
 	}
 }
 
-func TestInsertGet(t *testing.T) {
+func (suite *IntegrationTestSuite) TestInsertGet() {
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
+		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
 	mutRes, err := globalCollection.Insert("insertDoc", doc, nil)
 	if err != nil {
-		t.Fatalf("Insert failed, error was %v", err)
+		suite.T().Fatalf("Insert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Insert CAS was 0")
+		suite.T().Fatalf("Insert CAS was 0")
 	}
 
 	insertedDoc, err := globalCollection.Get("insertDoc", nil)
 	if err != nil {
-		t.Fatalf("Get failed, error was %v", err)
+		suite.T().Fatalf("Get failed, error was %v", err)
 	}
 
 	var insertedDocContent testBeerDocument
 	err = insertedDoc.Content(&insertedDocContent)
 	if err != nil {
-		t.Fatalf("Content failed, error was %v", err)
+		suite.T().Fatalf("Content failed, error was %v", err)
 	}
 
 	if doc != insertedDocContent {
-		t.Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
+		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
 	}
 }
 
-func TestExists(t *testing.T) {
+func (suite *IntegrationTestSuite) TestExists() {
 	if globalCluster.NotSupportsFeature(GetMetaFeature) {
-		t.Skip("Skipping test as GetMeta not supported.")
+		suite.T().Skip("Skipping test as GetMeta not supported.")
 	}
 
 	_, err := globalCollection.Insert("exists", "test", nil)
 	if err != nil {
-		t.Fatalf("Insert failed, error was %v", err)
+		suite.T().Fatalf("Insert failed, error was %v", err)
 	}
 
 	existsRes, err := globalCollection.Exists("exists", nil)
 	if err != nil {
-		t.Fatalf("Exists failed, error was %v", err)
+		suite.T().Fatalf("Exists failed, error was %v", err)
 	}
 
 	if !existsRes.Exists() {
-		t.Fatalf("Expected exists to return true")
+		suite.T().Fatalf("Expected exists to return true")
 	}
 
 	_, err = globalCollection.Remove("exists", nil)
 	if err != nil {
-		t.Fatalf("Remove failed, error was %v", err)
+		suite.T().Fatalf("Remove failed, error was %v", err)
 	}
 
 	existsRes, err = globalCollection.Exists("exists", nil)
 	if err != nil {
-		t.Fatalf("Exists failed, error was %v", err)
+		suite.T().Fatalf("Exists failed, error was %v", err)
 	}
 
 	if existsRes.Exists() {
-		t.Fatalf("Expected exists to return false")
+		suite.T().Fatalf("Expected exists to return false")
 	}
 }
 
 // Following test tests that if a collection is deleted and recreated midway through a set of operations
 // then the operations will still succeed due to the cid being refreshed under the hood.
-func TestCollectionRetry(t *testing.T) {
+func (suite *IntegrationTestSuite) TestCollectionRetry() {
 	if testing.Short() {
-		t.Skip("Skipping test in short mode.")
+		suite.T().Skip("Skipping test in short mode.")
 	}
 
 	if globalCluster.NotSupportsFeature(CollectionsFeature) {
-		t.Skip("Skipping test as collections not supported.")
+		suite.T().Skip("Skipping test as collections not supported.")
 	}
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
+		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
 	collectionName := "insertRetry"
@@ -622,12 +622,12 @@ func TestCollectionRetry(t *testing.T) {
 
 	err = mgr.CreateCollection(CollectionSpec{ScopeName: "_default", Name: collectionName}, nil)
 	if err != nil {
-		t.Fatalf("Could not create collection: %v", err)
+		suite.T().Fatalf("Could not create collection: %v", err)
 	}
 
 	err = waitForCollection(globalBucket, collectionName)
 	if err != nil {
-		t.Fatalf("Failed waiting for collection: %v", err)
+		suite.T().Fatalf("Failed waiting for collection: %v", err)
 	}
 
 	col := globalBucket.Collection(collectionName)
@@ -635,22 +635,22 @@ func TestCollectionRetry(t *testing.T) {
 	// Make sure we've connected to the collection ok
 	mutRes, err := col.Upsert("insertRetryDoc", doc, nil)
 	if err != nil {
-		t.Fatalf("Upsert failed, error was %v", err)
+		suite.T().Fatalf("Upsert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Upsert CAS was 0")
+		suite.T().Fatalf("Upsert CAS was 0")
 	}
 
 	// The following delete and create will recreate a collection with the same name but a different cid.
 	err = mgr.DropCollection(CollectionSpec{ScopeName: "_default", Name: collectionName}, nil)
 	if err != nil {
-		t.Fatalf("Could not drop collection: %v", err)
+		suite.T().Fatalf("Could not drop collection: %v", err)
 	}
 
 	err = mgr.CreateCollection(CollectionSpec{ScopeName: "_default", Name: collectionName}, nil)
 	if err != nil {
-		t.Fatalf("Could not create collection: %v", err)
+		suite.T().Fatalf("Could not create collection: %v", err)
 	}
 
 	time.Sleep(500 * time.Millisecond)
@@ -658,81 +658,81 @@ func TestCollectionRetry(t *testing.T) {
 	// We've wiped the collection so we need to recreate this doc
 	mutRes, err = col.Upsert("insertRetryDoc", doc, nil)
 	if err != nil {
-		t.Fatalf("Upsert failed, error was %v", err)
+		suite.T().Fatalf("Upsert failed, error was %v", err)
 	}
 
 	insertedDoc, err := col.Get("insertRetryDoc", nil)
 	if err != nil {
-		t.Fatalf("Get failed, error was %v", err)
+		suite.T().Fatalf("Get failed, error was %v", err)
 	}
 
 	var insertedDocContent testBeerDocument
 	err = insertedDoc.Content(&insertedDocContent)
 	if err != nil {
-		t.Fatalf("Content failed, error was %v", err)
+		suite.T().Fatalf("Content failed, error was %v", err)
 	}
 
 	if doc != insertedDocContent {
-		t.Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
+		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
 	}
 }
 
-func TestUpsertGetRemove(t *testing.T) {
+func (suite *IntegrationTestSuite) TestUpsertGetRemove() {
 	if globalCluster.NotSupportsFeature(GetMetaFeature) {
-		t.Skip("Skipping test as GetMeta not supported.")
+		suite.T().Skip("Skipping test as GetMeta not supported.")
 	}
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
+		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
 	mutRes, err := globalCollection.Upsert("upsertDoc", doc, nil)
 	if err != nil {
-		t.Fatalf("Upsert failed, error was %v", err)
+		suite.T().Fatalf("Upsert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Upsert CAS was 0")
+		suite.T().Fatalf("Upsert CAS was 0")
 	}
 
 	upsertedDoc, err := globalCollection.Get("upsertDoc", nil)
 	if err != nil {
-		t.Fatalf("Get failed, error was %v", err)
+		suite.T().Fatalf("Get failed, error was %v", err)
 	}
 
 	var upsertedDocContent testBeerDocument
 	err = upsertedDoc.Content(&upsertedDocContent)
 	if err != nil {
-		t.Fatalf("Content failed, error was %v", err)
+		suite.T().Fatalf("Content failed, error was %v", err)
 	}
 
 	if doc != upsertedDocContent {
-		t.Fatalf("Expected resulting doc to be %v but was %v", doc, upsertedDocContent)
+		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, upsertedDocContent)
 	}
 
 	existsRes, err := globalCollection.Exists("upsertDoc", nil)
 	if err != nil {
-		t.Fatalf("Exists failed, error was %v", err)
+		suite.T().Fatalf("Exists failed, error was %v", err)
 	}
 
 	if !existsRes.Exists() {
-		t.Fatalf("Expected exists to return true")
+		suite.T().Fatalf("Expected exists to return true")
 	}
 
 	_, err = globalCollection.Remove("upsertDoc", nil)
 	if err != nil {
-		t.Fatalf("Remove failed, error was %v", err)
+		suite.T().Fatalf("Remove failed, error was %v", err)
 	}
 
 	existsRes, err = globalCollection.Exists("upsertDoc", nil)
 	if err != nil {
-		t.Fatalf("Exists failed, error was %v", err)
+		suite.T().Fatalf("Exists failed, error was %v", err)
 	}
 
 	if existsRes.Exists() {
-		t.Fatalf("Expected exists to return false")
+		suite.T().Fatalf("Expected exists to return false")
 	}
 }
 
@@ -745,30 +745,30 @@ func (rts *upsertRetriesStrategy) RetryAfter(req RetryRequest, reason RetryReaso
 	return &WithDurationRetryAction{100 * time.Millisecond}
 }
 
-func TestUpsertRetries(t *testing.T) {
+func (suite *IntegrationTestSuite) TestUpsertRetries() {
 	if testing.Short() {
-		t.Log("Skipping test in short mode")
+		suite.T().Skip("Skipping test in short mode")
 		return
 	}
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
+		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
 	mutRes, err := globalCollection.Upsert("getRetryDoc", doc, nil)
 	if err != nil {
-		t.Fatalf("Upsert failed, error was %v", err)
+		suite.T().Fatalf("Upsert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Upsert CAS was 0")
+		suite.T().Fatalf("Upsert CAS was 0")
 	}
 
 	_, err = globalCollection.GetAndLock("getRetryDoc", 1*time.Second, nil)
 	if err != nil {
-		t.Fatalf("GetAndLock failed, error was %v", err)
+		suite.T().Fatalf("GetAndLock failed, error was %v", err)
 	}
 
 	retryStrategy := &upsertRetriesStrategy{}
@@ -777,333 +777,333 @@ func TestUpsertRetries(t *testing.T) {
 		RetryStrategy: retryStrategy,
 	})
 	if err != nil {
-		t.Fatalf("Upsert failed, error was %v", err)
+		suite.T().Fatalf("Upsert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Upsert CAS was 0")
+		suite.T().Fatalf("Upsert CAS was 0")
 	}
 
 	if retryStrategy.retries <= 1 {
-		t.Fatalf("Expected retries to be > 1")
+		suite.T().Fatalf("Expected retries to be > 1")
 	}
 }
 
-func TestRemoveWithCas(t *testing.T) {
+func (suite *IntegrationTestSuite) TestRemoveWithCas() {
 	if globalCluster.NotSupportsFeature(GetMetaFeature) {
-		t.Skip("Skipping test as GetMeta not supported.")
+		suite.T().Skip("Skipping test as GetMeta not supported.")
 	}
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
+		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
 	mutRes, err := globalCollection.Upsert("removeWithCas", doc, nil)
 	if err != nil {
-		t.Fatalf("Upsert failed, error was %v", err)
+		suite.T().Fatalf("Upsert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Upsert CAS was 0")
+		suite.T().Fatalf("Upsert CAS was 0")
 	}
 
 	existsRes, err := globalCollection.Exists("removeWithCas", nil)
 	if err != nil {
-		t.Fatalf("Exists failed, error was %v", err)
+		suite.T().Fatalf("Exists failed, error was %v", err)
 	}
 
 	if !existsRes.Exists() {
-		t.Fatalf("Expected exists to return true")
+		suite.T().Fatalf("Expected exists to return true")
 	}
 
 	_, err = globalCollection.Remove("removeWithCas", &RemoveOptions{Cas: mutRes.Cas() + 0xFECA})
 	if err == nil {
-		t.Fatalf("Expected remove to fail")
+		suite.T().Fatalf("Expected remove to fail")
 	}
 
 	if !errors.Is(err, ErrCasMismatch) {
-		t.Fatalf("Expected error to be CasMismatch but is %s", err)
+		suite.T().Fatalf("Expected error to be CasMismatch but is %s", err)
 	}
 
 	existsRes, err = globalCollection.Exists("removeWithCas", nil)
 	if err != nil {
-		t.Fatalf("Exists failed, error was %v", err)
+		suite.T().Fatalf("Exists failed, error was %v", err)
 	}
 
 	if !existsRes.Exists() {
-		t.Fatalf("Expected exists to return true")
+		suite.T().Fatalf("Expected exists to return true")
 	}
 
 	_, err = globalCollection.Remove("removeWithCas", &RemoveOptions{Cas: mutRes.Cas()})
 	if err != nil {
-		t.Fatalf("Remove failed, error was %v", err)
+		suite.T().Fatalf("Remove failed, error was %v", err)
 	}
 
 	existsRes, err = globalCollection.Exists("removeWithCas", nil)
 	if err != nil {
-		t.Fatalf("Exists failed, error was %v", err)
+		suite.T().Fatalf("Exists failed, error was %v", err)
 	}
 
 	if existsRes.Exists() {
-		t.Fatalf("Expected exists to return false")
+		suite.T().Fatalf("Expected exists to return false")
 	}
 }
 
-func TestUpsertAndReplace(t *testing.T) {
+func (suite *IntegrationTestSuite) TestUpsertAndReplace() {
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
+		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
 	mutRes, err := globalCollection.Upsert("upsertAndReplace", doc, nil)
 	if err != nil {
-		t.Fatalf("Upsert failed, error was %v", err)
+		suite.T().Fatalf("Upsert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Upsert CAS was 0")
+		suite.T().Fatalf("Upsert CAS was 0")
 	}
 
 	insertedDoc, err := globalCollection.Get("upsertAndReplace", nil)
 	if err != nil {
-		t.Fatalf("Get failed, error was %v", err)
+		suite.T().Fatalf("Get failed, error was %v", err)
 	}
 
 	var insertedDocContent testBeerDocument
 	err = insertedDoc.Content(&insertedDocContent)
 	if err != nil {
-		t.Fatalf("Content failed, error was %v", err)
+		suite.T().Fatalf("Content failed, error was %v", err)
 	}
 
 	if doc != insertedDocContent {
-		t.Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
+		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
 	}
 
 	doc.Name = "replaced"
 	mutRes, err = globalCollection.Replace("upsertAndReplace", doc, &ReplaceOptions{Cas: mutRes.Cas()})
 	if err != nil {
-		t.Fatalf("Upsert failed, error was %v", err)
+		suite.T().Fatalf("Upsert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Upsert CAS was 0")
+		suite.T().Fatalf("Upsert CAS was 0")
 	}
 
 	replacedDoc, err := globalCollection.Get("upsertAndReplace", nil)
 	if err != nil {
-		t.Fatalf("Get failed, error was %v", err)
+		suite.T().Fatalf("Get failed, error was %v", err)
 	}
 
 	var replacedDocContent testBeerDocument
 	err = replacedDoc.Content(&replacedDocContent)
 	if err != nil {
-		t.Fatalf("Content failed, error was %v", err)
+		suite.T().Fatalf("Content failed, error was %v", err)
 	}
 
 	if doc != replacedDocContent {
-		t.Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
+		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
 	}
 }
 
-func TestGetAndTouch(t *testing.T) {
+func (suite *IntegrationTestSuite) TestGetAndTouch() {
 	if globalCluster.NotSupportsFeature(XattrFeature) {
-		t.Skip("Skipping test as xattrs not supported.")
+		suite.T().Skip("Skipping test as xattrs not supported.")
 	}
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
+		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
 	mutRes, err := globalCollection.Upsert("getAndTouch", doc, nil)
 	if err != nil {
-		t.Fatalf("Upsert failed, error was %v", err)
+		suite.T().Fatalf("Upsert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Upsert CAS was 0")
+		suite.T().Fatalf("Upsert CAS was 0")
 	}
 
 	lockedDoc, err := globalCollection.GetAndTouch("getAndTouch", 10, nil)
 	if err != nil {
-		t.Fatalf("Get failed, error was %v", err)
+		suite.T().Fatalf("Get failed, error was %v", err)
 	}
 
 	var lockedDocContent testBeerDocument
 	err = lockedDoc.Content(&lockedDocContent)
 	if err != nil {
-		t.Fatalf("Content failed, error was %v", err)
+		suite.T().Fatalf("Content failed, error was %v", err)
 	}
 
 	if doc != lockedDocContent {
-		t.Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
+		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
 	}
 
 	expireDoc, err := globalCollection.Get("getAndTouch", &GetOptions{WithExpiry: true})
 	if err != nil {
-		t.Fatalf("Get failed, error was %v", err)
+		suite.T().Fatalf("Get failed, error was %v", err)
 	}
 
 	if *expireDoc.Expiry() == 0 {
-		t.Fatalf("Expected doc to have an expiry > 0, was %d", expireDoc.Expiry())
+		suite.T().Fatalf("Expected doc to have an expiry > 0, was %d", expireDoc.Expiry())
 	}
 
 	var expireDocContent testBeerDocument
 	err = expireDoc.Content(&expireDocContent)
 	if err != nil {
-		t.Fatalf("Content failed, error was %v", err)
+		suite.T().Fatalf("Content failed, error was %v", err)
 	}
 
 	if doc != expireDocContent {
-		t.Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
+		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
 	}
 }
 
-func TestGetAndLock(t *testing.T) {
+func (suite *IntegrationTestSuite) TestGetAndLock() {
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
+		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
 	mutRes, err := globalCollection.Upsert("getAndLock", doc, nil)
 	if err != nil {
-		t.Fatalf("Upsert failed, error was %v", err)
+		suite.T().Fatalf("Upsert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Upsert CAS was 0")
+		suite.T().Fatalf("Upsert CAS was 0")
 	}
 
 	lockedDoc, err := globalCollection.GetAndLock("getAndLock", 1*time.Second, nil)
 	if err != nil {
-		t.Fatalf("Get failed, error was %v", err)
+		suite.T().Fatalf("Get failed, error was %v", err)
 	}
 
 	var lockedDocContent testBeerDocument
 	err = lockedDoc.Content(&lockedDocContent)
 	if err != nil {
-		t.Fatalf("Content failed, error was %v", err)
+		suite.T().Fatalf("Content failed, error was %v", err)
 	}
 
 	if doc != lockedDocContent {
-		t.Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
+		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
 	}
 
 	mutRes, err = globalCollection.Upsert("getAndLock", doc, &UpsertOptions{
 		RetryStrategy: newFailFastRetryStrategy(),
 	})
 	if err == nil {
-		t.Fatalf("Expected error but was nil")
+		suite.T().Fatalf("Expected error but was nil")
 	}
 
 	if !errors.Is(err, ErrDocumentLocked) {
-		t.Fatalf("Expected error to be DocumentLocked but is %s", err)
+		suite.T().Fatalf("Expected error to be DocumentLocked but is %s", err)
 	}
 
 	globalCluster.TimeTravel(2000 * time.Millisecond)
 
 	mutRes, err = globalCollection.Upsert("getAndLock", doc, nil)
 	if err != nil {
-		t.Fatalf("Upsert failed, error was %v", err)
+		suite.T().Fatalf("Upsert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Upsert CAS was 0")
+		suite.T().Fatalf("Upsert CAS was 0")
 	}
 }
 
-func TestUnlock(t *testing.T) {
+func (suite *IntegrationTestSuite) TestUnlock() {
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
+		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
 	mutRes, err := globalCollection.Upsert("unlock", doc, nil)
 	if err != nil {
-		t.Fatalf("Upsert failed, error was %v", err)
+		suite.T().Fatalf("Upsert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Upsert CAS was 0")
+		suite.T().Fatalf("Upsert CAS was 0")
 	}
 
 	lockedDoc, err := globalCollection.GetAndLock("unlock", 1, nil)
 	if err != nil {
-		t.Fatalf("Get failed, error was %v", err)
+		suite.T().Fatalf("Get failed, error was %v", err)
 	}
 
 	var lockedDocContent testBeerDocument
 	err = lockedDoc.Content(&lockedDocContent)
 	if err != nil {
-		t.Fatalf("Content failed, error was %v", err)
+		suite.T().Fatalf("Content failed, error was %v", err)
 	}
 
 	if doc != lockedDocContent {
-		t.Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
+		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
 	}
 
 	err = globalCollection.Unlock("unlock", lockedDoc.Cas(), nil)
 	if err != nil {
-		t.Fatalf("Unlock failed, error was %v", err)
+		suite.T().Fatalf("Unlock failed, error was %v", err)
 	}
 
 	mutRes, err = globalCollection.Upsert("unlock", doc, nil)
 	if err != nil {
-		t.Fatalf("Upsert failed, error was %v", err)
+		suite.T().Fatalf("Upsert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Upsert CAS was 0")
+		suite.T().Fatalf("Upsert CAS was 0")
 	}
 }
 
-func TestUnlockInvalidCas(t *testing.T) {
+func (suite *IntegrationTestSuite) TestUnlockInvalidCas() {
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
+		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
 	mutRes, err := globalCollection.Upsert("unlockInvalidCas", doc, nil)
 	if err != nil {
-		t.Fatalf("Upsert failed, error was %v", err)
+		suite.T().Fatalf("Upsert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Upsert CAS was 0")
+		suite.T().Fatalf("Upsert CAS was 0")
 	}
 
 	lockedDoc, err := globalCollection.GetAndLock("unlockInvalidCas", 2, nil)
 	if err != nil {
-		t.Fatalf("Get failed, error was %v", err)
+		suite.T().Fatalf("Get failed, error was %v", err)
 	}
 
 	var lockedDocContent testBeerDocument
 	err = lockedDoc.Content(&lockedDocContent)
 	if err != nil {
-		t.Fatalf("Content failed, error was %v", err)
+		suite.T().Fatalf("Content failed, error was %v", err)
 	}
 
 	if doc != lockedDocContent {
-		t.Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
+		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
 	}
 
 	err = globalCollection.Unlock("unlockInvalidCas", lockedDoc.Cas()+1, &UnlockOptions{
 		RetryStrategy: newFailFastRetryStrategy(),
 	})
 	if err == nil {
-		t.Fatalf("Unlock should have failed")
+		suite.T().Fatalf("Unlock should have failed")
 	}
 
 	// The server and the mock do not agree on the error for locked documents.
 	if !errors.Is(err, ErrCasMismatch) && !errors.Is(err, ErrTemporaryFailure) {
-		t.Fatalf("Expected error to be DocumentLocked or TemporaryFailure but was %s", err)
+		suite.T().Fatalf("Expected error to be DocumentLocked or TemporaryFailure but was %s", err)
 	}
 
 	err = globalCollection.Unlock("unlockInvalidCas", lockedDoc.Cas()+1, &UnlockOptions{
@@ -1111,210 +1111,210 @@ func TestUnlockInvalidCas(t *testing.T) {
 		Timeout:       10 * time.Millisecond,
 	})
 	if err == nil {
-		t.Fatalf("Unlock should have failed")
+		suite.T().Fatalf("Unlock should have failed")
 	}
 
 	if !errors.Is(err, ErrTimeout) {
-		t.Fatalf("Expected error to be TimeoutError but was %s", err)
+		suite.T().Fatalf("Expected error to be TimeoutError but was %s", err)
 	}
 }
 
-func TestDoubleLockFail(t *testing.T) {
+func (suite *IntegrationTestSuite) TestDoubleLockFail() {
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
+		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
 	mutRes, err := globalCollection.Upsert("doubleLock", doc, nil)
 	if err != nil {
-		t.Fatalf("Upsert failed, error was %v", err)
+		suite.T().Fatalf("Upsert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Upsert CAS was 0")
+		suite.T().Fatalf("Upsert CAS was 0")
 	}
 
 	lockedDoc, err := globalCollection.GetAndLock("doubleLock", 1, nil)
 	if err != nil {
-		t.Fatalf("Get failed, error was %v", err)
+		suite.T().Fatalf("Get failed, error was %v", err)
 	}
 
 	var lockedDocContent testBeerDocument
 	err = lockedDoc.Content(&lockedDocContent)
 	if err != nil {
-		t.Fatalf("Content failed, error was %v", err)
+		suite.T().Fatalf("Content failed, error was %v", err)
 	}
 
 	if doc != lockedDocContent {
-		t.Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
+		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
 	}
 
 	_, err = globalCollection.GetAndLock("doubleLock", 1, &GetAndLockOptions{
 		RetryStrategy: newFailFastRetryStrategy(),
 	})
 	if err == nil {
-		t.Fatalf("Expected GetAndLock to fail")
+		suite.T().Fatalf("Expected GetAndLock to fail")
 	}
 
 	// The server and the mock do not agree on the error for locked documents.
 	if !errors.Is(err, ErrDocumentLocked) && !errors.Is(err, ErrTemporaryFailure) {
-		t.Fatalf("Expected error to be DocumentLocked or TemporaryFailure but was %s", err)
+		suite.T().Fatalf("Expected error to be DocumentLocked or TemporaryFailure but was %s", err)
 	}
 }
 
-func TestUnlockMissingDocFail(t *testing.T) {
+func (suite *IntegrationTestSuite) TestUnlockMissingDocFail() {
 	err := globalCollection.Unlock("unlockMissing", 123, nil)
 	if err == nil {
-		t.Fatalf("Expected Unlock to fail")
+		suite.T().Fatalf("Expected Unlock to fail")
 	}
 
 	if !errors.Is(err, ErrDocumentNotFound) {
-		t.Fatalf("Expected error to be DocumentNotFound but was %v", err)
+		suite.T().Fatalf("Expected error to be DocumentNotFound but was %v", err)
 	}
 }
 
-func TestTouch(t *testing.T) {
+func (suite *IntegrationTestSuite) TestTouch() {
 	if globalCluster.NotSupportsFeature(XattrFeature) {
-		t.Skip("Skipping test as xattrs not supported.")
+		suite.T().Skip("Skipping test as xattrs not supported.")
 	}
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
+		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
 	mutRes, err := globalCollection.Upsert("touch", doc, nil)
 	if err != nil {
-		t.Fatalf("Upsert failed, error was %v", err)
+		suite.T().Fatalf("Upsert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Upsert CAS was 0")
+		suite.T().Fatalf("Upsert CAS was 0")
 	}
 
 	lockedDoc, err := globalCollection.GetAndTouch("touch", 2, nil)
 	if err != nil {
-		t.Fatalf("Get failed, error was %v", err)
+		suite.T().Fatalf("Get failed, error was %v", err)
 	}
 
 	var lockedDocContent testBeerDocument
 	err = lockedDoc.Content(&lockedDocContent)
 	if err != nil {
-		t.Fatalf("Content failed, error was %v", err)
+		suite.T().Fatalf("Content failed, error was %v", err)
 	}
 
 	if doc != lockedDocContent {
-		t.Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
+		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
 	}
 
 	globalCluster.TimeTravel(1 * time.Second)
 
 	touchOut, err := globalCollection.Touch("touch", 3, nil)
 	if err != nil {
-		t.Fatalf("Touch failed, error was %v", err)
+		suite.T().Fatalf("Touch failed, error was %v", err)
 	}
 
 	if touchOut.Cas() == 0 {
-		t.Fatalf("Upsert CAS was 0")
+		suite.T().Fatalf("Upsert CAS was 0")
 	}
 
 	globalCluster.TimeTravel(2 * time.Second)
 
 	expireDoc, err := globalCollection.Get("touch", &GetOptions{WithExpiry: true})
 	if err != nil {
-		t.Fatalf("Get failed, error was %v", err)
+		suite.T().Fatalf("Get failed, error was %v", err)
 	}
 
 	if *expireDoc.Expiry() == 0 {
-		t.Fatalf("Expected doc to have an expiry > 0, was %d", expireDoc.Expiry())
+		suite.T().Fatalf("Expected doc to have an expiry > 0, was %d", expireDoc.Expiry())
 	}
 
 	var expireDocContent testBeerDocument
 	err = expireDoc.Content(&expireDocContent)
 	if err != nil {
-		t.Fatalf("Content failed, error was %v", err)
+		suite.T().Fatalf("Content failed, error was %v", err)
 	}
 
 	if doc != expireDocContent {
-		t.Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
+		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
 	}
 }
 
-func TestTouchMissingDocFail(t *testing.T) {
+func (suite *IntegrationTestSuite) TestTouchMissingDocFail() {
 	_, err := globalCollection.Touch("touchMissing", 3, nil)
 	if err == nil {
-		t.Fatalf("Touch should have failed")
+		suite.T().Fatalf("Touch should have failed")
 	}
 
 	if !errors.Is(err, ErrDocumentNotFound) {
-		t.Fatalf("Expected error to be KeyNotFoundError but was %v", err)
+		suite.T().Fatalf("Expected error to be KeyNotFoundError but was %v", err)
 	}
 }
 
-func TestInsertReplicateToGetAnyReplica(t *testing.T) {
+func (suite *IntegrationTestSuite) TestInsertReplicateToGetAnyReplica() {
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
+		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
 	mutRes, err := globalCollection.Insert("insertReplicaDoc", doc, &InsertOptions{
 		PersistTo: 1,
 	})
 	if err != nil {
-		t.Fatalf("Insert failed, error was %v", err)
+		suite.T().Fatalf("Insert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Insert CAS was 0")
+		suite.T().Fatalf("Insert CAS was 0")
 	}
 
 	insertedDoc, err := globalCollection.GetAnyReplica("insertReplicaDoc", nil)
 	if err != nil {
-		t.Fatalf("GetFromReplica failed, error was %v", err)
+		suite.T().Fatalf("GetFromReplica failed, error was %v", err)
 	}
 
 	var insertedDocContent testBeerDocument
 	err = insertedDoc.Content(&insertedDocContent)
 	if err != nil {
-		t.Fatalf("Content failed, error was %v", err)
+		suite.T().Fatalf("Content failed, error was %v", err)
 	}
 
 	if doc != insertedDocContent {
-		t.Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
+		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
 	}
 }
 
-func TestInsertReplicateToGetAllReplicas(t *testing.T) {
+func (suite *IntegrationTestSuite) TestInsertReplicateToGetAllReplicas() {
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
+		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
 	mutRes, err := globalCollection.Upsert("insertAllReplicaDoc", doc, &UpsertOptions{
 		PersistTo: 1,
 	})
 	if err != nil {
-		t.Fatalf("Upsert failed, error was %v", err)
+		suite.T().Fatalf("Upsert failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		t.Fatalf("Insert CAS was 0")
+		suite.T().Fatalf("Insert CAS was 0")
 	}
 
 	stream, err := globalCollection.GetAllReplicas("insertAllReplicaDoc", &GetAllReplicaOptions{
 		Timeout: 25 * time.Second,
 	})
 	if err != nil {
-		t.Fatalf("GetAllReplicas failed, error was %v", err)
+		suite.T().Fatalf("GetAllReplicas failed, error was %v", err)
 	}
 
 	agent, err := globalCollection.getKvProvider()
 	if err != nil {
-		t.Fatalf("Failed to get kv provider, was %v", err)
+		suite.T().Fatalf("Failed to get kv provider, was %v", err)
 	}
 
 	expectedReplicas := agent.NumReplicas() + 1
@@ -1336,37 +1336,37 @@ func TestInsertReplicateToGetAllReplicas(t *testing.T) {
 		var insertedDocContent testBeerDocument
 		err = insertedDoc.Content(&insertedDocContent)
 		if err != nil {
-			t.Fatalf("Content failed, error was %v", err)
+			suite.T().Fatalf("Content failed, error was %v", err)
 		}
 
 		if doc != insertedDocContent {
-			t.Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
+			suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
 		}
 	}
 
 	err = stream.Close()
 	if err != nil {
-		t.Fatalf("Expected stream close to not error, was %v", err)
+		suite.T().Fatalf("Expected stream close to not error, was %v", err)
 	}
 
 	if expectedReplicas != actualReplicas {
-		t.Fatalf("Expected replicas to be %d but was %d", expectedReplicas, actualReplicas)
+		suite.T().Fatalf("Expected replicas to be %d but was %d", expectedReplicas, actualReplicas)
 	}
 
 	if numMasters != 1 {
-		t.Fatalf("Expected number of masters to be 1 but was %d", numMasters)
+		suite.T().Fatalf("Expected number of masters to be 1 but was %d", numMasters)
 	}
 }
 
-func TestDurabilityGetFromAnyReplica(t *testing.T) {
+func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 	if !globalCluster.SupportsFeature(DurabilityFeature) {
-		t.Skip("Skipping test as durability not supported")
+		suite.T().Skip("Skipping test as durability not supported")
 	}
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
-		t.Fatalf("Could not read test dataset: %v", err)
+		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
 	type CasResult interface {
@@ -1396,7 +1396,7 @@ func TestDurabilityGetFromAnyReplica(t *testing.T) {
 	}
 
 	for _, tCase := range testCases {
-		t.Run(tCase.name, func(te *testing.T) {
+		suite.T().Run(tCase.name, func(te *testing.T) {
 			args := make([]reflect.Value, len(tCase.args))
 			for i := range tCase.args {
 				args[i] = reflect.ValueOf(tCase.args[i])
@@ -1437,7 +1437,7 @@ func TestDurabilityGetFromAnyReplica(t *testing.T) {
 			_, err := globalCollection.GetAnyReplica(tCase.name, nil)
 			if tCase.expectKeyNotFound {
 				if !errors.Is(err, ErrDocumentNotFound) {
-					t.Fatalf("Expected GetFromReplica to not find a key but got error %v", err)
+					suite.T().Fatalf("Expected GetFromReplica to not find a key but got error %v", err)
 				}
 			} else {
 				if err != nil {
@@ -1448,29 +1448,29 @@ func TestDurabilityGetFromAnyReplica(t *testing.T) {
 	}
 }
 
-func TestGetErrorCollectionUnknown(t *testing.T) {
+func (suite *IntegrationTestSuite) TestGetErrorCollectionUnknown() {
 	var doc testBreweryDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
-		t.Fatalf("Could not load dataset: %v", err)
+		suite.T().Fatalf("Could not load dataset: %v", err)
 	}
 
 	provider := &mockKvProvider{
 		err:   ErrCollectionNotFound,
 		value: make([]byte, 0),
 	}
-	col := testGetCollection(t, provider)
+	col := testGetCollection(provider)
 
 	res, err := col.Get("getDocErrCollectionUnknown", nil)
 	if err == nil {
-		t.Fatalf("Get didn't error")
+		suite.T().Fatalf("Get didn't error")
 	}
 
 	if res != nil {
-		t.Fatalf("Result should have been nil")
+		suite.T().Fatalf("Result should have been nil")
 	}
 
 	if !errors.Is(err, ErrCollectionNotFound) {
-		t.Fatalf("Error should have been collection missing but was %v", err)
+		suite.T().Fatalf("Error should have been collection missing but was %v", err)
 	}
 }

@@ -1,13 +1,12 @@
 package gocb
 
 import (
-	"testing"
 	"time"
 )
 
-func TestQueryIndexesCrud(t *testing.T) {
+func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 	if !globalCluster.SupportsFeature(QueryFeature) {
-		t.Skip("Skipping test, query indexes not supported.")
+		suite.T().Skip("Skipping test, query indexes not supported.")
 	}
 
 	bucketMgr := globalCluster.Buckets()
@@ -22,7 +21,7 @@ func TestQueryIndexesCrud(t *testing.T) {
 		},
 	}, nil)
 	if err != nil {
-		t.Fatalf("Failed to create bucket manager %v", err)
+		suite.T().Fatalf("Failed to create bucket manager %v", err)
 	}
 	defer bucketMgr.DropBucket(bucketName, nil)
 
@@ -32,28 +31,28 @@ func TestQueryIndexesCrud(t *testing.T) {
 		IgnoreIfExists: true,
 	})
 	if err != nil {
-		t.Fatalf("Expected CreatePrimaryIndex to not error %v", err)
+		suite.T().Fatalf("Expected CreatePrimaryIndex to not error %v", err)
 	}
 
 	err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
 		IgnoreIfExists: false,
 	})
 	if err == nil {
-		t.Fatalf("Expected CreatePrimaryIndex to error")
+		suite.T().Fatalf("Expected CreatePrimaryIndex to error")
 	}
 
 	err = mgr.CreateIndex(bucketName, "testIndex", []string{"field"}, &CreateQueryIndexOptions{
 		IgnoreIfExists: true,
 	})
 	if err != nil {
-		t.Fatalf("Expected CreateIndex to not error %v", err)
+		suite.T().Fatalf("Expected CreateIndex to not error %v", err)
 	}
 
 	err = mgr.CreateIndex(bucketName, "testIndex", []string{"field"}, &CreateQueryIndexOptions{
 		IgnoreIfExists: false,
 	})
 	if err == nil {
-		t.Fatalf("Expected CreateIndex to error")
+		suite.T().Fatalf("Expected CreateIndex to error")
 	}
 
 	// We create this first to give it a chance to be created by the time we need it.
@@ -62,49 +61,49 @@ func TestQueryIndexesCrud(t *testing.T) {
 		Deferred:       true,
 	})
 	if err != nil {
-		t.Fatalf("Expected CreateIndex to not error %v", err)
+		suite.T().Fatalf("Expected CreateIndex to not error %v", err)
 	}
 
 	indexNames, err := mgr.BuildDeferredIndexes(bucketName, nil)
 	if err != nil {
-		t.Fatalf("Expected BuildDeferredIndexes to not error %v", err)
+		suite.T().Fatalf("Expected BuildDeferredIndexes to not error %v", err)
 	}
 
 	if len(indexNames) != 1 {
-		t.Fatalf("Expected 1 index but was %d", len(indexNames))
+		suite.T().Fatalf("Expected 1 index but was %d", len(indexNames))
 	}
 
 	err = mgr.WatchIndexes(bucketName, []string{"testIndexDeferred"}, 5*time.Second, nil)
 	if err != nil {
-		t.Fatalf("Expected WatchIndexes to not error %v", err)
+		suite.T().Fatalf("Expected WatchIndexes to not error %v", err)
 	}
 
 	indexes, err := mgr.GetAllIndexes(bucketName, nil)
 	if err != nil {
-		t.Fatalf("Expected GetAllIndexes to not error but was %v", err)
+		suite.T().Fatalf("Expected GetAllIndexes to not error but was %v", err)
 	}
 
 	if len(indexes) != 3 {
-		t.Fatalf("Expected 3 indexes but was %d", len(indexes))
+		suite.T().Fatalf("Expected 3 indexes but was %d", len(indexes))
 	}
 
 	err = mgr.DropIndex(bucketName, "testIndex", nil)
 	if err != nil {
-		t.Fatalf("Expected DropIndex to not error %v", err)
+		suite.T().Fatalf("Expected DropIndex to not error %v", err)
 	}
 
 	err = mgr.DropIndex(bucketName, "testIndex", nil)
 	if err == nil {
-		t.Fatalf("Expected DropIndex to error")
+		suite.T().Fatalf("Expected DropIndex to error")
 	}
 
 	err = mgr.DropPrimaryIndex(bucketName, nil)
 	if err != nil {
-		t.Fatalf("Expected DropPrimaryIndex to not error %v", err)
+		suite.T().Fatalf("Expected DropPrimaryIndex to not error %v", err)
 	}
 
 	err = mgr.DropPrimaryIndex(bucketName, nil)
 	if err == nil {
-		t.Fatalf("Expected DropPrimaryIndex to error")
+		suite.T().Fatalf("Expected DropPrimaryIndex to error")
 	}
 }

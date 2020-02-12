@@ -109,7 +109,7 @@ func (trc *testReadCloser) Close() error {
 }
 
 // Not a test, just gets a collection instance.
-func testGetCollection(t *testing.T, provider *mockKvProvider) *Collection {
+func testGetCollection(provider *mockKvProvider) *Collection {
 	clients := make(map[string]client)
 	cli := &mockClient{
 		bucketName:        "mock",

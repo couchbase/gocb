@@ -3,12 +3,11 @@ package gocb
 import (
 	"encoding/json"
 	"strings"
-	"testing"
 
 	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
-func TestMutationState_Add(t *testing.T) {
+func (suite *UnitTestSuite) TestMutationState_Add() {
 	fakeBucket := &Bucket{}
 	fakeBucket.sb.BucketName = "frank"
 
@@ -42,31 +41,31 @@ func TestMutationState_Add(t *testing.T) {
 
 	bytes, err := json.Marshal(&state)
 	if err != nil {
-		t.Fatalf("Failed to marshal %v", err)
+		suite.T().Fatalf("Failed to marshal %v", err)
 	}
 
 	if strings.Compare(string(bytes), "{\"frank\":{\"1\":[12,\"9\"],\"2\":[99,\"4\"]}}") != 0 {
-		t.Fatalf("Failed to generate correct JSON output %s", bytes)
+		suite.T().Fatalf("Failed to generate correct JSON output %s", bytes)
 	}
 
 	// So as to avoid testing on private properties we'll check if unmarshal works by marshaling the result.
 	var afterState MutationState
 	err = json.Unmarshal(bytes, &afterState)
 	if err != nil {
-		t.Fatalf("Failed to unmarshal %v", err)
+		suite.T().Fatalf("Failed to unmarshal %v", err)
 	}
 
 	bytes, err = json.Marshal(&state)
 	if err != nil {
-		t.Fatalf("Failed to marshal %v", err)
+		suite.T().Fatalf("Failed to marshal %v", err)
 	}
 
 	if strings.Compare(string(bytes), "{\"frank\":{\"1\":[12,\"9\"],\"2\":[99,\"4\"]}}") != 0 {
-		t.Fatalf("Failed to generate correct JSON output %s", bytes)
+		suite.T().Fatalf("Failed to generate correct JSON output %s", bytes)
 	}
 }
 
-func TestMutationState_toSeachMutationState(t *testing.T) {
+func (suite *UnitTestSuite) TestMutationState_toSeachMutationState() {
 	fakeBucket := &Bucket{}
 	fakeBucket.sb.BucketName = "frank"
 
@@ -94,10 +93,10 @@ func TestMutationState_toSeachMutationState(t *testing.T) {
 	// What we actually care about is the format once marshaled.
 	bytes, err := json.Marshal(&searchToken)
 	if err != nil {
-		t.Fatalf("Failed to marshal %v", err)
+		suite.T().Fatalf("Failed to marshal %v", err)
 	}
 
 	if strings.Compare(string(bytes), "{\"frank\":{\"1/9\":12,\"2/1\":22}}") != 0 {
-		t.Fatalf("Failed to generate correct JSON output %s", bytes)
+		suite.T().Fatalf("Failed to generate correct JSON output %s", bytes)
 	}
 }

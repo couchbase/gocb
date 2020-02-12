@@ -8,7 +8,7 @@ import (
 	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
-func TestEncode(t *testing.T) {
+func (suite *UnitTestSuite) TestEncode() {
 	byteArray := []byte("something")
 	rawString := "something"
 	rawMsg := json.RawMessage("hello")
@@ -19,17 +19,17 @@ func TestEncode(t *testing.T) {
 
 	jsonValue, err := json.Marshal(jsonStruct)
 	if err != nil {
-		t.Fatalf("failed to marshal json: %v", err)
+		suite.T().Fatalf("failed to marshal json: %v", err)
 	}
 
 	stringValue, err := json.Marshal(rawString)
 	if err != nil {
-		t.Fatalf("failed to marshal json: %v", err)
+		suite.T().Fatalf("failed to marshal json: %v", err)
 	}
 
 	numberValue, err := json.Marshal(rawNumber)
 	if err != nil {
-		t.Fatalf("failed to marshal json: %v", err)
+		suite.T().Fatalf("failed to marshal json: %v", err)
 	}
 
 	var rawInterface interface{} = rawString
@@ -416,7 +416,7 @@ func TestEncode(t *testing.T) {
 	}
 	for transcoder, transcoderTests := range tests {
 		for _, tt := range transcoderTests {
-			t.Run(tt.name, func(t *testing.T) {
+			suite.T().Run(tt.name, func(t *testing.T) {
 				actual, flags, err := transcoder.Encode(tt.args)
 				name := reflect.ValueOf(transcoder).Type()
 				if (err != nil) != tt.wantErr {
@@ -434,7 +434,7 @@ func TestEncode(t *testing.T) {
 	}
 }
 
-func TestDecodeJSON(t *testing.T) {
+func (suite *UnitTestSuite) TestDecodeJSON() {
 	type jsonType struct {
 		Name string `json:"name"`
 	}
@@ -443,7 +443,7 @@ func TestDecodeJSON(t *testing.T) {
 
 	jsonValue, err := json.Marshal(jsonStruct)
 	if err != nil {
-		t.Fatalf("failed to marshal json: %v", err)
+		suite.T().Fatalf("failed to marshal json: %v", err)
 	}
 
 	type test struct {
@@ -494,7 +494,7 @@ func TestDecodeJSON(t *testing.T) {
 	for transcoder, transcoderTests := range tests {
 		name := reflect.ValueOf(transcoder).Type().String()
 		for _, tt := range transcoderTests {
-			t.Run(name, func(t *testing.T) {
+			suite.T().Run(name, func(t *testing.T) {
 				var actual jsonType
 				err := transcoder.Decode(tt.bytes, tt.flags, &actual)
 				if (err != nil) != tt.wantErr {
@@ -509,7 +509,7 @@ func TestDecodeJSON(t *testing.T) {
 	}
 }
 
-func TestDecodeJSONInterface(t *testing.T) {
+func (suite *UnitTestSuite) TestDecodeJSONInterface() {
 	type jsonType struct {
 		Name string `json:"name"`
 	}
@@ -518,7 +518,7 @@ func TestDecodeJSONInterface(t *testing.T) {
 
 	jsonValue, err := json.Marshal(jsonStruct)
 	if err != nil {
-		t.Fatalf("failed to marshal json: %v", err)
+		suite.T().Fatalf("failed to marshal json: %v", err)
 	}
 
 	type test struct {
@@ -569,7 +569,7 @@ func TestDecodeJSONInterface(t *testing.T) {
 	for transcoder, transcoderTests := range tests {
 		name := reflect.ValueOf(transcoder).Type().String()
 		for _, tt := range transcoderTests {
-			t.Run(name, func(t *testing.T) {
+			suite.T().Run(name, func(t *testing.T) {
 				str := jsonType{}
 				var actual interface{} = &str
 				err := transcoder.Decode(tt.bytes, tt.flags, &actual)
@@ -585,12 +585,12 @@ func TestDecodeJSONInterface(t *testing.T) {
 	}
 }
 
-func TestDecodeJSONString(t *testing.T) {
+func (suite *UnitTestSuite) TestDecodeJSONString() {
 	rawString := "something"
 
 	jsonValue, err := json.Marshal(rawString)
 	if err != nil {
-		t.Fatalf("failed to marshal json: %v", err)
+		suite.T().Fatalf("failed to marshal json: %v", err)
 	}
 
 	type test struct {
@@ -642,7 +642,7 @@ func TestDecodeJSONString(t *testing.T) {
 	for transcoder, transcoderTests := range tests {
 		name := reflect.ValueOf(transcoder).Type().String()
 		for _, tt := range transcoderTests {
-			t.Run(name, func(t *testing.T) {
+			suite.T().Run(name, func(t *testing.T) {
 				var actual string
 				err := transcoder.Decode(tt.bytes, tt.flags, &actual)
 				if (err != nil) != tt.wantErr {
@@ -657,12 +657,12 @@ func TestDecodeJSONString(t *testing.T) {
 	}
 }
 
-func TestDecodeJSONNumber(t *testing.T) {
+func (suite *UnitTestSuite) TestDecodeJSONNumber() {
 	rawNumber := 22022
 
 	jsonValue, err := json.Marshal(rawNumber)
 	if err != nil {
-		t.Fatalf("failed to marshal json: %v", err)
+		suite.T().Fatalf("failed to marshal json: %v", err)
 	}
 
 	type test struct {
@@ -713,7 +713,7 @@ func TestDecodeJSONNumber(t *testing.T) {
 	for transcoder, transcoderTests := range tests {
 		name := reflect.ValueOf(transcoder).Type().String()
 		for _, tt := range transcoderTests {
-			t.Run(name, func(t *testing.T) {
+			suite.T().Run(name, func(t *testing.T) {
 				var actual int
 				err := transcoder.Decode(tt.bytes, tt.flags, &actual)
 				if (err != nil) != tt.wantErr {
@@ -728,7 +728,7 @@ func TestDecodeJSONNumber(t *testing.T) {
 	}
 }
 
-func TestDecodeBinary(t *testing.T) {
+func (suite *UnitTestSuite) TestDecodeBinary() {
 	binary := []byte("222222")
 
 	type test struct {
@@ -779,7 +779,7 @@ func TestDecodeBinary(t *testing.T) {
 	for transcoder, transcoderTests := range tests {
 		name := reflect.ValueOf(transcoder).Type().String()
 		for _, tt := range transcoderTests {
-			t.Run(name, func(t *testing.T) {
+			suite.T().Run(name, func(t *testing.T) {
 				var actual []byte
 				err := transcoder.Decode(tt.bytes, tt.flags, &actual)
 				if (err != nil) != tt.wantErr {
@@ -794,7 +794,7 @@ func TestDecodeBinary(t *testing.T) {
 	}
 }
 
-func TestDecodeString(t *testing.T) {
+func (suite *UnitTestSuite) TestDecodeString() {
 	rawString := "something"
 
 	type test struct {
@@ -845,7 +845,7 @@ func TestDecodeString(t *testing.T) {
 	for transcoder, transcoderTests := range tests {
 		name := reflect.ValueOf(transcoder).Type().String()
 		for _, tt := range transcoderTests {
-			t.Run(name, func(t *testing.T) {
+			suite.T().Run(name, func(t *testing.T) {
 				var actual string
 				err := transcoder.Decode(tt.bytes, tt.flags, &actual)
 				if (err != nil) != tt.wantErr {

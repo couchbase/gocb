@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-func TestUserManagerGroupCrud(t *testing.T) {
+func (suite *IntegrationTestSuite) TestUserManagerGroupCrud() {
 	if !globalCluster.SupportsFeature(UserGroupFeature) {
-		t.Skip("Skipping test as groups not supported.")
+		suite.T().Skip("Skipping test as groups not supported.")
 	}
 
 	mgr := globalCluster.Users()
@@ -27,50 +27,50 @@ func TestUserManagerGroupCrud(t *testing.T) {
 		LDAPGroupReference: "asda=price",
 	}, nil)
 	if err != nil {
-		t.Fatalf("Expected Upsert to not error: %v", err)
+		suite.T().Fatalf("Expected Upsert to not error: %v", err)
 	}
 
 	group, err := mgr.GetGroup("test", nil)
 	if err != nil {
-		t.Fatalf("Expected Get to not error: %v", err)
+		suite.T().Fatalf("Expected Get to not error: %v", err)
 	}
 	group.Description = "this is still a test"
 	group.Roles = append(group.Roles, Role{Name: "query_system_catalog"})
 
 	err = mgr.UpsertGroup(*group, nil)
 	if err != nil {
-		t.Fatalf("Expected Upsert to not error: %v", err)
+		suite.T().Fatalf("Expected Upsert to not error: %v", err)
 	}
 
 	group.Name = "test2"
 	err = mgr.UpsertGroup(*group, nil)
 	if err != nil {
-		t.Fatalf("Expected Upsert to not error: %v", err)
+		suite.T().Fatalf("Expected Upsert to not error: %v", err)
 	}
 
 	groups, err := mgr.GetAllGroups(nil)
 	if err != nil {
-		t.Fatalf("Expected GetAll to not error: %v", err)
+		suite.T().Fatalf("Expected GetAll to not error: %v", err)
 	}
 
 	if len(groups) < 2 {
-		t.Fatalf("Expected groups to contain at least 2 groups, was %v", groups)
+		suite.T().Fatalf("Expected groups to contain at least 2 groups, was %v", groups)
 	}
 
 	err = mgr.DropGroup("test", nil)
 	if err != nil {
-		t.Fatalf("Expected Drop to not error: %v", err)
+		suite.T().Fatalf("Expected Drop to not error: %v", err)
 	}
 
 	err = mgr.DropGroup("test2", nil)
 	if err != nil {
-		t.Fatalf("Expected Drop to not error: %v", err)
+		suite.T().Fatalf("Expected Drop to not error: %v", err)
 	}
 }
 
-func TestUserManagerWithGroupsCrud(t *testing.T) {
+func (suite *IntegrationTestSuite) TestUserManagerWithGroupsCrud() {
 	if !globalCluster.SupportsFeature(UserGroupFeature) {
-		t.Skip("Skipping test as groups not supported.")
+		suite.T().Skip("Skipping test as groups not supported.")
 	}
 
 	mgr := globalCluster.Users()
@@ -89,7 +89,7 @@ func TestUserManagerWithGroupsCrud(t *testing.T) {
 		},
 	}, nil)
 	if err != nil {
-		t.Fatalf("Expected UpsertGroup to not error: %v", err)
+		suite.T().Fatalf("Expected UpsertGroup to not error: %v", err)
 	}
 
 	expectedUser := User{
@@ -107,12 +107,12 @@ func TestUserManagerWithGroupsCrud(t *testing.T) {
 
 	err = mgr.UpsertUser(expectedUser, nil)
 	if err != nil {
-		t.Fatalf("Expected UpsertUser to not error: %v", err)
+		suite.T().Fatalf("Expected UpsertUser to not error: %v", err)
 	}
 
 	user, err := mgr.GetUser("barry", nil)
 	if err != nil {
-		t.Fatalf("Expected GetUser to not error: %v", err)
+		suite.T().Fatalf("Expected GetUser to not error: %v", err)
 	}
 
 	expectedUserAndMeta := &UserAndMetadata{
@@ -155,49 +155,49 @@ func TestUserManagerWithGroupsCrud(t *testing.T) {
 			},
 		},
 	}
-	assertUser(t, user, expectedUserAndMeta)
+	assertUser(suite.T(), user, expectedUserAndMeta)
 
 	user.User.DisplayName = "barries"
 	err = mgr.UpsertUser(user.User, nil)
 	if err != nil {
-		t.Fatalf("Expected UpsertUser to not error: %v", err)
+		suite.T().Fatalf("Expected UpsertUser to not error: %v", err)
 	}
 
 	expectedUserAndMeta.User.DisplayName = "barries"
-	assertUser(t, user, expectedUserAndMeta)
+	assertUser(suite.T(), user, expectedUserAndMeta)
 
 	users, err := mgr.GetAllUsers(nil)
 	if err != nil {
-		t.Fatalf("Expected GetAllUsers to not error: %v", err)
+		suite.T().Fatalf("Expected GetAllUsers to not error: %v", err)
 	}
 
 	if len(users) == 0 {
-		t.Fatalf("Expected users length to be greater than 0")
+		suite.T().Fatalf("Expected users length to be greater than 0")
 	}
 
 	err = mgr.DropUser("barry", nil)
 	if err != nil {
-		t.Fatalf("Expected DropUser to not error: %v", err)
+		suite.T().Fatalf("Expected DropUser to not error: %v", err)
 	}
 
 	err = mgr.DropGroup("test", nil)
 	if err != nil {
-		t.Fatalf("Expected DropGroup to not error: %v", err)
+		suite.T().Fatalf("Expected DropGroup to not error: %v", err)
 	}
 
 	_, err = mgr.GetUser("barry", nil)
 	if err == nil {
-		t.Fatalf("Expected GetUser to error")
+		suite.T().Fatalf("Expected GetUser to error")
 	}
 
 	if !errors.Is(err, ErrUserNotFound) {
-		t.Fatalf("Expected error to be user not found but was %v", err)
+		suite.T().Fatalf("Expected error to be user not found but was %v", err)
 	}
 }
 
-func TestUserManagerCrud(t *testing.T) {
+func (suite *IntegrationTestSuite) TestUserManagerCrud() {
 	if !globalCluster.SupportsFeature(UserManagerFeature) {
-		t.Skip("Skipping test as rbac not supported.")
+		suite.T().Skip("Skipping test as rbac not supported.")
 	}
 
 	mgr := globalCluster.Users()
@@ -215,12 +215,12 @@ func TestUserManagerCrud(t *testing.T) {
 	}
 	err := mgr.UpsertUser(expectedUser, nil)
 	if err != nil {
-		t.Fatalf("Expected UpsertUser to not error: %v", err)
+		suite.T().Fatalf("Expected UpsertUser to not error: %v", err)
 	}
 
 	user, err := mgr.GetUser("barry", nil)
 	if err != nil {
-		t.Fatalf("Expected GetUser to not error: %v", err)
+		suite.T().Fatalf("Expected GetUser to not error: %v", err)
 	}
 
 	expectedUserAndMeta := &UserAndMetadata{
@@ -235,59 +235,59 @@ func TestUserManagerCrud(t *testing.T) {
 			},
 		},
 	}
-	assertUser(t, user, expectedUserAndMeta)
+	assertUser(suite.T(), user, expectedUserAndMeta)
 
 	user.User.DisplayName = "barries"
 	err = mgr.UpsertUser(user.User, nil)
 	if err != nil {
-		t.Fatalf("Expected UpsertUser to not error: %v", err)
+		suite.T().Fatalf("Expected UpsertUser to not error: %v", err)
 	}
 
 	users, err := mgr.GetAllUsers(nil)
 	if err != nil {
-		t.Fatalf("Expected GetAllUsers to not error: %v", err)
+		suite.T().Fatalf("Expected GetAllUsers to not error: %v", err)
 	}
 
 	if len(users) == 0 {
-		t.Fatalf("Expected users length to be greater than 0")
+		suite.T().Fatalf("Expected users length to be greater than 0")
 	}
 
 	user, err = mgr.GetUser("barry", nil)
 	if err != nil {
-		t.Fatalf("Expected GetUser to not error: %v", err)
+		suite.T().Fatalf("Expected GetUser to not error: %v", err)
 	}
 	expectedUserAndMeta.User.DisplayName = "barries"
-	assertUser(t, user, expectedUserAndMeta)
+	assertUser(suite.T(), user, expectedUserAndMeta)
 
 	err = mgr.DropUser("barry", nil)
 	if err != nil {
-		t.Fatalf("Expected DropUser to not error: %v", err)
+		suite.T().Fatalf("Expected DropUser to not error: %v", err)
 	}
 
 	_, err = mgr.GetUser("barry", nil)
 	if err == nil {
-		t.Fatalf("Expected GetUser to error")
+		suite.T().Fatalf("Expected GetUser to error")
 	}
 
 	if !errors.Is(err, ErrUserNotFound) {
-		t.Fatalf("Expected error to be user not found but was %v", err)
+		suite.T().Fatalf("Expected error to be user not found but was %v", err)
 	}
 }
 
-func TestUserManagerAvailableRoles(t *testing.T) {
+func (suite *IntegrationTestSuite) TestUserManagerAvailableRoles() {
 	if !globalCluster.SupportsFeature(UserManagerFeature) {
-		t.Skip("Skipping test as rbac not supported.")
+		suite.T().Skip("Skipping test as rbac not supported.")
 	}
 
 	mgr := globalCluster.Users()
 
 	roles, err := mgr.GetRoles(nil)
 	if err != nil {
-		t.Fatalf("Expected GetRoles to not error %v", err)
+		suite.T().Fatalf("Expected GetRoles to not error %v", err)
 	}
 
 	if len(roles) == 0 {
-		t.Fatalf("Expected roles to have entries")
+		suite.T().Fatalf("Expected roles to have entries")
 	}
 }
 

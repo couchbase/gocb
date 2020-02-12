@@ -2,13 +2,12 @@ package gocb
 
 import (
 	"errors"
-	"testing"
 	"time"
 )
 
-func TestSearchIndexesCrud(t *testing.T) {
+func (suite *IntegrationTestSuite) TestSearchIndexesCrud() {
 	if !globalCluster.SupportsFeature(SearchIndexFeature) {
-		t.Skip("Skipping test as search indexes not supported")
+		suite.T().Skip("Skipping test as search indexes not supported")
 	}
 
 	mgr := globalCluster.SearchIndexes()
@@ -20,7 +19,7 @@ func TestSearchIndexesCrud(t *testing.T) {
 		SourceName: globalBucket.Name(),
 	}, nil)
 	if err != nil {
-		t.Fatalf("Expected UpsertIndex err to be nil but was %v", err)
+		suite.T().Fatalf("Expected UpsertIndex err to be nil but was %v", err)
 	}
 
 	err = mgr.UpsertIndex(SearchIndex{
@@ -39,7 +38,7 @@ func TestSearchIndexesCrud(t *testing.T) {
 		},
 	}, nil)
 	if err != nil {
-		t.Fatalf("Expected UpsertIndex err to be nil but was %v", err)
+		suite.T().Fatalf("Expected UpsertIndex err to be nil but was %v", err)
 	}
 
 	err = mgr.UpsertIndex(SearchIndex{
@@ -54,34 +53,34 @@ func TestSearchIndexesCrud(t *testing.T) {
 		},
 	}, nil)
 	if err != nil {
-		t.Fatalf("Expected UpsertIndexAlias err to be nil but was %v", err)
+		suite.T().Fatalf("Expected UpsertIndexAlias err to be nil but was %v", err)
 	}
 
 	index, err := mgr.GetIndex("test", nil)
 	if err != nil {
-		t.Fatalf("Expected GetIndex err to be nil but was %v", err)
+		suite.T().Fatalf("Expected GetIndex err to be nil but was %v", err)
 	}
 
 	if index.Name != "test" {
-		t.Fatalf("Index name was not equal, expected test but was %v", index.Name)
+		suite.T().Fatalf("Index name was not equal, expected test but was %v", index.Name)
 	}
 
 	if index.Type != "fulltext-index" {
-		t.Fatalf("Index type was not equal, expected fulltext-index but was %v", index.Type)
+		suite.T().Fatalf("Index type was not equal, expected fulltext-index but was %v", index.Type)
 	}
 
 	err = mgr.UpsertIndex(*index, &UpsertSearchIndexOptions{})
 	if err != nil {
-		t.Fatalf("Expected UpsertIndex err to be nil but was %v", err)
+		suite.T().Fatalf("Expected UpsertIndex err to be nil but was %v", err)
 	}
 
 	indexes, err := mgr.GetAllIndexes(nil)
 	if err != nil {
-		t.Fatalf("Expected GetAll err to be nil but was %v", err)
+		suite.T().Fatalf("Expected GetAll err to be nil but was %v", err)
 	}
 
 	if len(indexes) == 0 {
-		t.Fatalf("Expected GetAll to return more than 0 indexes")
+		suite.T().Fatalf("Expected GetAll to return more than 0 indexes")
 	}
 
 	if globalCluster.SupportsFeature(SearchAnalyzeFeature) {
@@ -90,7 +89,7 @@ func TestSearchIndexesCrud(t *testing.T) {
 		for {
 			select {
 			case <-timer.C:
-				t.Fatalf("Time to wait for analyze to succeed expired")
+				suite.T().Fatalf("Time to wait for analyze to succeed expired")
 			default:
 			}
 			analysis, err := mgr.AnalyzeDocument("test", struct {
@@ -107,60 +106,60 @@ func TestSearchIndexesCrud(t *testing.T) {
 			}
 
 			if analysis == nil || len(analysis) == 0 {
-				t.Fatalf("Expected analysis to be not nil")
+				suite.T().Fatalf("Expected analysis to be not nil")
 			}
 			break
 		}
 	} else {
-		t.Log("Skipping AnalyzeDocument feature as not supported.")
+		suite.T().Log("Skipping AnalyzeDocument feature as not supported.")
 	}
 
 	err = mgr.DropIndex("test", nil)
 	if err != nil {
-		t.Fatalf("Expected DropIndex err to be nil but was %v", err)
+		suite.T().Fatalf("Expected DropIndex err to be nil but was %v", err)
 	}
 
 	err = mgr.DropIndex("test2", nil)
 	if err != nil {
-		t.Fatalf("Expected DropIndex err to be nil but was %v", err)
+		suite.T().Fatalf("Expected DropIndex err to be nil but was %v", err)
 	}
 
 	err = mgr.DropIndex("testAlias", nil)
 	if err != nil {
-		t.Fatalf("Expected DropIndex err to be nil but was %v", err)
+		suite.T().Fatalf("Expected DropIndex err to be nil but was %v", err)
 	}
 
 	_, err = mgr.GetIndex("newTest", nil)
 	if err == nil {
-		t.Fatalf("Expected GetIndex err to be not nil but was")
+		suite.T().Fatalf("Expected GetIndex err to be not nil but was")
 	}
 
 	_, err = mgr.GetIndex("test2", nil)
 	if err == nil {
-		t.Fatalf("Expected GetIndex err to be not nil but was")
+		suite.T().Fatalf("Expected GetIndex err to be not nil but was")
 	}
 }
 
-func TestSearchIndexesUpsertIndexNoName(t *testing.T) {
+func (suite *IntegrationTestSuite) TestSearchIndexesUpsertIndexNoName() {
 	if !globalCluster.SupportsFeature(SearchIndexFeature) {
-		t.Skip("Skipping test as search indexes not supported")
+		suite.T().Skip("Skipping test as search indexes not supported")
 	}
 
 	mgr := globalCluster.SearchIndexes()
 
 	err := mgr.UpsertIndex(SearchIndex{}, nil)
 	if err == nil {
-		t.Fatalf("Expected UpsertIndex err to be not nil but was")
+		suite.T().Fatalf("Expected UpsertIndex err to be not nil but was")
 	}
 
 	if !errors.Is(err, ErrInvalidArgument) {
-		t.Fatalf("Expected error to be InvalidArgument but was %v", err)
+		suite.T().Fatalf("Expected error to be InvalidArgument but was %v", err)
 	}
 }
 
-func TestSearchIndexesIngestControl(t *testing.T) {
+func (suite *IntegrationTestSuite) TestSearchIndexesIngestControl() {
 	if !globalCluster.SupportsFeature(SearchIndexFeature) {
-		t.Skip("Skipping test as search indexes not supported")
+		suite.T().Skip("Skipping test as search indexes not supported")
 	}
 
 	mgr := globalCluster.SearchIndexes()
@@ -172,25 +171,25 @@ func TestSearchIndexesIngestControl(t *testing.T) {
 		SourceName: globalBucket.Name(),
 	}, nil)
 	if err != nil {
-		t.Fatalf("Expected UpsertIndex err to be nil but was %v", err)
+		suite.T().Fatalf("Expected UpsertIndex err to be nil but was %v", err)
 	}
 
 	defer mgr.DropIndex("test", nil)
 
 	err = mgr.PauseIngest("test", nil)
 	if err != nil {
-		t.Fatalf("Expected PauseIngest err to be nil but was %v", err)
+		suite.T().Fatalf("Expected PauseIngest err to be nil but was %v", err)
 	}
 
 	err = mgr.ResumeIngest("test", nil)
 	if err != nil {
-		t.Fatalf("Expected ResumeIngest err to be nil but was %v", err)
+		suite.T().Fatalf("Expected ResumeIngest err to be nil but was %v", err)
 	}
 }
 
-func TestSearchIndexesQueryControl(t *testing.T) {
+func (suite *IntegrationTestSuite) TestSearchIndexesQueryControl() {
 	if !globalCluster.SupportsFeature(SearchIndexFeature) {
-		t.Skip("Skipping test as search indexes not supported")
+		suite.T().Skip("Skipping test as search indexes not supported")
 	}
 
 	mgr := globalCluster.SearchIndexes()
@@ -202,25 +201,25 @@ func TestSearchIndexesQueryControl(t *testing.T) {
 		SourceName: globalBucket.Name(),
 	}, nil)
 	if err != nil {
-		t.Fatalf("Expected UpsertIndex err to be nil but was %v", err)
+		suite.T().Fatalf("Expected UpsertIndex err to be nil but was %v", err)
 	}
 
 	defer mgr.DropIndex("test", nil)
 
 	err = mgr.DisallowQuerying("test", nil)
 	if err != nil {
-		t.Fatalf("Expected PauseIngest err to be nil but was %v", err)
+		suite.T().Fatalf("Expected PauseIngest err to be nil but was %v", err)
 	}
 
 	err = mgr.AllowQuerying("test", nil)
 	if err != nil {
-		t.Fatalf("Expected ResumeIngest err to be nil but was %v", err)
+		suite.T().Fatalf("Expected ResumeIngest err to be nil but was %v", err)
 	}
 }
 
-func TestSearchIndexesPartitionControl(t *testing.T) {
+func (suite *IntegrationTestSuite) TestSearchIndexesPartitionControl() {
 	if !globalCluster.SupportsFeature(SearchIndexFeature) {
-		t.Skip("Skipping test as search indexes not supported")
+		suite.T().Skip("Skipping test as search indexes not supported")
 	}
 
 	mgr := globalCluster.SearchIndexes()
@@ -232,18 +231,18 @@ func TestSearchIndexesPartitionControl(t *testing.T) {
 		SourceName: globalBucket.Name(),
 	}, nil)
 	if err != nil {
-		t.Fatalf("Expected UpsertIndex err to be nil but was %v", err)
+		suite.T().Fatalf("Expected UpsertIndex err to be nil but was %v", err)
 	}
 
 	defer mgr.DropIndex("test", nil)
 
 	err = mgr.FreezePlan("test", nil)
 	if err != nil {
-		t.Fatalf("Expected PauseIngest err to be nil but was %v", err)
+		suite.T().Fatalf("Expected PauseIngest err to be nil but was %v", err)
 	}
 
 	err = mgr.UnfreezePlan("test", nil)
 	if err != nil {
-		t.Fatalf("Expected ResumeIngest err to be nil but was %v", err)
+		suite.T().Fatalf("Expected ResumeIngest err to be nil but was %v", err)
 	}
 }

@@ -4,18 +4,17 @@ import (
 	"fmt"
 	"math/rand"
 	"net/url"
-	"testing"
 )
 
-func TestViewQueryOptionsToURLValues(t *testing.T) {
+func (suite *UnitTestSuite) TestViewQueryOptionsToURLValues() {
 	for i := 0; i < 50; i++ {
-		opts := testCreateViewQueryOptions(int64(i))
+		opts := suite.testCreateViewQueryOptions(int64(i))
 
 		optValues, err := opts.toURLValues()
 
 		if opts.ScanConsistency > ViewScanConsistencyUpdateAfter || opts.ScanConsistency < 0 {
 			if err == nil {
-				t.Fatalf("Expected an error for invalid stale value")
+				suite.T().Fatalf("Expected an error for invalid stale value")
 			} else {
 				continue
 			}
@@ -23,88 +22,88 @@ func TestViewQueryOptionsToURLValues(t *testing.T) {
 
 		if opts.Order > ViewOrderingDescending || opts.Order < 0 {
 			if err == nil {
-				t.Fatalf("Expected an error for invalid order value")
+				suite.T().Fatalf("Expected an error for invalid order value")
 			} else {
 				continue
 			}
 		}
 
 		if err != nil {
-			t.Fatalf("Expected no error but was %v", err)
+			suite.T().Fatalf("Expected no error but was %v", err)
 		}
 
 		if opts.ScanConsistency == 0 {
-			testAssertViewOption(t, "", "stale", optValues)
+			suite.testAssertViewOption("", "stale", optValues)
 		} else if opts.ScanConsistency == ViewScanConsistencyRequestPlus {
-			testAssertViewOption(t, "false", "stale", optValues)
+			suite.testAssertViewOption("false", "stale", optValues)
 		} else if opts.ScanConsistency == ViewScanConsistencyNotBounded {
-			testAssertViewOption(t, "ok", "stale", optValues)
+			suite.testAssertViewOption("ok", "stale", optValues)
 		} else if opts.ScanConsistency == ViewScanConsistencyUpdateAfter {
-			testAssertViewOption(t, "update_after", "stale", optValues)
+			suite.testAssertViewOption("update_after", "stale", optValues)
 		}
 
 		if opts.Skip == 0 {
-			testAssertViewOption(t, "", "skip", optValues)
+			suite.testAssertViewOption("", "skip", optValues)
 		} else {
-			testAssertViewOption(t, fmt.Sprintf("%d", opts.Skip), "skip", optValues)
+			suite.testAssertViewOption(fmt.Sprintf("%d", opts.Skip), "skip", optValues)
 		}
 
 		if opts.Limit == 0 {
-			testAssertViewOption(t, "", "limit", optValues)
+			suite.testAssertViewOption("", "limit", optValues)
 		} else {
-			testAssertViewOption(t, fmt.Sprintf("%d", opts.Limit), "limit", optValues)
+			suite.testAssertViewOption(fmt.Sprintf("%d", opts.Limit), "limit", optValues)
 		}
 
 		if opts.Order == 0 {
-			testAssertViewOption(t, "", "descending", optValues)
+			suite.testAssertViewOption("", "descending", optValues)
 		} else if opts.Order == ViewOrderingAscending {
-			testAssertViewOption(t, "false", "descending", optValues)
+			suite.testAssertViewOption("false", "descending", optValues)
 		} else if opts.Order == ViewOrderingDescending {
-			testAssertViewOption(t, "true", "descending", optValues)
+			suite.testAssertViewOption("true", "descending", optValues)
 		}
 
 		if opts.Reduce {
-			testAssertViewOption(t, "true", "reduce", optValues)
+			suite.testAssertViewOption("true", "reduce", optValues)
 
 			if opts.Group {
-				testAssertViewOption(t, "true", "group", optValues)
+				suite.testAssertViewOption("true", "group", optValues)
 			} else {
-				testAssertViewOption(t, "false", "group", optValues)
+				suite.testAssertViewOption("false", "group", optValues)
 			}
 
 			if opts.GroupLevel == 0 {
-				testAssertViewOption(t, "", "group_level", optValues)
+				suite.testAssertViewOption("", "group_level", optValues)
 			} else {
-				testAssertViewOption(t, fmt.Sprintf("%d", opts.GroupLevel), "group_level", optValues)
+				suite.testAssertViewOption(fmt.Sprintf("%d", opts.GroupLevel), "group_level", optValues)
 			}
 		} else {
-			testAssertViewOption(t, "false", "reduce", optValues)
-			testAssertViewOption(t, "", "group", optValues)
-			testAssertViewOption(t, "", "group_level", optValues)
+			suite.testAssertViewOption("false", "reduce", optValues)
+			suite.testAssertViewOption("", "group", optValues)
+			suite.testAssertViewOption("", "group_level", optValues)
 		}
 
 		if opts.Key == nil {
-			testAssertViewOption(t, "", "key", optValues)
+			suite.testAssertViewOption("", "key", optValues)
 		} else {
-			testAssertViewOption(t, "[\"key1\"]\n", "key", optValues)
+			suite.testAssertViewOption("[\"key1\"]\n", "key", optValues)
 		}
 
 		if len(opts.Keys) == 0 {
-			testAssertViewOption(t, "", "keys", optValues)
+			suite.testAssertViewOption("", "keys", optValues)
 		} else {
-			testAssertViewOption(t, "[\"key2\",\"key3\",{\"key\":\"key4\"}]\n", "keys", optValues)
+			suite.testAssertViewOption("[\"key2\",\"key3\",{\"key\":\"key4\"}]\n", "keys", optValues)
 		}
 	}
 }
 
-func testAssertViewOption(t *testing.T, expected string, key string, optValues *url.Values) {
+func (suite *UnitTestSuite) testAssertViewOption(expected string, key string, optValues *url.Values) {
 	val := optValues.Get(key)
 	if val != expected {
-		t.Fatalf("Values had incorrect %s, expected %s but was %s", key, expected, val)
+		suite.T().Fatalf("Values had incorrect %s, expected %s but was %s", key, expected, val)
 	}
 }
 
-func testCreateViewQueryOptions(seed int64) *ViewOptions {
+func (suite *UnitTestSuite) testCreateViewQueryOptions(seed int64) *ViewOptions {
 	opts := &ViewOptions{}
 	rand.Seed(seed)
 
