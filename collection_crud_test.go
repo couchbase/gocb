@@ -1102,7 +1102,7 @@ func TestUnlockInvalidCas(t *testing.T) {
 	}
 
 	// The server and the mock do not agree on the error for locked documents.
-	if !errors.Is(err, ErrDocumentLocked) && !errors.Is(err, ErrTemporaryFailure) {
+	if !errors.Is(err, ErrCasMismatch) && !errors.Is(err, ErrTemporaryFailure) {
 		t.Fatalf("Expected error to be DocumentLocked or TemporaryFailure but was %s", err)
 	}
 
