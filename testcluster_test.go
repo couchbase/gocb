@@ -24,6 +24,7 @@ var (
 	srvVer553   = NodeVersion{5, 5, 3, 0, "", false}
 	srvVer600   = NodeVersion{6, 0, 0, 0, "", false}
 	srvVer650   = NodeVersion{6, 5, 0, 0, "", false}
+	srvVer700   = NodeVersion{7, 0, 0, 0, "", false}
 	mockVer156  = NodeVersion{1, 5, 6, 0, "", true}
 	mockVer1513 = NodeVersion{1, 5, 13, 0, "", true}
 	mockVer1515 = NodeVersion{1, 5, 15, 0, "", true}
@@ -164,7 +165,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case AnalyticsFeature:
 			supported = !c.Version.Lower(srvVer600)
 		case CollectionsFeature:
-			supported = !c.Version.Lower(srvVer650)
+			supported = !c.Version.Lower(srvVer700)
 		case SubdocMockBugFeature:
 			supported = true
 		case ExpandMacrosFeature:
