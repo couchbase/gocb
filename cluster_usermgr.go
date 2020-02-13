@@ -201,7 +201,7 @@ func (um *UserAndMetadata) fromData(data jsonUserMetadata) error {
 		effectiveRoles = append(effectiveRoles, effectiveRole)
 
 		role := effectiveRole.Role
-		if effectiveRole.Origins == nil {
+		if roleData.Origins == nil {
 			roles = append(roles, role)
 		} else {
 			for _, origin := range effectiveRole.Origins {
