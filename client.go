@@ -165,7 +165,7 @@ func (c *stdClient) getAnalyticsProvider() (analyticsProvider, error) {
 	if c.agent == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
-	return c.agent, nil
+	return &analyticsProviderWrapper{provider: c.agent}, nil
 }
 
 func (c *stdClient) getSearchProvider() (searchProvider, error) {

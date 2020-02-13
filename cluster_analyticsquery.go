@@ -119,15 +119,22 @@ func (meta *AnalyticsMetaData) fromData(data jsonAnalyticsResponse) error {
 
 // AnalyticsResult allows access to the results of a query.
 type AnalyticsResult struct {
-	reader *gocbcore.AnalyticsRowReader
+	reader analyticsRowReader
 
 	rowBytes []byte
 }
 
-func newAnalyticsResult(reader *gocbcore.AnalyticsRowReader) (*AnalyticsResult, error) {
+func newAnalyticsResult(reader analyticsRowReader) (*AnalyticsResult, error) {
 	return &AnalyticsResult{
 		reader: reader,
 	}, nil
+}
+
+type analyticsRowReader interface {
+	NextRow() []byte
+	Err() error
+	MetaData() ([]byte, error)
+	Close() error
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.

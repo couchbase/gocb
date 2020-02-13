@@ -47,6 +47,7 @@ updatemocks:
 	mockery -name httpProvider -output . -testonly -inpkg
 	mockery -name diagnosticsProvider -output . -testonly -inpkg
 	mockery -name mgmtProvider -output . -testonly -inpkg
+	mockery -name analyticsProvider -output . -testonly -inpkg
 	# pendingOp is manually mocked
 
 .PHONY: all test devsetup fasttest lint cover checkerrs checkfmt checkvet checkiea checkspell check bench updatetestcases updatemocks

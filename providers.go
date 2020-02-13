@@ -17,7 +17,7 @@ type queryProvider interface {
 }
 
 type analyticsProvider interface {
-	AnalyticsQuery(opts gocbcore.AnalyticsQueryOptions) (*gocbcore.AnalyticsRowReader, error)
+	AnalyticsQuery(opts gocbcore.AnalyticsQueryOptions) (analyticsRowReader, error)
 }
 
 type searchProvider interface {
@@ -30,4 +30,12 @@ type clusterCapabilityProvider interface {
 
 type diagnosticsProvider interface {
 	Diagnostics() (*gocbcore.DiagnosticInfo, error)
+}
+
+type analyticsProviderWrapper struct {
+	provider *gocbcore.Agent
+}
+
+func (apw *analyticsProviderWrapper) AnalyticsQuery(opts gocbcore.AnalyticsQueryOptions) (analyticsRowReader, error) {
+	return apw.provider.AnalyticsQuery(opts)
 }

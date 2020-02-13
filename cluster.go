@@ -109,22 +109,12 @@ type ClusterOptions struct {
 type ClusterCloseOptions struct {
 }
 
-// Connect creates and returns a Cluster instance created using the
-// provided options and a connection string.
-func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
+func clusterFromOptions(opts ClusterOptions) *Cluster {
 	if opts.Authenticator == nil {
 		opts.Authenticator = PasswordAuthenticator{
 			Username: opts.Username,
 			Password: opts.Password,
 		}
-	}
-	connSpec, err := gocbconnstr.Parse(connStr)
-	if err != nil {
-		return nil, err
-	}
-
-	if connSpec.Scheme == "http" {
-		return nil, errors.New("http scheme is not supported, use couchbase or couchbases instead")
 	}
 
 	connectTimeout := 10000 * time.Millisecond
@@ -183,8 +173,7 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 	}
 	tracerAddRef(initialTracer)
 
-	cluster := &Cluster{
-		cSpec:       connSpec,
+	return &Cluster{
 		auth:        opts.Authenticator,
 		connections: make(map[string]client),
 		sb: stateBlock{
@@ -211,6 +200,22 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 
 		queryCache: make(map[string]*queryCacheEntry),
 	}
+}
+
+// Connect creates and returns a Cluster instance created using the
+// provided options and a connection string.
+func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
+	connSpec, err := gocbconnstr.Parse(connStr)
+	if err != nil {
+		return nil, err
+	}
+
+	if connSpec.Scheme == "http" {
+		return nil, errors.New("http scheme is not supported, use couchbase or couchbases instead")
+	}
+
+	cluster := clusterFromOptions(opts)
+	cluster.cSpec = connSpec
 
 	err = cluster.parseExtraConnStrOptions(connSpec)
 	if err != nil {

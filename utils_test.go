@@ -41,6 +41,8 @@ type testBreweryDocument struct {
 	Type        string         `json:"type,omitempty"`
 	Updated     string         `json:"updated,omitempty"`
 	Website     string         `json:"website,omitempty"`
+
+	Service string `json:"service,omitempty"`
 }
 
 type testMetadata struct {

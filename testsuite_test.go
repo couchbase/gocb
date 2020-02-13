@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -98,6 +99,25 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 	}
 }
 
+func (suite *IntegrationTestSuite) createBreweryDataset(datasetName, service string) (int, error) {
+	var dataset []testBreweryDocument
+	err := loadJSONTestDataset(datasetName, &dataset)
+	if err != nil {
+		return 0, err
+	}
+
+	for i, doc := range dataset {
+		doc.Service = service
+
+		_, err := globalCollection.Upsert(fmt.Sprintf("%s%d", service, i), doc, nil)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return len(dataset), nil
+}
+
 type UnitTestSuite struct {
 	suite.Suite
 }
@@ -144,6 +164,12 @@ func (suite *UnitTestSuite) bucket(name string, timeouts TimeoutsConfig, cli *mo
 			cachedClient: cli,
 		},
 	}
+
+	return b
+}
+func (suite *UnitTestSuite) mustConvertToBytes(val interface{}) []byte {
+	b, err := json.Marshal(val)
+	suite.Require().Nil(err)
 
 	return b
 }
