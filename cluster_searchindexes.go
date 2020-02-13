@@ -604,7 +604,7 @@ func (sm *SearchIndexManager) FreezePlan(indexName string, opts *AllowQueryingSe
 
 	return sm.performControlRequest(
 		span.Context(),
-		"POTS",
+		"POST",
 		fmt.Sprintf("/api/index/%s/planFreezeControl/freeze", indexName),
 		opts.Timeout,
 		opts.RetryStrategy)
