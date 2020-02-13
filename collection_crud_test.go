@@ -1198,24 +1198,7 @@ func (suite *IntegrationTestSuite) TestTouch() {
 		suite.T().Fatalf("Upsert CAS was 0")
 	}
 
-	lockedDoc, err := globalCollection.GetAndTouch("touch", 2, nil)
-	if err != nil {
-		suite.T().Fatalf("Get failed, error was %v", err)
-	}
-
-	var lockedDocContent testBeerDocument
-	err = lockedDoc.Content(&lockedDocContent)
-	if err != nil {
-		suite.T().Fatalf("Content failed, error was %v", err)
-	}
-
-	if doc != lockedDocContent {
-		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
-	}
-
-	globalCluster.TimeTravel(1 * time.Second)
-
-	touchOut, err := globalCollection.Touch("touch", 3, nil)
+	touchOut, err := globalCollection.Touch("touch", 3*time.Second, nil)
 	if err != nil {
 		suite.T().Fatalf("Touch failed, error was %v", err)
 	}
@@ -1224,15 +1207,17 @@ func (suite *IntegrationTestSuite) TestTouch() {
 		suite.T().Fatalf("Upsert CAS was 0")
 	}
 
-	globalCluster.TimeTravel(2 * time.Second)
-
 	expireDoc, err := globalCollection.Get("touch", &GetOptions{WithExpiry: true})
 	if err != nil {
 		suite.T().Fatalf("Get failed, error was %v", err)
 	}
 
-	if *expireDoc.Expiry() == 0 {
-		suite.T().Fatalf("Expected doc to have an expiry > 0, was %d", expireDoc.Expiry())
+	if expireDoc.Expiry() == nil {
+		suite.T().Fatalf("Expiry should have been non nil")
+	}
+
+	if *expireDoc.Expiry() > 3*time.Second || *expireDoc.Expiry() < 1*time.Second {
+		suite.T().Fatalf("Expected doc to have an expiry > 1 and < 3, was %d", expireDoc.Expiry())
 	}
 
 	var expireDocContent testBeerDocument
@@ -1242,7 +1227,7 @@ func (suite *IntegrationTestSuite) TestTouch() {
 	}
 
 	if doc != expireDocContent {
-		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
+		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, expireDocContent)
 	}
 }
 
