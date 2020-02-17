@@ -369,18 +369,8 @@ func (c *Cluster) closeBucket(bucket *Bucket) {
 
 // Manager returns a ClusterManager object for performing cluster management operations on this cluster.
 func (c *Cluster) Manager(username, password string) *ClusterManager {
-	var mgmtHosts []string
-	for _, host := range c.agentConfig.HttpAddrs {
-		if c.agentConfig.TlsConfig != nil {
-			mgmtHosts = append(mgmtHosts, "https://"+host)
-		} else {
-			mgmtHosts = append(mgmtHosts, "http://"+host)
-		}
-	}
-
 	tlsConfig := c.agentConfig.TlsConfig
 	return &ClusterManager{
-		hosts:    mgmtHosts,
 		username: username,
 		password: password,
 		httpCli: &http.Client{
@@ -446,4 +436,18 @@ func (c *Cluster) getFtsEp() (string, error) {
 	}
 
 	return ftsEp, nil
+}
+
+func (c *Cluster) getMgmtEp() (string, error) {
+	tmpB, err := c.randomBucket()
+	if err != nil {
+		return "", err
+	}
+
+	mgmtEp, err := tmpB.getMgmtEp()
+	if err != nil {
+		return "", err
+	}
+
+	return mgmtEp, nil
 }

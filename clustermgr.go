@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"strings"
@@ -14,7 +13,6 @@ import (
 
 // ClusterManager provides methods for performing cluster management operations.
 type ClusterManager struct {
-	hosts    []string
 	username string
 	password string
 	httpCli  *http.Client
@@ -86,16 +84,17 @@ type BucketSettings struct {
 	Type          BucketType
 }
 
-func (cm *ClusterManager) getMgmtEp() string {
-	return cm.hosts[rand.Intn(len(cm.hosts))]
-}
-
 func (cm *ClusterManager) mgmtRequest(method, uri string, contentType string, body io.Reader) (*http.Response, error) {
 	if contentType == "" && body != nil {
 		panic("Content-type must be specified for non-null body.")
 	}
 
-	reqUri := cm.getMgmtEp() + uri
+	ep, err := cm.cluster.getMgmtEp()
+	if err != nil {
+		return nil, err
+	}
+
+	reqUri := ep + uri
 	req, err := http.NewRequest(method, reqUri, body)
 	if err != nil {
 		return nil, err
