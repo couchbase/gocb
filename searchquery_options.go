@@ -47,7 +47,9 @@ type SearchOptions struct {
 	Sort            []cbsearch.Sort
 	Facets          map[string]cbsearch.Facet
 	ConsistentWith  *MutationState
-	Raw             map[string]interface{}
+
+	// Raw provides a way to provide extra parameters in the request body for the query.
+	Raw map[string]interface{}
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy

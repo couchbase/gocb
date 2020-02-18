@@ -33,10 +33,7 @@ type BulkOp interface {
 
 // BulkOpOptions are the set of options available when performing BulkOps using Do.
 type BulkOpOptions struct {
-	Timeout time.Duration
-
-	// Transcoder is used to encode values for operations that perform mutations and to decode values for
-	// operations that fetch values. It does not apply to all BulkOp operations.
+	Timeout       time.Duration
 	Transcoder    Transcoder
 	RetryStrategy RetryStrategy
 }

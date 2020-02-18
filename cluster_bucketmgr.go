@@ -82,22 +82,15 @@ type jsonBucketSettings struct {
 
 // BucketSettings holds information about the settings for a bucket.
 type BucketSettings struct {
-	// Name is the name of the bucket and is required.
-	Name string
-	// FlushEnabled specifies whether or not to enable flush on the bucket.
-	FlushEnabled bool
-	// ReplicaIndexDisabled specifies whether or not to disable replica index.
+	Name                 string
+	FlushEnabled         bool
 	ReplicaIndexDisabled bool // inverted so that zero value matches server default.
-	//  is the memory quota to assign to the bucket and is required.
-	RAMQuotaMB uint64
-	// NumReplicas is the number of replicas servers per vbucket and is required.
-	// NOTE: If not set this will set 0 replicas.
-	NumReplicas uint32
-	// BucketType is the type of bucket this is. Defaults to CouchbaseBucketType.
-	BucketType      BucketType
-	EvictionPolicy  EvictionPolicyType
-	MaxTTL          time.Duration
-	CompressionMode CompressionMode
+	RAMQuotaMB           uint64
+	NumReplicas          uint32     // NOTE: If not set this will set 0 replicas.
+	BucketType           BucketType // Defaults to CouchbaseBucketType.
+	EvictionPolicy       EvictionPolicyType
+	MaxTTL               time.Duration
+	CompressionMode      CompressionMode
 }
 
 func (bs *BucketSettings) fromData(data jsonBucketSettings) error {

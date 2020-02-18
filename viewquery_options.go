@@ -60,7 +60,9 @@ type ViewOptions struct {
 	EndKeyDocID     string
 	OnError         ViewErrorMode
 	Debug           bool
-	Raw             map[string]string
+
+	// Raw provides a way to provide extra parameters in the request body for the query.
+	Raw map[string]string
 
 	Namespace DesignDocumentNamespace
 

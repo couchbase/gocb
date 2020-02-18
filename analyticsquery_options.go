@@ -19,13 +19,19 @@ const (
 
 // AnalyticsOptions is the set of options available to an Analytics query.
 type AnalyticsOptions struct {
-	ClientContextID      string
+	// ClientContextID provides a unique ID for this query which can be used matching up requests between client and
+	// server. If not provided will be assigned a uuid value.
+	ClientContextID string
+
+	// Priority sets whether this query should be assigned as high priority by the analytics engine.
 	Priority             bool
 	PositionalParameters []interface{}
 	NamedParameters      map[string]interface{}
 	Readonly             bool
 	ScanConsistency      AnalyticsScanConsistency
-	Raw                  map[string]interface{}
+
+	// Raw provides a way to provide extra parameters in the request body for the query.
+	Raw map[string]interface{}
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
