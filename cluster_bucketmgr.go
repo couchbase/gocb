@@ -3,7 +3,9 @@ package gocb
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -117,6 +119,71 @@ func (bs *BucketSettings) fromData(data jsonBucketSettings) error {
 	return nil
 }
 
+type bucketMgrErrorResp struct {
+	Errors map[string]string `json:"errors"`
+}
+
+func tryParseBucketMgrErrorMessage(req *gocbcore.HTTPRequest, resp *gocbcore.HTTPResponse) error {
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		logDebugf("Failed to read bucket manager response body: %s", err)
+		return nil
+	}
+
+	if resp.StatusCode == 404 {
+		// If it was a 404 then there's no chance of the response body containing any structure
+		if strings.Contains(strings.ToLower(string(b)), "resource not found") {
+			return makeGenericHTTPError(ErrBucketNotFound, req, resp)
+		}
+
+		return errors.New(string(b))
+	}
+
+	var mgrErr bucketMgrErrorResp
+	err = json.Unmarshal(b, &mgrErr)
+	if err != nil {
+		return errors.New(string(b))
+	}
+
+	var bodyErr error
+	var firstErr string
+	for _, err := range mgrErr.Errors {
+		firstErr = strings.ToLower(err)
+		break
+	}
+
+	if strings.Contains(firstErr, "bucket with given name already exists") {
+		bodyErr = ErrBucketExists
+	} else {
+		bodyErr = errors.New(firstErr)
+	}
+
+	return makeGenericHTTPError(bodyErr, req, resp)
+}
+
+// Flush doesn't use the same body format as anything else...
+func tryParseBucketMgrFlushErrorMessage(req *gocbcore.HTTPRequest, resp *gocbcore.HTTPResponse) error {
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		logDebugf("Failed to read bucket manager response body: %s", err)
+		return makeHTTPBadStatusError("failed to flush bucket", req, resp)
+	}
+
+	var bodyErrMsgs map[string]string
+	err = json.Unmarshal(b, &bodyErrMsgs)
+	if err != nil {
+		return errors.New(string(b))
+	}
+
+	if errMsg, ok := bodyErrMsgs["_"]; ok {
+		if strings.Contains(strings.ToLower(errMsg), "flush is disabled") {
+			return ErrBucketNotFlushable
+		}
+	}
+
+	return errors.New(string(b))
+}
+
 // BucketManager provides methods for performing bucket management operations.
 // See BucketManager for methods that allow creating and removing buckets themselves.
 type BucketManager struct {
@@ -176,6 +243,11 @@ func (bm *BucketManager) get(tracectx requestSpanContext, bucketName string,
 	}
 
 	if resp.StatusCode != 200 {
+		bktErr := tryParseBucketMgrErrorMessage(req, resp)
+		if bktErr != nil {
+			return nil, bktErr
+		}
+
 		return nil, makeHTTPBadStatusError("failed to get bucket", req, resp)
 	}
 
@@ -244,6 +316,11 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 	}
 
 	if resp.StatusCode != 200 {
+		bktErr := tryParseBucketMgrErrorMessage(req, resp)
+		if bktErr != nil {
+			return nil, bktErr
+		}
+
 		return nil, makeHTTPBadStatusError("failed to get all buckets", req, resp)
 	}
 
@@ -333,6 +410,11 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 	}
 
 	if resp.StatusCode != 202 {
+		bktErr := tryParseBucketMgrErrorMessage(req, resp)
+		if bktErr != nil {
+			return bktErr
+		}
+
 		return makeHTTPBadStatusError("failed to create bucket", req, resp)
 	}
 
@@ -394,6 +476,11 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 	}
 
 	if resp.StatusCode != 200 {
+		bktErr := tryParseBucketMgrErrorMessage(req, resp)
+		if bktErr != nil {
+			return bktErr
+		}
+
 		return makeHTTPBadStatusError("failed to update bucket", req, resp)
 	}
 
@@ -448,6 +535,11 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 	}
 
 	if resp.StatusCode != 200 {
+		bktErr := tryParseBucketMgrErrorMessage(req, resp)
+		if bktErr != nil {
+			return bktErr
+		}
+
 		return makeHTTPBadStatusError("failed to drop bucket", req, resp)
 	}
 
@@ -503,7 +595,7 @@ func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) erro
 	}
 
 	if resp.StatusCode != 200 {
-		return makeHTTPBadStatusError("failed to flush bucket", req, resp)
+		return tryParseBucketMgrFlushErrorMessage(req, resp)
 	}
 
 	err = resp.Body.Close()

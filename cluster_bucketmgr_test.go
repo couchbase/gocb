@@ -1,17 +1,13 @@
 package gocb
 
 import (
-	"testing"
+	"errors"
 	"time"
 
 	"github.com/couchbase/gocbcore/v8"
 )
 
 func (suite *IntegrationTestSuite) TestBucketMgrOps() {
-	if testing.Short() {
-		suite.T().Skip("Skipping test in short mode.")
-	}
-
 	if globalCluster.NotSupportsFeature(BucketMgrFeature) {
 		suite.T().Skip("Skipping test as bucket manager not supported.")
 	}
@@ -33,7 +29,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrOps() {
 		ConflictResolutionType: ConflictResolutionTypeSequenceNumber,
 	}, nil)
 	if err != nil {
-		suite.T().Fatalf("Failed to create bucket manager %v", err)
+		suite.T().Fatalf("Failed to create bucket %v", err)
 	}
 
 	// Buckets don't become available immediately so we need to do a bit of polling to see if it comes online.
@@ -96,5 +92,83 @@ func (suite *IntegrationTestSuite) TestBucketMgrOps() {
 	err = mgr.DropBucket("test22", nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to drop bucket manager %v", err)
+	}
+}
+
+func (suite *IntegrationTestSuite) TestBucketMgrFlushDisabled() {
+	if globalCluster.NotSupportsFeature(BucketMgrFeature) {
+		suite.T().Skip("Skipping test as bucket manager not supported.")
+	}
+
+	mgr := globalCluster.Buckets()
+
+	err := mgr.CreateBucket(CreateBucketSettings{
+		BucketSettings: BucketSettings{
+			Name:                 "testFlush",
+			RAMQuotaMB:           100,
+			NumReplicas:          0,
+			BucketType:           CouchbaseBucketType,
+			EvictionPolicy:       EvictionPolicyTypeValueOnly,
+			FlushEnabled:         false,
+			MaxTTL:               10,
+			CompressionMode:      CompressionModeActive,
+			ReplicaIndexDisabled: true,
+		},
+		ConflictResolutionType: ConflictResolutionTypeSequenceNumber,
+	}, nil)
+	if err != nil {
+		suite.T().Fatalf("Failed to create bucket %v", err)
+	}
+	defer mgr.DropBucket("testFlush", nil)
+
+	// Buckets don't become available immediately so we need to do a bit of polling to see if it comes online.
+	bucketSignal := make(chan struct{})
+	go func() {
+		for {
+			// Check that we can get and re-upsert a bucket.
+			_, err := mgr.GetBucket("testFlush", nil)
+			if err != nil {
+				suite.T().Logf("Failed to get bucket %v", err)
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+
+			bucketSignal <- struct{}{}
+			break
+		}
+	}()
+
+	maxWaitTime := 2 * time.Second
+	timer := gocbcore.AcquireTimer(maxWaitTime)
+	select {
+	case <-timer.C:
+		gocbcore.ReleaseTimer(timer, true)
+		suite.T().Fatalf("Wait timeout expired for bucket to become available")
+	case <-bucketSignal:
+	}
+
+	err = mgr.FlushBucket("testFlush", nil)
+	if err == nil {
+		suite.T().Fatalf("Expected to fail to flush bucket")
+	}
+
+	if !errors.Is(err, ErrBucketNotFlushable) {
+		suite.T().Fatalf("Expected error to be bucket not flushable but was %v", err)
+	}
+}
+func (suite *IntegrationTestSuite) TestBucketMgrBucketNotExist() {
+	if globalCluster.NotSupportsFeature(BucketMgrFeature) {
+		suite.T().Skip("Skipping test as bucket manager not supported.")
+	}
+
+	mgr := globalCluster.Buckets()
+
+	_, err := mgr.GetBucket("testBucketThatDoesNotExist", nil)
+	if err == nil {
+		suite.T().Fatalf("Expected to fail to get bucket")
+	}
+
+	if !errors.Is(err, ErrBucketNotFound) {
+		suite.T().Fatalf("Expected error to be bucket not found but was %v", err)
 	}
 }
