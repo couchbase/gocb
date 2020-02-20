@@ -266,9 +266,9 @@ func (c *Cluster) SearchQuery(indexName string, query cbsearch.Query, opts *Sear
 		SetTag("couchbase.service", "search")
 	defer span.Finish()
 
-	timeout := c.sb.QueryTimeout
-	if opts.Timeout != 0 && opts.Timeout < timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = c.sb.SearchTimeout
 	}
 	deadline := time.Now().Add(timeout)
 

@@ -278,9 +278,9 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	timeout := um.globalTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = um.globalTimeout
 	}
 
 	req := &gocbcore.HTTPRequest{
@@ -354,9 +354,9 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	timeout := um.globalTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = um.globalTimeout
 	}
 
 	req := &gocbcore.HTTPRequest{
@@ -432,9 +432,9 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	timeout := um.globalTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = um.globalTimeout
 	}
 
 	var reqRoleStrs []string
@@ -504,9 +504,9 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	timeout := um.globalTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = um.globalTimeout
 	}
 
 	req := &gocbcore.HTTPRequest{
@@ -553,9 +553,9 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	timeout := um.globalTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = um.globalTimeout
 	}
 
 	req := &gocbcore.HTTPRequest{
@@ -626,9 +626,9 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	timeout := um.globalTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = um.globalTimeout
 	}
 
 	req := &gocbcore.HTTPRequest{
@@ -694,9 +694,9 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	timeout := um.globalTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = um.globalTimeout
 	}
 
 	req := &gocbcore.HTTPRequest{
@@ -767,9 +767,9 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	timeout := um.globalTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = um.globalTimeout
 	}
 
 	var reqRoleStrs []string
@@ -836,9 +836,9 @@ func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	timeout := um.globalTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = um.globalTimeout
 	}
 
 	req := &gocbcore.HTTPRequest{

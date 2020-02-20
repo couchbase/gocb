@@ -35,9 +35,9 @@ func (c *Cluster) executeMgmtRequest(req mgmtRequest) (*mgmtResponse, error) {
 		return nil, err
 	}
 
-	timeout := c.sb.ManagementTimeout
-	if req.Timeout > 0 && req.Timeout < timeout {
-		timeout = req.Timeout
+	timeout := req.Timeout
+	if req.Timeout == 0 {
+		timeout = c.sb.ManagementTimeout
 	}
 
 	retryStrategy := c.sb.RetryStrategyWrapper

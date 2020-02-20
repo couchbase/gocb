@@ -15,7 +15,7 @@ type AnalyticsIndexManager struct {
 }
 
 func (am *AnalyticsIndexManager) doAnalyticsQuery(q string, opts *AnalyticsOptions) ([][]byte, error) {
-	if opts.Timeout == 0 || opts.Timeout > am.cluster.sb.ManagementTimeout {
+	if opts.Timeout == 0 {
 		opts.Timeout = am.cluster.sb.ManagementTimeout
 	}
 
@@ -552,9 +552,9 @@ func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAn
 		SetTag("couchbase.service", "analytics")
 	defer span.Finish()
 
-	timeout := am.cluster.sb.ManagementTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = am.cluster.sb.ManagementTimeout
 	}
 
 	req := mgmtRequest{

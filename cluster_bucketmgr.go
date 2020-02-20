@@ -147,9 +147,9 @@ func (bm *BucketManager) GetBucket(bucketName string, opts *GetBucketOptions) (*
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	timeout := bm.globalTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = bm.globalTimeout
 	}
 
 	return bm.get(span.Context(), bucketName, retryStrategy, timeout)
@@ -221,9 +221,9 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	timeout := bm.globalTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = bm.globalTimeout
 	}
 
 	req := &gocbcore.HTTPRequest{
@@ -300,9 +300,9 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	timeout := bm.globalTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = bm.globalTimeout
 	}
 
 	posts, err := bm.settingsToPostData(&settings.BucketSettings)
@@ -365,9 +365,9 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	timeout := bm.globalTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = bm.globalTimeout
 	}
 
 	posts, err := bm.settingsToPostData(&settings)
@@ -426,9 +426,9 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	timeout := bm.globalTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = bm.globalTimeout
 	}
 
 	req := &gocbcore.HTTPRequest{
@@ -481,9 +481,9 @@ func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) erro
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	timeout := bm.globalTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = bm.globalTimeout
 	}
 
 	req := &gocbcore.HTTPRequest{

@@ -134,9 +134,9 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 
 	designDoc = b.maybePrefixDevDocument(opts.Namespace, designDoc)
 
-	timeout := b.sb.ViewTimeout
-	if opts.Timeout != 0 && opts.Timeout < timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = b.sb.ViewTimeout
 	}
 	deadline := time.Now().Add(timeout)
 

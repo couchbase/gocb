@@ -70,9 +70,9 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	timeout := cm.globalTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = cm.globalTimeout
 	}
 
 	req := &gocbcore.HTTPRequest{
@@ -177,9 +177,9 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	timeout := cm.globalTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = cm.globalTimeout
 	}
 
 	posts := url.Values{}
@@ -255,9 +255,9 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	timeout := cm.globalTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = cm.globalTimeout
 	}
 
 	req := &gocbcore.HTTPRequest{
@@ -320,9 +320,9 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	timeout := cm.globalTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = cm.globalTimeout
 	}
 
 	posts := url.Values{}
@@ -386,9 +386,9 @@ func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions)
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	timeout := cm.globalTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = cm.globalTimeout
 	}
 
 	req := &gocbcore.HTTPRequest{

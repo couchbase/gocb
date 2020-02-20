@@ -233,9 +233,9 @@ func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResult, err
 		SetTag("couchbase.service", "query")
 	defer span.Finish()
 
-	timeout := c.sb.QueryTimeout
-	if opts.Timeout != 0 && opts.Timeout < timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = c.sb.QueryTimeout
 	}
 	deadline := time.Now().Add(timeout)
 

@@ -13,7 +13,7 @@ type QueryIndexManager struct {
 }
 
 func (qm *QueryIndexManager) doQuery(q string, opts *QueryOptions) ([][]byte, error) {
-	if opts.Timeout == 0 || opts.Timeout > qm.cluster.sb.ManagementTimeout {
+	if opts.Timeout == 0 {
 		opts.Timeout = qm.cluster.sb.ManagementTimeout
 	}
 

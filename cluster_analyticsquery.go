@@ -218,9 +218,9 @@ func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*Ana
 		SetTag("couchbase.service", "analytics")
 	defer span.Finish()
 
-	timeout := c.sb.QueryTimeout
-	if opts.Timeout != 0 && opts.Timeout < timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if opts.Timeout == 0 {
+		timeout = c.sb.AnalyticsTimeout
 	}
 	deadline := time.Now().Add(timeout)
 

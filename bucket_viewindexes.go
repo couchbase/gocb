@@ -145,9 +145,9 @@ func (vm *ViewIndexManager) getDesignDocument(tracectx requestSpanContext, name 
 
 	name = vm.ddocName(name, namespace)
 
-	timeout := vm.bucket.stateBlock().ManagementTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = vm.bucket.stateBlock().ManagementTimeout
 	}
 
 	req := mgmtRequest{
@@ -209,9 +209,9 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamesp
 	span := vm.tracer.StartSpan("GetAllDesignDocuments", nil).SetTag("couchbase.service", "view")
 	defer span.Finish()
 
-	timeout := vm.bucket.stateBlock().ManagementTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = vm.bucket.stateBlock().ManagementTimeout
 	}
 
 	req := mgmtRequest{
@@ -303,9 +303,9 @@ func (vm *ViewIndexManager) upsertDesignDocument(
 		return err
 	}
 
-	timeout := vm.bucket.stateBlock().ManagementTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = vm.bucket.stateBlock().ManagementTimeout
 	}
 
 	ddocName = vm.ddocName(ddocName, namespace)
@@ -353,9 +353,9 @@ func (vm *ViewIndexManager) dropDesignDocument(tracectx requestSpanContext, name
 
 	name = vm.ddocName(name, namespace)
 
-	timeout := vm.bucket.stateBlock().ManagementTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = vm.bucket.stateBlock().ManagementTimeout
 	}
 
 	req := mgmtRequest{
@@ -398,9 +398,9 @@ func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesi
 		SetTag("couchbase.service", "view")
 	defer span.Finish()
 
-	timeout := vm.bucket.stateBlock().ManagementTimeout
-	if opts.Timeout > timeout {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = vm.bucket.stateBlock().ManagementTimeout
 	}
 
 	devdoc, err := vm.getDesignDocument(
