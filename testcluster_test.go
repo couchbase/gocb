@@ -60,6 +60,7 @@ var (
 	SearchAnalyzeFeature                  = FeatureCode(27)
 	AnalyticsIndexPendingMutationsFeature = FeatureCode(28)
 	GetMetaFeature                        = FeatureCode(29)
+	PingFeature                           = FeatureCode(30)
 )
 
 type testClusterErrorWrap struct {
@@ -127,6 +128,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case GetMetaFeature:
 			supported = false
+		case PingFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -187,6 +190,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case AnalyticsIndexPendingMutationsFeature:
 			supported = !c.Version.Lower(srvVer650)
 		case GetMetaFeature:
+			supported = true
+		case PingFeature:
 			supported = true
 		}
 	}
