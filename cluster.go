@@ -544,11 +544,11 @@ func (c *Cluster) setSupportsEnhancedPreparedStatements(supports bool) {
 	}
 }
 
-type clusterHTTPWrapper struct {
+type clusterProviderWrapper struct {
 	c *Cluster
 }
 
-func (cw clusterHTTPWrapper) DoHTTPRequest(req *gocbcore.HTTPRequest) (*gocbcore.HTTPResponse, error) {
+func (cw clusterProviderWrapper) DoHTTPRequest(req *gocbcore.HTTPRequest) (*gocbcore.HTTPResponse, error) {
 	provider, err := cw.c.getHTTPProvider()
 	if err != nil {
 		return nil, err
@@ -559,7 +559,7 @@ func (cw clusterHTTPWrapper) DoHTTPRequest(req *gocbcore.HTTPRequest) (*gocbcore
 
 // Users returns a UserManager for managing users.
 func (c *Cluster) Users() *UserManager {
-	provider := clusterHTTPWrapper{c}
+	provider := clusterProviderWrapper{c}
 
 	return &UserManager{
 		httpClient:           provider,
@@ -571,7 +571,7 @@ func (c *Cluster) Users() *UserManager {
 
 // Buckets returns a BucketManager for managing buckets.
 func (c *Cluster) Buckets() *BucketManager {
-	provider := clusterHTTPWrapper{c}
+	provider := clusterProviderWrapper{c}
 
 	return &BucketManager{
 		httpClient:           provider,
@@ -584,23 +584,26 @@ func (c *Cluster) Buckets() *BucketManager {
 // AnalyticsIndexes returns an AnalyticsIndexManager for managing analytics indexes.
 func (c *Cluster) AnalyticsIndexes() *AnalyticsIndexManager {
 	return &AnalyticsIndexManager{
-		cluster: c,
-		tracer:  c.sb.Tracer,
+		aProvider:     c,
+		mgmtProvider:  c,
+		globalTimeout: c.sb.ManagementTimeout,
+		tracer:        c.sb.Tracer,
 	}
 }
 
 // QueryIndexes returns a QueryIndexManager for managing query indexes.
 func (c *Cluster) QueryIndexes() *QueryIndexManager {
 	return &QueryIndexManager{
-		cluster: c,
-		tracer:  c.sb.Tracer,
+		provider:      c,
+		globalTimeout: c.sb.ManagementTimeout,
+		tracer:        c.sb.Tracer,
 	}
 }
 
 // SearchIndexes returns a SearchIndexManager for managing search indexes.
 func (c *Cluster) SearchIndexes() *SearchIndexManager {
 	return &SearchIndexManager{
-		cluster: c,
-		tracer:  c.sb.Tracer,
+		mgmtProvider: c,
+		tracer:       c.sb.Tracer,
 	}
 }

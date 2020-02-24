@@ -90,13 +90,13 @@ func (si *SearchIndex) toData() (jsonSearchIndex, error) {
 
 // SearchIndexManager provides methods for performing Couchbase search index management.
 type SearchIndexManager struct {
-	cluster *Cluster
+	mgmtProvider mgmtProvider
 
 	tracer requestTracer
 }
 
 func (sm *SearchIndexManager) doMgmtRequest(req mgmtRequest) (*mgmtResponse, error) {
-	resp, err := sm.cluster.executeMgmtRequest(req)
+	resp, err := sm.mgmtProvider.executeMgmtRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -440,10 +440,6 @@ func (sm *SearchIndexManager) performControlRequest(
 	timeout time.Duration,
 	retryStrategy RetryStrategy,
 ) error {
-	if timeout == 0 || timeout > sm.cluster.sb.ManagementTimeout {
-		timeout = sm.cluster.sb.ManagementTimeout
-	}
-
 	req := mgmtRequest{
 		Service:       ServiceTypeSearch,
 		Method:        method,

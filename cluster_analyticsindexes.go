@@ -9,17 +9,23 @@ import (
 
 // AnalyticsIndexManager provides methods for performing Couchbase Analytics index management.
 type AnalyticsIndexManager struct {
-	cluster *Cluster
+	aProvider    analyticsIndexQueryProvider
+	mgmtProvider mgmtProvider
 
-	tracer requestTracer
+	globalTimeout time.Duration
+	tracer        requestTracer
+}
+
+type analyticsIndexQueryProvider interface {
+	AnalyticsQuery(statement string, opts *AnalyticsOptions) (*AnalyticsResult, error)
 }
 
 func (am *AnalyticsIndexManager) doAnalyticsQuery(q string, opts *AnalyticsOptions) ([][]byte, error) {
 	if opts.Timeout == 0 {
-		opts.Timeout = am.cluster.sb.ManagementTimeout
+		opts.Timeout = am.globalTimeout
 	}
 
-	result, err := am.cluster.AnalyticsQuery(q, opts)
+	result, err := am.aProvider.AnalyticsQuery(q, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +49,7 @@ func (am *AnalyticsIndexManager) doAnalyticsQuery(q string, opts *AnalyticsOptio
 }
 
 func (am *AnalyticsIndexManager) doMgmtRequest(req mgmtRequest) (*mgmtResponse, error) {
-	resp, err := am.cluster.executeMgmtRequest(req)
+	resp, err := am.mgmtProvider.executeMgmtRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -554,7 +560,7 @@ func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAn
 
 	timeout := opts.Timeout
 	if timeout == 0 {
-		timeout = am.cluster.sb.ManagementTimeout
+		timeout = am.globalTimeout
 	}
 
 	req := mgmtRequest{

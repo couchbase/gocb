@@ -29,6 +29,10 @@ type mgmtResponse struct {
 	Body       io.ReadCloser
 }
 
+type mgmtProvider interface {
+	executeMgmtRequest(req mgmtRequest) (*mgmtResponse, error)
+}
+
 func (c *Cluster) executeMgmtRequest(req mgmtRequest) (*mgmtResponse, error) {
 	provider, err := c.getHTTPProvider()
 	if err != nil {
@@ -77,9 +81,9 @@ func (b *Bucket) executeMgmtRequest(req mgmtRequest) (*mgmtResponse, error) {
 		return nil, err
 	}
 
-	timeout := b.sb.ManagementTimeout
-	if req.Timeout > 0 && req.Timeout < timeout {
-		timeout = req.Timeout
+	timeout := req.Timeout
+	if timeout == 0 {
+		timeout = b.sb.ManagementTimeout
 	}
 
 	retryStrategy := b.sb.RetryStrategyWrapper

@@ -85,8 +85,9 @@ func (b *Bucket) stateBlock() stateBlock {
 // ViewIndexes returns a ViewIndexManager instance for managing views.
 func (b *Bucket) ViewIndexes() *ViewIndexManager {
 	return &ViewIndexManager{
-		bucket: b,
-		tracer: b.sb.Tracer,
+		mgmtProvider: b,
+		bucketName:   b.Name(),
+		tracer:       b.sb.Tracer,
 	}
 }
 

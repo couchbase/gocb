@@ -7,17 +7,22 @@ import (
 
 // QueryIndexManager provides methods for performing Couchbase query index management.
 type QueryIndexManager struct {
-	cluster *Cluster
+	provider queryIndexQueryProvider
 
-	tracer requestTracer
+	globalTimeout time.Duration
+	tracer        requestTracer
+}
+
+type queryIndexQueryProvider interface {
+	Query(statement string, opts *QueryOptions) (*QueryResult, error)
 }
 
 func (qm *QueryIndexManager) doQuery(q string, opts *QueryOptions) ([][]byte, error) {
 	if opts.Timeout == 0 {
-		opts.Timeout = qm.cluster.sb.ManagementTimeout
+		opts.Timeout = qm.globalTimeout
 	}
 
-	result, err := qm.cluster.Query(q, opts)
+	result, err := qm.provider.Query(q, opts)
 	if err != nil {
 		return nil, err
 	}
