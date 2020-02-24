@@ -456,13 +456,13 @@ func (c *Cluster) doN1qlQuery(tracectx opentracing.SpanContext, b *Bucket, q *N1
 
 		etrace.Finish()
 
-		// If we get error 4050, 4070 or 5000, we should attempt
+		// If we get error 4040, 4050, 4070 or 5000, we should attempt
 		//   to reprepare the statement immediately before failing.
 		n1qlErr, isN1qlErr := err.(*n1qlMultiError)
 		if !isN1qlErr {
 			return nil, err
 		}
-		if n1qlErr.Code() != 4050 && n1qlErr.Code() != 4070 && n1qlErr.Code() != 5000 {
+		if n1qlErr.Code() != 4040 && n1qlErr.Code() != 4050 && n1qlErr.Code() != 4070 && n1qlErr.Code() != 5000 {
 			return nil, err
 		}
 	}
