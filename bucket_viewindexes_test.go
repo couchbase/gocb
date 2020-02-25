@@ -1,10 +1,20 @@
 package gocb
 
-import "time"
+import (
+	"bytes"
+	"errors"
+	"io/ioutil"
+	"time"
+
+	"github.com/stretchr/testify/mock"
+)
 
 func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 	if !globalCluster.SupportsFeature(ViewFeature) {
 		suite.T().Skip("Skipping test as view indexes not supported")
+	}
+	if !globalCluster.SupportsFeature(ViewIndexUpsertBugFeature) {
+		suite.T().Skip("Skipping test due to upsert view indexes bug")
 	}
 
 	mgr := globalBucket.ViewIndexes()
@@ -23,7 +33,7 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 	}, DesignDocumentNamespaceDevelopment, &UpsertDesignDocumentOptions{
 		Timeout: 1 * time.Second,
 	})
-	suite.Require().Nil(err)
+	suite.Require().Nil(err, err)
 
 	designdoc, err := mgr.GetDesignDocument("test", DesignDocumentNamespaceDevelopment, &GetDesignDocumentOptions{
 		Timeout: 1 * time.Second,
@@ -43,7 +53,7 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 	})
 	suite.Require().Nil(err, err)
 
-	suite.Require().GreaterOrEqual(1, len(designdocs))
+	suite.Require().GreaterOrEqual(len(designdocs), 1)
 
 	err = mgr.PublishDesignDocument("test", &PublishDesignDocumentOptions{
 		Timeout: 1 * time.Second,
@@ -62,4 +72,118 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 		Timeout: 1 * time.Second,
 	})
 	suite.Require().Nil(err, err)
+}
+
+func (suite *UnitTestSuite) TestViewIndexManagerGetDoesntExist() {
+	ddocName := "ddoc"
+	retErr := `{"error": "not_found", "reason": "missing}`
+	resp := &mgmtResponse{
+		Endpoint:   "http://localhost:8092/default",
+		StatusCode: 404,
+		Body:       ioutil.NopCloser(bytes.NewReader([]byte(retErr))),
+	}
+
+	mockProvider := new(mockMgmtProvider)
+	mockProvider.
+		On("executeMgmtRequest", mock.AnythingOfType("mgmtRequest")).
+		Run(func(args mock.Arguments) {
+			req := args.Get(0).(mgmtRequest)
+
+			suite.Assert().Equal("/_design/dev_"+ddocName, req.Path)
+			suite.Assert().Equal(ServiceTypeViews, req.Service)
+			suite.Assert().True(req.IsIdempotent)
+			suite.Assert().Equal(1*time.Second, req.Timeout)
+			suite.Assert().Equal("GET", req.Method)
+			suite.Assert().Nil(req.RetryStrategy)
+		}).
+		Return(resp, nil)
+
+	viewMgr := ViewIndexManager{
+		mgmtProvider: mockProvider,
+		bucketName:   "mock",
+		tracer:       &noopTracer{},
+	}
+
+	_, err := viewMgr.GetDesignDocument(ddocName, DesignDocumentNamespaceDevelopment, &GetDesignDocumentOptions{
+		Timeout: 1 * time.Second,
+	})
+	if !errors.Is(err, ErrDesignDocumentNotFound) {
+		suite.T().Fatalf("Expected design document not found: %s", err)
+	}
+}
+
+func (suite *UnitTestSuite) TestViewIndexManagerPublishDoesntExist() {
+	ddocName := "ddoc"
+	retErr := `{"error": "not_found", "reason": "missing}`
+	resp := &mgmtResponse{
+		Endpoint:   "http://localhost:8092/default",
+		StatusCode: 404,
+		Body:       ioutil.NopCloser(bytes.NewReader([]byte(retErr))),
+	}
+
+	mockProvider := new(mockMgmtProvider)
+	mockProvider.
+		On("executeMgmtRequest", mock.AnythingOfType("mgmtRequest")).
+		Run(func(args mock.Arguments) {
+			req := args.Get(0).(mgmtRequest)
+
+			suite.Assert().Equal("/_design/dev_"+ddocName, req.Path)
+			suite.Assert().Equal(ServiceTypeViews, req.Service)
+			suite.Assert().True(req.IsIdempotent)
+			suite.Assert().Equal(1*time.Second, req.Timeout)
+			suite.Assert().Equal("GET", req.Method)
+			suite.Assert().Nil(req.RetryStrategy)
+		}).
+		Return(resp, nil)
+
+	viewMgr := ViewIndexManager{
+		mgmtProvider: mockProvider,
+		bucketName:   "mock",
+		tracer:       &noopTracer{},
+	}
+
+	err := viewMgr.PublishDesignDocument(ddocName, &PublishDesignDocumentOptions{
+		Timeout: 1 * time.Second,
+	})
+	if !errors.Is(err, ErrDesignDocumentNotFound) {
+		suite.T().Fatalf("Expected design document not found: %s", err)
+	}
+}
+
+func (suite *UnitTestSuite) TestViewIndexManagerDropDoesntExist() {
+	ddocName := "ddoc"
+	retErr := `{"error": "not_found", "reason": "missing}`
+	resp := &mgmtResponse{
+		Endpoint:   "http://localhost:8092/default",
+		StatusCode: 404,
+		Body:       ioutil.NopCloser(bytes.NewReader([]byte(retErr))),
+	}
+
+	mockProvider := new(mockMgmtProvider)
+	mockProvider.
+		On("executeMgmtRequest", mock.AnythingOfType("mgmtRequest")).
+		Run(func(args mock.Arguments) {
+			req := args.Get(0).(mgmtRequest)
+
+			suite.Assert().Equal("/_design/"+ddocName, req.Path)
+			suite.Assert().Equal(ServiceTypeViews, req.Service)
+			suite.Assert().False(req.IsIdempotent)
+			suite.Assert().Equal(1*time.Second, req.Timeout)
+			suite.Assert().Equal("DELETE", req.Method)
+			suite.Assert().Nil(req.RetryStrategy)
+		}).
+		Return(resp, nil)
+
+	viewMgr := ViewIndexManager{
+		mgmtProvider: mockProvider,
+		bucketName:   "mock",
+		tracer:       &noopTracer{},
+	}
+
+	err := viewMgr.DropDesignDocument(ddocName, DesignDocumentNamespaceProduction, &DropDesignDocumentOptions{
+		Timeout: 1 * time.Second,
+	})
+	if !errors.Is(err, ErrDesignDocumentNotFound) {
+		suite.T().Fatalf("Expected design document not found: %s", err)
+	}
 }

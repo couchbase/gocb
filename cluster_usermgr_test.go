@@ -1,8 +1,15 @@
 package gocb
 
 import (
+	"bytes"
 	"errors"
+	"io/ioutil"
 	"testing"
+	"time"
+
+	"github.com/couchbase/gocbcore/v8"
+
+	"github.com/stretchr/testify/mock"
 )
 
 func (suite *IntegrationTestSuite) TestUserManagerGroupCrud() {
@@ -56,6 +63,13 @@ func (suite *IntegrationTestSuite) TestUserManagerGroupCrud() {
 	if len(groups) < 2 {
 		suite.T().Fatalf("Expected groups to contain at least 2 groups, was %v", groups)
 	}
+
+	roles, err := mgr.GetRoles(nil)
+	if err != nil {
+		suite.T().Fatalf("Expected GetAllRoles to not error: %v", err)
+	}
+
+	suite.Assert().Greater(len(roles), 0)
 
 	err = mgr.DropGroup("test", nil)
 	if err != nil {
@@ -186,10 +200,6 @@ func (suite *IntegrationTestSuite) TestUserManagerWithGroupsCrud() {
 	}
 
 	_, err = mgr.GetUser("barry", nil)
-	if err == nil {
-		suite.T().Fatalf("Expected GetUser to error")
-	}
-
 	if !errors.Is(err, ErrUserNotFound) {
 		suite.T().Fatalf("Expected error to be user not found but was %v", err)
 	}
@@ -265,10 +275,6 @@ func (suite *IntegrationTestSuite) TestUserManagerCrud() {
 	}
 
 	_, err = mgr.GetUser("barry", nil)
-	if err == nil {
-		suite.T().Fatalf("Expected GetUser to error")
-	}
-
 	if !errors.Is(err, ErrUserNotFound) {
 		suite.T().Fatalf("Expected error to be user not found but was %v", err)
 	}
@@ -320,5 +326,149 @@ func assertUser(t *testing.T, user *UserAndMetadata, expected *UserAndMetadata) 
 
 	if len(user.EffectiveRoles) != len(expected.EffectiveRoles) {
 		t.Fatalf("Expected user EffectiveRoles to be length %v but was %v", expected.EffectiveRoles, user.EffectiveRoles)
+	}
+}
+
+func (suite *UnitTestSuite) TestUserManagerGetUserDoesntExist() {
+	retErr := `Unknown user.`
+	resp := &gocbcore.HTTPResponse{
+		StatusCode: 404,
+		Body:       ioutil.NopCloser(bytes.NewReader([]byte(retErr))),
+	}
+
+	username := "larry"
+	mockProvider := new(mockHttpProvider)
+	mockProvider.
+		On("DoHTTPRequest", mock.AnythingOfType("*gocbcore.HTTPRequest")).
+		Run(func(args mock.Arguments) {
+			req := args.Get(0).(*gocbcore.HTTPRequest)
+
+			suite.Assert().Equal("/settings/rbac/users/local/"+username, req.Path)
+			suite.Assert().True(req.IsIdempotent)
+			suite.Assert().Equal(1*time.Second, req.Timeout)
+			suite.Assert().Equal("GET", req.Method)
+			suite.Assert().NotNil(req.RetryStrategy)
+		}).
+		Return(resp, nil)
+
+	usrMgr := &UserManager{
+		httpClient:           mockProvider,
+		globalTimeout:        10 * time.Second,
+		defaultRetryStrategy: newRetryStrategyWrapper(newFailFastRetryStrategy()),
+		tracer:               &noopTracer{},
+	}
+	_, err := usrMgr.GetUser(username, &GetUserOptions{
+		Timeout: 1 * time.Second,
+	})
+	if !errors.Is(err, ErrUserNotFound) {
+		suite.T().Fatalf("Expected user not found error, %s", err)
+	}
+}
+
+func (suite *UnitTestSuite) TestUserManagerDropUserDoesntExist() {
+	retErr := `User was not found.`
+	resp := &gocbcore.HTTPResponse{
+		StatusCode: 404,
+		Body:       ioutil.NopCloser(bytes.NewReader([]byte(retErr))),
+	}
+
+	username := "larry"
+	mockProvider := new(mockHttpProvider)
+	mockProvider.
+		On("DoHTTPRequest", mock.AnythingOfType("*gocbcore.HTTPRequest")).
+		Run(func(args mock.Arguments) {
+			req := args.Get(0).(*gocbcore.HTTPRequest)
+
+			suite.Assert().Equal("/settings/rbac/users/local/"+username, req.Path)
+			suite.Assert().False(req.IsIdempotent)
+			suite.Assert().Equal(1*time.Second, req.Timeout)
+			suite.Assert().Equal("DELETE", req.Method)
+			suite.Assert().NotNil(req.RetryStrategy)
+		}).
+		Return(resp, nil)
+
+	usrMgr := &UserManager{
+		httpClient:           mockProvider,
+		globalTimeout:        10 * time.Second,
+		defaultRetryStrategy: newRetryStrategyWrapper(newFailFastRetryStrategy()),
+		tracer:               &noopTracer{},
+	}
+	err := usrMgr.DropUser(username, &DropUserOptions{
+		Timeout: 1 * time.Second,
+	})
+	if !errors.Is(err, ErrUserNotFound) {
+		suite.T().Fatalf("Expected user not found error, %s", err)
+	}
+}
+
+func (suite *UnitTestSuite) TestUserManagerGetGroupDoesntExist() {
+	retErr := `Unknown group.`
+	resp := &gocbcore.HTTPResponse{
+		StatusCode: 404,
+		Body:       ioutil.NopCloser(bytes.NewReader([]byte(retErr))),
+	}
+
+	name := "g"
+	mockProvider := new(mockHttpProvider)
+	mockProvider.
+		On("DoHTTPRequest", mock.AnythingOfType("*gocbcore.HTTPRequest")).
+		Run(func(args mock.Arguments) {
+			req := args.Get(0).(*gocbcore.HTTPRequest)
+
+			suite.Assert().Equal("/settings/rbac/groups/"+name, req.Path)
+			suite.Assert().True(req.IsIdempotent)
+			suite.Assert().Equal(1*time.Second, req.Timeout)
+			suite.Assert().Equal("GET", req.Method)
+			suite.Assert().NotNil(req.RetryStrategy)
+		}).
+		Return(resp, nil)
+
+	usrMgr := &UserManager{
+		httpClient:           mockProvider,
+		globalTimeout:        10 * time.Second,
+		defaultRetryStrategy: newRetryStrategyWrapper(newFailFastRetryStrategy()),
+		tracer:               &noopTracer{},
+	}
+	_, err := usrMgr.GetGroup(name, &GetGroupOptions{
+		Timeout: 1 * time.Second,
+	})
+	if !errors.Is(err, ErrGroupNotFound) {
+		suite.T().Fatalf("Expected user not found error, %s", err)
+	}
+}
+
+func (suite *UnitTestSuite) TestUserManagerDropGroupDoesntExist() {
+	retErr := `Group was not found.`
+	resp := &gocbcore.HTTPResponse{
+		StatusCode: 404,
+		Body:       ioutil.NopCloser(bytes.NewReader([]byte(retErr))),
+	}
+
+	name := "g"
+	mockProvider := new(mockHttpProvider)
+	mockProvider.
+		On("DoHTTPRequest", mock.AnythingOfType("*gocbcore.HTTPRequest")).
+		Run(func(args mock.Arguments) {
+			req := args.Get(0).(*gocbcore.HTTPRequest)
+
+			suite.Assert().Equal("/settings/rbac/groups/"+name, req.Path)
+			suite.Assert().False(req.IsIdempotent)
+			suite.Assert().Equal(1*time.Second, req.Timeout)
+			suite.Assert().Equal("DELETE", req.Method)
+			suite.Assert().NotNil(req.RetryStrategy)
+		}).
+		Return(resp, nil)
+
+	usrMgr := &UserManager{
+		httpClient:           mockProvider,
+		globalTimeout:        10 * time.Second,
+		defaultRetryStrategy: newRetryStrategyWrapper(newFailFastRetryStrategy()),
+		tracer:               &noopTracer{},
+	}
+	err := usrMgr.DropGroup(name, &DropGroupOptions{
+		Timeout: 1 * time.Second,
+	})
+	if !errors.Is(err, ErrGroupNotFound) {
+		suite.T().Fatalf("Expected user not found error, %s", err)
 	}
 }

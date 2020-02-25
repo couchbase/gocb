@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 
 	"github.com/couchbase/gocbcore/v8"
 )
@@ -47,6 +48,30 @@ type CollectionManager struct {
 	globalTimeout        time.Duration
 	defaultRetryStrategy *retryStrategyWrapper
 	tracer               requestTracer
+}
+
+func (cm *CollectionManager) tryParseErrorMessage(req *gocbcore.HTTPRequest, resp *gocbcore.HTTPResponse) error {
+	errBody := tryReadHTTPBody(resp)
+	if errBody == "" {
+		return nil
+	}
+	errText := strings.ToLower(errBody)
+
+	if resp.StatusCode == 404 {
+		if strings.Contains(errText, "not found") && strings.Contains(errText, "scope") {
+			return makeGenericHTTPError(ErrScopeNotFound, req, resp)
+		} else if strings.Contains(errText, "not found") && strings.Contains(errText, "scope") {
+			return makeGenericHTTPError(ErrScopeNotFound, req, resp)
+		}
+	}
+
+	if strings.Contains(errText, "already exists") && strings.Contains(errText, "collection") {
+		return makeGenericHTTPError(ErrCollectionExists, req, resp)
+	} else if strings.Contains(errText, "already exists") && strings.Contains(errText, "scope") {
+		return makeGenericHTTPError(ErrScopeExists, req, resp)
+	}
+
+	return makeGenericHTTPError(errors.New(errText), req, resp)
 }
 
 // GetAllScopesOptions is the set of options available to the GetAllScopes operation.
@@ -89,7 +114,11 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 	resp, err := cm.httpClient.DoHTTPRequest(req)
 	dspan.Finish()
 	if err != nil {
-		return nil, makeGenericHTTPError(err, req, resp)
+		colErr := cm.tryParseErrorMessage(req, resp)
+		if colErr != nil {
+			return nil, colErr
+		}
+		return nil, makeHTTPBadStatusError("failed to get users", req, resp)
 	}
 
 	defer func() {
@@ -204,18 +233,11 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 	}
 
 	if resp.StatusCode != 200 {
-		errBody := tryReadHTTPBody(resp)
-		errText := strings.ToLower(errBody)
-
-		if strings.Contains(errText, "already exists") && strings.Contains(errText, "collection") {
-			return makeGenericHTTPError(ErrCollectionExists, req, resp)
+		colErr := cm.tryParseErrorMessage(req, resp)
+		if colErr != nil {
+			return colErr
 		}
-
-		if strings.Contains(errText, "not found") && strings.Contains(errText, "scope") {
-			return makeGenericHTTPError(ErrScopeNotFound, req, resp)
-		}
-
-		return makeHTTPBadStatusError("failed to create collection", req, resp)
+		return makeHTTPBadStatusError("failed to get users", req, resp)
 	}
 
 	err = resp.Body.Close()
@@ -277,14 +299,11 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 	}
 
 	if resp.StatusCode != 200 {
-		errBody := tryReadHTTPBody(resp)
-		errText := strings.ToLower(errBody)
-
-		if strings.Contains(errText, "not found") && strings.Contains(errText, "collection") {
-			return makeGenericHTTPError(ErrCollectionNotFound, req, resp)
+		colErr := cm.tryParseErrorMessage(req, resp)
+		if colErr != nil {
+			return colErr
 		}
-
-		return makeHTTPBadStatusError("failed to drop collection", req, resp)
+		return makeHTTPBadStatusError("failed to get users", req, resp)
 	}
 
 	err = resp.Body.Close()
@@ -347,14 +366,11 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 	}
 
 	if resp.StatusCode != 200 {
-		errBody := tryReadHTTPBody(resp)
-		errText := strings.ToLower(errBody)
-
-		if strings.Contains(errText, "already exists") && strings.Contains(errText, "scope") {
-			return makeGenericHTTPError(ErrScopeExists, req, resp)
+		colErr := cm.tryParseErrorMessage(req, resp)
+		if colErr != nil {
+			return colErr
 		}
-
-		return makeHTTPBadStatusError("failed to create scope", req, resp)
+		return makeHTTPBadStatusError("failed to get users", req, resp)
 	}
 
 	err = resp.Body.Close()
@@ -408,14 +424,11 @@ func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions)
 	}
 
 	if resp.StatusCode != 200 {
-		errBody := tryReadHTTPBody(resp)
-		errText := strings.ToLower(errBody)
-
-		if strings.Contains(errText, "not found") && strings.Contains(errText, "scope") {
-			return makeGenericHTTPError(ErrScopeNotFound, req, resp)
+		colErr := cm.tryParseErrorMessage(req, resp)
+		if colErr != nil {
+			return colErr
 		}
-
-		return makeHTTPBadStatusError("failed to drop scope", req, resp)
+		return makeHTTPBadStatusError("failed to get users", req, resp)
 	}
 
 	err = resp.Body.Close()

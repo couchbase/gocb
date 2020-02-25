@@ -123,7 +123,7 @@ type bucketMgrErrorResp struct {
 	Errors map[string]string `json:"errors"`
 }
 
-func tryParseBucketMgrErrorMessage(req *gocbcore.HTTPRequest, resp *gocbcore.HTTPResponse) error {
+func (bm *BucketManager) tryParseErrorMessage(req *gocbcore.HTTPRequest, resp *gocbcore.HTTPResponse) error {
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		logDebugf("Failed to read bucket manager response body: %s", err)
@@ -136,13 +136,14 @@ func tryParseBucketMgrErrorMessage(req *gocbcore.HTTPRequest, resp *gocbcore.HTT
 			return makeGenericHTTPError(ErrBucketNotFound, req, resp)
 		}
 
-		return errors.New(string(b))
+		return makeGenericHTTPError(errors.New(string(b)), req, resp)
 	}
 
 	var mgrErr bucketMgrErrorResp
 	err = json.Unmarshal(b, &mgrErr)
 	if err != nil {
-		return errors.New(string(b))
+		logDebugf("Failed to unmarshal error body: %s", err)
+		return makeGenericHTTPError(errors.New(string(b)), req, resp)
 	}
 
 	var bodyErr error
@@ -162,7 +163,7 @@ func tryParseBucketMgrErrorMessage(req *gocbcore.HTTPRequest, resp *gocbcore.HTT
 }
 
 // Flush doesn't use the same body format as anything else...
-func tryParseBucketMgrFlushErrorMessage(req *gocbcore.HTTPRequest, resp *gocbcore.HTTPResponse) error {
+func (bm *BucketManager) tryParseFlushErrorMessage(req *gocbcore.HTTPRequest, resp *gocbcore.HTTPResponse) error {
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		logDebugf("Failed to read bucket manager response body: %s", err)
@@ -243,7 +244,7 @@ func (bm *BucketManager) get(tracectx requestSpanContext, bucketName string,
 	}
 
 	if resp.StatusCode != 200 {
-		bktErr := tryParseBucketMgrErrorMessage(req, resp)
+		bktErr := bm.tryParseErrorMessage(req, resp)
 		if bktErr != nil {
 			return nil, bktErr
 		}
@@ -316,7 +317,7 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 	}
 
 	if resp.StatusCode != 200 {
-		bktErr := tryParseBucketMgrErrorMessage(req, resp)
+		bktErr := bm.tryParseErrorMessage(req, resp)
 		if bktErr != nil {
 			return nil, bktErr
 		}
@@ -410,7 +411,7 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 	}
 
 	if resp.StatusCode != 202 {
-		bktErr := tryParseBucketMgrErrorMessage(req, resp)
+		bktErr := bm.tryParseErrorMessage(req, resp)
 		if bktErr != nil {
 			return bktErr
 		}
@@ -476,7 +477,7 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 	}
 
 	if resp.StatusCode != 200 {
-		bktErr := tryParseBucketMgrErrorMessage(req, resp)
+		bktErr := bm.tryParseErrorMessage(req, resp)
 		if bktErr != nil {
 			return bktErr
 		}
@@ -535,7 +536,7 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 	}
 
 	if resp.StatusCode != 200 {
-		bktErr := tryParseBucketMgrErrorMessage(req, resp)
+		bktErr := bm.tryParseErrorMessage(req, resp)
 		if bktErr != nil {
 			return bktErr
 		}
@@ -595,7 +596,7 @@ func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) erro
 	}
 
 	if resp.StatusCode != 200 {
-		return tryParseBucketMgrFlushErrorMessage(req, resp)
+		return bm.tryParseFlushErrorMessage(req, resp)
 	}
 
 	err = resp.Body.Close()

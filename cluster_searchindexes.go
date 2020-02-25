@@ -4,7 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 type jsonSearchIndexResp struct {
@@ -95,6 +99,25 @@ type SearchIndexManager struct {
 	tracer requestTracer
 }
 
+func (sm *SearchIndexManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		logDebugf("Failed to read search index response body: %s", err)
+		return nil
+	}
+
+	var bodyErr error
+	if strings.Contains(strings.ToLower(string(b)), "index not found") {
+		bodyErr = ErrIndexNotFound
+	} else if strings.Contains(strings.ToLower(string(b)), "index with the same name already exists") {
+		bodyErr = ErrIndexExists
+	} else {
+		bodyErr = errors.New(string(b))
+	}
+
+	return makeGenericMgmtError(bodyErr, req, resp)
+}
+
 func (sm *SearchIndexManager) doMgmtRequest(req mgmtRequest) (*mgmtResponse, error) {
 	resp, err := sm.mgmtProvider.executeMgmtRequest(req)
 	if err != nil {
@@ -135,7 +158,12 @@ func (sm *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]S
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, makeMgmtBadStatusError("failed to get all indexes", &req, resp)
+		idxErr := sm.tryParseErrorMessage(&req, resp)
+		if idxErr != nil {
+			return nil, idxErr
+		}
+
+		return nil, makeMgmtBadStatusError("failed to get index", &req, resp)
 	}
 
 	var indexesResp jsonSearchIndexesResp
@@ -196,7 +224,12 @@ func (sm *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOpt
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, makeMgmtBadStatusError("failed to get the index", &req, resp)
+		idxErr := sm.tryParseErrorMessage(&req, resp)
+		if idxErr != nil {
+			return nil, idxErr
+		}
+
+		return nil, makeMgmtBadStatusError("failed to get index", &req, resp)
 	}
 
 	var indexResp jsonSearchIndexResp
@@ -271,7 +304,12 @@ func (sm *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Ups
 	}
 
 	if resp.StatusCode != 200 {
-		return makeMgmtBadStatusError("failed to upsert the index", &req, resp)
+		idxErr := sm.tryParseErrorMessage(&req, resp)
+		if idxErr != nil {
+			return idxErr
+		}
+
+		return makeMgmtBadStatusError("failed to create index", &req, resp)
 	}
 
 	return nil
@@ -358,7 +396,12 @@ func (sm *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{},
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, makeMgmtBadStatusError("failed to analyze the document", &req, resp)
+		idxErr := sm.tryParseErrorMessage(&req, resp)
+		if idxErr != nil {
+			return nil, idxErr
+		}
+
+		return nil, makeMgmtBadStatusError("failed to analyze document", &req, resp)
 	}
 
 	var analysis struct {
@@ -414,6 +457,11 @@ func (sm *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *G
 	}
 
 	if resp.StatusCode != 200 {
+		idxErr := sm.tryParseErrorMessage(&req, resp)
+		if idxErr != nil {
+			return 0, idxErr
+		}
+
 		return 0, makeMgmtBadStatusError("failed to get the indexed documents count", &req, resp)
 	}
 
@@ -455,6 +503,11 @@ func (sm *SearchIndexManager) performControlRequest(
 	}
 
 	if resp.StatusCode != 200 {
+		idxErr := sm.tryParseErrorMessage(&req, resp)
+		if idxErr != nil {
+			return idxErr
+		}
+
 		return makeMgmtBadStatusError("failed to perform the control request", &req, resp)
 	}
 

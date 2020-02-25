@@ -1,8 +1,13 @@
 package gocb
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
+	"io/ioutil"
 	"time"
+
+	"github.com/stretchr/testify/mock"
 )
 
 func (suite *IntegrationTestSuite) TestSearchIndexesCrud() {
@@ -20,6 +25,17 @@ func (suite *IntegrationTestSuite) TestSearchIndexesCrud() {
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Expected UpsertIndex err to be nil but was %v", err)
+	}
+
+	// Upsert requires a UUID.
+	err = mgr.UpsertIndex(SearchIndex{
+		Name:       "test",
+		Type:       "fulltext-index",
+		SourceType: "couchbase",
+		SourceName: globalBucket.Name(),
+	}, nil)
+	if !errors.Is(err, ErrIndexExists) {
+		suite.T().Fatalf("Expected UpsertIndex err to be already exists but was %v", err)
 	}
 
 	err = mgr.UpsertIndex(SearchIndex{
@@ -61,6 +77,11 @@ func (suite *IntegrationTestSuite) TestSearchIndexesCrud() {
 		suite.T().Fatalf("Expected GetIndex err to be nil but was %v", err)
 	}
 
+	_, err = mgr.GetIndex("testindexthatdoesnotexist", nil)
+	if !errors.Is(err, ErrIndexNotFound) {
+		suite.T().Fatalf("Expected GetIndex err to be not exists but was %v", err)
+	}
+
 	if index.Name != "test" {
 		suite.T().Fatalf("Index name was not equal, expected test but was %v", index.Name)
 	}
@@ -83,37 +104,6 @@ func (suite *IntegrationTestSuite) TestSearchIndexesCrud() {
 		suite.T().Fatalf("Expected GetAll to return more than 0 indexes")
 	}
 
-	if globalCluster.SupportsFeature(SearchAnalyzeFeature) {
-		// Analyze required pindexes to be built which takes time so we need to be a bit resilient here.
-		timer := time.NewTimer(2 * time.Second)
-		for {
-			select {
-			case <-timer.C:
-				suite.T().Fatalf("Time to wait for analyze to succeed expired")
-			default:
-			}
-			analysis, err := mgr.AnalyzeDocument("test", struct {
-				Field1 string
-				Field2 string
-			}{
-				Field1: "test",
-				Field2: "imaginative field value",
-			}, nil)
-			if err != nil {
-				globalCluster.TimeTravel(100 * time.Millisecond)
-				logErrorf("Expected AnalyzeDocument err to be nil but was %v", err)
-				continue
-			}
-
-			if analysis == nil || len(analysis) == 0 {
-				suite.T().Fatalf("Expected analysis to be not nil")
-			}
-			break
-		}
-	} else {
-		suite.T().Log("Skipping AnalyzeDocument feature as not supported.")
-	}
-
 	err = mgr.DropIndex("test", nil)
 	if err != nil {
 		suite.T().Fatalf("Expected DropIndex err to be nil but was %v", err)
@@ -130,13 +120,13 @@ func (suite *IntegrationTestSuite) TestSearchIndexesCrud() {
 	}
 
 	_, err = mgr.GetIndex("newTest", nil)
-	if err == nil {
-		suite.T().Fatalf("Expected GetIndex err to be not nil but was")
+	if !errors.Is(err, ErrIndexNotFound) {
+		suite.T().Fatalf("Expected GetIndex err to be not found but was %s", err)
 	}
 
 	_, err = mgr.GetIndex("test2", nil)
-	if err == nil {
-		suite.T().Fatalf("Expected GetIndex err to be not nil but was")
+	if !errors.Is(err, ErrIndexNotFound) {
+		suite.T().Fatalf("Expected GetIndex err to be not found but was %s", err)
 	}
 }
 
@@ -245,4 +235,43 @@ func (suite *IntegrationTestSuite) TestSearchIndexesPartitionControl() {
 	if err != nil {
 		suite.T().Fatalf("Expected ResumeIngest err to be nil but was %v", err)
 	}
+}
+
+func (suite *UnitTestSuite) TestSearchIndexesAnalyzeDocument() {
+	analyzeResp, err := loadRawTestDataset("search_analyzedoc")
+	suite.Require().Nil(err, err)
+
+	resp := &mgmtResponse{
+		StatusCode: 200,
+		Body:       ioutil.NopCloser(bytes.NewReader(analyzeResp)),
+	}
+
+	indexName := "searchy"
+
+	mockProvider := new(mockMgmtProvider)
+	mockProvider.
+		On("executeMgmtRequest", mock.AnythingOfType("mgmtRequest")).
+		Run(func(args mock.Arguments) {
+			req := args.Get(0).(mgmtRequest)
+
+			suite.Assert().Equal(fmt.Sprintf("/api/index/%s/analyzeDoc", indexName), req.Path)
+			suite.Assert().Equal(ServiceTypeSearch, req.Service)
+			suite.Assert().True(req.IsIdempotent)
+			suite.Assert().Equal(1*time.Second, req.Timeout)
+			suite.Assert().Equal("POST", req.Method)
+			suite.Assert().Nil(req.RetryStrategy)
+		}).
+		Return(resp, nil)
+
+	mgr := SearchIndexManager{
+		mgmtProvider: mockProvider,
+		tracer:       &noopTracer{},
+	}
+
+	res, err := mgr.AnalyzeDocument(indexName, struct{}{}, &AnalyzeDocumentOptions{
+		Timeout: 1 * time.Second,
+	})
+	suite.Require().Nil(err, err)
+
+	suite.Require().NotNil(res)
 }

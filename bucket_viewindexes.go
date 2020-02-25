@@ -3,8 +3,11 @@ package gocb
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 // DesignDocumentNamespace represents which namespace a design document resides in.
@@ -100,6 +103,44 @@ type ViewIndexManager struct {
 	tracer requestTracer
 }
 
+func (vm *ViewIndexManager) tryParseErrorMessage(req mgmtRequest, resp *mgmtResponse) error {
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		logDebugf("Failed to read view index manager response body: %s", err)
+		return nil
+	}
+
+	if resp.StatusCode == 404 {
+		if strings.Contains(strings.ToLower(string(b)), "not_found") {
+			return makeGenericMgmtError(ErrDesignDocumentNotFound, &req, resp)
+		}
+
+		return makeGenericMgmtError(errors.New(string(b)), &req, resp)
+	}
+
+	var mgrErr bucketMgrErrorResp
+	err = json.Unmarshal(b, &mgrErr)
+	if err != nil {
+		logDebugf("Failed to unmarshal error body: %s", err)
+		return makeGenericMgmtError(errors.New(string(b)), &req, resp)
+	}
+
+	var bodyErr error
+	var firstErr string
+	for _, err := range mgrErr.Errors {
+		firstErr = strings.ToLower(err)
+		break
+	}
+
+	if strings.Contains(firstErr, "bucket with given name already exists") {
+		bodyErr = ErrBucketExists
+	} else {
+		bodyErr = errors.New(firstErr)
+	}
+
+	return makeGenericMgmtError(bodyErr, &req, resp)
+}
+
 func (vm *ViewIndexManager) doMgmtRequest(req mgmtRequest) (*mgmtResponse, error) {
 	resp, err := vm.mgmtProvider.executeMgmtRequest(req)
 	if err != nil {
@@ -160,11 +201,12 @@ func (vm *ViewIndexManager) getDesignDocument(tracectx requestSpanContext, name 
 	}
 
 	if resp.StatusCode != 200 {
-		if resp.StatusCode == 404 {
-			return nil, makeGenericMgmtError(ErrDesignDocumentNotFound, &req, resp)
+		vwErr := vm.tryParseErrorMessage(req, resp)
+		if vwErr != nil {
+			return nil, vwErr
 		}
 
-		return nil, makeMgmtBadStatusError("failed to get design document", &req, resp)
+		return nil, makeGenericMgmtError(errors.New("failed to get design document"), &req, resp)
 	}
 
 	var ddocData jsonDesignDocument
@@ -219,7 +261,12 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamesp
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, makeMgmtBadStatusError("failed to get all design documents", &req, resp)
+		vwErr := vm.tryParseErrorMessage(req, resp)
+		if vwErr != nil {
+			return nil, vwErr
+		}
+
+		return nil, makeGenericMgmtError(errors.New("failed to get design documents"), &req, resp)
 	}
 
 	var ddocsResp struct {
@@ -310,7 +357,12 @@ func (vm *ViewIndexManager) upsertDesignDocument(
 	}
 
 	if resp.StatusCode != 201 {
-		return makeMgmtBadStatusError("failed to upsert design document", &req, resp)
+		vwErr := vm.tryParseErrorMessage(req, resp)
+		if vwErr != nil {
+			return vwErr
+		}
+
+		return makeGenericMgmtError(errors.New("failed to upsert design document"), &req, resp)
 	}
 
 	return nil
@@ -352,11 +404,12 @@ func (vm *ViewIndexManager) dropDesignDocument(tracectx requestSpanContext, name
 	}
 
 	if resp.StatusCode != 200 {
-		if resp.StatusCode == 404 {
-			return makeGenericMgmtError(ErrDesignDocumentNotFound, &req, resp)
+		vwErr := vm.tryParseErrorMessage(req, resp)
+		if vwErr != nil {
+			return vwErr
 		}
 
-		return makeMgmtBadStatusError("failed to drop design document", &req, resp)
+		return makeGenericMgmtError(errors.New("failed to drop design document"), &req, resp)
 	}
 
 	return nil

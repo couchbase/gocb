@@ -61,6 +61,7 @@ var (
 	AnalyticsIndexPendingMutationsFeature = FeatureCode(28)
 	GetMetaFeature                        = FeatureCode(29)
 	PingFeature                           = FeatureCode(30)
+	ViewIndexUpsertBugFeature             = FeatureCode(31)
 )
 
 type testClusterErrorWrap struct {
@@ -193,6 +194,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = true
 		case PingFeature:
 			supported = true
+		case ViewIndexUpsertBugFeature:
+			supported = !c.Version.Equal(srvVer650)
 		}
 	}
 

@@ -113,3 +113,37 @@ func TestIntegration(t *testing.T) {
 func TestUnit(t *testing.T) {
 	suite.Run(t, new(UnitTestSuite))
 }
+
+func (suite *UnitTestSuite) defaultTimeoutConfig() TimeoutsConfig {
+	return TimeoutsConfig{
+		KVTimeout:         1000 * time.Second,
+		KVDurableTimeout:  1000 * time.Second,
+		AnalyticsTimeout:  1000 * time.Second,
+		QueryTimeout:      1000 * time.Second,
+		SearchTimeout:     1000 * time.Second,
+		ManagementTimeout: 1000 * time.Second,
+		ViewTimeout:       1000 * time.Second,
+	}
+}
+
+func (suite *UnitTestSuite) bucket(name string, timeouts TimeoutsConfig, cli *mockClient) *Bucket {
+	b := &Bucket{
+		sb: stateBlock{
+			clientStateBlock: clientStateBlock{
+				BucketName: name,
+			},
+
+			KvTimeout:         timeouts.KVTimeout,
+			KvDurableTimeout:  timeouts.KVDurableTimeout,
+			AnalyticsTimeout:  timeouts.AnalyticsTimeout,
+			QueryTimeout:      timeouts.QueryTimeout,
+			SearchTimeout:     timeouts.SearchTimeout,
+			ManagementTimeout: timeouts.ManagementTimeout,
+			ViewTimeout:       timeouts.ViewTimeout,
+
+			cachedClient: cli,
+		},
+	}
+
+	return b
+}

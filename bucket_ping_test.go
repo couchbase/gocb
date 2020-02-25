@@ -96,19 +96,7 @@ func (suite *UnitTestSuite) TestPingAll() {
 	cli.On("getKvProvider").Return(kvProvider, nil)
 	cli.On("getHTTPProvider").Return(httpProvider, nil)
 
-	b := &Bucket{
-		sb: stateBlock{
-			clientStateBlock: clientStateBlock{
-				BucketName: "mock",
-			},
-
-			KvTimeout:        1000 * time.Second,
-			AnalyticsTimeout: 1000 * time.Second,
-			QueryTimeout:     1000 * time.Second,
-			SearchTimeout:    1000 * time.Second,
-			cachedClient:     cli,
-		},
-	}
+	b := suite.bucket("mock", suite.defaultTimeoutConfig(), cli)
 
 	report, err := b.Ping(nil)
 	if err != nil {

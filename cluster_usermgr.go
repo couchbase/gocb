@@ -14,23 +14,6 @@ import (
 	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
-func tryParseUserMgrErrorMessage(req *gocbcore.HTTPRequest, resp *gocbcore.HTTPResponse) error {
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		logDebugf("Failed to read search index response body: %s", err)
-		return nil
-	}
-
-	var bodyErr error
-	if strings.Contains(strings.ToLower(string(b)), "unknown user") {
-		bodyErr = ErrUserNotFound
-	} else {
-		bodyErr = errors.New(string(b))
-	}
-
-	return makeGenericHTTPError(bodyErr, req, resp)
-}
-
 // AuthDomain specifies the user domain of a specific user
 type AuthDomain string
 
@@ -251,6 +234,33 @@ type UserManager struct {
 	tracer               requestTracer
 }
 
+func (um *UserManager) tryParseErrorMessage(req *gocbcore.HTTPRequest, resp *gocbcore.HTTPResponse) error {
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		logDebugf("Failed to read search index response body: %s", err)
+		return nil
+	}
+
+	var bodyErr error
+	if resp.StatusCode == 404 {
+		if strings.Contains(strings.ToLower(string(b)), "unknown user") {
+			bodyErr = ErrUserNotFound
+		} else if strings.Contains(strings.ToLower(string(b)), "user was not found") {
+			bodyErr = ErrUserNotFound
+		} else if strings.Contains(strings.ToLower(string(b)), "group was not found") {
+			bodyErr = ErrGroupNotFound
+		} else if strings.Contains(strings.ToLower(string(b)), "unknown group") {
+			bodyErr = ErrGroupNotFound
+		} else {
+			bodyErr = errors.New(string(b))
+		}
+	} else {
+		bodyErr = errors.New(string(b))
+	}
+
+	return makeGenericHTTPError(bodyErr, req, resp)
+}
+
 // GetAllUsersOptions is the set of options available to the user manager GetAll operation.
 type GetAllUsersOptions struct {
 	Timeout       time.Duration
@@ -301,7 +311,11 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, makeHTTPBadStatusError("failed to get all users", req, resp)
+		usrErr := um.tryParseErrorMessage(req, resp)
+		if usrErr != nil {
+			return nil, usrErr
+		}
+		return nil, makeHTTPBadStatusError("failed to get users", req, resp)
 	}
 
 	var usersData []jsonUserMetadata
@@ -377,7 +391,7 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		usrErr := tryParseUserMgrErrorMessage(req, resp)
+		usrErr := um.tryParseErrorMessage(req, resp)
 		if usrErr != nil {
 			return nil, usrErr
 		}
@@ -471,6 +485,10 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		usrErr := um.tryParseErrorMessage(req, resp)
+		if usrErr != nil {
+			return usrErr
+		}
 		return makeHTTPBadStatusError("failed to upsert user", req, resp)
 	}
 
@@ -526,6 +544,10 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		usrErr := um.tryParseErrorMessage(req, resp)
+		if usrErr != nil {
+			return usrErr
+		}
 		return makeHTTPBadStatusError("failed to drop user", req, resp)
 	}
 
@@ -576,6 +598,10 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		usrErr := um.tryParseErrorMessage(req, resp)
+		if usrErr != nil {
+			return nil, usrErr
+		}
 		return nil, makeHTTPBadStatusError("failed to get roles", req, resp)
 	}
 
@@ -649,6 +675,10 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		usrErr := um.tryParseErrorMessage(req, resp)
+		if usrErr != nil {
+			return nil, usrErr
+		}
 		return nil, makeHTTPBadStatusError("failed to get group", req, resp)
 	}
 
@@ -717,6 +747,10 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		usrErr := um.tryParseErrorMessage(req, resp)
+		if usrErr != nil {
+			return nil, usrErr
+		}
 		return nil, makeHTTPBadStatusError("failed to get all groups", req, resp)
 	}
 
@@ -805,6 +839,10 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		usrErr := um.tryParseErrorMessage(req, resp)
+		if usrErr != nil {
+			return usrErr
+		}
 		return makeHTTPBadStatusError("failed to upsert group", req, resp)
 	}
 
@@ -858,6 +896,10 @@ func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		usrErr := um.tryParseErrorMessage(req, resp)
+		if usrErr != nil {
+			return usrErr
+		}
 		return makeHTTPBadStatusError("failed to drop group", req, resp)
 	}
 

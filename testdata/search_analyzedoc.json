@@ -1,0 +1,118 @@
+{
+  "status": "ok",
+  "analyzed": [
+    {
+      "couchbase blr": {
+        "Term": "Y291Y2hiYXNlIGJscg==",
+        "Locations": [
+          {
+            "Field": "title",
+            "ArrayPositions": [],
+            "Start": 0,
+            "End": 13,
+            "Position": 1
+          }
+        ]
+      }
+    },
+    {
+      "he": {
+        "Term": "aGU=",
+        "Locations": [
+          {
+            "Field": "name",
+            "ArrayPositions": [],
+            "Start": 0,
+            "End": 5,
+            "Position": 1
+          }
+        ]
+      },
+      "hel": {
+        "Term": "aGVs",
+        "Locations": [
+          {
+            "Field": "name",
+            "ArrayPositions": [],
+            "Start": 0,
+            "End": 5,
+            "Position": 1
+          }
+        ]
+      },
+      "hell": {
+        "Term": "aGVsbA==",
+        "Locations": [
+          {
+            "Field": "name",
+            "ArrayPositions": [],
+            "Start": 0,
+            "End": 5,
+            "Position": 1
+          }
+        ]
+      },
+      "hello": {
+        "Term": "aGVsbG8=",
+        "Locations": [
+          {
+            "Field": "name",
+            "ArrayPositions": [],
+            "Start": 0,
+            "End": 5,
+            "Position": 1
+          }
+        ]
+      },
+      "wo": {
+        "Term": "d28=",
+        "Locations": [
+          {
+            "Field": "name",
+            "ArrayPositions": [],
+            "Start": 6,
+            "End": 11,
+            "Position": 2
+          }
+        ]
+      },
+      "wor": {
+        "Term": "d29y",
+        "Locations": [
+          {
+            "Field": "name",
+            "ArrayPositions": [],
+            "Start": 6,
+            "End": 11,
+            "Position": 2
+          }
+        ]
+      },
+      "worl": {
+        "Term": "d29ybA==",
+        "Locations": [
+          {
+            "Field": "name",
+            "ArrayPositions": [],
+            "Start": 6,
+            "End": 11,
+            "Position": 2
+          }
+        ]
+      },
+      "world": {
+        "Term": "d29ybGQ=",
+        "Locations": [
+          {
+            "Field": "name",
+            "ArrayPositions": [],
+            "Start": 6,
+            "End": 11,
+            "Position": 2
+          }
+        ]
+      }
+    },
+    null
+  ]
+}

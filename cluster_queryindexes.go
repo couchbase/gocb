@@ -2,6 +2,9 @@ package gocb
 
 import (
 	"encoding/json"
+	"errors"
+	"regexp"
+	"strings"
 	"time"
 )
 
@@ -17,6 +20,41 @@ type queryIndexQueryProvider interface {
 	Query(statement string, opts *QueryOptions) (*QueryResult, error)
 }
 
+func (qm *QueryIndexManager) tryParseErrorMessage(err error) error {
+	var qErr *QueryError
+	if !errors.As(err, &qErr) {
+		return err
+	}
+
+	if len(qErr.Errors) == 0 {
+		return err
+	}
+
+	firstErr := qErr.Errors[0]
+	var innerErr error
+	// The server doesn't return meaningful error codes when it comes to index management so we need to go spelunking.
+	msg := strings.ToLower(firstErr.Message)
+	if match, err := regexp.MatchString(".*?ndex .*? not found.*", msg); err == nil && match {
+		innerErr = ErrIndexNotFound
+	} else if match, err := regexp.MatchString(".*?ndex .*? already exists.*", msg); err == nil && match {
+		innerErr = ErrIndexExists
+	}
+
+	if innerErr == nil {
+		return err
+	}
+
+	return QueryError{
+		InnerError:      innerErr,
+		Statement:       qErr.Statement,
+		ClientContextID: qErr.ClientContextID,
+		Errors:          qErr.Errors,
+		Endpoint:        qErr.Endpoint,
+		RetryReasons:    qErr.RetryReasons,
+		RetryAttempts:   qErr.RetryAttempts,
+	}
+}
+
 func (qm *QueryIndexManager) doQuery(q string, opts *QueryOptions) ([][]byte, error) {
 	if opts.Timeout == 0 {
 		opts.Timeout = qm.globalTimeout
@@ -24,7 +62,7 @@ func (qm *QueryIndexManager) doQuery(q string, opts *QueryOptions) ([][]byte, er
 
 	result, err := qm.provider.Query(q, opts)
 	if err != nil {
-		return nil, err
+		return nil, qm.tryParseErrorMessage(err)
 	}
 
 	var rows [][]byte
@@ -39,7 +77,7 @@ func (qm *QueryIndexManager) doQuery(q string, opts *QueryOptions) ([][]byte, er
 	}
 	err = result.Err()
 	if err != nil {
-		return nil, err
+		return nil, qm.tryParseErrorMessage(err)
 	}
 
 	return rows, nil
