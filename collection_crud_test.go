@@ -1489,3 +1489,83 @@ func (suite *UnitTestSuite) TestGetErrorCollectionUnknown() {
 		suite.T().Fatalf("Error should have been collection missing but was %v", err)
 	}
 }
+
+func (suite *UnitTestSuite) TestGetErrorProperties() {
+	pendingOp := new(mockPendingOp)
+	pendingOp.AssertNotCalled(suite.T(), "Cancel", mock.AnythingOfType("error"))
+
+	expectedErr := &gocbcore.KeyValueError{
+		InnerError:         gocbcore.ErrDocumentNotFound, // Doesn't map perfectly but it's good enough
+		StatusCode:         0x01,
+		BucketName:         "default",
+		ScopeName:          "_default",
+		CollectionName:     "_default",
+		CollectionID:       0,
+		ErrorName:          "KEY_ENOENT ",
+		ErrorDescription:   "Not Found",
+		Opaque:             0x25,
+		Context:            "",
+		Ref:                "",
+		RetryReasons:       []gocbcore.RetryReason{gocbcore.KVTemporaryFailureRetryReason},
+		RetryAttempts:      1,
+		LastDispatchedTo:   "10.112.194.102:11210",
+		LastDispatchedFrom: "10.112.194.1:11210",
+		LastConnectionID:   "d80aa17aa2577d3d/87aa643382554811",
+	}
+
+	provider := new(mockKvProvider)
+	provider.
+		On("GetEx", mock.AnythingOfType("gocbcore.GetOptions"), mock.AnythingOfType("gocbcore.GetExCallback")).
+		Run(func(args mock.Arguments) {
+			cb := args.Get(1).(gocbcore.GetExCallback)
+			cb(nil, expectedErr)
+		}).
+		Return(pendingOp, nil)
+
+	cli := new(mockClient)
+	cli.On("getKvProvider").Return(provider, nil)
+
+	col := &Collection{
+		sb: stateBlock{
+			clientStateBlock: clientStateBlock{
+				BucketName: "mock",
+			},
+
+			CollectionName: "",
+			ScopeName:      "",
+
+			cachedClient:         cli,
+			KvTimeout:            2500 * time.Millisecond,
+			Transcoder:           NewJSONTranscoder(),
+			Tracer:               &noopTracer{},
+			RetryStrategyWrapper: newRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
+		},
+	}
+
+	res, err := col.Get("someid", nil)
+	if !errors.Is(err, ErrDocumentNotFound) {
+		suite.T().Fatalf("Error should have been document not found but was %s", err)
+	}
+	var kvErr *KeyValueError
+	if !errors.As(err, &kvErr) {
+		suite.T().Fatalf("Error should have been KeyValueError but was %s", err)
+	}
+
+	suite.Assert().Equal(expectedErr.StatusCode, kvErr.StatusCode)
+	suite.Assert().Equal(expectedErr.BucketName, kvErr.BucketName)
+	suite.Assert().Equal(expectedErr.ScopeName, kvErr.ScopeName)
+	suite.Assert().Equal(expectedErr.CollectionName, kvErr.CollectionName)
+	suite.Assert().Equal(expectedErr.CollectionID, kvErr.CollectionID)
+	suite.Assert().Equal(expectedErr.ErrorName, kvErr.ErrorName)
+	suite.Assert().Equal(expectedErr.ErrorDescription, kvErr.ErrorDescription)
+	suite.Assert().Equal(expectedErr.Opaque, kvErr.Opaque)
+	suite.Assert().Equal(expectedErr.Context, kvErr.Context)
+	suite.Assert().Equal(expectedErr.Ref, kvErr.Ref)
+	suite.Assert().Equal([]RetryReason{KVTemporaryFailureRetryReason}, kvErr.RetryReasons)
+	suite.Assert().Equal(expectedErr.RetryAttempts, kvErr.RetryAttempts)
+	suite.Assert().Equal(expectedErr.LastDispatchedTo, kvErr.LastDispatchedTo)
+	suite.Assert().Equal(expectedErr.LastDispatchedFrom, kvErr.LastDispatchedFrom)
+	suite.Assert().Equal(expectedErr.LastConnectionID, kvErr.LastConnectionID)
+
+	suite.Assert().Nil(res)
+}

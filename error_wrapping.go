@@ -17,19 +17,22 @@ func serializeWrappedError(err error) string {
 func maybeEnhanceCoreErr(err error) error {
 	if kvErr, ok := err.(*gocbcore.KeyValueError); ok {
 		return &KeyValueError{
-			InnerError:       kvErr.InnerError,
-			StatusCode:       kvErr.StatusCode,
-			BucketName:       kvErr.BucketName,
-			ScopeName:        kvErr.ScopeName,
-			CollectionName:   kvErr.CollectionName,
-			CollectionID:     kvErr.CollectionID,
-			ErrorName:        kvErr.ErrorName,
-			ErrorDescription: kvErr.ErrorDescription,
-			Opaque:           kvErr.Opaque,
-			Context:          kvErr.Context,
-			Ref:              kvErr.Ref,
-			RetryReasons:     translateCoreRetryReasons(kvErr.RetryReasons),
-			RetryAttempts:    kvErr.RetryAttempts,
+			InnerError:         kvErr.InnerError,
+			StatusCode:         kvErr.StatusCode,
+			BucketName:         kvErr.BucketName,
+			ScopeName:          kvErr.ScopeName,
+			CollectionName:     kvErr.CollectionName,
+			CollectionID:       kvErr.CollectionID,
+			ErrorName:          kvErr.ErrorName,
+			ErrorDescription:   kvErr.ErrorDescription,
+			Opaque:             kvErr.Opaque,
+			Context:            kvErr.Context,
+			Ref:                kvErr.Ref,
+			RetryReasons:       translateCoreRetryReasons(kvErr.RetryReasons),
+			RetryAttempts:      kvErr.RetryAttempts,
+			LastDispatchedTo:   kvErr.LastDispatchedTo,
+			LastDispatchedFrom: kvErr.LastDispatchedFrom,
+			LastConnectionID:   kvErr.LastConnectionID,
 		}
 	}
 	if viewErr, ok := err.(*gocbcore.ViewError); ok {
