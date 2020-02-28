@@ -157,7 +157,7 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 		searchTimeout = opts.TimeoutsConfig.SearchTimeout
 	}
 	if opts.TimeoutsConfig.ManagementTimeout > 0 {
-		managementTimeout = opts.TimeoutsConfig.SearchTimeout
+		managementTimeout = opts.TimeoutsConfig.ManagementTimeout
 	}
 	if opts.Transcoder == nil {
 		opts.Transcoder = NewJSONTranscoder()
