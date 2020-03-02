@@ -105,6 +105,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case QueryFeature:
 			supported = false
+		case SearchFeature:
+			supported = false
 		case XattrFeature:
 			supported = false
 		case CollectionsFeature:

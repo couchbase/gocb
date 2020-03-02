@@ -49,6 +49,7 @@ updatemocks:
 	mockery -name mgmtProvider -output . -testonly -inpkg
 	mockery -name analyticsProvider -output . -testonly -inpkg
 	mockery -name queryProvider -output . -testonly -inpkg
+	mockery -name searchProvider -output . -testonly -inpkg
 	mockery -name clusterCapabilityProvider -output . -testonly -inpkg
 	# pendingOp is manually mocked
 

@@ -133,14 +133,21 @@ func (sr *SearchRow) Fields(valuePtr interface{}) error {
 	return json.Unmarshal(sr.fieldsBytes, valuePtr)
 }
 
+type searchRowReader interface {
+	NextRow() []byte
+	Err() error
+	MetaData() ([]byte, error)
+	Close() error
+}
+
 // SearchResult allows access to the results of a search query.
 type SearchResult struct {
-	reader *gocbcore.SearchRowReader
+	reader searchRowReader
 
 	currentRow SearchRow
 }
 
-func newSearchResult(reader *gocbcore.SearchRowReader) (*SearchResult, error) {
+func newSearchResult(reader searchRowReader) (*SearchResult, error) {
 	return &SearchResult{
 		reader: reader,
 	}, nil

@@ -1,8 +1,8 @@
 {
   "status": {
-    "total": 1,
+    "total": 5,
     "failed": 0,
-    "successful": 1
+    "successful": 5
   },
   "request": {
     "query": {
@@ -26,7 +26,10 @@
       "score": 1.156383395549805,
       "sort": [
         "_score"
-      ]
+      ],
+      "fields": {
+        "name": "landmark_37138"
+      }
     },
     {
       "index": "hotels_384418a18e59eba2_acbbef99",
@@ -34,7 +37,10 @@
       "score": 1.1315120632881468,
       "sort": [
         "_score"
-      ]
+      ],
+      "fields": {
+        "name": "landmark_16309"
+      }
     },
     {
       "index": "hotels_384418a18e59eba2_acbbef99",
@@ -42,7 +48,10 @@
       "score": 1.1059247262932046,
       "sort": [
         "_score"
-      ]
+      ],
+      "fields": {
+        "name": "landmark_16073"
+      }
     },
     {
       "index": "hotels_384418a18e59eba2_acbbef99",
@@ -50,7 +59,10 @@
       "score": 1.0926796273206518,
       "sort": [
         "_score"
-      ]
+      ],
+      "fields": {
+        "name": "landmark_16288"
+      }
     },
     {
       "index": "hotels_384418a18e59eba2_acbbef99",
@@ -58,11 +70,22 @@
       "score": 1.0798993013885354,
       "sort": [
         "_score"
-      ]
+      ],
+      "fields": {
+        "name": "landmark_16071"
+      }
     }
   ],
   "total_hits": 809,
   "max_score": 1.156383395549805,
   "took": 62511375,
-  "facets": null
+  "facets": {
+    "type": {
+      "name": "",
+      "field": "country",
+      "total": 7,
+      "missing": 0,
+      "other": 0
+    }
+  }
 }

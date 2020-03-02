@@ -60,11 +60,25 @@ type SearchOptions struct {
 func (opts *SearchOptions) toMap() (map[string]interface{}, error) {
 	data := make(map[string]interface{})
 
-	data["size"] = opts.Limit
-	data["from"] = opts.Skip
-	data["explain"] = opts.Explain
-	data["fields"] = opts.Fields
-	data["sort"] = opts.Sort
+	if opts.Limit > 0 {
+		data["size"] = opts.Limit
+	}
+
+	if opts.Skip > 0 {
+		data["from"] = opts.Skip
+	}
+
+	if opts.Explain {
+		data["explain"] = opts.Explain
+	}
+
+	if len(opts.Fields) > 0 {
+		data["fields"] = opts.Fields
+	}
+
+	if len(opts.Sort) > 0 {
+		data["sort"] = opts.Sort
+	}
 
 	if opts.Highlight != nil {
 		highlight := make(map[string]interface{})
@@ -96,10 +110,7 @@ func (opts *SearchOptions) toMap() (map[string]interface{}, error) {
 			return nil, makeInvalidArgumentsError("unexpected consistency option")
 		}
 
-		if ctl == nil {
-			ctl = make(map[string]interface{})
-		}
-		ctl["consistency"] = consistency
+		ctl = map[string]interface{}{"consistency": consistency}
 	}
 
 	if opts.ConsistentWith != nil {

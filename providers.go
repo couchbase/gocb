@@ -21,7 +21,7 @@ type analyticsProvider interface {
 }
 
 type searchProvider interface {
-	SearchQuery(opts gocbcore.SearchQueryOptions) (*gocbcore.SearchRowReader, error)
+	SearchQuery(opts gocbcore.SearchQueryOptions) (searchRowReader, error)
 }
 
 type clusterCapabilityProvider interface {
@@ -46,4 +46,12 @@ type queryProviderWrapper struct {
 
 func (apw *queryProviderWrapper) N1QLQuery(opts gocbcore.N1QLQueryOptions) (queryRowReader, error) {
 	return apw.provider.N1QLQuery(opts)
+}
+
+type searchProviderWrapper struct {
+	provider *gocbcore.Agent
+}
+
+func (apw *searchProviderWrapper) SearchQuery(opts gocbcore.SearchQueryOptions) (searchRowReader, error) {
+	return apw.provider.SearchQuery(opts)
 }
