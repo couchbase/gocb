@@ -13,7 +13,7 @@ type viewProvider interface {
 }
 
 type queryProvider interface {
-	N1QLQuery(opts gocbcore.N1QLQueryOptions) (*gocbcore.N1QLRowReader, error)
+	N1QLQuery(opts gocbcore.N1QLQueryOptions) (queryRowReader, error)
 }
 
 type analyticsProvider interface {
@@ -38,4 +38,12 @@ type analyticsProviderWrapper struct {
 
 func (apw *analyticsProviderWrapper) AnalyticsQuery(opts gocbcore.AnalyticsQueryOptions) (analyticsRowReader, error) {
 	return apw.provider.AnalyticsQuery(opts)
+}
+
+type queryProviderWrapper struct {
+	provider *gocbcore.Agent
+}
+
+func (apw *queryProviderWrapper) N1QLQuery(opts gocbcore.N1QLQueryOptions) (queryRowReader, error) {
+	return apw.provider.N1QLQuery(opts)
 }

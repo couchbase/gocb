@@ -1,0 +1,93 @@
+{
+  "requestID": "a2c943b7-2950-432d-823b-4587ecabfe54",
+  "clientContextID": "c6766223-4fb9-4369-96c1-4e7b28d0cf68",
+  "signature": "json",
+  "results": [
+    {
+      "encoded_plan": "H4sIAAAAAAAA/6STUWvbMBSF/4o5eysKdG1CYu0plBQGGTNJ2csIrmJfO1pl2buSQ7Lg/fYhJ6EkHWNsj7Y+H93zyTqAbFbnlKeNURYSEChI+Zbpobaea+MgbwW0zWk3bfQXYqdrC3kvYFVFkMjfx9l6vB4O7iYxDYZ3xWQQr0frQZzlt3GhJuMh3UOgboiVrxnygHevD1jS95ZsRhD4mW20yZks5NdLaNr6Tc36R6Aa1lttqCQXouba+R5/UlySD/NQoVrjpWe1JTNwqmpM+C5hvYUcd6vuvNM/jfJXUMK6UrxfZsqG7r2942hpc1w6v00brr9R5nupB5xW0xfaQ3puqRN4ob1rVBZcX3cyutKh8wjH4zhzJwcQaJ22JSRKp9GJyykfyWcb/HGD34VexySKlTFk8F9eP1rttTLJUQcEmFxrfOqJK9fTtGsC6MgUEHBe8UnR6k0xbV+TulX3lpj34sQ5c9RTV8zSM6kK/Q/jdGn7WxG63UDiBp2Ap12wnyxmyXQxi5az+ezhKbqJHhefP0XPFy6fo/6sotEHdL8CAAD//5NLCoZ1AwAA",
+      "featureControls": 0,
+      "indexApiVersion": 3,
+      "name": "[127.0.0.1:8091]d19cb7b4-289e-42f8-9b5b-9cd09fa874e3",
+      "operator": {
+        "#operator": "Sequence",
+        "~children": [
+          {
+            "#operator": "Authorize",
+            "privileges": {
+              "List": [
+                {
+                  "Priv": 7,
+                  "Target": "default:travel-sample"
+                }
+              ]
+            },
+            "~child": {
+              "#operator": "Sequence",
+              "~children": [
+                {
+                  "#operator": "Sequence",
+                  "~children": [
+                    {
+                      "#operator": "PrimaryScan3",
+                      "index": "def_primary",
+                      "index_projection": {
+                        "primary_key": true
+                      },
+                      "keyspace": "travel-sample",
+                      "limit": "5",
+                      "namespace": "default",
+                      "using": "gsi"
+                    },
+                    {
+                      "#operator": "Fetch",
+                      "keyspace": "travel-sample",
+                      "namespace": "default"
+                    },
+                    {
+                      "#operator": "Parallel",
+                      "~child": {
+                        "#operator": "Sequence",
+                        "~children": [
+                          {
+                            "#operator": "InitialProject",
+                            "result_terms": [
+                              {
+                                "expr": "self",
+                                "star": true
+                              }
+                            ]
+                          },
+                          {
+                            "#operator": "FinalProject"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "#operator": "Limit",
+                  "expr": "5"
+                }
+              ]
+            }
+          },
+          {
+            "#operator": "Stream"
+          }
+        ]
+      },
+      "signature": {
+        "*": "*"
+      },
+      "text": "PREPARE SELECT * FROM `travel-sample` limit 5;"
+    }
+  ],
+  "status": "success",
+  "metrics": {
+    "elapsedTime": "13.491479ms",
+    "executionTime": "13.376689ms",
+    "resultCount": 1,
+    "resultSize": 1473
+  }
+}

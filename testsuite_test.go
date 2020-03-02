@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	gocbcore "github.com/couchbase/gocbcore/v8"
 	"github.com/couchbaselabs/gojcbmock"
 	"github.com/stretchr/testify/suite"
 )
@@ -172,4 +173,12 @@ func (suite *UnitTestSuite) mustConvertToBytes(val interface{}) []byte {
 	suite.Require().Nil(err)
 
 	return b
+}
+
+func (suite *UnitTestSuite) newMockClusterCapabilityProvider(supportsEnhStmts bool) *mockClusterCapabilityProvider {
+	capProvider := new(mockClusterCapabilityProvider)
+	capProvider.On("SupportsClusterCapability", gocbcore.ClusterCapabilityEnhancedPreparedStatements).
+		Return(supportsEnhStmts)
+
+	return capProvider
 }

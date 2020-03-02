@@ -134,12 +134,12 @@ func (meta *QueryMetaData) fromData(data jsonQueryResponse) error {
 
 // QueryResult allows access to the results of a query.
 type QueryResult struct {
-	reader *gocbcore.N1QLRowReader
+	reader queryRowReader
 
 	rowBytes []byte
 }
 
-func newQueryResult(reader *gocbcore.N1QLRowReader) (*QueryResult, error) {
+func newQueryResult(reader queryRowReader) (*QueryResult, error) {
 	return &QueryResult{
 		reader: reader,
 	}, nil
@@ -221,6 +221,14 @@ func (r *QueryResult) MetaData() (*QueryMetaData, error) {
 	}
 
 	return &metaData, nil
+}
+
+type queryRowReader interface {
+	NextRow() []byte
+	Err() error
+	MetaData() ([]byte, error)
+	Close() error
+	PreparedName() (string, error)
 }
 
 // Query executes the query statement on the server.
