@@ -55,6 +55,9 @@ var (
 	ErrNoResults = errors.New("No results returned.")
 	// ErrNoOpenBuckets occurs when a cluster-level operation is performed before any buckets are opened.
 	ErrNoOpenBuckets = errors.New("You must open a bucket before you can perform cluster level operations.")
+	// ErrNoHosts occurs when a cluster manager operation is performed before any buckets are opened and there are no
+	// http hosts specified to use.
+	ErrNoHosts = errors.New("You must open a bucket or specify http hosts before you can perform cluster manager operations.")
 	// ErrIndexInvalidName occurs when an invalid name was specified for an index.
 	ErrIndexInvalidName = errors.New("An invalid index name was specified.")
 	// ErrIndexNoFields occurs when an index with no fields is created.

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"strings"
@@ -13,6 +14,7 @@ import (
 
 // ClusterManager provides methods for performing cluster management operations.
 type ClusterManager struct {
+	hosts    []string
 	username string
 	password string
 	httpCli  *http.Client
@@ -84,13 +86,27 @@ type BucketSettings struct {
 	Type          BucketType
 }
 
+func (cm *ClusterManager) getMgmtEp() (string, error) {
+	if len(cm.hosts) == 0 {
+		return "", ErrNoHosts
+	}
+	return cm.hosts[rand.Intn(len(cm.hosts))], nil
+}
+
 func (cm *ClusterManager) mgmtRequest(method, uri string, contentType string, body io.Reader) (*http.Response, error) {
 	if contentType == "" && body != nil {
 		panic("Content-type must be specified for non-null body.")
 	}
 
 	ep, err := cm.cluster.getMgmtEp()
-	if err != nil {
+	if err != nil && err == ErrNoOpenBuckets {
+		// This is a fix for GOCBC-821, providing a fallback to the user provided addresses if a bucket is not yet
+		// open.
+		ep, err = cm.getMgmtEp()
+		if err != nil {
+			return nil, err
+		}
+	} else if err != nil {
 		return nil, err
 	}
 

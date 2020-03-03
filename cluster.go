@@ -368,9 +368,21 @@ func (c *Cluster) closeBucket(bucket *Bucket) {
 }
 
 // Manager returns a ClusterManager object for performing cluster management operations on this cluster.
+// If no bucket has been opened then this will try a best efforts attempt to use http addresses parsed from the
+// connection string when creating the Cluster object.
 func (c *Cluster) Manager(username, password string) *ClusterManager {
+	var mgmtHosts []string
+	for _, host := range c.agentConfig.HttpAddrs {
+		if c.agentConfig.TlsConfig != nil {
+			mgmtHosts = append(mgmtHosts, "https://"+host)
+		} else {
+			mgmtHosts = append(mgmtHosts, "http://"+host)
+		}
+	}
+
 	tlsConfig := c.agentConfig.TlsConfig
 	return &ClusterManager{
+		hosts:    mgmtHosts,
 		username: username,
 		password: password,
 		httpCli: &http.Client{
