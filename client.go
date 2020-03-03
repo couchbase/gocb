@@ -214,7 +214,13 @@ func (c *stdClient) connected() bool {
 }
 
 func (c *stdClient) selectBucket(bucketName string) error {
-	return c.agent.SelectBucket(bucketName, time.Now().Add(c.cluster.sb.ConnectTimeout))
+	err := c.agent.SelectBucket(bucketName, time.Now().Add(c.cluster.sb.ConnectTimeout))
+	if err != nil {
+		return err
+	}
+
+	c.state.BucketName = bucketName
+	return nil
 }
 
 func (c *stdClient) supportsGCCCP() bool {

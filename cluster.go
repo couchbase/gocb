@@ -285,9 +285,19 @@ func (c *Cluster) Bucket(bucketName string) *Bucket {
 	b := newBucket(&c.sb, bucketName)
 	cli := c.takeClusterClient()
 	if cli == nil {
-		// We've already taken the cluster client for a different bucket or something like that so
-		// we need to connect a new client.
+		// We've already taken the cluster client for a different bucket or something like that.
+
+		// First we see if a connection already exists for a bucket with this name.
 		cli = c.getClient(&b.sb.clientStateBlock)
+		if cli != nil {
+			logDebugf("Sharing bucket level connection %p for %s", cli, bucketName)
+			b.cacheClient(cli)
+			return b
+		}
+
+		logDebugf("Creating new bucket level connection for %s", bucketName)
+		// A connection doesn't already exist so we need to create a new one.
+		cli = newClient(c, &b.sb.clientStateBlock)
 		err := cli.buildConfig()
 		if err == nil {
 			err = cli.connect()
@@ -298,6 +308,7 @@ func (c *Cluster) Bucket(bucketName string) *Bucket {
 			cli.setBootstrapError(err)
 		}
 	} else {
+		logDebugf("Taking cluster level connection %p for %s", cli, bucketName)
 		err := cli.selectBucket(bucketName)
 		if err != nil {
 			cli.setBootstrapError(err)
@@ -334,9 +345,7 @@ func (c *Cluster) getClient(sb *clientStateBlock) client {
 	}
 	c.connectionsLock.Unlock()
 
-	cli := newClient(c, sb)
-
-	return cli
+	return nil
 }
 
 func (c *Cluster) randomClient() (client, error) {
