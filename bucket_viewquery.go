@@ -51,14 +51,21 @@ func (vr *ViewRow) Value(valuePtr interface{}) error {
 	return json.Unmarshal(vr.valueBytes, valuePtr)
 }
 
+type viewRowReader interface {
+	NextRow() []byte
+	Err() error
+	MetaData() ([]byte, error)
+	Close() error
+}
+
 // ViewResult implements an iterator interface which can be used to iterate over the rows of the query results.
 type ViewResult struct {
-	reader *gocbcore.ViewQueryRowReader
+	reader viewRowReader
 
 	currentRow ViewRow
 }
 
-func newViewResult(reader *gocbcore.ViewQueryRowReader) (*ViewResult, error) {
+func newViewResult(reader viewRowReader) (*ViewResult, error) {
 	return &ViewResult{
 		reader: reader,
 	}, nil

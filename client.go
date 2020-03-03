@@ -143,7 +143,7 @@ func (c *stdClient) getViewProvider() (viewProvider, error) {
 	if c.agent == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
-	return c.agent, nil
+	return &viewProviderWrapper{provider: c.agent}, nil
 }
 
 func (c *stdClient) getQueryProvider() (queryProvider, error) {

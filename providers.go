@@ -9,7 +9,7 @@ type httpProvider interface {
 }
 
 type viewProvider interface {
-	ViewQuery(opts gocbcore.ViewQueryOptions) (*gocbcore.ViewQueryRowReader, error)
+	ViewQuery(opts gocbcore.ViewQueryOptions) (viewRowReader, error)
 }
 
 type queryProvider interface {
@@ -54,4 +54,12 @@ type searchProviderWrapper struct {
 
 func (apw *searchProviderWrapper) SearchQuery(opts gocbcore.SearchQueryOptions) (searchRowReader, error) {
 	return apw.provider.SearchQuery(opts)
+}
+
+type viewProviderWrapper struct {
+	provider *gocbcore.Agent
+}
+
+func (apw *viewProviderWrapper) ViewQuery(opts gocbcore.ViewQueryOptions) (viewRowReader, error) {
+	return apw.provider.ViewQuery(opts)
 }
