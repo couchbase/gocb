@@ -127,8 +127,8 @@ func (suite *UnitTestSuite) TestBestEffortRetryStrategy_RetryAfterDefaultCalcula
 	}
 
 	action = strategy.RetryAfter(&mockRetryRequest{attempts: 5}, RetryReason(gocbcore.KVLockedRetryReason))
-	if action.Duration() != 1000*time.Millisecond {
-		suite.T().Fatalf("Expected duration to be %d but was %d", 1000*time.Millisecond, action.Duration())
+	if action.Duration() != 32*time.Millisecond {
+		suite.T().Fatalf("Expected duration to be %d but was %d", 32*time.Millisecond, action.Duration())
 	}
 }
 

@@ -187,7 +187,7 @@ func (rs *retryStrategyWrapper) RetryAfter(req gocbcore.RetryRequest, reason goc
 	return gocbcore.RetryAction(wrappedAction)
 }
 
-// BackoffCalculator defines how backoff durations will be calculated by the retry API.g
+// BackoffCalculator defines how backoff durations will be calculated by the retry API.
 type BackoffCalculator func(retryAttempts uint32) time.Duration
 
 // BestEffortRetryStrategy represents a strategy that will keep retrying until it succeeds (or the caller times out
@@ -200,7 +200,7 @@ type BestEffortRetryStrategy struct {
 // to calculate retry durations. If calculator is nil then a controlled backoff will be used.
 func NewBestEffortRetryStrategy(calculator BackoffCalculator) *BestEffortRetryStrategy {
 	if calculator == nil {
-		calculator = gocbcore.ControlledBackoff
+		calculator = BackoffCalculator(gocbcore.ExponentialBackoff(1*time.Millisecond, 500*time.Millisecond, 2))
 	}
 
 	return &BestEffortRetryStrategy{BackoffCalculator: calculator}
