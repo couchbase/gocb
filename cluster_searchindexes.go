@@ -1,7 +1,6 @@
 package gocb
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -130,7 +129,6 @@ func (sm *SearchIndexManager) doMgmtRequest(req mgmtRequest) (*mgmtResponse, err
 // GetAllSearchIndexOptions is the set of options available to the search indexes GetAllIndexes operation.
 type GetAllSearchIndexOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
@@ -196,7 +194,6 @@ func (sm *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]S
 // GetSearchIndexOptions is the set of options available to the search indexes GetIndex operation.
 type GetSearchIndexOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
@@ -256,7 +253,6 @@ func (sm *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOpt
 // UpsertSearchIndexOptions is the set of options available to the search index manager UpsertIndex operation.
 type UpsertSearchIndexOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
@@ -318,7 +314,6 @@ func (sm *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Ups
 // DropSearchIndexOptions is the set of options available to the search index DropIndex operation.
 type DropSearchIndexOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
@@ -358,7 +353,6 @@ func (sm *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndexO
 // AnalyzeDocumentOptions is the set of options available to the search index AnalyzeDocument operation.
 type AnalyzeDocumentOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
@@ -425,7 +419,6 @@ func (sm *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{},
 // GetIndexedDocumentsCountOptions is the set of options available to the search index GetIndexedDocumentsCount operation.
 type GetIndexedDocumentsCountOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
@@ -517,7 +510,6 @@ func (sm *SearchIndexManager) performControlRequest(
 // PauseIngestSearchIndexOptions is the set of options available to the search index PauseIngest operation.
 type PauseIngestSearchIndexOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
@@ -546,7 +538,6 @@ func (sm *SearchIndexManager) PauseIngest(indexName string, opts *PauseIngestSea
 // ResumeIngestSearchIndexOptions is the set of options available to the search index ResumeIngest operation.
 type ResumeIngestSearchIndexOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
@@ -575,7 +566,6 @@ func (sm *SearchIndexManager) ResumeIngest(indexName string, opts *ResumeIngestS
 // AllowQueryingSearchIndexOptions is the set of options available to the search index AllowQuerying operation.
 type AllowQueryingSearchIndexOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
@@ -604,7 +594,6 @@ func (sm *SearchIndexManager) AllowQuerying(indexName string, opts *AllowQueryin
 // DisallowQueryingSearchIndexOptions is the set of options available to the search index DisallowQuerying operation.
 type DisallowQueryingSearchIndexOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
@@ -633,7 +622,6 @@ func (sm *SearchIndexManager) DisallowQuerying(indexName string, opts *AllowQuer
 // FreezePlanSearchIndexOptions is the set of options available to the search index FreezePlan operation.
 type FreezePlanSearchIndexOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
@@ -662,7 +650,6 @@ func (sm *SearchIndexManager) FreezePlan(indexName string, opts *AllowQueryingSe
 // UnfreezePlanSearchIndexOptions is the set of options available to the search index UnfreezePlan operation.
 type UnfreezePlanSearchIndexOptions struct {
 	Timeout       time.Duration
-	Context       context.Context
 	RetryStrategy RetryStrategy
 }
 
