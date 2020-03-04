@@ -119,6 +119,21 @@ func (suite *IntegrationTestSuite) createBreweryDataset(datasetName, service str
 	return len(dataset), nil
 }
 
+func (suite *IntegrationTestSuite) tryUntil(deadline time.Time, interval time.Duration, fn func() bool) bool {
+	for {
+		success := fn()
+		if success {
+			return true
+		}
+
+		sleepDeadline := time.Now().Add(interval)
+		if sleepDeadline.After(deadline) {
+			return false
+		}
+		time.Sleep(sleepDeadline.Sub(time.Now()))
+	}
+}
+
 type UnitTestSuite struct {
 	suite.Suite
 }

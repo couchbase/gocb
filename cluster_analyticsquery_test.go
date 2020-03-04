@@ -79,7 +79,7 @@ func (suite *IntegrationTestSuite) setupAnalytics() int {
 	suite.Require().Nil(err, "Failed to create dataset %v", err)
 
 	err = mgr.ConnectLink(&ConnectAnalyticsLinkOptions{
-		Timeout: 1 * time.Second,
+		Timeout: 5 * time.Second,
 	})
 	suite.Require().Nil(err, "Failed to connect link %v", err)
 

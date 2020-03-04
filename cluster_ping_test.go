@@ -19,13 +19,7 @@ func (suite *IntegrationTestSuite) TestClusterPingAll() {
 
 	suite.Assert().NotEmpty(report.ID)
 
-	numServices := 1
-	if globalCluster.SupportsFeature(SearchFeature) {
-		numServices++
-	}
-	if globalCluster.SupportsFeature(AnalyticsFeature) {
-		numServices++
-	}
+	numServices := 3
 
 	suite.Assert().Len(report.Services, numServices)
 
@@ -41,9 +35,14 @@ func (suite *IntegrationTestSuite) TestClusterPingAll() {
 				suite.Assert().Equal(PingStateOk, service.State)
 				suite.Assert().NotZero(int64(service.Latency))
 			case ServiceTypeAnalytics:
-				suite.Assert().NotEmpty(service.Remote)
-				suite.Assert().Equal(PingStateOk, service.State)
-				suite.Assert().NotZero(int64(service.Latency))
+				if globalCluster.SupportsFeature(AnalyticsFeature) {
+					suite.Assert().NotEmpty(service.Remote)
+					suite.Assert().Equal(PingStateOk, service.State)
+					suite.Assert().NotZero(int64(service.Latency))
+				} else {
+					suite.Assert().Equal(PingStateError, service.State)
+					suite.Assert().Zero(int64(service.Latency))
+				}
 			default:
 				suite.T().Fatalf("Unexpected service type: %d", serviceType)
 			}

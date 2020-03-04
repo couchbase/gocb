@@ -75,7 +75,7 @@ func (suite *IntegrationTestSuite) setupQuery() int {
 	mgr := globalCluster.QueryIndexes()
 	err = mgr.CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
 		IgnoreIfExists: true,
-		Timeout:        1 * time.Second,
+		Timeout:        30 * time.Second,
 	})
 	suite.Require().Nil(err, "Failed to create index %v", err)
 

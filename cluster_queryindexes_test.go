@@ -26,10 +26,28 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 
 	mgr := globalCluster.QueryIndexes()
 
-	err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
-		IgnoreIfExists: true,
-	})
-	suite.Require().Nil(err, err)
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
+			IgnoreIfExists: true,
+		})
+		if err == nil {
+			break
+		}
+
+		suite.T().Logf("Failed to create primary index: %s", err)
+
+		sleepDeadline := time.Now().Add(500 * time.Millisecond)
+		if sleepDeadline.After(deadline) {
+			sleepDeadline = deadline
+		}
+		time.Sleep(sleepDeadline.Sub(time.Now()))
+
+		if sleepDeadline == deadline {
+			suite.T().Errorf("timed out waiting for create index to succeed")
+			return
+		}
+	}
 
 	err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
 		IgnoreIfExists: false,
