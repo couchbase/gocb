@@ -332,6 +332,7 @@ func (c *Cluster) execSearchQuery(
 		Payload:       reqBytes,
 		RetryStrategy: retryStrategy,
 		Deadline:      deadline,
+		TraceContext:  span.Context(),
 	})
 	if err != nil {
 		return nil, maybeEnhanceSearchError(err)

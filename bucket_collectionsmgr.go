@@ -108,11 +108,10 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 		IsIdempotent:  true,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
+		TraceContext:  span.Context(),
 	}
 
-	dspan := cm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := cm.httpClient.DoHTTPRequest(req)
-	dspan.Finish()
 	if err != nil {
 		colErr := cm.tryParseErrorMessage(req, resp)
 		if colErr != nil {
@@ -223,11 +222,10 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
+		TraceContext:  span.Context(),
 	}
 
-	dspan := cm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := cm.httpClient.DoHTTPRequest(req)
-	dspan.Finish()
 	if err != nil {
 		return makeGenericHTTPError(err, req, resp)
 	}
@@ -289,11 +287,10 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
+		TraceContext:  span.Context(),
 	}
 
-	dspan := cm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := cm.httpClient.DoHTTPRequest(req)
-	dspan.Finish()
 	if err != nil {
 		return makeGenericHTTPError(err, req, resp)
 	}
@@ -356,11 +353,10 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
+		TraceContext:  span.Context(),
 	}
 
-	dspan := cm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := cm.httpClient.DoHTTPRequest(req)
-	dspan.Finish()
 	if err != nil {
 		return err
 	}
@@ -414,11 +410,10 @@ func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions)
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
+		TraceContext:  span.Context(),
 	}
 
-	dspan := cm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := cm.httpClient.DoHTTPRequest(req)
-	dspan.Finish()
 	if err != nil {
 		return makeGenericHTTPError(err, req, resp)
 	}

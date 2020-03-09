@@ -60,6 +60,7 @@ func (c *Cluster) executeMgmtRequest(req mgmtRequest) (*mgmtResponse, error) {
 		UniqueID:      req.UniqueID,
 		Timeout:       timeout,
 		RetryStrategy: retryStrategy,
+		TraceContext:  req.parentSpan,
 	}
 
 	coreresp, err := provider.DoHTTPRequest(corereq)

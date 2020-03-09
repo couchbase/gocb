@@ -570,6 +570,7 @@ func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAn
 		IsIdempotent:  true,
 		RetryStrategy: opts.RetryStrategy,
 		Timeout:       timeout,
+		parentSpan:    span.Context(),
 	}
 	resp, err := am.doMgmtRequest(req)
 	if err != nil {

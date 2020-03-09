@@ -292,6 +292,7 @@ func (c *Cluster) execAnalyticsQuery(
 		Priority:      int(priority),
 		RetryStrategy: retryStrategy,
 		Deadline:      deadline,
+		TraceContext:  span.Context(),
 	})
 	if err != nil {
 		return nil, maybeEnhanceAnalyticsError(err)

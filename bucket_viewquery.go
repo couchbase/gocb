@@ -184,6 +184,7 @@ func (b *Bucket) execViewQuery(
 		Options:            options,
 		RetryStrategy:      wrapper,
 		Deadline:           deadline,
+		TraceContext:       span,
 	})
 	if err != nil {
 		return nil, maybeEnhanceViewError(err)

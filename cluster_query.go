@@ -305,7 +305,9 @@ func (c *Cluster) execN1qlQuery(
 		}
 	}
 
+	eSpan := c.sb.Tracer.StartSpan("request_encoding", span.Context())
 	reqBytes, err := json.Marshal(options)
+	eSpan.Finish()
 	if err != nil {
 		return nil, QueryError{
 			InnerError:      wrapError(err, "failed to marshall query body"),
@@ -318,6 +320,7 @@ func (c *Cluster) execN1qlQuery(
 		Payload:       reqBytes,
 		RetryStrategy: retryStrategy,
 		Deadline:      deadline,
+		TraceContext:  span.Context(),
 	})
 	if err != nil {
 		return nil, maybeEnhanceQueryError(err)

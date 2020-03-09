@@ -301,11 +301,10 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
+		TraceContext:  span.Context(),
 	}
 
-	dspan := um.tracer.StartSpan("dispatch", span.Context())
 	resp, err := um.httpClient.DoHTTPRequest(req)
-	dspan.Finish()
 	if err != nil {
 		return nil, makeGenericHTTPError(err, req, resp)
 	}
@@ -381,11 +380,10 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
+		TraceContext:  span.Context(),
 	}
 
-	dspan := um.tracer.StartSpan("dispatch", span.Context())
 	resp, err := um.httpClient.DoHTTPRequest(req)
-	dspan.Finish()
 	if err != nil {
 		return nil, makeGenericHTTPError(err, req, resp)
 	}
@@ -475,11 +473,10 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
+		TraceContext:  span.Context(),
 	}
 
-	dspan := um.tracer.StartSpan("dispatch", span.Context())
 	resp, err := um.httpClient.DoHTTPRequest(req)
-	dspan.Finish()
 	if err != nil {
 		return makeGenericHTTPError(err, req, resp)
 	}
@@ -534,11 +531,10 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
+		TraceContext:  span.Context(),
 	}
 
-	dspan := um.tracer.StartSpan("dispatch", span.Context())
 	resp, err := um.httpClient.DoHTTPRequest(req)
-	dspan.Finish()
 	if err != nil {
 		return makeGenericHTTPError(err, req, resp)
 	}
@@ -588,11 +584,10 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 		IsIdempotent:  true,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
+		TraceContext:  span.Context(),
 	}
 
-	dspan := um.tracer.StartSpan("dispatch", span.Context())
 	resp, err := um.httpClient.DoHTTPRequest(req)
-	dspan.Finish()
 	if err != nil {
 		return nil, makeGenericHTTPError(err, req, resp)
 	}
@@ -665,11 +660,10 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 		IsIdempotent:  true,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
+		TraceContext:  span.Context(),
 	}
 
-	dspan := um.tracer.StartSpan("dispatch", span.Context())
 	resp, err := um.httpClient.DoHTTPRequest(req)
-	dspan.Finish()
 	if err != nil {
 		return nil, makeGenericHTTPError(err, req, resp)
 	}
@@ -737,11 +731,10 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 		IsIdempotent:  true,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
+		TraceContext:  span.Context(),
 	}
 
-	dspan := um.tracer.StartSpan("dispatch", span.Context())
 	resp, err := um.httpClient.DoHTTPRequest(req)
-	dspan.Finish()
 	if err != nil {
 		return nil, makeGenericHTTPError(err, req, resp)
 	}
@@ -829,11 +822,10 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
+		TraceContext:  span.Context(),
 	}
 
-	dspan := um.tracer.StartSpan("dispatch", span.Context())
 	resp, err := um.httpClient.DoHTTPRequest(req)
-	dspan.Finish()
 	if err != nil {
 		return makeGenericHTTPError(err, req, resp)
 	}
@@ -886,11 +878,10 @@ func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
+		TraceContext:  span.Context(),
 	}
 
-	dspan := um.tracer.StartSpan("dispatch", span.Context())
 	resp, err := um.httpClient.DoHTTPRequest(req)
-	dspan.Finish()
 	if err != nil {
 		return makeGenericHTTPError(err, req, resp)
 	}

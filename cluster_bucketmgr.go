@@ -234,11 +234,10 @@ func (bm *BucketManager) get(tracectx requestSpanContext, bucketName string,
 		RetryStrategy: strategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
+		TraceContext:  tracectx,
 	}
 
-	dspan := bm.tracer.StartSpan("dispatch", tracectx)
 	resp, err := bm.httpClient.DoHTTPRequest(req)
-	dspan.Finish()
 	if err != nil {
 		return nil, makeGenericHTTPError(err, req, resp)
 	}
@@ -307,11 +306,10 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
+		TraceContext:  span.Context(),
 	}
 
-	dspan := bm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := bm.httpClient.DoHTTPRequest(req)
-	dspan.Finish()
 	if err != nil {
 		return nil, makeGenericHTTPError(err, req, resp)
 	}
@@ -401,11 +399,10 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
+		TraceContext:  span.Context(),
 	}
 
-	dspan := bm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := bm.httpClient.DoHTTPRequest(req)
-	dspan.Finish()
 	if err != nil {
 		return makeGenericHTTPError(err, req, resp)
 	}
@@ -467,11 +464,10 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
+		TraceContext:  span.Context(),
 	}
 
-	dspan := bm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := bm.httpClient.DoHTTPRequest(req)
-	dspan.Finish()
 	if err != nil {
 		return makeGenericHTTPError(err, req, resp)
 	}
@@ -526,11 +522,10 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
+		TraceContext:  span.Context(),
 	}
 
-	dspan := bm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := bm.httpClient.DoHTTPRequest(req)
-	dspan.Finish()
 	if err != nil {
 		return makeGenericHTTPError(err, req, resp)
 	}
@@ -586,11 +581,10 @@ func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) erro
 		RetryStrategy: retryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
+		TraceContext:  span.Context(),
 	}
 
-	dspan := bm.tracer.StartSpan("dispatch", span.Context())
 	resp, err := bm.httpClient.DoHTTPRequest(req)
-	dspan.Finish()
 	if err != nil {
 		return makeGenericHTTPError(err, req, resp)
 	}

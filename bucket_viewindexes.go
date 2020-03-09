@@ -194,6 +194,7 @@ func (vm *ViewIndexManager) getDesignDocument(tracectx requestSpanContext, name 
 		IsIdempotent:  true,
 		RetryStrategy: opts.RetryStrategy,
 		Timeout:       opts.Timeout,
+		parentSpan:    tracectx,
 	}
 	resp, err := vm.doMgmtRequest(req)
 	if err != nil {
@@ -254,6 +255,7 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamesp
 		IsIdempotent:  true,
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
+		parentSpan:    span.Context(),
 	}
 	resp, err := vm.doMgmtRequest(req)
 	if err != nil {
@@ -350,6 +352,7 @@ func (vm *ViewIndexManager) upsertDesignDocument(
 		Body:          data,
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
+		parentSpan:    tracectx,
 	}
 	resp, err := vm.doMgmtRequest(req)
 	if err != nil {
@@ -397,6 +400,7 @@ func (vm *ViewIndexManager) dropDesignDocument(tracectx requestSpanContext, name
 		Method:        "DELETE",
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
+		parentSpan:    tracectx,
 	}
 	resp, err := vm.doMgmtRequest(req)
 	if err != nil {
@@ -445,7 +449,8 @@ func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesi
 		return err
 	}
 
-	err = vm.upsertDesignDocument(span.Context(),
+	err = vm.upsertDesignDocument(
+		span.Context(),
 		*devdoc,
 		DesignDocumentNamespaceProduction,
 		startTime,

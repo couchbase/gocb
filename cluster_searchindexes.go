@@ -149,6 +149,7 @@ func (sm *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]S
 		IsIdempotent:  true,
 		RetryStrategy: opts.RetryStrategy,
 		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 	resp, err := sm.doMgmtRequest(req)
 	if err != nil {
@@ -214,6 +215,7 @@ func (sm *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOpt
 		IsIdempotent:  true,
 		RetryStrategy: opts.RetryStrategy,
 		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 	resp, err := sm.doMgmtRequest(req)
 	if err != nil {
@@ -293,6 +295,7 @@ func (sm *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Ups
 		Body:          b,
 		RetryStrategy: opts.RetryStrategy,
 		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 	resp, err := sm.doMgmtRequest(req)
 	if err != nil {
@@ -337,6 +340,7 @@ func (sm *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndexO
 		Path:          fmt.Sprintf("/api/index/%s", indexName),
 		RetryStrategy: opts.RetryStrategy,
 		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 	resp, err := sm.doMgmtRequest(req)
 	if err != nil {
@@ -383,6 +387,7 @@ func (sm *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{},
 		IsIdempotent:  true,
 		RetryStrategy: opts.RetryStrategy,
 		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 	resp, err := sm.doMgmtRequest(req)
 	if err != nil {
@@ -443,6 +448,7 @@ func (sm *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *G
 		IsIdempotent:  true,
 		RetryStrategy: opts.RetryStrategy,
 		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 	resp, err := sm.doMgmtRequest(req)
 	if err != nil {
@@ -488,6 +494,7 @@ func (sm *SearchIndexManager) performControlRequest(
 		IsIdempotent:  true,
 		Timeout:       timeout,
 		RetryStrategy: retryStrategy,
+		parentSpan:    tracectx,
 	}
 
 	resp, err := sm.doMgmtRequest(req)
