@@ -54,6 +54,7 @@ var (
 	GetMetaFeature                        = FeatureCode("getmeta")
 	PingFeature                           = FeatureCode("ping")
 	ViewIndexUpsertBugFeature             = FeatureCode("viewinsertupsertbug")
+	ReplicasFeature                       = FeatureCode("replicas")
 )
 
 type TestFeatureFlag struct {

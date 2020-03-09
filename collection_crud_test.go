@@ -1255,6 +1255,7 @@ func (suite *IntegrationTestSuite) TestTouchMissingDocFail() {
 
 func (suite *IntegrationTestSuite) TestInsertReplicateToGetAnyReplica() {
 	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(ReplicasFeature)
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
@@ -1291,6 +1292,7 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAnyReplica() {
 
 func (suite *IntegrationTestSuite) TestInsertReplicateToGetAllReplicas() {
 	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(ReplicasFeature)
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
@@ -1298,8 +1300,14 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAllReplicas() {
 		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
+	agent, err := globalCollection.getKvProvider()
+	if err != nil {
+		suite.T().Fatalf("Failed to get kv provider, was %v", err)
+	}
+	expectedReplicas := agent.NumReplicas() + 1
+
 	mutRes, err := globalCollection.Upsert("insertAllReplicaDoc", doc, &UpsertOptions{
-		PersistTo: 1,
+		PersistTo: uint(expectedReplicas),
 	})
 	if err != nil {
 		suite.T().Fatalf("Upsert failed, error was %v", err)
@@ -1316,12 +1324,6 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAllReplicas() {
 		suite.T().Fatalf("GetAllReplicas failed, error was %v", err)
 	}
 
-	agent, err := globalCollection.getKvProvider()
-	if err != nil {
-		suite.T().Fatalf("Failed to get kv provider, was %v", err)
-	}
-
-	expectedReplicas := agent.NumReplicas() + 1
 	actualReplicas := 0
 	numMasters := 0
 
@@ -1365,6 +1367,7 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAllReplicas() {
 func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(DurabilityFeature)
+	suite.skipIfUnsupported(ReplicasFeature)
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
