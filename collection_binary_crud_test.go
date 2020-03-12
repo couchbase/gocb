@@ -1,9 +1,8 @@
 package gocb
 
 func (suite *IntegrationTestSuite) TestBinaryAppend() {
-	if !globalCluster.SupportsFeature(AdjoinFeature) {
-		suite.T().Skip("Skipping due to serverside bug")
-	}
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(AdjoinFeature)
 	colBinary := globalCollection.Binary()
 
 	tcoder := NewRawBinaryTranscoder()
@@ -46,9 +45,9 @@ func (suite *IntegrationTestSuite) TestBinaryAppend() {
 }
 
 func (suite *IntegrationTestSuite) TestBinaryPrepend() {
-	if !globalCluster.SupportsFeature(AdjoinFeature) {
-		suite.T().Skip("Skipping due to serverside bug")
-	}
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(AdjoinFeature)
+
 	colBinary := globalCollection.Binary()
 
 	tcoder := NewRawBinaryTranscoder()
@@ -91,6 +90,8 @@ func (suite *IntegrationTestSuite) TestBinaryPrepend() {
 }
 
 func (suite *IntegrationTestSuite) TestBinaryIncrement() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	colBinary := globalCollection.Binary()
 
 	res, err := colBinary.Increment("binaryIncrement", &IncrementOptions{
@@ -155,6 +156,8 @@ func (suite *IntegrationTestSuite) TestBinaryIncrement() {
 }
 
 func (suite *IntegrationTestSuite) TestBinaryDecrement() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	colBinary := globalCollection.Binary()
 
 	res, err := colBinary.Decrement("binaryDecrement", &DecrementOptions{

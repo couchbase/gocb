@@ -1,6 +1,8 @@
 package gocb
 
 func (suite *IntegrationTestSuite) TestListCrud() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	list := globalCollection.List("testList")
 	err := list.Append("test1")
 	if err != nil {
@@ -102,6 +104,8 @@ func (suite *IntegrationTestSuite) TestListCrud() {
 }
 
 func (suite *IntegrationTestSuite) TestSetCrud() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	set := globalCollection.Set("testSet")
 	err := set.Add("test1")
 	if err != nil {
@@ -219,6 +223,8 @@ func (suite *IntegrationTestSuite) TestSetCrud() {
 }
 
 func (suite *IntegrationTestSuite) TestQueueCrud() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	queue := globalCollection.Queue("testQueue")
 	err := queue.Push("test1")
 	if err != nil {
@@ -306,6 +312,8 @@ func (suite *IntegrationTestSuite) TestQueueCrud() {
 }
 
 func (suite *IntegrationTestSuite) TestMapCrud() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	cMap := globalCollection.Map("testMap")
 	err := cMap.Add("test1", "test1val")
 	if err != nil {

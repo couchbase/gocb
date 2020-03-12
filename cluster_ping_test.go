@@ -11,9 +11,8 @@ import (
 )
 
 func (suite *IntegrationTestSuite) TestClusterPingAll() {
-	if !globalCluster.SupportsFeature(PingFeature) {
-		suite.T().Skip("Skipping test as ping not supported")
-	}
+	suite.skipIfUnsupported(PingFeature)
+
 	report, err := globalCluster.Ping(nil)
 	suite.Require().Nil(err)
 

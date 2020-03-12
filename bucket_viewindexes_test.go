@@ -10,12 +10,8 @@ import (
 )
 
 func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
-	if !globalCluster.SupportsFeature(ViewFeature) {
-		suite.T().Skip("Skipping test as view indexes not supported")
-	}
-	if !globalCluster.SupportsFeature(ViewIndexUpsertBugFeature) {
-		suite.T().Skip("Skipping test due to upsert view indexes bug")
-	}
+	suite.skipIfUnsupported(ViewFeature)
+	suite.skipIfUnsupported(ViewIndexUpsertBugFeature)
 
 	mgr := globalBucket.ViewIndexes()
 

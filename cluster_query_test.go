@@ -17,9 +17,7 @@ type testQueryDataset struct {
 }
 
 func (suite *IntegrationTestSuite) TestQuery() {
-	if globalCluster.NotSupportsFeature(QueryFeature) {
-		suite.T().Skip("Skipping test as query not supported.")
-	}
+	suite.skipIfUnsupported(QueryFeature)
 
 	n := suite.setupQuery()
 	suite.runQueryTest(n)

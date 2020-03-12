@@ -6,6 +6,9 @@ import (
 )
 
 func (suite *IntegrationTestSuite) TestInsertLookupIn() {
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(SubdocFeature)
+
 	type beerWithCountable struct {
 		testBeerDocument
 		Countable []string `json:"countable"`
@@ -89,6 +92,9 @@ func (suite *IntegrationTestSuite) TestInsertLookupIn() {
 }
 
 func (suite *IntegrationTestSuite) TestMutateInBasicCrud() {
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(SubdocFeature)
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
@@ -154,6 +160,9 @@ func (suite *IntegrationTestSuite) TestMutateInBasicCrud() {
 }
 
 func (suite *IntegrationTestSuite) TestMutateInBasicArray() {
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(SubdocFeature)
+
 	doc := struct {
 		Fish []string `json:"array"`
 	}{
@@ -214,9 +223,9 @@ func (suite *IntegrationTestSuite) TestMutateInBasicArray() {
 }
 
 func (suite *IntegrationTestSuite) TestMutateInLookupInXattr() {
-	if !globalCluster.SupportsFeature(XattrFeature) {
-		suite.T().Skip("Skipping test as xattrs not supported")
-	}
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(SubdocFeature)
+	suite.skipIfUnsupported(XattrFeature)
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
@@ -277,9 +286,10 @@ func (suite *IntegrationTestSuite) TestMutateInLookupInXattr() {
 }
 
 func (suite *IntegrationTestSuite) TestInsertLookupInInsertGetFull() {
-	if !globalCluster.SupportsFeature(XattrFeature) {
-		suite.T().Skip("Skipping test as xattrs not supported")
-	}
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(SubdocFeature)
+	suite.skipIfUnsupported(XattrFeature)
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
@@ -328,6 +338,9 @@ func (suite *IntegrationTestSuite) TestInsertLookupInInsertGetFull() {
 }
 
 func (suite *IntegrationTestSuite) TestMutateInLookupInCounters() {
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(SubdocFeature)
+
 	doc := struct {
 		Counter int `json:"counter"`
 	}{
@@ -374,9 +387,9 @@ func (suite *IntegrationTestSuite) TestMutateInLookupInCounters() {
 }
 
 func (suite *IntegrationTestSuite) TestMutateInLookupInMacro() {
-	if !globalCluster.SupportsFeature(ExpandMacrosFeature) {
-		suite.T().Skip("Skipping test as macros not supported")
-	}
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(SubdocFeature)
+	suite.skipIfUnsupported(ExpandMacrosFeature)
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)

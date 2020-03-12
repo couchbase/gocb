@@ -5,9 +5,7 @@ import (
 )
 
 func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrud() {
-	if !globalCluster.SupportsFeature(AnalyticsIndexFeature) {
-		suite.T().Skip("Skipping test, analytics indexes not supported.")
-	}
+	suite.skipIfUnsupported(AnalyticsIndexFeature)
 
 	mgr := globalCluster.AnalyticsIndexes()
 

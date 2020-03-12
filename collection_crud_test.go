@@ -13,6 +13,8 @@ import (
 )
 
 func (suite *IntegrationTestSuite) TestErrorNonExistant() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	res, err := globalCollection.Get("doesnt-exist", nil)
 	if err == nil {
 		suite.T().Fatalf("Expected error to be non-nil")
@@ -24,6 +26,8 @@ func (suite *IntegrationTestSuite) TestErrorNonExistant() {
 }
 
 func (suite *IntegrationTestSuite) TestErrorDoubleInsert() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	_, err := globalCollection.Insert("doubleInsert", "test", nil)
 	if err != nil {
 		suite.T().Fatalf("Expected error to be nil but was %v", err)
@@ -39,9 +43,8 @@ func (suite *IntegrationTestSuite) TestErrorDoubleInsert() {
 }
 
 func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {
-	if globalCluster.NotSupportsFeature(XattrFeature) {
-		suite.T().Skip("Skipping test as xattrs not supported.")
-	}
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(XattrFeature)
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
@@ -79,6 +82,8 @@ func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {
 }
 
 func (suite *IntegrationTestSuite) TestInsertGetProjection() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	type PersonDimensions struct {
 		Height int `json:"height"`
 		Weight int `json:"weight"`
@@ -358,6 +363,8 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 }
 
 func (suite *IntegrationTestSuite) TestInsertGetProjection18Fields() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	type docType struct {
 		Field1  int `json:"field1"`
 		Field2  int `json:"field2"`
@@ -432,9 +439,8 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection18Fields() {
 }
 
 func (suite *IntegrationTestSuite) TestInsertGetProjection16FieldsExpiry() {
-	if globalCluster.NotSupportsFeature(XattrFeature) {
-		suite.T().Skip("Skipping test as xattrs not supported.")
-	}
+	suite.skipIfUnsupported(XattrFeature)
+	suite.skipIfUnsupported(KeyValueFeature)
 
 	type docType struct {
 		Field1  int `json:"field1"`
@@ -513,6 +519,8 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection16FieldsExpiry() {
 }
 
 func (suite *IntegrationTestSuite) TestInsertGetProjectionPathMissing() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
@@ -537,6 +545,8 @@ func (suite *IntegrationTestSuite) TestInsertGetProjectionPathMissing() {
 }
 
 func (suite *IntegrationTestSuite) TestInsertGet() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
@@ -569,9 +579,8 @@ func (suite *IntegrationTestSuite) TestInsertGet() {
 }
 
 func (suite *IntegrationTestSuite) TestExists() {
-	if globalCluster.NotSupportsFeature(GetMetaFeature) {
-		suite.T().Skip("Skipping test as GetMeta not supported.")
-	}
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(GetMetaFeature)
 
 	_, err := globalCollection.Insert("exists", "test", nil)
 	if err != nil {
@@ -605,13 +614,8 @@ func (suite *IntegrationTestSuite) TestExists() {
 // Following test tests that if a collection is deleted and recreated midway through a set of operations
 // then the operations will still succeed due to the cid being refreshed under the hood.
 func (suite *IntegrationTestSuite) TestCollectionRetry() {
-	if testing.Short() {
-		suite.T().Skip("Skipping test in short mode.")
-	}
-
-	if globalCluster.NotSupportsFeature(CollectionsFeature) {
-		suite.T().Skip("Skipping test as collections not supported.")
-	}
+	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(KeyValueFeature)
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
@@ -682,9 +686,8 @@ func (suite *IntegrationTestSuite) TestCollectionRetry() {
 }
 
 func (suite *IntegrationTestSuite) TestUpsertGetRemove() {
-	if globalCluster.NotSupportsFeature(GetMetaFeature) {
-		suite.T().Skip("Skipping test as GetMeta not supported.")
-	}
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(GetMetaFeature)
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
@@ -750,10 +753,7 @@ func (rts *upsertRetriesStrategy) RetryAfter(req RetryRequest, reason RetryReaso
 }
 
 func (suite *IntegrationTestSuite) TestUpsertRetries() {
-	if testing.Short() {
-		suite.T().Skip("Skipping test in short mode")
-		return
-	}
+	suite.skipIfUnsupported(KeyValueFeature)
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
@@ -794,9 +794,8 @@ func (suite *IntegrationTestSuite) TestUpsertRetries() {
 }
 
 func (suite *IntegrationTestSuite) TestRemoveWithCas() {
-	if globalCluster.NotSupportsFeature(GetMetaFeature) {
-		suite.T().Skip("Skipping test as GetMeta not supported.")
-	}
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(GetMetaFeature)
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
@@ -856,6 +855,8 @@ func (suite *IntegrationTestSuite) TestRemoveWithCas() {
 }
 
 func (suite *IntegrationTestSuite) TestUpsertAndReplace() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
@@ -913,9 +914,8 @@ func (suite *IntegrationTestSuite) TestUpsertAndReplace() {
 }
 
 func (suite *IntegrationTestSuite) TestGetAndTouch() {
-	if globalCluster.NotSupportsFeature(XattrFeature) {
-		suite.T().Skip("Skipping test as xattrs not supported.")
-	}
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(XattrFeature)
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
@@ -968,6 +968,8 @@ func (suite *IntegrationTestSuite) TestGetAndTouch() {
 }
 
 func (suite *IntegrationTestSuite) TestGetAndLock() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
@@ -1022,6 +1024,8 @@ func (suite *IntegrationTestSuite) TestGetAndLock() {
 }
 
 func (suite *IntegrationTestSuite) TestUnlock() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
@@ -1068,6 +1072,8 @@ func (suite *IntegrationTestSuite) TestUnlock() {
 }
 
 func (suite *IntegrationTestSuite) TestUnlockInvalidCas() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
@@ -1124,6 +1130,8 @@ func (suite *IntegrationTestSuite) TestUnlockInvalidCas() {
 }
 
 func (suite *IntegrationTestSuite) TestDoubleLockFail() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
@@ -1168,6 +1176,8 @@ func (suite *IntegrationTestSuite) TestDoubleLockFail() {
 }
 
 func (suite *IntegrationTestSuite) TestUnlockMissingDocFail() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	err := globalCollection.Unlock("unlockMissing", 123, nil)
 	if err == nil {
 		suite.T().Fatalf("Expected Unlock to fail")
@@ -1179,9 +1189,8 @@ func (suite *IntegrationTestSuite) TestUnlockMissingDocFail() {
 }
 
 func (suite *IntegrationTestSuite) TestTouch() {
-	if globalCluster.NotSupportsFeature(XattrFeature) {
-		suite.T().Skip("Skipping test as xattrs not supported.")
-	}
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(XattrFeature)
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
@@ -1232,6 +1241,8 @@ func (suite *IntegrationTestSuite) TestTouch() {
 }
 
 func (suite *IntegrationTestSuite) TestTouchMissingDocFail() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	_, err := globalCollection.Touch("touchMissing", 3, nil)
 	if err == nil {
 		suite.T().Fatalf("Touch should have failed")
@@ -1243,6 +1254,8 @@ func (suite *IntegrationTestSuite) TestTouchMissingDocFail() {
 }
 
 func (suite *IntegrationTestSuite) TestInsertReplicateToGetAnyReplica() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
@@ -1277,6 +1290,8 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAnyReplica() {
 }
 
 func (suite *IntegrationTestSuite) TestInsertReplicateToGetAllReplicas() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
@@ -1348,9 +1363,8 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAllReplicas() {
 }
 
 func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
-	if !globalCluster.SupportsFeature(DurabilityFeature) {
-		suite.T().Skip("Skipping test as durability not supported")
-	}
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(DurabilityFeature)
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)

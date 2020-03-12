@@ -11,9 +11,7 @@ import (
 )
 
 func (suite *IntegrationTestSuite) TestSearchIndexesCrud() {
-	if !globalCluster.SupportsFeature(SearchIndexFeature) {
-		suite.T().Skip("Skipping test as search indexes not supported")
-	}
+	suite.skipIfUnsupported(SearchIndexFeature)
 
 	mgr := globalCluster.SearchIndexes()
 
@@ -131,9 +129,7 @@ func (suite *IntegrationTestSuite) TestSearchIndexesCrud() {
 }
 
 func (suite *IntegrationTestSuite) TestSearchIndexesUpsertIndexNoName() {
-	if !globalCluster.SupportsFeature(SearchIndexFeature) {
-		suite.T().Skip("Skipping test as search indexes not supported")
-	}
+	suite.skipIfUnsupported(SearchIndexFeature)
 
 	mgr := globalCluster.SearchIndexes()
 
@@ -148,9 +144,7 @@ func (suite *IntegrationTestSuite) TestSearchIndexesUpsertIndexNoName() {
 }
 
 func (suite *IntegrationTestSuite) TestSearchIndexesIngestControl() {
-	if !globalCluster.SupportsFeature(SearchIndexFeature) {
-		suite.T().Skip("Skipping test as search indexes not supported")
-	}
+	suite.skipIfUnsupported(SearchIndexFeature)
 
 	mgr := globalCluster.SearchIndexes()
 
@@ -178,9 +172,7 @@ func (suite *IntegrationTestSuite) TestSearchIndexesIngestControl() {
 }
 
 func (suite *IntegrationTestSuite) TestSearchIndexesQueryControl() {
-	if !globalCluster.SupportsFeature(SearchIndexFeature) {
-		suite.T().Skip("Skipping test as search indexes not supported")
-	}
+	suite.skipIfUnsupported(SearchIndexFeature)
 
 	mgr := globalCluster.SearchIndexes()
 
@@ -208,9 +200,7 @@ func (suite *IntegrationTestSuite) TestSearchIndexesQueryControl() {
 }
 
 func (suite *IntegrationTestSuite) TestSearchIndexesPartitionControl() {
-	if !globalCluster.SupportsFeature(SearchIndexFeature) {
-		suite.T().Skip("Skipping test as search indexes not supported")
-	}
+	suite.skipIfUnsupported(SearchIndexFeature)
 
 	mgr := globalCluster.SearchIndexes()
 

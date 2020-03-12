@@ -5,9 +5,7 @@ import (
 )
 
 func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
-	if !globalCluster.SupportsFeature(CollectionsFeature) {
-		suite.T().Skip("Skipping test as collections not supported")
-	}
+	suite.skipIfUnsupported(CollectionsFeature)
 
 	mgr := globalBucket.Collections()
 

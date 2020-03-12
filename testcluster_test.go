@@ -8,8 +8,6 @@ import (
 	"github.com/couchbaselabs/gojcbmock"
 )
 
-type FeatureCode int
-
 var (
 	srvVer180   = NodeVersion{1, 8, 0, 0, "", false}
 	srvVer200   = NodeVersion{2, 0, 0, 0, "", false}
@@ -30,39 +28,38 @@ var (
 	mockVer1515 = NodeVersion{1, 5, 15, 0, "", true}
 )
 
+type FeatureCode string
+
 var (
-	KeyValueFeature                       = FeatureCode(1)
-	ViewFeature                           = FeatureCode(2)
-	CccpFeature                           = FeatureCode(3)
-	SslFeature                            = FeatureCode(4)
-	DcpFeature                            = FeatureCode(5)
-	SpatialViewFeature                    = FeatureCode(6)
-	QueryFeature                          = FeatureCode(7)
-	SubdocFeature                         = FeatureCode(8)
-	KvErrorMapFeature                     = FeatureCode(9)
-	RbacFeature                           = FeatureCode(10)
-	SearchFeature                         = FeatureCode(11)
-	EnhancedErrorsFeature                 = FeatureCode(12)
-	SearchIndexFeature                    = FeatureCode(13)
-	CompressionFeature                    = FeatureCode(14)
-	ServerSideTracingFeature              = FeatureCode(15)
-	AnalyticsFeature                      = FeatureCode(16)
-	XattrFeature                          = FeatureCode(17)
-	CollectionsFeature                    = FeatureCode(18)
-	SubdocMockBugFeature                  = FeatureCode(19)
-	AdjoinFeature                         = FeatureCode(20)
-	ExpandMacrosFeature                   = FeatureCode(21)
-	DurabilityFeature                     = FeatureCode(22)
-	UserGroupFeature                      = FeatureCode(23)
-	UserManagerFeature                    = FeatureCode(24)
-	AnalyticsIndexFeature                 = FeatureCode(25)
-	BucketMgrFeature                      = FeatureCode(26)
-	SearchAnalyzeFeature                  = FeatureCode(27)
-	AnalyticsIndexPendingMutationsFeature = FeatureCode(28)
-	GetMetaFeature                        = FeatureCode(29)
-	PingFeature                           = FeatureCode(30)
-	ViewIndexUpsertBugFeature             = FeatureCode(31)
+	KeyValueFeature                       = FeatureCode("keyvalue")
+	ViewFeature                           = FeatureCode("view")
+	QueryFeature                          = FeatureCode("query")
+	SubdocFeature                         = FeatureCode("subdoc")
+	RbacFeature                           = FeatureCode("rbac")
+	SearchFeature                         = FeatureCode("search")
+	SearchIndexFeature                    = FeatureCode("searchindex")
+	AnalyticsFeature                      = FeatureCode("analytics")
+	XattrFeature                          = FeatureCode("xattrs")
+	CollectionsFeature                    = FeatureCode("collections")
+	SubdocMockBugFeature                  = FeatureCode("subdocmockbug")
+	AdjoinFeature                         = FeatureCode("adjoin")
+	ExpandMacrosFeature                   = FeatureCode("expandmacros")
+	DurabilityFeature                     = FeatureCode("durability")
+	UserGroupFeature                      = FeatureCode("usergroup")
+	UserManagerFeature                    = FeatureCode("usermanager")
+	AnalyticsIndexFeature                 = FeatureCode("analyticsindex")
+	BucketMgrFeature                      = FeatureCode("bucketmgr")
+	SearchAnalyzeFeature                  = FeatureCode("searchanalyze")
+	AnalyticsIndexPendingMutationsFeature = FeatureCode("analyticspending")
+	GetMetaFeature                        = FeatureCode("getmeta")
+	PingFeature                           = FeatureCode("ping")
+	ViewIndexUpsertBugFeature             = FeatureCode("viewinsertupsertbug")
 )
+
+type TestFeatureFlag struct {
+	Enabled bool
+	Feature FeatureCode
+}
 
 type testClusterErrorWrap struct {
 	InnerError error
@@ -81,6 +78,8 @@ type testCluster struct {
 	*Cluster
 	Mock    *gojcbmock.Mock
 	Version *NodeVersion
+
+	FeatureFlags []TestFeatureFlag
 }
 
 func (c *testCluster) isMock() bool {
@@ -88,6 +87,22 @@ func (c *testCluster) isMock() bool {
 }
 
 func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
+	featureFlagValue := 0
+	for _, featureFlag := range c.FeatureFlags {
+		if featureFlag.Feature == feature || featureFlag.Feature == "*" {
+			if featureFlag.Enabled {
+				featureFlagValue = +1
+			} else {
+				featureFlagValue = -1
+			}
+		}
+	}
+	if featureFlagValue == -1 {
+		return false
+	} else if featureFlagValue == +1 {
+		return true
+	}
+
 	supported := false
 	if c.Version.IsMock {
 		supported = true
@@ -97,10 +112,6 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(mockVer156)
 		case SearchIndexFeature:
 			supported = false
-		case CompressionFeature:
-			supported = !c.Version.Lower(mockVer1513)
-		case ServerSideTracingFeature:
-			supported = !c.Version.Lower(mockVer1515)
 		case AnalyticsFeature:
 			supported = false
 		case QueryFeature:
@@ -140,34 +151,18 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer180)
 		case ViewFeature:
 			supported = !c.Version.Lower(srvVer200)
-		case CccpFeature:
-			supported = !c.Version.Lower(srvVer250)
-		case SslFeature:
-			supported = !c.Version.Lower(srvVer300)
-		case DcpFeature:
-			supported = !c.Version.Lower(srvVer400)
-		case SpatialViewFeature:
-			supported = !c.Version.Lower(srvVer400)
 		case QueryFeature:
 			supported = !c.Version.Lower(srvVer400)
 		case SubdocFeature:
 			supported = !c.Version.Lower(srvVer450)
 		case XattrFeature:
 			supported = !c.Version.Lower(srvVer450)
-		case KvErrorMapFeature:
-			supported = !c.Version.Lower(srvVer500)
 		case RbacFeature:
 			supported = !c.Version.Lower(srvVer500)
 		case SearchFeature:
 			supported = !c.Version.Lower(srvVer500)
-		case EnhancedErrorsFeature:
-			supported = !c.Version.Lower(srvVer500)
 		case SearchIndexFeature:
 			supported = !c.Version.Lower(srvVer500)
-		case CompressionFeature:
-			supported = !c.Version.Lower(srvVer550)
-		case ServerSideTracingFeature:
-			supported = !c.Version.Lower(srvVer550)
 		case AnalyticsFeature:
 			supported = !c.Version.Lower(srvVer600)
 		case CollectionsFeature:

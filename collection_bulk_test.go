@@ -5,6 +5,8 @@ import (
 )
 
 func (suite *IntegrationTestSuite) TestUpsertGetBulk() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
 	var ops []BulkOp
 	for i := 0; i < 20; i++ {
 		ops = append(ops, &UpsertOp{

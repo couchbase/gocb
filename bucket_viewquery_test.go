@@ -9,9 +9,7 @@ import (
 )
 
 func (suite *IntegrationTestSuite) TestViewQuery() {
-	if !globalCluster.SupportsFeature(ViewIndexUpsertBugFeature) {
-		suite.T().Skip("Skipping test due to server side bug")
-	}
+	suite.skipIfUnsupported(ViewIndexUpsertBugFeature)
 
 	n := suite.setupViews()
 	suite.runViewsTest(n)

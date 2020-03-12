@@ -13,9 +13,7 @@ import (
 )
 
 func (suite *IntegrationTestSuite) TestUserManagerGroupCrud() {
-	if !globalCluster.SupportsFeature(UserGroupFeature) {
-		suite.T().Skip("Skipping test as groups not supported.")
-	}
+	suite.skipIfUnsupported(UserGroupFeature)
 
 	mgr := globalCluster.Users()
 
@@ -83,9 +81,7 @@ func (suite *IntegrationTestSuite) TestUserManagerGroupCrud() {
 }
 
 func (suite *IntegrationTestSuite) TestUserManagerWithGroupsCrud() {
-	if !globalCluster.SupportsFeature(UserGroupFeature) {
-		suite.T().Skip("Skipping test as groups not supported.")
-	}
+	suite.skipIfUnsupported(UserGroupFeature)
 
 	mgr := globalCluster.Users()
 
@@ -206,9 +202,7 @@ func (suite *IntegrationTestSuite) TestUserManagerWithGroupsCrud() {
 }
 
 func (suite *IntegrationTestSuite) TestUserManagerCrud() {
-	if !globalCluster.SupportsFeature(UserManagerFeature) {
-		suite.T().Skip("Skipping test as rbac not supported.")
-	}
+	suite.skipIfUnsupported(UserManagerFeature)
 
 	mgr := globalCluster.Users()
 
@@ -281,9 +275,7 @@ func (suite *IntegrationTestSuite) TestUserManagerCrud() {
 }
 
 func (suite *IntegrationTestSuite) TestUserManagerAvailableRoles() {
-	if !globalCluster.SupportsFeature(UserManagerFeature) {
-		suite.T().Skip("Skipping test as rbac not supported.")
-	}
+	suite.skipIfUnsupported(UserManagerFeature)
 
 	mgr := globalCluster.Users()
 

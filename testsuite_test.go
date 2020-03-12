@@ -89,7 +89,12 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 		panic(err.Error())
 	}
 
-	globalCluster = &testCluster{Cluster: cluster, Mock: mock, Version: nodeVersion}
+	globalCluster = &testCluster{
+		Cluster:      cluster,
+		Mock:         mock,
+		Version:      nodeVersion,
+		FeatureFlags: globalConfig.FeatureFlags,
+	}
 
 	globalBucket = globalCluster.Bucket(globalConfig.Bucket)
 
@@ -131,6 +136,12 @@ func (suite *IntegrationTestSuite) tryUntil(deadline time.Time, interval time.Du
 			return false
 		}
 		time.Sleep(sleepDeadline.Sub(time.Now()))
+	}
+}
+
+func (suite *IntegrationTestSuite) skipIfUnsupported(code FeatureCode) {
+	if globalCluster.NotSupportsFeature(code) {
+		suite.T().Skipf("Skipping test because feature %s unsupported or disabled", code)
 	}
 }
 

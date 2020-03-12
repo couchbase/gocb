@@ -8,9 +8,7 @@ import (
 )
 
 func (suite *IntegrationTestSuite) TestBucketMgrOps() {
-	if globalCluster.NotSupportsFeature(BucketMgrFeature) {
-		suite.T().Skip("Skipping test as bucket manager not supported.")
-	}
+	suite.skipIfUnsupported(BucketMgrFeature)
 
 	mgr := globalCluster.Buckets()
 
@@ -96,9 +94,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrOps() {
 }
 
 func (suite *IntegrationTestSuite) TestBucketMgrFlushDisabled() {
-	if globalCluster.NotSupportsFeature(BucketMgrFeature) {
-		suite.T().Skip("Skipping test as bucket manager not supported.")
-	}
+	suite.skipIfUnsupported(BucketMgrFeature)
 
 	mgr := globalCluster.Buckets()
 
@@ -157,9 +153,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrFlushDisabled() {
 	}
 }
 func (suite *IntegrationTestSuite) TestBucketMgrBucketNotExist() {
-	if globalCluster.NotSupportsFeature(BucketMgrFeature) {
-		suite.T().Skip("Skipping test as bucket manager not supported.")
-	}
+	suite.skipIfUnsupported(BucketMgrFeature)
 
 	mgr := globalCluster.Buckets()
 

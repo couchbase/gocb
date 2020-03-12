@@ -11,9 +11,7 @@ import (
 )
 
 func (suite *IntegrationTestSuite) TestSearch() {
-	if globalCluster.NotSupportsFeature(SearchFeature) {
-		suite.T().Skip("Skipping test as search not supported.")
-	}
+	suite.skipIfUnsupported(SearchFeature)
 
 	n := suite.setupSearch()
 	suite.runSearchTest(n)

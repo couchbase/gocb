@@ -17,9 +17,7 @@ type testAnalyticsDataset struct {
 }
 
 func (suite *IntegrationTestSuite) TestAnalyticsQuery() {
-	if globalCluster.NotSupportsFeature(AnalyticsFeature) {
-		suite.T().Skip("Skipping test as analytics not supported.")
-	}
+	suite.skipIfUnsupported(AnalyticsFeature)
 
 	n := suite.setupAnalytics()
 	suite.runAnalyticsTest(n)
