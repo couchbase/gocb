@@ -31,10 +31,20 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 	})
 	suite.Require().Nil(err, err)
 
-	designdoc, err := mgr.GetDesignDocument("test", DesignDocumentNamespaceDevelopment, &GetDesignDocumentOptions{
-		Timeout: 1 * time.Second,
+	var designdoc *DesignDocument
+	success := suite.tryUntil(time.Now().Add(5*time.Second), 500*time.Millisecond, func() bool {
+		designdoc, err = mgr.GetDesignDocument("test", DesignDocumentNamespaceDevelopment, &GetDesignDocumentOptions{
+			Timeout: 1 * time.Second,
+		})
+		if err != nil {
+			return false
+		}
+
+		return true
 	})
-	suite.Require().Nil(err, err)
+	if !success {
+		suite.T().Fatalf("Wait time for get design document expired.")
+	}
 
 	suite.Assert().Equal("test", designdoc.Name)
 	suite.Require().Equal(1, len(designdoc.Views))
@@ -57,7 +67,7 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 	suite.Require().Nil(err, err)
 
 	// It can take time for the published doc to come online
-	success := suite.tryUntil(time.Now().Add(5*time.Second), 500*time.Millisecond, func() bool {
+	success = suite.tryUntil(time.Now().Add(5*time.Second), 500*time.Millisecond, func() bool {
 		designdoc, err = mgr.GetDesignDocument("test", DesignDocumentNamespaceProduction, &GetDesignDocumentOptions{
 			Timeout: 1 * time.Second,
 		})
