@@ -184,8 +184,7 @@ func (cm *ClusterManager) GetBuckets() ([]*BucketSettings, error) {
 	return buckets, nil
 }
 
-// InsertBucket creates a new bucket on the cluster.
-func (cm *ClusterManager) InsertBucket(settings *BucketSettings) error {
+func (cm *ClusterManager) mutateBucket(settings *BucketSettings, update bool) (*http.Response, error) {
 	posts := url.Values{}
 	posts.Add("name", settings.Name)
 	if settings.Type == Couchbase {
@@ -208,7 +207,21 @@ func (cm *ClusterManager) InsertBucket(settings *BucketSettings) error {
 	posts.Add("ramQuotaMB", fmt.Sprintf("%d", settings.Quota))
 
 	data := []byte(posts.Encode())
-	resp, err := cm.mgmtRequest("POST", "/pools/default/buckets", "application/x-www-form-urlencoded", bytes.NewReader(data))
+	uri := "/pools/default/buckets"
+	if update {
+		uri = fmt.Sprintf("%s/%s", uri, settings.Name)
+	}
+	resp, err := cm.mgmtRequest("POST", uri, "application/x-www-form-urlencoded", bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+// InsertBucket creates a new bucket on the cluster.
+func (cm *ClusterManager) InsertBucket(settings *BucketSettings) error {
+	resp, err := cm.mutateBucket(settings, false)
 	if err != nil {
 		return err
 	}
@@ -230,8 +243,24 @@ func (cm *ClusterManager) InsertBucket(settings *BucketSettings) error {
 
 // UpdateBucket will update the settings for a specific bucket on the cluster.
 func (cm *ClusterManager) UpdateBucket(settings *BucketSettings) error {
-	// Cluster-side, updates are the same as creates.
-	return cm.InsertBucket(settings)
+	resp, err := cm.mutateBucket(settings, true)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != 200 {
+		data, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		err = resp.Body.Close()
+		if err != nil {
+			logDebugf("Failed to close socket (%s)", err)
+		}
+		return clientError{string(data)}
+	}
+
+	return nil
 }
 
 // RemoveBucket will delete a bucket from the cluster by name.
