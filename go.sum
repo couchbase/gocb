@@ -1,7 +1,7 @@
-github.com/couchbase/gocbcore/v8 v8.0.4 h1:zmcRUJLEu9qUJholfUWT3gtfHqGIL3T9gkhCrXvAxDQ=
-github.com/couchbase/gocbcore/v8 v8.0.4/go.mod h1:i69hB8hWp2/zY7ghhDM+RMYc/CPU4xiKO947RMPlSaY=
-github.com/couchbaselabs/gocbconnstr v1.0.3 h1:rkHC5N0ecbZ1NU7671ubApRdhSVc4rsulTEQ0W8O1uw=
-github.com/couchbaselabs/gocbconnstr v1.0.3/go.mod h1:Mg0VKc6azyPXhSq4b/xwsrW30ORe+H5L5hucCweYhj8=
+github.com/couchbase/gocbcore/v8 v8.0.5-0.20200408084615-4dc785fda375 h1:KC4Lf02BrLm0v9qI5w0mziilIfUWw+s4S6RzeE3KSX0=
+github.com/couchbase/gocbcore/v8 v8.0.5-0.20200408084615-4dc785fda375/go.mod h1:OWzbgNqGY1GMpbu3TRmUOEHKbs1D0gxRafs2WZkimpU=
+github.com/couchbaselabs/gocbconnstr v1.0.5 h1:e0JokB5qbcz7rfnxEhNRTKz8q1svoRvDoZihsiwNigA=
+github.com/couchbaselabs/gocbconnstr v1.0.5/go.mod h1:KV3fnIKMi8/AzX0O9zOrO9rofEqrRF1d2rG7qqjxC7o=
 github.com/couchbaselabs/gojcbmock v1.0.4 h1:uYk+pe5eYyDYjlMndYSKD6mZy3UTxrQft90r3R5PoWc=
 github.com/couchbaselabs/gojcbmock v1.0.4/go.mod h1:Nc79KNEoRYsg4JELLhXzs89rTlEKO8lFrwOWxP31xKc=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
