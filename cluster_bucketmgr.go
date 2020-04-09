@@ -10,8 +10,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-
-	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
 // BucketType specifies the kind of bucket.
@@ -123,7 +121,7 @@ type bucketMgrErrorResp struct {
 	Errors map[string]string `json:"errors"`
 }
 
-func (bm *BucketManager) tryParseErrorMessage(req *gocbcore.HTTPRequest, resp *gocbcore.HTTPResponse) error {
+func (bm *BucketManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		logDebugf("Failed to read bucket manager response body: %s", err)
@@ -133,17 +131,17 @@ func (bm *BucketManager) tryParseErrorMessage(req *gocbcore.HTTPRequest, resp *g
 	if resp.StatusCode == 404 {
 		// If it was a 404 then there's no chance of the response body containing any structure
 		if strings.Contains(strings.ToLower(string(b)), "resource not found") {
-			return makeGenericHTTPError(ErrBucketNotFound, req, resp)
+			return makeGenericMgmtError(ErrBucketNotFound, req, resp)
 		}
 
-		return makeGenericHTTPError(errors.New(string(b)), req, resp)
+		return makeGenericMgmtError(errors.New(string(b)), req, resp)
 	}
 
 	var mgrErr bucketMgrErrorResp
 	err = json.Unmarshal(b, &mgrErr)
 	if err != nil {
 		logDebugf("Failed to unmarshal error body: %s", err)
-		return makeGenericHTTPError(errors.New(string(b)), req, resp)
+		return makeGenericMgmtError(errors.New(string(b)), req, resp)
 	}
 
 	var bodyErr error
@@ -159,15 +157,15 @@ func (bm *BucketManager) tryParseErrorMessage(req *gocbcore.HTTPRequest, resp *g
 		bodyErr = errors.New(firstErr)
 	}
 
-	return makeGenericHTTPError(bodyErr, req, resp)
+	return makeGenericMgmtError(bodyErr, req, resp)
 }
 
 // Flush doesn't use the same body format as anything else...
-func (bm *BucketManager) tryParseFlushErrorMessage(req *gocbcore.HTTPRequest, resp *gocbcore.HTTPResponse) error {
+func (bm *BucketManager) tryParseFlushErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		logDebugf("Failed to read bucket manager response body: %s", err)
-		return makeHTTPBadStatusError("failed to flush bucket", req, resp)
+		return makeMgmtBadStatusError("failed to flush bucket", req, resp)
 	}
 
 	var bodyErrMsgs map[string]string
@@ -188,10 +186,8 @@ func (bm *BucketManager) tryParseFlushErrorMessage(req *gocbcore.HTTPRequest, re
 // BucketManager provides methods for performing bucket management operations.
 // See BucketManager for methods that allow creating and removing buckets themselves.
 type BucketManager struct {
-	httpClient           httpProvider
-	globalTimeout        time.Duration
-	defaultRetryStrategy *retryStrategyWrapper
-	tracer               requestTracer
+	provider mgmtProvider
+	tracer   requestTracer
 }
 
 // GetBucketOptions is the set of options available to the bucket manager GetBucket operation.
@@ -210,45 +206,35 @@ func (bm *BucketManager) GetBucket(bucketName string, opts *GetBucketOptions) (*
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
 
-	retryStrategy := bm.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = bm.globalTimeout
-	}
-
-	return bm.get(span.Context(), bucketName, retryStrategy, timeout)
+	return bm.get(span.Context(), bucketName, opts.RetryStrategy, opts.Timeout)
 }
 
 func (bm *BucketManager) get(tracectx requestSpanContext, bucketName string,
-	strategy *retryStrategyWrapper, timeout time.Duration) (*BucketSettings, error) {
+	strategy RetryStrategy, timeout time.Duration) (*BucketSettings, error) {
 
-	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(ServiceTypeManagement),
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
 		Path:          fmt.Sprintf("/pools/default/buckets/%s", bucketName),
 		Method:        "GET",
 		IsIdempotent:  true,
 		RetryStrategy: strategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
-		TraceContext:  tracectx,
+		parentSpan:    tracectx,
 	}
 
-	resp, err := bm.httpClient.DoHTTPRequest(req)
+	resp, err := bm.provider.executeMgmtRequest(req)
 	if err != nil {
-		return nil, makeGenericHTTPError(err, req, resp)
+		return nil, makeGenericMgmtError(err, &req, resp)
 	}
 
 	if resp.StatusCode != 200 {
-		bktErr := bm.tryParseErrorMessage(req, resp)
+		bktErr := bm.tryParseErrorMessage(&req, resp)
 		if bktErr != nil {
 			return nil, bktErr
 		}
 
-		return nil, makeHTTPBadStatusError("failed to get bucket", req, resp)
+		return nil, makeMgmtBadStatusError("failed to get bucket", &req, resp)
 	}
 
 	var bucketData jsonBucketSettings
@@ -288,39 +274,29 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
 
-	retryStrategy := bm.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = bm.globalTimeout
-	}
-
-	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(ServiceTypeManagement),
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
 		Path:          "/pools/default/buckets",
 		Method:        "GET",
 		IsIdempotent:  true,
-		RetryStrategy: retryStrategy,
+		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
-		Timeout:       timeout,
-		TraceContext:  span.Context(),
+		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 
-	resp, err := bm.httpClient.DoHTTPRequest(req)
+	resp, err := bm.provider.executeMgmtRequest(req)
 	if err != nil {
-		return nil, makeGenericHTTPError(err, req, resp)
+		return nil, makeGenericMgmtError(err, &req, resp)
 	}
 
 	if resp.StatusCode != 200 {
-		bktErr := bm.tryParseErrorMessage(req, resp)
+		bktErr := bm.tryParseErrorMessage(&req, resp)
 		if bktErr != nil {
 			return nil, bktErr
 		}
 
-		return nil, makeHTTPBadStatusError("failed to get all buckets", req, resp)
+		return nil, makeMgmtBadStatusError("failed to get all buckets", &req, resp)
 	}
 
 	var bucketsData []*jsonBucketSettings
@@ -371,16 +347,6 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
 
-	retryStrategy := bm.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = bm.globalTimeout
-	}
-
 	posts, err := bm.settingsToPostData(&settings.BucketSettings)
 	if err != nil {
 		return err
@@ -390,30 +356,30 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 		posts.Add("conflictResolutionType", string(settings.ConflictResolutionType))
 	}
 
-	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(ServiceTypeManagement),
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
 		Path:          "/pools/default/buckets",
 		Method:        "POST",
 		Body:          []byte(posts.Encode()),
 		ContentType:   "application/x-www-form-urlencoded",
-		RetryStrategy: retryStrategy,
+		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
-		Timeout:       timeout,
-		TraceContext:  span.Context(),
+		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 
-	resp, err := bm.httpClient.DoHTTPRequest(req)
+	resp, err := bm.provider.executeMgmtRequest(req)
 	if err != nil {
-		return makeGenericHTTPError(err, req, resp)
+		return makeGenericMgmtError(err, &req, resp)
 	}
 
 	if resp.StatusCode != 202 {
-		bktErr := bm.tryParseErrorMessage(req, resp)
+		bktErr := bm.tryParseErrorMessage(&req, resp)
 		if bktErr != nil {
 			return bktErr
 		}
 
-		return makeHTTPBadStatusError("failed to create bucket", req, resp)
+		return makeMgmtBadStatusError("failed to create bucket", &req, resp)
 	}
 
 	err = resp.Body.Close()
@@ -440,45 +406,35 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
 
-	retryStrategy := bm.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = bm.globalTimeout
-	}
-
 	posts, err := bm.settingsToPostData(&settings)
 	if err != nil {
 		return err
 	}
 
-	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(ServiceTypeManagement),
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
 		Path:          fmt.Sprintf("/pools/default/buckets/%s", settings.Name),
 		Method:        "POST",
 		Body:          []byte(posts.Encode()),
 		ContentType:   "application/x-www-form-urlencoded",
-		RetryStrategy: retryStrategy,
+		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
-		Timeout:       timeout,
-		TraceContext:  span.Context(),
+		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 
-	resp, err := bm.httpClient.DoHTTPRequest(req)
+	resp, err := bm.provider.executeMgmtRequest(req)
 	if err != nil {
-		return makeGenericHTTPError(err, req, resp)
+		return makeGenericMgmtError(err, &req, resp)
 	}
 
 	if resp.StatusCode != 200 {
-		bktErr := bm.tryParseErrorMessage(req, resp)
+		bktErr := bm.tryParseErrorMessage(&req, resp)
 		if bktErr != nil {
 			return bktErr
 		}
 
-		return makeHTTPBadStatusError("failed to update bucket", req, resp)
+		return makeMgmtBadStatusError("failed to update bucket", &req, resp)
 	}
 
 	err = resp.Body.Close()
@@ -505,38 +461,28 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
 
-	retryStrategy := bm.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = bm.globalTimeout
-	}
-
-	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(ServiceTypeManagement),
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
 		Path:          fmt.Sprintf("/pools/default/buckets/%s", name),
 		Method:        "DELETE",
-		RetryStrategy: retryStrategy,
+		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
-		Timeout:       timeout,
-		TraceContext:  span.Context(),
+		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 
-	resp, err := bm.httpClient.DoHTTPRequest(req)
+	resp, err := bm.provider.executeMgmtRequest(req)
 	if err != nil {
-		return makeGenericHTTPError(err, req, resp)
+		return makeGenericMgmtError(err, &req, resp)
 	}
 
 	if resp.StatusCode != 200 {
-		bktErr := bm.tryParseErrorMessage(req, resp)
+		bktErr := bm.tryParseErrorMessage(&req, resp)
 		if bktErr != nil {
 			return bktErr
 		}
 
-		return makeHTTPBadStatusError("failed to drop bucket", req, resp)
+		return makeMgmtBadStatusError("failed to drop bucket", &req, resp)
 	}
 
 	err = resp.Body.Close()
@@ -564,33 +510,23 @@ func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) erro
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
 
-	retryStrategy := bm.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = bm.globalTimeout
-	}
-
-	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(ServiceTypeManagement),
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
 		Path:          fmt.Sprintf("/pools/default/buckets/%s/controller/doFlush", name),
 		Method:        "POST",
-		RetryStrategy: retryStrategy,
+		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
-		Timeout:       timeout,
-		TraceContext:  span.Context(),
+		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 
-	resp, err := bm.httpClient.DoHTTPRequest(req)
+	resp, err := bm.provider.executeMgmtRequest(req)
 	if err != nil {
-		return makeGenericHTTPError(err, req, resp)
+		return makeGenericMgmtError(err, &req, resp)
 	}
 
 	if resp.StatusCode != 200 {
-		return bm.tryParseFlushErrorMessage(req, resp)
+		return bm.tryParseFlushErrorMessage(&req, resp)
 	}
 
 	err = resp.Body.Close()

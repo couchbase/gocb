@@ -1,10 +1,9 @@
 package gocb
 
 import (
-	"sync"
 	"time"
 
-	"github.com/couchbase/gocbcore/v8"
+	"github.com/couchbase/gocbcore/v9"
 	"github.com/google/uuid"
 )
 
@@ -15,6 +14,11 @@ func (c *Cluster) Ping(opts *PingOptions) (*PingResult, error) {
 		opts = &PingOptions{}
 	}
 
+	provider, err := c.getDiagnosticsProvider()
+	if err != nil {
+		return nil, err
+	}
+
 	services := opts.ServiceTypes
 	if services == nil {
 		services = []ServiceType{
@@ -22,153 +26,74 @@ func (c *Cluster) Ping(opts *PingOptions) (*PingResult, error) {
 			ServiceTypeSearch,
 			ServiceTypeAnalytics,
 		}
+	}
+
+	gocbcoreServices := make([]gocbcore.ServiceType, len(services))
+	for i, svc := range services {
+		if svc == ServiceTypeKeyValue {
+			return nil, invalidArgumentsError{
+				message: "keyvalue service is not a valid service type for cluster level ping",
+			}
+		}
+		if svc == ServiceTypeViews {
+			return nil, invalidArgumentsError{
+				message: "view service is not a valid service type for cluster level ping",
+			}
+		}
+		gocbcoreServices[i] = gocbcore.ServiceType(svc)
+	}
+
+	coreopts := gocbcore.PingOptions{
+		ServiceTypes: gocbcoreServices,
+	}
+	now := time.Now()
+	timeout := opts.Timeout
+	if timeout == 0 {
+		coreopts.N1QLDeadline = now.Add(c.sb.QueryTimeout)
+		coreopts.CbasDeadline = now.Add(c.sb.AnalyticsTimeout)
+		coreopts.FtsDeadline = now.Add(c.sb.SearchTimeout)
 	} else {
-		for _, svc := range services {
-			if svc == ServiceTypeKeyValue {
-				return nil, invalidArgumentsError{
-					message: "keyvalue service is not a valid service type for cluster level ping",
-				}
-			}
-			if svc == ServiceTypeViews {
-				return nil, invalidArgumentsError{
-					message: "view service is not a valid service type for cluster level ping",
-				}
-			}
-		}
+		coreopts.N1QLDeadline = now.Add(timeout)
+		coreopts.CbasDeadline = now.Add(timeout)
+		coreopts.FtsDeadline = now.Add(timeout)
 	}
 
-	numServices := 0
-	waitCh := make(chan error, 10)
-	report := &PingResult{
+	id := opts.ReportID
+	if id == "" {
+		id = uuid.New().String()
+	}
+
+	result, err := provider.Ping(coreopts)
+	if err != nil {
+		return nil, err
+	}
+
+	reportSvcs := make(map[ServiceType][]EndpointPingReport)
+	for svcType, svc := range result.Services {
+		st := ServiceType(svcType)
+
+		svcs := make([]EndpointPingReport, len(svc))
+		for i, rep := range svc {
+			var errStr string
+			if rep.Error != nil {
+				errStr = rep.Error.Error()
+			}
+			svcs[i] = EndpointPingReport{
+				ID:        rep.ID,
+				Remote:    rep.Endpoint,
+				State:     PingState(rep.State),
+				Error:     errStr,
+				Namespace: rep.Scope,
+				Latency:   rep.Latency,
+			}
+		}
+
+		reportSvcs[st] = svcs
+	}
+
+	return &PingResult{
+		ID:       id,
 		sdk:      Identifier() + " " + "gocbcore/" + gocbcore.Version(),
-		Services: make(map[ServiceType][]EndpointPingReport),
-	}
-	var reportLock sync.Mutex
-
-	report.ID = opts.ReportID
-	if report.ID == "" {
-		report.ID = uuid.New().String()
-	}
-
-	httpReq := func(service ServiceType, url string) (time.Duration, string, error) {
-		startTime := time.Now()
-
-		provider, err := c.getHTTPProvider()
-		if err != nil {
-			return 0, "", err
-		}
-
-		timeout := 60 * time.Second
-		if service == ServiceTypeQuery {
-			timeout = c.sb.QueryTimeout
-		} else if service == ServiceTypeSearch {
-			timeout = c.sb.SearchTimeout
-		} else if service == ServiceTypeAnalytics {
-			timeout = c.sb.AnalyticsTimeout
-		}
-
-		req := gocbcore.HTTPRequest{
-			Method:  "GET",
-			Path:    url,
-			Service: gocbcore.ServiceType(service),
-			Timeout: timeout,
-		}
-
-		resp, err := provider.DoHTTPRequest(&req)
-		if err != nil {
-			return 0, req.Endpoint, err
-		}
-
-		err = resp.Body.Close()
-		if err != nil {
-			logDebugf("Failed to close http request: %s", err)
-		}
-
-		pingLatency := time.Now().Sub(startTime)
-
-		return pingLatency, resp.Endpoint, err
-	}
-
-	for _, serviceType := range services {
-		switch serviceType {
-		case ServiceTypeQuery:
-			numServices++
-			go func() {
-				pingLatency, endpoint, err := httpReq(ServiceTypeQuery, "/admin/ping")
-
-				reportLock.Lock()
-				report.Services[ServiceTypeQuery] = make([]EndpointPingReport, 0)
-				if err != nil {
-					report.Services[ServiceTypeQuery] = append(report.Services[ServiceTypeQuery], EndpointPingReport{
-						Remote: endpoint,
-						State:  PingStateError,
-						Error:  err.Error(),
-					})
-				} else {
-					report.Services[ServiceTypeQuery] = append(report.Services[ServiceTypeQuery], EndpointPingReport{
-						Remote:  endpoint,
-						State:   PingStateOk,
-						Latency: pingLatency,
-					})
-				}
-				reportLock.Unlock()
-
-				waitCh <- nil
-			}()
-		case ServiceTypeSearch:
-			numServices++
-			go func() {
-				pingLatency, endpoint, err := httpReq(ServiceTypeSearch, "/api/ping")
-
-				reportLock.Lock()
-				report.Services[ServiceTypeSearch] = make([]EndpointPingReport, 0)
-				if err != nil {
-					report.Services[ServiceTypeSearch] = append(report.Services[ServiceTypeSearch], EndpointPingReport{
-						Remote: endpoint,
-						State:  PingStateError,
-						Error:  err.Error(),
-					})
-				} else {
-					report.Services[ServiceTypeSearch] = append(report.Services[ServiceTypeSearch], EndpointPingReport{
-						Remote:  endpoint,
-						State:   PingStateOk,
-						Latency: pingLatency,
-					})
-				}
-				reportLock.Unlock()
-
-				waitCh <- nil
-			}()
-		case ServiceTypeAnalytics:
-			numServices++
-			go func() {
-				pingLatency, endpoint, err := httpReq(ServiceTypeAnalytics, "/admin/ping")
-
-				reportLock.Lock()
-				report.Services[ServiceTypeAnalytics] = make([]EndpointPingReport, 0)
-				if err != nil {
-					report.Services[ServiceTypeAnalytics] = append(report.Services[ServiceTypeAnalytics], EndpointPingReport{
-						Remote: endpoint,
-						State:  PingStateError,
-						Error:  err.Error(),
-					})
-				} else {
-					report.Services[ServiceTypeAnalytics] = append(report.Services[ServiceTypeAnalytics], EndpointPingReport{
-						Remote:  endpoint,
-						State:   PingStateOk,
-						Latency: pingLatency,
-					})
-				}
-				reportLock.Unlock()
-
-				waitCh <- nil
-			}()
-		}
-	}
-
-	for i := 0; i < numServices; i++ {
-		<-waitCh
-	}
-
-	return report, nil
+		Services: reportSvcs,
+	}, nil
 }

@@ -3,7 +3,7 @@ package gocb
 import (
 	"encoding/json"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v9"
 )
 
 func serializeWrappedError(err error) string {

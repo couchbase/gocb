@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v9"
 )
 
 func (suite *UnitTestSuite) TestEncode() {

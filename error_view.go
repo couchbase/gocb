@@ -1,6 +1,6 @@
 package gocb
 
-import gocbcore "github.com/couchbase/gocbcore/v8"
+import gocbcore "github.com/couchbase/gocbcore/v9"
 
 // ViewErrorDesc represents a specific error returned from the views service.
 type ViewErrorDesc struct {

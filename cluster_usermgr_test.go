@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/couchbase/gocbcore/v8"
-
 	"github.com/stretchr/testify/mock"
 )
 
@@ -332,31 +330,28 @@ func assertUser(t *testing.T, user *UserAndMetadata, expected *UserAndMetadata) 
 
 func (suite *UnitTestSuite) TestUserManagerGetUserDoesntExist() {
 	retErr := `Unknown user.`
-	resp := &gocbcore.HTTPResponse{
+	resp := &mgmtResponse{
 		StatusCode: 404,
 		Body:       ioutil.NopCloser(bytes.NewReader([]byte(retErr))),
 	}
 
 	username := "larry"
-	mockProvider := new(mockHttpProvider)
+	mockProvider := new(mockMgmtProvider)
 	mockProvider.
-		On("DoHTTPRequest", mock.AnythingOfType("*gocbcore.HTTPRequest")).
+		On("executeMgmtRequest", mock.AnythingOfType("mgmtRequest")).
 		Run(func(args mock.Arguments) {
-			req := args.Get(0).(*gocbcore.HTTPRequest)
+			req := args.Get(0).(mgmtRequest)
 
 			suite.Assert().Equal("/settings/rbac/users/local/"+username, req.Path)
 			suite.Assert().True(req.IsIdempotent)
 			suite.Assert().Equal(1*time.Second, req.Timeout)
 			suite.Assert().Equal("GET", req.Method)
-			suite.Assert().NotNil(req.RetryStrategy)
 		}).
 		Return(resp, nil)
 
 	usrMgr := &UserManager{
-		httpClient:           mockProvider,
-		globalTimeout:        10 * time.Second,
-		defaultRetryStrategy: newRetryStrategyWrapper(newFailFastRetryStrategy()),
-		tracer:               &noopTracer{},
+		provider: mockProvider,
+		tracer:   &noopTracer{},
 	}
 	_, err := usrMgr.GetUser(username, &GetUserOptions{
 		Timeout: 1 * time.Second,
@@ -368,31 +363,28 @@ func (suite *UnitTestSuite) TestUserManagerGetUserDoesntExist() {
 
 func (suite *UnitTestSuite) TestUserManagerDropUserDoesntExist() {
 	retErr := `User was not found.`
-	resp := &gocbcore.HTTPResponse{
+	resp := &mgmtResponse{
 		StatusCode: 404,
 		Body:       ioutil.NopCloser(bytes.NewReader([]byte(retErr))),
 	}
 
 	username := "larry"
-	mockProvider := new(mockHttpProvider)
+	mockProvider := new(mockMgmtProvider)
 	mockProvider.
-		On("DoHTTPRequest", mock.AnythingOfType("*gocbcore.HTTPRequest")).
+		On("executeMgmtRequest", mock.AnythingOfType("mgmtRequest")).
 		Run(func(args mock.Arguments) {
-			req := args.Get(0).(*gocbcore.HTTPRequest)
+			req := args.Get(0).(mgmtRequest)
 
 			suite.Assert().Equal("/settings/rbac/users/local/"+username, req.Path)
 			suite.Assert().False(req.IsIdempotent)
 			suite.Assert().Equal(1*time.Second, req.Timeout)
 			suite.Assert().Equal("DELETE", req.Method)
-			suite.Assert().NotNil(req.RetryStrategy)
 		}).
 		Return(resp, nil)
 
 	usrMgr := &UserManager{
-		httpClient:           mockProvider,
-		globalTimeout:        10 * time.Second,
-		defaultRetryStrategy: newRetryStrategyWrapper(newFailFastRetryStrategy()),
-		tracer:               &noopTracer{},
+		provider: mockProvider,
+		tracer:   &noopTracer{},
 	}
 	err := usrMgr.DropUser(username, &DropUserOptions{
 		Timeout: 1 * time.Second,
@@ -404,31 +396,28 @@ func (suite *UnitTestSuite) TestUserManagerDropUserDoesntExist() {
 
 func (suite *UnitTestSuite) TestUserManagerGetGroupDoesntExist() {
 	retErr := `Unknown group.`
-	resp := &gocbcore.HTTPResponse{
+	resp := &mgmtResponse{
 		StatusCode: 404,
 		Body:       ioutil.NopCloser(bytes.NewReader([]byte(retErr))),
 	}
 
 	name := "g"
-	mockProvider := new(mockHttpProvider)
+	mockProvider := new(mockMgmtProvider)
 	mockProvider.
-		On("DoHTTPRequest", mock.AnythingOfType("*gocbcore.HTTPRequest")).
+		On("executeMgmtRequest", mock.AnythingOfType("mgmtRequest")).
 		Run(func(args mock.Arguments) {
-			req := args.Get(0).(*gocbcore.HTTPRequest)
+			req := args.Get(0).(mgmtRequest)
 
 			suite.Assert().Equal("/settings/rbac/groups/"+name, req.Path)
 			suite.Assert().True(req.IsIdempotent)
 			suite.Assert().Equal(1*time.Second, req.Timeout)
 			suite.Assert().Equal("GET", req.Method)
-			suite.Assert().NotNil(req.RetryStrategy)
 		}).
 		Return(resp, nil)
 
 	usrMgr := &UserManager{
-		httpClient:           mockProvider,
-		globalTimeout:        10 * time.Second,
-		defaultRetryStrategy: newRetryStrategyWrapper(newFailFastRetryStrategy()),
-		tracer:               &noopTracer{},
+		provider: mockProvider,
+		tracer:   &noopTracer{},
 	}
 	_, err := usrMgr.GetGroup(name, &GetGroupOptions{
 		Timeout: 1 * time.Second,
@@ -440,31 +429,28 @@ func (suite *UnitTestSuite) TestUserManagerGetGroupDoesntExist() {
 
 func (suite *UnitTestSuite) TestUserManagerDropGroupDoesntExist() {
 	retErr := `Group was not found.`
-	resp := &gocbcore.HTTPResponse{
+	resp := &mgmtResponse{
 		StatusCode: 404,
 		Body:       ioutil.NopCloser(bytes.NewReader([]byte(retErr))),
 	}
 
 	name := "g"
-	mockProvider := new(mockHttpProvider)
+	mockProvider := new(mockMgmtProvider)
 	mockProvider.
-		On("DoHTTPRequest", mock.AnythingOfType("*gocbcore.HTTPRequest")).
+		On("executeMgmtRequest", mock.AnythingOfType("mgmtRequest")).
 		Run(func(args mock.Arguments) {
-			req := args.Get(0).(*gocbcore.HTTPRequest)
+			req := args.Get(0).(mgmtRequest)
 
 			suite.Assert().Equal("/settings/rbac/groups/"+name, req.Path)
 			suite.Assert().False(req.IsIdempotent)
 			suite.Assert().Equal(1*time.Second, req.Timeout)
 			suite.Assert().Equal("DELETE", req.Method)
-			suite.Assert().NotNil(req.RetryStrategy)
 		}).
 		Return(resp, nil)
 
 	usrMgr := &UserManager{
-		httpClient:           mockProvider,
-		globalTimeout:        10 * time.Second,
-		defaultRetryStrategy: newRetryStrategyWrapper(newFailFastRetryStrategy()),
-		tracer:               &noopTracer{},
+		provider: mockProvider,
+		tracer:   &noopTracer{},
 	}
 	err := usrMgr.DropGroup(name, &DropGroupOptions{
 		Timeout: 1 * time.Second,

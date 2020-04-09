@@ -51,7 +51,7 @@ updatemocks:
 	mockery -name queryProvider -output . -testonly -inpkg
 	mockery -name searchProvider -output . -testonly -inpkg
 	mockery -name viewProvider -output . -testonly -inpkg
-	mockery -name clusterCapabilityProvider -output . -testonly -inpkg
+	mockery -name waitUntilReadyProvider -output . -testonly -inpkg
 	# pendingOp is manually mocked
 
 .PHONY: all test devsetup fasttest lint cover checkerrs checkfmt checkvet checkiea checkspell check bench updatetestcases updatemocks

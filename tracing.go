@@ -1,7 +1,7 @@
 package gocb
 
 import (
-	"github.com/couchbase/gocbcore/v8"
+	"github.com/couchbase/gocbcore/v9"
 )
 
 func tracerAddRef(tracer requestTracer) {

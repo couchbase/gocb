@@ -7,8 +7,7 @@ import (
 	"testing"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
-	"github.com/couchbaselabs/gojcbmock"
+	gojcbmock "github.com/couchbase/gocbcore/v9/jcbmock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -77,9 +76,6 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 	}
 
 	cluster, err := Connect(connStr, ClusterOptions{Authenticator: auth})
-
-	time.Sleep(1000)
-
 	if err != nil {
 		panic(err.Error())
 	}
@@ -97,6 +93,11 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 	}
 
 	globalBucket = globalCluster.Bucket(globalConfig.Bucket)
+
+	err = globalBucket.WaitUntilReady(1*time.Second, &WaitUntilReadyOptions{DesiredState: ClusterStateOnline})
+	if err != nil {
+		panic(err.Error())
+	}
 
 	if globalConfig.Collection != "" {
 		globalCollection = globalBucket.Collection(globalConfig.Collection)
@@ -199,12 +200,4 @@ func (suite *UnitTestSuite) mustConvertToBytes(val interface{}) []byte {
 	suite.Require().Nil(err)
 
 	return b
-}
-
-func (suite *UnitTestSuite) newMockClusterCapabilityProvider(supportsEnhStmts bool) *mockClusterCapabilityProvider {
-	capProvider := new(mockClusterCapabilityProvider)
-	capProvider.On("SupportsClusterCapability", gocbcore.ClusterCapabilityEnhancedPreparedStatements).
-		Return(supportsEnhStmts)
-
-	return capProvider
 }

@@ -3,7 +3,7 @@ package gocb
 import (
 	"time"
 
-	"github.com/couchbase/gocbcore/v8"
+	"github.com/couchbase/gocbcore/v9"
 )
 
 type bulkOp struct {
@@ -11,8 +11,8 @@ type bulkOp struct {
 	span   requestSpan
 }
 
-func (op *bulkOp) cancel(err error) {
-	op.pendop.Cancel(err)
+func (op *bulkOp) cancel() {
+	op.pendop.Cancel()
 }
 
 func (op *bulkOp) finish() {
@@ -25,9 +25,9 @@ func (op *bulkOp) finish() {
 // UNCOMMITTED: This API may change in the future.
 type BulkOp interface {
 	execute(tracectx requestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-		retryWrapper *retryStrategyWrapper, startSpanFunc func(string, requestSpanContext) requestSpan)
+		retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, requestSpanContext) requestSpan)
 	markError(err error)
-	cancel(err error)
+	cancel()
 	finish()
 }
 
@@ -47,9 +47,9 @@ func (c *Collection) Do(ops []BulkOp, opts *BulkOpOptions) error {
 
 	span := c.startKvOpTrace("Do", nil)
 
-	timeout := c.sb.KvTimeout * time.Duration(len(ops))
-	if opts.Timeout != 0 {
-		timeout = opts.Timeout
+	timeout := opts.Timeout
+	if opts.Timeout == 0 {
+		timeout = c.sb.KvTimeout * time.Duration(len(ops))
 	}
 
 	retryWrapper := c.sb.RetryStrategyWrapper
@@ -71,24 +71,14 @@ func (c *Collection) Do(ops []BulkOp, opts *BulkOpOptions) error {
 	//   individual op handlers when they dispatch their signal).
 	signal := make(chan BulkOp, len(ops))
 	for _, item := range ops {
-		item.execute(span.Context(), c, agent, opts.Transcoder, signal, retryWrapper, c.startKvOpTrace)
+		item.execute(span.Context(), c, agent, opts.Transcoder, signal, retryWrapper, time.Now().Add(timeout), c.startKvOpTrace)
 	}
 
-	deadline := time.Now().Add(timeout)
 	for range ops {
 		select {
 		case item := <-signal:
 			// We're really just clearing the pendop from this thread,
 			//   since it already completed, no cancel actually occurs
-			item.finish()
-		case <-time.After(deadline.Sub(time.Now())):
-			// cancel everything
-			for _, item := range ops {
-				item.cancel(ErrAmbiguousTimeout)
-			}
-
-			// read an item to keep the loop intact
-			item := <-signal
 			item.finish()
 		}
 	}
@@ -110,16 +100,17 @@ func (item *GetOp) markError(err error) {
 }
 
 func (item *GetOp) execute(tracectx requestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-	retryWrapper *retryStrategyWrapper, startSpanFunc func(string, requestSpanContext) requestSpan) {
+	retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, requestSpanContext) requestSpan) {
 	span := startSpanFunc("GetOp", tracectx)
 	item.bulkOp.span = span
 
-	op, err := provider.GetEx(gocbcore.GetOptions{
+	op, err := provider.Get(gocbcore.GetOptions{
 		Key:            []byte(item.ID),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
+		Deadline:       deadline,
 	}, func(res *gocbcore.GetResult, err error) {
 		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
 		if item.Err == nil {
@@ -158,17 +149,18 @@ func (item *GetAndTouchOp) markError(err error) {
 }
 
 func (item *GetAndTouchOp) execute(tracectx requestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-	retryWrapper *retryStrategyWrapper, startSpanFunc func(string, requestSpanContext) requestSpan) {
+	retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, requestSpanContext) requestSpan) {
 	span := startSpanFunc("GetAndTouchOp", tracectx)
 	item.bulkOp.span = span
 
-	op, err := provider.GetAndTouchEx(gocbcore.GetAndTouchOptions{
+	op, err := provider.GetAndTouch(gocbcore.GetAndTouchOptions{
 		Key:            []byte(item.ID),
 		Expiry:         durationToExpiry(item.Expiry),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
+		Deadline:       deadline,
 	}, func(res *gocbcore.GetAndTouchResult, err error) {
 		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
 		if item.Err == nil {
@@ -207,17 +199,18 @@ func (item *TouchOp) markError(err error) {
 }
 
 func (item *TouchOp) execute(tracectx requestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-	retryWrapper *retryStrategyWrapper, startSpanFunc func(string, requestSpanContext) requestSpan) {
+	retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, requestSpanContext) requestSpan) {
 	span := startSpanFunc("TouchOp", tracectx)
 	item.bulkOp.span = span
 
-	op, err := provider.TouchEx(gocbcore.TouchOptions{
+	op, err := provider.Touch(gocbcore.TouchOptions{
 		Key:            []byte(item.ID),
 		Expiry:         durationToExpiry(item.Expiry),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
+		Deadline:       deadline,
 	}, func(res *gocbcore.TouchResult, err error) {
 		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
 		if item.Err == nil {
@@ -261,17 +254,18 @@ func (item *RemoveOp) markError(err error) {
 }
 
 func (item *RemoveOp) execute(tracectx requestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-	retryWrapper *retryStrategyWrapper, startSpanFunc func(string, requestSpanContext) requestSpan) {
+	retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, requestSpanContext) requestSpan) {
 	span := startSpanFunc("RemoveOp", tracectx)
 	item.bulkOp.span = span
 
-	op, err := provider.DeleteEx(gocbcore.DeleteOptions{
+	op, err := provider.Delete(gocbcore.DeleteOptions{
 		Key:            []byte(item.ID),
 		Cas:            gocbcore.Cas(item.Cas),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
+		Deadline:       deadline,
 	}, func(res *gocbcore.DeleteResult, err error) {
 		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
 		if item.Err == nil {
@@ -317,7 +311,7 @@ func (item *UpsertOp) markError(err error) {
 }
 
 func (item *UpsertOp) execute(tracectx requestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder,
-	signal chan BulkOp, retryWrapper *retryStrategyWrapper, startSpanFunc func(string, requestSpanContext) requestSpan) {
+	signal chan BulkOp, retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, requestSpanContext) requestSpan) {
 	span := startSpanFunc("UpsertOp", tracectx)
 	item.bulkOp.span = span
 
@@ -330,7 +324,7 @@ func (item *UpsertOp) execute(tracectx requestSpanContext, c *Collection, provid
 		return
 	}
 
-	op, err := provider.SetEx(gocbcore.SetOptions{
+	op, err := provider.Set(gocbcore.SetOptions{
 		Key:            []byte(item.ID),
 		Value:          bytes,
 		Flags:          flags,
@@ -339,6 +333,7 @@ func (item *UpsertOp) execute(tracectx requestSpanContext, c *Collection, provid
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
+		Deadline:       deadline,
 	}, func(res *gocbcore.StoreResult, err error) {
 		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
 
@@ -384,7 +379,7 @@ func (item *InsertOp) markError(err error) {
 }
 
 func (item *InsertOp) execute(tracectx requestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-	retryWrapper *retryStrategyWrapper, startSpanFunc func(string, requestSpanContext) requestSpan) {
+	retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, requestSpanContext) requestSpan) {
 	span := startSpanFunc("InsertOp", tracectx)
 	item.bulkOp.span = span
 
@@ -398,7 +393,7 @@ func (item *InsertOp) execute(tracectx requestSpanContext, c *Collection, provid
 	}
 	etrace.Finish()
 
-	op, err := provider.AddEx(gocbcore.AddOptions{
+	op, err := provider.Add(gocbcore.AddOptions{
 		Key:            []byte(item.ID),
 		Value:          bytes,
 		Flags:          flags,
@@ -407,6 +402,7 @@ func (item *InsertOp) execute(tracectx requestSpanContext, c *Collection, provid
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
+		Deadline:       deadline,
 	}, func(res *gocbcore.StoreResult, err error) {
 		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
 		if item.Err == nil {
@@ -452,7 +448,7 @@ func (item *ReplaceOp) markError(err error) {
 }
 
 func (item *ReplaceOp) execute(tracectx requestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-	retryWrapper *retryStrategyWrapper, startSpanFunc func(string, requestSpanContext) requestSpan) {
+	retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, requestSpanContext) requestSpan) {
 	span := startSpanFunc("ReplaceOp", tracectx)
 	item.bulkOp.span = span
 
@@ -466,7 +462,7 @@ func (item *ReplaceOp) execute(tracectx requestSpanContext, c *Collection, provi
 	}
 	etrace.Finish()
 
-	op, err := provider.ReplaceEx(gocbcore.ReplaceOptions{
+	op, err := provider.Replace(gocbcore.ReplaceOptions{
 		Key:            []byte(item.ID),
 		Value:          bytes,
 		Flags:          flags,
@@ -476,6 +472,7 @@ func (item *ReplaceOp) execute(tracectx requestSpanContext, c *Collection, provi
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
+		Deadline:       deadline,
 	}, func(res *gocbcore.StoreResult, err error) {
 		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
 		if item.Err == nil {
@@ -519,17 +516,18 @@ func (item *AppendOp) markError(err error) {
 }
 
 func (item *AppendOp) execute(tracectx requestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-	retryWrapper *retryStrategyWrapper, startSpanFunc func(string, requestSpanContext) requestSpan) {
+	retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, requestSpanContext) requestSpan) {
 	span := startSpanFunc("AppendOp", tracectx)
 	item.bulkOp.span = span
 
-	op, err := provider.AppendEx(gocbcore.AdjoinOptions{
+	op, err := provider.Append(gocbcore.AdjoinOptions{
 		Key:            []byte(item.ID),
 		Value:          []byte(item.Value),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
+		Deadline:       deadline,
 	}, func(res *gocbcore.AdjoinResult, err error) {
 		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
 		if item.Err == nil {
@@ -573,17 +571,18 @@ func (item *PrependOp) markError(err error) {
 }
 
 func (item *PrependOp) execute(tracectx requestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-	retryWrapper *retryStrategyWrapper, startSpanFunc func(string, requestSpanContext) requestSpan) {
+	retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, requestSpanContext) requestSpan) {
 	span := startSpanFunc("PrependOp", tracectx)
 	item.bulkOp.span = span
 
-	op, err := provider.PrependEx(gocbcore.AdjoinOptions{
+	op, err := provider.Prepend(gocbcore.AdjoinOptions{
 		Key:            []byte(item.ID),
 		Value:          []byte(item.Value),
 		CollectionName: c.name(),
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
+		Deadline:       deadline,
 	}, func(res *gocbcore.AdjoinResult, err error) {
 		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
 		if item.Err == nil {
@@ -630,7 +629,7 @@ func (item *IncrementOp) markError(err error) {
 }
 
 func (item *IncrementOp) execute(tracectx requestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-	retryWrapper *retryStrategyWrapper, startSpanFunc func(string, requestSpanContext) requestSpan) {
+	retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, requestSpanContext) requestSpan) {
 	span := startSpanFunc("IncrementOp", tracectx)
 	item.bulkOp.span = span
 
@@ -639,7 +638,7 @@ func (item *IncrementOp) execute(tracectx requestSpanContext, c *Collection, pro
 		realInitial = uint64(item.Initial)
 	}
 
-	op, err := provider.IncrementEx(gocbcore.CounterOptions{
+	op, err := provider.Increment(gocbcore.CounterOptions{
 		Key:            []byte(item.ID),
 		Delta:          uint64(item.Delta),
 		Initial:        realInitial,
@@ -648,6 +647,7 @@ func (item *IncrementOp) execute(tracectx requestSpanContext, c *Collection, pro
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
+		Deadline:       deadline,
 	}, func(res *gocbcore.CounterResult, err error) {
 		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
 		if item.Err == nil {
@@ -697,7 +697,7 @@ func (item *DecrementOp) markError(err error) {
 }
 
 func (item *DecrementOp) execute(tracectx requestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-	retryWrapper *retryStrategyWrapper, startSpanFunc func(string, requestSpanContext) requestSpan) {
+	retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, requestSpanContext) requestSpan) {
 	span := startSpanFunc("DecrementOp", tracectx)
 	item.bulkOp.span = span
 
@@ -706,7 +706,7 @@ func (item *DecrementOp) execute(tracectx requestSpanContext, c *Collection, pro
 		realInitial = uint64(item.Initial)
 	}
 
-	op, err := provider.DecrementEx(gocbcore.CounterOptions{
+	op, err := provider.Decrement(gocbcore.CounterOptions{
 		Key:            []byte(item.ID),
 		Delta:          uint64(item.Delta),
 		Initial:        realInitial,
@@ -715,6 +715,7 @@ func (item *DecrementOp) execute(tracectx requestSpanContext, c *Collection, pro
 		ScopeName:      c.scopeName(),
 		RetryStrategy:  retryWrapper,
 		TraceContext:   span.Context(),
+		Deadline:       deadline,
 	}, func(res *gocbcore.CounterResult, err error) {
 		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
 		if item.Err == nil {

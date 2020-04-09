@@ -6,6 +6,6 @@ type mockPendingOp struct {
 	mock.Mock
 }
 
-func (_m *mockPendingOp) Cancel(err error) {
-	_m.Called(err)
+func (_m *mockPendingOp) Cancel() {
+	_m.Called()
 }

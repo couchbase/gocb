@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/couchbase/gocbcore/v8"
+	"github.com/couchbase/gocbcore/v9"
 
 	"github.com/stretchr/testify/mock"
 )
@@ -21,6 +21,50 @@ func (suite *IntegrationTestSuite) TestQuery() {
 
 	n := suite.setupQuery()
 	suite.runQueryTest(n)
+	suite.runPreparedQueryTest(n)
+}
+
+func (suite *IntegrationTestSuite) runPreparedQueryTest(n int) {
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=? LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
+		result, err := globalCluster.Query(query, &QueryOptions{
+			PositionalParameters: []interface{}{"query"},
+			Timeout:              1 * time.Second,
+		})
+		suite.Require().Nil(err, "Failed to execute query %v", err)
+
+		var samples []interface{}
+		for result.Next() {
+			var sample interface{}
+			err := result.Row(&sample)
+			suite.Require().Nil(err, "Failed to get value from row %v", err)
+			samples = append(samples, sample)
+		}
+
+		err = result.Err()
+		suite.Require().Nil(err, "Result had error %v", err)
+
+		metadata, err := result.MetaData()
+		suite.Require().Nil(err, "Metadata had error: %v", err)
+
+		suite.Assert().NotEmpty(metadata.RequestID)
+
+		if n == len(samples) {
+			return
+		}
+
+		sleepDeadline := time.Now().Add(1000 * time.Millisecond)
+		if sleepDeadline.After(deadline) {
+			sleepDeadline = deadline
+		}
+		time.Sleep(sleepDeadline.Sub(time.Now()))
+
+		if sleepDeadline == deadline {
+			suite.T().Errorf("timed out waiting for indexing")
+			return
+		}
+	}
 }
 
 func (suite *IntegrationTestSuite) runQueryTest(n int) {
@@ -30,6 +74,7 @@ func (suite *IntegrationTestSuite) runQueryTest(n int) {
 		result, err := globalCluster.Query(query, &QueryOptions{
 			PositionalParameters: []interface{}{"query"},
 			Timeout:              1 * time.Second,
+			Adhoc:                true,
 		})
 		suite.Require().Nil(err, "Failed to execute query %v", err)
 
@@ -141,28 +186,29 @@ func (arr *mockQueryRowReaderBase) PreparedName() (string, error) {
 	return arr.PName, nil
 }
 
-func (suite *UnitTestSuite) newMockQueryProvider(reader queryRowReader) (*mockQueryProvider, *mock.Call) {
+func (suite *UnitTestSuite) newMockQueryProvider(prepared bool, reader queryRowReader) (*mockQueryProvider, *mock.Call) {
 	queryProvider := new(mockQueryProvider)
+	methodName := "N1QLQuery"
+	if prepared {
+		methodName = "PreparedN1QLQuery"
+	}
 	call := queryProvider.
-		On("N1QLQuery", mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
+		On(methodName, mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
 		Return(reader, nil).
 		Once()
 
 	return queryProvider, call
 }
 
-func (suite *UnitTestSuite) queryCluster(supportsEnhStmts bool, reader queryRowReader, runFn func(args mock.Arguments)) *Cluster {
+func (suite *UnitTestSuite) queryCluster(prepared bool, reader queryRowReader, runFn func(args mock.Arguments)) *Cluster {
 	cluster := clusterFromOptions(ClusterOptions{})
 
-	queryProvider, call := suite.newMockQueryProvider(reader)
+	queryProvider, call := suite.newMockQueryProvider(prepared, reader)
 	call.Run(runFn)
-
-	capProvider := suite.newMockClusterCapabilityProvider(supportsEnhStmts)
 
 	cli := new(mockClient)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
 	cli.On("supportsGCCCP").Return(true)
-	cli.On("getClusterCapabilityProvider").Return(capProvider, nil)
 
 	cluster.clusterClient = cli
 
@@ -209,7 +255,7 @@ func (suite *UnitTestSuite) TestQueryAdhoc() {
 	statement := "SELECT * FROM dataset"
 
 	var cluster *Cluster
-	cluster = suite.queryCluster(true, reader, func(args mock.Arguments) {
+	cluster = suite.queryCluster(false, reader, func(args mock.Arguments) {
 		opts := args.Get(0).(gocbcore.N1QLQueryOptions)
 		suite.Assert().Equal(cluster.sb.RetryStrategyWrapper, opts.RetryStrategy)
 		now := time.Now()
@@ -234,9 +280,9 @@ func (suite *UnitTestSuite) TestQueryAdhoc() {
 	suite.assertQueryBeerResult(dataset, result)
 }
 
-func (suite *UnitTestSuite) TestQueryEnhancedPrepared() {
+func (suite *UnitTestSuite) TestQueryPrepared() {
 	var dataset testQueryDataset
-	err := loadJSONTestDataset("enhanced_beer_sample_query_dataset", &dataset)
+	err := loadJSONTestDataset("beer_sample_query_dataset", &dataset)
 	suite.Require().Nil(err, err)
 
 	reader := &mockQueryRowReader{
@@ -264,263 +310,9 @@ func (suite *UnitTestSuite) TestQueryEnhancedPrepared() {
 		suite.Require().Nil(err)
 
 		suite.Assert().Contains(actualOptions, "client_context_id")
-		suite.Assert().Equal(true, actualOptions["auto_execute"])
-		suite.Assert().Equal(fmt.Sprintf("PREPARE %s", statement), actualOptions["statement"])
 	})
 
 	result, err := cluster.Query(statement, nil)
-	suite.Require().Nil(err, err)
-	suite.Require().NotNil(result)
-
-	suite.assertQueryBeerResult(dataset, result)
-}
-
-// Mocks that an old style prepared statement has setup the query cache and checks that
-// the Query call reprepares and resets the cache.
-func (suite *UnitTestSuite) TestQueryEnhancedUpgrade() {
-	var prepared testQueryDataset
-	err := loadJSONTestDataset("enhanced_beer_sample_query_dataset", &prepared)
-	suite.Require().Nil(err, err)
-
-	var dataset testQueryDataset
-	err = loadJSONTestDataset("beer_sample_query_dataset", &dataset)
-	suite.Require().Nil(err, err)
-
-	reader := &mockQueryRowReader{
-		Dataset: prepared.Results,
-		mockQueryRowReaderBase: mockQueryRowReaderBase{
-			Meta:  suite.mustConvertToBytes(prepared.jsonQueryResponse),
-			Suite: suite,
-			PName: prepared.jsonQueryResponse.Prepared,
-		},
-	}
-
-	reader2 := &mockQueryRowReader{
-		Dataset: dataset.Results,
-		mockQueryRowReaderBase: mockQueryRowReaderBase{
-			Meta:  suite.mustConvertToBytes(dataset.jsonQueryResponse),
-			Suite: suite,
-		},
-	}
-
-	statement := "SELECT * FROM dataset"
-
-	cluster := clusterFromOptions(ClusterOptions{})
-	provider, call := suite.newMockQueryProvider(reader)
-	call.Run(func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.N1QLQueryOptions)
-		suite.Assert().Equal(cluster.sb.RetryStrategyWrapper, opts.RetryStrategy)
-		now := time.Now()
-		if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {
-			suite.Fail("Deadline should have been <75s and >70s but was %s", opts.Deadline)
-		}
-
-		var actualOptions map[string]interface{}
-		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
-
-		suite.Assert().Contains(actualOptions, "client_context_id")
-		suite.Assert().Equal(true, actualOptions["auto_execute"])
-		suite.Assert().Equal(fmt.Sprintf("PREPARE %s", statement), actualOptions["statement"])
-	})
-
-	provider.
-		On("N1QLQuery", mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
-		Run(func(args mock.Arguments) {
-			opts := args.Get(0).(gocbcore.N1QLQueryOptions)
-			suite.Assert().Equal(&retryStrategyWrapper{wrapped: newFailFastRetryStrategy()}, opts.RetryStrategy)
-			now := time.Now()
-			if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {
-				suite.Fail("Deadline should have been <75s and >70s but was %s", opts.Deadline)
-			}
-
-			var actualOptions map[string]interface{}
-			err := json.Unmarshal(opts.Payload, &actualOptions)
-			suite.Require().Nil(err)
-
-			suite.Assert().Contains(actualOptions, "client_context_id")
-			suite.Assert().Equal(prepared.Prepared, actualOptions["prepared"])
-			suite.Assert().Empty(actualOptions["auto_execute"])
-			suite.Assert().Empty(actualOptions["statement"])
-		}).
-		Return(reader2, nil).
-		Once()
-
-	capProvider := suite.newMockClusterCapabilityProvider(true)
-	cli := new(mockClient)
-	cli.On("getQueryProvider").Return(provider, nil)
-	cli.On("supportsGCCCP").Return(true)
-	cli.On("getClusterCapabilityProvider").Return(capProvider, nil)
-
-	cluster.clusterClient = cli
-
-	cluster.queryCache = map[string]*queryCacheEntry{
-		statement: {
-			name:        "somename",
-			encodedPlan: "someencodedplan",
-		},
-	}
-
-	result, err := cluster.Query(statement, nil)
-	suite.Require().Nil(err, err)
-	suite.Require().NotNil(result)
-
-	suite.assertQueryBeerResult(prepared, result)
-
-	// Run it again to ensure that the cache has been updated.
-	result, err = cluster.Query(statement, nil)
-	suite.Require().Nil(err, err)
-	suite.Require().NotNil(result)
-
-	suite.assertQueryBeerResult(dataset, result)
-}
-
-type preparedQueryDataset struct {
-	Results []jsonQueryPrepData
-	jsonQueryResponse
-}
-
-func (suite *UnitTestSuite) TestQueryOldPrepared() {
-	var prepared preparedQueryDataset
-	err := loadJSONTestDataset("prepared_beer_sample_query_dataset", &prepared)
-	suite.Require().Nil(err, err)
-
-	var dataset testQueryDataset
-	err = loadJSONTestDataset("beer_sample_query_dataset", &dataset)
-	suite.Require().Nil(err, err)
-
-	reader1 := &mockPreparedQueryRowReader{
-		Dataset: prepared.Results,
-		mockQueryRowReaderBase: mockQueryRowReaderBase{
-			Meta:  suite.mustConvertToBytes(dataset.jsonQueryResponse),
-			Suite: suite,
-		},
-	}
-
-	reader2 := &mockQueryRowReader{
-		Dataset: dataset.Results,
-		mockQueryRowReaderBase: mockQueryRowReaderBase{
-			Meta:  suite.mustConvertToBytes(dataset.jsonQueryResponse),
-			Suite: suite,
-		},
-	}
-
-	cluster := clusterFromOptions(ClusterOptions{})
-	statement := "SELECT * FROM dataset"
-
-	queryProvider := new(mockQueryProvider)
-	queryProvider.
-		On("N1QLQuery", mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
-		Run(func(args mock.Arguments) {
-			opts := args.Get(0).(gocbcore.N1QLQueryOptions)
-			suite.Assert().Equal(cluster.sb.RetryStrategyWrapper, opts.RetryStrategy)
-			now := time.Now()
-			if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {
-				suite.Fail("Deadline should have been <75s and >70s but was %s", opts.Deadline)
-			}
-
-			var actualOptions map[string]interface{}
-			err := json.Unmarshal(opts.Payload, &actualOptions)
-			suite.Require().Nil(err)
-
-			suite.Assert().Contains(actualOptions, "statement")
-			suite.Assert().Contains(actualOptions, "client_context_id")
-			suite.Assert().Equal(fmt.Sprintf("PREPARE %s", statement), actualOptions["statement"])
-		}).
-		Return(reader1, nil).
-		Once()
-
-	queryProvider.
-		On("N1QLQuery", mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
-		Run(func(args mock.Arguments) {
-			opts := args.Get(0).(gocbcore.N1QLQueryOptions)
-			suite.Assert().Equal(cluster.sb.RetryStrategyWrapper, opts.RetryStrategy)
-			now := time.Now()
-			if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {
-				suite.Fail("Deadline should have been <75s and >70s but was %s", opts.Deadline)
-			}
-
-			var actualOptions map[string]interface{}
-			err := json.Unmarshal(opts.Payload, &actualOptions)
-			suite.Require().Nil(err)
-
-			result := prepared.Results[0]
-
-			suite.Assert().Empty(actualOptions["statement"])
-			suite.Assert().Equal(result.Name, actualOptions["prepared"])
-			suite.Assert().Equal(result.EncodedPlan, actualOptions["encoded_plan"])
-			suite.Assert().Contains(actualOptions, "client_context_id")
-		}).
-		Return(reader2, nil).
-		Once()
-
-	capProvider := new(mockClusterCapabilityProvider)
-	capProvider.On("SupportsClusterCapability", gocbcore.ClusterCapabilityEnhancedPreparedStatements).
-		Return(false)
-
-	cli := new(mockClient)
-	cli.On("getQueryProvider").Return(queryProvider, nil)
-	cli.On("supportsGCCCP").Return(true)
-	cli.On("getClusterCapabilityProvider").Return(capProvider, nil)
-
-	cluster.clusterClient = cli
-
-	result, err := cluster.Query(statement, &QueryOptions{})
-	suite.Require().Nil(err, err)
-	suite.Require().NotNil(result)
-
-	suite.assertQueryBeerResult(dataset, result)
-}
-
-func (suite *UnitTestSuite) TestQueryOldPreparedCached() {
-	var dataset testQueryDataset
-	err := loadJSONTestDataset("beer_sample_query_dataset", &dataset)
-	suite.Require().Nil(err, err)
-
-	reader := &mockQueryRowReader{
-		Dataset: dataset.Results,
-		mockQueryRowReaderBase: mockQueryRowReaderBase{
-			Meta:  suite.mustConvertToBytes(dataset.jsonQueryResponse),
-			Suite: suite,
-		},
-	}
-
-	statement := "SELECT * FROM dataset"
-
-	var cluster *Cluster
-	cachedName := "[127.0.0.1:8091]d19cb7b4-289e-42f8-9b5b-9cd09fa874e3"
-	cachedPlan := `H4sIAAAAAAAA/6STUWvbMBSF/4o5eysKdG1CYu0plBQGGTNJ2csIrmJfO1pl2buSQ7Lg/fYhJ6EkHWNsj7Y+H93zyTqAbFbnlKeN
-URYSEChI+Zbpobaea+MgbwW0zWk3bfQXYqdrC3kvYFVFkMjfx9l6vB4O7iYxDYZ3xWQQr0frQZzlt3GhJuMh3UOgboiVrxnygHevD1jS95ZsRhD4mW20yZks
-5NdLaNr6Tc36R6Aa1lttqCQXouba+R5/UlySD/NQoVrjpWe1JTNwqmpM+C5hvYUcd6vuvNM/jfJXUMK6UrxfZsqG7r2942hpc1w6v00brr9R5nupB5xW0xfa
-Q3puqRN4ob1rVBZcX3cyutKh8wjH4zhzJwcQaJ22JSRKp9GJyykfyWcb/HGD34VexySKlTFk8F9eP1rttTLJUQcEmFxrfOqJK9fTtGsC6MgUEHBe8UnR6k0x
-bV+TulX3lpj34sQ5c9RTV8zSM6kK/Q/jdGn7WxG63UDiBp2Ap12wnyxmyXQxi5az+ezhKbqJHhefP0XPFy6fo/6sotEHdL8CAAD//5NLCoZ1AwAA`
-
-	cluster = suite.queryCluster(false, reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.N1QLQueryOptions)
-		suite.Assert().Equal(cluster.sb.RetryStrategyWrapper, opts.RetryStrategy)
-		now := time.Now()
-		if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {
-			suite.Fail("Deadline should have been <75s and >70s but was %s", opts.Deadline)
-		}
-
-		var actualOptions map[string]interface{}
-		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
-
-		suite.Assert().Empty(actualOptions["statement"])
-		suite.Assert().Equal(cachedName, actualOptions["prepared"])
-		suite.Assert().Equal(cachedPlan, actualOptions["encoded_plan"])
-		suite.Assert().Contains(actualOptions, "client_context_id")
-	})
-
-	cluster.queryCache = map[string]*queryCacheEntry{
-		statement: {
-			name:        cachedName,
-			encodedPlan: cachedPlan,
-		},
-	}
-
-	result, err := cluster.Query(statement, &QueryOptions{})
 	suite.Require().Nil(err, err)
 	suite.Require().NotNil(result)
 
@@ -713,7 +505,7 @@ func (suite *UnitTestSuite) TestQueryNamedParams() {
 		"$cilit":  "bang",
 	}
 
-	cluster := suite.queryCluster(true, reader, func(args mock.Arguments) {
+	cluster := suite.queryCluster(false, reader, func(args mock.Arguments) {
 		opts := args.Get(0).(gocbcore.N1QLQueryOptions)
 
 		var actualOptions map[string]interface{}
@@ -739,7 +531,7 @@ func (suite *UnitTestSuite) TestQueryPositionalParams() {
 	statement := "SELECT * FROM dataset"
 	params := []interface{}{float64(1), "imafish"}
 
-	cluster := suite.queryCluster(true, reader, func(args mock.Arguments) {
+	cluster := suite.queryCluster(false, reader, func(args mock.Arguments) {
 		opts := args.Get(0).(gocbcore.N1QLQueryOptions)
 
 		var actualOptions map[string]interface{}
@@ -765,7 +557,7 @@ func (suite *UnitTestSuite) TestQueryClientContextID() {
 	statement := "SELECT * FROM dataset"
 	contextID := "62d29101-0c9f-400d-af2b-9bd44a557a7c"
 
-	cluster := suite.queryCluster(true, reader, func(args mock.Arguments) {
+	cluster := suite.queryCluster(false, reader, func(args mock.Arguments) {
 		opts := args.Get(0).(gocbcore.N1QLQueryOptions)
 
 		var actualOptions map[string]interface{}

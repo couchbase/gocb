@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v9"
 	"github.com/pkg/errors"
 )
 
@@ -18,11 +18,10 @@ type client interface {
 	getAnalyticsProvider() (analyticsProvider, error)
 	getSearchProvider() (searchProvider, error)
 	getHTTPProvider() (httpProvider, error)
-	getClusterCapabilityProvider() (clusterCapabilityProvider, error)
 	getDiagnosticsProvider() (diagnosticsProvider, error)
+	getWaitUntilReadyProvider() (waitUntilReadyProvider, error)
 	close() error
 	setBootstrapError(err error)
-	selectBucket(bucketName string) error
 	supportsGCCCP() bool
 	connected() bool
 	getBootstrapError() error
@@ -187,7 +186,7 @@ func (c *stdClient) getHTTPProvider() (httpProvider, error) {
 	if c.agent == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
-	return c.agent, nil
+	return &httpProviderWrapper{provider: c.agent}, nil
 }
 
 func (c *stdClient) getDiagnosticsProvider() (diagnosticsProvider, error) {
@@ -195,10 +194,13 @@ func (c *stdClient) getDiagnosticsProvider() (diagnosticsProvider, error) {
 		return nil, c.bootstrapErr
 	}
 
-	return c.agent, nil
+	if c.agent == nil {
+		return nil, errors.New("cluster not yet connected")
+	}
+	return &diagnosticsProviderWrapper{provider: c.agent}, nil
 }
 
-func (c *stdClient) getClusterCapabilityProvider() (clusterCapabilityProvider, error) {
+func (c *stdClient) getWaitUntilReadyProvider() (waitUntilReadyProvider, error) {
 	if c.bootstrapErr != nil {
 		return nil, c.bootstrapErr
 	}
@@ -206,21 +208,11 @@ func (c *stdClient) getClusterCapabilityProvider() (clusterCapabilityProvider, e
 	if c.agent == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
-	return c.agent, nil
+	return &waitUntilReadyProviderWrapper{provider: c.agent}, nil
 }
 
 func (c *stdClient) connected() bool {
 	return c.isConnected
-}
-
-func (c *stdClient) selectBucket(bucketName string) error {
-	err := c.agent.SelectBucket(bucketName, time.Now().Add(c.cluster.sb.ConnectTimeout))
-	if err != nil {
-		return err
-	}
-
-	c.state.BucketName = bucketName
-	return nil
 }
 
 func (c *stdClient) supportsGCCCP() bool {

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/couchbase/gocbcore/v9"
+
 	"github.com/google/uuid"
 )
 
@@ -23,6 +25,7 @@ type DiagnosticsResult struct {
 	ID       string
 	Services map[string][]EndPointDiagnostics
 	sdk      string
+	State    ClusterState
 }
 
 type jsonDiagnosticEntry struct {
@@ -40,6 +43,7 @@ type jsonDiagnosticReport struct {
 	SDK      string                           `json:"sdk,omitempty"`
 	ID       string                           `json:"id,omitempty"`
 	Services map[string][]jsonDiagnosticEntry `json:"services"`
+	State    string                           `json:"state"`
 }
 
 // MarshalJSON generates a JSON representation of this diagnostics report.
@@ -49,6 +53,7 @@ func (report *DiagnosticsResult) MarshalJSON() ([]byte, error) {
 		SDK:      report.sdk,
 		ID:       report.ID,
 		Services: make(map[string][]jsonDiagnosticEntry),
+		State:    clusterStateToString(report.State),
 	}
 
 	for _, serviceType := range report.Services {
@@ -91,7 +96,7 @@ func (c *Cluster) Diagnostics(opts *DiagnosticsOptions) (*DiagnosticsResult, err
 		return nil, err
 	}
 
-	agentReport, err := provider.Diagnostics()
+	agentReport, err := provider.Diagnostics(gocbcore.DiagnosticsOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -100,15 +105,13 @@ func (c *Cluster) Diagnostics(opts *DiagnosticsOptions) (*DiagnosticsResult, err
 		ID:       opts.ReportID,
 		Services: make(map[string][]EndPointDiagnostics),
 		sdk:      Identifier(),
+		State:    ClusterState(agentReport.State),
 	}
 
 	report.Services["kv"] = make([]EndPointDiagnostics, 0)
 
 	for _, conn := range agentReport.MemdConns {
-		state := EndpointStateDisconnected
-		if conn.LocalAddr != "" {
-			state = EndpointStateConnected
-		}
+		state := EndpointState(conn.State)
 
 		report.Services["kv"] = append(report.Services["kv"], EndPointDiagnostics{
 			Type:         ServiceTypeKeyValue,

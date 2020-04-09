@@ -5,7 +5,7 @@ import (
 	"time"
 
 	cbsearch "github.com/couchbase/gocb/v2/search"
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v9"
 )
 
 type jsonRowLocation struct {
@@ -147,10 +147,10 @@ type SearchResult struct {
 	currentRow SearchRow
 }
 
-func newSearchResult(reader searchRowReader) (*SearchResult, error) {
+func newSearchResult(reader searchRowReader) *SearchResult {
 	return &SearchResult{
 		reader: reader,
-	}, nil
+	}
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
@@ -338,5 +338,5 @@ func (c *Cluster) execSearchQuery(
 		return nil, maybeEnhanceSearchError(err)
 	}
 
-	return newSearchResult(res)
+	return newSearchResult(res), nil
 }

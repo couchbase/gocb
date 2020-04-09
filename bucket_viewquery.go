@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v9"
 	"github.com/pkg/errors"
 )
 
@@ -65,10 +65,10 @@ type ViewResult struct {
 	currentRow ViewRow
 }
 
-func newViewResult(reader viewRowReader) (*ViewResult, error) {
+func newViewResult(reader viewRowReader) *ViewResult {
 	return &ViewResult{
 		reader: reader,
-	}, nil
+	}
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
@@ -190,7 +190,7 @@ func (b *Bucket) execViewQuery(
 		return nil, maybeEnhanceViewError(err)
 	}
 
-	return newViewResult(res)
+	return newViewResult(res), nil
 }
 
 func (b *Bucket) maybePrefixDevDocument(namespace DesignDocumentNamespace, ddoc string) string {

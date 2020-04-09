@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/couchbase/gocbcore/v8"
+	"github.com/couchbase/gocbcore/v9"
 )
 
 func (suite *IntegrationTestSuite) TestBucketMgrOps() {

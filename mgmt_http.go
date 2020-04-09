@@ -4,7 +4,7 @@ import (
 	"io"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v9"
 )
 
 type mgmtRequest struct {
@@ -33,7 +33,7 @@ type mgmtProvider interface {
 	executeMgmtRequest(req mgmtRequest) (*mgmtResponse, error)
 }
 
-func (c *Cluster) executeMgmtRequest(req mgmtRequest) (*mgmtResponse, error) {
+func (c *Cluster) executeMgmtRequest(req mgmtRequest) (mgmtRespOut *mgmtResponse, errOut error) {
 	provider, err := c.getHTTPProvider()
 	if err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func (c *Cluster) executeMgmtRequest(req mgmtRequest) (*mgmtResponse, error) {
 		ContentType:   req.ContentType,
 		IsIdempotent:  req.IsIdempotent,
 		UniqueID:      req.UniqueID,
-		Timeout:       timeout,
+		Deadline:      time.Now().Add(timeout),
 		RetryStrategy: retryStrategy,
 		TraceContext:  req.parentSpan,
 	}
@@ -76,7 +76,7 @@ func (c *Cluster) executeMgmtRequest(req mgmtRequest) (*mgmtResponse, error) {
 	return resp, nil
 }
 
-func (b *Bucket) executeMgmtRequest(req mgmtRequest) (*mgmtResponse, error) {
+func (b *Bucket) executeMgmtRequest(req mgmtRequest) (mgmtRespOut *mgmtResponse, errOut error) {
 	provider, err := b.sb.getCachedClient().getHTTPProvider()
 	if err != nil {
 		return nil, err
@@ -101,7 +101,7 @@ func (b *Bucket) executeMgmtRequest(req mgmtRequest) (*mgmtResponse, error) {
 		ContentType:   req.ContentType,
 		IsIdempotent:  req.IsIdempotent,
 		UniqueID:      req.UniqueID,
-		Timeout:       timeout,
+		Deadline:      time.Now().Add(timeout),
 		RetryStrategy: retryStrategy,
 	}
 

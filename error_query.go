@@ -1,6 +1,6 @@
 package gocb
 
-import gocbcore "github.com/couchbase/gocbcore/v8"
+import gocbcore "github.com/couchbase/gocbcore/v9"
 
 // QueryErrorDesc represents a specific error returned from the query service.
 type QueryErrorDesc struct {

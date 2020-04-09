@@ -116,29 +116,6 @@ func (_m *mockClient) getBootstrapError() error {
 	return r0
 }
 
-// getClusterCapabilityProvider provides a mock function with given fields:
-func (_m *mockClient) getClusterCapabilityProvider() (clusterCapabilityProvider, error) {
-	ret := _m.Called()
-
-	var r0 clusterCapabilityProvider
-	if rf, ok := ret.Get(0).(func() clusterCapabilityProvider); ok {
-		r0 = rf()
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(clusterCapabilityProvider)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // getDiagnosticsProvider provides a mock function with given fields:
 func (_m *mockClient) getDiagnosticsProvider() (diagnosticsProvider, error) {
 	ret := _m.Called()
@@ -277,18 +254,27 @@ func (_m *mockClient) getViewProvider() (viewProvider, error) {
 	return r0, r1
 }
 
-// selectBucket provides a mock function with given fields: bucketName
-func (_m *mockClient) selectBucket(bucketName string) error {
-	ret := _m.Called(bucketName)
+// getWaitUntilReadyProvider provides a mock function with given fields:
+func (_m *mockClient) getWaitUntilReadyProvider() (waitUntilReadyProvider, error) {
+	ret := _m.Called()
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(bucketName)
+	var r0 waitUntilReadyProvider
+	if rf, ok := ret.Get(0).(func() waitUntilReadyProvider); ok {
+		r0 = rf()
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(waitUntilReadyProvider)
+		}
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // setBootstrapError provides a mock function with given fields: err

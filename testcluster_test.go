@@ -5,7 +5,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/couchbaselabs/gojcbmock"
+	gojcbmock "github.com/couchbase/gocbcore/v9/jcbmock"
 )
 
 var (

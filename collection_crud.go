@@ -5,37 +5,34 @@ import (
 	"sync"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v9"
 )
 
 type kvProvider interface {
-	AddEx(opts gocbcore.AddOptions, cb gocbcore.StoreExCallback) (gocbcore.PendingOp, error)
-	SetEx(opts gocbcore.SetOptions, cb gocbcore.StoreExCallback) (gocbcore.PendingOp, error)
-	ReplaceEx(opts gocbcore.ReplaceOptions, cb gocbcore.StoreExCallback) (gocbcore.PendingOp, error)
-	GetEx(opts gocbcore.GetOptions, cb gocbcore.GetExCallback) (gocbcore.PendingOp, error)
-	GetOneReplicaEx(opts gocbcore.GetOneReplicaOptions, cb gocbcore.GetReplicaExCallback) (gocbcore.PendingOp, error)
-	ObserveEx(opts gocbcore.ObserveOptions, cb gocbcore.ObserveExCallback) (gocbcore.PendingOp, error)
-	ObserveVbEx(opts gocbcore.ObserveVbOptions, cb gocbcore.ObserveVbExCallback) (gocbcore.PendingOp, error)
-	GetMetaEx(opts gocbcore.GetMetaOptions, cb gocbcore.GetMetaExCallback) (gocbcore.PendingOp, error)
-	DeleteEx(opts gocbcore.DeleteOptions, cb gocbcore.DeleteExCallback) (gocbcore.PendingOp, error)
-	LookupInEx(opts gocbcore.LookupInOptions, cb gocbcore.LookupInExCallback) (gocbcore.PendingOp, error)
-	MutateInEx(opts gocbcore.MutateInOptions, cb gocbcore.MutateInExCallback) (gocbcore.PendingOp, error)
-	GetAndTouchEx(opts gocbcore.GetAndTouchOptions, cb gocbcore.GetAndTouchExCallback) (gocbcore.PendingOp, error)
-	GetAndLockEx(opts gocbcore.GetAndLockOptions, cb gocbcore.GetAndLockExCallback) (gocbcore.PendingOp, error)
-	UnlockEx(opts gocbcore.UnlockOptions, cb gocbcore.UnlockExCallback) (gocbcore.PendingOp, error)
-	TouchEx(opts gocbcore.TouchOptions, cb gocbcore.TouchExCallback) (gocbcore.PendingOp, error)
-	IncrementEx(opts gocbcore.CounterOptions, cb gocbcore.CounterExCallback) (gocbcore.PendingOp, error)
-	DecrementEx(opts gocbcore.CounterOptions, cb gocbcore.CounterExCallback) (gocbcore.PendingOp, error)
-	AppendEx(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinExCallback) (gocbcore.PendingOp, error)
-	PrependEx(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinExCallback) (gocbcore.PendingOp, error)
-	PingKvEx(opts gocbcore.PingKvOptions, cb gocbcore.PingKvExCallback) (gocbcore.PendingOp, error)
+	Add(opts gocbcore.AddOptions, cb gocbcore.StoreCallback) (gocbcore.PendingOp, error)
+	Set(opts gocbcore.SetOptions, cb gocbcore.StoreCallback) (gocbcore.PendingOp, error)
+	Replace(opts gocbcore.ReplaceOptions, cb gocbcore.StoreCallback) (gocbcore.PendingOp, error)
+	Get(opts gocbcore.GetOptions, cb gocbcore.GetCallback) (gocbcore.PendingOp, error)
+	GetOneReplica(opts gocbcore.GetOneReplicaOptions, cb gocbcore.GetReplicaCallback) (gocbcore.PendingOp, error)
+	Observe(opts gocbcore.ObserveOptions, cb gocbcore.ObserveCallback) (gocbcore.PendingOp, error)
+	ObserveVb(opts gocbcore.ObserveVbOptions, cb gocbcore.ObserveVbCallback) (gocbcore.PendingOp, error)
+	GetMeta(opts gocbcore.GetMetaOptions, cb gocbcore.GetMetaCallback) (gocbcore.PendingOp, error)
+	Delete(opts gocbcore.DeleteOptions, cb gocbcore.DeleteCallback) (gocbcore.PendingOp, error)
+	LookupIn(opts gocbcore.LookupInOptions, cb gocbcore.LookupInCallback) (gocbcore.PendingOp, error)
+	MutateIn(opts gocbcore.MutateInOptions, cb gocbcore.MutateInCallback) (gocbcore.PendingOp, error)
+	GetAndTouch(opts gocbcore.GetAndTouchOptions, cb gocbcore.GetAndTouchCallback) (gocbcore.PendingOp, error)
+	GetAndLock(opts gocbcore.GetAndLockOptions, cb gocbcore.GetAndLockCallback) (gocbcore.PendingOp, error)
+	Unlock(opts gocbcore.UnlockOptions, cb gocbcore.UnlockCallback) (gocbcore.PendingOp, error)
+	Touch(opts gocbcore.TouchOptions, cb gocbcore.TouchCallback) (gocbcore.PendingOp, error)
+	Increment(opts gocbcore.CounterOptions, cb gocbcore.CounterCallback) (gocbcore.PendingOp, error)
+	Decrement(opts gocbcore.CounterOptions, cb gocbcore.CounterCallback) (gocbcore.PendingOp, error)
+	Append(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinCallback) (gocbcore.PendingOp, error)
+	Prepend(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinCallback) (gocbcore.PendingOp, error)
 	NumReplicas() int
 }
 
 // Cas represents the specific state of a document on the cluster.
 type Cas gocbcore.Cas
-
-type pendingOp gocbcore.PendingOp
 
 // InsertOptions are options that can be applied to an Insert operation.
 type InsertOptions struct {
@@ -72,7 +69,7 @@ func (c *Collection) Insert(id string, val interface{}, opts *InsertOptions) (mu
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.AddEx(gocbcore.AddOptions{
+	err = opm.Wait(agent.Add(gocbcore.AddOptions{
 		Key:                    opm.DocumentID(),
 		Value:                  opm.ValueBytes(),
 		Flags:                  opm.ValueFlags(),
@@ -83,6 +80,7 @@ func (c *Collection) Insert(id string, val interface{}, opts *InsertOptions) (mu
 		DurabilityLevelTimeout: opm.DurabilityTimeout(),
 		RetryStrategy:          opm.RetryStrategy(),
 		TraceContext:           opm.TraceSpan(),
+		Deadline:               opm.Deadline(),
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -137,7 +135,7 @@ func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mu
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.SetEx(gocbcore.SetOptions{
+	err = opm.Wait(agent.Set(gocbcore.SetOptions{
 		Key:                    opm.DocumentID(),
 		Value:                  opm.ValueBytes(),
 		Flags:                  opm.ValueFlags(),
@@ -148,6 +146,7 @@ func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mu
 		DurabilityLevelTimeout: opm.DurabilityTimeout(),
 		RetryStrategy:          opm.RetryStrategy(),
 		TraceContext:           opm.TraceSpan(),
+		Deadline:               opm.Deadline(),
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -203,7 +202,7 @@ func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.ReplaceEx(gocbcore.ReplaceOptions{
+	err = opm.Wait(agent.Replace(gocbcore.ReplaceOptions{
 		Key:                    opm.DocumentID(),
 		Value:                  opm.ValueBytes(),
 		Flags:                  opm.ValueFlags(),
@@ -215,6 +214,7 @@ func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (
 		DurabilityLevelTimeout: opm.DurabilityTimeout(),
 		RetryStrategy:          opm.RetryStrategy(),
 		TraceContext:           opm.TraceSpan(),
+		Deadline:               opm.Deadline(),
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -282,12 +282,13 @@ func (c *Collection) getDirect(id string, opts *GetOptions) (docOut *GetResult, 
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.GetEx(gocbcore.GetOptions{
+	err = opm.Wait(agent.Get(gocbcore.GetOptions{
 		Key:            opm.DocumentID(),
 		CollectionName: opm.CollectionName(),
 		ScopeName:      opm.ScopeName(),
 		RetryStrategy:  opm.RetryStrategy(),
 		TraceContext:   opm.TraceSpan(),
+		Deadline:       opm.Deadline(),
 	}, func(res *gocbcore.GetResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -419,12 +420,13 @@ func (c *Collection) Exists(id string, opts *ExistsOptions) (docOut *ExistsResul
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.GetMetaEx(gocbcore.GetMetaOptions{
+	err = opm.Wait(agent.GetMeta(gocbcore.GetMetaOptions{
 		Key:            opm.DocumentID(),
 		CollectionName: opm.CollectionName(),
 		ScopeName:      opm.ScopeName(),
 		RetryStrategy:  opm.RetryStrategy(),
 		TraceContext:   opm.TraceSpan,
+		Deadline:       opm.Deadline(),
 	}, func(res *gocbcore.GetMetaResult, err error) {
 		if errors.Is(err, ErrDocumentNotFound) {
 			docOut = &ExistsResult{
@@ -475,20 +477,21 @@ func (c *Collection) getOneReplica(
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(transcoder)
 	opm.SetRetryStrategy(retryStrategy)
-	opm.SetCancelCh(cancelCh)
 	opm.SetTimeout(timeout)
+	opm.SetCancelCh(cancelCh)
 
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
 	if replicaIdx == 0 {
-		err = opm.Wait(agent.GetEx(gocbcore.GetOptions{
+		err = opm.Wait(agent.Get(gocbcore.GetOptions{
 			Key:            opm.DocumentID(),
 			CollectionName: opm.CollectionName(),
 			ScopeName:      opm.ScopeName(),
 			RetryStrategy:  opm.RetryStrategy(),
 			TraceContext:   opm.TraceSpan(),
+			Deadline:       opm.Deadline(),
 		}, func(res *gocbcore.GetResult, err error) {
 			if err != nil {
 				errOut = opm.EnhanceErr(err)
@@ -511,13 +514,14 @@ func (c *Collection) getOneReplica(
 		return
 	}
 
-	err = opm.Wait(agent.GetOneReplicaEx(gocbcore.GetOneReplicaOptions{
+	err = opm.Wait(agent.GetOneReplica(gocbcore.GetOneReplicaOptions{
 		Key:            opm.DocumentID(),
 		ReplicaIdx:     replicaIdx,
 		CollectionName: opm.CollectionName(),
 		ScopeName:      opm.ScopeName(),
 		RetryStrategy:  opm.RetryStrategy(),
 		TraceContext:   opm.TraceSpan(),
+		Deadline:       opm.Deadline(),
 	}, func(res *gocbcore.GetReplicaResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -619,7 +623,7 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 	// function, but the remaining options are all passed downwards and get handled
 	// by those functions rather than us.
 	timeout := opts.Timeout
-	if timeout == 0 || timeout > c.sb.KvTimeout {
+	if timeout == 0 {
 		timeout = c.sb.KvTimeout
 	}
 
@@ -754,7 +758,7 @@ func (c *Collection) Remove(id string, opts *RemoveOptions) (mutOut *MutationRes
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.DeleteEx(gocbcore.DeleteOptions{
+	err = opm.Wait(agent.Delete(gocbcore.DeleteOptions{
 		Key:                    opm.DocumentID(),
 		Cas:                    gocbcore.Cas(opts.Cas),
 		CollectionName:         opm.CollectionName(),
@@ -763,6 +767,7 @@ func (c *Collection) Remove(id string, opts *RemoveOptions) (mutOut *MutationRes
 		DurabilityLevelTimeout: opm.DurabilityTimeout(),
 		RetryStrategy:          opm.RetryStrategy(),
 		TraceContext:           opm.TraceSpan(),
+		Deadline:               opm.Deadline(),
 	}, func(res *gocbcore.DeleteResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -811,13 +816,14 @@ func (c *Collection) GetAndTouch(id string, expiry time.Duration, opts *GetAndTo
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.GetAndTouchEx(gocbcore.GetAndTouchOptions{
+	err = opm.Wait(agent.GetAndTouch(gocbcore.GetAndTouchOptions{
 		Key:            opm.DocumentID(),
 		Expiry:         durationToExpiry(expiry),
 		CollectionName: opm.CollectionName(),
 		ScopeName:      opm.ScopeName(),
 		RetryStrategy:  opm.RetryStrategy(),
 		TraceContext:   opm.TraceSpan(),
+		Deadline:       opm.Deadline(),
 	}, func(res *gocbcore.GetAndTouchResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -877,13 +883,14 @@ func (c *Collection) GetAndLock(id string, lockTime time.Duration, opts *GetAndL
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.GetAndLockEx(gocbcore.GetAndLockOptions{
+	err = opm.Wait(agent.GetAndLock(gocbcore.GetAndLockOptions{
 		Key:            opm.DocumentID(),
 		LockTime:       uint32(lockTime / time.Second),
 		CollectionName: opm.CollectionName(),
 		ScopeName:      opm.ScopeName(),
 		RetryStrategy:  opm.RetryStrategy(),
 		TraceContext:   opm.TraceSpan(),
+		Deadline:       opm.Deadline(),
 	}, func(res *gocbcore.GetAndLockResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -939,13 +946,14 @@ func (c *Collection) Unlock(id string, cas Cas, opts *UnlockOptions) (errOut err
 	if err != nil {
 		return err
 	}
-	err = opm.Wait(agent.UnlockEx(gocbcore.UnlockOptions{
+	err = opm.Wait(agent.Unlock(gocbcore.UnlockOptions{
 		Key:            opm.DocumentID(),
 		Cas:            gocbcore.Cas(cas),
 		CollectionName: opm.CollectionName(),
 		ScopeName:      opm.ScopeName(),
 		RetryStrategy:  opm.RetryStrategy(),
 		TraceContext:   opm.TraceSpan(),
+		Deadline:       opm.Deadline(),
 	}, func(res *gocbcore.UnlockResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -989,13 +997,14 @@ func (c *Collection) Touch(id string, expiry time.Duration, opts *TouchOptions) 
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.TouchEx(gocbcore.TouchOptions{
+	err = opm.Wait(agent.Touch(gocbcore.TouchOptions{
 		Key:            opm.DocumentID(),
 		Expiry:         durationToExpiry(expiry),
 		CollectionName: opm.CollectionName(),
 		ScopeName:      opm.ScopeName(),
 		RetryStrategy:  opm.RetryStrategy(),
 		TraceContext:   opm.TraceSpan(),
+		Deadline:       opm.Deadline(),
 	}, func(res *gocbcore.TouchResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)

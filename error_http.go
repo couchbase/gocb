@@ -1,7 +1,7 @@
 package gocb
 
 import (
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v9"
 	"github.com/pkg/errors"
 )
 

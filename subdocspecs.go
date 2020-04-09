@@ -1,17 +1,17 @@
 package gocb
 
-import gocbcore "github.com/couchbase/gocbcore/v8"
+import "github.com/couchbase/gocbcore/v9/memd"
 
 // LookupInSpec is the representation of an operation available when calling LookupIn
 type LookupInSpec struct {
-	op      gocbcore.SubDocOpType
+	op      memd.SubDocOpType
 	path    string
 	isXattr bool
 }
 
 // MutateInSpec is the representation of an operation available when calling MutateIn
 type MutateInSpec struct {
-	op         gocbcore.SubDocOpType
+	op         memd.SubDocOpType
 	createPath bool
 	isXattr    bool
 	path       string
@@ -33,7 +33,7 @@ func GetSpec(path string, opts *GetSpecOptions) LookupInSpec {
 	}
 
 	return LookupInSpec{
-		op:      gocbcore.SubDocOpGet,
+		op:      memd.SubDocOpGet,
 		path:    path,
 		isXattr: opts.IsXattr,
 	}
@@ -54,7 +54,7 @@ func ExistsSpec(path string, opts *ExistsSpecOptions) LookupInSpec {
 	}
 
 	return LookupInSpec{
-		op:      gocbcore.SubDocOpExists,
+		op:      memd.SubDocOpExists,
 		path:    path,
 		isXattr: opts.IsXattr,
 	}
@@ -73,7 +73,7 @@ func CountSpec(path string, opts *CountSpecOptions) LookupInSpec {
 	}
 
 	return LookupInSpec{
-		op:      gocbcore.SubDocOpGetCount,
+		op:      memd.SubDocOpGetCount,
 		path:    path,
 		isXattr: opts.IsXattr,
 	}
@@ -92,7 +92,7 @@ func InsertSpec(path string, val interface{}, opts *InsertSpecOptions) MutateInS
 	}
 
 	return MutateInSpec{
-		op:         gocbcore.SubDocOpDictAdd,
+		op:         memd.SubDocOpDictAdd,
 		createPath: opts.CreatePath,
 		isXattr:    opts.IsXattr,
 		path:       path,
@@ -115,7 +115,7 @@ func UpsertSpec(path string, val interface{}, opts *UpsertSpecOptions) MutateInS
 	}
 
 	return MutateInSpec{
-		op:         gocbcore.SubDocOpDictSet,
+		op:         memd.SubDocOpDictSet,
 		createPath: opts.CreatePath,
 		isXattr:    opts.IsXattr,
 		path:       path,
@@ -136,7 +136,7 @@ func ReplaceSpec(path string, val interface{}, opts *ReplaceSpecOptions) MutateI
 	}
 
 	return MutateInSpec{
-		op:         gocbcore.SubDocOpReplace,
+		op:         memd.SubDocOpReplace,
 		createPath: false,
 		isXattr:    opts.IsXattr,
 		path:       path,
@@ -157,7 +157,7 @@ func RemoveSpec(path string, opts *RemoveSpecOptions) MutateInSpec {
 	}
 
 	return MutateInSpec{
-		op:         gocbcore.SubDocOpDelete,
+		op:         memd.SubDocOpDelete,
 		createPath: false,
 		isXattr:    opts.IsXattr,
 		path:       path,
@@ -190,7 +190,7 @@ func ArrayAppendSpec(path string, val interface{}, opts *ArrayAppendSpecOptions)
 	}
 
 	return MutateInSpec{
-		op:         gocbcore.SubDocOpArrayPushLast,
+		op:         memd.SubDocOpArrayPushLast,
 		createPath: opts.CreatePath,
 		isXattr:    opts.IsXattr,
 		path:       path,
@@ -223,7 +223,7 @@ func ArrayPrependSpec(path string, val interface{}, opts *ArrayPrependSpecOption
 	}
 
 	return MutateInSpec{
-		op:         gocbcore.SubDocOpArrayPushFirst,
+		op:         memd.SubDocOpArrayPushFirst,
 		createPath: opts.CreatePath,
 		isXattr:    opts.IsXattr,
 		path:       path,
@@ -257,7 +257,7 @@ func ArrayInsertSpec(path string, val interface{}, opts *ArrayInsertSpecOptions)
 	}
 
 	return MutateInSpec{
-		op:         gocbcore.SubDocOpArrayInsert,
+		op:         memd.SubDocOpArrayInsert,
 		createPath: opts.CreatePath,
 		isXattr:    opts.IsXattr,
 		path:       path,
@@ -279,7 +279,7 @@ func ArrayAddUniqueSpec(path string, val interface{}, opts *ArrayAddUniqueSpecOp
 	}
 
 	return MutateInSpec{
-		op:         gocbcore.SubDocOpArrayAddUnique,
+		op:         memd.SubDocOpArrayAddUnique,
 		createPath: opts.CreatePath,
 		isXattr:    opts.IsXattr,
 		path:       path,
@@ -301,7 +301,7 @@ func IncrementSpec(path string, delta int64, opts *CounterSpecOptions) MutateInS
 	}
 
 	return MutateInSpec{
-		op:         gocbcore.SubDocOpCounter,
+		op:         memd.SubDocOpCounter,
 		createPath: opts.CreatePath,
 		isXattr:    opts.IsXattr,
 		path:       path,
@@ -317,7 +317,7 @@ func DecrementSpec(path string, delta int64, opts *CounterSpecOptions) MutateInS
 	}
 
 	return MutateInSpec{
-		op:         gocbcore.SubDocOpCounter,
+		op:         memd.SubDocOpCounter,
 		createPath: opts.CreatePath,
 		isXattr:    opts.IsXattr,
 		path:       path,

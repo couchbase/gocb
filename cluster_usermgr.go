@@ -10,8 +10,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-
-	gocbcore "github.com/couchbase/gocbcore/v8"
 )
 
 // AuthDomain specifies the user domain of a specific user
@@ -228,13 +226,11 @@ func (g *Group) fromData(data jsonGroup) error {
 
 // UserManager provides methods for performing Couchbase user management.
 type UserManager struct {
-	httpClient           httpProvider
-	globalTimeout        time.Duration
-	defaultRetryStrategy *retryStrategyWrapper
-	tracer               requestTracer
+	provider mgmtProvider
+	tracer   requestTracer
 }
 
-func (um *UserManager) tryParseErrorMessage(req *gocbcore.HTTPRequest, resp *gocbcore.HTTPResponse) error {
+func (um *UserManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		logDebugf("Failed to read search index response body: %s", err)
@@ -258,7 +254,7 @@ func (um *UserManager) tryParseErrorMessage(req *gocbcore.HTTPRequest, resp *goc
 		bodyErr = errors.New(string(b))
 	}
 
-	return makeGenericHTTPError(bodyErr, req, resp)
+	return makeGenericMgmtError(bodyErr, req, resp)
 }
 
 // GetAllUsersOptions is the set of options available to the user manager GetAll operation.
@@ -283,38 +279,28 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 		opts.DomainName = string(LocalDomain)
 	}
 
-	retryStrategy := um.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = um.globalTimeout
-	}
-
-	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(ServiceTypeManagement),
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
 		Method:        "GET",
 		Path:          fmt.Sprintf("/settings/rbac/users/%s", opts.DomainName),
 		IsIdempotent:  true,
-		RetryStrategy: retryStrategy,
+		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
-		Timeout:       timeout,
-		TraceContext:  span.Context(),
+		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 
-	resp, err := um.httpClient.DoHTTPRequest(req)
+	resp, err := um.provider.executeMgmtRequest(req)
 	if err != nil {
-		return nil, makeGenericHTTPError(err, req, resp)
+		return nil, makeGenericMgmtError(err, &req, resp)
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		usrErr := um.tryParseErrorMessage(req, resp)
+		usrErr := um.tryParseErrorMessage(&req, resp)
 		if usrErr != nil {
 			return nil, usrErr
 		}
-		return nil, makeHTTPBadStatusError("failed to get users", req, resp)
+		return nil, makeMgmtBadStatusError("failed to get users", &req, resp)
 	}
 
 	var usersData []jsonUserMetadata
@@ -362,38 +348,28 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 		opts.DomainName = string(LocalDomain)
 	}
 
-	retryStrategy := um.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = um.globalTimeout
-	}
-
-	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(ServiceTypeManagement),
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
 		Method:        "GET",
 		Path:          fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, name),
 		IsIdempotent:  true,
-		RetryStrategy: retryStrategy,
+		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
-		Timeout:       timeout,
-		TraceContext:  span.Context(),
+		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 
-	resp, err := um.httpClient.DoHTTPRequest(req)
+	resp, err := um.provider.executeMgmtRequest(req)
 	if err != nil {
-		return nil, makeGenericHTTPError(err, req, resp)
+		return nil, makeGenericMgmtError(err, &req, resp)
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		usrErr := um.tryParseErrorMessage(req, resp)
+		usrErr := um.tryParseErrorMessage(&req, resp)
 		if usrErr != nil {
 			return nil, usrErr
 		}
-		return nil, makeHTTPBadStatusError("failed to get user", req, resp)
+		return nil, makeMgmtBadStatusError("failed to get user", &req, resp)
 	}
 
 	var userData jsonUserMetadata
@@ -439,16 +415,6 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 		opts.DomainName = string(LocalDomain)
 	}
 
-	retryStrategy := um.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = um.globalTimeout
-	}
-
 	var reqRoleStrs []string
 	for _, roleData := range user.Roles {
 		reqRoleStrs = append(reqRoleStrs, fmt.Sprintf("%s[%s]", roleData.Name, roleData.Bucket))
@@ -464,29 +430,29 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 	}
 	reqForm.Add("roles", strings.Join(reqRoleStrs, ","))
 
-	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(ServiceTypeManagement),
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
 		Method:        "PUT",
 		Path:          fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, user.Username),
 		Body:          []byte(reqForm.Encode()),
 		ContentType:   "application/x-www-form-urlencoded",
-		RetryStrategy: retryStrategy,
+		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
-		Timeout:       timeout,
-		TraceContext:  span.Context(),
+		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 
-	resp, err := um.httpClient.DoHTTPRequest(req)
+	resp, err := um.provider.executeMgmtRequest(req)
 	if err != nil {
-		return makeGenericHTTPError(err, req, resp)
+		return makeGenericMgmtError(err, &req, resp)
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		usrErr := um.tryParseErrorMessage(req, resp)
+		usrErr := um.tryParseErrorMessage(&req, resp)
 		if usrErr != nil {
 			return usrErr
 		}
-		return makeHTTPBadStatusError("failed to upsert user", req, resp)
+		return makeMgmtBadStatusError("failed to upsert user", &req, resp)
 	}
 
 	return nil
@@ -514,37 +480,27 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 		opts.DomainName = string(LocalDomain)
 	}
 
-	retryStrategy := um.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = um.globalTimeout
-	}
-
-	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(ServiceTypeManagement),
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
 		Method:        "DELETE",
 		Path:          fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, name),
-		RetryStrategy: retryStrategy,
+		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
-		Timeout:       timeout,
-		TraceContext:  span.Context(),
+		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 
-	resp, err := um.httpClient.DoHTTPRequest(req)
+	resp, err := um.provider.executeMgmtRequest(req)
 	if err != nil {
-		return makeGenericHTTPError(err, req, resp)
+		return makeGenericMgmtError(err, &req, resp)
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		usrErr := um.tryParseErrorMessage(req, resp)
+		usrErr := um.tryParseErrorMessage(&req, resp)
 		if usrErr != nil {
 			return usrErr
 		}
-		return makeHTTPBadStatusError("failed to drop user", req, resp)
+		return makeMgmtBadStatusError("failed to drop user", &req, resp)
 	}
 
 	return nil
@@ -566,38 +522,28 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
 
-	retryStrategy := um.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = um.globalTimeout
-	}
-
-	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(ServiceTypeManagement),
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
 		Method:        "GET",
 		Path:          "/settings/rbac/roles",
-		RetryStrategy: retryStrategy,
+		RetryStrategy: opts.RetryStrategy,
 		IsIdempotent:  true,
 		UniqueID:      uuid.New().String(),
-		Timeout:       timeout,
-		TraceContext:  span.Context(),
+		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 
-	resp, err := um.httpClient.DoHTTPRequest(req)
+	resp, err := um.provider.executeMgmtRequest(req)
 	if err != nil {
-		return nil, makeGenericHTTPError(err, req, resp)
+		return nil, makeGenericMgmtError(err, &req, resp)
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		usrErr := um.tryParseErrorMessage(req, resp)
+		usrErr := um.tryParseErrorMessage(&req, resp)
 		if usrErr != nil {
 			return nil, usrErr
 		}
-		return nil, makeHTTPBadStatusError("failed to get roles", req, resp)
+		return nil, makeMgmtBadStatusError("failed to get roles", &req, resp)
 	}
 
 	var roleDatas []jsonRoleDescription
@@ -642,38 +588,28 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
 
-	retryStrategy := um.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = um.globalTimeout
-	}
-
-	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(ServiceTypeManagement),
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
 		Method:        "GET",
 		Path:          fmt.Sprintf("/settings/rbac/groups/%s", groupName),
-		RetryStrategy: retryStrategy,
+		RetryStrategy: opts.RetryStrategy,
 		IsIdempotent:  true,
 		UniqueID:      uuid.New().String(),
-		Timeout:       timeout,
-		TraceContext:  span.Context(),
+		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 
-	resp, err := um.httpClient.DoHTTPRequest(req)
+	resp, err := um.provider.executeMgmtRequest(req)
 	if err != nil {
-		return nil, makeGenericHTTPError(err, req, resp)
+		return nil, makeGenericMgmtError(err, &req, resp)
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		usrErr := um.tryParseErrorMessage(req, resp)
+		usrErr := um.tryParseErrorMessage(&req, resp)
 		if usrErr != nil {
 			return nil, usrErr
 		}
-		return nil, makeHTTPBadStatusError("failed to get group", req, resp)
+		return nil, makeMgmtBadStatusError("failed to get group", &req, resp)
 	}
 
 	var groupData jsonGroup
@@ -713,38 +649,28 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
 
-	retryStrategy := um.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = um.globalTimeout
-	}
-
-	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(ServiceTypeManagement),
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
 		Method:        "GET",
 		Path:          "/settings/rbac/groups",
-		RetryStrategy: retryStrategy,
+		RetryStrategy: opts.RetryStrategy,
 		IsIdempotent:  true,
 		UniqueID:      uuid.New().String(),
-		Timeout:       timeout,
-		TraceContext:  span.Context(),
+		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 
-	resp, err := um.httpClient.DoHTTPRequest(req)
+	resp, err := um.provider.executeMgmtRequest(req)
 	if err != nil {
-		return nil, makeGenericHTTPError(err, req, resp)
+		return nil, makeGenericMgmtError(err, &req, resp)
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		usrErr := um.tryParseErrorMessage(req, resp)
+		usrErr := um.tryParseErrorMessage(&req, resp)
 		if usrErr != nil {
 			return nil, usrErr
 		}
-		return nil, makeHTTPBadStatusError("failed to get all groups", req, resp)
+		return nil, makeMgmtBadStatusError("failed to get all groups", &req, resp)
 	}
 
 	var groupDatas []jsonGroup
@@ -789,16 +715,6 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
 
-	retryStrategy := um.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = um.globalTimeout
-	}
-
 	var reqRoleStrs []string
 	for _, roleData := range group.Roles {
 		if roleData.Bucket == "" {
@@ -813,29 +729,29 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 	reqForm.Add("ldap_group_ref", group.LDAPGroupReference)
 	reqForm.Add("roles", strings.Join(reqRoleStrs, ","))
 
-	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(ServiceTypeManagement),
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
 		Method:        "PUT",
 		Path:          fmt.Sprintf("/settings/rbac/groups/%s", group.Name),
 		Body:          []byte(reqForm.Encode()),
 		ContentType:   "application/x-www-form-urlencoded",
-		RetryStrategy: retryStrategy,
+		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
-		Timeout:       timeout,
-		TraceContext:  span.Context(),
+		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 
-	resp, err := um.httpClient.DoHTTPRequest(req)
+	resp, err := um.provider.executeMgmtRequest(req)
 	if err != nil {
-		return makeGenericHTTPError(err, req, resp)
+		return makeGenericMgmtError(err, &req, resp)
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		usrErr := um.tryParseErrorMessage(req, resp)
+		usrErr := um.tryParseErrorMessage(&req, resp)
 		if usrErr != nil {
 			return usrErr
 		}
-		return makeHTTPBadStatusError("failed to upsert group", req, resp)
+		return makeMgmtBadStatusError("failed to upsert group", &req, resp)
 	}
 
 	return nil
@@ -861,37 +777,27 @@ func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
 
-	retryStrategy := um.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = um.globalTimeout
-	}
-
-	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(ServiceTypeManagement),
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
 		Method:        "DELETE",
 		Path:          fmt.Sprintf("/settings/rbac/groups/%s", groupName),
-		RetryStrategy: retryStrategy,
+		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
-		Timeout:       timeout,
-		TraceContext:  span.Context(),
+		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 
-	resp, err := um.httpClient.DoHTTPRequest(req)
+	resp, err := um.provider.executeMgmtRequest(req)
 	if err != nil {
-		return makeGenericHTTPError(err, req, resp)
+		return makeGenericMgmtError(err, &req, resp)
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		usrErr := um.tryParseErrorMessage(req, resp)
+		usrErr := um.tryParseErrorMessage(&req, resp)
 		if usrErr != nil {
 			return usrErr
 		}
-		return makeHTTPBadStatusError("failed to drop group", req, resp)
+		return makeMgmtBadStatusError("failed to drop group", &req, resp)
 	}
 
 	return nil

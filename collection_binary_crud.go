@@ -3,7 +3,7 @@ package gocb
 import (
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v9"
 )
 
 // BinaryCollection is a set of binary operations.
@@ -42,7 +42,7 @@ func (c *Collection) binaryAppend(id string, val []byte, opts *AppendOptions) (m
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.AppendEx(gocbcore.AdjoinOptions{
+	err = opm.Wait(agent.Append(gocbcore.AdjoinOptions{
 		Key:                    opm.DocumentID(),
 		Value:                  val,
 		CollectionName:         opm.CollectionName(),
@@ -52,6 +52,7 @@ func (c *Collection) binaryAppend(id string, val []byte, opts *AppendOptions) (m
 		Cas:                    gocbcore.Cas(opts.Cas),
 		RetryStrategy:          opm.RetryStrategy(),
 		TraceContext:           opm.TraceSpan(),
+		Deadline:               opm.Deadline(),
 	}, func(res *gocbcore.AdjoinResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -107,7 +108,7 @@ func (c *Collection) binaryPrepend(id string, val []byte, opts *PrependOptions) 
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.PrependEx(gocbcore.AdjoinOptions{
+	err = opm.Wait(agent.Prepend(gocbcore.AdjoinOptions{
 		Key:                    opm.DocumentID(),
 		Value:                  val,
 		CollectionName:         opm.CollectionName(),
@@ -117,6 +118,7 @@ func (c *Collection) binaryPrepend(id string, val []byte, opts *PrependOptions) 
 		Cas:                    gocbcore.Cas(opts.Cas),
 		RetryStrategy:          opm.RetryStrategy(),
 		TraceContext:           opm.TraceSpan(),
+		Deadline:               opm.Deadline(),
 	}, func(res *gocbcore.AdjoinResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -185,7 +187,7 @@ func (c *Collection) binaryIncrement(id string, opts *IncrementOptions) (countOu
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.IncrementEx(gocbcore.CounterOptions{
+	err = opm.Wait(agent.Increment(gocbcore.CounterOptions{
 		Key:                    opm.DocumentID(),
 		Delta:                  opts.Delta,
 		Initial:                realInitial,
@@ -197,6 +199,7 @@ func (c *Collection) binaryIncrement(id string, opts *IncrementOptions) (countOu
 		Cas:                    gocbcore.Cas(opts.Cas),
 		RetryStrategy:          opm.RetryStrategy(),
 		TraceContext:           opm.TraceSpan(),
+		Deadline:               opm.Deadline(),
 	}, func(res *gocbcore.CounterResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -268,7 +271,7 @@ func (c *Collection) binaryDecrement(id string, opts *DecrementOptions) (countOu
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.DecrementEx(gocbcore.CounterOptions{
+	err = opm.Wait(agent.Decrement(gocbcore.CounterOptions{
 		Key:                    opm.DocumentID(),
 		Delta:                  opts.Delta,
 		Initial:                realInitial,
@@ -280,6 +283,7 @@ func (c *Collection) binaryDecrement(id string, opts *DecrementOptions) (countOu
 		Cas:                    gocbcore.Cas(opts.Cas),
 		RetryStrategy:          opm.RetryStrategy(),
 		TraceContext:           opm.TraceSpan(),
+		Deadline:               opm.Deadline(),
 	}, func(res *gocbcore.CounterResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)

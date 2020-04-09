@@ -1,6 +1,9 @@
 package gocb
 
-import gocbcore "github.com/couchbase/gocbcore/v8"
+import (
+	gocbcore "github.com/couchbase/gocbcore/v9"
+	"github.com/couchbase/gocbcore/v9/memd"
+)
 
 const (
 	goCbVersionStr = "v2.0.3"
@@ -92,38 +95,38 @@ const (
 )
 
 // SubdocFlag provides special handling flags for sub-document operations
-type SubdocFlag gocbcore.SubdocFlag
+type SubdocFlag memd.SubdocFlag
 
 const (
 	// SubdocFlagNone indicates no special behaviours
-	SubdocFlagNone = SubdocFlag(gocbcore.SubdocFlagNone)
+	SubdocFlagNone = SubdocFlag(memd.SubdocFlagNone)
 
 	// SubdocFlagCreatePath indicates you wish to recursively create the tree of paths
 	// if it does not already exist within the document.
-	SubdocFlagCreatePath = SubdocFlag(gocbcore.SubdocFlagMkDirP)
+	SubdocFlagCreatePath = SubdocFlag(memd.SubdocFlagMkDirP)
 
 	// SubdocFlagXattr indicates your path refers to an extended attribute rather than the document.
-	SubdocFlagXattr = SubdocFlag(gocbcore.SubdocFlagXattrPath)
+	SubdocFlagXattr = SubdocFlag(memd.SubdocFlagXattrPath)
 
 	// SubdocFlagUseMacros indicates that you wish macro substitution to occur on the value
-	SubdocFlagUseMacros = SubdocFlag(gocbcore.SubdocFlagExpandMacros)
+	SubdocFlagUseMacros = SubdocFlag(memd.SubdocFlagExpandMacros)
 )
 
 // SubdocDocFlag specifies document-level flags for a sub-document operation.
-type SubdocDocFlag gocbcore.SubdocDocFlag
+type SubdocDocFlag memd.SubdocDocFlag
 
 const (
 	// SubdocDocFlagNone indicates no special behaviours
-	SubdocDocFlagNone = SubdocDocFlag(gocbcore.SubdocDocFlagNone)
+	SubdocDocFlagNone = SubdocDocFlag(memd.SubdocDocFlagNone)
 
 	// SubdocDocFlagMkDoc indicates that the document should be created if it does not already exist.
-	SubdocDocFlagMkDoc = SubdocDocFlag(gocbcore.SubdocDocFlagMkDoc)
+	SubdocDocFlagMkDoc = SubdocDocFlag(memd.SubdocDocFlagMkDoc)
 
 	// SubdocDocFlagAddDoc indices that the document should be created only if it does not already exist.
-	SubdocDocFlagAddDoc = SubdocDocFlag(gocbcore.SubdocDocFlagAddDoc)
+	SubdocDocFlagAddDoc = SubdocDocFlag(memd.SubdocDocFlagAddDoc)
 
 	// SubdocDocFlagAccessDeleted indicates that you wish to receive soft-deleted documents.
-	SubdocDocFlagAccessDeleted = SubdocDocFlag(gocbcore.SubdocDocFlagAccessDeleted)
+	SubdocDocFlagAccessDeleted = SubdocDocFlag(memd.SubdocDocFlagAccessDeleted)
 )
 
 // DurabilityLevel specifies the level of synchronous replication to use.

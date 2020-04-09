@@ -5,7 +5,9 @@ import (
 	"errors"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	"github.com/couchbase/gocbcore/v9/memd"
+
+	gocbcore "github.com/couchbase/gocbcore/v9"
 )
 
 // LookupInOptions are the set of options available to LookupIn.
@@ -40,31 +42,31 @@ func (c *Collection) internalLookupIn(
 ) (docOut *LookupInResult, errOut error) {
 	var subdocs []gocbcore.SubDocOp
 	for _, op := range ops {
-		if op.op == gocbcore.SubDocOpGet && op.path == "" {
+		if op.op == memd.SubDocOpGet && op.path == "" {
 			if op.isXattr != false {
 				return nil, errors.New("invalid xattr fetch with no path")
 			}
 
 			subdocs = append(subdocs, gocbcore.SubDocOp{
-				Op:    gocbcore.SubDocOpGetDoc,
-				Flags: gocbcore.SubdocFlag(SubdocFlagNone),
+				Op:    memd.SubDocOpGetDoc,
+				Flags: memd.SubdocFlag(SubdocFlagNone),
 			})
 			continue
-		} else if op.op == gocbcore.SubDocOpDictSet && op.path == "" {
+		} else if op.op == memd.SubDocOpDictSet && op.path == "" {
 			if op.isXattr != false {
 				return nil, errors.New("invalid xattr set with no path")
 			}
 
 			subdocs = append(subdocs, gocbcore.SubDocOp{
-				Op:    gocbcore.SubDocOpSetDoc,
-				Flags: gocbcore.SubdocFlag(SubdocFlagNone),
+				Op:    memd.SubDocOpSetDoc,
+				Flags: memd.SubdocFlag(SubdocFlagNone),
 			})
 			continue
 		}
 
-		flags := gocbcore.SubdocFlagNone
+		flags := memd.SubdocFlagNone
 		if op.isXattr {
-			flags |= gocbcore.SubdocFlagXattrPath
+			flags |= memd.SubdocFlagXattrPath
 		}
 
 		subdocs = append(subdocs, gocbcore.SubDocOp{
@@ -79,13 +81,14 @@ func (c *Collection) internalLookupIn(
 		return nil, err
 	}
 
-	err = opm.Wait(agent.LookupInEx(gocbcore.LookupInOptions{
+	err = opm.Wait(agent.LookupIn(gocbcore.LookupInOptions{
 		Key:            opm.DocumentID(),
 		Ops:            subdocs,
 		CollectionName: opm.CollectionName(),
 		ScopeName:      opm.ScopeName(),
 		RetryStrategy:  opm.RetryStrategy(),
 		TraceContext:   opm.TraceSpan(),
+		Deadline:       opm.Deadline(),
 	}, func(res *gocbcore.LookupInResult, err error) {
 		if err != nil && res == nil {
 			errOut = opm.EnhanceErr(err)
@@ -175,22 +178,22 @@ func jsonMarshalMultiArray(in interface{}) ([]byte, error) {
 	return out, nil
 }
 
-func jsonMarshalMutateSpec(op MutateInSpec) ([]byte, gocbcore.SubdocFlag, error) {
+func jsonMarshalMutateSpec(op MutateInSpec) ([]byte, memd.SubdocFlag, error) {
 	if op.value == nil {
-		return nil, gocbcore.SubdocFlagNone, nil
+		return nil, memd.SubdocFlagNone, nil
 	}
 
 	if macro, ok := op.value.(MutationMacro); ok {
-		return []byte(macro), gocbcore.SubdocFlagExpandMacros | gocbcore.SubdocFlagXattrPath, nil
+		return []byte(macro), memd.SubdocFlagExpandMacros | memd.SubdocFlagXattrPath, nil
 	}
 
 	if op.multiValue {
 		bytes, err := jsonMarshalMultiArray(op.value)
-		return bytes, gocbcore.SubdocFlagNone, err
+		return bytes, memd.SubdocFlagNone, err
 	}
 
 	bytes, err := json.Marshal(op.value)
-	return bytes, gocbcore.SubdocFlagNone, err
+	return bytes, memd.SubdocFlagNone, err
 }
 
 func (c *Collection) internalMutateIn(
@@ -200,13 +203,13 @@ func (c *Collection) internalMutateIn(
 	cas Cas,
 	ops []MutateInSpec,
 ) (mutOut *MutateInResult, errOut error) {
-	var docFlags gocbcore.SubdocDocFlag
+	var docFlags memd.SubdocDocFlag
 	if action == StoreSemanticsReplace {
 		// this is the default behaviour
 	} else if action == StoreSemanticsUpsert {
-		docFlags |= gocbcore.SubdocDocFlagMkDoc
+		docFlags |= memd.SubdocDocFlagMkDoc
 	} else if action == StoreSemanticsInsert {
-		docFlags |= gocbcore.SubdocDocFlagAddDoc
+		docFlags |= memd.SubdocDocFlagAddDoc
 	} else {
 		return nil, makeInvalidArgumentsError("invalid StoreSemantics value provided")
 	}
@@ -215,14 +218,14 @@ func (c *Collection) internalMutateIn(
 	for _, op := range ops {
 		if op.path == "" {
 			switch op.op {
-			case gocbcore.SubDocOpDictAdd:
+			case memd.SubDocOpDictAdd:
 				return nil, makeInvalidArgumentsError("cannot specify a blank path with InsertSpec")
-			case gocbcore.SubDocOpDictSet:
+			case memd.SubDocOpDictSet:
 				return nil, makeInvalidArgumentsError("cannot specify a blank path with UpsertSpec")
-			case gocbcore.SubDocOpDelete:
+			case memd.SubDocOpDelete:
 				return nil, makeInvalidArgumentsError("cannot specify a blank path with DeleteSpec")
-			case gocbcore.SubDocOpReplace:
-				op.op = gocbcore.SubDocOpSetDoc
+			case memd.SubDocOpReplace:
+				op.op = memd.SubDocOpSetDoc
 			default:
 			}
 		}
@@ -235,11 +238,11 @@ func (c *Collection) internalMutateIn(
 		}
 
 		if op.createPath {
-			flags |= gocbcore.SubdocFlagMkDirP
+			flags |= memd.SubdocFlagMkDirP
 		}
 
 		if op.isXattr {
-			flags |= gocbcore.SubdocFlagXattrPath
+			flags |= memd.SubdocFlagXattrPath
 		}
 
 		subdocs = append(subdocs, gocbcore.SubDocOp{
@@ -254,7 +257,7 @@ func (c *Collection) internalMutateIn(
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.MutateInEx(gocbcore.MutateInOptions{
+	err = opm.Wait(agent.MutateIn(gocbcore.MutateInOptions{
 		Key:                    opm.DocumentID(),
 		Flags:                  docFlags,
 		Cas:                    gocbcore.Cas(cas),
@@ -266,6 +269,7 @@ func (c *Collection) internalMutateIn(
 		DurabilityLevelTimeout: opm.DurabilityTimeout(),
 		RetryStrategy:          opm.RetryStrategy(),
 		TraceContext:           opm.TraceSpan(),
+		Deadline:               opm.Deadline(),
 	}, func(res *gocbcore.MutateInResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)

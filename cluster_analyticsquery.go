@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v9"
 )
 
 type jsonAnalyticsMetrics struct {
@@ -124,10 +124,10 @@ type AnalyticsResult struct {
 	rowBytes []byte
 }
 
-func newAnalyticsResult(reader analyticsRowReader) (*AnalyticsResult, error) {
+func newAnalyticsResult(reader analyticsRowReader) *AnalyticsResult {
 	return &AnalyticsResult{
 		reader: reader,
-	}, nil
+	}
 }
 
 type analyticsRowReader interface {
@@ -298,5 +298,5 @@ func (c *Cluster) execAnalyticsQuery(
 		return nil, maybeEnhanceAnalyticsError(err)
 	}
 
-	return newAnalyticsResult(res)
+	return newAnalyticsResult(res), nil
 }

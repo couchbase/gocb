@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/couchbase/gocbcore/v8"
+	"github.com/couchbase/gocbcore/v9"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/couchbase/gocb/v2/search"

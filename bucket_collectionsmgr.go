@@ -3,6 +3,7 @@ package gocb
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"strings"
 	"time"
@@ -10,7 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
-	"github.com/couchbase/gocbcore/v8"
+	"github.com/couchbase/gocbcore/v9"
 )
 
 // CollectionSpec describes the specification of a collection.
@@ -43,35 +44,35 @@ type jsonManifestCollection struct {
 
 // CollectionManager provides methods for performing collections management.
 type CollectionManager struct {
-	httpClient           httpProvider
-	bucketName           string
-	globalTimeout        time.Duration
-	defaultRetryStrategy *retryStrategyWrapper
-	tracer               requestTracer
+	mgmtProvider mgmtProvider
+	bucketName   string
+	tracer       requestTracer
 }
 
-func (cm *CollectionManager) tryParseErrorMessage(req *gocbcore.HTTPRequest, resp *gocbcore.HTTPResponse) error {
-	errBody := tryReadHTTPBody(resp)
-	if errBody == "" {
+func (cm *CollectionManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		logDebugf("failed to read http body: %s", err)
 		return nil
 	}
-	errText := strings.ToLower(errBody)
+
+	errText := strings.ToLower(string(b))
 
 	if resp.StatusCode == 404 {
 		if strings.Contains(errText, "not found") && strings.Contains(errText, "scope") {
-			return makeGenericHTTPError(ErrScopeNotFound, req, resp)
+			return makeGenericMgmtError(ErrScopeNotFound, req, resp)
 		} else if strings.Contains(errText, "not found") && strings.Contains(errText, "scope") {
-			return makeGenericHTTPError(ErrScopeNotFound, req, resp)
+			return makeGenericMgmtError(ErrScopeNotFound, req, resp)
 		}
 	}
 
 	if strings.Contains(errText, "already exists") && strings.Contains(errText, "collection") {
-		return makeGenericHTTPError(ErrCollectionExists, req, resp)
+		return makeGenericMgmtError(ErrCollectionExists, req, resp)
 	} else if strings.Contains(errText, "already exists") && strings.Contains(errText, "scope") {
-		return makeGenericHTTPError(ErrScopeExists, req, resp)
+		return makeGenericMgmtError(ErrScopeExists, req, resp)
 	}
 
-	return makeGenericHTTPError(errors.New(errText), req, resp)
+	return makeGenericMgmtError(errors.New(errText), req, resp)
 }
 
 // GetAllScopesOptions is the set of options available to the GetAllScopes operation.
@@ -90,34 +91,24 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
 
-	retryStrategy := cm.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = cm.globalTimeout
-	}
-
-	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(ServiceTypeManagement),
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
 		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
 		Method:        "GET",
-		RetryStrategy: retryStrategy,
+		RetryStrategy: opts.RetryStrategy,
 		IsIdempotent:  true,
 		UniqueID:      uuid.New().String(),
-		Timeout:       timeout,
-		TraceContext:  span.Context(),
+		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 
-	resp, err := cm.httpClient.DoHTTPRequest(req)
+	resp, err := cm.mgmtProvider.executeMgmtRequest(req)
 	if err != nil {
-		colErr := cm.tryParseErrorMessage(req, resp)
+		colErr := cm.tryParseErrorMessage(&req, resp)
 		if colErr != nil {
 			return nil, colErr
 		}
-		return nil, makeHTTPBadStatusError("failed to get users", req, resp)
+		return nil, makeMgmtBadStatusError("failed to get all scopes", &req, resp)
 	}
 
 	defer func() {
@@ -128,7 +119,7 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 	}()
 
 	if resp.StatusCode != 200 {
-		return nil, makeHTTPBadStatusError("failed to get all scopes", req, resp)
+		return nil, makeMgmtBadStatusError("failed to get all scopes", &req, resp)
 	}
 
 	var scopes []ScopeSpec
@@ -200,42 +191,32 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
 
-	retryStrategy := cm.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = cm.globalTimeout
-	}
-
 	posts := url.Values{}
 	posts.Add("name", spec.Name)
 
-	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(ServiceTypeManagement),
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
 		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections/%s", cm.bucketName, spec.ScopeName),
 		Method:        "POST",
 		Body:          []byte(posts.Encode()),
 		ContentType:   "application/x-www-form-urlencoded",
-		RetryStrategy: retryStrategy,
+		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
-		Timeout:       timeout,
-		TraceContext:  span.Context(),
+		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 
-	resp, err := cm.httpClient.DoHTTPRequest(req)
+	resp, err := cm.mgmtProvider.executeMgmtRequest(req)
 	if err != nil {
-		return makeGenericHTTPError(err, req, resp)
+		return makeGenericMgmtError(err, &req, resp)
 	}
 
 	if resp.StatusCode != 200 {
-		colErr := cm.tryParseErrorMessage(req, resp)
+		colErr := cm.tryParseErrorMessage(&req, resp)
 		if colErr != nil {
 			return colErr
 		}
-		return makeHTTPBadStatusError("failed to get users", req, resp)
+		return makeMgmtBadStatusError("failed to create collection", &req, resp)
 	}
 
 	err = resp.Body.Close()
@@ -270,37 +251,27 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
 
-	retryStrategy := cm.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = cm.globalTimeout
-	}
-
-	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(ServiceTypeManagement),
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
 		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections/%s/%s", cm.bucketName, spec.ScopeName, spec.Name),
 		Method:        "DELETE",
-		RetryStrategy: retryStrategy,
+		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
-		Timeout:       timeout,
-		TraceContext:  span.Context(),
+		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 
-	resp, err := cm.httpClient.DoHTTPRequest(req)
+	resp, err := cm.mgmtProvider.executeMgmtRequest(req)
 	if err != nil {
-		return makeGenericHTTPError(err, req, resp)
+		return makeGenericMgmtError(err, &req, resp)
 	}
 
 	if resp.StatusCode != 200 {
-		colErr := cm.tryParseErrorMessage(req, resp)
+		colErr := cm.tryParseErrorMessage(&req, resp)
 		if colErr != nil {
 			return colErr
 		}
-		return makeHTTPBadStatusError("failed to get users", req, resp)
+		return makeMgmtBadStatusError("failed to drop collection", &req, resp)
 	}
 
 	err = resp.Body.Close()
@@ -331,42 +302,32 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
 
-	retryStrategy := cm.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = cm.globalTimeout
-	}
-
 	posts := url.Values{}
 	posts.Add("name", scopeName)
 
-	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(ServiceTypeManagement),
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
 		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
 		Method:        "POST",
 		Body:          []byte(posts.Encode()),
 		ContentType:   "application/x-www-form-urlencoded",
-		RetryStrategy: retryStrategy,
+		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
-		Timeout:       timeout,
-		TraceContext:  span.Context(),
+		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 
-	resp, err := cm.httpClient.DoHTTPRequest(req)
+	resp, err := cm.mgmtProvider.executeMgmtRequest(req)
 	if err != nil {
 		return err
 	}
 
 	if resp.StatusCode != 200 {
-		colErr := cm.tryParseErrorMessage(req, resp)
+		colErr := cm.tryParseErrorMessage(&req, resp)
 		if colErr != nil {
 			return colErr
 		}
-		return makeHTTPBadStatusError("failed to get users", req, resp)
+		return makeMgmtBadStatusError("failed to create scope", &req, resp)
 	}
 
 	err = resp.Body.Close()
@@ -393,37 +354,27 @@ func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions)
 		SetTag("couchbase.service", "mgmt")
 	defer span.Finish()
 
-	retryStrategy := cm.defaultRetryStrategy
-	if opts.RetryStrategy == nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = cm.globalTimeout
-	}
-
-	req := &gocbcore.HTTPRequest{
-		Service:       gocbcore.ServiceType(ServiceTypeManagement),
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
 		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections/%s", cm.bucketName, scopeName),
 		Method:        "DELETE",
-		RetryStrategy: retryStrategy,
+		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
-		Timeout:       timeout,
-		TraceContext:  span.Context(),
+		Timeout:       opts.Timeout,
+		parentSpan:    span.Context(),
 	}
 
-	resp, err := cm.httpClient.DoHTTPRequest(req)
+	resp, err := cm.mgmtProvider.executeMgmtRequest(req)
 	if err != nil {
-		return makeGenericHTTPError(err, req, resp)
+		return makeGenericMgmtError(err, &req, resp)
 	}
 
 	if resp.StatusCode != 200 {
-		colErr := cm.tryParseErrorMessage(req, resp)
+		colErr := cm.tryParseErrorMessage(&req, resp)
 		if colErr != nil {
 			return colErr
 		}
-		return makeHTTPBadStatusError("failed to get users", req, resp)
+		return makeMgmtBadStatusError("failed to drop scope", &req, resp)
 	}
 
 	err = resp.Body.Close()

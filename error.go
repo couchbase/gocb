@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v9"
 )
 
 func newCliInternalError(message string) error {

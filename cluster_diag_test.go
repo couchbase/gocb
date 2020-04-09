@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/couchbase/gocbcore/v8"
+	"github.com/stretchr/testify/mock"
+
+	"github.com/couchbase/gocbcore/v9"
 )
 
 func (suite *UnitTestSuite) TestDiagnostics() {
@@ -26,6 +28,7 @@ func (suite *UnitTestSuite) TestDiagnostics() {
 				LocalAddr:    "10.112.191.101",
 				RemoteAddr:   "10.112.191.102",
 				Scope:        "bucket",
+				State:        gocbcore.EndpointStateConnected,
 				ID:           "0xc000094120",
 			},
 			{
@@ -33,13 +36,14 @@ func (suite *UnitTestSuite) TestDiagnostics() {
 				LocalAddr:    "",
 				RemoteAddr:   "",
 				ID:           "",
+				State:        gocbcore.EndpointStateDisconnected,
 			},
 		},
 	}
 
 	provider := new(mockDiagnosticsProvider)
 	provider.
-		On("Diagnostics").
+		On("Diagnostics", mock.AnythingOfType("gocbcore.DiagnosticsOptions")).
 		Return(info, nil)
 
 	cli := new(mockClient)
@@ -92,15 +96,9 @@ func (suite *UnitTestSuite) TestDiagnostics() {
 		if service.ID != expected.ID {
 			suite.T().Fatalf("Expected service ID to be %s but was %s", expected.ID, service.ID)
 		}
-
-		if expected.LocalAddr == "" {
-			if service.State != EndpointStateDisconnected {
-				suite.T().Fatalf("Expected service state to be disconnected but was %d", service.State)
-			}
-		} else {
-			if service.State != EndpointStateConnected {
-				suite.T().Fatalf("Expected service state to be connected but was %d", service.State)
-			}
+		if service.State != EndpointState(expected.State) {
+			suite.T().Fatalf("Expected service state to be %s but was %s", endpointStateToString(EndpointState(expected.State)),
+				endpointStateToString(service.State))
 		}
 	}
 
@@ -158,14 +156,9 @@ func (suite *UnitTestSuite) TestDiagnostics() {
 			suite.T().Fatalf("Expected service Scope to be %s but was %s", expected.ID, service.ID)
 		}
 
-		if expected.Local == "" {
-			if service.State != "disconnected" {
-				suite.T().Fatalf("Expected service state to be disconnected but was %s", service.State)
-			}
-		} else {
-			if service.State != "connected" {
-				suite.T().Fatalf("Expected service state to be ok but was %s", service.State)
-			}
+		if service.State != endpointStateToString(expected.State) {
+			suite.T().Fatalf("Expected service state to be %s but was %s", endpointStateToString(expected.State),
+				service.State)
 		}
 	}
 }
@@ -173,7 +166,7 @@ func (suite *UnitTestSuite) TestDiagnostics() {
 func (suite *UnitTestSuite) TestDiagnosticsWithID() {
 	provider := new(mockDiagnosticsProvider)
 	provider.
-		On("Diagnostics").
+		On("Diagnostics", mock.AnythingOfType("gocbcore.DiagnosticsOptions")).
 		Return(&gocbcore.DiagnosticInfo{
 			ConfigRev: 1,
 		}, nil)

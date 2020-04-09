@@ -3,7 +3,9 @@ package gocb
 import (
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v9"
+	"github.com/couchbase/gocbcore/v9/memd"
+
 	"github.com/pkg/errors"
 )
 
@@ -19,6 +21,7 @@ type kvOpManager struct {
 	documentID      string
 	transcoder      Transcoder
 	timeout         time.Duration
+	deadline        time.Time
 	bytes           []byte
 	flags           uint32
 	persistTo       uint
@@ -144,14 +147,23 @@ func (m *kvOpManager) Transcoder() Transcoder {
 	return m.transcoder
 }
 
-func (m *kvOpManager) DurabilityLevel() gocbcore.DurabilityLevel {
-	return gocbcore.DurabilityLevel(m.durabilityLevel)
+func (m *kvOpManager) DurabilityLevel() memd.DurabilityLevel {
+	return memd.DurabilityLevel(m.durabilityLevel)
 }
 
-func (m *kvOpManager) DurabilityTimeout() uint16 {
+func (m *kvOpManager) DurabilityTimeout() time.Duration {
 	timeout := m.getTimeout()
 	duraTimeout := timeout * 10 / 9
-	return uint16(duraTimeout / time.Millisecond)
+	return duraTimeout
+}
+
+func (m *kvOpManager) Deadline() time.Time {
+	if m.deadline.IsZero() {
+		timeout := m.getTimeout()
+		m.deadline = time.Now().Add(timeout)
+	}
+
+	return m.deadline
 }
 
 func (m *kvOpManager) RetryStrategy() *retryStrategyWrapper {
@@ -204,23 +216,14 @@ func (m *kvOpManager) Wait(op gocbcore.PendingOp, err error) error {
 		return err
 	}
 	if m.err != nil {
-		op.Cancel(errors.New("performed operation with invalid data"))
+		op.Cancel()
 	}
-
-	// We do this to allow operations with no deadline to still proceed
-	// without immediately timing out due to bad math on the sub time below.
-	waitTimeout := m.getTimeout()
-	waitDeadline := time.Now().Add(waitTimeout)
 
 	select {
 	case <-m.signal:
 		// Good to go
 	case <-m.cancelCh:
-		op.Cancel(ErrRequestCanceled)
-		<-m.signal
-	case <-time.After(waitDeadline.Sub(time.Now())):
-		// Ran out of time...
-		op.Cancel(ErrAmbiguousTimeout)
+		op.Cancel()
 		<-m.signal
 	}
 
@@ -235,7 +238,7 @@ func (m *kvOpManager) Wait(op gocbcore.PendingOp, err error) error {
 			m.mutationToken.token,
 			m.replicateTo,
 			m.persistTo,
-			waitDeadline,
+			m.Deadline(),
 			m.cancelCh,
 		)
 	}

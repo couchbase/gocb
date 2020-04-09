@@ -3,7 +3,7 @@ package gocb
 import (
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v9"
 )
 
 func (c *Collection) observeOnceSeqNo(
@@ -25,11 +25,12 @@ func (c *Collection) observeOnceSeqNo(
 	if err != nil {
 		return false, false, err
 	}
-	err = opm.Wait(agent.ObserveVbEx(gocbcore.ObserveVbOptions{
+	err = opm.Wait(agent.ObserveVb(gocbcore.ObserveVbOptions{
 		VbID:         mt.VbID,
 		VbUUID:       mt.VbUUID,
 		ReplicaIdx:   replicaIdx,
 		TraceContext: opm.TraceSpan(),
+		Deadline:     opm.Deadline(),
 	}, func(res *gocbcore.ObserveVbResult, err error) {
 		if err != nil || res == nil {
 			errOut = opm.EnhanceErr(err)

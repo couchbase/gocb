@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/mock"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	"github.com/couchbase/gocbcore/v9"
 )
 
 func (suite *IntegrationTestSuite) TestErrorNonExistant() {
@@ -224,7 +224,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 			expected: Person{
 				Attributes: PersonAttributes{
 					Hobbies: []PersonHobbies{
-						PersonHobbies{
+						{
 							Type: person.Attributes.Hobbies[0].Type,
 						},
 					},
@@ -237,7 +237,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 			expected: Person{
 				Attributes: PersonAttributes{
 					Hobbies: []PersonHobbies{
-						PersonHobbies{
+						{
 							Type: person.Attributes.Hobbies[1].Type,
 						},
 					},
@@ -250,7 +250,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 			expected: Person{
 				Attributes: PersonAttributes{
 					Hobbies: []PersonHobbies{
-						PersonHobbies{
+						{
 							Name: person.Attributes.Hobbies[0].Name,
 						},
 					},
@@ -263,7 +263,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 			expected: Person{
 				Attributes: PersonAttributes{
 					Hobbies: []PersonHobbies{
-						PersonHobbies{
+						{
 							Name: person.Attributes.Hobbies[1].Name,
 						},
 					},
@@ -276,7 +276,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 			expected: Person{
 				Attributes: PersonAttributes{
 					Hobbies: []PersonHobbies{
-						PersonHobbies{
+						{
 							Details: person.Attributes.Hobbies[1].Details,
 						},
 					},
@@ -294,7 +294,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 				expected: Person{
 					Attributes: PersonAttributes{
 						Hobbies: []PersonHobbies{
-							PersonHobbies{
+							{
 								Details: HobbyDetails{
 									Location: person.Attributes.Hobbies[1].Details.Location,
 								},
@@ -309,7 +309,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 				expected: Person{
 					Attributes: PersonAttributes{
 						Hobbies: []PersonHobbies{
-							PersonHobbies{
+							{
 								Details: HobbyDetails{
 									Location: Location{
 										Lat: person.Attributes.Hobbies[1].Details.Location.Lat,
@@ -326,7 +326,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 				expected: Person{
 					Attributes: PersonAttributes{
 						Hobbies: []PersonHobbies{
-							PersonHobbies{
+							{
 								Details: HobbyDetails{
 									Location: Location{
 										Long: person.Attributes.Hobbies[1].Details.Location.Long,
@@ -747,7 +747,7 @@ type upsertRetriesStrategy struct {
 	retries int
 }
 
-func (rts *upsertRetriesStrategy) RetryAfter(req RetryRequest, reason RetryReason) RetryAction {
+func (rts *upsertRetriesStrategy) RetryAfter(RetryRequest, RetryReason) RetryAction {
 	rts.retries++
 	return &WithDurationRetryAction{100 * time.Millisecond}
 }
@@ -1466,9 +1466,9 @@ func (suite *UnitTestSuite) TestGetErrorCollectionUnknown() {
 
 	provider := new(mockKvProvider)
 	provider.
-		On("GetEx", mock.AnythingOfType("gocbcore.GetOptions"), mock.AnythingOfType("gocbcore.GetExCallback")).
+		On("Get", mock.AnythingOfType("gocbcore.GetOptions"), mock.AnythingOfType("gocbcore.GetCallback")).
 		Run(func(args mock.Arguments) {
-			cb := args.Get(1).(gocbcore.GetExCallback)
+			cb := args.Get(1).(gocbcore.GetCallback)
 			cb(nil, gocbcore.ErrCollectionNotFound)
 		}).
 		Return(pendingOp, nil)
@@ -1532,9 +1532,9 @@ func (suite *UnitTestSuite) TestGetErrorProperties() {
 
 	provider := new(mockKvProvider)
 	provider.
-		On("GetEx", mock.AnythingOfType("gocbcore.GetOptions"), mock.AnythingOfType("gocbcore.GetExCallback")).
+		On("Get", mock.AnythingOfType("gocbcore.GetOptions"), mock.AnythingOfType("gocbcore.GetCallback")).
 		Run(func(args mock.Arguments) {
-			cb := args.Get(1).(gocbcore.GetExCallback)
+			cb := args.Get(1).(gocbcore.GetCallback)
 			cb(nil, expectedErr)
 		}).
 		Return(pendingOp, nil)

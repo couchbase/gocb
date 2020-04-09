@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	gocbcore "github.com/couchbase/gocbcore/v9"
 )
 
 type queryCacheEntry struct {
@@ -139,10 +139,10 @@ type QueryResult struct {
 	rowBytes []byte
 }
 
-func newQueryResult(reader queryRowReader) (*QueryResult, error) {
+func newQueryResult(reader queryRowReader) *QueryResult {
 	return &QueryResult{
 		reader: reader,
-	}, nil
+	}
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
@@ -263,24 +263,7 @@ func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResult, err
 
 	queryOpts["statement"] = statement
 
-	if !opts.Adhoc {
-		err := c.updateEnhancedPreparedStatementSupport()
-		if err != nil {
-			return nil, QueryError{
-				InnerError:      wrapError(err, "failed to update enhanced prepared statement support"),
-				Statement:       statement,
-				ClientContextID: opts.ClientContextID,
-			}
-		}
-
-		if c.supportsEnhancedPreparedStatements() {
-			return c.execEnhPreparedN1qlQuery(span, queryOpts, deadline, retryStrategy)
-		}
-
-		return c.execPreparedN1qlQuery(span, queryOpts, deadline, retryStrategy)
-	}
-
-	return c.execN1qlQuery(span, queryOpts, deadline, retryStrategy)
+	return c.execN1qlQuery(span, queryOpts, deadline, retryStrategy, opts.Adhoc)
 }
 
 func maybeGetQueryOption(options map[string]interface{}, name string) string {
@@ -295,6 +278,7 @@ func (c *Cluster) execN1qlQuery(
 	options map[string]interface{},
 	deadline time.Time,
 	retryStrategy *retryStrategyWrapper,
+	adHoc bool,
 ) (*QueryResult, error) {
 	provider, err := c.getQueryProvider()
 	if err != nil {
@@ -316,142 +300,26 @@ func (c *Cluster) execN1qlQuery(
 		}
 	}
 
-	res, err := provider.N1QLQuery(gocbcore.N1QLQueryOptions{
-		Payload:       reqBytes,
-		RetryStrategy: retryStrategy,
-		Deadline:      deadline,
-		TraceContext:  span.Context(),
-	})
-	if err != nil {
-		return nil, maybeEnhanceQueryError(err)
+	var res queryRowReader
+	var qErr error
+	if adHoc {
+		res, qErr = provider.N1QLQuery(gocbcore.N1QLQueryOptions{
+			Payload:       reqBytes,
+			RetryStrategy: retryStrategy,
+			Deadline:      deadline,
+			TraceContext:  span.Context(),
+		})
+	} else {
+		res, qErr = provider.PreparedN1QLQuery(gocbcore.N1QLQueryOptions{
+			Payload:       reqBytes,
+			RetryStrategy: retryStrategy,
+			Deadline:      deadline,
+			TraceContext:  span.Context(),
+		})
+	}
+	if qErr != nil {
+		return nil, maybeEnhanceQueryError(qErr)
 	}
 
-	return newQueryResult(res)
-
-}
-
-func (c *Cluster) execPreparedN1qlQuery(
-	span requestSpan,
-	options map[string]interface{},
-	deadline time.Time,
-	retryStrategy *retryStrategyWrapper,
-) (*QueryResult, error) {
-	return c.execOldPreparedN1qlQuery(span, options, deadline, retryStrategy)
-}
-
-func (c *Cluster) execEnhPreparedN1qlQuery(
-	span requestSpan,
-	options map[string]interface{},
-	deadline time.Time,
-	retryStrategy *retryStrategyWrapper,
-) (*QueryResult, error) {
-	statement, stmtOk := options["statement"].(string)
-	if !stmtOk {
-		return nil, newCliInternalError("statement was not a string")
-	}
-
-	c.clusterLock.RLock()
-	cachedStmt := c.queryCache[statement]
-	c.clusterLock.RUnlock()
-
-	// Try to execute the cached query
-	if cachedStmt != nil {
-		// Attempt to execute our cached query plan
-		delete(options, "statement")
-		options["prepared"] = cachedStmt.name
-
-		// We need to not retry this request.
-		fastFailRetry := newFailFastRetryStrategy()
-		results, err := c.execN1qlQuery(span, options, deadline, newRetryStrategyWrapper(fastFailRetry))
-		if err == nil {
-			return results, nil
-		}
-		// if we fail to send the prepared statement name then retry a PREPARE.
-		delete(options, "prepared")
-	}
-
-	options["statement"] = "PREPARE " + statement
-	options["auto_execute"] = true
-
-	result, err := c.execN1qlQuery(span, options, deadline, retryStrategy)
-	if err != nil {
-		return nil, err
-	}
-
-	preparedName, err := result.reader.PreparedName()
-	if err != nil {
-		logWarnf("Failed to read prepared name from result: %s", err)
-		return result, nil
-	}
-
-	cachedStmt = &queryCacheEntry{}
-	cachedStmt.name = preparedName
-	cachedStmt.enhanced = true
-
-	c.clusterLock.Lock()
-	c.queryCache[statement] = cachedStmt
-	c.clusterLock.Unlock()
-
-	return result, nil
-}
-
-func (c *Cluster) execOldPreparedN1qlQuery(
-	span requestSpan,
-	options map[string]interface{},
-	deadline time.Time,
-	retryStrategy *retryStrategyWrapper,
-) (*QueryResult, error) {
-	statement, stmtOk := options["statement"].(string)
-	if !stmtOk {
-		return nil, newCliInternalError("statement was not a string")
-	}
-
-	c.clusterLock.RLock()
-	cachedStmt := c.queryCache[statement]
-	c.clusterLock.RUnlock()
-
-	// Try to execute the cached query
-	if cachedStmt != nil {
-		// Attempt to execute our cached query plan
-		delete(options, "statement")
-		options["prepared"] = cachedStmt.name
-		options["encoded_plan"] = cachedStmt.encodedPlan
-
-		results, err := c.execN1qlQuery(span, options, deadline, retryStrategy)
-		if err == nil {
-			return results, nil
-		}
-	}
-
-	// Try to prepare the query
-	delete(options, "prepared")
-	delete(options, "encoded_plan")
-	delete(options, "auto_execute")
-	options["statement"] = "PREPARE " + statement
-
-	cacheRes, err := c.execN1qlQuery(span, options, deadline, retryStrategy)
-	if err != nil {
-		return nil, err
-	}
-
-	var prepData jsonQueryPrepData
-	err = cacheRes.One(&prepData)
-	if err != nil {
-		return nil, err
-	}
-
-	cachedStmt = &queryCacheEntry{}
-	cachedStmt.name = prepData.Name
-	cachedStmt.encodedPlan = prepData.EncodedPlan
-
-	c.clusterLock.Lock()
-	c.queryCache[statement] = cachedStmt
-	c.clusterLock.Unlock()
-
-	// Attempt to execute our cached query plan
-	delete(options, "statement")
-	options["prepared"] = cachedStmt.name
-	options["encoded_plan"] = cachedStmt.encodedPlan
-
-	return c.execN1qlQuery(span, options, deadline, retryStrategy)
+	return newQueryResult(res), nil
 }

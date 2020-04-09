@@ -1,7 +1,10 @@
 package gocb
 
 import (
-	gocbcore "github.com/couchbase/gocbcore/v8"
+	"time"
+
+	"github.com/couchbase/gocbcore/v9"
+	"github.com/pkg/errors"
 )
 
 // Bucket represents a single bucket within a cluster.
@@ -91,28 +94,52 @@ func (b *Bucket) ViewIndexes() *ViewIndexManager {
 	}
 }
 
-type bucketHTTPWrapper struct {
-	b *Bucket
-}
-
-func (bw bucketHTTPWrapper) DoHTTPRequest(req *gocbcore.HTTPRequest) (*gocbcore.HTTPResponse, error) {
-	provider, err := bw.b.sb.getCachedClient().getHTTPProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.DoHTTPRequest(req)
-}
-
 // Collections provides functions for managing collections.
 func (b *Bucket) Collections() *CollectionManager {
-	provider := bucketHTTPWrapper{b}
-
 	return &CollectionManager{
-		httpClient:           provider,
-		bucketName:           b.Name(),
-		globalTimeout:        b.sb.ManagementTimeout,
-		defaultRetryStrategy: b.sb.RetryStrategyWrapper,
-		tracer:               b.sb.Tracer,
+		mgmtProvider: b,
+		bucketName:   b.Name(),
+		tracer:       b.sb.Tracer,
 	}
+}
+
+// WaitUntilReady will wait for the bucket object to be ready for use.
+// At present this will wait until memd connections have been established with the server and are ready
+// to be used.
+func (b *Bucket) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOptions) error {
+	if opts == nil {
+		opts = &WaitUntilReadyOptions{}
+	}
+
+	cli := b.sb.getCachedClient()
+	if cli == nil {
+		return errors.New("bucket is not connected")
+	}
+
+	err := cli.getBootstrapError()
+	if err != nil {
+		return err
+	}
+
+	provider, err := cli.getWaitUntilReadyProvider()
+	if err != nil {
+		return err
+	}
+
+	desiredState := opts.DesiredState
+	if desiredState == 0 {
+		desiredState = ClusterStateOnline
+	}
+
+	err = provider.WaitUntilReady(
+		time.Now().Add(timeout),
+		gocbcore.WaitUntilReadyOptions{
+			DesiredState: gocbcore.ClusterState(desiredState),
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

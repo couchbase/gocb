@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v8"
-	"github.com/couchbaselabs/gocbconnstr"
+	gocbcore "github.com/couchbase/gocbcore/v9"
+	gocbconnstr "github.com/couchbase/gocbcore/v9/connstr"
 	"github.com/pkg/errors"
 )
 
@@ -288,56 +287,45 @@ func (c *Cluster) parseExtraConnStrOptions(spec gocbconnstr.ConnSpec) error {
 // Bucket connects the cluster to server(s) and returns a new Bucket instance.
 func (c *Cluster) Bucket(bucketName string) *Bucket {
 	b := newBucket(&c.sb, bucketName)
-	cli := c.takeClusterClient()
-	if cli == nil {
-		// We've already taken the cluster client for a different bucket or something like that.
 
-		// First we see if a connection already exists for a bucket with this name.
-		cli = c.getClient(&b.sb.clientStateBlock)
-		if cli != nil {
-			logDebugf("Sharing bucket level connection %p for %s", cli, bucketName)
-			b.cacheClient(cli)
-			return b
+	if c.clusterClient != nil {
+		logDebugf("Shutting down cluster level client")
+		err := c.clusterClient.close()
+		if err != nil {
+			logWarnf("Failed to close the cluster level client: %s", err)
 		}
+		c.clusterClient = nil
+		logDebugf("Shut down cluster level client")
+	}
 
-		logDebugf("Creating new bucket level connection for %s", bucketName)
-		// A connection doesn't already exist so we need to create a new one.
-		cli = newClient(c, &b.sb.clientStateBlock)
-		err := cli.buildConfig()
-		if err == nil {
-			err = cli.connect()
-			if err != nil {
-				cli.setBootstrapError(err)
-			}
-		} else {
-			cli.setBootstrapError(err)
-		}
-	} else {
-		logDebugf("Taking cluster level connection %p for %s", cli, bucketName)
-		err := cli.selectBucket(bucketName)
+	// First we see if a connection already exists for a bucket with this name.
+	cli := c.getClient(&b.sb.clientStateBlock)
+	if cli != nil {
+		logDebugf("Sharing bucket level connection %p for %s", cli, bucketName)
+		b.cacheClient(cli)
+		return b
+	}
+
+	logDebugf("Creating new bucket level connection for %s", bucketName)
+	// A connection doesn't already exist so we need to create a new one.
+	cli = newClient(c, &b.sb.clientStateBlock)
+	err := cli.buildConfig()
+	if err == nil {
+		err = cli.connect()
 		if err != nil {
 			cli.setBootstrapError(err)
 		}
+	} else {
+		cli.setBootstrapError(err)
 	}
+
 	c.connectionsLock.Lock()
 	c.connections[b.hash()] = cli
+
 	c.connectionsLock.Unlock()
 	b.cacheClient(cli)
 
 	return b
-}
-
-func (c *Cluster) takeClusterClient() client {
-	c.connectionsLock.Lock()
-	defer c.connectionsLock.Unlock()
-
-	if c.clusterClient != nil {
-		cli := c.clusterClient
-		c.clusterClient = nil
-		return cli
-	}
-
-	return nil
 }
 
 func (c *Cluster) getClient(sb *clientStateBlock) client {
@@ -387,6 +375,47 @@ func (c *Cluster) authenticator() Authenticator {
 
 func (c *Cluster) connSpec() gocbconnstr.ConnSpec {
 	return c.cSpec
+}
+
+// WaitUntilReadyOptions is the set of options available to the WaitUntilReady operations.
+type WaitUntilReadyOptions struct {
+	DesiredState ClusterState
+}
+
+// WaitUntilReady will wait for the cluster object to be ready for use.
+// At present this will wait until memd connections have been established with the server and are ready
+// to be used.
+func (c *Cluster) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOptions) error {
+	if opts == nil {
+		opts = &WaitUntilReadyOptions{}
+	}
+
+	cli := c.clusterClient
+	if cli == nil {
+		return errors.New("cluster is not connected")
+	}
+
+	provider, err := cli.getWaitUntilReadyProvider()
+	if err != nil {
+		return err
+	}
+
+	desiredState := opts.DesiredState
+	if desiredState == 0 {
+		desiredState = ClusterStateOnline
+	}
+
+	err = provider.WaitUntilReady(
+		time.Now().Add(timeout),
+		gocbcore.WaitUntilReadyOptions{
+			DesiredState: gocbcore.ClusterState(desiredState),
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Close shuts down all buckets in this cluster and invalidates any references this cluster has.
@@ -513,85 +542,19 @@ func (c *Cluster) getHTTPProvider() (httpProvider, error) {
 	return provider, nil
 }
 
-func (c *Cluster) getClusterCapabilityProvider() (clusterCapabilityProvider, error) {
-	cli, err := c.clusterOrRandomClient()
-	if err != nil {
-		return nil, err
-	}
-
-	provider, err := cli.getClusterCapabilityProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider, nil
-}
-
-func (c *Cluster) updateEnhancedPreparedStatementSupport() error {
-	provider, err := c.getClusterCapabilityProvider()
-	if err != nil {
-		return err
-	}
-
-	// In an upgrade scenario where we've moved from a cluster version without support to one with then we need to
-	// invalidate the cache.
-	if !c.supportsEnhancedPreparedStatements() &&
-		provider.SupportsClusterCapability(gocbcore.ClusterCapabilityEnhancedPreparedStatements) {
-		c.setSupportsEnhancedPreparedStatements(true)
-		c.clusterLock.Lock()
-		c.queryCache = make(map[string]*queryCacheEntry)
-		c.clusterLock.Unlock()
-	}
-
-	return nil
-}
-
-func (c *Cluster) supportsEnhancedPreparedStatements() bool {
-	return atomic.LoadInt32(&c.supportsEnhancedStatements) > 0
-}
-
-func (c *Cluster) setSupportsEnhancedPreparedStatements(supports bool) {
-	if supports {
-		atomic.StoreInt32(&c.supportsEnhancedStatements, 1)
-	} else {
-		atomic.StoreInt32(&c.supportsEnhancedStatements, 0)
-	}
-}
-
-type clusterProviderWrapper struct {
-	c *Cluster
-}
-
-func (cw clusterProviderWrapper) DoHTTPRequest(req *gocbcore.HTTPRequest) (*gocbcore.HTTPResponse, error) {
-	provider, err := cw.c.getHTTPProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.DoHTTPRequest(req)
-}
-
 // Users returns a UserManager for managing users.
 func (c *Cluster) Users() *UserManager {
-	provider := clusterProviderWrapper{c}
-
 	return &UserManager{
-		httpClient:           provider,
-		globalTimeout:        c.sb.ManagementTimeout,
-		defaultRetryStrategy: c.sb.RetryStrategyWrapper,
-		tracer:               c.sb.Tracer,
+		provider: c,
+		tracer:   c.sb.Tracer,
 	}
 }
 
 // Buckets returns a BucketManager for managing buckets.
 func (c *Cluster) Buckets() *BucketManager {
-	provider := clusterProviderWrapper{c}
-
 	return &BucketManager{
-		httpClient:           provider,
-		globalTimeout:        c.sb.ManagementTimeout,
-		defaultRetryStrategy: c.sb.RetryStrategyWrapper,
-		tracer:               c.sb.Tracer,
+		provider: c,
+		tracer:   c.sb.Tracer,
 	}
 }
 
