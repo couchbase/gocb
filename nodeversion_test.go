@@ -1,23 +1,32 @@
 package gocb
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 )
 
 type NodeVersion struct {
-	Major   int
-	Minor   int
-	Patch   int
-	Build   int
-	Edition string
-	IsMock  bool
+	Major    int
+	Minor    int
+	Patch    int
+	Build    int
+	Edition  NodeEdition
+	Modifier string
+	IsMock   bool
 }
+
+type NodeEdition int
+
+const (
+	CommunityNodeEdition  = NodeEdition(1)
+	EnterpriseNodeEdition = NodeEdition(2)
+)
 
 func (v NodeVersion) Equal(ov NodeVersion) bool {
 	if v.Major == ov.Major && v.Minor == ov.Minor &&
-		v.Patch == ov.Patch && v.Edition == ov.Edition {
+		v.Patch == ov.Patch && v.Edition == ov.Edition && v.Modifier == ov.Modifier {
 		return true
 	}
 	return false
@@ -48,22 +57,7 @@ func (v NodeVersion) Higher(ov NodeVersion) bool {
 		return false
 	}
 
-	editionMap := map[string]int{
-		"Community":  1,
-		"Enterprise": 2,
-	}
-
-	vEditionVal, ok := editionMap[v.Edition]
-	if !ok {
-		vEditionVal = 0
-	}
-
-	ovEditionVal, ok := editionMap[ov.Edition]
-	if !ok {
-		ovEditionVal = 0
-	}
-
-	if vEditionVal > ovEditionVal {
+	if v.Edition > ov.Edition {
 		return true
 	}
 
@@ -109,24 +103,58 @@ func nodeVersionFromString(version string) (*NodeVersion, error) {
 		return &nodeVersion, nil
 	}
 
-	nodeVersion.Patch, err = strconv.Atoi(vSplit[2])
+	nodeBuild := strings.Split(vSplit[2], "-")
+	nodeVersion.Patch, err = strconv.Atoi(nodeBuild[0])
 	if err != nil {
 		return nil, fmt.Errorf("patch version is not a valid integer")
 	}
-	if lenSplit == 3 {
+	if len(nodeBuild) == 1 {
 		return &nodeVersion, nil
 	}
 
-	buildEdition := strings.Split(vSplit[3], "_")
+	buildEdition := strings.Split(nodeBuild[1], "-")
 	nodeVersion.Build, err = strconv.Atoi(buildEdition[0])
 	if err != nil {
-		return nil, fmt.Errorf("build version is not a valid integer")
+		edition, modifier, err := editionModifierFromString(buildEdition[0])
+		if err != nil {
+			return nil, err
+		}
+		nodeVersion.Edition = edition
+		nodeVersion.Modifier = modifier
+
+		return &nodeVersion, nil
 	}
 	if len(buildEdition) == 1 {
 		return &nodeVersion, nil
 	}
 
-	nodeVersion.Edition = buildEdition[1]
+	edition, modifier, err := editionModifierFromString(buildEdition[1])
+	if err != nil {
+		return nil, err
+	}
+	nodeVersion.Edition = edition
+	nodeVersion.Modifier = modifier
 
 	return &nodeVersion, nil
+}
+
+func editionModifierFromString(editionModifier string) (NodeEdition, string, error) {
+	split := strings.Split(editionModifier, "-")
+	editionStr := strings.ToLower(split[0])
+	var edition NodeEdition
+	var modifier string
+	if editionStr == "enterprise" {
+		edition = EnterpriseNodeEdition
+	} else if editionStr == "community" {
+		edition = CommunityNodeEdition
+	} else if editionStr == "dp" {
+		modifier = editionStr
+	} else {
+		return 0, "", errors.New("Unrecognised edition or modifier: " + editionStr)
+	}
+	if len(split) == 1 {
+		return edition, modifier, nil
+	}
+
+	return edition, strings.ToLower(split[1]), nil
 }

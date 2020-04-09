@@ -9,23 +9,24 @@ import (
 )
 
 var (
-	srvVer180   = NodeVersion{1, 8, 0, 0, "", false}
-	srvVer200   = NodeVersion{2, 0, 0, 0, "", false}
-	srvVer250   = NodeVersion{2, 5, 0, 0, "", false}
-	srvVer300   = NodeVersion{3, 0, 0, 0, "", false}
-	srvVer400   = NodeVersion{4, 0, 0, 0, "", false}
-	srvVer450   = NodeVersion{4, 5, 0, 0, "", false}
-	srvVer500   = NodeVersion{5, 0, 0, 0, "", false}
-	srvVer550   = NodeVersion{5, 5, 0, 0, "", false}
-	srvVer551   = NodeVersion{5, 5, 1, 0, "", false}
-	srvVer552   = NodeVersion{5, 5, 2, 0, "", false}
-	srvVer553   = NodeVersion{5, 5, 3, 0, "", false}
-	srvVer600   = NodeVersion{6, 0, 0, 0, "", false}
-	srvVer650   = NodeVersion{6, 5, 0, 0, "", false}
-	srvVer700   = NodeVersion{7, 0, 0, 0, "", false}
-	mockVer156  = NodeVersion{1, 5, 6, 0, "", true}
-	mockVer1513 = NodeVersion{1, 5, 13, 0, "", true}
-	mockVer1515 = NodeVersion{1, 5, 15, 0, "", true}
+	srvVer180   = NodeVersion{1, 8, 0, 0, 0, "", false}
+	srvVer200   = NodeVersion{2, 0, 0, 0, 0, "", false}
+	srvVer250   = NodeVersion{2, 5, 0, 0, 0, "", false}
+	srvVer300   = NodeVersion{3, 0, 0, 0, 0, "", false}
+	srvVer400   = NodeVersion{4, 0, 0, 0, 0, "", false}
+	srvVer450   = NodeVersion{4, 5, 0, 0, 0, "", false}
+	srvVer500   = NodeVersion{5, 0, 0, 0, 0, "", false}
+	srvVer550   = NodeVersion{5, 5, 0, 0, 0, "", false}
+	srvVer551   = NodeVersion{5, 5, 1, 0, 0, "", false}
+	srvVer552   = NodeVersion{5, 5, 2, 0, 0, "", false}
+	srvVer553   = NodeVersion{5, 5, 3, 0, 0, "", false}
+	srvVer600   = NodeVersion{6, 0, 0, 0, 0, "", false}
+	srvVer650   = NodeVersion{6, 5, 0, 0, 0, "", false}
+	srvVer650DP = NodeVersion{6, 5, 0, 0, 0, "dp", false}
+	srvVer700   = NodeVersion{7, 0, 0, 0, 0, "", false}
+	mockVer156  = NodeVersion{1, 5, 6, 0, 0, "", true}
+	mockVer1513 = NodeVersion{1, 5, 13, 0, 0, "", true}
+	mockVer1515 = NodeVersion{1, 5, 15, 0, 0, "", true}
 )
 
 type FeatureCode string
@@ -55,6 +56,7 @@ var (
 	PingFeature                           = FeatureCode("ping")
 	ViewIndexUpsertBugFeature             = FeatureCode("viewinsertupsertbug")
 	ReplicasFeature                       = FeatureCode("replicas")
+	PingAnalyticsFeature                  = FeatureCode("pinganalytics")
 )
 
 type TestFeatureFlag struct {
@@ -151,9 +153,9 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case KeyValueFeature:
 			supported = !c.Version.Lower(srvVer180)
 		case ViewFeature:
-			supported = !c.Version.Lower(srvVer200)
+			supported = !c.Version.Lower(srvVer200) && !c.Version.Equal(srvVer650DP)
 		case QueryFeature:
-			supported = !c.Version.Lower(srvVer400)
+			supported = !c.Version.Lower(srvVer400) && !c.Version.Equal(srvVer650DP)
 		case SubdocFeature:
 			supported = !c.Version.Lower(srvVer450)
 		case XattrFeature:
@@ -161,11 +163,11 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case RbacFeature:
 			supported = !c.Version.Lower(srvVer500)
 		case SearchFeature:
-			supported = !c.Version.Lower(srvVer500)
+			supported = !c.Version.Lower(srvVer500) && !c.Version.Equal(srvVer650DP)
 		case SearchIndexFeature:
-			supported = !c.Version.Lower(srvVer500)
+			supported = !c.Version.Lower(srvVer500) && !c.Version.Equal(srvVer650DP)
 		case AnalyticsFeature:
-			supported = !c.Version.Lower(srvVer600)
+			supported = !c.Version.Lower(srvVer600) && !c.Version.Equal(srvVer650DP)
 		case CollectionsFeature:
 			supported = !c.Version.Lower(srvVer700)
 		case SubdocMockBugFeature:
@@ -181,19 +183,21 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case UserManagerFeature:
 			supported = !c.Version.Lower(srvVer500)
 		case AnalyticsIndexFeature:
-			supported = !c.Version.Lower(srvVer600)
+			supported = !c.Version.Lower(srvVer600) && !c.Version.Equal(srvVer650DP)
 		case BucketMgrFeature:
 			supported = true
 		case SearchAnalyzeFeature:
-			supported = !c.Version.Lower(srvVer650)
+			supported = !c.Version.Lower(srvVer650) && !c.Version.Equal(srvVer650DP)
 		case AnalyticsIndexPendingMutationsFeature:
-			supported = !c.Version.Lower(srvVer650)
+			supported = !c.Version.Lower(srvVer650) && !c.Version.Equal(srvVer650DP)
 		case GetMetaFeature:
 			supported = true
 		case PingFeature:
 			supported = true
 		case ViewIndexUpsertBugFeature:
 			supported = !c.Version.Equal(srvVer650)
+		case PingAnalyticsFeature:
+			supported = !c.Version.Lower(srvVer600)
 		}
 	}
 

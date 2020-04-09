@@ -34,7 +34,7 @@ func (suite *IntegrationTestSuite) TestClusterPingAll() {
 				suite.Assert().Equal(PingStateOk, service.State)
 				suite.Assert().NotZero(int64(service.Latency))
 			case ServiceTypeAnalytics:
-				if globalCluster.SupportsFeature(AnalyticsFeature) {
+				if globalCluster.SupportsFeature(PingAnalyticsFeature) {
 					suite.Assert().NotEmpty(service.Remote)
 					suite.Assert().Equal(PingStateOk, service.State)
 					suite.Assert().NotZero(int64(service.Latency))

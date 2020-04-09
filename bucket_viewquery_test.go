@@ -9,6 +9,7 @@ import (
 )
 
 func (suite *IntegrationTestSuite) TestViewQuery() {
+	suite.skipIfUnsupported(ViewFeature)
 	suite.skipIfUnsupported(ViewIndexUpsertBugFeature)
 
 	n := suite.setupViews()
