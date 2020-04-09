@@ -222,9 +222,18 @@ func (suite *IntegrationTestSuite) TestUserManagerCrud() {
 		suite.T().Fatalf("Expected UpsertUser to not error: %v", err)
 	}
 
-	user, err := mgr.GetUser("barry", nil)
-	if err != nil {
-		suite.T().Fatalf("Expected GetUser to not error: %v", err)
+	var user *UserAndMetadata
+	success := suite.tryUntil(time.Now().Add(5*time.Second), 50*time.Millisecond, func() bool {
+		user, err = mgr.GetUser("barry", nil)
+		if err != nil {
+			suite.T().Logf("GetUser failed with %s", err)
+			return false
+		}
+		return true
+	})
+
+	if !success {
+		suite.T().Fatal("Wait time for get user expired")
 	}
 
 	expectedUserAndMeta := &UserAndMetadata{

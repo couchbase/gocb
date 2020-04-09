@@ -82,14 +82,30 @@ func (suite *IntegrationTestSuite) TestBucketMgrOps() {
 		suite.T().Fatalf("Test bucket was not found in list of bucket settings, %v", buckets)
 	}
 
-	err = mgr.FlushBucket("test22", nil)
-	if err != nil {
-		suite.T().Fatalf("Failed to flush bucket manager %v", err)
+	success := suite.tryUntil(time.Now().Add(5*time.Second), 50*time.Millisecond, func() bool {
+		err = mgr.FlushBucket("test22", nil)
+		if err != nil {
+			suite.T().Logf("Flush bucket failed with %s", err)
+			return false
+		}
+		return true
+	})
+
+	if !success {
+		suite.T().Fatal("Wait time for bucket flush expired")
 	}
 
-	err = mgr.DropBucket("test22", nil)
-	if err != nil {
-		suite.T().Fatalf("Failed to drop bucket manager %v", err)
+	success = suite.tryUntil(time.Now().Add(5*time.Second), 50*time.Millisecond, func() bool {
+		err = mgr.DropBucket("test22", nil)
+		if err != nil {
+			suite.T().Logf("Drop bucket failed with %s", err)
+			return false
+		}
+		return true
+	})
+
+	if !success {
+		suite.T().Fatal("Wait time for drop bucket expired")
 	}
 }
 
