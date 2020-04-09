@@ -124,6 +124,9 @@ func (opts *SearchOptions) toMap() (map[string]interface{}, error) {
 		}
 		ctl["consistency"] = consistency
 	}
+	if ctl != nil {
+		data["ctl"] = ctl
+	}
 
 	if opts.Raw != nil {
 		for k, v := range opts.Raw {
