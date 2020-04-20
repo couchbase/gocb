@@ -63,15 +63,22 @@ func (c *stdClient) buildConfig() error {
 		}
 	}
 
-	config := &gocbcore.AgentConfig{
-		UserAgent: Identifier(),
-		TLSRootCAProvider: func() *x509.CertPool {
+	var tlsRootCAProvider func() *x509.CertPool
+	if c.cluster.sb.InternalConfig.TLSRootCAProvider == nil {
+		tlsRootCAProvider = func() *x509.CertPool {
 			if c.cluster.sb.SecurityConfig.TLSSkipVerify {
 				return nil
 			}
 
 			return c.cluster.sb.SecurityConfig.TLSRootCAs
-		},
+		}
+	} else {
+		tlsRootCAProvider = c.cluster.sb.InternalConfig.TLSRootCAProvider
+	}
+
+	config := &gocbcore.AgentConfig{
+		UserAgent:              Identifier(),
+		TLSRootCAProvider:      tlsRootCAProvider,
 		ConnectTimeout:         c.cluster.sb.ConnectTimeout,
 		UseMutationTokens:      c.cluster.sb.UseMutationTokens,
 		KVConnectTimeout:       7000 * time.Millisecond,

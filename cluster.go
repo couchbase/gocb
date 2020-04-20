@@ -66,6 +66,13 @@ type SecurityConfig struct {
 	TLSSkipVerify bool
 }
 
+// InternalConfig specifies options for controlling various internal
+// items.
+// Internal: This should never be used and is not supported.
+type InternalConfig struct {
+	TLSRootCAProvider func() *x509.CertPool
+}
+
 // ClusterOptions is the set of options available for creating a Cluster.
 type ClusterOptions struct {
 	// Authenticator specifies the authenticator to use with the cluster.
@@ -101,6 +108,9 @@ type ClusterOptions struct {
 
 	// SecurityConfig specifies security related configuration options.
 	SecurityConfig SecurityConfig
+
+	// Internal: This should never be used and is not supported.
+	InternalConfig InternalConfig
 }
 
 // ClusterCloseOptions is the set of options available when
@@ -195,6 +205,7 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 			Tracer:                 initialTracer,
 			CircuitBreakerConfig:   opts.CircuitBreakerConfig,
 			SecurityConfig:         opts.SecurityConfig,
+			InternalConfig:         opts.InternalConfig,
 		},
 
 		queryCache: make(map[string]*queryCacheEntry),

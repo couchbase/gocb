@@ -47,6 +47,7 @@ type stateBlock struct {
 
 	CircuitBreakerConfig CircuitBreakerConfig
 	SecurityConfig       SecurityConfig
+	InternalConfig       InternalConfig
 }
 
 func (sb *stateBlock) getCachedClient() client {
