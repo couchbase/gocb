@@ -106,6 +106,11 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 	}
 }
 
+func (suite *IntegrationTestSuite) TearDownSuite() {
+	err := globalCluster.Close(nil)
+	suite.Require().Nil(err, err)
+}
+
 func (suite *IntegrationTestSuite) createBreweryDataset(datasetName, service string) (int, error) {
 	var dataset []testBreweryDocument
 	err := loadJSONTestDataset(datasetName, &dataset)

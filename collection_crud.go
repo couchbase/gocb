@@ -28,7 +28,7 @@ type kvProvider interface {
 	Decrement(opts gocbcore.CounterOptions, cb gocbcore.CounterCallback) (gocbcore.PendingOp, error)
 	Append(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinCallback) (gocbcore.PendingOp, error)
 	Prepend(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinCallback) (gocbcore.PendingOp, error)
-	NumReplicas() int
+	ConfigSnapshot() (*gocbcore.ConfigSnapshot, error)
 }
 
 // Cas represents the specific state of a document on the cluster.
@@ -636,7 +636,17 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 		return nil, err
 	}
 
-	numServers := agent.NumReplicas() + 1
+	snapshot, err := agent.ConfigSnapshot()
+	if err != nil {
+		return nil, err
+	}
+
+	numReplicas, err := snapshot.NumReplicas()
+	if err != nil {
+		return nil, err
+	}
+
+	numServers := numReplicas + 1
 	outCh := make(chan *GetReplicaResult, numServers)
 	cancelCh := make(chan struct{})
 

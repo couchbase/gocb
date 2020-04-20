@@ -23,7 +23,7 @@ type client interface {
 	close() error
 	setBootstrapError(err error)
 	supportsGCCCP() bool
-	connected() bool
+	connected() (bool, error)
 	getBootstrapError() error
 }
 
@@ -33,7 +33,6 @@ type stdClient struct {
 	lock         sync.Mutex
 	agent        *gocbcore.Agent
 	bootstrapErr error
-	isConnected  bool
 	config       *gocbcore.AgentConfig
 }
 
@@ -111,7 +110,6 @@ func (c *stdClient) connect() error {
 	}
 
 	c.agent = agent
-	c.isConnected = true
 	return nil
 }
 
@@ -211,8 +209,8 @@ func (c *stdClient) getWaitUntilReadyProvider() (waitUntilReadyProvider, error) 
 	return &waitUntilReadyProviderWrapper{provider: c.agent}, nil
 }
 
-func (c *stdClient) connected() bool {
-	return c.isConnected
+func (c *stdClient) connected() (bool, error) {
+	return c.agent.HasSeenConfig()
 }
 
 func (c *stdClient) supportsGCCCP() bool {
@@ -225,7 +223,6 @@ func (c *stdClient) close() error {
 		c.lock.Unlock()
 		return errors.New("cluster not yet connected")
 	}
-	c.isConnected = false
 	c.lock.Unlock()
 	return c.agent.Close()
 }

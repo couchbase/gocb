@@ -288,7 +288,9 @@ func (c *Cluster) parseExtraConnStrOptions(spec gocbconnstr.ConnSpec) error {
 func (c *Cluster) Bucket(bucketName string) *Bucket {
 	b := newBucket(&c.sb, bucketName)
 
-	if c.clusterClient != nil {
+	c.connectionsLock.Lock()
+	// If the cluster client doesn't support GCCCP then there's no point in keeping this open
+	if c.clusterClient != nil && !c.clusterClient.supportsGCCCP() {
 		logDebugf("Shutting down cluster level client")
 		err := c.clusterClient.close()
 		if err != nil {
@@ -297,6 +299,7 @@ func (c *Cluster) Bucket(bucketName string) *Bucket {
 		c.clusterClient = nil
 		logDebugf("Shut down cluster level client")
 	}
+	c.connectionsLock.Unlock()
 
 	// First we see if a connection already exists for a bucket with this name.
 	cli := c.getClient(&b.sb.clientStateBlock)
@@ -321,7 +324,6 @@ func (c *Cluster) Bucket(bucketName string) *Bucket {
 
 	c.connectionsLock.Lock()
 	c.connections[b.hash()] = cli
-
 	c.connectionsLock.Unlock()
 	b.cacheClient(cli)
 
@@ -350,11 +352,21 @@ func (c *Cluster) randomClient() (client, error) {
 	var randomClient client
 	var firstError error
 	for _, c := range c.connections { // This is ugly
-		if c.connected() {
-			randomClient = c
-			break
-		} else if firstError == nil {
-			firstError = c.getBootstrapError()
+		err := c.getBootstrapError()
+		if err != nil {
+			if firstError == nil {
+				firstError = c.getBootstrapError()
+			}
+		} else {
+			connected, err := c.connected()
+			if err != nil {
+				if firstError == nil {
+					firstError = err
+				}
+			} else if connected {
+				randomClient = c
+				break
+			}
 		}
 	}
 	c.connectionsLock.RUnlock()

@@ -1304,7 +1304,18 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAllReplicas() {
 	if err != nil {
 		suite.T().Fatalf("Failed to get kv provider, was %v", err)
 	}
-	expectedReplicas := agent.NumReplicas() + 1
+
+	snapshot, err := agent.ConfigSnapshot()
+	if err != nil {
+		suite.T().Fatalf("Failed to get config snapshot, was %v", err)
+	}
+
+	numReplicas, err := snapshot.NumReplicas()
+	if err != nil {
+		suite.T().Fatalf("Failed to get numReplicas, was %v", err)
+	}
+
+	expectedReplicas := numReplicas + 1
 
 	mutRes, err := globalCollection.Upsert("insertAllReplicaDoc", doc, &UpsertOptions{
 		PersistTo: uint(expectedReplicas),

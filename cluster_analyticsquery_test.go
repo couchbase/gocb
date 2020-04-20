@@ -612,7 +612,8 @@ func (suite *UnitTestSuite) TestAnalyticsQueryRandomClient() {
 
 	cli := new(mockClient)
 	cli.On("getAnalyticsProvider").Return(analyticsProvider, nil)
-	cli.On("connected").Return(true)
+	cli.On("getBootstrapError").Return(nil)
+	cli.On("connected").Return(true, nil)
 
 	cluster.clusterClient = nil
 	cluster.connections = map[string]client{"mock": cli}

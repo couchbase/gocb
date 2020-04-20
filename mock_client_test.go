@@ -66,7 +66,7 @@ func (_m *mockClient) connect() error {
 }
 
 // connected provides a mock function with given fields:
-func (_m *mockClient) connected() bool {
+func (_m *mockClient) connected() (bool, error) {
 	ret := _m.Called()
 
 	var r0 bool
@@ -76,7 +76,14 @@ func (_m *mockClient) connected() bool {
 		r0 = ret.Get(0).(bool)
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // getAnalyticsProvider provides a mock function with given fields:

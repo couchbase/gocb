@@ -56,6 +56,29 @@ func (_m *mockKvProvider) Append(opts gocbcore.AdjoinOptions, cb gocbcore.Adjoin
 	return r0, r1
 }
 
+// ConfigSnapshot provides a mock function with given fields:
+func (_m *mockKvProvider) ConfigSnapshot() (*gocbcore.ConfigSnapshot, error) {
+	ret := _m.Called()
+
+	var r0 *gocbcore.ConfigSnapshot
+	if rf, ok := ret.Get(0).(func() *gocbcore.ConfigSnapshot); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*gocbcore.ConfigSnapshot)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // Decrement provides a mock function with given fields: opts, cb
 func (_m *mockKvProvider) Decrement(opts gocbcore.CounterOptions, cb gocbcore.CounterCallback) (gocbcore.PendingOp, error) {
 	ret := _m.Called(opts, cb)
@@ -284,20 +307,6 @@ func (_m *mockKvProvider) MutateIn(opts gocbcore.MutateInOptions, cb gocbcore.Mu
 	}
 
 	return r0, r1
-}
-
-// NumReplicas provides a mock function with given fields:
-func (_m *mockKvProvider) NumReplicas() int {
-	ret := _m.Called()
-
-	var r0 int
-	if rf, ok := ret.Get(0).(func() int); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Get(0).(int)
-	}
-
-	return r0
 }
 
 // Observe provides a mock function with given fields: opts, cb

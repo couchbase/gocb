@@ -48,7 +48,8 @@ func (suite *UnitTestSuite) TestDiagnostics() {
 
 	cli := new(mockClient)
 	cli.On("getDiagnosticsProvider").Return(provider, nil)
-	cli.On("connected").Return(true)
+	cli.On("getBootstrapError").Return(nil)
+	cli.On("connected").Return(true, nil)
 
 	clients := make(map[string]client)
 	clients["mock-false"] = cli
@@ -173,7 +174,8 @@ func (suite *UnitTestSuite) TestDiagnosticsWithID() {
 
 	cli := new(mockClient)
 	cli.On("getDiagnosticsProvider").Return(provider, nil)
-	cli.On("connected").Return(true)
+	cli.On("getBootstrapError").Return(nil)
+	cli.On("connected").Return(true, nil)
 
 	clients := make(map[string]client)
 	clients["mock-false"] = cli

@@ -119,7 +119,17 @@ func (c *Collection) waitForDurability(
 		return err
 	}
 
-	numServers := agent.NumReplicas() + 1
+	snapshot, err := agent.ConfigSnapshot()
+	if err != nil {
+		return err
+	}
+
+	numReplicas, err := snapshot.NumReplicas()
+	if err != nil {
+		return err
+	}
+
+	numServers := numReplicas + 1
 	if replicateTo > uint(numServers-1) || persistTo > uint(numServers) {
 		return opm.EnhanceErr(ErrDurabilityImpossible)
 	}
