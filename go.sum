@@ -2,6 +2,8 @@ github.com/couchbase/gocbcore/v9 v9.0.0-20200417101441-98d9e2acb1bd h1:WXei4coxE
 github.com/couchbase/gocbcore/v9 v9.0.0-20200417101441-98d9e2acb1bd/go.mod h1:p3BZ7E01GfP73ebLCrOuBcRxy57hMnhp0c2+7Z+6vLs=
 github.com/couchbase/gocbcore/v9 v9.0.0-20200420082942-db5c44aac85c h1:amUZ3e6c9Tz/FwUycxsA5V0iIp7ZsEBG/pXuwIr9SUo=
 github.com/couchbase/gocbcore/v9 v9.0.0-20200420082942-db5c44aac85c/go.mod h1:p3BZ7E01GfP73ebLCrOuBcRxy57hMnhp0c2+7Z+6vLs=
+github.com/couchbase/gocbcore/v9 v9.0.0-20200420093042-7c7438642a54 h1:0ueEwjx1nGeug/nx3MQbV171ba/DHiwXcQktWIzzm9E=
+github.com/couchbase/gocbcore/v9 v9.0.0-20200420093042-7c7438642a54/go.mod h1:p3BZ7E01GfP73ebLCrOuBcRxy57hMnhp0c2+7Z+6vLs=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/golang/snappy v0.0.1 h1:Qgr9rKW7uDUkrbSmQeiDsGa8SjGyCOGtuasMWwvp2P4=

@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"crypto/x509"
 	"sync"
 	"time"
 
@@ -63,9 +64,14 @@ func (c *stdClient) buildConfig() error {
 	}
 
 	config := &gocbcore.AgentConfig{
-		UserAgent:              Identifier(),
-		TLSRootCAs:             c.cluster.sb.SecurityConfig.TLSRootCAs,
-		TLSSkipVerify:          c.cluster.sb.SecurityConfig.TLSSkipVerify,
+		UserAgent: Identifier(),
+		TLSRootCAProvider: func() *x509.CertPool {
+			if c.cluster.sb.SecurityConfig.TLSSkipVerify {
+				return nil
+			}
+
+			return c.cluster.sb.SecurityConfig.TLSRootCAs
+		},
 		ConnectTimeout:         c.cluster.sb.ConnectTimeout,
 		UseMutationTokens:      c.cluster.sb.UseMutationTokens,
 		KVConnectTimeout:       7000 * time.Millisecond,
