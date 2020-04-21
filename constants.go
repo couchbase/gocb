@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	goCbVersionStr = "v2.0.3"
+	goCbVersionStr = "v2.1.0"
 
 	persistenceTimeoutFloor = 1500
 )
