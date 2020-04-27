@@ -200,6 +200,7 @@ func (vm *ViewIndexManager) getDesignDocument(tracectx requestSpanContext, name 
 	if err != nil {
 		return nil, err
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
 		vwErr := vm.tryParseErrorMessage(req, resp)
@@ -215,11 +216,6 @@ func (vm *ViewIndexManager) getDesignDocument(tracectx requestSpanContext, name 
 	err = jsonDec.Decode(&ddocData)
 	if err != nil {
 		return nil, err
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
 	}
 
 	ddocName := strings.TrimPrefix(name, "dev_")
@@ -261,6 +257,7 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamesp
 	if err != nil {
 		return nil, err
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
 		vwErr := vm.tryParseErrorMessage(req, resp)
@@ -285,11 +282,6 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamesp
 	err = jsonDec.Decode(&ddocsResp)
 	if err != nil {
 		return nil, err
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
 	}
 
 	ddocs := make([]DesignDocument, len(ddocsResp.Rows))
@@ -358,6 +350,7 @@ func (vm *ViewIndexManager) upsertDesignDocument(
 	if err != nil {
 		return err
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 201 {
 		vwErr := vm.tryParseErrorMessage(req, resp)
@@ -406,6 +399,7 @@ func (vm *ViewIndexManager) dropDesignDocument(tracectx requestSpanContext, name
 	if err != nil {
 		return err
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
 		vwErr := vm.tryParseErrorMessage(req, resp)

@@ -155,6 +155,7 @@ func (sm *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]S
 	if err != nil {
 		return nil, err
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
 		idxErr := sm.tryParseErrorMessage(&req, resp)
@@ -170,11 +171,6 @@ func (sm *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]S
 	err = jsonDec.Decode(&indexesResp)
 	if err != nil {
 		return nil, err
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
 	}
 
 	indexDefs := indexesResp.IndexDefs.IndexDefs
@@ -221,6 +217,7 @@ func (sm *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOpt
 	if err != nil {
 		return nil, err
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
 		idxErr := sm.tryParseErrorMessage(&req, resp)
@@ -236,11 +233,6 @@ func (sm *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOpt
 	err = jsonDec.Decode(&indexResp)
 	if err != nil {
 		return nil, err
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
 	}
 
 	var indexDef SearchIndex
@@ -301,6 +293,7 @@ func (sm *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Ups
 	if err != nil {
 		return err
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
 		idxErr := sm.tryParseErrorMessage(&req, resp)
@@ -346,6 +339,7 @@ func (sm *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndexO
 	if err != nil {
 		return err
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
 		return makeMgmtBadStatusError("failed to drop the index", &req, resp)
@@ -393,6 +387,7 @@ func (sm *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{},
 	if err != nil {
 		return nil, err
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
 		idxErr := sm.tryParseErrorMessage(&req, resp)
@@ -411,11 +406,6 @@ func (sm *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{},
 	err = jsonDec.Decode(&analysis)
 	if err != nil {
 		return nil, err
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
 	}
 
 	return analysis.Analyzed, nil
@@ -454,6 +444,7 @@ func (sm *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *G
 	if err != nil {
 		return 0, err
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
 		idxErr := sm.tryParseErrorMessage(&req, resp)
@@ -471,11 +462,6 @@ func (sm *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *G
 	err = jsonDec.Decode(&count)
 	if err != nil {
 		return 0, err
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
 	}
 
 	return count.Count, nil
@@ -501,6 +487,7 @@ func (sm *SearchIndexManager) performControlRequest(
 	if err != nil {
 		return err
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
 		idxErr := sm.tryParseErrorMessage(&req, resp)

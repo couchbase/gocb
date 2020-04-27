@@ -2,9 +2,13 @@ package gocb
 
 import (
 	"flag"
+	"log"
 	"os"
+	"runtime"
+	"runtime/pprof"
 	"strings"
 	"testing"
+	"time"
 )
 
 var globalConfig testConfig
@@ -20,6 +24,8 @@ type testConfig struct {
 }
 
 func TestMain(m *testing.M) {
+	initialGoroutineCount := runtime.NumGoroutine()
+
 	server := envFlagString("GOCBSERVER", "server", "",
 		"The connection string to connect to for a real server")
 	user := envFlagString("GOCBUSER", "user", "",
@@ -90,7 +96,28 @@ func TestMain(m *testing.M) {
 	globalConfig.Collection = *collectionName
 	globalConfig.FeatureFlags = featureFlags
 
-	os.Exit(m.Run())
+	result := m.Run()
+
+	// Loop for at most a second checking for goroutines leaks, this gives any HTTP goroutines time to shutdown
+	start := time.Now()
+	var finalGoroutineCount int
+	for time.Now().Sub(start) <= 1*time.Second {
+		runtime.Gosched()
+		finalGoroutineCount = runtime.NumGoroutine()
+		if finalGoroutineCount == initialGoroutineCount {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if finalGoroutineCount != initialGoroutineCount {
+		log.Printf("Detected a goroutine leak (%d before != %d after), failing", initialGoroutineCount, finalGoroutineCount)
+		pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
+		result = 1
+	} else {
+		log.Printf("No goroutines appear to have leaked (%d before == %d after)", initialGoroutineCount, finalGoroutineCount)
+	}
+
+	os.Exit(result)
 }
 
 func envFlagString(envName, name, value, usage string) *string {

@@ -227,6 +227,7 @@ func (bm *BucketManager) get(tracectx requestSpanContext, bucketName string,
 	if err != nil {
 		return nil, makeGenericMgmtError(err, &req, resp)
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
 		bktErr := bm.tryParseErrorMessage(&req, resp)
@@ -242,11 +243,6 @@ func (bm *BucketManager) get(tracectx requestSpanContext, bucketName string,
 	err = jsonDec.Decode(&bucketData)
 	if err != nil {
 		return nil, err
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
 	}
 
 	var settings BucketSettings
@@ -289,6 +285,7 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 	if err != nil {
 		return nil, makeGenericMgmtError(err, &req, resp)
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
 		bktErr := bm.tryParseErrorMessage(&req, resp)
@@ -304,11 +301,6 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 	err = jsonDec.Decode(&bucketsData)
 	if err != nil {
 		return nil, err
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
 	}
 
 	buckets := make(map[string]BucketSettings, len(bucketsData))
@@ -372,6 +364,7 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 202 {
 		bktErr := bm.tryParseErrorMessage(&req, resp)
@@ -380,11 +373,6 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 		}
 
 		return makeMgmtBadStatusError("failed to create bucket", &req, resp)
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
 	}
 
 	return nil
@@ -427,6 +415,7 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
 		bktErr := bm.tryParseErrorMessage(&req, resp)
@@ -435,11 +424,6 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 		}
 
 		return makeMgmtBadStatusError("failed to update bucket", &req, resp)
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
 	}
 
 	return nil
@@ -475,6 +459,7 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
 		bktErr := bm.tryParseErrorMessage(&req, resp)
@@ -483,11 +468,6 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 		}
 
 		return makeMgmtBadStatusError("failed to drop bucket", &req, resp)
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
 	}
 
 	return nil
@@ -524,14 +504,10 @@ func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) erro
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
 		return bm.tryParseFlushErrorMessage(&req, resp)
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
 	}
 
 	return nil

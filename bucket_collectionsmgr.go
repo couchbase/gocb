@@ -111,13 +111,7 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 		}
 		return nil, makeMgmtBadStatusError("failed to get all scopes", &req, resp)
 	}
-
-	defer func() {
-		err = resp.Body.Close()
-		if err != nil {
-			logDebugf("Failed to close socket (%s)", err)
-		}
-	}()
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
 		return nil, makeMgmtBadStatusError("failed to get all scopes", &req, resp)
@@ -215,6 +209,7 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
 		colErr := cm.tryParseErrorMessage(&req, resp)
@@ -270,6 +265,7 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
 		colErr := cm.tryParseErrorMessage(&req, resp)
@@ -326,6 +322,7 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 	if err != nil {
 		return err
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
 		colErr := cm.tryParseErrorMessage(&req, resp)
@@ -373,6 +370,7 @@ func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions)
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
 		colErr := cm.tryParseErrorMessage(&req, resp)

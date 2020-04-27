@@ -142,7 +142,7 @@ type testSearchDataset struct {
 }
 
 func (suite *UnitTestSuite) searchCluster(reader searchRowReader, runFn func(args mock.Arguments)) *Cluster {
-	cluster := clusterFromOptions(ClusterOptions{})
+	cluster := suite.newCluster()
 
 	provider := new(mockSearchProvider)
 	provider.

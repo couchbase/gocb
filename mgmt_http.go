@@ -117,3 +117,10 @@ func (b *Bucket) executeMgmtRequest(req mgmtRequest) (mgmtRespOut *mgmtResponse,
 	}
 	return resp, nil
 }
+
+func ensureBodyClosed(body io.ReadCloser) {
+	err := body.Close()
+	if err != nil {
+		logDebugf("Failed to close socket: %v", err)
+	}
+}

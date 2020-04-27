@@ -294,6 +294,7 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 	if err != nil {
 		return nil, makeGenericMgmtError(err, &req, resp)
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		usrErr := um.tryParseErrorMessage(&req, resp)
@@ -308,11 +309,6 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 	err = jsonDec.Decode(&usersData)
 	if err != nil {
 		return nil, err
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
 	}
 
 	users := make([]UserAndMetadata, len(usersData))
@@ -363,6 +359,7 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 	if err != nil {
 		return nil, makeGenericMgmtError(err, &req, resp)
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		usrErr := um.tryParseErrorMessage(&req, resp)
@@ -377,11 +374,6 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 	err = jsonDec.Decode(&userData)
 	if err != nil {
 		return nil, err
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
 	}
 
 	var user UserAndMetadata
@@ -446,6 +438,7 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		usrErr := um.tryParseErrorMessage(&req, resp)
@@ -494,6 +487,7 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		usrErr := um.tryParseErrorMessage(&req, resp)
@@ -537,6 +531,7 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 	if err != nil {
 		return nil, makeGenericMgmtError(err, &req, resp)
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		usrErr := um.tryParseErrorMessage(&req, resp)
@@ -551,11 +546,6 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 	err = jsonDec.Decode(&roleDatas)
 	if err != nil {
 		return nil, err
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
 	}
 
 	roles := make([]RoleAndDescription, len(roleDatas))
@@ -603,6 +593,7 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 	if err != nil {
 		return nil, makeGenericMgmtError(err, &req, resp)
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		usrErr := um.tryParseErrorMessage(&req, resp)
@@ -617,11 +608,6 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 	err = jsonDec.Decode(&groupData)
 	if err != nil {
 		return nil, err
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
 	}
 
 	var group Group
@@ -664,6 +650,7 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 	if err != nil {
 		return nil, makeGenericMgmtError(err, &req, resp)
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		usrErr := um.tryParseErrorMessage(&req, resp)
@@ -678,11 +665,6 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 	err = jsonDec.Decode(&groupDatas)
 	if err != nil {
 		return nil, err
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		logDebugf("Failed to close socket (%s)", err)
 	}
 
 	groups := make([]Group, len(groupDatas))
@@ -745,6 +727,7 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		usrErr := um.tryParseErrorMessage(&req, resp)
@@ -791,6 +774,7 @@ func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}
+	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		usrErr := um.tryParseErrorMessage(&req, resp)

@@ -200,6 +200,15 @@ func (suite *UnitTestSuite) bucket(name string, timeouts TimeoutsConfig, cli *mo
 
 	return b
 }
+
+func (suite *UnitTestSuite) newCluster() *Cluster {
+	cluster := clusterFromOptions(ClusterOptions{
+		Tracer: &noopTracer{},
+	})
+
+	return cluster
+}
+
 func (suite *UnitTestSuite) mustConvertToBytes(val interface{}) []byte {
 	b, err := json.Marshal(val)
 	suite.Require().Nil(err)

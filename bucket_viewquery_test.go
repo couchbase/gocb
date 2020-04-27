@@ -153,7 +153,7 @@ type testViewDataset struct {
 }
 
 func (suite *UnitTestSuite) viewsBucket(reader viewRowReader, runFn func(args mock.Arguments)) *Bucket {
-	cluster := clusterFromOptions(ClusterOptions{})
+	cluster := suite.newCluster()
 	b := newBucket(&cluster.sb, "mock")
 
 	provider := new(mockViewProvider)

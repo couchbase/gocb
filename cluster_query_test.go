@@ -201,7 +201,7 @@ func (suite *UnitTestSuite) newMockQueryProvider(prepared bool, reader queryRowR
 }
 
 func (suite *UnitTestSuite) queryCluster(prepared bool, reader queryRowReader, runFn func(args mock.Arguments)) *Cluster {
-	cluster := clusterFromOptions(ClusterOptions{})
+	cluster := suite.newCluster()
 
 	queryProvider, call := suite.newMockQueryProvider(prepared, reader)
 	call.Run(runFn)
@@ -401,7 +401,7 @@ func (suite *UnitTestSuite) TestQueryUntypedError() {
 	cli.On("getQueryProvider").Return(queryProvider, nil)
 	cli.On("supportsGCCCP").Return(true)
 
-	cluster := clusterFromOptions(ClusterOptions{})
+	cluster := suite.newCluster()
 	cluster.clusterClient = cli
 
 	result, err := cluster.Query("SELECT * FROM dataset", &QueryOptions{
@@ -428,7 +428,7 @@ func (suite *UnitTestSuite) TestQueryGocbcoreError() {
 	cli.On("getQueryProvider").Return(queryProvider, nil)
 	cli.On("supportsGCCCP").Return(true)
 
-	cluster := clusterFromOptions(ClusterOptions{})
+	cluster := suite.newCluster()
 	cluster.clusterClient = cli
 
 	result, err := cluster.Query("SELECT * FROM dataset", &QueryOptions{
@@ -447,7 +447,7 @@ func (suite *UnitTestSuite) TestQueryGocbcoreError() {
 func (suite *UnitTestSuite) TestQueryTimeoutOption() {
 	reader := new(mockQueryRowReader)
 
-	cluster := clusterFromOptions(ClusterOptions{})
+	cluster := suite.newCluster()
 	statement := "SELECT * FROM dataset"
 
 	queryProvider := new(mockQueryProvider)
@@ -488,7 +488,7 @@ func (suite *UnitTestSuite) TestQueryGCCCPUnsupported() {
 	cli.On("getQueryProvider").Return(queryProvider, nil)
 	cli.On("supportsGCCCP").Return(false)
 
-	cluster := clusterFromOptions(ClusterOptions{})
+	cluster := suite.newCluster()
 	cluster.clusterClient = cli
 
 	_, err := cluster.Query("SELECT * FROM dataset", nil)

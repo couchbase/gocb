@@ -254,7 +254,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryUntypedError() {
 	cli.On("getAnalyticsProvider").Return(analyticsProvider, nil)
 	cli.On("supportsGCCCP").Return(true)
 
-	cluster := clusterFromOptions(ClusterOptions{})
+	cluster := suite.newCluster()
 	cluster.clusterClient = cli
 
 	result, err := cluster.AnalyticsQuery("SELECT * FROM dataset", nil)
@@ -279,7 +279,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryGocbcoreError() {
 	cli.On("getAnalyticsProvider").Return(analyticsProvider, nil)
 	cli.On("supportsGCCCP").Return(true)
 
-	cluster := clusterFromOptions(ClusterOptions{})
+	cluster := suite.newCluster()
 	cluster.clusterClient = cli
 
 	result, err := cluster.AnalyticsQuery("SELECT * FROM dataset", nil)
@@ -296,7 +296,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryGocbcoreError() {
 func (suite *UnitTestSuite) TestAnalyticsQueryPriority() {
 	reader := new(mockAnalyticsRowReader)
 
-	cluster := clusterFromOptions(ClusterOptions{})
+	cluster := suite.newCluster()
 	statement := "SELECT * FROM dataset"
 
 	analyticsProvider := new(mockAnalyticsProvider)
@@ -355,7 +355,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryGCCCPUnsupported() {
 	cli.On("getAnalyticsProvider").Return(analyticsProvider, nil)
 	cli.On("supportsGCCCP").Return(false)
 
-	cluster := clusterFromOptions(ClusterOptions{})
+	cluster := suite.newCluster()
 	cluster.clusterClient = cli
 
 	_, err := cluster.AnalyticsQuery("SELECT * FROM dataset", nil)
@@ -429,7 +429,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryBothParams() {
 		"$cilit":  "bang",
 	}
 
-	cluster := clusterFromOptions(ClusterOptions{})
+	cluster := suite.newCluster()
 
 	analyticsProvider := new(mockAnalyticsProvider)
 
@@ -578,7 +578,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyRequestPlus() {
 func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyInvalid() {
 	statement := "SELECT * FROM dataset"
 
-	cluster := clusterFromOptions(ClusterOptions{})
+	cluster := suite.newCluster()
 
 	analyticsProvider := new(mockAnalyticsProvider)
 
@@ -603,7 +603,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryRandomClient() {
 
 	statement := "SELECT * FROM dataset"
 
-	cluster := clusterFromOptions(ClusterOptions{})
+	cluster := suite.newCluster()
 
 	analyticsProvider := new(mockAnalyticsProvider)
 	analyticsProvider.
@@ -626,7 +626,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryRandomClient() {
 }
 
 func (suite *UnitTestSuite) analyticsCluster(reader analyticsRowReader, runFn func(args mock.Arguments)) *Cluster {
-	cluster := clusterFromOptions(ClusterOptions{})
+	cluster := suite.newCluster()
 
 	analyticsProvider := new(mockAnalyticsProvider)
 	analyticsProvider.

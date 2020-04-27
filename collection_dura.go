@@ -34,6 +34,7 @@ func (c *Collection) observeOnceSeqNo(
 	}, func(res *gocbcore.ObserveVbResult, err error) {
 		if err != nil || res == nil {
 			errOut = opm.EnhanceErr(err)
+			opm.Reject()
 			return
 		}
 
