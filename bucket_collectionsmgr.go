@@ -18,6 +18,7 @@ import (
 type CollectionSpec struct {
 	Name      string
 	ScopeName string
+	MaxExpiry time.Duration
 }
 
 // ScopeSpec describes the specification of a scope.
@@ -193,6 +194,10 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 
 	posts := url.Values{}
 	posts.Add("name", spec.Name)
+
+	if spec.MaxExpiry > 0 {
+		posts.Add("maxTTL", fmt.Sprintf("%f", spec.MaxExpiry.Seconds()))
+	}
 
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,

@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"errors"
+	"time"
 )
 
 func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
@@ -22,6 +23,7 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 	err = mgr.CreateCollection(CollectionSpec{
 		Name:      "testCollection",
 		ScopeName: "testScope",
+		MaxExpiry: 5 * time.Second,
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
