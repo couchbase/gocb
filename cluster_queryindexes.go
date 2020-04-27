@@ -362,7 +362,7 @@ func (qm *QueryIndexManager) getAllIndexes(
 	bucketName string,
 	opts *GetAllQueryIndexesOptions,
 ) ([]QueryIndex, error) {
-	q := "SELECT `indexes`.* FROM system:indexes WHERE keyspace_id=?"
+	q := "SELECT `indexes`.* FROM system:indexes WHERE keyspace_id=? AND `using`=\"gsi\""
 	rows, err := qm.doQuery(q, &QueryOptions{
 		PositionalParameters: []interface{}{bucketName},
 		Readonly:             true,
