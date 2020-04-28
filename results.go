@@ -164,7 +164,13 @@ func (d *GetResult) set(paths []subdocPath, content interface{}, value interface
 		if path.isArray {
 			arr := make([]interface{}, 0)
 			arr = append(arr, value)
-			content.(map[string]interface{})[path.path] = arr
+			if _, ok := content.(map[string]interface{}); ok {
+				content.(map[string]interface{})[path.path] = arr
+			} else if _, ok := content.([]interface{}); ok {
+				content = append(content.([]interface{}), arr)
+			} else {
+				logErrorf("Projections encountered a non-array or object content assigning an array")
+			}
 		} else {
 			if _, ok := content.([]interface{}); ok {
 				elem := make(map[string]interface{})
@@ -178,10 +184,17 @@ func (d *GetResult) set(paths []subdocPath, content interface{}, value interface
 	}
 
 	if path.isArray {
-		if cMap, ok := content.(map[string]interface{}); ok {
+		if _, ok := content.([]interface{}); ok {
+			var m []interface{}
+			content = append(content.([]interface{}), d.set(paths[1:], m, value))
+			return content
+		} else if cMap, ok := content.(map[string]interface{}); ok {
 			cMap[path.path] = make([]interface{}, 0)
 			cMap[path.path] = d.set(paths[1:], cMap[path.path], value)
 			return content
+
+		} else {
+			logErrorf("Projections encountered a non-array or object content assigning an array")
 		}
 	} else {
 		if arr, ok := content.([]interface{}); ok {
