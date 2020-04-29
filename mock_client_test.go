@@ -289,6 +289,20 @@ func (_m *mockClient) setBootstrapError(err error) {
 	_m.Called(err)
 }
 
+// supportsCollections provides a mock function with given fields:
+func (_m *mockClient) supportsCollections() bool {
+	ret := _m.Called()
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
 // supportsGCCCP provides a mock function with given fields:
 func (_m *mockClient) supportsGCCCP() bool {
 	ret := _m.Called()

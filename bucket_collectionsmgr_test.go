@@ -59,3 +59,14 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 		suite.T().Fatalf("Expected DropScope to not error but was %v", err)
 	}
 }
+
+func (suite *IntegrationTestSuite) TestCollectionManagerCrudUnsupported() {
+	if globalCluster.SupportsFeature(CollectionsFeature) {
+		suite.T().Skip("Skipping as collections are supported")
+	}
+
+	mgr := globalBucket.Collections()
+	err := mgr.CreateScope("testScope", nil)
+	suite.Assert().Equal(err, ErrFeatureNotAvailable)
+
+}

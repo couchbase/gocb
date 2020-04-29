@@ -45,9 +45,10 @@ type jsonManifestCollection struct {
 
 // CollectionManager provides methods for performing collections management.
 type CollectionManager struct {
-	mgmtProvider mgmtProvider
-	bucketName   string
-	tracer       requestTracer
+	collectionsSupported bool
+	mgmtProvider         mgmtProvider
+	bucketName           string
+	tracer               requestTracer
 }
 
 func (cm *CollectionManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
@@ -84,6 +85,10 @@ type GetAllScopesOptions struct {
 
 // GetAllScopes gets all scopes from the bucket.
 func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpec, error) {
+	if !cm.collectionsSupported {
+		return nil, ErrFeatureNotAvailable
+	}
+
 	if opts == nil {
 		opts = &GetAllScopesOptions{}
 	}
@@ -170,6 +175,10 @@ type CreateCollectionOptions struct {
 
 // CreateCollection creates a new collection on the bucket.
 func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateCollectionOptions) error {
+	if !cm.collectionsSupported {
+		return ErrFeatureNotAvailable
+	}
+
 	if spec.Name == "" {
 		return makeInvalidArgumentsError("collection name cannot be empty")
 	}
@@ -235,6 +244,10 @@ type DropCollectionOptions struct {
 
 // DropCollection removes a collection.
 func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropCollectionOptions) error {
+	if !cm.collectionsSupported {
+		return ErrFeatureNotAvailable
+	}
+
 	if spec.Name == "" {
 		return makeInvalidArgumentsError("collection name cannot be empty")
 	}
@@ -291,6 +304,10 @@ type CreateScopeOptions struct {
 
 // CreateScope creates a new scope on the bucket.
 func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOptions) error {
+	if !cm.collectionsSupported {
+		return ErrFeatureNotAvailable
+	}
+
 	if scopeName == "" {
 		return makeInvalidArgumentsError("scope name cannot be empty")
 	}
@@ -348,6 +365,10 @@ type DropScopeOptions struct {
 
 // DropScope removes a scope.
 func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions) error {
+	if !cm.collectionsSupported {
+		return ErrFeatureNotAvailable
+	}
+
 	if opts == nil {
 		opts = &DropScopeOptions{}
 	}

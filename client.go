@@ -24,6 +24,7 @@ type client interface {
 	close() error
 	setBootstrapError(err error)
 	supportsGCCCP() bool
+	supportsCollections() bool
 	connected() (bool, error)
 	getBootstrapError() error
 }
@@ -228,6 +229,10 @@ func (c *stdClient) connected() (bool, error) {
 
 func (c *stdClient) supportsGCCCP() bool {
 	return c.agent.UsingGCCCP()
+}
+
+func (c *stdClient) supportsCollections() bool {
+	return c.agent.HasCollectionsSupport()
 }
 
 func (c *stdClient) close() error {

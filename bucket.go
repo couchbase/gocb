@@ -96,10 +96,13 @@ func (b *Bucket) ViewIndexes() *ViewIndexManager {
 
 // Collections provides functions for managing collections.
 func (b *Bucket) Collections() *CollectionManager {
+	cli := b.sb.getCachedClient()
+
 	return &CollectionManager{
-		mgmtProvider: b,
-		bucketName:   b.Name(),
-		tracer:       b.sb.Tracer,
+		collectionsSupported: cli.supportsCollections(),
+		mgmtProvider:         b,
+		bucketName:           b.Name(),
+		tracer:               b.sb.Tracer,
 	}
 }
 
