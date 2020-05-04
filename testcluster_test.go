@@ -169,7 +169,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case AnalyticsFeature:
 			supported = !c.Version.Lower(srvVer600) && !c.Version.Equal(srvVer650DP)
 		case CollectionsFeature:
-			supported = !c.Version.Lower(srvVer700)
+			supported = c.Version.Equal(srvVer650DP) || !c.Version.Lower(srvVer700)
 		case SubdocMockBugFeature:
 			supported = true
 		case ExpandMacrosFeature:

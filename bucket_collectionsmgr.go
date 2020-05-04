@@ -199,7 +199,7 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 	posts.Add("name", spec.Name)
 
 	if spec.MaxExpiry > 0 {
-		posts.Add("maxTTL", fmt.Sprintf("%f", spec.MaxExpiry.Seconds()))
+		posts.Add("maxTTL", fmt.Sprintf("%d", int(spec.MaxExpiry.Seconds())))
 	}
 
 	req := mgmtRequest{

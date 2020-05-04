@@ -94,7 +94,7 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 
 	globalBucket = globalCluster.Bucket(globalConfig.Bucket)
 
-	err = globalBucket.WaitUntilReady(1*time.Second, &WaitUntilReadyOptions{DesiredState: ClusterStateOnline})
+	err = globalBucket.WaitUntilReady(5*time.Second, &WaitUntilReadyOptions{DesiredState: ClusterStateOnline})
 	if err != nil {
 		panic(err.Error())
 	}
