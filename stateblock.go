@@ -26,7 +26,6 @@ type stateBlock struct {
 	ConnectTimeout   time.Duration
 	KvTimeout        time.Duration
 	KvDurableTimeout time.Duration
-	DuraPollTimeout  time.Duration
 
 	QueryTimeout      time.Duration
 	AnalyticsTimeout  time.Duration

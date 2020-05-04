@@ -25,7 +25,6 @@ func newBucket(sb *stateBlock, bucketName string) *Bucket {
 			KvDurableTimeout:  sb.KvDurableTimeout,
 			ViewTimeout:       sb.ViewTimeout,
 			ConnectTimeout:    sb.ConnectTimeout,
-			DuraPollTimeout:   sb.DuraPollTimeout,
 			ManagementTimeout: sb.ManagementTimeout,
 
 			Transcoder: sb.Transcoder,

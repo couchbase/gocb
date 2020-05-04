@@ -193,7 +193,6 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 			ViewTimeout:            viewTimeout,
 			KvTimeout:              kvTimeout,
 			KvDurableTimeout:       kvDurableTimeout,
-			DuraPollTimeout:        100 * time.Millisecond,
 			Transcoder:             opts.Transcoder,
 			UseMutationTokens:      useMutationTokens,
 			ManagementTimeout:      managementTimeout,

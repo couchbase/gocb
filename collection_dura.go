@@ -61,6 +61,9 @@ func (c *Collection) observeOne(
 	sentReplicated := false
 	sentPersisted := false
 
+	calc := gocbcore.ExponentialBackoff(10*time.Microsecond, 100*time.Millisecond, 0)
+	retries := uint32(0)
+
 ObserveLoop:
 	for {
 		select {
@@ -91,7 +94,8 @@ ObserveLoop:
 			break ObserveLoop
 		}
 
-		waitTmr := gocbcore.AcquireTimer(c.sb.DuraPollTimeout)
+		waitTmr := gocbcore.AcquireTimer(calc(retries))
+		retries++
 		select {
 		case <-waitTmr.C:
 			gocbcore.ReleaseTimer(waitTmr, true)
