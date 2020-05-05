@@ -9,7 +9,7 @@ import (
 
 func (suite *UnitTestSuite) TestMutationState_Add() {
 	fakeBucket := &Bucket{}
-	fakeBucket.sb.BucketName = "frank"
+	fakeBucket.bucketName = "frank"
 
 	fakeToken1 := MutationToken{
 		token: gocbcore.MutationToken{
@@ -67,7 +67,7 @@ func (suite *UnitTestSuite) TestMutationState_Add() {
 
 func (suite *UnitTestSuite) TestMutationState_toSeachMutationState() {
 	fakeBucket := &Bucket{}
-	fakeBucket.sb.BucketName = "frank"
+	fakeBucket.bucketName = "frank"
 
 	fakeToken1 := MutationToken{
 		token: gocbcore.MutationToken{

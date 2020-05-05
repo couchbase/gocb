@@ -3,15 +3,38 @@ package gocb
 // Scope represents a single scope within a bucket.
 // VOLATILE: This API is subject to change at any time.
 type Scope struct {
-	sb stateBlock
+	scopeName  string
+	bucketName string
+
+	timeoutsConfig kvTimeoutsConfig
+
+	transcoder           Transcoder
+	retryStrategyWrapper *retryStrategyWrapper
+	tracer               requestTracer
+
+	useMutationTokens bool
+
+	getKvProvider func() (kvProvider, error)
 }
 
 func newScope(bucket *Bucket, scopeName string) *Scope {
-	scope := &Scope{
-		sb: bucket.stateBlock(),
+	return &Scope{
+		scopeName:  scopeName,
+		bucketName: bucket.Name(),
+
+		timeoutsConfig: kvTimeoutsConfig{
+			KVTimeout:        bucket.timeoutsConfig.KVTimeout,
+			KVDurableTimeout: bucket.timeoutsConfig.KVDurableTimeout,
+		},
+
+		transcoder:           bucket.transcoder,
+		retryStrategyWrapper: bucket.retryStrategyWrapper,
+		tracer:               bucket.tracer,
+
+		useMutationTokens: bucket.useMutationTokens,
+
+		getKvProvider: bucket.getKvProvider,
 	}
-	scope.sb.ScopeName = scopeName
-	return scope
 }
 
 func (s *Scope) clone() *Scope {
@@ -21,15 +44,11 @@ func (s *Scope) clone() *Scope {
 
 // Name returns the name of the scope.
 func (s *Scope) Name() string {
-	return s.sb.ScopeName
+	return s.scopeName
 }
 
 // Collection returns an instance of a collection.
 // VOLATILE: This API is subject to change at any time.
 func (s *Scope) Collection(collectionName string) *Collection {
 	return newCollection(s, collectionName)
-}
-
-func (s *Scope) stateBlock() stateBlock {
-	return s.sb
 }

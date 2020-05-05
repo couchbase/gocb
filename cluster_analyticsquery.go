@@ -221,17 +221,17 @@ func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*Ana
 		opts = &AnalyticsOptions{}
 	}
 
-	span := c.sb.Tracer.StartSpan("Query", opts.parentSpan).
+	span := c.tracer.StartSpan("Query", opts.parentSpan).
 		SetTag("couchbase.service", "analytics")
 	defer span.Finish()
 
 	timeout := opts.Timeout
 	if opts.Timeout == 0 {
-		timeout = c.sb.AnalyticsTimeout
+		timeout = c.timeoutsConfig.AnalyticsTimeout
 	}
 	deadline := time.Now().Add(timeout)
 
-	retryStrategy := c.sb.RetryStrategyWrapper
+	retryStrategy := c.retryStrategyWrapper
 	if opts.RetryStrategy != nil {
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}

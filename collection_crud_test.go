@@ -1521,20 +1521,17 @@ func (suite *UnitTestSuite) TestGetErrorCollectionUnknown() {
 	cli.On("getKvProvider").Return(provider, nil)
 
 	col := &Collection{
-		sb: stateBlock{
-			clientStateBlock: clientStateBlock{
-				BucketName: "mock",
-			},
+		bucket:         "mock",
+		collectionName: "",
+		scope:          "",
 
-			CollectionName: "",
-			ScopeName:      "",
-
-			cachedClient:         cli,
-			KvTimeout:            2500 * time.Millisecond,
-			Transcoder:           NewJSONTranscoder(),
-			Tracer:               &noopTracer{},
-			RetryStrategyWrapper: newRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
+		getKvProvider: cli.getKvProvider,
+		timeoutsConfig: kvTimeoutsConfig{
+			KVTimeout: 2500 * time.Millisecond,
 		},
+		transcoder:           NewJSONTranscoder(),
+		tracer:               &noopTracer{},
+		retryStrategyWrapper: newRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
 	}
 
 	res, err := col.Get("getDocErrCollectionUnknown", nil)
@@ -1587,20 +1584,18 @@ func (suite *UnitTestSuite) TestGetErrorProperties() {
 	cli.On("getKvProvider").Return(provider, nil)
 
 	col := &Collection{
-		sb: stateBlock{
-			clientStateBlock: clientStateBlock{
-				BucketName: "mock",
-			},
+		bucket: "mock",
 
-			CollectionName: "",
-			ScopeName:      "",
+		collectionName: "",
+		scope:          "",
 
-			cachedClient:         cli,
-			KvTimeout:            2500 * time.Millisecond,
-			Transcoder:           NewJSONTranscoder(),
-			Tracer:               &noopTracer{},
-			RetryStrategyWrapper: newRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
+		getKvProvider: cli.getKvProvider,
+		timeoutsConfig: kvTimeoutsConfig{
+			KVTimeout: 2500 * time.Millisecond,
 		},
+		transcoder:           NewJSONTranscoder(),
+		tracer:               &noopTracer{},
+		retryStrategyWrapper: newRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
 	}
 
 	res, err := col.Get("someid", nil)

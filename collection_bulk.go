@@ -49,16 +49,16 @@ func (c *Collection) Do(ops []BulkOp, opts *BulkOpOptions) error {
 
 	timeout := opts.Timeout
 	if opts.Timeout == 0 {
-		timeout = c.sb.KvTimeout * time.Duration(len(ops))
+		timeout = c.timeoutsConfig.KVTimeout * time.Duration(len(ops))
 	}
 
-	retryWrapper := c.sb.RetryStrategyWrapper
+	retryWrapper := c.retryStrategyWrapper
 	if opts.RetryStrategy != nil {
 		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
 	if opts.Transcoder == nil {
-		opts.Transcoder = c.sb.Transcoder
+		opts.Transcoder = c.transcoder
 	}
 
 	agent, err := c.getKvProvider()
@@ -223,7 +223,7 @@ func (item *TouchOp) execute(tracectx requestSpanContext, c *Collection, provide
 			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
-					bucketName: c.sb.BucketName,
+					bucketName: c.bucket,
 				}
 				item.Result.mt = mutTok
 			}
@@ -278,7 +278,7 @@ func (item *RemoveOp) execute(tracectx requestSpanContext, c *Collection, provid
 			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
-					bucketName: c.sb.BucketName,
+					bucketName: c.bucket,
 				}
 				item.Result.mt = mutTok
 			}
@@ -347,7 +347,7 @@ func (item *UpsertOp) execute(tracectx requestSpanContext, c *Collection, provid
 			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
-					bucketName: c.sb.BucketName,
+					bucketName: c.bucket,
 				}
 				item.Result.mt = mutTok
 			}
@@ -415,7 +415,7 @@ func (item *InsertOp) execute(tracectx requestSpanContext, c *Collection, provid
 			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
-					bucketName: c.sb.BucketName,
+					bucketName: c.bucket,
 				}
 				item.Result.mt = mutTok
 			}
@@ -485,7 +485,7 @@ func (item *ReplaceOp) execute(tracectx requestSpanContext, c *Collection, provi
 			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
-					bucketName: c.sb.BucketName,
+					bucketName: c.bucket,
 				}
 				item.Result.mt = mutTok
 			}
@@ -540,7 +540,7 @@ func (item *AppendOp) execute(tracectx requestSpanContext, c *Collection, provid
 			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
-					bucketName: c.sb.BucketName,
+					bucketName: c.bucket,
 				}
 				item.Result.mt = mutTok
 			}
@@ -595,7 +595,7 @@ func (item *PrependOp) execute(tracectx requestSpanContext, c *Collection, provi
 			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
-					bucketName: c.sb.BucketName,
+					bucketName: c.bucket,
 				}
 				item.Result.mt = mutTok
 			}
@@ -663,7 +663,7 @@ func (item *IncrementOp) execute(tracectx requestSpanContext, c *Collection, pro
 			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
-					bucketName: c.sb.BucketName,
+					bucketName: c.bucket,
 				}
 				item.Result.mt = mutTok
 			}
@@ -731,7 +731,7 @@ func (item *DecrementOp) execute(tracectx requestSpanContext, c *Collection, pro
 			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
-					bucketName: c.sb.BucketName,
+					bucketName: c.bucket,
 				}
 				item.Result.mt = mutTok
 			}

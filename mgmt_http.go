@@ -41,10 +41,10 @@ func (c *Cluster) executeMgmtRequest(req mgmtRequest) (mgmtRespOut *mgmtResponse
 
 	timeout := req.Timeout
 	if req.Timeout == 0 {
-		timeout = c.sb.ManagementTimeout
+		timeout = c.timeoutsConfig.ManagementTimeout
 	}
 
-	retryStrategy := c.sb.RetryStrategyWrapper
+	retryStrategy := c.retryStrategyWrapper
 	if req.RetryStrategy != nil {
 		retryStrategy = newRetryStrategyWrapper(req.RetryStrategy)
 	}
@@ -77,17 +77,17 @@ func (c *Cluster) executeMgmtRequest(req mgmtRequest) (mgmtRespOut *mgmtResponse
 }
 
 func (b *Bucket) executeMgmtRequest(req mgmtRequest) (mgmtRespOut *mgmtResponse, errOut error) {
-	provider, err := b.sb.getCachedClient().getHTTPProvider()
+	provider, err := b.getCachedClient().getHTTPProvider()
 	if err != nil {
 		return nil, err
 	}
 
 	timeout := req.Timeout
 	if timeout == 0 {
-		timeout = b.sb.ManagementTimeout
+		timeout = b.timeoutsConfig.ManagementTimeout
 	}
 
-	retryStrategy := b.sb.RetryStrategyWrapper
+	retryStrategy := b.retryStrategyWrapper
 	if req.RetryStrategy != nil {
 		retryStrategy = newRetryStrategyWrapper(req.RetryStrategy)
 	}

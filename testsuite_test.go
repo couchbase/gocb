@@ -181,21 +181,19 @@ func (suite *UnitTestSuite) defaultTimeoutConfig() TimeoutsConfig {
 
 func (suite *UnitTestSuite) bucket(name string, timeouts TimeoutsConfig, cli *mockClient) *Bucket {
 	b := &Bucket{
-		sb: stateBlock{
-			clientStateBlock: clientStateBlock{
-				BucketName: name,
-			},
+		bucketName: name,
 
-			KvTimeout:         timeouts.KVTimeout,
-			KvDurableTimeout:  timeouts.KVDurableTimeout,
+		timeoutsConfig: TimeoutsConfig{
+			KVTimeout:         timeouts.KVTimeout,
+			KVDurableTimeout:  timeouts.KVDurableTimeout,
 			AnalyticsTimeout:  timeouts.AnalyticsTimeout,
 			QueryTimeout:      timeouts.QueryTimeout,
 			SearchTimeout:     timeouts.SearchTimeout,
 			ManagementTimeout: timeouts.ManagementTimeout,
 			ViewTimeout:       timeouts.ViewTimeout,
-
-			cachedClient: cli,
 		},
+
+		cachedClient: cli,
 	}
 
 	return b

@@ -137,7 +137,7 @@ func (suite *UnitTestSuite) TestAnalyticsQuery() {
 	cluster = suite.analyticsCluster(reader, func(args mock.Arguments) {
 		opts := args.Get(0).(gocbcore.AnalyticsQueryOptions)
 		suite.Assert().Equal(0, opts.Priority)
-		suite.Assert().Equal(cluster.sb.RetryStrategyWrapper, opts.RetryStrategy)
+		suite.Assert().Equal(cluster.retryStrategyWrapper, opts.RetryStrategy)
 		now := time.Now()
 		if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {
 			suite.Fail("Deadline should have been <75s and >70s but was %s", opts.Deadline)
@@ -330,7 +330,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryTimeoutOption() {
 	cluster = suite.analyticsCluster(reader, func(args mock.Arguments) {
 		opts := args.Get(0).(gocbcore.AnalyticsQueryOptions)
 		suite.Assert().Equal(0, opts.Priority)
-		suite.Assert().Equal(cluster.sb.RetryStrategyWrapper, opts.RetryStrategy)
+		suite.Assert().Equal(cluster.retryStrategyWrapper, opts.RetryStrategy)
 		now := time.Now()
 		if opts.Deadline.Before(now.Add(20*time.Second)) || opts.Deadline.After(now.Add(25*time.Second)) {
 			suite.Fail("Deadline should have been <75s and >70s but was %s", opts.Deadline)

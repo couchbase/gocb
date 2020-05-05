@@ -269,17 +269,17 @@ func (c *Cluster) SearchQuery(indexName string, query cbsearch.Query, opts *Sear
 		opts = &SearchOptions{}
 	}
 
-	span := c.sb.Tracer.StartSpan("SearchQuery", opts.parentSpan).
+	span := c.tracer.StartSpan("SearchQuery", opts.parentSpan).
 		SetTag("couchbase.service", "search")
 	defer span.Finish()
 
 	timeout := opts.Timeout
 	if timeout == 0 {
-		timeout = c.sb.SearchTimeout
+		timeout = c.timeoutsConfig.SearchTimeout
 	}
 	deadline := time.Now().Add(timeout)
 
-	retryStrategy := c.sb.RetryStrategyWrapper
+	retryStrategy := c.retryStrategyWrapper
 	if opts.RetryStrategy != nil {
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}

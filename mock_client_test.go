@@ -9,27 +9,13 @@ type mockClient struct {
 	mock.Mock
 }
 
-// Hash provides a mock function with given fields:
-func (_m *mockClient) Hash() string {
-	ret := _m.Called()
-
-	var r0 string
-	if rf, ok := ret.Get(0).(func() string); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Get(0).(string)
-	}
-
-	return r0
-}
-
-// buildConfig provides a mock function with given fields:
-func (_m *mockClient) buildConfig() error {
-	ret := _m.Called()
+// buildConfig provides a mock function with given fields: cluster, bucket
+func (_m *mockClient) buildConfig(cluster *Cluster, bucket string) error {
+	ret := _m.Called(cluster, bucket)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func() error); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(*Cluster, string) error); ok {
+		r0 = rf(cluster, bucket)
 	} else {
 		r0 = ret.Error(0)
 	}

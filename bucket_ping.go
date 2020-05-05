@@ -89,7 +89,7 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 		opts = &PingOptions{}
 	}
 
-	cli := b.sb.getCachedClient()
+	cli := b.getCachedClient()
 	provider, err := cli.getDiagnosticsProvider()
 	if err != nil {
 		return nil, err
@@ -117,11 +117,11 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 	now := time.Now()
 	timeout := opts.Timeout
 	if timeout == 0 {
-		coreopts.KVDeadline = now.Add(b.sb.KvTimeout)
-		coreopts.CapiDeadline = now.Add(b.sb.ViewTimeout)
-		coreopts.N1QLDeadline = now.Add(b.sb.QueryTimeout)
-		coreopts.CbasDeadline = now.Add(b.sb.AnalyticsTimeout)
-		coreopts.FtsDeadline = now.Add(b.sb.SearchTimeout)
+		coreopts.KVDeadline = now.Add(b.timeoutsConfig.KVTimeout)
+		coreopts.CapiDeadline = now.Add(b.timeoutsConfig.ViewTimeout)
+		coreopts.N1QLDeadline = now.Add(b.timeoutsConfig.QueryTimeout)
+		coreopts.CbasDeadline = now.Add(b.timeoutsConfig.AnalyticsTimeout)
+		coreopts.FtsDeadline = now.Add(b.timeoutsConfig.SearchTimeout)
 	} else {
 		coreopts.KVDeadline = now.Add(timeout)
 		coreopts.CapiDeadline = now.Add(timeout)

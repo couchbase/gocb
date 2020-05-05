@@ -237,17 +237,17 @@ func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResult, err
 		opts = &QueryOptions{}
 	}
 
-	span := c.sb.Tracer.StartSpan("Query", opts.parentSpan).
+	span := c.tracer.StartSpan("Query", opts.parentSpan).
 		SetTag("couchbase.service", "query")
 	defer span.Finish()
 
 	timeout := opts.Timeout
 	if timeout == 0 {
-		timeout = c.sb.QueryTimeout
+		timeout = c.timeoutsConfig.QueryTimeout
 	}
 	deadline := time.Now().Add(timeout)
 
-	retryStrategy := c.sb.RetryStrategyWrapper
+	retryStrategy := c.retryStrategyWrapper
 	if opts.RetryStrategy != nil {
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
@@ -289,7 +289,7 @@ func (c *Cluster) execN1qlQuery(
 		}
 	}
 
-	eSpan := c.sb.Tracer.StartSpan("request_encoding", span.Context())
+	eSpan := c.tracer.StartSpan("request_encoding", span.Context())
 	reqBytes, err := json.Marshal(options)
 	eSpan.Finish()
 	if err != nil {

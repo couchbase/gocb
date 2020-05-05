@@ -104,12 +104,8 @@ func (suite *UnitTestSuite) TestClusterPingAll() {
 	cli.On("getDiagnosticsProvider").Return(pingProvider, nil)
 
 	c := &Cluster{
-		sb: stateBlock{
-			clientStateBlock: clientStateBlock{
-				BucketName: "mock",
-			},
-
-			KvTimeout:        1000 * time.Second,
+		timeoutsConfig: TimeoutsConfig{
+			KVTimeout:        1000 * time.Second,
 			AnalyticsTimeout: 1000 * time.Second,
 			QueryTimeout:     1000 * time.Second,
 			SearchTimeout:    1000 * time.Second,
@@ -193,12 +189,8 @@ func (suite *UnitTestSuite) TestClusterPingOne() {
 	cli.On("getDiagnosticsProvider").Return(pingProvider, nil)
 
 	c := &Cluster{
-		sb: stateBlock{
-			clientStateBlock: clientStateBlock{
-				BucketName: "mock",
-			},
-
-			KvTimeout:        1000 * time.Second,
+		timeoutsConfig: TimeoutsConfig{
+			KVTimeout:        1000 * time.Second,
 			AnalyticsTimeout: 1000 * time.Second,
 			QueryTimeout:     1000 * time.Second,
 			SearchTimeout:    1000 * time.Second,

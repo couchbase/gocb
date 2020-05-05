@@ -24,11 +24,26 @@ type Cluster struct {
 	clusterLock sync.RWMutex
 	queryCache  map[string]*queryCacheEntry
 
-	sb stateBlock
-
 	supportsEnhancedStatements int32
+	supportsGCCCP              bool
 
-	supportsGCCCP bool
+	useServerDurations bool
+	useMutationTokens  bool
+
+	timeoutsConfig TimeoutsConfig
+
+	transcoder           Transcoder
+	retryStrategyWrapper *retryStrategyWrapper
+
+	orphanLoggerEnabled    bool
+	orphanLoggerInterval   time.Duration
+	orphanLoggerSampleSize uint32
+
+	tracer requestTracer
+
+	circuitBreakerConfig CircuitBreakerConfig
+	securityConfig       SecurityConfig
+	internalConfig       InternalConfig
 }
 
 // IoConfig specifies IO related configuration options.
@@ -185,27 +200,27 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 	return &Cluster{
 		auth:        opts.Authenticator,
 		connections: make(map[string]client),
-		sb: stateBlock{
-			ConnectTimeout:         connectTimeout,
-			QueryTimeout:           queryTimeout,
-			AnalyticsTimeout:       analyticsTimeout,
-			SearchTimeout:          searchTimeout,
-			ViewTimeout:            viewTimeout,
-			KvTimeout:              kvTimeout,
-			KvDurableTimeout:       kvDurableTimeout,
-			Transcoder:             opts.Transcoder,
-			UseMutationTokens:      useMutationTokens,
-			ManagementTimeout:      managementTimeout,
-			RetryStrategyWrapper:   newRetryStrategyWrapper(opts.RetryStrategy),
-			OrphanLoggerEnabled:    !opts.OrphanReporterConfig.Disabled,
-			OrphanLoggerInterval:   opts.OrphanReporterConfig.ReportInterval,
-			OrphanLoggerSampleSize: opts.OrphanReporterConfig.SampleSize,
-			UseServerDurations:     useServerDurations,
-			Tracer:                 initialTracer,
-			CircuitBreakerConfig:   opts.CircuitBreakerConfig,
-			SecurityConfig:         opts.SecurityConfig,
-			InternalConfig:         opts.InternalConfig,
+		timeoutsConfig: TimeoutsConfig{
+			ConnectTimeout:    connectTimeout,
+			QueryTimeout:      queryTimeout,
+			AnalyticsTimeout:  analyticsTimeout,
+			SearchTimeout:     searchTimeout,
+			ViewTimeout:       viewTimeout,
+			KVTimeout:         kvTimeout,
+			KVDurableTimeout:  kvDurableTimeout,
+			ManagementTimeout: managementTimeout,
 		},
+		transcoder:             opts.Transcoder,
+		useMutationTokens:      useMutationTokens,
+		retryStrategyWrapper:   newRetryStrategyWrapper(opts.RetryStrategy),
+		orphanLoggerEnabled:    !opts.OrphanReporterConfig.Disabled,
+		orphanLoggerInterval:   opts.OrphanReporterConfig.ReportInterval,
+		orphanLoggerSampleSize: opts.OrphanReporterConfig.SampleSize,
+		useServerDurations:     useServerDurations,
+		tracer:                 initialTracer,
+		circuitBreakerConfig:   opts.CircuitBreakerConfig,
+		securityConfig:         opts.SecurityConfig,
+		internalConfig:         opts.InternalConfig,
 
 		queryCache: make(map[string]*queryCacheEntry),
 	}
@@ -231,11 +246,8 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 		return nil, err
 	}
 
-	csb := &clientStateBlock{
-		BucketName: "",
-	}
-	cli := newClient(cluster, csb)
-	err = cli.buildConfig()
+	cli := newClient()
+	err = cli.buildConfig(cluster, "")
 	if err != nil {
 		return nil, err
 	}
@@ -264,7 +276,7 @@ func (c *Cluster) parseExtraConnStrOptions(spec gocbconnstr.ConnSpec) error {
 		if err != nil {
 			return fmt.Errorf("query_timeout option must be a number")
 		}
-		c.sb.QueryTimeout = time.Duration(val) * time.Millisecond
+		c.timeoutsConfig.QueryTimeout = time.Duration(val) * time.Millisecond
 	}
 
 	if valStr, ok := fetchOption("analytics_timeout"); ok {
@@ -272,7 +284,7 @@ func (c *Cluster) parseExtraConnStrOptions(spec gocbconnstr.ConnSpec) error {
 		if err != nil {
 			return fmt.Errorf("analytics_timeout option must be a number")
 		}
-		c.sb.AnalyticsTimeout = time.Duration(val) * time.Millisecond
+		c.timeoutsConfig.AnalyticsTimeout = time.Duration(val) * time.Millisecond
 	}
 
 	if valStr, ok := fetchOption("search_timeout"); ok {
@@ -280,7 +292,7 @@ func (c *Cluster) parseExtraConnStrOptions(spec gocbconnstr.ConnSpec) error {
 		if err != nil {
 			return fmt.Errorf("search_timeout option must be a number")
 		}
-		c.sb.SearchTimeout = time.Duration(val) * time.Millisecond
+		c.timeoutsConfig.SearchTimeout = time.Duration(val) * time.Millisecond
 	}
 
 	if valStr, ok := fetchOption("view_timeout"); ok {
@@ -288,7 +300,7 @@ func (c *Cluster) parseExtraConnStrOptions(spec gocbconnstr.ConnSpec) error {
 		if err != nil {
 			return fmt.Errorf("view_timeout option must be a number")
 		}
-		c.sb.ViewTimeout = time.Duration(val) * time.Millisecond
+		c.timeoutsConfig.ViewTimeout = time.Duration(val) * time.Millisecond
 	}
 
 	return nil
@@ -296,7 +308,7 @@ func (c *Cluster) parseExtraConnStrOptions(spec gocbconnstr.ConnSpec) error {
 
 // Bucket connects the cluster to server(s) and returns a new Bucket instance.
 func (c *Cluster) Bucket(bucketName string) *Bucket {
-	b := newBucket(&c.sb, bucketName)
+	b := newBucket(c, bucketName)
 
 	c.connectionsLock.Lock()
 	// If the cluster client doesn't support GCCCP then there's no point in keeping this open
@@ -312,7 +324,7 @@ func (c *Cluster) Bucket(bucketName string) *Bucket {
 	c.connectionsLock.Unlock()
 
 	// First we see if a connection already exists for a bucket with this name.
-	cli := c.getClient(&b.sb.clientStateBlock)
+	cli := c.getClient(b.Name())
 	if cli != nil {
 		logDebugf("Sharing bucket level connection %p for %s", cli, bucketName)
 		b.cacheClient(cli)
@@ -321,8 +333,8 @@ func (c *Cluster) Bucket(bucketName string) *Bucket {
 
 	logDebugf("Creating new bucket level connection for %s", bucketName)
 	// A connection doesn't already exist so we need to create a new one.
-	cli = newClient(c, &b.sb.clientStateBlock)
-	err := cli.buildConfig()
+	cli = newClient()
+	err := cli.buildConfig(c, b.Name())
 	if err == nil {
 		err = cli.connect()
 		if err != nil {
@@ -333,18 +345,17 @@ func (c *Cluster) Bucket(bucketName string) *Bucket {
 	}
 
 	c.connectionsLock.Lock()
-	c.connections[b.hash()] = cli
+	c.connections[b.Name()] = cli
 	c.connectionsLock.Unlock()
 	b.cacheClient(cli)
 
 	return b
 }
 
-func (c *Cluster) getClient(sb *clientStateBlock) client {
+func (c *Cluster) getClient(bucketName string) client {
 	c.connectionsLock.Lock()
 
-	hash := sb.Hash()
-	if cli, ok := c.connections[hash]; ok {
+	if cli, ok := c.connections[bucketName]; ok {
 		c.connectionsLock.Unlock()
 		return cli
 	}
@@ -463,9 +474,9 @@ func (c *Cluster) Close(opts *ClusterCloseOptions) error {
 	}
 	c.clusterLock.Unlock()
 
-	if c.sb.Tracer != nil {
-		tracerDecRef(c.sb.Tracer)
-		c.sb.Tracer = nil
+	if c.tracer != nil {
+		tracerDecRef(c.tracer)
+		c.tracer = nil
 	}
 
 	return overallErr
@@ -568,7 +579,7 @@ func (c *Cluster) getHTTPProvider() (httpProvider, error) {
 func (c *Cluster) Users() *UserManager {
 	return &UserManager{
 		provider: c,
-		tracer:   c.sb.Tracer,
+		tracer:   c.tracer,
 	}
 }
 
@@ -576,7 +587,7 @@ func (c *Cluster) Users() *UserManager {
 func (c *Cluster) Buckets() *BucketManager {
 	return &BucketManager{
 		provider: c,
-		tracer:   c.sb.Tracer,
+		tracer:   c.tracer,
 	}
 }
 
@@ -585,8 +596,8 @@ func (c *Cluster) AnalyticsIndexes() *AnalyticsIndexManager {
 	return &AnalyticsIndexManager{
 		aProvider:     c,
 		mgmtProvider:  c,
-		globalTimeout: c.sb.ManagementTimeout,
-		tracer:        c.sb.Tracer,
+		globalTimeout: c.timeoutsConfig.ManagementTimeout,
+		tracer:        c.tracer,
 	}
 }
 
@@ -594,8 +605,8 @@ func (c *Cluster) AnalyticsIndexes() *AnalyticsIndexManager {
 func (c *Cluster) QueryIndexes() *QueryIndexManager {
 	return &QueryIndexManager{
 		provider:      c,
-		globalTimeout: c.sb.ManagementTimeout,
-		tracer:        c.sb.Tracer,
+		globalTimeout: c.timeoutsConfig.ManagementTimeout,
+		tracer:        c.tracer,
 	}
 }
 
@@ -603,6 +614,6 @@ func (c *Cluster) QueryIndexes() *QueryIndexManager {
 func (c *Cluster) SearchIndexes() *SearchIndexManager {
 	return &SearchIndexManager{
 		mgmtProvider: c,
-		tracer:       c.sb.Tracer,
+		tracer:       c.tracer,
 	}
 }

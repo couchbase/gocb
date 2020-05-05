@@ -154,7 +154,7 @@ type testViewDataset struct {
 
 func (suite *UnitTestSuite) viewsBucket(reader viewRowReader, runFn func(args mock.Arguments)) *Bucket {
 	cluster := suite.newCluster()
-	b := newBucket(&cluster.sb, "mock")
+	b := newBucket(cluster, "mock")
 
 	provider := new(mockViewProvider)
 	provider.
@@ -184,7 +184,7 @@ func (suite *UnitTestSuite) TestViewQuery() {
 	var bucket *Bucket
 	bucket = suite.viewsBucket(reader, func(args mock.Arguments) {
 		opts := args.Get(0).(gocbcore.ViewQueryOptions)
-		suite.Assert().Equal(bucket.sb.RetryStrategyWrapper, opts.RetryStrategy)
+		suite.Assert().Equal(bucket.retryStrategyWrapper, opts.RetryStrategy)
 		now := time.Now()
 		if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {
 			suite.Fail("Deadline should have been <75s and >70s but was %s", opts.Deadline)

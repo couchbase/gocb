@@ -9,52 +9,58 @@ import (
 
 // Bucket represents a single bucket within a cluster.
 type Bucket struct {
-	sb stateBlock
+	bucketName string
+
+	timeoutsConfig TimeoutsConfig
+
+	transcoder           Transcoder
+	retryStrategyWrapper *retryStrategyWrapper
+	tracer               requestTracer
+
+	useServerDurations bool
+	useMutationTokens  bool
+
+	cachedClient client
 }
 
-func newBucket(sb *stateBlock, bucketName string) *Bucket {
+func newBucket(c *Cluster, bucketName string) *Bucket {
 	return &Bucket{
-		sb: stateBlock{
-			clientStateBlock: clientStateBlock{
-				BucketName: bucketName,
-			},
-			QueryTimeout:      sb.QueryTimeout,
-			SearchTimeout:     sb.SearchTimeout,
-			AnalyticsTimeout:  sb.AnalyticsTimeout,
-			KvTimeout:         sb.KvTimeout,
-			KvDurableTimeout:  sb.KvDurableTimeout,
-			ViewTimeout:       sb.ViewTimeout,
-			ConnectTimeout:    sb.ConnectTimeout,
-			ManagementTimeout: sb.ManagementTimeout,
+		bucketName: bucketName,
 
-			Transcoder: sb.Transcoder,
+		timeoutsConfig: c.timeoutsConfig,
 
-			RetryStrategyWrapper: sb.RetryStrategyWrapper,
+		transcoder: c.transcoder,
 
-			Tracer: sb.Tracer,
+		retryStrategyWrapper: c.retryStrategyWrapper,
 
-			UseServerDurations: sb.UseServerDurations,
-			UseMutationTokens:  sb.UseMutationTokens,
-		},
+		tracer: c.tracer,
+
+		useServerDurations: c.useServerDurations,
+		useMutationTokens:  c.useMutationTokens,
 	}
 }
 
-func (b *Bucket) hash() string {
-	return b.sb.Hash()
-}
-
 func (b *Bucket) cacheClient(cli client) {
-	b.sb.cacheClient(cli)
+	b.cachedClient = cli
 }
 
-func (b *Bucket) clone() *Bucket {
-	newB := *b
-	return &newB
+func (b *Bucket) getCachedClient() client {
+	return b.cachedClient
+}
+
+func (b *Bucket) getKvProvider() (kvProvider, error) {
+	cli := b.getCachedClient()
+	agent, err := cli.getKvProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return agent, nil
 }
 
 // Name returns the name of the bucket.
 func (b *Bucket) Name() string {
-	return b.sb.BucketName
+	return b.bucketName
 }
 
 // Scope returns an instance of a Scope.
@@ -80,28 +86,24 @@ func (b *Bucket) DefaultCollection() *Collection {
 	return b.DefaultScope().Collection("_default")
 }
 
-func (b *Bucket) stateBlock() stateBlock {
-	return b.sb
-}
-
 // ViewIndexes returns a ViewIndexManager instance for managing views.
 func (b *Bucket) ViewIndexes() *ViewIndexManager {
 	return &ViewIndexManager{
 		mgmtProvider: b,
 		bucketName:   b.Name(),
-		tracer:       b.sb.Tracer,
+		tracer:       b.tracer,
 	}
 }
 
 // Collections provides functions for managing collections.
 func (b *Bucket) Collections() *CollectionManager {
-	cli := b.sb.getCachedClient()
+	cli := b.getCachedClient()
 
 	return &CollectionManager{
 		collectionsSupported: cli.supportsCollections(),
 		mgmtProvider:         b,
 		bucketName:           b.Name(),
-		tracer:               b.sb.Tracer,
+		tracer:               b.tracer,
 	}
 }
 
@@ -113,7 +115,7 @@ func (b *Bucket) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOptio
 		opts = &WaitUntilReadyOptions{}
 	}
 
-	cli := b.sb.getCachedClient()
+	cli := b.getCachedClient()
 	if cli == nil {
 		return errors.New("bucket is not connected")
 	}

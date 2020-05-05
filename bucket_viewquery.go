@@ -135,7 +135,7 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 		opts = &ViewOptions{}
 	}
 
-	span := b.sb.Tracer.StartSpan("ViewQuery", opts.parentSpan).
+	span := b.tracer.StartSpan("ViewQuery", opts.parentSpan).
 		SetTag("couchbase.service", "view")
 	defer span.Finish()
 
@@ -143,11 +143,11 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 
 	timeout := opts.Timeout
 	if timeout == 0 {
-		timeout = b.sb.ViewTimeout
+		timeout = b.timeoutsConfig.ViewTimeout
 	}
 	deadline := time.Now().Add(timeout)
 
-	retryWrapper := b.sb.RetryStrategyWrapper
+	retryWrapper := b.retryStrategyWrapper
 	if opts.RetryStrategy != nil {
 		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
@@ -167,7 +167,7 @@ func (b *Bucket) execViewQuery(
 	deadline time.Time,
 	wrapper *retryStrategyWrapper,
 ) (*ViewResult, error) {
-	cli := b.sb.getCachedClient()
+	cli := b.getCachedClient()
 	provider, err := cli.getViewProvider()
 	if err != nil {
 		return nil, ViewError{

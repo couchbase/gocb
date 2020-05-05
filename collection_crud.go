@@ -624,7 +624,7 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 	// by those functions rather than us.
 	timeout := opts.Timeout
 	if timeout == 0 {
-		timeout = c.sb.KvTimeout
+		timeout = c.timeoutsConfig.KVTimeout
 	}
 
 	deadline := time.Now().Add(timeout)
@@ -720,9 +720,9 @@ func (c *Collection) GetAnyReplica(id string, opts *GetAnyReplicaOptions) (docOu
 	if res == nil {
 		return nil, &KeyValueError{
 			InnerError:     ErrDocumentUnretrievable,
-			BucketName:     c.sb.BucketName,
-			ScopeName:      c.sb.ScopeName,
-			CollectionName: c.sb.CollectionName,
+			BucketName:     c.bucket,
+			ScopeName:      c.scope,
+			CollectionName: c.collectionName,
 		}
 	}
 

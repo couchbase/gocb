@@ -10,9 +10,8 @@ import (
 )
 
 type client interface {
-	Hash() string
 	connect() error
-	buildConfig() error
+	buildConfig(cluster *Cluster, bucket string) error
 	getKvProvider() (kvProvider, error)
 	getViewProvider() (viewProvider, error)
 	getQueryProvider() (queryProvider, error)
@@ -30,67 +29,58 @@ type client interface {
 }
 
 type stdClient struct {
-	cluster      *Cluster
-	state        clientStateBlock
 	lock         sync.Mutex
 	agent        *gocbcore.Agent
 	bootstrapErr error
 	config       *gocbcore.AgentConfig
 }
 
-func newClient(cluster *Cluster, sb *clientStateBlock) *stdClient {
-	client := &stdClient{
-		cluster: cluster,
-		state:   *sb,
-	}
+func newClient() *stdClient {
+	client := &stdClient{}
 	return client
 }
 
-func (c *stdClient) Hash() string {
-	return c.state.Hash()
-}
-
-func (c *stdClient) buildConfig() error {
+func (c *stdClient) buildConfig(cluster *Cluster, bucket string) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	breakerCfg := c.cluster.sb.CircuitBreakerConfig
+	breakerCfg := cluster.circuitBreakerConfig
 
 	var completionCallback func(err error) bool
 	if breakerCfg.CompletionCallback != nil {
 		completionCallback = func(err error) bool {
-			wrappedErr := maybeEnhanceKVErr(err, c.state.BucketName, "", "", "")
+			wrappedErr := maybeEnhanceKVErr(err, bucket, "", "", "")
 			return breakerCfg.CompletionCallback(wrappedErr)
 		}
 	}
 
 	var tlsRootCAProvider func() *x509.CertPool
-	if c.cluster.sb.InternalConfig.TLSRootCAProvider == nil {
+	if cluster.internalConfig.TLSRootCAProvider == nil {
 		tlsRootCAProvider = func() *x509.CertPool {
-			if c.cluster.sb.SecurityConfig.TLSSkipVerify {
+			if cluster.securityConfig.TLSSkipVerify {
 				return nil
 			}
 
-			return c.cluster.sb.SecurityConfig.TLSRootCAs
+			return cluster.securityConfig.TLSRootCAs
 		}
 	} else {
-		tlsRootCAProvider = c.cluster.sb.InternalConfig.TLSRootCAProvider
+		tlsRootCAProvider = cluster.internalConfig.TLSRootCAProvider
 	}
 
 	config := &gocbcore.AgentConfig{
 		UserAgent:              Identifier(),
 		TLSRootCAProvider:      tlsRootCAProvider,
-		ConnectTimeout:         c.cluster.sb.ConnectTimeout,
-		UseMutationTokens:      c.cluster.sb.UseMutationTokens,
+		ConnectTimeout:         cluster.timeoutsConfig.ConnectTimeout,
+		UseMutationTokens:      cluster.useMutationTokens,
 		KVConnectTimeout:       7000 * time.Millisecond,
-		UseDurations:           c.cluster.sb.UseServerDurations,
+		UseDurations:           cluster.useServerDurations,
 		UseCollections:         true,
-		BucketName:             c.state.BucketName,
-		UseZombieLogger:        c.cluster.sb.OrphanLoggerEnabled,
-		ZombieLoggerInterval:   c.cluster.sb.OrphanLoggerInterval,
-		ZombieLoggerSampleSize: int(c.cluster.sb.OrphanLoggerSampleSize),
+		BucketName:             bucket,
+		UseZombieLogger:        cluster.orphanLoggerEnabled,
+		ZombieLoggerInterval:   cluster.orphanLoggerInterval,
+		ZombieLoggerSampleSize: int(cluster.orphanLoggerSampleSize),
 		NoRootTraceSpans:       true,
-		Tracer:                 &requestTracerWrapper{c.cluster.sb.Tracer},
+		Tracer:                 &requestTracerWrapper{cluster.tracer},
 		CircuitBreakerConfig: gocbcore.CircuitBreakerConfig{
 			Enabled:                  !breakerCfg.Disabled,
 			VolumeThreshold:          breakerCfg.VolumeThreshold,
@@ -102,13 +92,13 @@ func (c *stdClient) buildConfig() error {
 		},
 	}
 
-	err := config.FromConnStr(c.cluster.connSpec().String())
+	err := config.FromConnStr(cluster.connSpec().String())
 	if err != nil {
 		return err
 	}
 
 	config.Auth = &coreAuthWrapper{
-		auth: c.cluster.authenticator(),
+		auth: cluster.authenticator(),
 	}
 
 	c.config = config
@@ -120,7 +110,7 @@ func (c *stdClient) connect() error {
 	defer c.lock.Unlock()
 	agent, err := gocbcore.CreateAgent(c.config)
 	if err != nil {
-		return maybeEnhanceKVErr(err, c.state.BucketName, "", "", "")
+		return maybeEnhanceKVErr(err, c.config.BucketName, "", "", "")
 	}
 
 	c.agent = agent

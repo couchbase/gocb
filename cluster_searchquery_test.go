@@ -175,7 +175,7 @@ func (suite *UnitTestSuite) TestSearchQuery() {
 	var cluster *Cluster
 	cluster = suite.searchCluster(reader, func(args mock.Arguments) {
 		opts := args.Get(0).(gocbcore.SearchQueryOptions)
-		suite.Assert().Equal(cluster.sb.RetryStrategyWrapper, opts.RetryStrategy)
+		suite.Assert().Equal(cluster.retryStrategyWrapper, opts.RetryStrategy)
 		now := time.Now()
 		if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {
 			suite.Fail("Deadline should have been <75s and >70s but was %s", opts.Deadline)

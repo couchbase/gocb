@@ -49,9 +49,9 @@ func (c *Cluster) Ping(opts *PingOptions) (*PingResult, error) {
 	now := time.Now()
 	timeout := opts.Timeout
 	if timeout == 0 {
-		coreopts.N1QLDeadline = now.Add(c.sb.QueryTimeout)
-		coreopts.CbasDeadline = now.Add(c.sb.AnalyticsTimeout)
-		coreopts.FtsDeadline = now.Add(c.sb.SearchTimeout)
+		coreopts.N1QLDeadline = now.Add(c.timeoutsConfig.QueryTimeout)
+		coreopts.CbasDeadline = now.Add(c.timeoutsConfig.AnalyticsTimeout)
+		coreopts.FtsDeadline = now.Add(c.timeoutsConfig.SearchTimeout)
 	} else {
 		coreopts.N1QLDeadline = now.Add(timeout)
 		coreopts.CbasDeadline = now.Add(timeout)
