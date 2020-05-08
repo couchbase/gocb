@@ -73,3 +73,146 @@ func (suite *IntegrationTestSuite) TestUpsertGetBulk() {
 		}
 	}
 }
+func (suite *IntegrationTestSuite) TestInsertDocsBulk() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
+	var ops []BulkOp
+	for i := 0; i < 20; i++ {
+		ops = append(ops, &InsertOp{
+			ID:     fmt.Sprintf("insert-docs-bulk-%d", i),
+			Value:  "test",
+			Expiry: 20,
+		})
+	}
+
+	err := globalCollection.Do(ops, nil)
+	if err != nil {
+		suite.T().Fatalf("Expected Do to not error for inserts %v", err)
+	}
+
+	for _, op := range ops {
+		insertOp, ok := op.(*InsertOp)
+		if !ok {
+			suite.T().Fatalf("Could not type assert BulkOp into InsertOp")
+		}
+
+		if insertOp.Err != nil {
+			suite.T().Fatalf("Expected UpsertOp Err to be nil but was %v", insertOp.Err)
+		}
+
+	}
+}
+
+func (suite *IntegrationTestSuite) TestReplaceOperationBulk() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
+	var ops []BulkOp
+	for i := 0; i < 20; i++ {
+		ops = append(ops, &UpsertOp{
+			ID:     fmt.Sprintf("replace-docs-bulk-%d", i),
+			Value:  "test",
+			Expiry: 20,
+		})
+	}
+
+	err := globalCollection.Do(ops, nil)
+	if err != nil {
+		suite.T().Fatalf("Expected Do to not error for upserts %v", err)
+	}
+
+	for _, op := range ops {
+		upsertOp, ok := op.(*UpsertOp)
+		if !ok {
+			suite.T().Fatalf("Could not type assert BulkOp into UpsertOp")
+		}
+
+		if upsertOp.Err != nil {
+			suite.T().Fatalf("Expected UpsertOp Err to be nil but was %v", upsertOp.Err)
+		}
+
+	}
+
+	var replaceOps []BulkOp
+	for i := 0; i < 20; i++ {
+		replaceOps = append(replaceOps, &ReplaceOp{
+			ID: fmt.Sprintf("replace-docs-bulk-%d", i),
+		})
+	}
+
+	err = globalCollection.Do(replaceOps, nil)
+	if err != nil {
+		suite.T().Fatalf("Expected Do to not error for replace %v", err)
+	}
+
+	for _, op := range replaceOps {
+		replaceOp, ok := op.(*ReplaceOp)
+		if !ok {
+			suite.T().Fatalf("Could not type assert BulkOp into ReplaceOp")
+		}
+
+		if replaceOp.Err != nil {
+			suite.T().Fatalf("Expected UpsertOp Err to be nil but was %v", replaceOp.Err)
+		}
+
+	}
+}
+
+func (suite *IntegrationTestSuite) TestRemoveOperationBulk() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
+	var ops []BulkOp
+	for i := 0; i < 20; i++ {
+		ops = append(ops, &UpsertOp{
+			ID:     fmt.Sprintf("remove-docs-bulk-%d", i),
+			Value:  "test",
+			Expiry: 20,
+		})
+	}
+
+	err := globalCollection.Do(ops, nil)
+	if err != nil {
+		suite.T().Fatalf("Expected Do to not error for upserts %v", err)
+	}
+
+	for _, op := range ops {
+		upsertOp, ok := op.(*UpsertOp)
+		if !ok {
+			suite.T().Fatalf("Could not type assert BulkOp into UpsertOp")
+		}
+
+		if upsertOp.Err != nil {
+			suite.T().Fatalf("Expected UpsertOp Err to be nil but was %v", upsertOp.Err)
+		}
+
+		if upsertOp.Result.Cas() == 0 {
+			suite.T().Fatalf("Expected UpsertOp Cas to be non zero")
+		}
+	}
+
+	var removeOps []BulkOp
+	for i := 0; i < 20; i++ {
+		removeOps = append(removeOps, &RemoveOp{
+			ID: fmt.Sprintf("remove-docs-bulk-%d", i),
+		})
+	}
+
+	err = globalCollection.Do(removeOps, nil)
+	if err != nil {
+		suite.T().Fatalf("Expected Do to not error for removeops %v", err)
+	}
+
+	for _, op := range removeOps {
+		removeOp, ok := op.(*RemoveOp)
+		if !ok {
+			suite.T().Fatalf("Could not type assert BulkOp into RemoveOp")
+		}
+
+		if removeOp.Err != nil {
+			suite.T().Fatalf("Expected RemoveOp Err to be nil but was %v", removeOp.Err)
+		}
+
+		if removeOp.Result.Cas() == 0 {
+			suite.T().Fatalf("Expected RemoveOp Cas to be non zero")
+		}
+	}
+}
