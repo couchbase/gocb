@@ -4,7 +4,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"strconv"
-	"sync"
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v9"
@@ -17,15 +16,7 @@ type Cluster struct {
 	cSpec gocbconnstr.ConnSpec
 	auth  Authenticator
 
-	connectionsLock sync.RWMutex
-	connections     map[string]client
-	clusterClient   client
-
-	clusterLock sync.RWMutex
-	queryCache  map[string]*queryCacheEntry
-
-	supportsEnhancedStatements int32
-	supportsGCCCP              bool
+	connectionManager connectionManager
 
 	useServerDurations bool
 	useMutationTokens  bool
@@ -198,8 +189,7 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 	tracerAddRef(initialTracer)
 
 	return &Cluster{
-		auth:        opts.Authenticator,
-		connections: make(map[string]client),
+		auth: opts.Authenticator,
 		timeoutsConfig: TimeoutsConfig{
 			ConnectTimeout:    connectTimeout,
 			QueryTimeout:      queryTimeout,
@@ -221,8 +211,6 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 		circuitBreakerConfig:   opts.CircuitBreakerConfig,
 		securityConfig:         opts.SecurityConfig,
 		internalConfig:         opts.InternalConfig,
-
-		queryCache: make(map[string]*queryCacheEntry),
 	}
 }
 
@@ -246,8 +234,8 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 		return nil, err
 	}
 
-	cli := newClient()
-	err = cli.buildConfig(cluster, "")
+	cli := newConnectionMgr()
+	err = cli.buildConfig(cluster)
 	if err != nil {
 		return nil, err
 	}
@@ -256,8 +244,7 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 	if err != nil {
 		return nil, err
 	}
-	cluster.clusterClient = cli
-	cluster.supportsGCCCP = cli.supportsGCCCP()
+	cluster.connectionManager = cli
 
 	return cluster, nil
 }
@@ -309,97 +296,12 @@ func (c *Cluster) parseExtraConnStrOptions(spec gocbconnstr.ConnSpec) error {
 // Bucket connects the cluster to server(s) and returns a new Bucket instance.
 func (c *Cluster) Bucket(bucketName string) *Bucket {
 	b := newBucket(c, bucketName)
-
-	c.connectionsLock.Lock()
-	// If the cluster client doesn't support GCCCP then there's no point in keeping this open
-	if c.clusterClient != nil && !c.clusterClient.supportsGCCCP() {
-		logDebugf("Shutting down cluster level client")
-		err := c.clusterClient.close()
-		if err != nil {
-			logWarnf("Failed to close the cluster level client: %s", err)
-		}
-		c.clusterClient = nil
-		logDebugf("Shut down cluster level client")
+	err := c.connectionManager.openBucket(bucketName)
+	if err != nil {
+		b.setBootstrapError(err)
 	}
-	c.connectionsLock.Unlock()
-
-	// First we see if a connection already exists for a bucket with this name.
-	cli := c.getClient(b.Name())
-	if cli != nil {
-		logDebugf("Sharing bucket level connection %p for %s", cli, bucketName)
-		b.cacheClient(cli)
-		return b
-	}
-
-	logDebugf("Creating new bucket level connection for %s", bucketName)
-	// A connection doesn't already exist so we need to create a new one.
-	cli = newClient()
-	err := cli.buildConfig(c, b.Name())
-	if err == nil {
-		err = cli.connect()
-		if err != nil {
-			cli.setBootstrapError(err)
-		}
-	} else {
-		cli.setBootstrapError(err)
-	}
-
-	c.connectionsLock.Lock()
-	c.connections[b.Name()] = cli
-	c.connectionsLock.Unlock()
-	b.cacheClient(cli)
 
 	return b
-}
-
-func (c *Cluster) getClient(bucketName string) client {
-	c.connectionsLock.Lock()
-
-	if cli, ok := c.connections[bucketName]; ok {
-		c.connectionsLock.Unlock()
-		return cli
-	}
-	c.connectionsLock.Unlock()
-
-	return nil
-}
-
-func (c *Cluster) randomClient() (client, error) {
-	c.connectionsLock.RLock()
-	if len(c.connections) == 0 {
-		c.connectionsLock.RUnlock()
-		return nil, errors.New("not connected to cluster")
-	}
-	var randomClient client
-	var firstError error
-	for _, c := range c.connections { // This is ugly
-		err := c.getBootstrapError()
-		if err != nil {
-			if firstError == nil {
-				firstError = c.getBootstrapError()
-			}
-		} else {
-			connected, err := c.connected()
-			if err != nil {
-				if firstError == nil {
-					firstError = err
-				}
-			} else if connected {
-				randomClient = c
-				break
-			}
-		}
-	}
-	c.connectionsLock.RUnlock()
-	if randomClient == nil {
-		if firstError == nil {
-			return nil, errors.New("not connected to cluster")
-		}
-
-		return nil, firstError
-	}
-
-	return randomClient, nil
 }
 
 func (c *Cluster) authenticator() Authenticator {
@@ -423,12 +325,12 @@ func (c *Cluster) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOpti
 		opts = &WaitUntilReadyOptions{}
 	}
 
-	cli := c.clusterClient
+	cli := c.connectionManager
 	if cli == nil {
 		return errors.New("cluster is not connected")
 	}
 
-	provider, err := cli.getWaitUntilReadyProvider()
+	provider, err := cli.getWaitUntilReadyProvider("")
 	if err != nil {
 		return err
 	}
@@ -455,24 +357,13 @@ func (c *Cluster) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOpti
 func (c *Cluster) Close(opts *ClusterCloseOptions) error {
 	var overallErr error
 
-	c.clusterLock.Lock()
-	for key, conn := range c.connections {
-		err := conn.close()
+	if c.connectionManager != nil {
+		err := c.connectionManager.close()
 		if err != nil {
-			logWarnf("Failed to close a client in cluster close: %s", err)
-			overallErr = err
-		}
-
-		delete(c.connections, key)
-	}
-	if c.clusterClient != nil {
-		err := c.clusterClient.close()
-		if err != nil {
-			logWarnf("Failed to close cluster client in cluster close: %s", err)
+			logWarnf("Failed to close cluster connectionManager in cluster close: %s", err)
 			overallErr = err
 		}
 	}
-	c.clusterLock.Unlock()
 
 	if c.tracer != nil {
 		tracerDecRef(c.tracer)
@@ -482,36 +373,8 @@ func (c *Cluster) Close(opts *ClusterCloseOptions) error {
 	return overallErr
 }
 
-func (c *Cluster) clusterOrRandomClient() (client, error) {
-	var cli client
-	c.connectionsLock.RLock()
-	if c.clusterClient == nil {
-		c.connectionsLock.RUnlock()
-		var err error
-		cli, err = c.randomClient()
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		cli = c.clusterClient
-		c.connectionsLock.RUnlock()
-		if !cli.supportsGCCCP() {
-			return nil, errors.New("the cluster does not support cluster-level queries " +
-				"(only Couchbase Server 6.5 and later) and no bucket is open. If an older Couchbase Server version " +
-				"is used, at least one bucket needs to be opened")
-		}
-	}
-
-	return cli, nil
-}
-
 func (c *Cluster) getDiagnosticsProvider() (diagnosticsProvider, error) {
-	cli, err := c.clusterOrRandomClient()
-	if err != nil {
-		return nil, err
-	}
-
-	provider, err := cli.getDiagnosticsProvider()
+	provider, err := c.connectionManager.getDiagnosticsProvider("")
 	if err != nil {
 		return nil, err
 	}
@@ -520,12 +383,7 @@ func (c *Cluster) getDiagnosticsProvider() (diagnosticsProvider, error) {
 }
 
 func (c *Cluster) getQueryProvider() (queryProvider, error) {
-	cli, err := c.clusterOrRandomClient()
-	if err != nil {
-		return nil, err
-	}
-
-	provider, err := cli.getQueryProvider()
+	provider, err := c.connectionManager.getQueryProvider()
 	if err != nil {
 		return nil, err
 	}
@@ -534,12 +392,7 @@ func (c *Cluster) getQueryProvider() (queryProvider, error) {
 }
 
 func (c *Cluster) getAnalyticsProvider() (analyticsProvider, error) {
-	cli, err := c.clusterOrRandomClient()
-	if err != nil {
-		return nil, err
-	}
-
-	provider, err := cli.getAnalyticsProvider()
+	provider, err := c.connectionManager.getAnalyticsProvider()
 	if err != nil {
 		return nil, err
 	}
@@ -548,12 +401,7 @@ func (c *Cluster) getAnalyticsProvider() (analyticsProvider, error) {
 }
 
 func (c *Cluster) getSearchProvider() (searchProvider, error) {
-	cli, err := c.clusterOrRandomClient()
-	if err != nil {
-		return nil, err
-	}
-
-	provider, err := cli.getSearchProvider()
+	provider, err := c.connectionManager.getSearchProvider()
 	if err != nil {
 		return nil, err
 	}
@@ -562,12 +410,7 @@ func (c *Cluster) getSearchProvider() (searchProvider, error) {
 }
 
 func (c *Cluster) getHTTPProvider() (httpProvider, error) {
-	cli, err := c.clusterOrRandomClient()
-	if err != nil {
-		return nil, err
-	}
-
-	provider, err := cli.getHTTPProvider()
+	provider, err := c.connectionManager.getHTTPProvider()
 	if err != nil {
 		return nil, err
 	}

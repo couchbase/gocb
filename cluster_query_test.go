@@ -201,16 +201,13 @@ func (suite *UnitTestSuite) newMockQueryProvider(prepared bool, reader queryRowR
 }
 
 func (suite *UnitTestSuite) queryCluster(prepared bool, reader queryRowReader, runFn func(args mock.Arguments)) *Cluster {
-	cluster := suite.newCluster()
-
 	queryProvider, call := suite.newMockQueryProvider(prepared, reader)
 	call.Run(runFn)
 
-	cli := new(mockClient)
+	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
-	cli.On("supportsGCCCP").Return(true)
 
-	cluster.clusterClient = cli
+	cluster := suite.newCluster(cli)
 
 	return cluster
 }
@@ -397,12 +394,10 @@ func (suite *UnitTestSuite) TestQueryUntypedError() {
 		On("N1QLQuery", mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
 		Return(nil, retErr)
 
-	cli := new(mockClient)
+	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
-	cli.On("supportsGCCCP").Return(true)
 
-	cluster := suite.newCluster()
-	cluster.clusterClient = cli
+	cluster := suite.newCluster(cli)
 
 	result, err := cluster.Query("SELECT * FROM dataset", &QueryOptions{
 		Adhoc: true,
@@ -424,12 +419,10 @@ func (suite *UnitTestSuite) TestQueryGocbcoreError() {
 		On("N1QLQuery", mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
 		Return(nil, retErr)
 
-	cli := new(mockClient)
+	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
-	cli.On("supportsGCCCP").Return(true)
 
-	cluster := suite.newCluster()
-	cluster.clusterClient = cli
+	cluster := suite.newCluster(cli)
 
 	result, err := cluster.Query("SELECT * FROM dataset", &QueryOptions{
 		Adhoc: true,
@@ -447,7 +440,7 @@ func (suite *UnitTestSuite) TestQueryGocbcoreError() {
 func (suite *UnitTestSuite) TestQueryTimeoutOption() {
 	reader := new(mockQueryRowReader)
 
-	cluster := suite.newCluster()
+	cluster := suite.newCluster(nil)
 	statement := "SELECT * FROM dataset"
 
 	queryProvider := new(mockQueryProvider)
@@ -463,11 +456,10 @@ func (suite *UnitTestSuite) TestQueryTimeoutOption() {
 		}).
 		Return(reader, nil)
 
-	cli := new(mockClient)
+	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
-	cli.On("supportsGCCCP").Return(true)
 
-	cluster.clusterClient = cli
+	cluster.connectionManager = cli
 
 	result, err := cluster.Query(statement, &QueryOptions{
 		Timeout: 25 * time.Second,
@@ -475,24 +467,6 @@ func (suite *UnitTestSuite) TestQueryTimeoutOption() {
 	})
 	suite.Require().Nil(err)
 	suite.Require().NotNil(result)
-}
-
-func (suite *UnitTestSuite) TestQueryGCCCPUnsupported() {
-	retErr := errors.New("an error")
-	queryProvider := new(mockQueryProvider)
-	queryProvider.
-		On("N1QLQuery", mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
-		Return(nil, retErr)
-
-	cli := new(mockClient)
-	cli.On("getQueryProvider").Return(queryProvider, nil)
-	cli.On("supportsGCCCP").Return(false)
-
-	cluster := suite.newCluster()
-	cluster.clusterClient = cli
-
-	_, err := cluster.Query("SELECT * FROM dataset", nil)
-	suite.Require().NotNil(err)
 }
 
 func (suite *UnitTestSuite) TestQueryNamedParams() {

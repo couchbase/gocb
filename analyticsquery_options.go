@@ -19,7 +19,7 @@ const (
 
 // AnalyticsOptions is the set of options available to an Analytics query.
 type AnalyticsOptions struct {
-	// ClientContextID provides a unique ID for this query which can be used matching up requests between client and
+	// ClientContextID provides a unique ID for this query which can be used matching up requests between connectionManager and
 	// server. If not provided will be assigned a uuid value.
 	ClientContextID string
 

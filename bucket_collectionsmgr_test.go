@@ -60,17 +60,6 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 	}
 }
 
-func (suite *IntegrationTestSuite) TestCollectionManagerCrudUnsupported() {
-	if globalCluster.SupportsFeature(CollectionsFeature) {
-		suite.T().Skip("Skipping as collections are supported")
-	}
-
-	mgr := globalBucket.Collections()
-	err := mgr.CreateScope("testScope", nil)
-	suite.Assert().Equal(err, ErrFeatureNotAvailable)
-
-}
-
 func (suite *IntegrationTestSuite) TestDropNonExistentScope() {
 	suite.skipIfUnsupported(CollectionsFeature)
 

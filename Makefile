@@ -42,7 +42,7 @@ updatetestcases:
 	git submodule update --remote --init --recursive
 
 updatemocks:
-	mockery -name client -output . -testonly -inpkg
+	mockery -name connectionManager -output . -testonly -inpkg
 	mockery -name kvProvider -output . -testonly -inpkg
 	mockery -name httpProvider -output . -testonly -inpkg
 	mockery -name diagnosticsProvider -output . -testonly -inpkg

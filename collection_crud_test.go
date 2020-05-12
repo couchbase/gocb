@@ -1513,15 +1513,12 @@ func (suite *UnitTestSuite) TestGetErrorCollectionUnknown() {
 		}).
 		Return(pendingOp, nil)
 
-	cli := new(mockClient)
-	cli.On("getKvProvider").Return(provider, nil)
-
 	col := &Collection{
 		bucket:         "mock",
 		collectionName: "",
 		scope:          "",
 
-		getKvProvider: cli.getKvProvider,
+		getKvProvider: suite.kvProvider(provider, nil),
 		timeoutsConfig: kvTimeoutsConfig{
 			KVTimeout: 2500 * time.Millisecond,
 		},
@@ -1576,16 +1573,13 @@ func (suite *UnitTestSuite) TestGetErrorProperties() {
 		}).
 		Return(pendingOp, nil)
 
-	cli := new(mockClient)
-	cli.On("getKvProvider").Return(provider, nil)
-
 	col := &Collection{
 		bucket: "mock",
 
 		collectionName: "",
 		scope:          "",
 
-		getKvProvider: cli.getKvProvider,
+		getKvProvider: suite.kvProvider(provider, nil),
 		timeoutsConfig: kvTimeoutsConfig{
 			KVTimeout: 2500 * time.Millisecond,
 		},

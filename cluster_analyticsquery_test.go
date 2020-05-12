@@ -250,12 +250,10 @@ func (suite *UnitTestSuite) TestAnalyticsQueryUntypedError() {
 		On("AnalyticsQuery", mock.AnythingOfType("gocbcore.AnalyticsQueryOptions")).
 		Return(nil, retErr)
 
-	cli := new(mockClient)
+	cli := new(mockConnectionManager)
 	cli.On("getAnalyticsProvider").Return(analyticsProvider, nil)
-	cli.On("supportsGCCCP").Return(true)
 
-	cluster := suite.newCluster()
-	cluster.clusterClient = cli
+	cluster := suite.newCluster(cli)
 
 	result, err := cluster.AnalyticsQuery("SELECT * FROM dataset", nil)
 	suite.Require().Equal(retErr, err)
@@ -275,12 +273,10 @@ func (suite *UnitTestSuite) TestAnalyticsQueryGocbcoreError() {
 		On("AnalyticsQuery", mock.AnythingOfType("gocbcore.AnalyticsQueryOptions")).
 		Return(nil, retErr)
 
-	cli := new(mockClient)
+	cli := new(mockConnectionManager)
 	cli.On("getAnalyticsProvider").Return(analyticsProvider, nil)
-	cli.On("supportsGCCCP").Return(true)
 
-	cluster := suite.newCluster()
-	cluster.clusterClient = cli
+	cluster := suite.newCluster(cli)
 
 	result, err := cluster.AnalyticsQuery("SELECT * FROM dataset", nil)
 	suite.Require().IsType(&AnalyticsError{}, err)
@@ -296,7 +292,6 @@ func (suite *UnitTestSuite) TestAnalyticsQueryGocbcoreError() {
 func (suite *UnitTestSuite) TestAnalyticsQueryPriority() {
 	reader := new(mockAnalyticsRowReader)
 
-	cluster := suite.newCluster()
 	statement := "SELECT * FROM dataset"
 
 	analyticsProvider := new(mockAnalyticsProvider)
@@ -308,11 +303,10 @@ func (suite *UnitTestSuite) TestAnalyticsQueryPriority() {
 		}).
 		Return(reader, nil)
 
-	cli := new(mockClient)
+	cli := new(mockConnectionManager)
 	cli.On("getAnalyticsProvider").Return(analyticsProvider, nil)
-	cli.On("supportsGCCCP").Return(true)
 
-	cluster.clusterClient = cli
+	cluster := suite.newCluster(cli)
 
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		Priority: true,
@@ -351,12 +345,10 @@ func (suite *UnitTestSuite) TestAnalyticsQueryGCCCPUnsupported() {
 		On("AnalyticsQuery", mock.AnythingOfType("gocbcore.AnalyticsQueryOptions")).
 		Return(nil, retErr)
 
-	cli := new(mockClient)
+	cli := new(mockConnectionManager)
 	cli.On("getAnalyticsProvider").Return(analyticsProvider, nil)
-	cli.On("supportsGCCCP").Return(false)
 
-	cluster := suite.newCluster()
-	cluster.clusterClient = cli
+	cluster := suite.newCluster(cli)
 
 	_, err := cluster.AnalyticsQuery("SELECT * FROM dataset", nil)
 	suite.Require().NotNil(err)
@@ -429,15 +421,12 @@ func (suite *UnitTestSuite) TestAnalyticsQueryBothParams() {
 		"$cilit":  "bang",
 	}
 
-	cluster := suite.newCluster()
-
 	analyticsProvider := new(mockAnalyticsProvider)
 
-	cli := new(mockClient)
+	cli := new(mockConnectionManager)
 	cli.On("getAnalyticsProvider").Return(analyticsProvider, nil)
-	cli.On("supportsGCCCP").Return(true)
 
-	cluster.clusterClient = cli
+	cluster := suite.newCluster(cli)
 
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		PositionalParameters: params,
@@ -578,15 +567,12 @@ func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyRequestPlus() {
 func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyInvalid() {
 	statement := "SELECT * FROM dataset"
 
-	cluster := suite.newCluster()
-
 	analyticsProvider := new(mockAnalyticsProvider)
 
-	cli := new(mockClient)
+	cli := new(mockConnectionManager)
 	cli.On("getAnalyticsProvider").Return(analyticsProvider, nil)
-	cli.On("supportsGCCCP").Return(true)
 
-	cluster.clusterClient = cli
+	cluster := suite.newCluster(cli)
 
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		ScanConsistency: 5,
@@ -598,47 +584,17 @@ func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyInvalid() {
 	analyticsProvider.AssertNotCalled(suite.T(), "AnalyticsQuery")
 }
 
-func (suite *UnitTestSuite) TestAnalyticsQueryRandomClient() {
-	reader := new(mockAnalyticsRowReader)
-
-	statement := "SELECT * FROM dataset"
-
-	cluster := suite.newCluster()
-
-	analyticsProvider := new(mockAnalyticsProvider)
-	analyticsProvider.
-		On("AnalyticsQuery", mock.AnythingOfType("gocbcore.AnalyticsQueryOptions")).
-		Return(reader, nil)
-
-	cli := new(mockClient)
-	cli.On("getAnalyticsProvider").Return(analyticsProvider, nil)
-	cli.On("getBootstrapError").Return(nil)
-	cli.On("connected").Return(true, nil)
-
-	cluster.clusterClient = nil
-	cluster.connections = map[string]client{"mock": cli}
-
-	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
-		Readonly: true,
-	})
-	suite.Require().Nil(err)
-	suite.Require().NotNil(result)
-}
-
 func (suite *UnitTestSuite) analyticsCluster(reader analyticsRowReader, runFn func(args mock.Arguments)) *Cluster {
-	cluster := suite.newCluster()
-
 	analyticsProvider := new(mockAnalyticsProvider)
 	analyticsProvider.
 		On("AnalyticsQuery", mock.AnythingOfType("gocbcore.AnalyticsQueryOptions")).
 		Run(runFn).
 		Return(reader, nil)
 
-	cli := new(mockClient)
+	cli := new(mockConnectionManager)
 	cli.On("getAnalyticsProvider").Return(analyticsProvider, nil)
-	cli.On("supportsGCCCP").Return(true)
 
-	cluster.clusterClient = cli
+	cluster := suite.newCluster(cli)
 
 	return cluster
 }

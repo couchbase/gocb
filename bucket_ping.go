@@ -89,8 +89,7 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 		opts = &PingOptions{}
 	}
 
-	cli := b.getCachedClient()
-	provider, err := cli.getDiagnosticsProvider()
+	provider, err := b.connectionManager.getDiagnosticsProvider(b.bucketName)
 	if err != nil {
 		return nil, err
 	}

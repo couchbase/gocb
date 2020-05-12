@@ -46,16 +46,11 @@ func (suite *UnitTestSuite) TestDiagnostics() {
 		On("Diagnostics", mock.AnythingOfType("gocbcore.DiagnosticsOptions")).
 		Return(info, nil)
 
-	cli := new(mockClient)
-	cli.On("getDiagnosticsProvider").Return(provider, nil)
-	cli.On("getBootstrapError").Return(nil)
-	cli.On("connected").Return(true, nil)
-
-	clients := make(map[string]client)
-	clients["mock-false"] = cli
+	cli := new(mockConnectionManager)
+	cli.On("getDiagnosticsProvider", "").Return(provider, nil)
 
 	c := &Cluster{
-		connections: clients,
+		connectionManager: cli,
 	}
 
 	report, err := c.Diagnostics(nil)
@@ -172,16 +167,11 @@ func (suite *UnitTestSuite) TestDiagnosticsWithID() {
 			ConfigRev: 1,
 		}, nil)
 
-	cli := new(mockClient)
-	cli.On("getDiagnosticsProvider").Return(provider, nil)
-	cli.On("getBootstrapError").Return(nil)
-	cli.On("connected").Return(true, nil)
-
-	clients := make(map[string]client)
-	clients["mock-false"] = cli
+	cli := new(mockConnectionManager)
+	cli.On("getDiagnosticsProvider", "").Return(provider, nil)
 
 	c := &Cluster{
-		connections: clients,
+		connectionManager: cli,
 	}
 
 	report, err := c.Diagnostics(&DiagnosticsOptions{ReportID: "myreportid"})

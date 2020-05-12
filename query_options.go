@@ -24,7 +24,7 @@ type QueryOptions struct {
 	ConsistentWith  *MutationState
 	Profile         QueryProfileMode
 
-	// ScanCap is the maximum buffered channel size between the indexer client and the query service for index scans.
+	// ScanCap is the maximum buffered channel size between the indexer connectionManager and the query service for index scans.
 	ScanCap uint32
 
 	// PipelineBatch controls the number of items execution operators can batch for Fetch from the KV.
@@ -40,7 +40,7 @@ type QueryOptions struct {
 	// MaxParallelism is the maximum number of index partitions, for computing aggregation in parallel.
 	MaxParallelism uint32
 
-	// ClientContextID provides a unique ID for this query which can be used matching up requests between client and
+	// ClientContextID provides a unique ID for this query which can be used matching up requests between connectionManager and
 	// server. If not provided will be assigned a uuid value.
 	ClientContextID      string
 	PositionalParameters []interface{}

@@ -31,13 +31,23 @@ type waitUntilReadyProvider interface {
 	WaitUntilReady(deadline time.Time, opts gocbcore.WaitUntilReadyOptions) error
 }
 
+type gocbcoreWaitUntilReadyProvider interface {
+	WaitUntilReady(deadline time.Time, opts gocbcore.WaitUntilReadyOptions,
+		cb gocbcore.WaitUntilReadyCallback) (gocbcore.PendingOp, error)
+}
+
 type diagnosticsProvider interface {
 	Diagnostics(opts gocbcore.DiagnosticsOptions) (*gocbcore.DiagnosticInfo, error)
 	Ping(opts gocbcore.PingOptions) (*gocbcore.PingResult, error)
 }
 
+type gocbcoreDiagnosticsProvider interface {
+	Diagnostics(opts gocbcore.DiagnosticsOptions) (*gocbcore.DiagnosticInfo, error)
+	Ping(opts gocbcore.PingOptions, cb gocbcore.PingCallback) (gocbcore.PendingOp, error)
+}
+
 type waitUntilReadyProviderWrapper struct {
-	provider *gocbcore.Agent
+	provider gocbcoreWaitUntilReadyProvider
 }
 
 func (wpw *waitUntilReadyProviderWrapper) WaitUntilReady(deadline time.Time, opts gocbcore.WaitUntilReadyOptions) (errOut error) {
@@ -59,7 +69,7 @@ func (wpw *waitUntilReadyProviderWrapper) WaitUntilReady(deadline time.Time, opt
 }
 
 type diagnosticsProviderWrapper struct {
-	provider *gocbcore.Agent
+	provider gocbcoreDiagnosticsProvider
 }
 
 func (dpw *diagnosticsProviderWrapper) Diagnostics(opts gocbcore.DiagnosticsOptions) (*gocbcore.DiagnosticInfo, error) {
@@ -86,7 +96,7 @@ func (dpw *diagnosticsProviderWrapper) Ping(opts gocbcore.PingOptions) (pOut *go
 }
 
 type httpProviderWrapper struct {
-	provider *gocbcore.Agent
+	provider *gocbcore.AgentGroup
 }
 
 func (hpw *httpProviderWrapper) DoHTTPRequest(req *gocbcore.HTTPRequest) (respOut *gocbcore.HTTPResponse, errOut error) {
@@ -109,7 +119,7 @@ func (hpw *httpProviderWrapper) DoHTTPRequest(req *gocbcore.HTTPRequest) (respOu
 }
 
 type analyticsProviderWrapper struct {
-	provider *gocbcore.Agent
+	provider *gocbcore.AgentGroup
 }
 
 func (apw *analyticsProviderWrapper) AnalyticsQuery(opts gocbcore.AnalyticsQueryOptions) (aOut analyticsRowReader, errOut error) {
@@ -132,7 +142,7 @@ func (apw *analyticsProviderWrapper) AnalyticsQuery(opts gocbcore.AnalyticsQuery
 }
 
 type queryProviderWrapper struct {
-	provider *gocbcore.Agent
+	provider *gocbcore.AgentGroup
 }
 
 func (apw *queryProviderWrapper) N1QLQuery(opts gocbcore.N1QLQueryOptions) (qOut queryRowReader, errOut error) {
@@ -174,7 +184,7 @@ func (apw *queryProviderWrapper) PreparedN1QLQuery(opts gocbcore.N1QLQueryOption
 }
 
 type searchProviderWrapper struct {
-	provider *gocbcore.Agent
+	provider *gocbcore.AgentGroup
 }
 
 func (apw *searchProviderWrapper) SearchQuery(opts gocbcore.SearchQueryOptions) (sOut searchRowReader, errOut error) {
@@ -197,7 +207,7 @@ func (apw *searchProviderWrapper) SearchQuery(opts gocbcore.SearchQueryOptions) 
 }
 
 type viewProviderWrapper struct {
-	provider *gocbcore.Agent
+	provider *gocbcore.AgentGroup
 }
 
 func (apw *viewProviderWrapper) ViewQuery(opts gocbcore.ViewQueryOptions) (vOut viewRowReader, errOut error) {

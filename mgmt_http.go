@@ -34,14 +34,14 @@ type mgmtProvider interface {
 }
 
 func (c *Cluster) executeMgmtRequest(req mgmtRequest) (mgmtRespOut *mgmtResponse, errOut error) {
+	timeout := req.Timeout
+	if timeout == 0 {
+		timeout = c.timeoutsConfig.ManagementTimeout
+	}
+
 	provider, err := c.getHTTPProvider()
 	if err != nil {
 		return nil, err
-	}
-
-	timeout := req.Timeout
-	if req.Timeout == 0 {
-		timeout = c.timeoutsConfig.ManagementTimeout
 	}
 
 	retryStrategy := c.retryStrategyWrapper
@@ -77,14 +77,14 @@ func (c *Cluster) executeMgmtRequest(req mgmtRequest) (mgmtRespOut *mgmtResponse
 }
 
 func (b *Bucket) executeMgmtRequest(req mgmtRequest) (mgmtRespOut *mgmtResponse, errOut error) {
-	provider, err := b.getCachedClient().getHTTPProvider()
-	if err != nil {
-		return nil, err
-	}
-
 	timeout := req.Timeout
 	if timeout == 0 {
 		timeout = b.timeoutsConfig.ManagementTimeout
+	}
+
+	provider, err := b.connectionManager.getHTTPProvider()
+	if err != nil {
+		return nil, err
 	}
 
 	retryStrategy := b.retryStrategyWrapper

@@ -38,18 +38,18 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 			panic(err.Error())
 		}
 
+		globalConfig.Bucket = "default"
 		mock, err = gojcbmock.NewMock(mpath, 4, 1, 64, []gojcbmock.BucketSpec{
 			{Name: "default", Type: gojcbmock.BCouchbase},
 		}...)
+		if err != nil {
+			panic(err.Error())
+		}
 
 		mock.Control(gojcbmock.NewCommand(gojcbmock.CSetCCCP,
 			map[string]interface{}{"enabled": "true"}))
 		mock.Control(gojcbmock.NewCommand(gojcbmock.CSetSASLMechanisms,
 			map[string]interface{}{"mechs": []string{"SCRAM-SHA512"}}))
-
-		if err != nil {
-			panic(err.Error())
-		}
 
 		globalConfig.Version = mock.Version()
 
@@ -59,8 +59,8 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 		}
 		connStr = fmt.Sprintf("couchbase://%s", strings.Join(addrs, ","))
 		auth = PasswordAuthenticator{
-			Username: "default",
-			Password: "",
+			Username: "Administrator",
+			Password: "password",
 		}
 	} else {
 		connStr = globalConfig.Server
@@ -93,11 +93,6 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 	}
 
 	globalBucket = globalCluster.Bucket(globalConfig.Bucket)
-
-	err = globalBucket.WaitUntilReady(5*time.Second, &WaitUntilReadyOptions{DesiredState: ClusterStateOnline})
-	if err != nil {
-		panic(err.Error())
-	}
 
 	if globalConfig.Collection != "" {
 		globalCollection = globalBucket.Collection(globalConfig.Collection)
@@ -179,7 +174,7 @@ func (suite *UnitTestSuite) defaultTimeoutConfig() TimeoutsConfig {
 	}
 }
 
-func (suite *UnitTestSuite) bucket(name string, timeouts TimeoutsConfig, cli *mockClient) *Bucket {
+func (suite *UnitTestSuite) bucket(name string, timeouts TimeoutsConfig, cli *mockConnectionManager) *Bucket {
 	b := &Bucket{
 		bucketName: name,
 
@@ -193,16 +188,17 @@ func (suite *UnitTestSuite) bucket(name string, timeouts TimeoutsConfig, cli *mo
 			ViewTimeout:       timeouts.ViewTimeout,
 		},
 
-		cachedClient: cli,
+		connectionManager: cli,
 	}
 
 	return b
 }
 
-func (suite *UnitTestSuite) newCluster() *Cluster {
+func (suite *UnitTestSuite) newCluster(cli connectionManager) *Cluster {
 	cluster := clusterFromOptions(ClusterOptions{
 		Tracer: &noopTracer{},
 	})
+	cluster.connectionManager = cli
 
 	return cluster
 }
@@ -212,4 +208,10 @@ func (suite *UnitTestSuite) mustConvertToBytes(val interface{}) []byte {
 	suite.Require().Nil(err)
 
 	return b
+}
+
+func (suite *UnitTestSuite) kvProvider(provider kvProvider, err error) func() (kvProvider, error) {
+	return func() (kvProvider, error) {
+		return provider, err
+	}
 }

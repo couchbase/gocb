@@ -91,8 +91,8 @@ func (suite *UnitTestSuite) TestPingAll() {
 		}).
 		Return(pingResult, nil)
 
-	cli := new(mockClient)
-	cli.On("getDiagnosticsProvider").Return(pingProvider, nil)
+	cli := new(mockConnectionManager)
+	cli.On("getDiagnosticsProvider", "mock").Return(pingProvider, nil)
 
 	b := suite.bucket("mock", suite.defaultTimeoutConfig(), cli)
 

@@ -142,19 +142,16 @@ type testSearchDataset struct {
 }
 
 func (suite *UnitTestSuite) searchCluster(reader searchRowReader, runFn func(args mock.Arguments)) *Cluster {
-	cluster := suite.newCluster()
-
 	provider := new(mockSearchProvider)
 	provider.
 		On("SearchQuery", mock.AnythingOfType("gocbcore.SearchQueryOptions")).
 		Run(runFn).
 		Return(reader, nil)
 
-	cli := new(mockClient)
+	cli := new(mockConnectionManager)
 	cli.On("getSearchProvider").Return(provider, nil)
-	cli.On("supportsGCCCP").Return(true)
 
-	cluster.clusterClient = cli
+	cluster := suite.newCluster(cli)
 
 	return cluster
 }

@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/couchbase/gocbcore/v9"
-	"github.com/pkg/errors"
 )
 
 // Bucket represents a single bucket within a cluster.
@@ -20,7 +19,8 @@ type Bucket struct {
 	useServerDurations bool
 	useMutationTokens  bool
 
-	cachedClient client
+	bootstrapError    error
+	connectionManager connectionManager
 }
 
 func newBucket(c *Cluster, bucketName string) *Bucket {
@@ -37,20 +37,21 @@ func newBucket(c *Cluster, bucketName string) *Bucket {
 
 		useServerDurations: c.useServerDurations,
 		useMutationTokens:  c.useMutationTokens,
+
+		connectionManager: c.connectionManager,
 	}
 }
 
-func (b *Bucket) cacheClient(cli client) {
-	b.cachedClient = cli
-}
-
-func (b *Bucket) getCachedClient() client {
-	return b.cachedClient
+func (b *Bucket) setBootstrapError(err error) {
+	b.bootstrapError = err
 }
 
 func (b *Bucket) getKvProvider() (kvProvider, error) {
-	cli := b.getCachedClient()
-	agent, err := cli.getKvProvider()
+	if b.bootstrapError != nil {
+		return nil, b.bootstrapError
+	}
+
+	agent, err := b.connectionManager.getKvProvider(b.bucketName)
 	if err != nil {
 		return nil, err
 	}
@@ -97,13 +98,11 @@ func (b *Bucket) ViewIndexes() *ViewIndexManager {
 
 // Collections provides functions for managing collections.
 func (b *Bucket) Collections() *CollectionManager {
-	cli := b.getCachedClient()
-
+	// TODO: return error for unsupported collections
 	return &CollectionManager{
-		collectionsSupported: cli.supportsCollections(),
-		mgmtProvider:         b,
-		bucketName:           b.Name(),
-		tracer:               b.tracer,
+		mgmtProvider: b,
+		bucketName:   b.Name(),
+		tracer:       b.tracer,
 	}
 }
 
@@ -115,17 +114,11 @@ func (b *Bucket) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOptio
 		opts = &WaitUntilReadyOptions{}
 	}
 
-	cli := b.getCachedClient()
-	if cli == nil {
-		return errors.New("bucket is not connected")
+	if b.bootstrapError != nil {
+		return b.bootstrapError
 	}
 
-	err := cli.getBootstrapError()
-	if err != nil {
-		return err
-	}
-
-	provider, err := cli.getWaitUntilReadyProvider()
+	provider, err := b.connectionManager.getWaitUntilReadyProvider(b.bucketName)
 	if err != nil {
 		return err
 	}

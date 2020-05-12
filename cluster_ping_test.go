@@ -99,9 +99,8 @@ func (suite *UnitTestSuite) TestClusterPingAll() {
 		}).
 		Return(pingResult, nil)
 
-	cli := new(mockClient)
-	cli.On("supportsGCCCP").Return(true)
-	cli.On("getDiagnosticsProvider").Return(pingProvider, nil)
+	cli := new(mockConnectionManager)
+	cli.On("getDiagnosticsProvider", "").Return(pingProvider, nil)
 
 	c := &Cluster{
 		timeoutsConfig: TimeoutsConfig{
@@ -110,7 +109,7 @@ func (suite *UnitTestSuite) TestClusterPingAll() {
 			QueryTimeout:     1000 * time.Second,
 			SearchTimeout:    1000 * time.Second,
 		},
-		clusterClient: cli,
+		connectionManager: cli,
 	}
 
 	report, err := c.Ping(nil)
@@ -184,9 +183,8 @@ func (suite *UnitTestSuite) TestClusterPingOne() {
 		}).
 		Return(pingResult, nil)
 
-	cli := new(mockClient)
-	cli.On("supportsGCCCP").Return(true)
-	cli.On("getDiagnosticsProvider").Return(pingProvider, nil)
+	cli := new(mockConnectionManager)
+	cli.On("getDiagnosticsProvider", "").Return(pingProvider, nil)
 
 	c := &Cluster{
 		timeoutsConfig: TimeoutsConfig{
@@ -195,7 +193,7 @@ func (suite *UnitTestSuite) TestClusterPingOne() {
 			QueryTimeout:     1000 * time.Second,
 			SearchTimeout:    1000 * time.Second,
 		},
-		clusterClient: cli,
+		connectionManager: cli,
 	}
 
 	reportID := "myreportid"

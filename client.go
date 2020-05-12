@@ -9,38 +9,33 @@ import (
 	"github.com/pkg/errors"
 )
 
-type client interface {
+type connectionManager interface {
 	connect() error
-	buildConfig(cluster *Cluster, bucket string) error
-	getKvProvider() (kvProvider, error)
+	openBucket(bucketName string) error
+	buildConfig(cluster *Cluster) error
+	getKvProvider(bucketName string) (kvProvider, error)
 	getViewProvider() (viewProvider, error)
 	getQueryProvider() (queryProvider, error)
 	getAnalyticsProvider() (analyticsProvider, error)
 	getSearchProvider() (searchProvider, error)
 	getHTTPProvider() (httpProvider, error)
-	getDiagnosticsProvider() (diagnosticsProvider, error)
-	getWaitUntilReadyProvider() (waitUntilReadyProvider, error)
+	getDiagnosticsProvider(bucketName string) (diagnosticsProvider, error)
+	getWaitUntilReadyProvider(bucketName string) (waitUntilReadyProvider, error)
 	close() error
-	setBootstrapError(err error)
-	supportsGCCCP() bool
-	supportsCollections() bool
-	connected() (bool, error)
-	getBootstrapError() error
 }
 
-type stdClient struct {
-	lock         sync.Mutex
-	agent        *gocbcore.Agent
-	bootstrapErr error
-	config       *gocbcore.AgentConfig
+type stdConnectionMgr struct {
+	lock       sync.Mutex
+	agentgroup *gocbcore.AgentGroup
+	config     *gocbcore.AgentGroupConfig
 }
 
-func newClient() *stdClient {
-	client := &stdClient{}
+func newConnectionMgr() *stdConnectionMgr {
+	client := &stdConnectionMgr{}
 	return client
 }
 
-func (c *stdClient) buildConfig(cluster *Cluster, bucket string) error {
+func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -49,7 +44,7 @@ func (c *stdClient) buildConfig(cluster *Cluster, bucket string) error {
 	var completionCallback func(err error) bool
 	if breakerCfg.CompletionCallback != nil {
 		completionCallback = func(err error) bool {
-			wrappedErr := maybeEnhanceKVErr(err, bucket, "", "", "")
+			wrappedErr := maybeEnhanceKVErr(err, "", "", "", "")
 			return breakerCfg.CompletionCallback(wrappedErr)
 		}
 	}
@@ -67,28 +62,29 @@ func (c *stdClient) buildConfig(cluster *Cluster, bucket string) error {
 		tlsRootCAProvider = cluster.internalConfig.TLSRootCAProvider
 	}
 
-	config := &gocbcore.AgentConfig{
-		UserAgent:              Identifier(),
-		TLSRootCAProvider:      tlsRootCAProvider,
-		ConnectTimeout:         cluster.timeoutsConfig.ConnectTimeout,
-		UseMutationTokens:      cluster.useMutationTokens,
-		KVConnectTimeout:       7000 * time.Millisecond,
-		UseDurations:           cluster.useServerDurations,
-		UseCollections:         true,
-		BucketName:             bucket,
-		UseZombieLogger:        cluster.orphanLoggerEnabled,
-		ZombieLoggerInterval:   cluster.orphanLoggerInterval,
-		ZombieLoggerSampleSize: int(cluster.orphanLoggerSampleSize),
-		NoRootTraceSpans:       true,
-		Tracer:                 &requestTracerWrapper{cluster.tracer},
-		CircuitBreakerConfig: gocbcore.CircuitBreakerConfig{
-			Enabled:                  !breakerCfg.Disabled,
-			VolumeThreshold:          breakerCfg.VolumeThreshold,
-			ErrorThresholdPercentage: breakerCfg.ErrorThresholdPercentage,
-			SleepWindow:              breakerCfg.SleepWindow,
-			RollingWindow:            breakerCfg.RollingWindow,
-			CanaryTimeout:            breakerCfg.CanaryTimeout,
-			CompletionCallback:       completionCallback,
+	config := &gocbcore.AgentGroupConfig{
+		AgentConfig: gocbcore.AgentConfig{
+			UserAgent:              Identifier(),
+			TLSRootCAProvider:      tlsRootCAProvider,
+			ConnectTimeout:         cluster.timeoutsConfig.ConnectTimeout,
+			UseMutationTokens:      cluster.useMutationTokens,
+			KVConnectTimeout:       7000 * time.Millisecond,
+			UseDurations:           cluster.useServerDurations,
+			UseCollections:         true,
+			UseZombieLogger:        cluster.orphanLoggerEnabled,
+			ZombieLoggerInterval:   cluster.orphanLoggerInterval,
+			ZombieLoggerSampleSize: int(cluster.orphanLoggerSampleSize),
+			NoRootTraceSpans:       true,
+			Tracer:                 &requestTracerWrapper{cluster.tracer},
+			CircuitBreakerConfig: gocbcore.CircuitBreakerConfig{
+				Enabled:                  !breakerCfg.Disabled,
+				VolumeThreshold:          breakerCfg.VolumeThreshold,
+				ErrorThresholdPercentage: breakerCfg.ErrorThresholdPercentage,
+				SleepWindow:              breakerCfg.SleepWindow,
+				RollingWindow:            breakerCfg.RollingWindow,
+				CanaryTimeout:            breakerCfg.CanaryTimeout,
+				CompletionCallback:       completionCallback,
+			},
 		},
 	}
 
@@ -105,132 +101,117 @@ func (c *stdClient) buildConfig(cluster *Cluster, bucket string) error {
 	return nil
 }
 
-func (c *stdClient) connect() error {
+func (c *stdConnectionMgr) connect() error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	agent, err := gocbcore.CreateAgent(c.config)
+	var err error
+	c.agentgroup, err = gocbcore.CreateAgentGroup(c.config)
 	if err != nil {
-		return maybeEnhanceKVErr(err, c.config.BucketName, "", "", "")
+		return maybeEnhanceKVErr(err, "", "", "", "")
 	}
 
-	c.agent = agent
 	return nil
 }
 
-func (c *stdClient) setBootstrapError(err error) {
-	c.bootstrapErr = err
-}
-
-func (c *stdClient) getBootstrapError() error {
-	return c.bootstrapErr
-}
-
-func (c *stdClient) getKvProvider() (kvProvider, error) {
-	if c.bootstrapErr != nil {
-		return nil, c.bootstrapErr
+func (c *stdConnectionMgr) openBucket(bucketName string) error {
+	if c.agentgroup == nil {
+		return errors.New("cluster not yet connected")
 	}
 
-	if c.agent == nil {
+	return c.agentgroup.OpenBucket(bucketName)
+}
+
+func (c *stdConnectionMgr) getKvProvider(bucketName string) (kvProvider, error) {
+	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
-	return c.agent, nil
+	agent := c.agentgroup.GetAgent(bucketName)
+	if c.agentgroup == nil {
+		return nil, errors.New("bucket not yet connected")
+	}
+	return agent, nil
 }
 
-func (c *stdClient) getViewProvider() (viewProvider, error) {
-	if c.bootstrapErr != nil {
-		return nil, c.bootstrapErr
-	}
-
-	if c.agent == nil {
+func (c *stdConnectionMgr) getViewProvider() (viewProvider, error) {
+	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
-	return &viewProviderWrapper{provider: c.agent}, nil
+
+	return &viewProviderWrapper{provider: c.agentgroup}, nil
 }
 
-func (c *stdClient) getQueryProvider() (queryProvider, error) {
-	if c.bootstrapErr != nil {
-		return nil, c.bootstrapErr
-	}
-
-	if c.agent == nil {
+func (c *stdConnectionMgr) getQueryProvider() (queryProvider, error) {
+	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
-	return &queryProviderWrapper{provider: c.agent}, nil
+
+	return &queryProviderWrapper{provider: c.agentgroup}, nil
 }
 
-func (c *stdClient) getAnalyticsProvider() (analyticsProvider, error) {
-	if c.bootstrapErr != nil {
-		return nil, c.bootstrapErr
-	}
-
-	if c.agent == nil {
+func (c *stdConnectionMgr) getAnalyticsProvider() (analyticsProvider, error) {
+	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
-	return &analyticsProviderWrapper{provider: c.agent}, nil
+
+	return &analyticsProviderWrapper{provider: c.agentgroup}, nil
 }
 
-func (c *stdClient) getSearchProvider() (searchProvider, error) {
-	if c.bootstrapErr != nil {
-		return nil, c.bootstrapErr
-	}
-
-	if c.agent == nil {
+func (c *stdConnectionMgr) getSearchProvider() (searchProvider, error) {
+	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
-	return &searchProviderWrapper{provider: c.agent}, nil
+
+	return &searchProviderWrapper{provider: c.agentgroup}, nil
 }
 
-func (c *stdClient) getHTTPProvider() (httpProvider, error) {
-	if c.bootstrapErr != nil {
-		return nil, c.bootstrapErr
-	}
-
-	if c.agent == nil {
+func (c *stdConnectionMgr) getHTTPProvider() (httpProvider, error) {
+	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
-	return &httpProviderWrapper{provider: c.agent}, nil
+
+	return &httpProviderWrapper{provider: c.agentgroup}, nil
 }
 
-func (c *stdClient) getDiagnosticsProvider() (diagnosticsProvider, error) {
-	if c.bootstrapErr != nil {
-		return nil, c.bootstrapErr
-	}
-
-	if c.agent == nil {
+func (c *stdConnectionMgr) getDiagnosticsProvider(bucketName string) (diagnosticsProvider, error) {
+	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
-	return &diagnosticsProviderWrapper{provider: c.agent}, nil
-}
 
-func (c *stdClient) getWaitUntilReadyProvider() (waitUntilReadyProvider, error) {
-	if c.bootstrapErr != nil {
-		return nil, c.bootstrapErr
+	if bucketName == "" {
+		return &diagnosticsProviderWrapper{provider: c.agentgroup}, nil
 	}
 
-	if c.agent == nil {
+	agent := c.agentgroup.GetAgent(bucketName)
+	if agent == nil {
+		return nil, errors.New("bucket not yet connected")
+	}
+
+	return &diagnosticsProviderWrapper{provider: agent}, nil
+}
+
+func (c *stdConnectionMgr) getWaitUntilReadyProvider(bucketName string) (waitUntilReadyProvider, error) {
+	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
-	return &waitUntilReadyProviderWrapper{provider: c.agent}, nil
+
+	if bucketName == "" {
+		return &waitUntilReadyProviderWrapper{provider: c.agentgroup}, nil
+	}
+
+	agent := c.agentgroup.GetAgent(bucketName)
+	if agent == nil {
+		return nil, errors.New("provider not yet connected")
+	}
+
+	return &waitUntilReadyProviderWrapper{provider: agent}, nil
 }
 
-func (c *stdClient) connected() (bool, error) {
-	return c.agent.HasSeenConfig()
-}
-
-func (c *stdClient) supportsGCCCP() bool {
-	return c.agent.UsingGCCCP()
-}
-
-func (c *stdClient) supportsCollections() bool {
-	return c.agent.HasCollectionsSupport()
-}
-
-func (c *stdClient) close() error {
+func (c *stdConnectionMgr) close() error {
 	c.lock.Lock()
-	if c.agent == nil {
+	if c.agentgroup == nil {
 		c.lock.Unlock()
 		return errors.New("cluster not yet connected")
 	}
-	c.lock.Unlock()
-	return c.agent.Close()
+	defer c.lock.Unlock()
+	return c.agentgroup.Close()
 }
