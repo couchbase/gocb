@@ -213,6 +213,16 @@ func (suite *IntegrationTestSuite) TestUserManagerCrud() {
 				Name:   "bucket_admin",
 				Bucket: globalBucket.Name(),
 			},
+			{
+				Name: "security_admin",
+			},
+			{
+				Name:   "replication_target",
+				Bucket: globalBucket.Name(),
+			},
+			{
+				Name: "cluster_admin",
+			},
 		},
 	}
 	err := mgr.UpsertUser(expectedUser, nil)
@@ -242,6 +252,22 @@ func (suite *IntegrationTestSuite) TestUserManagerCrud() {
 				Role: Role{
 					Name:   "bucket_admin",
 					Bucket: globalBucket.Name(),
+				},
+			},
+			{
+				Role: Role{
+					Name: "security_admin",
+				},
+			},
+			{
+				Role: Role{
+					Name:   "replication_target",
+					Bucket: globalBucket.Name(),
+				},
+			},
+			{
+				Role: Role{
+					Name: "cluster_admin",
 				},
 			},
 		},
