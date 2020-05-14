@@ -107,7 +107,7 @@ func (suite *IntegrationTestSuite) TestTimeoutError_Retries() {
 		suite.Assert().NotEmpty(tErr.Opaque)
 		// Testify doesn't like using Greater with time.Duration
 		suite.Assert().Greater(tErr.TimeObserved.Microseconds(), 100*time.Millisecond.Microseconds())
-		suite.Assert().Equal(tErr.RetryReasons, []RetryReason{KVTemporaryFailureRetryReason})
+		suite.Assert().NotEmpty(tErr.RetryReasons)
 		suite.Assert().Greater(tErr.RetryAttempts, uint32(0))
 		suite.Assert().NotEmpty(tErr.LastDispatchedTo)
 		suite.Assert().NotEmpty(tErr.LastDispatchedFrom)
