@@ -77,6 +77,20 @@ func maybeEnhanceCoreErr(err error) error {
 			RetryAttempts: httpErr.RetryAttempts,
 		}
 	}
+
+	if timeoutErr, ok := err.(*gocbcore.TimeoutError); ok {
+		return &TimeoutError{
+			InnerError:         timeoutErr.InnerError,
+			OperationID:        timeoutErr.OperationID,
+			Opaque:             timeoutErr.Opaque,
+			TimeObserved:       timeoutErr.TimeObserved,
+			RetryReasons:       translateCoreRetryReasons(timeoutErr.RetryReasons),
+			RetryAttempts:      timeoutErr.RetryAttempts,
+			LastDispatchedTo:   timeoutErr.LastDispatchedTo,
+			LastDispatchedFrom: timeoutErr.LastDispatchedFrom,
+			LastConnectionID:   timeoutErr.LastConnectionID,
+		}
+	}
 	return err
 }
 
