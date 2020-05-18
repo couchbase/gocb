@@ -1,7 +1,6 @@
 package gocb
 
 import (
-	"errors"
 	"math"
 	"time"
 
@@ -242,30 +241,4 @@ func (c *testCluster) CreateBreweryDataset(col *Collection) error {
 	}
 
 	return nil
-}
-
-func waitForCollection(bucket *Bucket, name string) error {
-	timer := time.NewTimer(1 * time.Second)
-
-	for {
-		select {
-		case <-timer.C:
-			return errors.New("wait time for collection to become available expired")
-		default:
-			col := bucket.Collection(name)
-			_, err := col.Get("test", nil)
-			if err != nil {
-				if errors.Is(err, ErrCollectionNotFound) {
-					time.Sleep(100 * time.Millisecond)
-					continue
-				}
-
-				if !errors.Is(err, ErrDocumentNotFound) {
-					return err
-				}
-			}
-
-			return nil
-		}
-	}
 }

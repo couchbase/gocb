@@ -666,11 +666,6 @@ func (suite *IntegrationTestSuite) TestCollectionRetry() {
 		suite.T().Fatalf("Could not create collection: %v", err)
 	}
 
-	err = waitForCollection(globalBucket, collectionName)
-	if err != nil {
-		suite.T().Fatalf("Failed waiting for collection: %v", err)
-	}
-
 	col := globalBucket.Collection(collectionName)
 
 	// Make sure we've connected to the collection ok
@@ -694,10 +689,11 @@ func (suite *IntegrationTestSuite) TestCollectionRetry() {
 		suite.T().Fatalf("Could not create collection: %v", err)
 	}
 
-	time.Sleep(500 * time.Millisecond)
-
 	// We've wiped the collection so we need to recreate this doc
-	mutRes, err = col.Upsert("insertRetryDoc", doc, nil)
+	// We know that this operation can take a bit longer than normal as collections take time to come online.
+	mutRes, err = col.Upsert("insertRetryDoc", doc, &UpsertOptions{
+		Timeout: 3500 * time.Millisecond,
+	})
 	if err != nil {
 		suite.T().Fatalf("Upsert failed, error was %v", err)
 	}
