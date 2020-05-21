@@ -37,7 +37,7 @@ type jsonRole struct {
 type jsonRoleDescription struct {
 	jsonRole
 
-	Name        string `json:"string"`
+	Name        string `json:"name"`
 	Description string `json:"desc"`
 }
 
