@@ -163,11 +163,15 @@ func (qm *QueryIndexManager) createIndex(
 		RetryStrategy: opts.RetryStrategy,
 		parentSpan:    tracectx,
 	})
-	if err != nil {
-		return err
+	if err == nil {
+		return nil
 	}
 
-	return nil
+	if opts.IgnoreIfExists && errors.Is(err, ErrIndexExists) {
+		return nil
+	}
+
+	return err
 }
 
 // CreateQueryIndexOptions is the set of options available to the query indexes CreateIndex operation.
@@ -266,11 +270,15 @@ func (qm *QueryIndexManager) dropIndex(
 		RetryStrategy: opts.RetryStrategy,
 		parentSpan:    tracectx,
 	})
-	if err != nil {
-		return err
+	if err == nil {
+		return nil
 	}
 
-	return nil
+	if opts.IgnoreIfNotExists && errors.Is(err, ErrIndexNotFound) {
+		return nil
+	}
+
+	return err
 }
 
 // DropQueryIndexOptions is the set of options available to the query indexes DropIndex operation.
