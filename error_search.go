@@ -8,6 +8,8 @@ type SearchError struct {
 	Endpoint      string        `json:"endpoint,omitempty"`
 	RetryReasons  []RetryReason `json:"retry_reasons,omitempty"`
 	RetryAttempts uint32        `json:"retry_attempts,omitempty"`
+	ErrorText     string        `json:"error_text"`
+	IndexName     string        `json:"index_name,omitempty"`
 }
 
 // Error returns the string representation of this error.

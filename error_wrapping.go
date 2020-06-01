@@ -68,6 +68,17 @@ func maybeEnhanceCoreErr(err error) error {
 			RetryAttempts:   analyticsErr.RetryAttempts,
 		}
 	}
+	if searchErr, ok := err.(*gocbcore.SearchError); ok {
+		return &SearchError{
+			InnerError:    searchErr.InnerError,
+			Query:         searchErr.Query,
+			Endpoint:      searchErr.Endpoint,
+			RetryReasons:  translateCoreRetryReasons(searchErr.RetryReasons),
+			RetryAttempts: searchErr.RetryAttempts,
+			ErrorText:     searchErr.ErrorText,
+			IndexName:     searchErr.IndexName,
+		}
+	}
 	if httpErr, ok := err.(*gocbcore.HTTPError); ok {
 		return &HTTPError{
 			InnerError:    httpErr.InnerError,
