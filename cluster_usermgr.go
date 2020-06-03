@@ -410,7 +410,7 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 	var reqRoleStrs []string
 	for _, roleData := range user.Roles {
 		if roleData.Bucket == "" {
-			reqRoleStrs = append(reqRoleStrs, fmt.Sprintf("%s", roleData.Name))
+			reqRoleStrs = append(reqRoleStrs, roleData.Name)
 		} else {
 			reqRoleStrs = append(reqRoleStrs, fmt.Sprintf("%s[%s]", roleData.Name, roleData.Bucket))
 		}
@@ -704,7 +704,7 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 	var reqRoleStrs []string
 	for _, roleData := range group.Roles {
 		if roleData.Bucket == "" {
-			reqRoleStrs = append(reqRoleStrs, fmt.Sprintf("%s", roleData.Name))
+			reqRoleStrs = append(reqRoleStrs, roleData.Name)
 		} else {
 			reqRoleStrs = append(reqRoleStrs, fmt.Sprintf("%s[%s]", roleData.Name, roleData.Bucket))
 		}

@@ -90,8 +90,6 @@ type AnalyticsMetaData struct {
 	Metrics         AnalyticsMetrics
 	Signature       interface{}
 	Warnings        []AnalyticsWarning
-
-	preparedName string
 }
 
 func (meta *AnalyticsMetaData) fromData(data jsonAnalyticsResponse) error {

@@ -18,24 +18,6 @@ func serviceTypeToString(service ServiceType) string {
 	return ""
 }
 
-func serviceTypeFromString(service string) ServiceType {
-	switch service {
-	case "mgmt":
-		return ServiceTypeManagement
-	case "kv":
-		return ServiceTypeKeyValue
-	case "views":
-		return ServiceTypeViews
-	case "query":
-		return ServiceTypeQuery
-	case "search":
-		return ServiceTypeSearch
-	case "analytics":
-		return ServiceTypeAnalytics
-	}
-	return ServiceType(0)
-}
-
 func clusterStateToString(state ClusterState) string {
 	switch state {
 	case ClusterStateOnline:

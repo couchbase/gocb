@@ -43,7 +43,7 @@ func (c *Collection) internalLookupIn(
 	var subdocs []gocbcore.SubDocOp
 	for _, op := range ops {
 		if op.op == memd.SubDocOpGet && op.path == "" {
-			if op.isXattr != false {
+			if op.isXattr {
 				return nil, errors.New("invalid xattr fetch with no path")
 			}
 
@@ -53,7 +53,7 @@ func (c *Collection) internalLookupIn(
 			})
 			continue
 		} else if op.op == memd.SubDocOpDictSet && op.path == "" {
-			if op.isXattr != false {
+			if op.isXattr {
 				return nil, errors.New("invalid xattr set with no path")
 			}
 

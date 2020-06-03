@@ -46,10 +46,6 @@ func makeGenericHTTPError(baseErr error, req *gocbcore.HTTPRequest, resp *gocbco
 	return err
 }
 
-func makeHTTPBadStatusError(message string, req *gocbcore.HTTPRequest, resp *gocbcore.HTTPResponse) error {
-	return makeGenericHTTPError(errors.New(message), req, resp)
-}
-
 func makeGenericMgmtError(baseErr error, req *mgmtRequest, resp *mgmtResponse) error {
 	if baseErr == nil {
 		logErrorf("makeGenericMgmtError got an empty error")

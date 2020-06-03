@@ -75,12 +75,10 @@ func (c *Collection) Do(ops []BulkOp, opts *BulkOpOptions) error {
 	}
 
 	for range ops {
-		select {
-		case item := <-signal:
-			// We're really just clearing the pendop from this thread,
-			//   since it already completed, no cancel actually occurs
-			item.finish()
-		}
+		item := <-signal
+		// We're really just clearing the pendop from this thread,
+		//   since it already completed, no cancel actually occurs
+		item.finish()
 	}
 	return nil
 }

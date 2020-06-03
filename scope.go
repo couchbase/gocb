@@ -37,11 +37,6 @@ func newScope(bucket *Bucket, scopeName string) *Scope {
 	}
 }
 
-func (s *Scope) clone() *Scope {
-	newS := *s
-	return &newS
-}
-
 // Name returns the name of the scope.
 func (s *Scope) Name() string {
 	return s.scopeName

@@ -566,7 +566,7 @@ func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAn
 	req := mgmtRequest{
 		Service:       ServiceTypeAnalytics,
 		Method:        "GET",
-		Path:          fmt.Sprintf("/analytics/node/agg/stats/remaining"),
+		Path:          "/analytics/node/agg/stats/remaining",
 		IsIdempotent:  true,
 		RetryStrategy: opts.RetryStrategy,
 		Timeout:       timeout,

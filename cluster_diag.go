@@ -63,7 +63,7 @@ func (report *DiagnosticsResult) MarshalJSON() ([]byte, error) {
 
 			jsonReport.Services[serviceStr] = append(jsonReport.Services[serviceStr], jsonDiagnosticEntry{
 				ID:             service.ID,
-				LastActivityUs: uint64(time.Now().Sub(service.LastActivity).Nanoseconds()),
+				LastActivityUs: uint64(time.Since(service.LastActivity).Nanoseconds()),
 				Remote:         service.Remote,
 				Local:          service.Local,
 				State:          stateStr,

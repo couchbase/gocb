@@ -131,11 +131,6 @@ type mockQueryRowReader struct {
 	mockQueryRowReaderBase
 }
 
-type mockPreparedQueryRowReader struct {
-	Dataset []jsonQueryPrepData
-	mockQueryRowReaderBase
-}
-
 type mockQueryRowReaderBase struct {
 	Meta     []byte
 	MetaErr  error
@@ -149,17 +144,6 @@ type mockQueryRowReaderBase struct {
 }
 
 func (arr *mockQueryRowReader) NextRow() []byte {
-	if arr.idx == len(arr.Dataset) {
-		return nil
-	}
-
-	idx := arr.idx
-	arr.idx++
-
-	return arr.Suite.mustConvertToBytes(arr.Dataset[idx])
-}
-
-func (arr *mockPreparedQueryRowReader) NextRow() []byte {
 	if arr.idx == len(arr.Dataset) {
 		return nil
 	}

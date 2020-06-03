@@ -77,7 +77,8 @@ var (
 	defaultNoopSpan        = noopSpan{}
 )
 
-type noopTracer struct {
+// noopTracer will have a future use so we tell the linter not to flag it.
+type noopTracer struct { // nolint: unused
 }
 
 func (tracer *noopTracer) StartSpan(operationName string, parentContext requestSpanContext) requestSpan {

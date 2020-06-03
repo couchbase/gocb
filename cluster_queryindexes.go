@@ -522,7 +522,7 @@ func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string,
 			span.Context(),
 			bucketName,
 			&GetAllQueryIndexesOptions{
-				Timeout:       deadline.Sub(time.Now()),
+				Timeout:       time.Until(deadline),
 				RetryStrategy: opts.RetryStrategy,
 			})
 		if err != nil {
@@ -551,7 +551,7 @@ func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string,
 		}
 
 		// wait till our next poll interval
-		time.Sleep(sleepDeadline.Sub(time.Now()))
+		time.Sleep(time.Until(sleepDeadline))
 	}
 
 	return nil

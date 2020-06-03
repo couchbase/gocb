@@ -674,7 +674,7 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 	// Start a timer to close it after the deadline
 	go func() {
 		select {
-		case <-time.After(deadline.Sub(time.Now())):
+		case <-time.After(time.Until(deadline)):
 			// If we timeout, we should close the result
 			err := repRes.Close()
 			if err != nil {

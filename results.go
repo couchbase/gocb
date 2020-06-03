@@ -39,7 +39,7 @@ func (d *GetResult) Expiry() *time.Duration {
 }
 
 func (d *GetResult) fromFullProjection(ops []LookupInSpec, result *LookupInResult, fields []string) error {
-	if fields == nil || len(fields) == 0 {
+	if len(fields) == 0 {
 		// This is a special case where user specified a full doc fetch with expiration.
 		d.contents = result.contents[0].data
 		return nil
@@ -101,7 +101,6 @@ func (d *GetResult) fromSubDoc(ops []LookupInSpec, result *LookupInResult) error
 
 type subdocPath struct {
 	path    string
-	elem    int
 	isArray bool
 }
 
@@ -207,6 +206,7 @@ func (d *GetResult) set(paths []subdocPath, content interface{}, value interface
 		cMap, ok := content.(map[string]interface{})
 		if !ok {
 			// this isn't possible but the linter won't play nice without it
+			logErrorf("Failed to assert projection content to a map")
 		}
 		cMap[path.path] = make(map[string]interface{})
 		return d.set(paths[1:], cMap[path.path], value)
@@ -219,7 +219,6 @@ func (d *GetResult) set(paths []subdocPath, content interface{}, value interface
 type LookupInResult struct {
 	Result
 	contents []lookupInPartial
-	pathMap  map[string]int
 }
 
 type lookupInPartial struct {

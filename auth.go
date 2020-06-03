@@ -107,19 +107,6 @@ func (ca CertificateAuthenticator) Credentials(req AuthCredsRequest) ([]UserPass
 	}}, nil
 }
 
-func getSingleCredential(auth Authenticator, req AuthCredsRequest) (UserPassPair, error) {
-	creds, err := auth.Credentials(req)
-	if err != nil {
-		return UserPassPair{}, err
-	}
-
-	if len(creds) != 1 {
-		return UserPassPair{}, gocbcore.ErrInvalidCredentials
-	}
-
-	return creds[0], nil
-}
-
 type coreAuthWrapper struct {
 	auth Authenticator
 }

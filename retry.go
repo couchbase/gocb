@@ -56,28 +56,6 @@ type RetryReason interface {
 	Description() string
 }
 
-type retryReason struct {
-	allowsNonIdempotentRetry bool
-	alwaysRetry              bool
-	description              string
-}
-
-func (rr retryReason) AllowsNonIdempotentRetry() bool {
-	return rr.allowsNonIdempotentRetry
-}
-
-func (rr retryReason) AlwaysRetry() bool {
-	return rr.alwaysRetry
-}
-
-func (rr retryReason) Description() string {
-	return rr.description
-}
-
-func (rr retryReason) String() string {
-	return rr.description
-}
-
 var (
 	// UnknownRetryReason indicates that the operation failed for an unknown reason.
 	UnknownRetryReason = RetryReason(gocbcore.UnknownRetryReason)
@@ -212,19 +190,5 @@ func (rs *BestEffortRetryStrategy) RetryAfter(req RetryRequest, reason RetryReas
 		return &WithDurationRetryAction{WithDuration: rs.BackoffCalculator(req.RetryAttempts())}
 	}
 
-	return &NoRetryRetryAction{}
-}
-
-// failFastRetryStrategy represents a strategy that will never retry.
-type failFastRetryStrategy struct {
-}
-
-// newFailFastRetryStrategy returns a new FailFastRetryStrategy.
-func newFailFastRetryStrategy() *failFastRetryStrategy {
-	return &failFastRetryStrategy{}
-}
-
-// RetryAfter calculates and returns a RetryAction describing how long to wait before retrying an operation.
-func (rs *failFastRetryStrategy) RetryAfter(req RetryRequest, reason RetryReason) RetryAction {
 	return &NoRetryRetryAction{}
 }

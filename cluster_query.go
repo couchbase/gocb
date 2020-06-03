@@ -7,12 +7,6 @@ import (
 	gocbcore "github.com/couchbase/gocbcore/v9"
 )
 
-type queryCacheEntry struct {
-	enhanced    bool
-	name        string
-	encodedPlan string
-}
-
 type jsonQueryMetrics struct {
 	ElapsedTime   string `json:"elapsedTime"`
 	ExecutionTime string `json:"executionTime"`
@@ -38,11 +32,6 @@ type jsonQueryResponse struct {
 	Profile         interface{}        `json:"profile"`
 	Signature       interface{}        `json:"signature"`
 	Prepared        string             `json:"prepared"`
-}
-
-type jsonQueryPrepData struct {
-	EncodedPlan string `json:"encoded_plan"`
-	Name        string `json:"name"`
 }
 
 // QueryMetrics encapsulates various metrics gathered during a queries execution.

@@ -176,7 +176,6 @@ type thresholdLoggingTracer struct {
 	searchGroup     thresholdLogGroup
 	analyticsGroup  thresholdLogGroup
 	managementGroup thresholdLogGroup
-	mgmtGroup       thresholdLogGroup
 }
 
 func newThresholdLoggingTracer(opts *ThresholdLoggingOptions) *thresholdLoggingTracer {
@@ -273,7 +272,7 @@ func (t *thresholdLoggingTracer) startLoggerRoutine() {
 func (t *thresholdLoggingTracer) loggerRoutine() {
 	for {
 		select {
-		case <-time.After(t.nextTick.Sub(time.Now())):
+		case <-time.After(time.Until(t.nextTick)):
 			t.nextTick = t.nextTick.Add(t.Interval)
 			t.logRecordedRecords()
 		case <-t.killCh:
@@ -372,7 +371,7 @@ func (n *thresholdLogSpan) SetTag(key string, value interface{}) requestSpan {
 }
 
 func (n *thresholdLogSpan) Finish() {
-	n.duration = time.Now().Sub(n.startTime)
+	n.duration = time.Since(n.startTime)
 
 	n.totalServerDuration += n.serverDuration
 	if n.opName == "dispatch" {

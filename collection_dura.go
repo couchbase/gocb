@@ -144,7 +144,7 @@ func (c *Collection) waitForDurability(
 	persistCh := make(chan struct{}, numServers)
 
 	for replicaIdx := 0; replicaIdx < numServers; replicaIdx++ {
-		go c.observeOne(opm.TraceSpan(), docID, mt, replicaIdx, replicaCh, persistCh, subOpCancelCh, deadline.Sub(time.Now()))
+		go c.observeOne(opm.TraceSpan(), docID, mt, replicaIdx, replicaCh, persistCh, subOpCancelCh, time.Until(deadline))
 	}
 
 	numReplicated := uint(0)
@@ -156,7 +156,7 @@ func (c *Collection) waitForDurability(
 			numReplicated++
 		case <-persistCh:
 			numPersisted++
-		case <-time.After(deadline.Sub(time.Now())):
+		case <-time.After(time.Until(deadline)):
 			// deadline exceeded
 			close(subOpCancelCh)
 			return opm.EnhanceErr(ErrAmbiguousTimeout)

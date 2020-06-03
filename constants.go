@@ -7,8 +7,6 @@ import (
 
 const (
 	goCbVersionStr = "v2.1.1"
-
-	persistenceTimeoutFloor = 1500
 )
 
 // QueryIndexType provides information on the type of indexer used for an index.

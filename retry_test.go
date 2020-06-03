@@ -6,6 +6,20 @@ import (
 	"github.com/couchbase/gocbcore/v9"
 )
 
+// failFastRetryStrategy represents a strategy that will never retry.
+type failFastRetryStrategy struct {
+}
+
+// newFailFastRetryStrategy returns a new FailFastRetryStrategy.
+func newFailFastRetryStrategy() *failFastRetryStrategy {
+	return &failFastRetryStrategy{}
+}
+
+// RetryAfter calculates and returns a RetryAction describing how long to wait before retrying an operation.
+func (rs *failFastRetryStrategy) RetryAfter(req RetryRequest, reason RetryReason) RetryAction {
+	return &NoRetryRetryAction{}
+}
+
 type mockGocbcoreRequest struct {
 	attempts   uint32
 	identifier string

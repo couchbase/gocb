@@ -50,11 +50,6 @@ func (c *Collection) scopeName() string {
 	return c.scope
 }
 
-func (c *Collection) clone() *Collection {
-	newC := *c
-	return &newC
-}
-
 // Name returns the name of the collection.
 func (c *Collection) Name() string {
 	return c.collectionName

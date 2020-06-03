@@ -7,10 +7,6 @@ import (
 	gocbcore "github.com/couchbase/gocbcore/v9"
 )
 
-func newCliInternalError(message string) error {
-	return errors.New(message)
-}
-
 type wrappedError struct {
 	Message    string
 	InnerError error
