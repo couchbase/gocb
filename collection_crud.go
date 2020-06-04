@@ -360,7 +360,7 @@ func (c *Collection) getProjected(id string, opts *GetOptions) (docOut *GetResul
 		}
 	}
 
-	result, err := c.internalLookupIn(opm, ops)
+	result, err := c.internalLookupIn(opm, ops, false)
 	if err != nil {
 		return nil, err
 	}

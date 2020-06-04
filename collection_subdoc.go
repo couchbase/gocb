@@ -14,6 +14,11 @@ import (
 type LookupInOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+
+	// Internal: This should never be used and is not supported.
+	Internal struct {
+		AccessDeleted bool
+	}
 }
 
 // LookupIn performs a set of subdocument lookup operations on the document identified by id.
@@ -33,12 +38,13 @@ func (c *Collection) LookupIn(id string, ops []LookupInSpec, opts *LookupInOptio
 		return nil, err
 	}
 
-	return c.internalLookupIn(opm, ops)
+	return c.internalLookupIn(opm, ops, opts.Internal.AccessDeleted)
 }
 
 func (c *Collection) internalLookupIn(
 	opm *kvOpManager,
 	ops []LookupInSpec,
+	accessDeleted bool,
 ) (docOut *LookupInResult, errOut error) {
 	var subdocs []gocbcore.SubDocOp
 	for _, op := range ops {
@@ -76,6 +82,11 @@ func (c *Collection) internalLookupIn(
 		})
 	}
 
+	var flags memd.SubdocDocFlag
+	if accessDeleted {
+		flags = memd.SubdocDocFlagAccessDeleted
+	}
+
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
@@ -89,6 +100,7 @@ func (c *Collection) internalLookupIn(
 		RetryStrategy:  opm.RetryStrategy(),
 		TraceContext:   opm.TraceSpan(),
 		Deadline:       opm.Deadline(),
+		Flags:          flags,
 	}, func(res *gocbcore.LookupInResult, err error) {
 		if err != nil && res == nil {
 			errOut = opm.EnhanceErr(err)
@@ -141,6 +153,11 @@ type MutateInOptions struct {
 	StoreSemantic   StoreSemantics
 	Timeout         time.Duration
 	RetryStrategy   RetryStrategy
+
+	// Internal: This should never be used and is not supported.
+	Internal struct {
+		AccessDeleted bool
+	}
 }
 
 // MutateIn performs a set of subdocument mutations on the document specified by id.
@@ -160,7 +177,7 @@ func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptio
 		return nil, err
 	}
 
-	return c.internalMutateIn(opm, opts.StoreSemantic, opts.Expiry, opts.Cas, ops)
+	return c.internalMutateIn(opm, opts.StoreSemantic, opts.Expiry, opts.Cas, ops, opts.Internal.AccessDeleted)
 }
 
 func jsonMarshalMultiArray(in interface{}) ([]byte, error) {
@@ -202,6 +219,7 @@ func (c *Collection) internalMutateIn(
 	expiry time.Duration,
 	cas Cas,
 	ops []MutateInSpec,
+	accessDeleted bool,
 ) (mutOut *MutateInResult, errOut error) {
 	var docFlags memd.SubdocDocFlag
 	if action == StoreSemanticsReplace {
@@ -212,6 +230,10 @@ func (c *Collection) internalMutateIn(
 		docFlags |= memd.SubdocDocFlagAddDoc
 	} else {
 		return nil, makeInvalidArgumentsError("invalid StoreSemantics value provided")
+	}
+
+	if accessDeleted {
+		docFlags |= memd.SubdocDocFlagAccessDeleted
 	}
 
 	var subdocs []gocbcore.SubDocOp
