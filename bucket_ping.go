@@ -3,9 +3,6 @@ package gocb
 import (
 	"encoding/json"
 	"time"
-
-	gocbcore "github.com/couchbase/gocbcore/v9"
-	"github.com/google/uuid"
 )
 
 // EndpointPingReport represents a single entry in a ping report.
@@ -94,77 +91,5 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 		return nil, err
 	}
 
-	services := opts.ServiceTypes
-	if services == nil {
-		services = []ServiceType{
-			ServiceTypeKeyValue,
-			ServiceTypeViews,
-			ServiceTypeQuery,
-			ServiceTypeSearch,
-			ServiceTypeAnalytics,
-		}
-	}
-
-	gocbcoreServices := make([]gocbcore.ServiceType, len(services))
-	for i, svc := range services {
-		gocbcoreServices[i] = gocbcore.ServiceType(svc)
-	}
-
-	coreopts := gocbcore.PingOptions{
-		ServiceTypes: gocbcoreServices,
-	}
-	now := time.Now()
-	timeout := opts.Timeout
-	if timeout == 0 {
-		coreopts.KVDeadline = now.Add(b.timeoutsConfig.KVTimeout)
-		coreopts.CapiDeadline = now.Add(b.timeoutsConfig.ViewTimeout)
-		coreopts.N1QLDeadline = now.Add(b.timeoutsConfig.QueryTimeout)
-		coreopts.CbasDeadline = now.Add(b.timeoutsConfig.AnalyticsTimeout)
-		coreopts.FtsDeadline = now.Add(b.timeoutsConfig.SearchTimeout)
-	} else {
-		coreopts.KVDeadline = now.Add(timeout)
-		coreopts.CapiDeadline = now.Add(timeout)
-		coreopts.N1QLDeadline = now.Add(timeout)
-		coreopts.CbasDeadline = now.Add(timeout)
-		coreopts.FtsDeadline = now.Add(timeout)
-	}
-
-	id := opts.ReportID
-	if id == "" {
-		id = uuid.New().String()
-	}
-
-	result, err := provider.Ping(coreopts)
-	if err != nil {
-		return nil, err
-	}
-
-	reportSvcs := make(map[ServiceType][]EndpointPingReport)
-	for svcType, svc := range result.Services {
-		st := ServiceType(svcType)
-
-		svcs := make([]EndpointPingReport, len(svc))
-		for i, rep := range svc {
-			var errStr string
-			if rep.Error != nil {
-				errStr = rep.Error.Error()
-			}
-			svcs[i] = EndpointPingReport{
-				ID:        rep.ID,
-				Remote:    rep.Endpoint,
-				State:     PingState(rep.State),
-				Error:     errStr,
-				Namespace: rep.Scope,
-				Latency:   rep.Latency,
-			}
-		}
-
-		reportSvcs[st] = svcs
-	}
-
-	return &PingResult{
-		ID:       id,
-		sdk:      Identifier() + " " + "gocbcore/" + gocbcore.Version(),
-		Services: reportSvcs,
-	}, nil
+	return ping(provider, opts, b.timeoutsConfig)
 }

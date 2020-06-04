@@ -19,27 +19,14 @@ func (c *Cluster) Ping(opts *PingOptions) (*PingResult, error) {
 		return nil, err
 	}
 
+	return ping(provider, opts, c.timeoutsConfig)
+}
+
+func ping(provider diagnosticsProvider, opts *PingOptions, timeouts TimeoutsConfig) (*PingResult, error) {
 	services := opts.ServiceTypes
-	if services == nil {
-		services = []ServiceType{
-			ServiceTypeQuery,
-			ServiceTypeSearch,
-			ServiceTypeAnalytics,
-		}
-	}
 
 	gocbcoreServices := make([]gocbcore.ServiceType, len(services))
 	for i, svc := range services {
-		if svc == ServiceTypeKeyValue {
-			return nil, invalidArgumentsError{
-				message: "keyvalue service is not a valid service type for cluster level ping",
-			}
-		}
-		if svc == ServiceTypeViews {
-			return nil, invalidArgumentsError{
-				message: "view service is not a valid service type for cluster level ping",
-			}
-		}
 		gocbcoreServices[i] = gocbcore.ServiceType(svc)
 	}
 
@@ -49,13 +36,19 @@ func (c *Cluster) Ping(opts *PingOptions) (*PingResult, error) {
 	now := time.Now()
 	timeout := opts.Timeout
 	if timeout == 0 {
-		coreopts.N1QLDeadline = now.Add(c.timeoutsConfig.QueryTimeout)
-		coreopts.CbasDeadline = now.Add(c.timeoutsConfig.AnalyticsTimeout)
-		coreopts.FtsDeadline = now.Add(c.timeoutsConfig.SearchTimeout)
+		coreopts.KVDeadline = now.Add(timeouts.KVTimeout)
+		coreopts.CapiDeadline = now.Add(timeouts.ViewTimeout)
+		coreopts.N1QLDeadline = now.Add(timeouts.QueryTimeout)
+		coreopts.CbasDeadline = now.Add(timeouts.AnalyticsTimeout)
+		coreopts.FtsDeadline = now.Add(timeouts.SearchTimeout)
+		coreopts.MgmtDeadline = now.Add(timeouts.ManagementTimeout)
 	} else {
+		coreopts.KVDeadline = now.Add(timeout)
+		coreopts.CapiDeadline = now.Add(timeout)
 		coreopts.N1QLDeadline = now.Add(timeout)
 		coreopts.CbasDeadline = now.Add(timeout)
 		coreopts.FtsDeadline = now.Add(timeout)
+		coreopts.MgmtDeadline = now.Add(timeout)
 	}
 
 	id := opts.ReportID

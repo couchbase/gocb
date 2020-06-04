@@ -85,8 +85,8 @@ func (suite *UnitTestSuite) TestPingAll() {
 		Run(func(args mock.Arguments) {
 			opts := args.Get(0).(gocbcore.PingOptions)
 
-			if len(opts.ServiceTypes) != 5 {
-				suite.T().Errorf("Expected service types to be len 5 but was %v", opts.ServiceTypes)
+			if len(opts.ServiceTypes) != 0 {
+				suite.T().Errorf("Expected service types to be len 0 but was %v", opts.ServiceTypes)
 			}
 		}).
 		Return(pingResult, nil)

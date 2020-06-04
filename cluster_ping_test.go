@@ -17,7 +17,7 @@ func (suite *IntegrationTestSuite) TestClusterPingAll() {
 
 	suite.Assert().NotEmpty(report.ID)
 
-	numServices := 2
+	numServices := 3
 	if globalCluster.SupportsFeature(PingAnalyticsFeature) {
 		numServices++
 	}
@@ -32,6 +32,10 @@ func (suite *IntegrationTestSuite) TestClusterPingAll() {
 				suite.Assert().Equal(PingStateOk, service.State)
 				suite.Assert().NotZero(int64(service.Latency))
 			case ServiceTypeSearch:
+				suite.Assert().NotEmpty(service.Remote)
+				suite.Assert().Equal(PingStateOk, service.State)
+				suite.Assert().NotZero(int64(service.Latency))
+			case ServiceTypeManagement:
 				suite.Assert().NotEmpty(service.Remote)
 				suite.Assert().Equal(PingStateOk, service.State)
 				suite.Assert().NotZero(int64(service.Latency))
@@ -93,8 +97,8 @@ func (suite *UnitTestSuite) TestClusterPingAll() {
 		Run(func(args mock.Arguments) {
 			opts := args.Get(0).(gocbcore.PingOptions)
 
-			if len(opts.ServiceTypes) != 3 {
-				suite.T().Errorf("Expected service types to be len 3 but was %v", opts.ServiceTypes)
+			if len(opts.ServiceTypes) != 0 {
+				suite.T().Errorf("Expected service types to be len 0 but was %v", opts.ServiceTypes)
 			}
 		}).
 		Return(pingResult, nil)
