@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"fmt"
+	"time"
 )
 
 func (suite *IntegrationTestSuite) TestUpsertGetBulk() {
@@ -12,7 +13,7 @@ func (suite *IntegrationTestSuite) TestUpsertGetBulk() {
 		ops = append(ops, &UpsertOp{
 			ID:     fmt.Sprintf("%d", i),
 			Value:  "test",
-			Expiry: 20,
+			Expiry: 20 * time.Second,
 		})
 	}
 
@@ -81,7 +82,7 @@ func (suite *IntegrationTestSuite) TestInsertDocsBulk() {
 		ops = append(ops, &InsertOp{
 			ID:     fmt.Sprintf("insert-docs-bulk-%d", i),
 			Value:  "test",
-			Expiry: 20,
+			Expiry: 20 * time.Second,
 		})
 	}
 
@@ -111,7 +112,7 @@ func (suite *IntegrationTestSuite) TestReplaceOperationBulk() {
 		ops = append(ops, &UpsertOp{
 			ID:     fmt.Sprintf("replace-docs-bulk-%d", i),
 			Value:  "test",
-			Expiry: 20,
+			Expiry: 20 * time.Second,
 		})
 	}
 
@@ -165,7 +166,7 @@ func (suite *IntegrationTestSuite) TestRemoveOperationBulk() {
 		ops = append(ops, &UpsertOp{
 			ID:     fmt.Sprintf("remove-docs-bulk-%d", i),
 			Value:  "test",
-			Expiry: 20,
+			Expiry: 20 * time.Second,
 		})
 	}
 
