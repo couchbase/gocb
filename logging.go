@@ -14,13 +14,13 @@ type LogLevel gocbcore.LogLevel
 // Various logging levels (or subsystems) which can categorize the message.
 // Currently these are ordered in decreasing severity.
 const (
-	LogError        = LogLevel(gocbcore.LogError)
-	LogWarn         = LogLevel(gocbcore.LogWarn)
-	LogInfo         = LogLevel(gocbcore.LogInfo)
-	LogDebug        = LogLevel(gocbcore.LogDebug)
-	LogTrace        = LogLevel(gocbcore.LogTrace)
-	LogSched        = LogLevel(gocbcore.LogSched)
-	LogMaxVerbosity = LogLevel(gocbcore.LogMaxVerbosity)
+	LogError        LogLevel = LogLevel(gocbcore.LogError)
+	LogWarn         LogLevel = LogLevel(gocbcore.LogWarn)
+	LogInfo         LogLevel = LogLevel(gocbcore.LogInfo)
+	LogDebug        LogLevel = LogLevel(gocbcore.LogDebug)
+	LogTrace        LogLevel = LogLevel(gocbcore.LogTrace)
+	LogSched        LogLevel = LogLevel(gocbcore.LogSched)
+	LogMaxVerbosity LogLevel = LogLevel(gocbcore.LogMaxVerbosity)
 )
 
 // LogRedactLevel specifies the degree with which to redact the logs.
@@ -28,13 +28,13 @@ type LogRedactLevel uint
 
 const (
 	// RedactNone indicates to perform no redactions
-	RedactNone = LogRedactLevel(0)
+	RedactNone LogRedactLevel = iota
 
 	// RedactPartial indicates to redact all possible user-identifying information from logs.
-	RedactPartial = LogRedactLevel(1)
+	RedactPartial
 
 	// RedactFull indicates to fully redact all possible identifying information from logs.
-	RedactFull = LogRedactLevel(2)
+	RedactFull
 )
 
 // SetLogRedactionLevel specifies the level with which logs should be redacted.

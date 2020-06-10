@@ -11,23 +11,23 @@ type SearchHighlightStyle string
 
 const (
 	// DefaultHighlightStyle specifies to use the default to highlight search result hits.
-	DefaultHighlightStyle = SearchHighlightStyle("")
+	DefaultHighlightStyle SearchHighlightStyle = ""
 
 	// HTMLHighlightStyle specifies to use HTML tags to highlight search result hits.
-	HTMLHighlightStyle = SearchHighlightStyle("html")
+	HTMLHighlightStyle SearchHighlightStyle = "html"
 
 	// AnsiHightlightStyle specifies to use ANSI tags to highlight search result hits.
-	AnsiHightlightStyle = SearchHighlightStyle("ansi")
+	AnsiHightlightStyle SearchHighlightStyle = "ansi"
 )
 
 // SearchScanConsistency indicates the level of data consistency desired for a search query.
 type SearchScanConsistency uint
 
 const (
-	searchScanConsistencyNotSet = SearchScanConsistency(0)
+	searchScanConsistencyNotSet SearchScanConsistency = iota
 
 	// SearchScanConsistencyNotBounded indicates no data consistency is required.
-	SearchScanConsistencyNotBounded = SearchScanConsistency(1)
+	SearchScanConsistencyNotBounded
 )
 
 // SearchHighlightOptions are the options available for search highlighting.

@@ -15,10 +15,10 @@ type DesignDocumentNamespace uint
 
 const (
 	// DesignDocumentNamespaceProduction means that a design document resides in the production namespace.
-	DesignDocumentNamespaceProduction = DesignDocumentNamespace(0)
+	DesignDocumentNamespaceProduction DesignDocumentNamespace = iota
 
 	// DesignDocumentNamespaceDevelopment means that a design document resides in the development namespace.
-	DesignDocumentNamespaceDevelopment = DesignDocumentNamespace(1)
+	DesignDocumentNamespaceDevelopment
 )
 
 // View represents a Couchbase view within a design document.
