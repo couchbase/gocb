@@ -12,9 +12,9 @@ type AnalyticsScanConsistency uint
 
 const (
 	// AnalyticsScanConsistencyNotBounded indicates no data consistency is required.
-	AnalyticsScanConsistencyNotBounded = AnalyticsScanConsistency(1)
+	AnalyticsScanConsistencyNotBounded AnalyticsScanConsistency = iota + 1
 	// AnalyticsScanConsistencyRequestPlus indicates that request-level data consistency is required.
-	AnalyticsScanConsistencyRequestPlus = AnalyticsScanConsistency(2)
+	AnalyticsScanConsistencyRequestPlus
 )
 
 // AnalyticsOptions is the set of options available to an Analytics query.

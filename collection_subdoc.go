@@ -134,13 +134,13 @@ type StoreSemantics uint8
 const (
 	// StoreSemanticsReplace signifies to Replace the document, and fail if it does not exist.
 	// This is the default action
-	StoreSemanticsReplace = StoreSemantics(0)
+	StoreSemanticsReplace StoreSemantics = iota
 
 	// StoreSemanticsUpsert signifies to replace the document or create it if it doesn't exist.
-	StoreSemanticsUpsert = StoreSemantics(1)
+	StoreSemanticsUpsert
 
 	// StoreSemanticsInsert signifies to create the document, and fail if it exists.
-	StoreSemanticsInsert = StoreSemantics(2)
+	StoreSemanticsInsert
 )
 
 // MutateInOptions are the set of options available to MutateIn.

@@ -13,11 +13,11 @@ type ViewScanConsistency uint
 
 const (
 	// ViewScanConsistencyNotBounded indicates that no special behaviour should be used.
-	ViewScanConsistencyNotBounded = ViewScanConsistency(1)
+	ViewScanConsistencyNotBounded ViewScanConsistency = iota + 1
 	// ViewScanConsistencyRequestPlus indicates to update the index before querying it.
-	ViewScanConsistencyRequestPlus = ViewScanConsistency(2)
+	ViewScanConsistencyRequestPlus
 	// ViewScanConsistencyUpdateAfter indicates to update the index asynchronously after querying.
-	ViewScanConsistencyUpdateAfter = ViewScanConsistency(3)
+	ViewScanConsistencyUpdateAfter
 )
 
 // ViewOrdering specifies the ordering for the view queries results.
@@ -25,9 +25,9 @@ type ViewOrdering uint
 
 const (
 	// ViewOrderingAscending indicates the query results should be sorted from lowest to highest.
-	ViewOrderingAscending = ViewOrdering(1)
+	ViewOrderingAscending ViewOrdering = iota + 1
 	// ViewOrderingDescending indicates the query results should be sorted from highest to lowest.
-	ViewOrderingDescending = ViewOrdering(2)
+	ViewOrderingDescending
 )
 
 // ViewErrorMode pecifies the behaviour of the query engine should an error occur during the gathering of
@@ -36,10 +36,10 @@ type ViewErrorMode uint
 
 const (
 	// ViewErrorModeContinue indicates to continue gathering results on error.
-	ViewErrorModeContinue = ViewErrorMode(1)
+	ViewErrorModeContinue ViewErrorMode = iota + 1
 
 	// ViewErrorModeStop indicates to stop gathering results on error
-	ViewErrorModeStop = ViewErrorMode(2)
+	ViewErrorModeStop
 )
 
 // ViewOptions represents the options available when executing view query.

@@ -17,13 +17,13 @@ type BucketType string
 
 const (
 	// CouchbaseBucketType indicates a Couchbase bucket type.
-	CouchbaseBucketType = BucketType("membase")
+	CouchbaseBucketType BucketType = "membase"
 
 	// MemcachedBucketType indicates a Memcached bucket type.
-	MemcachedBucketType = BucketType("memcached")
+	MemcachedBucketType BucketType = "memcached"
 
 	// EphemeralBucketType indicates an Ephemeral bucket type.
-	EphemeralBucketType = BucketType("ephemeral")
+	EphemeralBucketType BucketType = "ephemeral"
 )
 
 // ConflictResolutionType specifies the kind of conflict resolution to use for a bucket.
@@ -31,10 +31,10 @@ type ConflictResolutionType string
 
 const (
 	// ConflictResolutionTypeTimestamp specifies to use timestamp conflict resolution on the bucket.
-	ConflictResolutionTypeTimestamp = ConflictResolutionType("lww")
+	ConflictResolutionTypeTimestamp ConflictResolutionType = "lww"
 
 	// ConflictResolutionTypeSequenceNumber specifies to use sequence number conflict resolution on the bucket.
-	ConflictResolutionTypeSequenceNumber = ConflictResolutionType("seqno")
+	ConflictResolutionTypeSequenceNumber ConflictResolutionType = "seqno"
 )
 
 // EvictionPolicyType specifies the kind of eviction policy to use for a bucket.
@@ -42,10 +42,10 @@ type EvictionPolicyType string
 
 const (
 	// EvictionPolicyTypeFull specifies to use full eviction for a bucket.
-	EvictionPolicyTypeFull = EvictionPolicyType("fullEviction")
+	EvictionPolicyTypeFull EvictionPolicyType = "fullEviction"
 
 	// EvictionPolicyTypeValueOnly specifies to use value only eviction for a bucket.
-	EvictionPolicyTypeValueOnly = EvictionPolicyType("valueOnly")
+	EvictionPolicyTypeValueOnly EvictionPolicyType = "valueOnly"
 )
 
 // CompressionMode specifies the kind of compression to use for a bucket.
@@ -53,13 +53,13 @@ type CompressionMode string
 
 const (
 	// CompressionModeOff specifies to use no compression for a bucket.
-	CompressionModeOff = CompressionMode("off")
+	CompressionModeOff CompressionMode = "off"
 
 	// CompressionModePassive specifies to use passive compression for a bucket.
-	CompressionModePassive = CompressionMode("passive")
+	CompressionModePassive CompressionMode = "passive"
 
 	// CompressionModeActive specifies to use active compression for a bucket.
-	CompressionModeActive = CompressionMode("active")
+	CompressionModeActive CompressionMode = "active"
 )
 
 type jsonBucketSettings struct {

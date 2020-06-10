@@ -13,9 +13,9 @@ type QueryScanConsistency uint
 
 const (
 	// QueryScanConsistencyNotBounded indicates no data consistency is required.
-	QueryScanConsistencyNotBounded = QueryScanConsistency(1)
+	QueryScanConsistencyNotBounded QueryScanConsistency = iota + 1
 	// QueryScanConsistencyRequestPlus indicates that request-level data consistency is required.
-	QueryScanConsistencyRequestPlus = QueryScanConsistency(2)
+	QueryScanConsistencyRequestPlus
 )
 
 // QueryOptions represents the options available when executing a query.
