@@ -234,7 +234,7 @@ func (suite *IntegrationTestSuite) TestUserManagerCrud() {
 	success := suite.tryUntil(time.Now().Add(5*time.Second), 50*time.Millisecond, func() bool {
 		user, err = mgr.GetUser("barry", nil)
 		if err != nil {
-			suite.T().Logf("GetUser failed with %s", err)
+			suite.T().Logf("GetUser request errored with %s", err)
 			return false
 		}
 		return true
@@ -275,9 +275,19 @@ func (suite *IntegrationTestSuite) TestUserManagerCrud() {
 	assertUser(suite.T(), user, expectedUserAndMeta)
 
 	user.User.DisplayName = "barries"
-	err = mgr.UpsertUser(user.User, nil)
-	if err != nil {
-		suite.T().Fatalf("Expected UpsertUser to not error: %v", err)
+
+	success = suite.tryUntil(time.Now().Add(5*time.Second), 50*time.Millisecond, func() bool {
+		err = mgr.UpsertUser(user.User, nil)
+		if err != nil {
+			suite.T().Logf("UpsertUser errored with %s", err)
+			return false
+		}
+
+		return true
+	})
+
+	if !success {
+		suite.T().Fatal("Wait time for upsert user expired")
 	}
 
 	users, err := mgr.GetAllUsers(nil)
@@ -289,10 +299,19 @@ func (suite *IntegrationTestSuite) TestUserManagerCrud() {
 		suite.T().Fatalf("Expected users length to be greater than 0")
 	}
 
-	user, err = mgr.GetUser("barry", nil)
-	if err != nil {
-		suite.T().Fatalf("Expected GetUser to not error: %v", err)
+	success = suite.tryUntil(time.Now().Add(5*time.Second), 50*time.Millisecond, func() bool {
+		user, err = mgr.GetUser("barry", nil)
+		if err != nil {
+			suite.T().Logf("GetUser errored with %s", err)
+			return false
+		}
+		return true
+	})
+
+	if !success {
+		suite.T().Fatal("Wait time for get user expired")
 	}
+
 	expectedUserAndMeta.User.DisplayName = "barries"
 	assertUser(suite.T(), user, expectedUserAndMeta)
 
