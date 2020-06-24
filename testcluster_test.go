@@ -207,7 +207,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = true
 		case WaitUntilReadyClusterFeature:
 			supported = !c.Version.Lower(srvVer650)
-
+		case ReplicasFeature:
+			supported = true
 		}
 	}
 
