@@ -145,6 +145,7 @@ type SearchResult struct {
 	reader searchRowReader
 
 	currentRow SearchRow
+	jsonErr    error
 }
 
 func newSearchResult(reader searchRowReader) *SearchResult {
@@ -163,31 +164,36 @@ func (r *SearchResult) Next() bool {
 	r.currentRow = SearchRow{}
 
 	var rowData jsonSearchRow
-	if err := json.Unmarshal(rowBytes, &rowData); err == nil {
-		r.currentRow.Index = rowData.Index
-		r.currentRow.ID = rowData.ID
-		r.currentRow.Score = rowData.Score
-		r.currentRow.Explanation = rowData.Explanation
-		r.currentRow.Fragments = rowData.Fragments
-		r.currentRow.fieldsBytes = rowData.Fields
-
-		locations := make(map[string]map[string][]SearchRowLocation)
-		for fieldName, fieldData := range rowData.Locations {
-			terms := make(map[string][]SearchRowLocation)
-			for termName, termData := range fieldData {
-				locations := make([]SearchRowLocation, len(termData))
-				for locIdx, locData := range termData {
-					err := locations[locIdx].fromData(locData)
-					if err != nil {
-						logWarnf("failed to parse search query location data: %s", err)
-					}
-				}
-				terms[termName] = locations
-			}
-			locations[fieldName] = terms
-		}
-		r.currentRow.Locations = locations
+	if err := json.Unmarshal(rowBytes, &rowData); err != nil {
+		// This should never happen but if it does then lets store it in a best efforts basis and maybe the next
+		// row will be ok. We can then return this from .Err().
+		r.jsonErr = err
+		return true
 	}
+
+	r.currentRow.Index = rowData.Index
+	r.currentRow.ID = rowData.ID
+	r.currentRow.Score = rowData.Score
+	r.currentRow.Explanation = rowData.Explanation
+	r.currentRow.Fragments = rowData.Fragments
+	r.currentRow.fieldsBytes = rowData.Fields
+
+	locations := make(map[string]map[string][]SearchRowLocation)
+	for fieldName, fieldData := range rowData.Locations {
+		terms := make(map[string][]SearchRowLocation)
+		for termName, termData := range fieldData {
+			locations := make([]SearchRowLocation, len(termData))
+			for locIdx, locData := range termData {
+				err := locations[locIdx].fromData(locData)
+				if err != nil {
+					logWarnf("failed to parse search query location data: %s", err)
+				}
+			}
+			terms[termName] = locations
+		}
+		locations[fieldName] = terms
+	}
+	r.currentRow.Locations = locations
 
 	return true
 }
@@ -199,7 +205,11 @@ func (r *SearchResult) Row() SearchRow {
 
 // Err returns any errors that have occurred on the stream
 func (r *SearchResult) Err() error {
-	return r.reader.Err()
+	err := r.reader.Err()
+	if err != nil {
+		return err
+	}
+	return r.jsonErr
 }
 
 // Close marks the results as closed, returning any errors that occurred during reading the results.

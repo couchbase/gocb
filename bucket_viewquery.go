@@ -63,6 +63,7 @@ type ViewResult struct {
 	reader viewRowReader
 
 	currentRow ViewRow
+	jsonErr    error
 }
 
 func newViewResult(reader viewRowReader) *ViewResult {
@@ -81,11 +82,16 @@ func (r *ViewResult) Next() bool {
 	r.currentRow = ViewRow{}
 
 	var rowData jsonViewRow
-	if err := json.Unmarshal(rowBytes, &rowData); err == nil {
-		r.currentRow.ID = rowData.ID
-		r.currentRow.keyBytes = rowData.Key
-		r.currentRow.valueBytes = rowData.Value
+	if err := json.Unmarshal(rowBytes, &rowData); err != nil {
+		// This should never happen but if it does then lets store it in a best efforts basis and maybe the next
+		// row will be ok. We can then return this from .Err().
+		r.jsonErr = err
+		return true
 	}
+
+	r.currentRow.ID = rowData.ID
+	r.currentRow.keyBytes = rowData.Key
+	r.currentRow.valueBytes = rowData.Value
 
 	return true
 }
@@ -97,7 +103,11 @@ func (r *ViewResult) Row() ViewRow {
 
 // Err returns any errors that have occurred on the stream
 func (r *ViewResult) Err() error {
-	return r.reader.Err()
+	err := r.reader.Err()
+	if err != nil {
+		return err
+	}
+	return r.jsonErr
 }
 
 // Close marks the results as closed, returning any errors that occurred during reading the results.
