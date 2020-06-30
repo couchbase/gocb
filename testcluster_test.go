@@ -56,6 +56,8 @@ var (
 	ViewIndexUpsertBugFeature             = FeatureCode("viewinsertupsertbug")
 	ReplicasFeature                       = FeatureCode("replicas")
 	PingAnalyticsFeature                  = FeatureCode("pinganalytics")
+	WaitUntilReadyFeature                 = FeatureCode("waituntilready")
+	WaitUntilReadyClusterFeature          = FeatureCode("waituntilreadycluster")
 )
 
 type TestFeatureFlag struct {
@@ -146,6 +148,10 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case PingFeature:
 			supported = false
+		case WaitUntilReadyFeature:
+			supported = false
+		case WaitUntilReadyClusterFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -197,6 +203,11 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Equal(srvVer650)
 		case PingAnalyticsFeature:
 			supported = !c.Version.Lower(srvVer600)
+		case WaitUntilReadyFeature:
+			supported = true
+		case WaitUntilReadyClusterFeature:
+			supported = !c.Version.Lower(srvVer650)
+
 		}
 	}
 

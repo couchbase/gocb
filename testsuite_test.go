@@ -58,6 +58,7 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 			addrs = append(addrs, fmt.Sprintf("127.0.0.1:%d", mcport))
 		}
 		connStr = fmt.Sprintf("couchbase://%s", strings.Join(addrs, ","))
+		globalConfig.Server = connStr
 		auth = PasswordAuthenticator{
 			Username: "Administrator",
 			Password: "password",
