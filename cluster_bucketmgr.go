@@ -524,6 +524,10 @@ func (bm *BucketManager) settingsToPostData(settings *BucketSettings) (url.Value
 		return nil, makeInvalidArgumentsError("Memory quota invalid, must be greater than 100MB")
 	}
 
+	if settings.MaxTTL > 0 && settings.BucketType == MemcachedBucketType {
+		return nil, makeInvalidArgumentsError("maxTTL is not supported for memcached buckets")
+	}
+
 	posts.Add("name", settings.Name)
 	// posts.Add("saslPassword", settings.Password)
 
@@ -565,7 +569,7 @@ func (bm *BucketManager) settingsToPostData(settings *BucketSettings) (url.Value
 	}
 
 	if settings.MaxTTL > 0 {
-		posts.Add("maxTTL", fmt.Sprintf("%d", settings.MaxTTL))
+		posts.Add("maxTTL", fmt.Sprintf("%d", settings.MaxTTL/time.Second))
 	}
 
 	if settings.CompressionMode != "" {

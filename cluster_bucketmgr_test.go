@@ -12,18 +12,19 @@ func (suite *IntegrationTestSuite) TestBucketMgrOps() {
 
 	mgr := globalCluster.Buckets()
 
+	settings := BucketSettings{
+		Name:                 "test22",
+		RAMQuotaMB:           100,
+		NumReplicas:          1,
+		BucketType:           CouchbaseBucketType,
+		EvictionPolicy:       EvictionPolicyTypeValueOnly,
+		FlushEnabled:         true,
+		MaxTTL:               10 * time.Second,
+		CompressionMode:      CompressionModeActive,
+		ReplicaIndexDisabled: true,
+	}
 	err := mgr.CreateBucket(CreateBucketSettings{
-		BucketSettings: BucketSettings{
-			Name:                 "test22",
-			RAMQuotaMB:           100,
-			NumReplicas:          0,
-			BucketType:           MemcachedBucketType,
-			EvictionPolicy:       EvictionPolicyTypeValueOnly,
-			FlushEnabled:         true,
-			MaxTTL:               10,
-			CompressionMode:      CompressionModeActive,
-			ReplicaIndexDisabled: true,
-		},
+		BucketSettings:         settings,
 		ConflictResolutionType: ConflictResolutionTypeSequenceNumber,
 	}, nil)
 	if err != nil {
@@ -43,6 +44,16 @@ func (suite *IntegrationTestSuite) TestBucketMgrOps() {
 	})
 
 	suite.Assert().True(success, "GetBucket failed to execute within the required time")
+
+	suite.Assert().Equal(settings.BucketType, bucket.BucketType)
+	suite.Assert().Equal(settings.Name, bucket.Name)
+	suite.Assert().Equal(settings.RAMQuotaMB, bucket.RAMQuotaMB)
+	suite.Assert().Equal(settings.NumReplicas, bucket.NumReplicas)
+	suite.Assert().Equal(settings.FlushEnabled, bucket.FlushEnabled)
+	suite.Assert().Equal(settings.MaxTTL, bucket.MaxTTL)
+	suite.Assert().Equal(settings.EvictionPolicy, bucket.EvictionPolicy)
+	suite.Assert().Equal(settings.CompressionMode, bucket.CompressionMode)
+	suite.Assert().True(bucket.ReplicaIndexDisabled)
 
 	err = mgr.UpdateBucket(*bucket, nil)
 	if err != nil {
@@ -171,29 +182,32 @@ func (suite *IntegrationTestSuite) TestBucketMgrBucketNotExist() {
 	}
 }
 
-func (suite *IntegrationTestSuite) TestBucketMgrEphemeral() {
+func (suite *IntegrationTestSuite) TestBucketMgrMemcached() {
 	suite.skipIfUnsupported(BucketMgrFeature)
 
 	mgr := globalCluster.Buckets()
 
+	settings := BucketSettings{
+		Name:                 "testmemd",
+		RAMQuotaMB:           100,
+		NumReplicas:          0,
+		BucketType:           MemcachedBucketType,
+		EvictionPolicy:       EvictionPolicyTypeValueOnly,
+		FlushEnabled:         true,
+		ReplicaIndexDisabled: true,
+	}
 	err := mgr.CreateBucket(CreateBucketSettings{
-		BucketSettings: BucketSettings{
-			Name:         "testeph",
-			RAMQuotaMB:   100,
-			NumReplicas:  0,
-			BucketType:   EphemeralBucketType,
-			FlushEnabled: true,
-			MaxTTL:       10,
-		},
+		BucketSettings: settings,
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create bucket %v", err)
 	}
-	defer mgr.DropBucket("testeph", nil)
+	defer mgr.DropBucket("testmemd", nil)
 
 	// Buckets don't become available immediately so we need to do a bit of polling to see if it comes online.
+	var bucket *BucketSettings
 	success := suite.tryUntil(time.Now().Add(2*time.Second), 100*time.Millisecond, func() bool {
-		_, err := mgr.GetBucket("testeph", nil)
+		bucket, err = mgr.GetBucket("testmemd", nil)
 		if err != nil {
 			suite.T().Logf("Failed to get bucket %v", err)
 			return false
@@ -201,6 +215,71 @@ func (suite *IntegrationTestSuite) TestBucketMgrEphemeral() {
 
 		return true
 	})
+	suite.Require().True(success, "GetBucket failed to execute within the required time")
 
-	suite.Assert().True(success, "GetBucket failed to execute within the required time")
+	suite.Assert().Equal(settings.BucketType, bucket.BucketType)
+	suite.Assert().Equal(settings.Name, bucket.Name)
+	suite.Assert().Equal(settings.RAMQuotaMB, bucket.RAMQuotaMB)
+	suite.Assert().Equal(settings.NumReplicas, bucket.NumReplicas)
+	suite.Assert().Equal(settings.FlushEnabled, bucket.FlushEnabled)
+	suite.Assert().Equal(time.Duration(0), bucket.MaxTTL)
+	suite.Assert().Equal(CompressionModeOff, bucket.CompressionMode)
+	suite.Assert().True(bucket.ReplicaIndexDisabled)
+
+	settings.MaxTTL = 10 * time.Second
+	err = mgr.CreateBucket(CreateBucketSettings{
+		BucketSettings: settings,
+	}, nil)
+
+	if !errors.Is(err, ErrInvalidArgument) {
+		suite.T().Fatalf("Expected invalid argument error but was %v", err)
+	}
+}
+
+func (suite *IntegrationTestSuite) TestBucketMgrEphemeral() {
+	suite.skipIfUnsupported(BucketMgrFeature)
+
+	mgr := globalCluster.Buckets()
+
+	settings := BucketSettings{
+		Name:         "testeph",
+		RAMQuotaMB:   100,
+		NumReplicas:  1,
+		BucketType:   EphemeralBucketType,
+		FlushEnabled: true,
+		MaxTTL:       10 * time.Second,
+	}
+
+	err := mgr.CreateBucket(CreateBucketSettings{
+		BucketSettings: settings,
+	}, nil)
+	if err != nil {
+		suite.T().Fatalf("Failed to create bucket %v", err)
+	}
+	defer mgr.DropBucket("testeph", nil)
+
+	// Buckets don't become available immediately so we need to do a bit of polling to see if it comes online.
+	var bucket *BucketSettings
+	success := suite.tryUntil(time.Now().Add(2*time.Second), 100*time.Millisecond, func() bool {
+		bucket, err = mgr.GetBucket("testeph", nil)
+		if err != nil {
+			suite.T().Logf("Failed to get bucket %v", err)
+			return false
+		}
+
+		return true
+	})
+	suite.Require().True(success, "GetBucket failed to execute within the required time")
+
+	suite.Assert().Equal(settings.BucketType, bucket.BucketType)
+	suite.Assert().Equal(settings.Name, bucket.Name)
+	suite.Assert().Equal(settings.RAMQuotaMB, bucket.RAMQuotaMB)
+	suite.Assert().Equal(settings.NumReplicas, bucket.NumReplicas)
+	suite.Assert().Equal(settings.FlushEnabled, bucket.FlushEnabled)
+	suite.Assert().Equal(settings.MaxTTL, bucket.MaxTTL)
+	suite.Assert().Equal(CompressionModePassive, bucket.CompressionMode)
+	suite.Assert().True(bucket.ReplicaIndexDisabled)
+}
+
+func (suite *IntegrationTestSuite) AssertBucket(expected *BucketSettings, actual *BucketSettings) {
 }
