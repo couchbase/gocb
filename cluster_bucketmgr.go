@@ -533,10 +533,13 @@ func (bm *BucketManager) settingsToPostData(settings *BucketSettings) (url.Value
 		posts.Add("flushEnabled", "0")
 	}
 
-	if settings.ReplicaIndexDisabled {
-		posts.Add("replicaIndex", "0")
-	} else {
-		posts.Add("replicaIndex", "1")
+	// replicaIndex can't be set at all on ephemeral buckets.
+	if settings.BucketType != EphemeralBucketType {
+		if settings.ReplicaIndexDisabled {
+			posts.Add("replicaIndex", "0")
+		} else {
+			posts.Add("replicaIndex", "1")
+		}
 	}
 
 	switch settings.BucketType {

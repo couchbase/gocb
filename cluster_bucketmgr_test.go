@@ -32,30 +32,17 @@ func (suite *IntegrationTestSuite) TestBucketMgrOps() {
 
 	// Buckets don't become available immediately so we need to do a bit of polling to see if it comes online.
 	var bucket *BucketSettings
-	bucketSignal := make(chan struct{})
-	go func() {
-		for {
-			// Check that we can get and re-upsert a bucket.
-			bucket, err = mgr.GetBucket("test22", nil)
-			if err != nil {
-				suite.T().Logf("Failed to get bucket %v", err)
-				time.Sleep(100 * time.Millisecond)
-				continue
-			}
-
-			bucketSignal <- struct{}{}
-			break
+	success := suite.tryUntil(time.Now().Add(2*time.Second), 100*time.Millisecond, func() bool {
+		bucket, err = mgr.GetBucket("test22", nil)
+		if err != nil {
+			suite.T().Logf("Failed to get bucket %v", err)
+			return false
 		}
-	}()
 
-	maxWaitTime := 2 * time.Second
-	timer := gocbcore.AcquireTimer(maxWaitTime)
-	select {
-	case <-timer.C:
-		gocbcore.ReleaseTimer(timer, true)
-		suite.T().Fatalf("Wait timeout expired for bucket to become available")
-	case <-bucketSignal:
-	}
+		return true
+	})
+
+	suite.Assert().True(success, "GetBucket failed to execute within the required time")
 
 	err = mgr.UpdateBucket(*bucket, nil)
 	if err != nil {
@@ -82,7 +69,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrOps() {
 		suite.T().Fatalf("Test bucket was not found in list of bucket settings, %v", buckets)
 	}
 
-	success := suite.tryUntil(time.Now().Add(5*time.Second), 50*time.Millisecond, func() bool {
+	success = suite.tryUntil(time.Now().Add(5*time.Second), 50*time.Millisecond, func() bool {
 		err = mgr.FlushBucket("test22", nil)
 		if err != nil {
 			suite.T().Logf("Flush bucket failed with %s", err)
@@ -168,6 +155,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrFlushDisabled() {
 		suite.T().Fatalf("Expected error to be bucket not flushable but was %v", err)
 	}
 }
+
 func (suite *IntegrationTestSuite) TestBucketMgrBucketNotExist() {
 	suite.skipIfUnsupported(BucketMgrFeature)
 
@@ -181,4 +169,38 @@ func (suite *IntegrationTestSuite) TestBucketMgrBucketNotExist() {
 	if !errors.Is(err, ErrBucketNotFound) {
 		suite.T().Fatalf("Expected error to be bucket not found but was %v", err)
 	}
+}
+
+func (suite *IntegrationTestSuite) TestBucketMgrEphemeral() {
+	suite.skipIfUnsupported(BucketMgrFeature)
+
+	mgr := globalCluster.Buckets()
+
+	err := mgr.CreateBucket(CreateBucketSettings{
+		BucketSettings: BucketSettings{
+			Name:         "testeph",
+			RAMQuotaMB:   100,
+			NumReplicas:  0,
+			BucketType:   EphemeralBucketType,
+			FlushEnabled: true,
+			MaxTTL:       10,
+		},
+	}, nil)
+	if err != nil {
+		suite.T().Fatalf("Failed to create bucket %v", err)
+	}
+	defer mgr.DropBucket("testeph", nil)
+
+	// Buckets don't become available immediately so we need to do a bit of polling to see if it comes online.
+	success := suite.tryUntil(time.Now().Add(2*time.Second), 100*time.Millisecond, func() bool {
+		_, err := mgr.GetBucket("testeph", nil)
+		if err != nil {
+			suite.T().Logf("Failed to get bucket %v", err)
+			return false
+		}
+
+		return true
+	})
+
+	suite.Assert().True(success, "GetBucket failed to execute within the required time")
 }
