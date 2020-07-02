@@ -46,8 +46,16 @@ func (c *Collection) name() string {
 	return c.collectionName
 }
 
-func (c *Collection) scopeName() string {
+// ScopeName returns the name of the scope to which this collection belongs.
+// UNCOMMITTED: This API may change in the future.
+func (c *Collection) ScopeName() string {
 	return c.scope
+}
+
+// BucketName returns the name of the bucket to which this collection belongs.
+// UNCOMMITTED: This API may change in the future.
+func (c *Collection) BucketName() string {
+	return c.bucket
 }
 
 // Name returns the name of the collection.

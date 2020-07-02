@@ -128,7 +128,7 @@ func (m *kvOpManager) CollectionName() string {
 }
 
 func (m *kvOpManager) ScopeName() string {
-	return m.parent.scopeName()
+	return m.parent.ScopeName()
 }
 
 func (m *kvOpManager) BucketName() string {

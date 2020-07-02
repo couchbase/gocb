@@ -42,6 +42,12 @@ func (s *Scope) Name() string {
 	return s.scopeName
 }
 
+// BucketName returns the name of the bucket to which this collection belongs.
+// UNCOMMITTED: This API may change in the future.
+func (s *Scope) BucketName() string {
+	return s.bucketName
+}
+
 // Collection returns an instance of a collection.
 // VOLATILE: This API is subject to change at any time.
 func (s *Scope) Collection(collectionName string) *Collection {

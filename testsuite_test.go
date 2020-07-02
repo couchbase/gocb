@@ -178,7 +178,6 @@ func (suite *UnitTestSuite) defaultTimeoutConfig() TimeoutsConfig {
 func (suite *UnitTestSuite) bucket(name string, timeouts TimeoutsConfig, cli *mockConnectionManager) *Bucket {
 	b := &Bucket{
 		bucketName: name,
-
 		timeoutsConfig: TimeoutsConfig{
 			KVTimeout:         timeouts.KVTimeout,
 			KVDurableTimeout:  timeouts.KVDurableTimeout,
@@ -188,6 +187,11 @@ func (suite *UnitTestSuite) bucket(name string, timeouts TimeoutsConfig, cli *mo
 			ManagementTimeout: timeouts.ManagementTimeout,
 			ViewTimeout:       timeouts.ViewTimeout,
 		},
+		transcoder:           NewJSONTranscoder(),
+		retryStrategyWrapper: newRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
+		tracer:               &noopTracer{},
+		useServerDurations:   true,
+		useMutationTokens:    true,
 
 		connectionManager: cli,
 	}
