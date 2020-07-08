@@ -315,11 +315,16 @@ func (c *Cluster) connSpec() gocbconnstr.ConnSpec {
 // WaitUntilReadyOptions is the set of options available to the WaitUntilReady operations.
 type WaitUntilReadyOptions struct {
 	DesiredState ClusterState
+	ServiceTypes []ServiceType
 }
 
 // WaitUntilReady will wait for the cluster object to be ready for use.
 // At present this will wait until memd connections have been established with the server and are ready
-// to be used.
+// to be used before performing a ping against the specified services which also
+// exist in the cluster map.
+// If no services are specified then ServiceTypeManagement, ServiceTypeQuery, ServiceTypeSearch, ServiceTypeAnalytics
+// will be pinged.
+// Valid service types are: ServiceTypeManagement, ServiceTypeQuery, ServiceTypeSearch, ServiceTypeAnalytics.
 func (c *Cluster) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOptions) error {
 	if opts == nil {
 		opts = &WaitUntilReadyOptions{}
@@ -340,10 +345,17 @@ func (c *Cluster) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOpti
 		desiredState = ClusterStateOnline
 	}
 
+	services := opts.ServiceTypes
+	gocbcoreServices := make([]gocbcore.ServiceType, len(services))
+	for i, svc := range services {
+		gocbcoreServices[i] = gocbcore.ServiceType(svc)
+	}
+
 	err = provider.WaitUntilReady(
 		time.Now().Add(timeout),
 		gocbcore.WaitUntilReadyOptions{
 			DesiredState: gocbcore.ClusterState(desiredState),
+			ServiceTypes: gocbcoreServices,
 		},
 	)
 	if err != nil {

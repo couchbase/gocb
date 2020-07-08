@@ -108,7 +108,11 @@ func (b *Bucket) Collections() *CollectionManager {
 
 // WaitUntilReady will wait for the bucket object to be ready for use.
 // At present this will wait until memd connections have been established with the server and are ready
-// to be used.
+// to be used before performing a ping against the specified services (except KeyValue) which also
+// exist in the cluster map.
+// If no services are specified then will wait until KeyValue is ready.
+// Valid service types are: ServiceTypeKeyValue, ServiceTypeManagement, ServiceTypeQuery, ServiceTypeSearch,
+// ServiceTypeAnalytics, ServiceTypeViews.
 func (b *Bucket) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOptions) error {
 	if opts == nil {
 		opts = &WaitUntilReadyOptions{}
@@ -128,10 +132,17 @@ func (b *Bucket) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOptio
 		desiredState = ClusterStateOnline
 	}
 
+	services := opts.ServiceTypes
+	gocbcoreServices := make([]gocbcore.ServiceType, len(services))
+	for i, svc := range services {
+		gocbcoreServices[i] = gocbcore.ServiceType(svc)
+	}
+
 	err = provider.WaitUntilReady(
 		time.Now().Add(timeout),
 		gocbcore.WaitUntilReadyOptions{
 			DesiredState: gocbcore.ClusterState(desiredState),
+			ServiceTypes: gocbcoreServices,
 		},
 	)
 	if err != nil {
