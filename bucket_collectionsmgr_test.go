@@ -310,22 +310,28 @@ func (suite *IntegrationTestSuite) TestCollectionsInBucket() {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
-	scopes, err := bucket1.GetAllScopes(nil)
-	if err != nil {
-		suite.T().Fatalf("Failed to GetAllScopes %v", err)
-	}
-
-	var scope *ScopeSpec
-	for i, s := range scopes {
-		if s.Name == "collectionsInBucketScope" {
-			scope = &scopes[i]
+	success := suite.tryUntil(time.Now().Add(5*time.Second), 500*time.Millisecond, func() bool {
+		scopes, err := bucket1.GetAllScopes(nil)
+		if err != nil {
+			suite.T().Fatalf("Failed to GetAllScopes %v", err)
 		}
-	}
-	suite.Require().NotNil(scope)
 
-	if len(scope.Collections) != 5 {
-		suite.T().Fatalf("Expected collections in scope should be 5 but was %v", scope)
-	}
+		var scope *ScopeSpec
+		for i, s := range scopes {
+			if s.Name == "collectionsInBucketScope" {
+				scope = &scopes[i]
+			}
+		}
+		suite.Require().NotNil(scope)
+
+		if len(scope.Collections) != 5 {
+			suite.T().Logf("Expected collections in scope should be 5 but was %v", scope)
+			return false
+		}
+
+		return true
+	})
+	suite.Require().True(success)
 }
 
 func (suite *IntegrationTestSuite) TestNumberOfCollectionInScope() {

@@ -692,7 +692,7 @@ func (suite *IntegrationTestSuite) TestCollectionRetry() {
 	// We've wiped the collection so we need to recreate this doc
 	// We know that this operation can take a bit longer than normal as collections take time to come online.
 	mutRes, err = col.Upsert("insertRetryDoc", doc, &UpsertOptions{
-		Timeout: 3500 * time.Millisecond,
+		Timeout: 10000 * time.Millisecond,
 	})
 	if err != nil {
 		suite.T().Fatalf("Upsert failed, error was %v", err)
@@ -1294,6 +1294,7 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAnyReplica() {
 
 	mutRes, err := globalCollection.Insert("insertReplicaDoc", doc, &InsertOptions{
 		PersistTo: 1,
+		Timeout:   5 * time.Second,
 	})
 	if err != nil {
 		suite.T().Fatalf("Insert failed, error was %v", err)
@@ -1430,10 +1431,60 @@ func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 
 	testCases := []tCase{
 		{
-			name:   "insertDurabilityMajorityDoc",
+			name:   "upsertDurabilityMajorityDoc",
 			method: "Upsert",
-			args: []interface{}{"insertDurabilityMajorityDoc", doc, &UpsertOptions{
+			args: []interface{}{"upsertDurabilityMajorityDoc", doc, &UpsertOptions{
 				DurabilityLevel: DurabilityLevelMajority,
+			}},
+			expectCas:         true,
+			expectedError:     nil,
+			expectKeyNotFound: false,
+		},
+		{
+			name:   "insertDurabilityLevelPersistToMajority",
+			method: "Insert",
+			args: []interface{}{"insertDurabilityLevelPersistToMajority", doc, &InsertOptions{
+				DurabilityLevel: DurabilityLevelPersistToMajority,
+			}},
+			expectCas:         true,
+			expectedError:     nil,
+			expectKeyNotFound: false,
+		},
+		{
+			name:   "insertDurabilityMajorityDoc",
+			method: "Insert",
+			args: []interface{}{"insertDurabilityMajorityDoc", doc, &InsertOptions{
+				DurabilityLevel: DurabilityLevelMajority,
+			}},
+			expectCas:         true,
+			expectedError:     nil,
+			expectKeyNotFound: false,
+		},
+		{
+			name:   "insertDurabilityMajorityAndPersistOnMasterDoc",
+			method: "Insert",
+			args: []interface{}{"insertDurabilityMajorityAndPersistOnMasterDoc", doc, &InsertOptions{
+				DurabilityLevel: DurabilityLevelMajorityAndPersistOnMaster,
+			}},
+			expectCas:         true,
+			expectedError:     nil,
+			expectKeyNotFound: false,
+		},
+		{
+			name:   "upsertDurabilityLevelPersistToMajority",
+			method: "Upsert",
+			args: []interface{}{"upsertDurabilityLevelPersistToMajority", doc, &UpsertOptions{
+				DurabilityLevel: DurabilityLevelPersistToMajority,
+			}},
+			expectCas:         true,
+			expectedError:     nil,
+			expectKeyNotFound: false,
+		},
+		{
+			name:   "upsertDurabilityMajorityAndPersistOnMasterDoc",
+			method: "Upsert",
+			args: []interface{}{"upsertDurabilityMajorityAndPersistOnMasterDoc", doc, &UpsertOptions{
+				DurabilityLevel: DurabilityLevelMajorityAndPersistOnMaster,
 			}},
 			expectCas:         true,
 			expectedError:     nil,
