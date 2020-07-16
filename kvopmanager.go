@@ -132,7 +132,7 @@ func (m *kvOpManager) ScopeName() string {
 }
 
 func (m *kvOpManager) BucketName() string {
-	return m.parent.bucket
+	return m.parent.bucketName()
 }
 
 func (m *kvOpManager) ValueBytes() []byte {

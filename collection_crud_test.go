@@ -1431,8 +1431,8 @@ func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 	testCases := []tCase{
 		{
 			name:   "insertDurabilityMajorityDoc",
-			method: "Insert",
-			args: []interface{}{"insertDurabilityMajorityDoc", doc, &InsertOptions{
+			method: "Upsert",
+			args: []interface{}{"insertDurabilityMajorityDoc", doc, &UpsertOptions{
 				DurabilityLevel: DurabilityLevelMajority,
 			}},
 			expectCas:         true,
@@ -1514,7 +1514,7 @@ func (suite *UnitTestSuite) TestGetErrorCollectionUnknown() {
 		Return(pendingOp, nil)
 
 	col := &Collection{
-		bucket:         "mock",
+		bucket:         &Bucket{bucketName: "mock"},
 		collectionName: "",
 		scope:          "",
 
@@ -1574,7 +1574,7 @@ func (suite *UnitTestSuite) TestGetErrorProperties() {
 		Return(pendingOp, nil)
 
 	col := &Collection{
-		bucket: "mock",
+		bucket: &Bucket{bucketName: "mock"},
 
 		collectionName: "",
 		scope:          "",

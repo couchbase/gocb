@@ -720,7 +720,7 @@ func (c *Collection) GetAnyReplica(id string, opts *GetAnyReplicaOptions) (docOu
 	if res == nil {
 		return nil, &KeyValueError{
 			InnerError:     ErrDocumentUnretrievable,
-			BucketName:     c.bucket,
+			BucketName:     c.bucketName(),
 			ScopeName:      c.scope,
 			CollectionName: c.collectionName,
 		}

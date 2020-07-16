@@ -21,6 +21,7 @@ type connectionManager interface {
 	getHTTPProvider() (httpProvider, error)
 	getDiagnosticsProvider(bucketName string) (diagnosticsProvider, error)
 	getWaitUntilReadyProvider(bucketName string) (waitUntilReadyProvider, error)
+	connection(bucketName string) (*gocbcore.Agent, error)
 	close() error
 }
 
@@ -127,7 +128,7 @@ func (c *stdConnectionMgr) getKvProvider(bucketName string) (kvProvider, error) 
 		return nil, errors.New("cluster not yet connected")
 	}
 	agent := c.agentgroup.GetAgent(bucketName)
-	if c.agentgroup == nil {
+	if agent == nil {
 		return nil, errors.New("bucket not yet connected")
 	}
 	return agent, nil
@@ -205,6 +206,18 @@ func (c *stdConnectionMgr) getWaitUntilReadyProvider(bucketName string) (waitUnt
 	}
 
 	return &waitUntilReadyProviderWrapper{provider: agent}, nil
+}
+
+func (c *stdConnectionMgr) connection(bucketName string) (*gocbcore.Agent, error) {
+	if c.agentgroup == nil {
+		return nil, errors.New("cluster not yet connected")
+	}
+
+	agent := c.agentgroup.GetAgent(bucketName)
+	if agent == nil {
+		return nil, errors.New("bucket not yet connected")
+	}
+	return agent, nil
 }
 
 func (c *stdConnectionMgr) close() error {

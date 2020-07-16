@@ -221,7 +221,7 @@ func (item *TouchOp) execute(tracectx requestSpanContext, c *Collection, provide
 			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
-					bucketName: c.bucket,
+					bucketName: c.bucketName(),
 				}
 				item.Result.mt = mutTok
 			}
@@ -276,7 +276,7 @@ func (item *RemoveOp) execute(tracectx requestSpanContext, c *Collection, provid
 			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
-					bucketName: c.bucket,
+					bucketName: c.bucketName(),
 				}
 				item.Result.mt = mutTok
 			}
@@ -345,7 +345,7 @@ func (item *UpsertOp) execute(tracectx requestSpanContext, c *Collection, provid
 			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
-					bucketName: c.bucket,
+					bucketName: c.bucketName(),
 				}
 				item.Result.mt = mutTok
 			}
@@ -413,7 +413,7 @@ func (item *InsertOp) execute(tracectx requestSpanContext, c *Collection, provid
 			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
-					bucketName: c.bucket,
+					bucketName: c.bucketName(),
 				}
 				item.Result.mt = mutTok
 			}
@@ -483,7 +483,7 @@ func (item *ReplaceOp) execute(tracectx requestSpanContext, c *Collection, provi
 			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
-					bucketName: c.bucket,
+					bucketName: c.bucketName(),
 				}
 				item.Result.mt = mutTok
 			}
@@ -538,7 +538,7 @@ func (item *AppendOp) execute(tracectx requestSpanContext, c *Collection, provid
 			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
-					bucketName: c.bucket,
+					bucketName: c.bucketName(),
 				}
 				item.Result.mt = mutTok
 			}
@@ -593,7 +593,7 @@ func (item *PrependOp) execute(tracectx requestSpanContext, c *Collection, provi
 			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
-					bucketName: c.bucket,
+					bucketName: c.bucketName(),
 				}
 				item.Result.mt = mutTok
 			}
@@ -661,7 +661,7 @@ func (item *IncrementOp) execute(tracectx requestSpanContext, c *Collection, pro
 			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
-					bucketName: c.bucket,
+					bucketName: c.bucketName(),
 				}
 				item.Result.mt = mutTok
 			}
@@ -729,7 +729,7 @@ func (item *DecrementOp) execute(tracectx requestSpanContext, c *Collection, pro
 			if res.MutationToken.VbUUID != 0 {
 				mutTok := &MutationToken{
 					token:      res.MutationToken,
-					bucketName: c.bucket,
+					bucketName: c.bucketName(),
 				}
 				item.Result.mt = mutTok
 			}

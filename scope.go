@@ -3,8 +3,8 @@ package gocb
 // Scope represents a single scope within a bucket.
 // VOLATILE: This API is subject to change at any time.
 type Scope struct {
-	scopeName  string
-	bucketName string
+	scopeName string
+	bucket    *Bucket
 
 	timeoutsConfig kvTimeoutsConfig
 
@@ -19,8 +19,8 @@ type Scope struct {
 
 func newScope(bucket *Bucket, scopeName string) *Scope {
 	return &Scope{
-		scopeName:  scopeName,
-		bucketName: bucket.Name(),
+		scopeName: scopeName,
+		bucket:    bucket,
 
 		timeoutsConfig: kvTimeoutsConfig{
 			KVTimeout:        bucket.timeoutsConfig.KVTimeout,
@@ -45,7 +45,7 @@ func (s *Scope) Name() string {
 // BucketName returns the name of the bucket to which this collection belongs.
 // UNCOMMITTED: This API may change in the future.
 func (s *Scope) BucketName() string {
-	return s.bucketName
+	return s.bucket.Name()
 }
 
 // Collection returns an instance of a collection.

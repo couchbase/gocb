@@ -11,7 +11,7 @@ type kvTimeoutsConfig struct {
 type Collection struct {
 	collectionName string
 	scope          string
-	bucket         string
+	bucket         *Bucket
 
 	timeoutsConfig kvTimeoutsConfig
 
@@ -28,7 +28,7 @@ func newCollection(scope *Scope, collectionName string) *Collection {
 	return &Collection{
 		collectionName: collectionName,
 		scope:          scope.Name(),
-		bucket:         scope.bucketName,
+		bucket:         scope.bucket,
 
 		timeoutsConfig: scope.timeoutsConfig,
 
@@ -52,9 +52,9 @@ func (c *Collection) ScopeName() string {
 	return c.scope
 }
 
-// BucketName returns the name of the bucket to which this collection belongs.
+// Bucket returns the name of the bucket to which this collection belongs.
 // UNCOMMITTED: This API may change in the future.
-func (c *Collection) BucketName() string {
+func (c *Collection) Bucket() *Bucket {
 	return c.bucket
 }
 
@@ -68,4 +68,8 @@ func (c *Collection) startKvOpTrace(operationName string, tracectx requestSpanCo
 		SetTag("couchbase.bucket", c.bucket).
 		SetTag("couchbase.collection", c.collectionName).
 		SetTag("couchbase.service", "kv")
+}
+
+func (c *Collection) bucketName() string {
+	return c.bucket.Name()
 }

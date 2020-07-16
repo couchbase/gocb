@@ -9,7 +9,7 @@ func (suite *UnitTestSuite) TestCollectionName() {
 	s := b.Scope(sName)
 	c := s.Collection(cName)
 
-	suite.Assert().Equal(bName, c.BucketName())
+	suite.Assert().Equal(bName, c.bucketName())
 	suite.Assert().Equal(sName, c.ScopeName())
 	suite.Assert().Equal(cName, c.Name())
 }
@@ -21,7 +21,7 @@ func (suite *UnitTestSuite) TestDefaultScopeCollectionName() {
 	b := suite.bucket(bName, suite.defaultTimeoutConfig(), nil)
 	c := b.Collection(cName)
 
-	suite.Assert().Equal(bName, c.BucketName())
+	suite.Assert().Equal(bName, c.bucketName())
 	suite.Assert().Equal("_default", c.ScopeName())
 	suite.Assert().Equal(cName, c.Name())
 }
@@ -32,7 +32,7 @@ func (suite *UnitTestSuite) TestDefaultScopeDefaultCollectionName() {
 	b := suite.bucket(bName, suite.defaultTimeoutConfig(), nil)
 	c := b.DefaultCollection()
 
-	suite.Assert().Equal(bName, c.BucketName())
+	suite.Assert().Equal(bName, c.bucketName())
 	suite.Assert().Equal("_default", c.ScopeName())
 	suite.Assert().Equal("_default", c.Name())
 }
