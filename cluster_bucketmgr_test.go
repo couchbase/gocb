@@ -192,7 +192,6 @@ func (suite *IntegrationTestSuite) TestBucketMgrMemcached() {
 		RAMQuotaMB:           100,
 		NumReplicas:          0,
 		BucketType:           MemcachedBucketType,
-		EvictionPolicy:       EvictionPolicyTypeValueOnly,
 		FlushEnabled:         true,
 		ReplicaIndexDisabled: true,
 	}
@@ -242,12 +241,13 @@ func (suite *IntegrationTestSuite) TestBucketMgrEphemeral() {
 	mgr := globalCluster.Buckets()
 
 	settings := BucketSettings{
-		Name:         "testeph",
-		RAMQuotaMB:   100,
-		NumReplicas:  1,
-		BucketType:   EphemeralBucketType,
-		FlushEnabled: true,
-		MaxTTL:       10 * time.Second,
+		Name:           "testeph",
+		RAMQuotaMB:     100,
+		NumReplicas:    1,
+		BucketType:     EphemeralBucketType,
+		FlushEnabled:   true,
+		MaxTTL:         10 * time.Second,
+		EvictionPolicy: EvictionPolicyTypeNoEviction,
 	}
 
 	err := mgr.CreateBucket(CreateBucketSettings{
@@ -278,8 +278,162 @@ func (suite *IntegrationTestSuite) TestBucketMgrEphemeral() {
 	suite.Assert().Equal(settings.FlushEnabled, bucket.FlushEnabled)
 	suite.Assert().Equal(settings.MaxTTL, bucket.MaxTTL)
 	suite.Assert().Equal(CompressionModePassive, bucket.CompressionMode)
+	suite.Assert().Equal(settings.EvictionPolicy, bucket.EvictionPolicy)
+	suite.Assert().True(bucket.ReplicaIndexDisabled)
+
+	settings = BucketSettings{
+		Name:           "testephNRU",
+		RAMQuotaMB:     100,
+		NumReplicas:    1,
+		BucketType:     EphemeralBucketType,
+		FlushEnabled:   true,
+		MaxTTL:         10 * time.Second,
+		EvictionPolicy: EvictionPolicyTypeNotRecentlyUsed,
+	}
+
+	err = mgr.CreateBucket(CreateBucketSettings{
+		BucketSettings: settings,
+	}, nil)
+	if err != nil {
+		suite.T().Fatalf("Failed to create bucket %v", err)
+	}
+	defer mgr.DropBucket("testephNRU", nil)
+
+	// Buckets don't become available immediately so we need to do a bit of polling to see if it comes online.
+	success = suite.tryUntil(time.Now().Add(2*time.Second), 100*time.Millisecond, func() bool {
+		bucket, err = mgr.GetBucket("testephNRU", nil)
+		if err != nil {
+			suite.T().Logf("Failed to get bucket %v", err)
+			return false
+		}
+
+		return true
+	})
+	suite.Require().True(success, "GetBucket failed to execute within the required time")
+
+	suite.Assert().Equal(settings.BucketType, bucket.BucketType)
+	suite.Assert().Equal(settings.Name, bucket.Name)
+	suite.Assert().Equal(settings.RAMQuotaMB, bucket.RAMQuotaMB)
+	suite.Assert().Equal(settings.NumReplicas, bucket.NumReplicas)
+	suite.Assert().Equal(settings.FlushEnabled, bucket.FlushEnabled)
+	suite.Assert().Equal(settings.MaxTTL, bucket.MaxTTL)
+	suite.Assert().Equal(CompressionModePassive, bucket.CompressionMode)
+	suite.Assert().Equal(settings.EvictionPolicy, bucket.EvictionPolicy)
 	suite.Assert().True(bucket.ReplicaIndexDisabled)
 }
 
-func (suite *IntegrationTestSuite) AssertBucket(expected *BucketSettings, actual *BucketSettings) {
+func (suite *IntegrationTestSuite) TestBucketMgrInvalidEviction() {
+	mgr := globalCluster.Buckets()
+
+	settings := BucketSettings{
+		Name:           "test",
+		RAMQuotaMB:     100,
+		NumReplicas:    0,
+		BucketType:     MemcachedBucketType,
+		EvictionPolicy: EvictionPolicyTypeValueOnly,
+	}
+	err := mgr.CreateBucket(CreateBucketSettings{
+		BucketSettings: settings,
+	}, nil)
+	if !errors.Is(err, ErrInvalidArgument) {
+		suite.T().Fatalf("Error should have been invalid argument, was %v", err)
+	}
+
+	settings = BucketSettings{
+		Name:           "test",
+		RAMQuotaMB:     100,
+		NumReplicas:    0,
+		BucketType:     MemcachedBucketType,
+		EvictionPolicy: EvictionPolicyTypeFull,
+	}
+	err = mgr.CreateBucket(CreateBucketSettings{
+		BucketSettings: settings,
+	}, nil)
+	if !errors.Is(err, ErrInvalidArgument) {
+		suite.T().Fatalf("Error should have been invalid argument, was %v", err)
+	}
+
+	settings = BucketSettings{
+		Name:           "test",
+		RAMQuotaMB:     100,
+		NumReplicas:    0,
+		BucketType:     MemcachedBucketType,
+		EvictionPolicy: EvictionPolicyTypeNotRecentlyUsed,
+	}
+	err = mgr.CreateBucket(CreateBucketSettings{
+		BucketSettings: settings,
+	}, nil)
+	if !errors.Is(err, ErrInvalidArgument) {
+		suite.T().Fatalf("Error should have been invalid argument, was %v", err)
+	}
+
+	settings = BucketSettings{
+		Name:           "test",
+		RAMQuotaMB:     100,
+		NumReplicas:    0,
+		BucketType:     MemcachedBucketType,
+		EvictionPolicy: EvictionPolicyTypeNoEviction,
+	}
+	err = mgr.CreateBucket(CreateBucketSettings{
+		BucketSettings: settings,
+	}, nil)
+	if !errors.Is(err, ErrInvalidArgument) {
+		suite.T().Fatalf("Error should have been invalid argument, was %v", err)
+	}
+
+	settings = BucketSettings{
+		Name:           "test",
+		RAMQuotaMB:     100,
+		NumReplicas:    0,
+		BucketType:     CouchbaseBucketType,
+		EvictionPolicy: EvictionPolicyTypeNoEviction,
+	}
+	err = mgr.CreateBucket(CreateBucketSettings{
+		BucketSettings: settings,
+	}, nil)
+	if !errors.Is(err, ErrInvalidArgument) {
+		suite.T().Fatalf("Error should have been invalid argument, was %v", err)
+	}
+
+	settings = BucketSettings{
+		Name:           "test",
+		RAMQuotaMB:     100,
+		NumReplicas:    0,
+		BucketType:     CouchbaseBucketType,
+		EvictionPolicy: EvictionPolicyTypeNotRecentlyUsed,
+	}
+	err = mgr.CreateBucket(CreateBucketSettings{
+		BucketSettings: settings,
+	}, nil)
+	if !errors.Is(err, ErrInvalidArgument) {
+		suite.T().Fatalf("Error should have been invalid argument, was %v", err)
+	}
+
+	settings = BucketSettings{
+		Name:           "test",
+		RAMQuotaMB:     100,
+		NumReplicas:    0,
+		BucketType:     EphemeralBucketType,
+		EvictionPolicy: EvictionPolicyTypeValueOnly,
+	}
+	err = mgr.CreateBucket(CreateBucketSettings{
+		BucketSettings: settings,
+	}, nil)
+	if !errors.Is(err, ErrInvalidArgument) {
+		suite.T().Fatalf("Error should have been invalid argument, was %v", err)
+	}
+
+	settings = BucketSettings{
+		Name:           "test",
+		RAMQuotaMB:     100,
+		NumReplicas:    0,
+		BucketType:     EphemeralBucketType,
+		EvictionPolicy: EvictionPolicyTypeFull,
+	}
+	err = mgr.CreateBucket(CreateBucketSettings{
+		BucketSettings: settings,
+	}, nil)
+	if !errors.Is(err, ErrInvalidArgument) {
+		suite.T().Fatalf("Error should have been invalid argument, was %v", err)
+	}
 }

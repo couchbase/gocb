@@ -41,11 +41,19 @@ const (
 type EvictionPolicyType string
 
 const (
-	// EvictionPolicyTypeFull specifies to use full eviction for a bucket.
+	// EvictionPolicyTypeFull specifies to use full eviction for a couchbase bucket.
 	EvictionPolicyTypeFull EvictionPolicyType = "fullEviction"
 
-	// EvictionPolicyTypeValueOnly specifies to use value only eviction for a bucket.
+	// EvictionPolicyTypeValueOnly specifies to use value only eviction for a couchbase bucket.
 	EvictionPolicyTypeValueOnly EvictionPolicyType = "valueOnly"
+
+	// EvictionPolicyTypeNotRecentlyUsed specifies to use not recently used (nru) eviction for an ephemeral bucket.
+	// UNCOMMITTED: This API may change in the future.
+	EvictionPolicyTypeNotRecentlyUsed EvictionPolicyType = "nruEviction"
+
+	// EvictionPolicyTypeNRU specifies to use no eviction for an ephemeral bucket.
+	// UNCOMMITTED: This API may change in the future.
+	EvictionPolicyTypeNoEviction EvictionPolicyType = "noEviction"
 )
 
 // CompressionMode specifies the kind of compression to use for a bucket.
@@ -565,6 +573,18 @@ func (bm *BucketManager) settingsToPostData(settings *BucketSettings) (url.Value
 	posts.Add("ramQuotaMB", fmt.Sprintf("%d", settings.RAMQuotaMB))
 
 	if settings.EvictionPolicy != "" {
+		switch settings.BucketType {
+		case MemcachedBucketType:
+			return nil, makeInvalidArgumentsError("eviction policy is not valid for memcached buckets")
+		case CouchbaseBucketType:
+			if settings.EvictionPolicy == EvictionPolicyTypeNoEviction || settings.EvictionPolicy == EvictionPolicyTypeNotRecentlyUsed {
+				return nil, makeInvalidArgumentsError("eviction policy is not valid for couchbase buckets")
+			}
+		case EphemeralBucketType:
+			if settings.EvictionPolicy == EvictionPolicyTypeFull || settings.EvictionPolicy == EvictionPolicyTypeValueOnly {
+				return nil, makeInvalidArgumentsError("eviction policy is not valid for ephemeral buckets")
+			}
+		}
 		posts.Add("evictionPolicy", string(settings.EvictionPolicy))
 	}
 
