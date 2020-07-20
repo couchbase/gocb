@@ -75,6 +75,35 @@ func (mt *MutationState) Add(tokens ...MutationToken) {
 	}
 }
 
+// MutationStateInternal specifies internal operations.
+// Internal: This should never be used and is not supported.
+type MutationStateInternal struct {
+	mt *MutationState
+}
+
+// Internal return a new MutationStateInternal.
+// Internal: This should never be used and is not supported.
+func (mt *MutationState) Internal() *MutationStateInternal {
+	return &MutationStateInternal{
+		mt: mt,
+	}
+}
+
+// Add includes an operation's mutation information in this mutation state.
+func (mti *MutationStateInternal) Add(bucket string, tokens ...gocbcore.MutationToken) {
+	for _, token := range tokens {
+		mti.mt.Add(MutationToken{
+			bucketName: bucket,
+			token:      token,
+		})
+	}
+}
+
+// Tokens returns the tokens belonging to the mutation state.
+func (mti *MutationStateInternal) Tokens() []MutationToken {
+	return mti.mt.tokens
+}
+
 // MarshalJSON marshal's this mutation state to JSON.
 func (mt *MutationState) MarshalJSON() ([]byte, error) {
 	var data mutationStateData
