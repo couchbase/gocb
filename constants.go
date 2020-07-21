@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	goCbVersionStr = "v2.1.3"
+	goCbVersionStr = "v2.1.4"
 )
 
 // QueryIndexType provides information on the type of indexer used for an index.
