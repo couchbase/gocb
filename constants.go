@@ -201,3 +201,20 @@ const (
 	// PingStateError indicates that the ping operation failed.
 	PingStateError
 )
+
+// SaslMechanism represents a type of auth that can be performed.
+type SaslMechanism string
+
+const (
+	// PlainSaslMechanism represents that PLAIN auth should be performed.
+	PlainSaslMechanism SaslMechanism = SaslMechanism(gocbcore.PlainAuthMechanism)
+
+	// ScramSha1SaslMechanism represents that SCRAM SHA1 auth should be performed.
+	ScramSha1SaslMechanism SaslMechanism = SaslMechanism(gocbcore.ScramSha1AuthMechanism)
+
+	// ScramSha256SaslMechanism represents that SCRAM SHA256 auth should be performed.
+	ScramSha256SaslMechanism SaslMechanism = SaslMechanism(gocbcore.ScramSha256AuthMechanism)
+
+	// ScramSha512SaslMechanism represents that SCRAM SHA512 auth should be performed.
+	ScramSha512SaslMechanism SaslMechanism = SaslMechanism(gocbcore.ScramSha512AuthMechanism)
+)

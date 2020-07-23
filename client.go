@@ -63,6 +63,11 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 		tlsRootCAProvider = cluster.internalConfig.TLSRootCAProvider
 	}
 
+	var authMechanisms []gocbcore.AuthMechanism
+	for _, mech := range cluster.securityConfig.AllowedSaslMechanisms {
+		authMechanisms = append(authMechanisms, gocbcore.AuthMechanism(mech))
+	}
+
 	config := &gocbcore.AgentGroupConfig{
 		AgentConfig: gocbcore.AgentConfig{
 			UserAgent:              Identifier(),
@@ -87,6 +92,7 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 				CompletionCallback:       completionCallback,
 			},
 			DefaultRetryStrategy: cluster.retryStrategyWrapper,
+			AuthMechanisms:       authMechanisms,
 		},
 	}
 
