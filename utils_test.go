@@ -5,8 +5,6 @@ import (
 	"io"
 	"io/ioutil"
 	"testing"
-
-	"github.com/pkg/errors"
 )
 
 type testBeerDocument struct {
@@ -64,31 +62,6 @@ func loadJSONTestDataset(dataset string, valuePtr interface{}) error {
 	}
 
 	return nil
-}
-
-func loadSDKTestDataset(dataset string) (*testMetadata, []byte, error) {
-	var testdata map[string]interface{}
-	err := loadJSONTestDataset("sdk-testcases/"+dataset, &testdata)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	_, ok := testdata["metadata"]
-	if !ok {
-		return nil, nil, errors.New("test dataset missing metadata")
-	}
-
-	data, ok := testdata["data"]
-	if !ok {
-		return nil, nil, errors.New("test dataset missing data")
-	}
-
-	b, err := json.Marshal(data)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "could not remarshal test data")
-	}
-
-	return nil, b, nil
 }
 
 func marshal(t *testing.T, value interface{}) []byte {
