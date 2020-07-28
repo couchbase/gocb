@@ -184,7 +184,7 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 	if opts.Tracer != nil {
 		initialTracer = opts.Tracer
 	} else {
-		initialTracer = newThresholdLoggingTracer(nil)
+		initialTracer = NewThresholdLoggingTracer(nil)
 	}
 	tracerAddRef(initialTracer)
 
