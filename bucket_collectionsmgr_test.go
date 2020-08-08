@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"errors"
+	"strconv"
 	"time"
 )
 
@@ -422,4 +423,38 @@ func (suite *IntegrationTestSuite) TestNumberOfCollectionInScope() {
 		suite.T().Fatalf("Expected collections in scope should be 5 but was %v", scope)
 	}
 
+}
+
+func (suite *IntegrationTestSuite) TestMaxNumberOfCollectionInScope() {
+	suite.skipIfUnsupported(CollectionsFeature)
+
+	testBucket1 := globalBucket.Collections()
+	err := testBucket1.CreateScope("singleScope", nil)
+	if err != nil {
+		suite.T().Fatalf("Failed to create scope %v", err)
+	}
+	for i := 0; i < 1000; i++ {
+		err = testBucket1.CreateCollection(CollectionSpec{
+			Name:      strconv.Itoa(1000 + i),
+			ScopeName: "singleScope",
+		}, nil)
+		if err != nil {
+			suite.T().Fatalf("Failed to create collection %v", err)
+		}
+	}
+	scopes, err := testBucket1.GetAllScopes(nil)
+	if err != nil {
+		suite.T().Fatalf("Failed to GetAllScopes %v", err)
+	}
+	var scope *ScopeSpec
+	for i, s := range scopes {
+		if s.Name == "singleScope" {
+			scope = &scopes[i]
+		}
+	}
+	suite.Require().NotNil(scope)
+
+	if len(scope.Collections) != 1000 {
+		suite.T().Fatalf("Expected collections in scope should be 1000 but was %v", len(scope.Collections))
+	}
 }
