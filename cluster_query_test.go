@@ -16,26 +16,29 @@ type testQueryDataset struct {
 	jsonQueryResponse
 }
 
+type queryIface interface {
+	Query(string, *QueryOptions) (*QueryResult, error)
+}
+
 func (suite *IntegrationTestSuite) TestQuery() {
 	suite.skipIfUnsupported(QueryFeature)
 
-	n := suite.setupQuery()
-	suite.Run("TestQuery", func() {
-		suite.runQueryTest(n, true)
+	n := suite.setupClusterQuery()
+	suite.Run("TestClusterQuery", func() {
+		suite.runClusterQueryTest(n, true)
 	})
-	suite.Run("TestQueryNoMetrics", func() {
-		suite.runQueryTest(n, false)
+	suite.Run("TestClusterQueryNoMetrics", func() {
+		suite.runClusterQueryTest(n, false)
 	})
-	suite.Run("TestPreparedQuery", func() {
-		suite.runPreparedQueryTest(n)
+	suite.Run("TestClusterPreparedQuery", func() {
+		suite.runClusterPreparedQueryTest(n)
 	})
 }
 
-func (suite *IntegrationTestSuite) runPreparedQueryTest(n int) {
+func (suite *IntegrationTestSuite) runPreparedQueryTest(n int, query string, queryFn queryIface) {
 	deadline := time.Now().Add(10 * time.Second)
 	for {
-		query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=? LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
-		result, err := globalCluster.Query(query, &QueryOptions{
+		result, err := queryFn.Query(query, &QueryOptions{
 			PositionalParameters: []interface{}{"query"},
 			Timeout:              5 * time.Second,
 		})
@@ -74,11 +77,15 @@ func (suite *IntegrationTestSuite) runPreparedQueryTest(n int) {
 	}
 }
 
-func (suite *IntegrationTestSuite) runQueryTest(n int, withMetrics bool) {
+func (suite *IntegrationTestSuite) runClusterPreparedQueryTest(n int) {
+	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=? LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
+	suite.runPreparedQueryTest(n, query, globalCluster)
+}
+
+func (suite *IntegrationTestSuite) runQueryTest(n int, query string, queryFn queryIface, withMetrics bool) {
 	deadline := time.Now().Add(10 * time.Second)
 	for {
-		query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=? LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
-		result, err := globalCluster.Query(query, &QueryOptions{
+		result, err := queryFn.Query(query, &QueryOptions{
 			PositionalParameters: []interface{}{"query"},
 			Timeout:              5 * time.Second,
 			Adhoc:                true,
@@ -126,7 +133,12 @@ func (suite *IntegrationTestSuite) runQueryTest(n int, withMetrics bool) {
 	}
 }
 
-func (suite *IntegrationTestSuite) setupQuery() int {
+func (suite *IntegrationTestSuite) runClusterQueryTest(n int, withMetrics bool) {
+	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=? LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
+	suite.runQueryTest(n, query, globalCluster, withMetrics)
+}
+
+func (suite *IntegrationTestSuite) setupClusterQuery() int {
 	n, err := suite.createBreweryDataset("beer_sample_brewery_five", "query", "", "")
 	suite.Require().Nil(err, "Failed to create dataset %v", err)
 

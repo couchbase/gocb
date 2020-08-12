@@ -17,6 +17,7 @@ const (
 
 var globalBucket *Bucket
 var globalCollection *Collection
+var globalScope *Scope
 var globalCluster *testCluster
 
 type IntegrationTestSuite struct {
@@ -95,10 +96,16 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 
 	globalBucket = globalCluster.Bucket(globalConfig.Bucket)
 
-	if globalConfig.Collection != "" {
-		globalCollection = globalBucket.Collection(globalConfig.Collection)
+	if globalConfig.Scope != "" {
+		globalScope = globalBucket.Scope(globalConfig.Scope)
 	} else {
-		globalCollection = globalBucket.DefaultCollection()
+		globalScope = globalBucket.DefaultScope()
+	}
+
+	if globalConfig.Collection != "" {
+		globalCollection = globalScope.Collection(globalConfig.Collection)
+	} else {
+		globalCollection = globalScope.Collection("_default")
 	}
 }
 
@@ -216,6 +223,10 @@ func (suite *UnitTestSuite) newCluster(cli connectionManager) *Cluster {
 	cluster.connectionManager = cli
 
 	return cluster
+}
+
+func (suite *UnitTestSuite) newScope(b *Bucket, name string) *Scope {
+	return newScope(b, name)
 }
 
 func (suite *UnitTestSuite) mustConvertToBytes(val interface{}) []byte {

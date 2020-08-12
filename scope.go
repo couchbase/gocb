@@ -6,7 +6,7 @@ type Scope struct {
 	scopeName string
 	bucket    *Bucket
 
-	timeoutsConfig kvTimeoutsConfig
+	timeoutsConfig TimeoutsConfig
 
 	transcoder           Transcoder
 	retryStrategyWrapper *retryStrategyWrapper
@@ -14,7 +14,8 @@ type Scope struct {
 
 	useMutationTokens bool
 
-	getKvProvider func() (kvProvider, error)
+	getKvProvider    func() (kvProvider, error)
+	getQueryProvider func() (queryProvider, error)
 }
 
 func newScope(bucket *Bucket, scopeName string) *Scope {
@@ -22,10 +23,7 @@ func newScope(bucket *Bucket, scopeName string) *Scope {
 		scopeName: scopeName,
 		bucket:    bucket,
 
-		timeoutsConfig: kvTimeoutsConfig{
-			KVTimeout:        bucket.timeoutsConfig.KVTimeout,
-			KVDurableTimeout: bucket.timeoutsConfig.KVDurableTimeout,
-		},
+		timeoutsConfig: bucket.timeoutsConfig,
 
 		transcoder:           bucket.transcoder,
 		retryStrategyWrapper: bucket.retryStrategyWrapper,
@@ -33,7 +31,8 @@ func newScope(bucket *Bucket, scopeName string) *Scope {
 
 		useMutationTokens: bucket.useMutationTokens,
 
-		getKvProvider: bucket.getKvProvider,
+		getKvProvider:    bucket.getKvProvider,
+		getQueryProvider: bucket.getQueryProvider,
 	}
 }
 

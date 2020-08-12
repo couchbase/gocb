@@ -20,6 +20,7 @@ type testConfig struct {
 	Bucket       string
 	Version      string
 	Collection   string
+	Scope        string
 	FeatureFlags []TestFeatureFlag
 }
 
@@ -38,6 +39,8 @@ func TestMain(m *testing.M) {
 		"The server version being tested against (major.minor.patch.build_edition)")
 	collectionName := envFlagString("GOCBCOLL", "collection-name", "",
 		"The name of the collection to use")
+	scopeName := envFlagString("GOCBSCOP", "scope-name", "",
+		"The name of the scope to use")
 	featuresToTest := envFlagString("GOCBFEAT", "features", "",
 		"The features that should be tested, applicable only for integration test runs")
 	disableLogger := envFlagBool("GOCBNOLOG", "disable-logger", false,
@@ -58,6 +61,7 @@ func TestMain(m *testing.M) {
 		mustBeNil(bucketName, "bucket")
 		mustBeNil(version, "version")
 		mustBeNil(collectionName, "collection-name")
+		mustBeNil(scopeName, "scope-name")
 	}
 
 	var featureFlags []TestFeatureFlag
@@ -94,6 +98,7 @@ func TestMain(m *testing.M) {
 	globalConfig.Bucket = *bucketName
 	globalConfig.Version = *version
 	globalConfig.Collection = *collectionName
+	globalConfig.Scope = *scopeName
 	globalConfig.FeatureFlags = featureFlags
 
 	result := m.Run()

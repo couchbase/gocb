@@ -59,6 +59,7 @@ var (
 	WaitUntilReadyFeature                 = FeatureCode("waituntilready")
 	WaitUntilReadyClusterFeature          = FeatureCode("waituntilreadycluster")
 	QueryIndexFeature                     = FeatureCode("queryindex")
+	CollectionsQueryFeature               = FeatureCode("collectionsquery")
 )
 
 type TestFeatureFlag struct {
@@ -155,6 +156,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case QueryIndexFeature:
 			supported = false
+		case CollectionsQueryFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -214,6 +217,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = true
 		case QueryIndexFeature:
 			supported = !c.Version.Equal(srvVer650DP)
+		case CollectionsQueryFeature:
+			supported = !c.Version.Lower(srvVer700)
 		}
 	}
 

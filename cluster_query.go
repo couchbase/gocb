@@ -254,7 +254,16 @@ func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResult, err
 
 	queryOpts["statement"] = statement
 
-	return c.execN1qlQuery(span, queryOpts, deadline, retryStrategy, opts.Adhoc)
+	provider, err := c.getQueryProvider()
+	if err != nil {
+		return nil, QueryError{
+			InnerError:      wrapError(err, "failed to get query provider"),
+			Statement:       statement,
+			ClientContextID: maybeGetQueryOption(queryOpts, "client_context_id"),
+		}
+	}
+
+	return execN1qlQuery(span, queryOpts, deadline, retryStrategy, opts.Adhoc, provider, c.tracer)
 }
 
 func maybeGetQueryOption(options map[string]interface{}, name string) string {
@@ -264,23 +273,17 @@ func maybeGetQueryOption(options map[string]interface{}, name string) string {
 	return ""
 }
 
-func (c *Cluster) execN1qlQuery(
+func execN1qlQuery(
 	span requestSpan,
 	options map[string]interface{},
 	deadline time.Time,
 	retryStrategy *retryStrategyWrapper,
 	adHoc bool,
+	provider queryProvider,
+	tracer requestTracer,
 ) (*QueryResult, error) {
-	provider, err := c.getQueryProvider()
-	if err != nil {
-		return nil, QueryError{
-			InnerError:      wrapError(err, "failed to get query provider"),
-			Statement:       maybeGetQueryOption(options, "statement"),
-			ClientContextID: maybeGetQueryOption(options, "client_context_id"),
-		}
-	}
 
-	eSpan := c.tracer.StartSpan("request_encoding", span.Context())
+	eSpan := tracer.StartSpan("request_encoding", span.Context())
 	reqBytes, err := json.Marshal(options)
 	eSpan.Finish()
 	if err != nil {
