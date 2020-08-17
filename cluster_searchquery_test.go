@@ -83,7 +83,7 @@ func (suite *IntegrationTestSuite) runSearchTest(n int) {
 }
 
 func (suite *IntegrationTestSuite) setupSearch() int {
-	n, err := suite.createBreweryDataset("beer_sample_brewery_five", "search")
+	n, err := suite.createBreweryDataset("beer_sample_brewery_five", "search", "", "")
 	suite.Require().Nil(err, err)
 
 	mgr := globalCluster.SearchIndexes()

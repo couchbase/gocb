@@ -107,17 +107,27 @@ func (suite *IntegrationTestSuite) TearDownSuite() {
 	suite.Require().Nil(err, err)
 }
 
-func (suite *IntegrationTestSuite) createBreweryDataset(datasetName, service string) (int, error) {
+func (suite *IntegrationTestSuite) createBreweryDataset(datasetName, service, scope, collection string) (int, error) {
 	var dataset []testBreweryDocument
 	err := loadJSONTestDataset(datasetName, &dataset)
 	if err != nil {
 		return 0, err
 	}
 
+	if scope == "" {
+		scope = "_default"
+	}
+	if collection == "" {
+		collection = "_default"
+	}
+
+	scp := globalBucket.Scope(scope)
+	col := scp.Collection(collection)
+
 	for i, doc := range dataset {
 		doc.Service = service
 
-		_, err := globalCollection.Upsert(fmt.Sprintf("%s%d", service, i), doc, nil)
+		_, err := col.Upsert(fmt.Sprintf("%s%d", service, i), doc, nil)
 		if err != nil {
 			return 0, err
 		}

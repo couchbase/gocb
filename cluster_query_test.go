@@ -112,7 +112,7 @@ func (suite *IntegrationTestSuite) runQueryTest(n int) {
 }
 
 func (suite *IntegrationTestSuite) setupQuery() int {
-	n, err := suite.createBreweryDataset("beer_sample_brewery_five", "query")
+	n, err := suite.createBreweryDataset("beer_sample_brewery_five", "query", "", "")
 	suite.Require().Nil(err, "Failed to create dataset %v", err)
 
 	mgr := globalCluster.QueryIndexes()

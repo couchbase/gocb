@@ -66,13 +66,13 @@ func (suite *IntegrationTestSuite) runAnalyticsTest(n int) {
 }
 
 func (suite *IntegrationTestSuite) setupAnalytics() int {
-	n, err := suite.createBreweryDataset("beer_sample_brewery_five", "analytics")
+	n, err := suite.createBreweryDataset("beer_sample_brewery_five", "analytics", "", "")
 	suite.Require().Nil(err, "Failed to create dataset %v", err)
 
 	mgr := globalCluster.AnalyticsIndexes()
 	err = mgr.CreateDataset("testAnalytics", globalBucket.Name(), &CreateAnalyticsDatasetOptions{
 		IgnoreIfExists: true,
-		Timeout:        1 * time.Second,
+		Timeout:        5 * time.Second,
 	})
 	suite.Require().Nil(err, "Failed to create dataset %v", err)
 

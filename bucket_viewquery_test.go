@@ -86,7 +86,7 @@ func (suite *IntegrationTestSuite) runViewsTest(n int) {
 }
 
 func (suite *IntegrationTestSuite) setupViews() int {
-	n, err := suite.createBreweryDataset("beer_sample_brewery_five", "views")
+	n, err := suite.createBreweryDataset("beer_sample_brewery_five", "views", "", "")
 	suite.Require().Nil(err, err)
 
 	mgr := globalBucket.ViewIndexes()
