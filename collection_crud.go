@@ -368,10 +368,15 @@ func (c *Collection) getProjected(id string, opts *GetOptions) (docOut *GetResul
 	doc := &GetResult{}
 	if opts.WithExpiry {
 		// if expiration was requested then extract and remove it from the results
-		err = result.ContentAt(0, &doc.expiry)
+		var expires int64
+		err = result.ContentAt(0, &expires)
 		if err != nil {
 			return nil, err
 		}
+
+		expiryTime := time.Unix(expires, 0)
+		doc.expiryTime = &expiryTime
+
 		ops = ops[1:]
 		result.contents = result.contents[1:]
 	}

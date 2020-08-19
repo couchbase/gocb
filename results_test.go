@@ -21,34 +21,21 @@ func (suite *UnitTestSuite) TestGetResultCas() {
 	}
 }
 
-func (suite *UnitTestSuite) TestGetResultHasExpiry() {
+func (suite *UnitTestSuite) TestGetResultExpiry() {
 	res := GetResult{}
 
-	if res.Expiry() != nil {
-		suite.T().Fatalf("Expiry should have returned nil but returned %d", *res.Expiry())
-	}
+	suite.Require().Nil(res.Expiry())
+	suite.Require().Zero(res.ExpiryTime())
 
 	expiry := 32 * time.Second
-	res.expiry = &expiry
+	expiryTime := time.Now().Add(expiry)
+	res.expiryTime = &expiryTime
 
-	if *res.Expiry() == 0 {
-		suite.T().Fatalf("HasExpiry should have returned not 0")
-	}
-}
-
-func (suite *UnitTestSuite) TestGetResultExpiry() {
-	expiry := 10 * time.Second
-	res := GetResult{
-		expiry: &expiry,
+	if suite.Assert().NotNil(res.Expiry()) {
+		suite.Assert().InDelta(expiry, *res.Expiry(), float64(1*time.Second))
 	}
 
-	if res.Expiry() == nil {
-		suite.T().Fatalf("Expiry should have not returned nil")
-	}
-
-	if *res.Expiry() != 10*time.Second {
-		suite.T().Fatalf("Expiry value should have been 10 but was %d", res.Expiry())
-	}
+	suite.Assert().Equal(expiryTime, res.ExpiryTime())
 }
 
 func (suite *UnitTestSuite) TestGetResultContent() {

@@ -52,7 +52,8 @@ func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {
 		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
-	mutRes, err := globalCollection.Insert("expiryDoc", doc, &InsertOptions{Expiry: 10})
+	start := time.Now()
+	mutRes, err := globalCollection.Insert("expiryDoc", doc, &InsertOptions{Expiry: 10 * time.Second})
 	if err != nil {
 		suite.T().Fatalf("Insert failed, error was %v", err)
 	}
@@ -65,6 +66,7 @@ func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {
 	if err != nil {
 		suite.T().Fatalf("Get failed, error was %v", err)
 	}
+	end := time.Now()
 
 	var insertedDocContent testBeerDocument
 	err = insertedDoc.Content(&insertedDocContent)
@@ -76,9 +78,10 @@ func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {
 		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
 	}
 
-	if *insertedDoc.Expiry() == 0 {
-		suite.T().Fatalf("Expected expiry value to be populated")
+	if suite.Assert().NotNil(insertedDoc.Expiry()) {
+		suite.Assert().InDelta(end.Sub(start).Seconds(), insertedDoc.Expiry().Seconds(), float64(1*time.Second))
 	}
+	suite.Assert().InDelta(start.Add(10*time.Second).Second(), insertedDoc.ExpiryTime().Second(), float64(1*time.Second))
 }
 
 func (suite *IntegrationTestSuite) TestInsertGetProjection() {
@@ -499,8 +502,9 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection16FieldsExpiry() {
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
 	}
 
+	start := time.Now()
 	mutRes, err := globalCollection.Upsert("projectDocTooManyFieldsExpiry", doc, &UpsertOptions{
-		Expiry: 60,
+		Expiry: 60 * time.Second,
 	})
 	if err != nil {
 		suite.T().Fatalf("Insert failed, error was %v", err)
@@ -518,6 +522,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection16FieldsExpiry() {
 	if err != nil {
 		suite.T().Fatalf("Get failed, error was %v", err)
 	}
+	end := time.Now()
 
 	var insertedDocContent map[string]interface{}
 	err = insertedDoc.Content(&insertedDocContent)
@@ -546,9 +551,10 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection16FieldsExpiry() {
 		}
 	}
 
-	if *insertedDoc.Expiry() == 0 {
-		suite.T().Fatalf("Expected expiry value to be populated")
+	if suite.Assert().NotNil(insertedDoc.Expiry()) {
+		suite.Assert().InDelta(end.Sub(start).Seconds(), insertedDoc.Expiry().Seconds(), float64(1*time.Second))
 	}
+	suite.Assert().InDelta(start.Add(10*time.Second).Second(), insertedDoc.ExpiryTime().Second(), float64(1*time.Second))
 }
 
 func (suite *IntegrationTestSuite) TestInsertGetProjectionPathMissing() {
@@ -961,7 +967,8 @@ func (suite *IntegrationTestSuite) TestGetAndTouch() {
 		suite.T().Fatalf("Upsert CAS was 0")
 	}
 
-	lockedDoc, err := globalCollection.GetAndTouch("getAndTouch", 10, nil)
+	start := time.Now()
+	lockedDoc, err := globalCollection.GetAndTouch("getAndTouch", 10*time.Second, nil)
 	if err != nil {
 		suite.T().Fatalf("Get failed, error was %v", err)
 	}
@@ -980,10 +987,12 @@ func (suite *IntegrationTestSuite) TestGetAndTouch() {
 	if err != nil {
 		suite.T().Fatalf("Get failed, error was %v", err)
 	}
+	end := time.Now()
 
-	if *expireDoc.Expiry() == 0 {
-		suite.T().Fatalf("Expected doc to have an expiry > 0, was %d", expireDoc.Expiry())
+	if suite.Assert().NotNil(expireDoc.Expiry()) {
+		suite.Assert().InDelta(end.Sub(start).Seconds(), expireDoc.Expiry().Seconds(), float64(1*time.Second))
 	}
+	suite.Assert().InDelta(start.Add(10*time.Second).Second(), expireDoc.ExpiryTime().Second(), float64(1*time.Second))
 
 	var expireDocContent testBeerDocument
 	err = expireDoc.Content(&expireDocContent)
@@ -1236,6 +1245,7 @@ func (suite *IntegrationTestSuite) TestTouch() {
 		suite.T().Fatalf("Upsert CAS was 0")
 	}
 
+	start := time.Now()
 	touchOut, err := globalCollection.Touch("touch", 3*time.Second, nil)
 	if err != nil {
 		suite.T().Fatalf("Touch failed, error was %v", err)
@@ -1249,14 +1259,12 @@ func (suite *IntegrationTestSuite) TestTouch() {
 	if err != nil {
 		suite.T().Fatalf("Get failed, error was %v", err)
 	}
+	end := time.Now()
 
-	if expireDoc.Expiry() == nil {
-		suite.T().Fatalf("Expiry should have been non nil")
+	if suite.Assert().NotNil(expireDoc.Expiry()) {
+		suite.Assert().InDelta(end.Sub(start).Seconds(), expireDoc.Expiry().Seconds(), float64(1*time.Second))
 	}
-
-	if *expireDoc.Expiry() > 3*time.Second || *expireDoc.Expiry() < 1*time.Second {
-		suite.T().Fatalf("Expected doc to have an expiry > 1 and < 3, was %d", expireDoc.Expiry())
-	}
+	suite.Assert().InDelta(start.Add(10*time.Second).Second(), expireDoc.ExpiryTime().Second(), float64(1*time.Second))
 
 	var expireDocContent testBeerDocument
 	err = expireDoc.Content(&expireDocContent)
