@@ -20,8 +20,15 @@ func (suite *IntegrationTestSuite) TestQuery() {
 	suite.skipIfUnsupported(QueryFeature)
 
 	n := suite.setupQuery()
-	suite.runQueryTest(n)
-	suite.runPreparedQueryTest(n)
+	suite.Run("TestQuery", func() {
+		suite.runQueryTest(n, true)
+	})
+	suite.Run("TestQueryNoMetrics", func() {
+		suite.runQueryTest(n, false)
+	})
+	suite.Run("TestPreparedQuery", func() {
+		suite.runPreparedQueryTest(n)
+	})
 }
 
 func (suite *IntegrationTestSuite) runPreparedQueryTest(n int) {
@@ -30,7 +37,7 @@ func (suite *IntegrationTestSuite) runPreparedQueryTest(n int) {
 		query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=? LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
 		result, err := globalCluster.Query(query, &QueryOptions{
 			PositionalParameters: []interface{}{"query"},
-			Timeout:              1 * time.Second,
+			Timeout:              5 * time.Second,
 		})
 		suite.Require().Nil(err, "Failed to execute query %v", err)
 
@@ -67,14 +74,15 @@ func (suite *IntegrationTestSuite) runPreparedQueryTest(n int) {
 	}
 }
 
-func (suite *IntegrationTestSuite) runQueryTest(n int) {
+func (suite *IntegrationTestSuite) runQueryTest(n int, withMetrics bool) {
 	deadline := time.Now().Add(10 * time.Second)
 	for {
 		query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=? LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
 		result, err := globalCluster.Query(query, &QueryOptions{
 			PositionalParameters: []interface{}{"query"},
-			Timeout:              1 * time.Second,
+			Timeout:              5 * time.Second,
 			Adhoc:                true,
+			Metrics:              withMetrics,
 		})
 		suite.Require().Nil(err, "Failed to execute query %v", err)
 
@@ -93,6 +101,13 @@ func (suite *IntegrationTestSuite) runQueryTest(n int) {
 		suite.Require().Nil(err, "Metadata had error: %v", err)
 
 		suite.Assert().NotEmpty(metadata.RequestID)
+
+		if withMetrics {
+			suite.Assert().NotZero(metadata.Metrics.ElapsedTime)
+			suite.Assert().NotZero(metadata.Metrics.ExecutionTime)
+			suite.Assert().NotZero(metadata.Metrics.ResultCount)
+			suite.Assert().NotZero(metadata.Metrics.ResultSize)
+		}
 
 		if n == len(samples) {
 			return
@@ -531,4 +546,55 @@ func (suite *UnitTestSuite) TestQueryClientContextID() {
 	})
 	suite.Require().Nil(err)
 	suite.Require().NotNil(result)
+}
+
+func (suite *UnitTestSuite) TestQueryNoMetrics() {
+	var dataset testQueryDataset
+	err := loadJSONTestDataset("beer_sample_query_dataset_no_metrics", &dataset)
+	suite.Require().Nil(err, err)
+
+	reader := &mockQueryRowReader{
+		Dataset: dataset.Results,
+		mockQueryRowReaderBase: mockQueryRowReaderBase{
+			Meta:  suite.mustConvertToBytes(dataset.jsonQueryResponse),
+			Suite: suite,
+			PName: dataset.jsonQueryResponse.Prepared,
+		},
+	}
+
+	statement := "SELECT * FROM dataset"
+
+	var cluster *Cluster
+	cluster = suite.queryCluster(true, reader, func(args mock.Arguments) {
+		opts := args.Get(0).(gocbcore.N1QLQueryOptions)
+		suite.Assert().Equal(cluster.retryStrategyWrapper, opts.RetryStrategy)
+		now := time.Now()
+		if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {
+			suite.Fail("Deadline should have been <75s and >70s but was %s", opts.Deadline)
+		}
+
+		var actualOptions map[string]interface{}
+		err := json.Unmarshal(opts.Payload, &actualOptions)
+		suite.Require().Nil(err)
+
+		suite.Assert().Contains(actualOptions, "client_context_id")
+	})
+
+	result, err := cluster.Query(statement, nil)
+	suite.Require().Nil(err, err)
+	suite.Require().NotNil(result)
+
+	suite.assertQueryBeerResult(dataset, result)
+
+	metadata, err := result.MetaData()
+	suite.Require().Nil(err, err)
+
+	suite.Assert().Zero(metadata.Metrics.ElapsedTime)
+	suite.Assert().Zero(metadata.Metrics.ErrorCount)
+	suite.Assert().Zero(metadata.Metrics.ExecutionTime)
+	suite.Assert().Zero(metadata.Metrics.MutationCount)
+	suite.Assert().Zero(metadata.Metrics.ResultCount)
+	suite.Assert().Zero(metadata.Metrics.ResultSize)
+	suite.Assert().Zero(metadata.Metrics.SortCount)
+	suite.Assert().Zero(metadata.Metrics.WarningCount)
 }

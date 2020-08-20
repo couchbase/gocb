@@ -28,7 +28,7 @@ type jsonQueryResponse struct {
 	ClientContextID string             `json:"clientContextID"`
 	Status          QueryStatus        `json:"status"`
 	Warnings        []jsonQueryWarning `json:"warnings"`
-	Metrics         jsonQueryMetrics   `json:"metrics"`
+	Metrics         *jsonQueryMetrics  `json:"metrics,omitempty"`
 	Profile         interface{}        `json:"profile"`
 	Signature       interface{}        `json:"signature"`
 	Prepared        string             `json:"prepared"`
@@ -46,7 +46,7 @@ type QueryMetrics struct {
 	WarningCount  uint64
 }
 
-func (metrics *QueryMetrics) fromData(data jsonQueryMetrics) error {
+func (metrics *QueryMetrics) fromData(data *jsonQueryMetrics) error {
 	elapsedTime, err := time.ParseDuration(data.ElapsedTime)
 	if err != nil {
 		logDebugf("Failed to parse query metrics elapsed time: %s", err)
@@ -97,8 +97,10 @@ type QueryMetaData struct {
 
 func (meta *QueryMetaData) fromData(data jsonQueryResponse) error {
 	metrics := QueryMetrics{}
-	if err := metrics.fromData(data.Metrics); err != nil {
-		return err
+	if data.Metrics != nil {
+		if err := metrics.fromData(data.Metrics); err != nil {
+			return err
+		}
 	}
 
 	warnings := make([]QueryWarning, len(data.Warnings))
