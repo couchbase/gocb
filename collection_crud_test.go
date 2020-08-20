@@ -84,6 +84,46 @@ func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {
 	suite.Assert().InDelta(start.Add(10*time.Second).Second(), insertedDoc.ExpiryTime().Second(), float64(1*time.Second))
 }
 
+func (suite *IntegrationTestSuite) TestUpsertGetWithExpiryTranscoder() {
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(XattrFeature)
+
+	b := []byte("abinarydocument")
+
+	tcoder := NewRawBinaryTranscoder()
+
+	start := time.Now()
+	mutRes, err := globalCollection.Upsert("expiryTranscoderDoc", b, &UpsertOptions{
+		Expiry:     10 * time.Second,
+		Transcoder: tcoder,
+	})
+	if err != nil {
+		suite.T().Fatalf("Insert failed, error was %v", err)
+	}
+
+	if mutRes.Cas() == 0 {
+		suite.T().Fatalf("Insert CAS was 0")
+	}
+
+	insertedDoc, err := globalCollection.Get("expiryTranscoderDoc", &GetOptions{
+		WithExpiry: true,
+		Transcoder: tcoder,
+	})
+	if err != nil {
+		suite.T().Fatalf("Get failed, error was %v", err)
+	}
+	end := time.Now()
+
+	var actualB []byte
+	suite.Require().Nil(insertedDoc.Content(&actualB))
+	suite.Assert().Equal(string(b), string(actualB))
+
+	if suite.Assert().NotNil(insertedDoc.Expiry()) {
+		suite.Assert().InDelta(end.Sub(start).Seconds(), insertedDoc.Expiry().Seconds(), float64(1*time.Second))
+	}
+	suite.Assert().InDelta(start.Add(10*time.Second).Second(), insertedDoc.ExpiryTime().Second(), float64(1*time.Second))
+}
+
 func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 	suite.skipIfUnsupported(KeyValueFeature)
 
@@ -580,6 +620,94 @@ func (suite *IntegrationTestSuite) TestInsertGetProjectionPathMissing() {
 	})
 	if err == nil {
 		suite.T().Fatalf("Get should have failed")
+	}
+}
+
+func (suite *IntegrationTestSuite) TestInsertGetProjectionTranscoders() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
+	var doc testBeerDocument
+	err := loadJSONTestDataset("beer_sample_single", &doc)
+	if err != nil {
+		suite.T().Fatalf("Could not read test dataset: %v", err)
+	}
+
+	_, err = globalCollection.Upsert("projectTranscoders", doc, &UpsertOptions{
+		Expiry: 60 * time.Second,
+	})
+
+	type ABVdoc struct {
+		ABV float32 `json:"abv"`
+	}
+
+	type tCase struct {
+		name       string
+		transcoder Transcoder
+		expectErr  bool
+		expected   interface{}
+	}
+
+	expectedBytes, err := json.Marshal(ABVdoc{ABV: 7.6})
+	suite.Require().Nil(err)
+
+	testCases := []tCase{
+		{
+			name:       "Binary",
+			transcoder: NewRawBinaryTranscoder(),
+			expectErr:  true,
+		},
+		{
+			name:       "String",
+			transcoder: NewRawStringTranscoder(),
+			expectErr:  true,
+		},
+		{
+			name:       "JSON",
+			transcoder: NewJSONTranscoder(),
+			expected: ABVdoc{
+				ABV: 7.6,
+			},
+		},
+		{
+			name:       "Legacy",
+			transcoder: NewLegacyTranscoder(),
+			expected: ABVdoc{
+				ABV: 7.6,
+			},
+		},
+		{
+			name:       "RawJSON",
+			transcoder: NewRawJSONTranscoder(),
+			expected:   expectedBytes,
+		},
+	}
+	for _, testCase := range testCases {
+		suite.T().Run(testCase.name, func(t *testing.T) {
+			res, err := globalCollection.Get("projectTranscoders", &GetOptions{
+				Project:    []string{"abv"},
+				Transcoder: testCase.transcoder,
+			})
+
+			if suite.Assert().Nil(err, err) {
+				if reflect.TypeOf(testCase.transcoder) == reflect.TypeOf(NewRawJSONTranscoder()) {
+					var actual []byte
+					err = res.Content(&actual)
+					if suite.Assert().Nil(err, err) {
+						suite.Assert().Equal(testCase.expected, actual)
+					}
+					return
+				}
+				var actual ABVdoc
+				err = res.Content(&actual)
+				if testCase.expectErr {
+					suite.Assert().NotNil(err, err)
+				} else {
+					if suite.Assert().Nil(err, err) {
+						suite.Assert().Equal(testCase.expected, actual)
+					}
+				}
+			}
+		})
 	}
 }
 

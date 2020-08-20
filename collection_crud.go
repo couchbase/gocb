@@ -328,16 +328,17 @@ func (c *Collection) getProjected(id string, opts *GetOptions) (docOut *GetResul
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 
-	if opts.Transcoder != nil {
-		return nil, errors.New("Cannot specify custom transcoder for projected gets")
-	}
-
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
 	}
 
+	var withFlags bool
 	numProjects := len(opts.Project)
 	if opts.WithExpiry {
+		if numProjects == 0 {
+			// This must be a full get with expiry
+			withFlags = true
+		}
 		numProjects = 1 + numProjects
 	}
 
@@ -350,6 +351,12 @@ func (c *Collection) getProjected(id string, opts *GetOptions) (docOut *GetResul
 
 	if opts.WithExpiry {
 		ops = append(ops, GetSpec("$document.exptime", &GetSpecOptions{IsXattr: true}))
+
+		if withFlags {
+			// We also need to fetch the flags, we need them for transcoding and they aren't included in a lookupin
+			// response. We only need these when doing a full get with expiry.
+			ops = append(ops, GetSpec("$document.flags", &GetSpecOptions{IsXattr: true}))
+		}
 	}
 
 	if len(projections) == 0 {
@@ -377,8 +384,18 @@ func (c *Collection) getProjected(id string, opts *GetOptions) (docOut *GetResul
 		expiryTime := time.Unix(expires, 0)
 		doc.expiryTime = &expiryTime
 
-		ops = ops[1:]
-		result.contents = result.contents[1:]
+		if withFlags {
+			var flags uint32
+			err = result.ContentAt(1, &flags)
+			if err != nil {
+				return nil, err
+			}
+
+			doc.flags = flags
+
+			ops = ops[2:]
+			result.contents = result.contents[2:]
+		}
 	}
 
 	doc.transcoder = opm.Transcoder()
