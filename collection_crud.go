@@ -384,17 +384,20 @@ func (c *Collection) getProjected(id string, opts *GetOptions) (docOut *GetResul
 		expiryTime := time.Unix(expires, 0)
 		doc.expiryTime = &expiryTime
 
+		ops = ops[1:]
+		result.contents = result.contents[1:]
+
 		if withFlags {
 			var flags uint32
-			err = result.ContentAt(1, &flags)
+			err = result.ContentAt(0, &flags)
 			if err != nil {
 				return nil, err
 			}
 
 			doc.flags = flags
 
-			ops = ops[2:]
-			result.contents = result.contents[2:]
+			ops = ops[1:]
+			result.contents = result.contents[1:]
 		}
 	}
 
