@@ -6,7 +6,7 @@ import (
 )
 
 func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
-	suite.skipIfUnsupported(QueryFeature)
+	suite.skipIfUnsupported(QueryIndexFeature)
 
 	bucketMgr := globalCluster.Buckets()
 	bucketName := "testIndexes"

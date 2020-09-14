@@ -58,6 +58,7 @@ var (
 	PingAnalyticsFeature                  = FeatureCode("pinganalytics")
 	WaitUntilReadyFeature                 = FeatureCode("waituntilready")
 	WaitUntilReadyClusterFeature          = FeatureCode("waituntilreadycluster")
+	QueryIndexFeature                     = FeatureCode("queryindex")
 )
 
 type TestFeatureFlag struct {
@@ -152,6 +153,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case WaitUntilReadyClusterFeature:
 			supported = false
+		case QueryIndexFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -209,6 +212,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer650)
 		case ReplicasFeature:
 			supported = true
+		case QueryIndexFeature:
+			supported = !c.Version.Equal(srvVer650DP)
 		}
 	}
 
