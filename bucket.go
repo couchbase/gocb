@@ -72,6 +72,19 @@ func (b *Bucket) getQueryProvider() (queryProvider, error) {
 	return agent, nil
 }
 
+func (b *Bucket) getAnalyticsProvider() (analyticsProvider, error) {
+	if b.bootstrapError != nil {
+		return nil, b.bootstrapError
+	}
+
+	agent, err := b.connectionManager.getAnalyticsProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return agent, nil
+}
+
 // Name returns the name of the bucket.
 func (b *Bucket) Name() string {
 	return b.bucketName

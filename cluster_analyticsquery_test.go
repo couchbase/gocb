@@ -16,18 +16,22 @@ type testAnalyticsDataset struct {
 	jsonAnalyticsResponse
 }
 
-func (suite *IntegrationTestSuite) TestAnalyticsQuery() {
-	suite.skipIfUnsupported(AnalyticsFeature)
-
-	n := suite.setupAnalytics()
-	suite.runAnalyticsTest(n)
+type analyticsIface interface {
+	AnalyticsQuery(string, *AnalyticsOptions) (*AnalyticsResult, error)
 }
 
-func (suite *IntegrationTestSuite) runAnalyticsTest(n int) {
+func (suite *IntegrationTestSuite) TestClusterAnalyticsQuery() {
+	suite.skipIfUnsupported(AnalyticsFeature)
+
+	n := suite.setupClusterAnalytics()
+	query := fmt.Sprintf("SELECT `testAnalytics`.* FROM `testAnalytics` WHERE service=? LIMIT %d;", n)
+	suite.runAnalyticsTest(n, query, globalCluster)
+}
+
+func (suite *IntegrationTestSuite) runAnalyticsTest(n int, query string, provider analyticsIface) {
 	deadline := time.Now().Add(10 * time.Second)
 	for {
-		query := fmt.Sprintf("SELECT `testAnalytics`.* FROM `testAnalytics` WHERE service=? LIMIT %d;", n)
-		result, err := globalCluster.AnalyticsQuery(query, &AnalyticsOptions{
+		result, err := provider.AnalyticsQuery(query, &AnalyticsOptions{
 			PositionalParameters: []interface{}{"analytics"},
 		})
 		suite.Require().Nil(err, "Failed to execute query %v", err)
@@ -65,7 +69,7 @@ func (suite *IntegrationTestSuite) runAnalyticsTest(n int) {
 	}
 }
 
-func (suite *IntegrationTestSuite) setupAnalytics() int {
+func (suite *IntegrationTestSuite) setupClusterAnalytics() int {
 	n, err := suite.createBreweryDataset("beer_sample_brewery_five", "analytics", "", "")
 	suite.Require().Nil(err, "Failed to create dataset %v", err)
 

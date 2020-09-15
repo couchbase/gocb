@@ -250,7 +250,16 @@ func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*Ana
 
 	queryOpts["statement"] = statement
 
-	return c.execAnalyticsQuery(span, queryOpts, priorityInt, deadline, retryStrategy)
+	provider, err := c.getAnalyticsProvider()
+	if err != nil {
+		return nil, AnalyticsError{
+			InnerError:      wrapError(err, "failed to get query provider"),
+			Statement:       statement,
+			ClientContextID: maybeGetAnalyticsOption(queryOpts, "client_context_id"),
+		}
+	}
+
+	return execAnalyticsQuery(span, queryOpts, priorityInt, deadline, retryStrategy, provider, c.tracer)
 }
 
 func maybeGetAnalyticsOption(options map[string]interface{}, name string) string {
@@ -260,23 +269,18 @@ func maybeGetAnalyticsOption(options map[string]interface{}, name string) string
 	return ""
 }
 
-func (c *Cluster) execAnalyticsQuery(
+func execAnalyticsQuery(
 	span requestSpan,
 	options map[string]interface{},
 	priority int32,
 	deadline time.Time,
 	retryStrategy *retryStrategyWrapper,
+	provider analyticsProvider,
+	tracer requestTracer,
 ) (*AnalyticsResult, error) {
-	provider, err := c.getAnalyticsProvider()
-	if err != nil {
-		return nil, AnalyticsError{
-			InnerError:      wrapError(err, "failed to get query provider"),
-			Statement:       maybeGetAnalyticsOption(options, "statement"),
-			ClientContextID: maybeGetAnalyticsOption(options, "client_context_id"),
-		}
-	}
-
+	eSpan := tracer.StartSpan("request_encoding", span.Context())
 	reqBytes, err := json.Marshal(options)
+	eSpan.Finish()
 	if err != nil {
 		return nil, AnalyticsError{
 			InnerError:      wrapError(err, "failed to marshall query body"),
