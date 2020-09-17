@@ -163,7 +163,7 @@ func (suite *IntegrationTestSuite) TestUserManagerWithGroupsCrud() {
 			},
 		},
 	}
-	assertUser(suite.T(), user, expectedUserAndMeta)
+	assertUserAndMetadata(suite.T(), user, expectedUserAndMeta)
 
 	user.User.DisplayName = "barries"
 	err = mgr.UpsertUser(user.User, nil)
@@ -172,7 +172,7 @@ func (suite *IntegrationTestSuite) TestUserManagerWithGroupsCrud() {
 	}
 
 	expectedUserAndMeta.User.DisplayName = "barries"
-	assertUser(suite.T(), user, expectedUserAndMeta)
+	assertUserAndMetadata(suite.T(), user, expectedUserAndMeta)
 
 	users, err := mgr.GetAllUsers(nil)
 	if err != nil {
@@ -272,7 +272,7 @@ func (suite *IntegrationTestSuite) TestUserManagerCrud() {
 			},
 		},
 	}
-	assertUser(suite.T(), user, expectedUserAndMeta)
+	assertUserAndMetadata(suite.T(), user, expectedUserAndMeta)
 
 	user.User.DisplayName = "barries"
 
@@ -313,7 +313,7 @@ func (suite *IntegrationTestSuite) TestUserManagerCrud() {
 	}
 
 	expectedUserAndMeta.User.DisplayName = "barries"
-	assertUser(suite.T(), user, expectedUserAndMeta)
+	assertUserAndMetadata(suite.T(), user, expectedUserAndMeta)
 
 	err = mgr.DropUser("barry", nil)
 	if err != nil {
@@ -341,7 +341,120 @@ func (suite *IntegrationTestSuite) TestUserManagerAvailableRoles() {
 	}
 }
 
-func assertUser(t *testing.T, user *UserAndMetadata, expected *UserAndMetadata) {
+func (suite *IntegrationTestSuite) TestUserManagerCollectionsRoles() {
+	suite.skipIfUnsupported(UserManagerFeature)
+	suite.skipIfUnsupported(CollectionsFeature)
+
+	mgr := globalCluster.Users()
+
+	type testCase struct {
+		user User
+	}
+
+	testCases := []testCase{
+		{
+			user: User{
+				Username:    "collectionsUserBucket",
+				DisplayName: "collections user bucket",
+				Password:    "password",
+				Roles: []Role{
+					{
+						Name:   "data_reader",
+						Bucket: globalBucket.Name(),
+					},
+				},
+			},
+		},
+		{
+			user: User{
+				Username:    "collectionsUserScope",
+				DisplayName: "collections user scope",
+				Password:    "password",
+				Roles: []Role{
+					{
+						Name:   "data_reader",
+						Bucket: globalBucket.Name(),
+						Scope:  globalScope.Name(),
+					},
+				},
+			},
+		},
+		{
+			user: User{
+				Username:    "collectionsUserCollection",
+				DisplayName: "collections user collection",
+				Password:    "password",
+				Roles: []Role{
+					{
+						Name:       "data_reader",
+						Bucket:     globalBucket.Name(),
+						Scope:      globalScope.Name(),
+						Collection: globalCollection.Name(),
+					},
+				},
+			},
+		},
+	}
+	for _, tCase := range testCases {
+		suite.T().Run(tCase.user.Username, func(te *testing.T) {
+			err := mgr.UpsertUser(tCase.user, nil)
+			if err != nil {
+				te.Logf("Expected err to be nil but was %v", err)
+				te.Fail()
+				return
+			}
+
+			found := suite.tryUntil(time.Now().Add(5*time.Second), 100*time.Millisecond, func() bool {
+				user, err := mgr.GetUser(tCase.user.Username, nil)
+				if err != nil {
+					te.Logf("Expected err to be nil but was %v", err)
+					return false
+				}
+
+				assertUser(te, &user.User, &tCase.user)
+				return true
+			})
+
+			if !found {
+				te.Logf("User was not found")
+			}
+		})
+	}
+}
+
+func assertUser(t *testing.T, user *User, expected *User) {
+	if user.Username != expected.Username {
+		t.Logf("Expected user Username to be %s but was %s", expected.Username, user.Username)
+		t.Fail()
+	}
+
+	if user.DisplayName != expected.DisplayName {
+		t.Logf("Expected user DisplayName to be %s but was %s", expected.DisplayName, user.DisplayName)
+		t.Fail()
+	}
+
+	if len(user.Groups) != len(expected.Groups) {
+		t.Fatalf("Expected user Groups to be length %v but was %v", expected.Groups, user.Groups)
+	}
+	for i, group := range user.Groups {
+		if group != expected.Groups[i] {
+			t.Logf("Expected user group to be %s but was %s", expected.Groups[i], group)
+			t.Fail()
+		}
+	}
+
+	if len(user.Roles) != len(expected.Roles) {
+		t.Fatalf("Expected user Roles to be length %v but was %v", expected.Roles, user.Roles)
+	}
+	for i, role := range user.Roles {
+		if role != expected.Roles[i] {
+			t.Logf("Expected user role to be %s but was %s", expected.Roles[i], role)
+			t.Fail()
+		}
+	}
+}
+
+func assertUserAndMetadata(t *testing.T, user *UserAndMetadata, expected *UserAndMetadata) {
 	if user.User.Username != expected.User.Username {
 		t.Fatalf("Expected user Username to be %s but was %s", expected.User.Username, user.User.Username)
 	}
