@@ -442,19 +442,31 @@ func (suite *IntegrationTestSuite) TestMaxNumberOfCollectionInScope() {
 			suite.T().Fatalf("Failed to create collection %v", err)
 		}
 	}
-	scopes, err := testBucket1.GetAllScopes(nil)
-	if err != nil {
-		suite.T().Fatalf("Failed to GetAllScopes %v", err)
-	}
-	var scope *ScopeSpec
-	for i, s := range scopes {
-		if s.Name == "singleScope" {
-			scope = &scopes[i]
-		}
-	}
-	suite.Require().NotNil(scope)
 
-	if len(scope.Collections) != 1000 {
-		suite.T().Fatalf("Expected collections in scope should be 1000 but was %v", len(scope.Collections))
-	}
+	success := suite.tryUntil(time.Now().Add(15*time.Second), 100*time.Millisecond, func() bool {
+		scopes, err := testBucket1.GetAllScopes(nil)
+		if err != nil {
+			suite.T().Logf("Failed to GetAllScopes %v", err)
+			return false
+		}
+		var scope *ScopeSpec
+		for i, s := range scopes {
+			if s.Name == "singleScope" {
+				scope = &scopes[i]
+			}
+		}
+		if scope == nil {
+			suite.T().Log("scope not found")
+			return false
+		}
+
+		if len(scope.Collections) != 1000 {
+			suite.T().Logf("Expected collections in scope should be 1000 but was %v", len(scope.Collections))
+			return false
+		}
+
+		return true
+	})
+
+	suite.Require().True(success)
 }
