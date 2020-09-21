@@ -107,11 +107,67 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 	} else {
 		globalCollection = globalScope.Collection("_default")
 	}
+
+	if globalCluster.SupportsFeature(ReplicasFeature) {
+		if globalCluster.SupportsFeature(DurabilityFeature) {
+			suite.ensureReplicasUpEnhDura()
+		} else {
+			suite.ensureReplicasUpLegacyDura()
+		}
+	}
 }
 
 func (suite *IntegrationTestSuite) TearDownSuite() {
 	err := globalCluster.Close(nil)
 	suite.Require().Nil(err, err)
+}
+
+func (suite *IntegrationTestSuite) ensureReplicasUpEnhDura() {
+	success := suite.tryUntil(time.Now().Add(30*time.Second), 50*time.Millisecond, func() bool {
+		_, err := globalCollection.Upsert("ensurereplicasup", "test", &UpsertOptions{
+			DurabilityLevel: DurabilityLevelPersistToMajority,
+		})
+		if err != nil {
+			time.Sleep(50 * time.Millisecond)
+			return false
+		}
+
+		_, err = globalCollection.GetAnyReplica("ensurereplicasup", &GetAnyReplicaOptions{})
+		if err != nil {
+			time.Sleep(50 * time.Millisecond)
+			return false
+		}
+
+		return true
+	})
+
+	if !success {
+		panic("Ensuring that replicas are up did not succeed in time")
+	}
+}
+
+func (suite *IntegrationTestSuite) ensureReplicasUpLegacyDura() {
+	success := suite.tryUntil(time.Now().Add(30*time.Second), 50*time.Millisecond, func() bool {
+		_, err := globalCollection.Upsert("ensurereplicasup", "test", &UpsertOptions{
+			PersistTo: 1,
+		})
+		if err != nil {
+			time.Sleep(50 * time.Millisecond)
+			return false
+		}
+
+		_, err = globalCollection.GetAnyReplica("ensurereplicasup", &GetAnyReplicaOptions{})
+		if err != nil {
+			time.Sleep(50 * time.Millisecond)
+			return false
+		}
+
+		return true
+	})
+
+	if !success {
+		panic("Ensuring that replicas are up did not succeed in time")
+	}
 }
 
 func (suite *IntegrationTestSuite) createBreweryDataset(datasetName, service, scope, collection string) (int, error) {

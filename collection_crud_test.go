@@ -803,14 +803,21 @@ func (suite *IntegrationTestSuite) TestCollectionRetry() {
 	col := globalBucket.Collection(collectionName)
 
 	// Make sure we've connected to the collection ok
-	mutRes, err := col.Upsert("insertRetryDoc", doc, nil)
-	if err != nil {
-		suite.T().Fatalf("Upsert failed, error was %v", err)
-	}
+	success := suite.tryUntil(time.Now().Add(10*time.Second), 500*time.Millisecond, func() bool {
+		mutRes, err := col.Upsert("insertRetryDoc", doc, nil)
+		if err != nil {
+			suite.T().Logf("Upsert failed, error was %v", err)
+			return false
+		}
 
-	if mutRes.Cas() == 0 {
-		suite.T().Fatalf("Upsert CAS was 0")
-	}
+		if mutRes.Cas() == 0 {
+			suite.T().Fatalf("Upsert CAS was 0")
+		}
+
+		return true
+	})
+
+	suite.Require().True(success)
 
 	// The following delete and create will recreate a collection with the same name but a different cid.
 	err = mgr.DropCollection(CollectionSpec{ScopeName: "_default", Name: collectionName}, nil)
@@ -825,7 +832,7 @@ func (suite *IntegrationTestSuite) TestCollectionRetry() {
 
 	// We've wiped the collection so we need to recreate this doc
 	// We know that this operation can take a bit longer than normal as collections take time to come online.
-	mutRes, err = col.Upsert("insertRetryDoc", doc, &UpsertOptions{
+	_, err = col.Upsert("insertRetryDoc", doc, &UpsertOptions{
 		Timeout: 10000 * time.Millisecond,
 	})
 	if err != nil {
