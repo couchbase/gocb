@@ -3,10 +3,13 @@ package gocb
 import (
 	gocbcore "github.com/couchbase/gocbcore/v9"
 	"github.com/couchbase/gocbcore/v9/memd"
+	"time"
 )
 
 const (
 	goCbVersionStr = "v2.1.6"
+
+	durabilityTimeoutFloor = 1500 * time.Millisecond
 )
 
 // QueryIndexType provides information on the type of indexer used for an index.

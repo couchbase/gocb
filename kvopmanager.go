@@ -33,12 +33,21 @@ type kvOpManager struct {
 
 func (m *kvOpManager) getTimeout() time.Duration {
 	if m.timeout > 0 {
+		if m.durabilityLevel > 0 && m.timeout < durabilityTimeoutFloor {
+			m.timeout = durabilityTimeoutFloor
+			logWarnf("Durable operation in use so timeout value coerced up to %s", m.timeout.String())
+		}
 		return m.timeout
 	}
 
 	defaultTimeout := m.parent.timeoutsConfig.KVTimeout
 	if m.durabilityLevel > DurabilityLevelMajority || m.persistTo > 0 {
 		defaultTimeout = m.parent.timeoutsConfig.KVDurableTimeout
+	}
+
+	if m.durabilityLevel > 0 && defaultTimeout < durabilityTimeoutFloor {
+		defaultTimeout = durabilityTimeoutFloor
+		logWarnf("Durable operation in user so timeout value coerced up to %s", defaultTimeout.String())
 	}
 
 	return defaultTimeout
@@ -152,8 +161,18 @@ func (m *kvOpManager) DurabilityLevel() memd.DurabilityLevel {
 }
 
 func (m *kvOpManager) DurabilityTimeout() time.Duration {
+	if m.durabilityLevel == 0 {
+		return 0
+	}
+
 	timeout := m.getTimeout()
-	duraTimeout := timeout * 10 / 9
+
+	duraTimeout := time.Duration(float64(timeout) * 0.9)
+
+	if duraTimeout < durabilityTimeoutFloor {
+		duraTimeout = durabilityTimeoutFloor
+	}
+
 	return duraTimeout
 }
 
