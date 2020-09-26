@@ -117,7 +117,9 @@ func (suite *IntegrationTestSuite) TestMutateInBasicCrud() {
 		InsertSpec("fish", fishName, nil),
 		UpsertSpec("name", newName, nil),
 		UpsertSpec("newName", newName, nil),
+		UpsertSpec("description", nil, nil),
 		ReplaceSpec("style", newStyle, nil),
+		ReplaceSpec("category", nil, nil),
 		RemoveSpec("type", nil),
 	}, nil)
 	if err != nil {
@@ -144,6 +146,21 @@ func (suite *IntegrationTestSuite) TestMutateInBasicCrud() {
 	if err != nil {
 		suite.T().Fatalf("Getting content errored: %v", err)
 	}
+	rawMap := make(map[string]interface{})
+	err = getRes.Content(&rawMap)
+	if err != nil {
+		suite.T().Fatalf("Getting content to raw map errored: %v", err)
+	}
+
+	if rawMap["brewery_id"] != doc.BreweryID {
+		suite.T().Fatalf("raw map content did not match, expected %#v but was %#v", doc.BreweryID, rawMap["brewery_id"])
+	}
+	if rawMap["category"] != nil {
+		suite.T().Fatalf("raw map content did not match, expected %#v but was %#v", nil, rawMap["category"])
+	}
+	if rawMap["description"] != nil {
+		suite.T().Fatalf("raw map content did not match, expected %#v but was %#v", nil, rawMap["description"])
+	}
 
 	expectedDoc := fishBeerDocument{
 		testBeerDocument: doc,
@@ -153,6 +170,8 @@ func (suite *IntegrationTestSuite) TestMutateInBasicCrud() {
 	expectedDoc.Name = newName
 	expectedDoc.Style = newStyle
 	expectedDoc.Type = ""
+	expectedDoc.Category = ""
+	expectedDoc.Description = ""
 
 	if actualDoc != expectedDoc {
 		suite.T().Fatalf("results did not match, expected %#v but was %#v", expectedDoc, actualDoc)
