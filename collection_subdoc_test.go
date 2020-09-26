@@ -117,7 +117,9 @@ func (suite *IntegrationTestSuite) TestMutateInBasicCrud() {
 		InsertSpec("fish", fishName, nil),
 		UpsertSpec("name", newName, nil),
 		UpsertSpec("newName", newName, nil),
+		UpsertSpec("description", nil, nil),
 		ReplaceSpec("style", newStyle, nil),
+		ReplaceSpec("category", nil, nil),
 		RemoveSpec("type", nil),
 	}, nil)
 	if err != nil {
@@ -144,6 +146,21 @@ func (suite *IntegrationTestSuite) TestMutateInBasicCrud() {
 	if err != nil {
 		suite.T().Fatalf("Getting content errored: %v", err)
 	}
+	rawMap := make(map[string]interface{})
+	err = getRes.Content(&rawMap)
+	if err != nil {
+		suite.T().Fatalf("Getting content to raw map errored: %v", err)
+	}
+
+	if rawMap["brewery_id"] != doc.BreweryID {
+		suite.T().Fatalf("raw map content did not match, expected %#v but was %#v", doc.BreweryID, rawMap["brewery_id"])
+	}
+	if rawMap["category"] != nil {
+		suite.T().Fatalf("raw map content did not match, expected %#v but was %#v", nil, rawMap["category"])
+	}
+	if rawMap["description"] != nil {
+		suite.T().Fatalf("raw map content did not match, expected %#v but was %#v", nil, rawMap["description"])
+	}
 
 	expectedDoc := fishBeerDocument{
 		testBeerDocument: doc,
@@ -153,6 +170,8 @@ func (suite *IntegrationTestSuite) TestMutateInBasicCrud() {
 	expectedDoc.Name = newName
 	expectedDoc.Style = newStyle
 	expectedDoc.Type = ""
+	expectedDoc.Category = ""
+	expectedDoc.Description = ""
 
 	if actualDoc != expectedDoc {
 		suite.T().Fatalf("results did not match, expected %#v but was %#v", expectedDoc, actualDoc)
@@ -432,5 +451,81 @@ func (suite *IntegrationTestSuite) TestMutateInLookupInMacro() {
 
 	if !strings.HasPrefix(caspath, "0x") {
 		suite.T().Fatalf("Expected caspath to start with 0x but was %s", caspath)
+	}
+}
+func (suite *IntegrationTestSuite) TestSubdocNil() {
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(SubdocFeature)
+
+	_, err := globalCollection.Upsert("nullvalues", struct{}{}, nil)
+	suite.Require().Nil(err, err)
+
+	mutateOps := []MutateInSpec{
+		InsertSpec("insert", nil, nil),
+		UpsertSpec("upsert", nil, nil),
+		ReplaceSpec("upsert", nil, nil),
+		ArrayAppendSpec("array", nil, &ArrayAppendSpecOptions{
+			CreatePath: true,
+		}),
+		ArrayPrependSpec("array", []interface{}{nil, nil, nil}, &ArrayPrependSpecOptions{
+			HasMultiple: true,
+		}),
+		ArrayInsertSpec("array[1]", nil, nil),
+	}
+
+	mutRes, err := globalCollection.MutateIn("nullvalues", mutateOps, nil)
+	suite.Require().Nil(err, err)
+
+	suite.Assert().NotZero(mutRes.Cas())
+
+	lookupOps := []LookupInSpec{
+		GetSpec("insert", nil),
+		GetSpec("upsert", nil),
+		GetSpec("array", nil),
+	}
+
+	lookupRes, err := globalCollection.LookupIn("nullvalues", lookupOps, nil)
+	suite.Require().Nil(err, err)
+
+	suite.Assert().NotZero(lookupRes.Cas())
+
+	var insertVal interface{}
+	if suite.Assert().Nil(lookupRes.ContentAt(0, &insertVal)) {
+		suite.Assert().Nil(insertVal)
+	}
+
+	var upsertVal interface{}
+	if suite.Assert().Nil(lookupRes.ContentAt(1, &upsertVal)) {
+		suite.Assert().Nil(upsertVal)
+	}
+
+	var arrayVal []interface{}
+	if suite.Assert().Nil(lookupRes.ContentAt(2, &arrayVal)) {
+		if suite.Assert().Len(arrayVal, 5) {
+			suite.Assert().Nil(arrayVal[0], nil)
+			suite.Assert().Nil(arrayVal[1], nil)
+			suite.Assert().Nil(arrayVal[2], nil)
+			suite.Assert().Nil(arrayVal[3], nil)
+			suite.Assert().Nil(arrayVal[4], nil)
+		}
+	}
+
+	mutateOps = []MutateInSpec{
+		ReplaceSpec("", nil, nil),
+	}
+
+	mutRes, err = globalCollection.MutateIn("nullvalues", mutateOps, &MutateInOptions{})
+	suite.Require().Nil(err, err)
+
+	lookupOps = []LookupInSpec{
+		GetSpec("", nil),
+	}
+
+	lookupRes, err = globalCollection.LookupIn("nullvalues", lookupOps, nil)
+	suite.Require().Nil(err, err)
+
+	var doc interface{}
+	if suite.Assert().Nil(lookupRes.ContentAt(0, &doc)) {
+		suite.Assert().Nil(doc)
 	}
 }

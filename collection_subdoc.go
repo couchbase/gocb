@@ -7,7 +7,7 @@ import (
 
 	"github.com/couchbase/gocbcore/v9/memd"
 
-	gocbcore "github.com/couchbase/gocbcore/v9"
+	"github.com/couchbase/gocbcore/v9"
 )
 
 // LookupInOptions are the set of options available to LookupIn.
@@ -197,6 +197,20 @@ func jsonMarshalMultiArray(in interface{}) ([]byte, error) {
 
 func jsonMarshalMutateSpec(op MutateInSpec) ([]byte, memd.SubdocFlag, error) {
 	if op.value == nil {
+		// If the mutation is to write, then this is a json `null` value
+		switch op.op {
+		case memd.SubDocOpDictAdd,
+			memd.SubDocOpDictSet,
+			memd.SubDocOpReplace,
+			memd.SubDocOpArrayPushLast,
+			memd.SubDocOpArrayPushFirst,
+			memd.SubDocOpArrayInsert,
+			memd.SubDocOpArrayAddUnique,
+			memd.SubDocOpSetDoc,
+			memd.SubDocOpAddDoc:
+			return []byte("null"), memd.SubdocFlagNone, nil
+		}
+
 		return nil, memd.SubdocFlagNone, nil
 	}
 
