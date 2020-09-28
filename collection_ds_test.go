@@ -341,6 +341,13 @@ func (suite *IntegrationTestSuite) TestMapCrud() {
 		suite.T().Fatalf("Expected cMap size to be 4 but was %d", size)
 	}
 
+	var test3Val string
+	err = cMap.At("test3", &test3Val)
+	suite.Assert().Nil(err, err)
+	suite.Assert().Equal("test3val", test3Val)
+
+	suite.Assert().True(cMap.Exists("test3"))
+
 	iter, err := cMap.Iterator()
 	if err != nil {
 		suite.T().Fatalf("Failed to get iterator for cMap %v", err)
@@ -361,6 +368,8 @@ func (suite *IntegrationTestSuite) TestMapCrud() {
 	if err != nil {
 		suite.T().Fatalf("Failed to remove from cMap %v", err)
 	}
+
+	suite.Assert().False(cMap.Exists("test1"))
 
 	size, err = cMap.Size()
 	if err != nil {
