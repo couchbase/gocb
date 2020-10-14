@@ -17,12 +17,34 @@ type jsonRowLocation struct {
 	ArrayPositions []uint32 `json:"array_positions"`
 }
 
+type jsonSearchTermFacet struct {
+	Term  string `json:"term,omitempty"`
+	Count int    `json:"count,omitempty"`
+}
+
+type jsonSearchNumericFacet struct {
+	Name  string  `json:"name,omitempty"`
+	Min   float64 `json:"min,omitempty"`
+	Max   float64 `json:"max,omitempty"`
+	Count int     `json:"count,omitempty"`
+}
+
+type jsonSearchDateFacet struct {
+	Name  string `json:"name,omitempty"`
+	Start string `json:"start,omitempty"`
+	End   string `json:"end,omitempty"`
+	Count int    `json:"count,omitempty"`
+}
+
 type jsonSearchFacet struct {
-	Name    string `json:"name"`
-	Field   string `json:"field"`
-	Total   uint64 `json:"total"`
-	Missing uint64 `json:"missing"`
-	Other   uint64 `json:"other"`
+	Name          string                   `json:"name"`
+	Field         string                   `json:"field"`
+	Total         uint64                   `json:"total"`
+	Missing       uint64                   `json:"missing"`
+	Other         uint64                   `json:"other"`
+	Terms         []jsonSearchTermFacet    `json:"terms"`
+	NumericRanges []jsonSearchNumericFacet `json:"numeric_ranges"`
+	DateRanges    []jsonSearchDateFacet    `json:"date_ranges"`
 }
 
 type jsonSearchRowLocations map[string]map[string][]jsonRowLocation
@@ -81,13 +103,38 @@ func (meta *SearchMetaData) fromData(data jsonSearchResponse) error {
 	return nil
 }
 
+// SearchTermFacetResult holds the results of a term facet in search results.
+type SearchTermFacetResult struct {
+	Term  string
+	Count int
+}
+
+// SearchNumericRangeFacetResult holds the results of a numeric facet in search results.
+type SearchNumericRangeFacetResult struct {
+	Name  string
+	Min   float64
+	Max   float64
+	Count int
+}
+
+// SearchDateRangeFacetResult holds the results of a date facet in search results.
+type SearchDateRangeFacetResult struct {
+	Name  string
+	Start string
+	End   string
+	Count int
+}
+
 // SearchFacetResult provides access to the result of a faceted query.
 type SearchFacetResult struct {
-	Name    string
-	Field   string
-	Total   uint64
-	Missing uint64
-	Other   uint64
+	Name          string
+	Field         string
+	Total         uint64
+	Missing       uint64
+	Other         uint64
+	Terms         []SearchTermFacetResult
+	NumericRanges []SearchNumericRangeFacetResult
+	DateRanges    []SearchDateRangeFacetResult
 }
 
 func (fr *SearchFacetResult) fromData(data jsonSearchFacet) error {
@@ -96,6 +143,15 @@ func (fr *SearchFacetResult) fromData(data jsonSearchFacet) error {
 	fr.Total = data.Total
 	fr.Missing = data.Missing
 	fr.Other = data.Other
+	for _, term := range data.Terms {
+		fr.Terms = append(fr.Terms, SearchTermFacetResult(term))
+	}
+	for _, nr := range data.NumericRanges {
+		fr.NumericRanges = append(fr.NumericRanges, SearchNumericRangeFacetResult(nr))
+	}
+	for _, nr := range data.DateRanges {
+		fr.DateRanges = append(fr.DateRanges, SearchDateRangeFacetResult(nr))
+	}
 
 	return nil
 }

@@ -26,7 +26,9 @@ func (suite *IntegrationTestSuite) runSearchTest(n int) {
 		result, err = globalCluster.SearchQuery("search_test_index", query, &SearchOptions{
 			Timeout: 1 * time.Second,
 			Facets: map[string]search.Facet{
-				"type": search.NewTermFacet("country", 5),
+				"type":    search.NewTermFacet("country", 5),
+				"date":    search.NewDateFacet("updated", 5).AddRange("updated", "2000-07-22 20:00:20", "2020-07-22 20:00:20"),
+				"numeric": search.NewNumericFacet("geo.lat", 5).AddRange("lat", 30, 31),
 			},
 		})
 		if err != nil {
@@ -78,7 +80,44 @@ func (suite *IntegrationTestSuite) runSearchTest(n int) {
 	if suite.Assert().Contains(facets, "type") {
 		f := facets["type"]
 		suite.Assert().Equal("country", f.Field)
-		suite.Assert().NotEmpty(f.Total)
+		suite.Assert().Equal(uint64(7), f.Total)
+		suite.Assert().Equal(4, len(f.Terms))
+		for _, term := range f.Terms {
+			switch term.Term {
+			case "belgium":
+				suite.Assert().Equal(2, term.Count)
+			case "states":
+				suite.Assert().Equal(2, term.Count)
+			case "united":
+				suite.Assert().Equal(2, term.Count)
+			case "norway":
+				suite.Assert().Equal(1, term.Count)
+			default:
+				suite.Failf("Unexpected facet term %s", term.Term)
+			}
+		}
+	}
+
+	if suite.Assert().Contains(facets, "date") {
+		f := facets["date"]
+		suite.Assert().Equal(uint64(5), f.Total)
+		suite.Assert().Equal("updated", f.Field)
+		suite.Assert().Equal(1, len(f.DateRanges))
+		suite.Assert().Equal(5, f.DateRanges[0].Count)
+		suite.Assert().Equal("2000-07-22T20:00:20Z", f.DateRanges[0].Start)
+		suite.Assert().Equal("2020-07-22T20:00:20Z", f.DateRanges[0].End)
+		suite.Assert().Equal("updated", f.DateRanges[0].Name)
+	}
+
+	if suite.Assert().Contains(facets, "numeric") {
+		f := facets["numeric"]
+		suite.Assert().Equal(uint64(1), f.Total)
+		suite.Assert().Equal("geo.lat", f.Field)
+		suite.Assert().Equal(1, len(f.NumericRanges))
+		suite.Assert().Equal(1, f.NumericRanges[0].Count)
+		suite.Assert().Equal(float64(30), f.NumericRanges[0].Min)
+		suite.Assert().Equal(float64(31), f.NumericRanges[0].Max)
+		suite.Assert().Equal("lat", f.NumericRanges[0].Name)
 	}
 }
 
