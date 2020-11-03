@@ -1742,6 +1742,7 @@ func (suite *UnitTestSuite) TestGetErrorProperties() {
 	expectedErr := &gocbcore.KeyValueError{
 		InnerError:         gocbcore.ErrDocumentNotFound, // Doesn't map perfectly but it's good enough
 		StatusCode:         0x01,
+		DocumentKey:        "someid",
 		BucketName:         "default",
 		ScopeName:          "_default",
 		CollectionName:     "_default",
@@ -1792,6 +1793,7 @@ func (suite *UnitTestSuite) TestGetErrorProperties() {
 	}
 
 	suite.Assert().Equal(expectedErr.StatusCode, kvErr.StatusCode)
+	suite.Assert().Equal(expectedErr.DocumentKey, kvErr.DocumentID)
 	suite.Assert().Equal(expectedErr.BucketName, kvErr.BucketName)
 	suite.Assert().Equal(expectedErr.ScopeName, kvErr.ScopeName)
 	suite.Assert().Equal(expectedErr.CollectionName, kvErr.CollectionName)
