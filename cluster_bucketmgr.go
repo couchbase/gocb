@@ -84,6 +84,7 @@ type jsonBucketSettings struct {
 	EvictionPolicy         string `json:"evictionPolicy"`
 	MaxTTL                 uint32 `json:"maxTTL"`
 	CompressionMode        string `json:"compressionMode"`
+	MinimumDurabilityLevel string `json:"durabilityMinLevel"`
 }
 
 // BucketSettings holds information about the settings for a bucket.
@@ -96,9 +97,10 @@ type BucketSettings struct {
 	BucketType           BucketType // Defaults to CouchbaseBucketType.
 	EvictionPolicy       EvictionPolicyType
 	// Deprecated: Use MaxExpiry instead.
-	MaxTTL          time.Duration
-	MaxExpiry       time.Duration
-	CompressionMode CompressionMode
+	MaxTTL                 time.Duration
+	MaxExpiry              time.Duration
+	CompressionMode        CompressionMode
+	MinimumDurabilityLevel DurabilityLevel
 }
 
 func (bs *BucketSettings) fromData(data jsonBucketSettings) error {
@@ -111,6 +113,7 @@ func (bs *BucketSettings) fromData(data jsonBucketSettings) error {
 	bs.MaxTTL = time.Duration(data.MaxTTL) * time.Second
 	bs.MaxExpiry = time.Duration(data.MaxTTL) * time.Second
 	bs.CompressionMode = CompressionMode(data.CompressionMode)
+	bs.MinimumDurabilityLevel = durabilityLevelFromManagementAPI(data.MinimumDurabilityLevel)
 
 	switch data.BucketType {
 	case "membase":
@@ -599,6 +602,14 @@ func (bm *BucketManager) settingsToPostData(settings *BucketSettings) (url.Value
 
 	if settings.CompressionMode != "" {
 		posts.Add("compressionMode", string(settings.CompressionMode))
+	}
+
+	if settings.MinimumDurabilityLevel != DurabilityLevelNone {
+		level, err := settings.MinimumDurabilityLevel.toManagementAPI()
+		if err != nil {
+			return nil, err
+		}
+		posts.Add("durabilityMinLevel", level)
 	}
 
 	return posts, nil

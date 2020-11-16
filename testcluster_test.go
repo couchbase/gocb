@@ -22,6 +22,7 @@ var (
 	srvVer600   = NodeVersion{6, 0, 0, 0, 0, "", false}
 	srvVer650   = NodeVersion{6, 5, 0, 0, 0, "", false}
 	srvVer650DP = NodeVersion{6, 5, 0, 0, 0, "dp", false}
+	srvVer660   = NodeVersion{6, 6, 0, 0, 0, "", false}
 	srvVer700   = NodeVersion{7, 0, 0, 0, 0, "", false}
 	mockVer156  = NodeVersion{1, 5, 6, 0, 0, "", true}
 	mockVer1513 = NodeVersion{1, 5, 13, 0, 0, "", true}
@@ -61,6 +62,7 @@ var (
 	QueryIndexFeature                     = FeatureCode("queryindex")
 	CollectionsQueryFeature               = FeatureCode("collectionsquery")
 	CollectionsAnalyticsFeature           = FeatureCode("collectionsanalytics")
+	BucketMgrDurabilityFeature            = FeatureCode("bucketmgrdura")
 )
 
 type TestFeatureFlag struct {
@@ -161,6 +163,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case CollectionsAnalyticsFeature:
 			supported = false
+		case BucketMgrDurabilityFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -224,6 +228,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer700)
 		case CollectionsAnalyticsFeature:
 			supported = !c.Version.Lower(srvVer700)
+		case BucketMgrDurabilityFeature:
+			supported = !c.Version.Lower(srvVer660)
 		}
 	}
 

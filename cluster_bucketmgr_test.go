@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"errors"
+	"testing"
 	"time"
 
 	"github.com/couchbase/gocbcore/v9"
@@ -435,5 +436,90 @@ func (suite *IntegrationTestSuite) TestBucketMgrInvalidEviction() {
 	}, nil)
 	if !errors.Is(err, ErrInvalidArgument) {
 		suite.T().Fatalf("Error should have been invalid argument, was %v", err)
+	}
+}
+
+func (suite *IntegrationTestSuite) TestBucketMgrMinDurability() {
+	suite.skipIfUnsupported(BucketMgrFeature)
+	suite.skipIfUnsupported(BucketMgrDurabilityFeature)
+
+	mgr := globalCluster.Buckets()
+
+	type tCase struct {
+		name     string
+		settings BucketSettings
+	}
+
+	testCases := []tCase{
+		{
+			name: "none",
+			settings: BucketSettings{
+				Name:                   "testnone",
+				RAMQuotaMB:             100,
+				BucketType:             CouchbaseBucketType,
+				MinimumDurabilityLevel: DurabilityLevelNone,
+			},
+		},
+		{
+			name: "majority",
+			settings: BucketSettings{
+				Name:                   "testmajority",
+				RAMQuotaMB:             100,
+				BucketType:             CouchbaseBucketType,
+				MinimumDurabilityLevel: DurabilityLevelMajority,
+			},
+		},
+		{
+			name: "majorityPersistToMaster",
+			settings: BucketSettings{
+				Name:                   "testmajorityPersistToMaster",
+				RAMQuotaMB:             100,
+				BucketType:             CouchbaseBucketType,
+				MinimumDurabilityLevel: DurabilityLevelMajorityAndPersistOnMaster,
+			},
+		},
+		{
+			name: "persistToMajority",
+			settings: BucketSettings{
+				Name:                   "testpersistToMajority",
+				RAMQuotaMB:             100,
+				BucketType:             CouchbaseBucketType,
+				MinimumDurabilityLevel: DurabilityLevelPersistToMajority,
+			},
+		},
+	}
+	for _, tCase := range testCases {
+		suite.T().Run(tCase.name, func(te *testing.T) {
+			err := mgr.CreateBucket(CreateBucketSettings{
+				BucketSettings:         tCase.settings,
+				ConflictResolutionType: ConflictResolutionTypeSequenceNumber,
+			}, nil)
+			if err != nil {
+				te.Fatalf("Failed to create bucket %v", err)
+			}
+
+			defer mgr.DropBucket(tCase.settings.Name, nil)
+
+			// Buckets don't become available immediately so we need to do a bit of polling to see if it comes online.
+			var bucket *BucketSettings
+			success := suite.tryUntil(time.Now().Add(5*time.Second), 250*time.Millisecond, func() bool {
+				bucket, err = mgr.GetBucket(tCase.settings.Name, nil)
+				if err != nil {
+					te.Logf("Failed to get bucket %v", err)
+					return false
+				}
+
+				return true
+			})
+
+			if !success {
+				te.Fatalf("GetBucket failed to execute within the required time")
+			}
+
+			if bucket.MinimumDurabilityLevel != tCase.settings.MinimumDurabilityLevel {
+				te.Fatalf("Expected minimum durability level to be %d but was %d", tCase.settings.MinimumDurabilityLevel,
+					bucket.MinimumDurabilityLevel)
+			}
+		})
 	}
 }

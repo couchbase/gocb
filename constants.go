@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"fmt"
 	gocbcore "github.com/couchbase/gocbcore/v9"
 	"github.com/couchbase/gocbcore/v9/memd"
 	"time"
@@ -134,8 +135,11 @@ const (
 type DurabilityLevel uint8
 
 const (
+	// DurabilityLevelNone specifies that no durability level should be applied.
+	DurabilityLevelNone DurabilityLevel = iota
+
 	// DurabilityLevelMajority specifies that a mutation must be replicated (held in memory) to a majority of nodes.
-	DurabilityLevelMajority DurabilityLevel = iota + 1
+	DurabilityLevelMajority
 
 	// DurabilityLevelMajorityAndPersistOnMaster specifies that a mutation must be replicated (held in memory) to a
 	// majority of nodes and also persisted (written to disk) on the active node.
@@ -145,6 +149,36 @@ const (
 	// of nodes.
 	DurabilityLevelPersistToMajority
 )
+
+func (dl DurabilityLevel) toManagementAPI() (string, error) {
+	switch dl {
+	case DurabilityLevelNone:
+		return "none", nil
+	case DurabilityLevelMajority:
+		return "majority", nil
+	case DurabilityLevelMajorityAndPersistOnMaster:
+		return "majorityAndPersistActive", nil
+	case DurabilityLevelPersistToMajority:
+		return "persistToMajority", nil
+	default:
+		return "", invalidArgumentsError{
+			message: fmt.Sprintf("unknown durability level: %d", dl),
+		}
+	}
+}
+
+func durabilityLevelFromManagementAPI(level string) DurabilityLevel {
+	switch level {
+	case "majority":
+		return DurabilityLevelMajority
+	case "majorityAndPersistActive":
+		return DurabilityLevelMajorityAndPersistOnMaster
+	case "persistToMajority":
+		return DurabilityLevelPersistToMajority
+	default:
+		return DurabilityLevelNone
+	}
+}
 
 // MutationMacro can be supplied to MutateIn operations to perform ExpandMacros operations.
 type MutationMacro string
