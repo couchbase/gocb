@@ -94,8 +94,8 @@ func (suite *IntegrationTestSuite) TestTimeoutError_Retries() {
 		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
 	}
 
-	err = globalCollection.Unlock("unlockTimeout", 1234, &UnlockOptions{
-		Timeout: 100 * time.Millisecond,
+	_, err = globalCollection.Upsert("unlockTimeout", 1234, &UpsertOptions{
+		Timeout: 1000 * time.Millisecond,
 	})
 	if !errors.Is(err, ErrTimeout) {
 		suite.T().Fatalf("Unlock should have errored with ErrTimeout but was %v", err)
@@ -103,7 +103,7 @@ func (suite *IntegrationTestSuite) TestTimeoutError_Retries() {
 
 	var tErr *TimeoutError
 	if errors.As(err, &tErr) {
-		suite.Assert().Equal(tErr.OperationID, "Unlock")
+		suite.Assert().Equal(tErr.OperationID, "Set")
 		suite.Assert().NotEmpty(tErr.Opaque)
 		// Testify doesn't like using Greater with time.Duration
 		suite.Assert().Greater(tErr.TimeObserved.Microseconds(), 100*time.Millisecond.Microseconds())

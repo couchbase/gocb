@@ -1288,18 +1288,6 @@ func (suite *IntegrationTestSuite) TestUnlockInvalidCas() {
 	if !errors.Is(err, ErrCasMismatch) && !errors.Is(err, ErrTemporaryFailure) {
 		suite.T().Fatalf("Expected error to be DocumentLocked or TemporaryFailure but was %s", err)
 	}
-
-	err = globalCollection.Unlock("unlockInvalidCas", lockedDoc.Cas()+1, &UnlockOptions{
-		RetryStrategy: NewBestEffortRetryStrategy(nil),
-		Timeout:       10 * time.Millisecond,
-	})
-	if err == nil {
-		suite.T().Fatalf("Unlock should have failed")
-	}
-
-	if !errors.Is(err, ErrTimeout) {
-		suite.T().Fatalf("Expected error to be TimeoutError but was %s", err)
-	}
 }
 
 func (suite *IntegrationTestSuite) TestDoubleLockFail() {
