@@ -34,6 +34,7 @@ func (d *GetResult) Content(valuePtr interface{}) error {
 // Expiry returns the expiry value for the result if it available.  Note that a nil
 // pointer indicates that the Expiry was not fetched, while a valid pointer to a zero
 // Duration indicates that the document will never expire.
+// Deprecated: Use ExpiryTime instead.
 func (d *GetResult) Expiry() *time.Duration {
 	if d.expiryTime == nil {
 		return nil
