@@ -19,7 +19,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrOps() {
 		BucketType:           CouchbaseBucketType,
 		EvictionPolicy:       EvictionPolicyTypeValueOnly,
 		FlushEnabled:         true,
-		MaxTTL:               10 * time.Second,
+		MaxExpiry:            10 * time.Second,
 		CompressionMode:      CompressionModeActive,
 		ReplicaIndexDisabled: true,
 	}
@@ -50,7 +50,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrOps() {
 	suite.Assert().Equal(settings.RAMQuotaMB, bucket.RAMQuotaMB)
 	suite.Assert().Equal(settings.NumReplicas, bucket.NumReplicas)
 	suite.Assert().Equal(settings.FlushEnabled, bucket.FlushEnabled)
-	suite.Assert().Equal(settings.MaxTTL, bucket.MaxTTL)
+	suite.Assert().Equal(settings.MaxExpiry, bucket.MaxExpiry)
 	suite.Assert().Equal(settings.EvictionPolicy, bucket.EvictionPolicy)
 	suite.Assert().Equal(settings.CompressionMode, bucket.CompressionMode)
 	suite.Assert().True(bucket.ReplicaIndexDisabled)
@@ -120,7 +120,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrFlushDisabled() {
 			BucketType:           CouchbaseBucketType,
 			EvictionPolicy:       EvictionPolicyTypeValueOnly,
 			FlushEnabled:         false,
-			MaxTTL:               10,
+			MaxExpiry:            10,
 			CompressionMode:      CompressionModeActive,
 			ReplicaIndexDisabled: true,
 		},
@@ -221,11 +221,11 @@ func (suite *IntegrationTestSuite) TestBucketMgrMemcached() {
 	suite.Assert().Equal(settings.RAMQuotaMB, bucket.RAMQuotaMB)
 	suite.Assert().Equal(settings.NumReplicas, bucket.NumReplicas)
 	suite.Assert().Equal(settings.FlushEnabled, bucket.FlushEnabled)
-	suite.Assert().Equal(time.Duration(0), bucket.MaxTTL)
+	suite.Assert().Equal(time.Duration(0), bucket.MaxExpiry)
 	suite.Assert().Equal(CompressionModeOff, bucket.CompressionMode)
 	suite.Assert().True(bucket.ReplicaIndexDisabled)
 
-	settings.MaxTTL = 10 * time.Second
+	settings.MaxExpiry = 10 * time.Second
 	err = mgr.CreateBucket(CreateBucketSettings{
 		BucketSettings: settings,
 	}, nil)
@@ -246,7 +246,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrEphemeral() {
 		NumReplicas:    1,
 		BucketType:     EphemeralBucketType,
 		FlushEnabled:   true,
-		MaxTTL:         10 * time.Second,
+		MaxExpiry:      10 * time.Second,
 		EvictionPolicy: EvictionPolicyTypeNoEviction,
 	}
 
@@ -276,7 +276,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrEphemeral() {
 	suite.Assert().Equal(settings.RAMQuotaMB, bucket.RAMQuotaMB)
 	suite.Assert().Equal(settings.NumReplicas, bucket.NumReplicas)
 	suite.Assert().Equal(settings.FlushEnabled, bucket.FlushEnabled)
-	suite.Assert().Equal(settings.MaxTTL, bucket.MaxTTL)
+	suite.Assert().Equal(settings.MaxExpiry, bucket.MaxExpiry)
 	suite.Assert().Equal(CompressionModePassive, bucket.CompressionMode)
 	suite.Assert().Equal(settings.EvictionPolicy, bucket.EvictionPolicy)
 	suite.Assert().True(bucket.ReplicaIndexDisabled)
@@ -287,7 +287,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrEphemeral() {
 		NumReplicas:    1,
 		BucketType:     EphemeralBucketType,
 		FlushEnabled:   true,
-		MaxTTL:         10 * time.Second,
+		MaxExpiry:      10 * time.Second,
 		EvictionPolicy: EvictionPolicyTypeNotRecentlyUsed,
 	}
 
@@ -316,7 +316,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrEphemeral() {
 	suite.Assert().Equal(settings.RAMQuotaMB, bucket.RAMQuotaMB)
 	suite.Assert().Equal(settings.NumReplicas, bucket.NumReplicas)
 	suite.Assert().Equal(settings.FlushEnabled, bucket.FlushEnabled)
-	suite.Assert().Equal(settings.MaxTTL, bucket.MaxTTL)
+	suite.Assert().Equal(settings.MaxExpiry, bucket.MaxExpiry)
 	suite.Assert().Equal(CompressionModePassive, bucket.CompressionMode)
 	suite.Assert().Equal(settings.EvictionPolicy, bucket.EvictionPolicy)
 	suite.Assert().True(bucket.ReplicaIndexDisabled)
