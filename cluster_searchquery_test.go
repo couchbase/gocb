@@ -292,3 +292,81 @@ func (suite *UnitTestSuite) TestSearchQuery() {
 
 	suite.Assert().Equal(expectedFacets, facets)
 }
+
+func (suite *UnitTestSuite) TestSearchQueryDisableScoring() {
+	reader := &mockSearchRowReader{
+		Dataset: []jsonSearchRow{},
+		Meta:    []byte{},
+		Suite:   suite,
+	}
+
+	query := search.NewMatchAllQuery()
+
+	var cluster *Cluster
+	cluster = suite.searchCluster(reader, func(args mock.Arguments) {
+		opts := args.Get(0).(gocbcore.SearchQueryOptions)
+
+		var actualOptions map[string]interface{}
+		err := json.Unmarshal(opts.Payload, &actualOptions)
+		suite.Require().Nil(err)
+
+		if suite.Assert().Contains(actualOptions, "score") {
+			suite.Assert().Equal("none", actualOptions["score"])
+		}
+	})
+
+	_, err := cluster.SearchQuery("testindex", query, &SearchOptions{
+		DisableScoring: true,
+	})
+	suite.Require().Nil(err, err)
+}
+
+func (suite *UnitTestSuite) TestSearchQueryNoScoringSet() {
+	reader := &mockSearchRowReader{
+		Dataset: []jsonSearchRow{},
+		Meta:    []byte{},
+		Suite:   suite,
+	}
+
+	query := search.NewMatchAllQuery()
+
+	var cluster *Cluster
+	cluster = suite.searchCluster(reader, func(args mock.Arguments) {
+		opts := args.Get(0).(gocbcore.SearchQueryOptions)
+
+		var actualOptions map[string]interface{}
+		err := json.Unmarshal(opts.Payload, &actualOptions)
+		suite.Require().Nil(err)
+
+		suite.Assert().NotContains(actualOptions, "score")
+	})
+
+	_, err := cluster.SearchQuery("testindex", query, &SearchOptions{})
+	suite.Require().Nil(err, err)
+}
+
+func (suite *UnitTestSuite) TestSearchQueryExplicitlyEnableScoring() {
+	reader := &mockSearchRowReader{
+		Dataset: []jsonSearchRow{},
+		Meta:    []byte{},
+		Suite:   suite,
+	}
+
+	query := search.NewMatchAllQuery()
+
+	var cluster *Cluster
+	cluster = suite.searchCluster(reader, func(args mock.Arguments) {
+		opts := args.Get(0).(gocbcore.SearchQueryOptions)
+
+		var actualOptions map[string]interface{}
+		err := json.Unmarshal(opts.Payload, &actualOptions)
+		suite.Require().Nil(err)
+
+		suite.Assert().NotContains(actualOptions, "score")
+	})
+
+	_, err := cluster.SearchQuery("testindex", query, &SearchOptions{
+		DisableScoring: false,
+	})
+	suite.Require().Nil(err, err)
+}
