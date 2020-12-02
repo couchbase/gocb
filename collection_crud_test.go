@@ -42,6 +42,87 @@ func (suite *IntegrationTestSuite) TestErrorDoubleInsert() {
 	}
 }
 
+func (suite *IntegrationTestSuite) TestExpiryConversions() {
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(XattrFeature)
+
+	var doc testBeerDocument
+	err := loadJSONTestDataset("beer_sample_single", &doc)
+	if err != nil {
+		suite.T().Fatalf("Could not read test dataset: %v", err)
+	}
+
+	type tCase struct {
+		name   string
+		expiry time.Duration
+	}
+	tCases := []tCase{
+		{
+			name:   "TestExpiryConversionsUnder30Days",
+			expiry: 5 * time.Second,
+		},
+		{
+			name:   "TestExpiryConversions30Days",
+			expiry: 30 * (24 * time.Hour),
+		},
+		{
+			name:   "TestExpiryConversionsOver30Days",
+			expiry: 31 * (24 * time.Hour),
+		},
+	}
+
+	for _, tCase := range tCases {
+		suite.T().Run(tCase.name, func(te *testing.T) {
+			res, err := globalCollection.Upsert(tCase.name, doc, &UpsertOptions{
+				Expiry: tCase.expiry,
+			})
+			if err != nil {
+				te.Fatalf("Error running Upsert: %v", err)
+			}
+
+			if res.Cas() == 0 {
+				te.Fatalf("Insert CAS was 0")
+			}
+
+			start := time.Now()
+
+			lookupRes, err := globalCollection.LookupIn(
+				tCase.name,
+				[]LookupInSpec{
+					GetSpec("$document", &GetSpecOptions{
+						IsXattr: true,
+					}),
+				},
+				nil,
+			)
+			if err != nil {
+				te.Fatalf("Error running LookupIn: %v", err)
+				return
+			}
+
+			exp := struct {
+				Expiration int64 `json:"exptime"`
+			}{}
+			err = lookupRes.ContentAt(0, &exp)
+			if err != nil {
+				te.Fatalf("Error running ContentAt: %v", err)
+			}
+
+			actualExpirySecs := time.Unix(exp.Expiration, 0).Sub(start).Seconds()
+
+			if actualExpirySecs > (tCase.expiry + (500 * time.Millisecond)).Seconds() {
+				te.Fatalf("Expected expiry to be less than %f but was %f", tCase.expiry.Seconds(),
+					actualExpirySecs)
+			}
+
+			if actualExpirySecs < (tCase.expiry - (2 * time.Second)).Seconds() {
+				te.Fatalf("Expected expiry to be greater than %f but was %f", tCase.expiry.Seconds(),
+					actualExpirySecs)
+			}
+		})
+	}
+}
+
 func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(XattrFeature)
@@ -1695,19 +1776,7 @@ func (suite *UnitTestSuite) TestGetErrorCollectionUnknown() {
 		}).
 		Return(pendingOp, nil)
 
-	col := &Collection{
-		bucket:         &Bucket{bucketName: "mock"},
-		collectionName: "",
-		scope:          "",
-
-		getKvProvider: suite.kvProvider(provider, nil),
-		timeoutsConfig: kvTimeoutsConfig{
-			KVTimeout: 2500 * time.Millisecond,
-		},
-		transcoder:           NewJSONTranscoder(),
-		tracer:               &noopTracer{},
-		retryStrategyWrapper: newRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
-	}
+	col := suite.collection("mock", "", "", provider)
 
 	res, err := col.Get("getDocErrCollectionUnknown", nil)
 	if err == nil {
@@ -1756,20 +1825,7 @@ func (suite *UnitTestSuite) TestGetErrorProperties() {
 		}).
 		Return(pendingOp, nil)
 
-	col := &Collection{
-		bucket: &Bucket{bucketName: "mock"},
-
-		collectionName: "",
-		scope:          "",
-
-		getKvProvider: suite.kvProvider(provider, nil),
-		timeoutsConfig: kvTimeoutsConfig{
-			KVTimeout: 2500 * time.Millisecond,
-		},
-		transcoder:           NewJSONTranscoder(),
-		tracer:               &noopTracer{},
-		retryStrategyWrapper: newRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
-	}
+	col := suite.collection("mock", "", "", provider)
 
 	res, err := col.Get("someid", nil)
 	if !errors.Is(err, ErrDocumentNotFound) {
@@ -1798,4 +1854,132 @@ func (suite *UnitTestSuite) TestGetErrorProperties() {
 	suite.Assert().Equal(expectedErr.LastConnectionID, kvErr.LastConnectionID)
 
 	suite.Assert().Nil(res)
+}
+
+func (suite *UnitTestSuite) TestExpiryConversion5Seconds() {
+	pendingOp := new(mockPendingOp)
+	pendingOp.AssertNotCalled(suite.T(), "Cancel", mock.AnythingOfType("error"))
+
+	provider := new(mockKvProvider)
+	provider.
+		On("Set", mock.AnythingOfType("gocbcore.SetOptions"), mock.AnythingOfType("gocbcore.StoreCallback")).
+		Run(func(args mock.Arguments) {
+			opts := args.Get(0).(gocbcore.SetOptions)
+			cb := args.Get(1).(gocbcore.StoreCallback)
+
+			suite.Assert().Equal(uint32(5), opts.Expiry)
+			cb(&gocbcore.StoreResult{
+				Cas: gocbcore.Cas(123),
+			}, nil)
+		}).
+		Return(pendingOp, nil)
+
+	col := suite.collection("mock", "", "", provider)
+
+	res, err := col.Upsert("someid", "someval", &UpsertOptions{
+		Expiry: 5 * time.Second,
+	})
+	suite.Require().Nil(err, err)
+
+	suite.Assert().Equal(Cas(123), res.Cas())
+}
+
+func (suite *UnitTestSuite) TestExpiryConversion500Milliseconds() {
+	pendingOp := new(mockPendingOp)
+	pendingOp.AssertNotCalled(suite.T(), "Cancel", mock.AnythingOfType("error"))
+
+	provider := new(mockKvProvider)
+	provider.
+		On("Set", mock.AnythingOfType("gocbcore.SetOptions"), mock.AnythingOfType("gocbcore.StoreCallback")).
+		Run(func(args mock.Arguments) {
+			opts := args.Get(0).(gocbcore.SetOptions)
+			cb := args.Get(1).(gocbcore.StoreCallback)
+
+			suite.Assert().Equal(uint32(1), opts.Expiry)
+			cb(&gocbcore.StoreResult{
+				Cas: gocbcore.Cas(123),
+			}, nil)
+		}).
+		Return(pendingOp, nil)
+
+	col := suite.collection("mock", "", "", provider)
+
+	res, err := col.Upsert("someid", "someval", &UpsertOptions{
+		Expiry: 500 * time.Millisecond,
+	})
+	suite.Require().Nil(err, err)
+
+	suite.Assert().Equal(Cas(123), res.Cas())
+}
+
+func (suite *UnitTestSuite) TestExpiryConversion30Days() {
+	pendingOp := new(mockPendingOp)
+	pendingOp.AssertNotCalled(suite.T(), "Cancel", mock.AnythingOfType("error"))
+
+	expectedTime := time.Now().Add(30 * 24 * time.Hour)
+	provider := new(mockKvProvider)
+	provider.
+		On("Set", mock.AnythingOfType("gocbcore.SetOptions"), mock.AnythingOfType("gocbcore.StoreCallback")).
+		Run(func(args mock.Arguments) {
+			opts := args.Get(0).(gocbcore.SetOptions)
+			cb := args.Get(1).(gocbcore.StoreCallback)
+
+			if opts.Expiry < uint32(expectedTime.Add(-1*time.Second).Unix()) {
+				suite.T().Fatalf("Expected expiry to be %d but was %d", expectedTime.Second(), opts.Expiry)
+			}
+
+			if opts.Expiry > uint32(expectedTime.Unix()) {
+				suite.T().Fatalf("Expected expiry to be %d but was %d", expectedTime.Second(), opts.Expiry)
+			}
+
+			cb(&gocbcore.StoreResult{
+				Cas: gocbcore.Cas(123),
+			}, nil)
+		}).
+		Return(pendingOp, nil)
+
+	col := suite.collection("mock", "", "", provider)
+
+	res, err := col.Upsert("someid", "someval", &UpsertOptions{
+		Expiry: 30 * 24 * time.Hour,
+	})
+	suite.Require().Nil(err, err)
+
+	suite.Assert().Equal(Cas(123), res.Cas())
+}
+
+func (suite *UnitTestSuite) TestExpiryConversion31Days() {
+	pendingOp := new(mockPendingOp)
+	pendingOp.AssertNotCalled(suite.T(), "Cancel", mock.AnythingOfType("error"))
+
+	expectedTime := time.Now().Add(31 * 24 * time.Hour)
+	provider := new(mockKvProvider)
+	provider.
+		On("Set", mock.AnythingOfType("gocbcore.SetOptions"), mock.AnythingOfType("gocbcore.StoreCallback")).
+		Run(func(args mock.Arguments) {
+			opts := args.Get(0).(gocbcore.SetOptions)
+			cb := args.Get(1).(gocbcore.StoreCallback)
+
+			if opts.Expiry < uint32(expectedTime.Add(-1*time.Second).Unix()) {
+				suite.T().Fatalf("Expected expiry to be %d but was %d", expectedTime.Second(), opts.Expiry)
+			}
+
+			if opts.Expiry > uint32(expectedTime.Unix()) {
+				suite.T().Fatalf("Expected expiry to be %d but was %d", expectedTime.Second(), opts.Expiry)
+			}
+
+			cb(&gocbcore.StoreResult{
+				Cas: gocbcore.Cas(123),
+			}, nil)
+		}).
+		Return(pendingOp, nil)
+
+	col := suite.collection("mock", "", "", provider)
+
+	res, err := col.Upsert("someid", "someval", &UpsertOptions{
+		Expiry: 31 * 24 * time.Hour,
+	})
+	suite.Require().Nil(err, err)
+
+	suite.Assert().Equal(Cas(123), res.Cas())
 }

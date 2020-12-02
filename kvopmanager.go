@@ -287,6 +287,11 @@ func durationToExpiry(dura time.Duration) uint32 {
 		return 1
 	}
 
-	// Translate into a uint32 in seconds.
-	return uint32(dura / time.Second)
+	if dura < 30*24*time.Hour {
+		// Translate into a uint32 in seconds.
+		return uint32(dura / time.Second)
+	}
+
+	// Send the duration as a unix timestamp of now plus duration.
+	return uint32(time.Now().Add(dura).Unix())
 }

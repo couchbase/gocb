@@ -297,3 +297,20 @@ func (suite *UnitTestSuite) kvProvider(provider kvProvider, err error) func() (k
 		return provider, err
 	}
 }
+
+func (suite *UnitTestSuite) collection(bucket, scope, collection string, provider kvProvider) *Collection {
+	return &Collection{
+		bucket: &Bucket{bucketName: bucket},
+
+		collectionName: collection,
+		scope:          scope,
+
+		getKvProvider: suite.kvProvider(provider, nil),
+		timeoutsConfig: kvTimeoutsConfig{
+			KVTimeout: 2500 * time.Millisecond,
+		},
+		transcoder:           NewJSONTranscoder(),
+		tracer:               &noopTracer{},
+		retryStrategyWrapper: newRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
+	}
+}
