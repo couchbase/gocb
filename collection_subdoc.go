@@ -331,6 +331,12 @@ func (c *Collection) internalMutateIn(
 		PreserveExpiry:         preserveTTL,
 	}, func(res *gocbcore.MutateInResult, err error) {
 		if err != nil {
+			// GOCBC-1019: Due to a previous bug in gocbcore we need to convert cas mismatch back to exists.
+			if kvErr, ok := err.(*gocbcore.KeyValueError); ok {
+				if errors.Is(kvErr.InnerError, ErrCasMismatch) {
+					kvErr.InnerError = ErrDocumentExists
+				}
+			}
 			errOut = opm.EnhanceErr(err)
 			opm.Reject()
 			return

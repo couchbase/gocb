@@ -617,3 +617,33 @@ func (suite *IntegrationTestSuite) TestPreserveExpiryMutateIn() {
 		suite.T().Fatalf("Expected invalid args error but was %v", err)
 	}
 }
+
+// GOCBC-1019: Due to a previous bug in gocbcore we need to convert cas mismatch back to exists.
+func (suite *IntegrationTestSuite) TestCasMismatchConvertedToExists() {
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(SubdocFeature)
+
+	var doc testBeerDocument
+	err := loadJSONTestDataset("beer_sample_single", &doc)
+	if err != nil {
+		suite.T().Fatalf("Could not read test dataset: %v", err)
+	}
+
+	mutRes, err := globalCollection.Insert("subdocCasMismatchDoc", doc, &InsertOptions{Expiry: 10 * time.Second})
+	if err != nil {
+		suite.T().Fatalf("Insert failed, error was %v", err)
+	}
+
+	if mutRes.Cas() == 0 {
+		suite.T().Fatalf("Insert CAS was 0")
+	}
+
+	_, err = globalCollection.MutateIn("subdocCasMismatchDoc", []MutateInSpec{
+		ReplaceSpec("brewery_id", "test", nil),
+	}, &MutateInOptions{
+		Cas: Cas(123),
+	})
+	if !errors.Is(err, ErrDocumentExists) {
+		suite.T().Fatalf("Expected error to be exists but was: %v", err)
+	}
+}
