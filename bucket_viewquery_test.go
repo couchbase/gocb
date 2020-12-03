@@ -160,10 +160,10 @@ func (suite *UnitTestSuite) viewsBucket(reader viewRowReader, runFn func(args mo
 		Return(reader, nil)
 
 	cli := new(mockConnectionManager)
-	cli.On("getViewProvider").Return(provider, nil)
+	cli.On("getViewProvider", "mockBucket").Return(provider, nil)
 
 	cluster := suite.newCluster(cli)
-	b := newBucket(cluster, "mock")
+	b := newBucket(cluster, "mockBucket")
 
 	return b
 }

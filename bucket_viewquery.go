@@ -177,7 +177,7 @@ func (b *Bucket) execViewQuery(
 	deadline time.Time,
 	wrapper *retryStrategyWrapper,
 ) (*ViewResult, error) {
-	provider, err := b.connectionManager.getViewProvider()
+	provider, err := b.connectionManager.getViewProvider(b.Name())
 	if err != nil {
 		return nil, ViewError{
 			InnerError:         wrapError(err, "failed to get query provider"),

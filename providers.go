@@ -207,7 +207,7 @@ func (apw *searchProviderWrapper) SearchQuery(opts gocbcore.SearchQueryOptions) 
 }
 
 type viewProviderWrapper struct {
-	provider *gocbcore.AgentGroup
+	provider *gocbcore.Agent
 }
 
 func (apw *viewProviderWrapper) ViewQuery(opts gocbcore.ViewQueryOptions) (vOut viewRowReader, errOut error) {

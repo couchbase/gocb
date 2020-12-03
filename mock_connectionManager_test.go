@@ -215,13 +215,13 @@ func (_m *mockConnectionManager) getSearchProvider() (searchProvider, error) {
 	return r0, r1
 }
 
-// getViewProvider provides a mock function with given fields:
-func (_m *mockConnectionManager) getViewProvider() (viewProvider, error) {
-	ret := _m.Called()
+// getViewProvider provides a mock function with given fields: bucketName
+func (_m *mockConnectionManager) getViewProvider(bucketName string) (viewProvider, error) {
+	ret := _m.Called(bucketName)
 
 	var r0 viewProvider
-	if rf, ok := ret.Get(0).(func() viewProvider); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(string) viewProvider); ok {
+		r0 = rf(bucketName)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(viewProvider)
@@ -229,8 +229,8 @@ func (_m *mockConnectionManager) getViewProvider() (viewProvider, error) {
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(bucketName)
 	} else {
 		r1 = ret.Error(1)
 	}
