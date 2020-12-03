@@ -123,13 +123,13 @@ func (_m *mockConnectionManager) getDiagnosticsProvider(bucketName string) (diag
 	return r0, r1
 }
 
-// getHTTPProvider provides a mock function with given fields:
-func (_m *mockConnectionManager) getHTTPProvider() (httpProvider, error) {
-	ret := _m.Called()
+// getHTTPProvider provides a mock function with given fields: bucketName
+func (_m *mockConnectionManager) getHTTPProvider(bucketName string) (httpProvider, error) {
+	ret := _m.Called(bucketName)
 
 	var r0 httpProvider
-	if rf, ok := ret.Get(0).(func() httpProvider); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(string) httpProvider); ok {
+		r0 = rf(bucketName)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(httpProvider)
@@ -137,8 +137,8 @@ func (_m *mockConnectionManager) getHTTPProvider() (httpProvider, error) {
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(bucketName)
 	} else {
 		r1 = ret.Error(1)
 	}

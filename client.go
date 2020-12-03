@@ -18,7 +18,7 @@ type connectionManager interface {
 	getQueryProvider() (queryProvider, error)
 	getAnalyticsProvider() (analyticsProvider, error)
 	getSearchProvider() (searchProvider, error)
-	getHTTPProvider() (httpProvider, error)
+	getHTTPProvider(bucketName string) (httpProvider, error)
 	getDiagnosticsProvider(bucketName string) (diagnosticsProvider, error)
 	getWaitUntilReadyProvider(bucketName string) (waitUntilReadyProvider, error)
 	connection(bucketName string) (*gocbcore.Agent, error)
@@ -176,12 +176,21 @@ func (c *stdConnectionMgr) getSearchProvider() (searchProvider, error) {
 	return &searchProviderWrapper{provider: c.agentgroup}, nil
 }
 
-func (c *stdConnectionMgr) getHTTPProvider() (httpProvider, error) {
+func (c *stdConnectionMgr) getHTTPProvider(bucketName string) (httpProvider, error) {
 	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
 
-	return &httpProviderWrapper{provider: c.agentgroup}, nil
+	if bucketName == "" {
+		return &httpProviderWrapper{provider: c.agentgroup}, nil
+	}
+
+	agent := c.agentgroup.GetAgent(bucketName)
+	if agent == nil {
+		return nil, errors.New("bucket not yet connected")
+	}
+
+	return &httpProviderWrapper{provider: agent}, nil
 }
 
 func (c *stdConnectionMgr) getDiagnosticsProvider(bucketName string) (diagnosticsProvider, error) {

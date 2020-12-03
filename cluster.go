@@ -428,7 +428,7 @@ func (c *Cluster) getSearchProvider() (searchProvider, error) {
 }
 
 func (c *Cluster) getHTTPProvider() (httpProvider, error) {
-	provider, err := c.connectionManager.getHTTPProvider()
+	provider, err := c.connectionManager.getHTTPProvider("")
 	if err != nil {
 		return nil, err
 	}
