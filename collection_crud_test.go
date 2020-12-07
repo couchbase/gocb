@@ -1647,6 +1647,8 @@ func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 			method: "Upsert",
 			args: []interface{}{"upsertDurabilityMajorityDoc", doc, &UpsertOptions{
 				DurabilityLevel: DurabilityLevelMajority,
+				// MB-41616: For some reason the first durable request after a lot of collections activity takes longer.
+				Timeout: 10 * time.Second,
 			}},
 			expectCas:         true,
 			expectedError:     nil,
