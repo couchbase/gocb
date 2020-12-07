@@ -28,7 +28,6 @@ func (suite *IntegrationTestSuite) runViewsTest(n int) {
 		result, err = globalBucket.ViewQuery("ddoc_test", "test", &ViewOptions{
 			Timeout:   1 * time.Second,
 			Namespace: DesignDocumentNamespaceDevelopment,
-			Reduce:    false,
 			Debug:     true,
 		})
 		if err != nil {

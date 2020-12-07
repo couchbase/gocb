@@ -62,7 +62,7 @@ func (suite *IntegrationTestSuite) TestUserManagerGroupCrud() {
 
 	roles, err := mgr.GetRoles(nil)
 	if err != nil {
-		suite.T().Fatalf("Expected GetAllRoles to not error: %v", err)
+		suite.T().Fatalf("Expected GetAllClusterRoles to not error: %v", err)
 	}
 
 	suite.Assert().Greater(len(roles), 0)

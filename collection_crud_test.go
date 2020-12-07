@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/couchbase/gocbcore/v10/memd"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -100,14 +101,17 @@ func (suite *IntegrationTestSuite) TestExpiryConversions() {
 			}
 
 			start := time.Now()
+			spec := []LookupInSpec{
+				GetSpec("$document", &GetSpecOptions{IsXattr: true}),
+			}
+
+			if globalCluster.SupportsFeature(HLCFeature) {
+				spec = append(spec, GetSpec("$vbucket.HLC", &GetSpecOptions{IsXattr: true}))
+			}
 
 			lookupRes, err := globalCollection.LookupIn(
 				tCase.name,
-				[]LookupInSpec{
-					GetSpec("$document", &GetSpecOptions{
-						IsXattr: true,
-					}),
-				},
+				spec,
 				nil,
 			)
 			if err != nil {
@@ -123,7 +127,25 @@ func (suite *IntegrationTestSuite) TestExpiryConversions() {
 				te.Fatalf("Error running ContentAt: %v", err)
 			}
 
-			actualExpirySecs := time.Unix(exp.Expiration, 0).Sub(start).Seconds()
+			var actualExpirySecs float64
+			if globalCluster.SupportsFeature(HLCFeature) {
+				hlcStr := struct {
+					Now string `json:"now"`
+				}{}
+				err = lookupRes.ContentAt(1, &hlcStr)
+				if err != nil {
+					te.Fatalf("Error running ContentAt: %v", err)
+				}
+
+				hlc, err := strconv.Atoi(hlcStr.Now)
+				if err != nil {
+					te.Fatalf("Error running Atoi: %v", err)
+				}
+
+				actualExpirySecs = time.Unix(exp.Expiration, 0).Sub(time.Unix(int64(hlc), 0)).Seconds()
+			} else {
+				actualExpirySecs = time.Unix(exp.Expiration, 0).Sub(start).Seconds()
+			}
 
 			if actualExpirySecs > (tCase.expiry + (1000 * time.Millisecond)).Seconds() {
 				te.Fatalf("Expected expiry to be less than %f but was %f", tCase.expiry.Seconds(),
@@ -352,7 +374,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 	}
 
 	testCases := []tCase{
-		{
+		tCase{
 			name:     "string",
 			project:  []string{"name"},
 			expected: Person{Name: person.Name},
@@ -594,17 +616,17 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 				Project: testCase.project,
 			})
 			if err != nil {
-				suite.T().Fatalf("Get failed, error was %v", err)
+				t.Fatalf("Get failed, error was %v", err)
 			}
 
 			var actual Person
 			err = doc.Content(&actual)
 			if err != nil {
-				suite.T().Fatalf("Content failed, error was %v", err)
+				t.Fatalf("Content failed, error was %v", err)
 			}
 
 			if !reflect.DeepEqual(actual, testCase.expected) {
-				suite.T().Fatalf("Projection failed, expected %+v but was %+v", testCase.expected, actual)
+				t.Fatalf("Projection failed, expected %+v but was %+v", testCase.expected, actual)
 			}
 
 			suite.Require().Contains(globalTracer.Spans, nil)
@@ -1457,6 +1479,34 @@ func (suite *IntegrationTestSuite) TestGetAndTouch() {
 	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
 }
 
+func (suite *IntegrationTestSuite) TestExpires() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
+	var doc testBeerDocument
+	err := loadJSONTestDataset("beer_sample_single", &doc)
+	if err != nil {
+		suite.T().Fatalf("Could not read test dataset: %v", err)
+	}
+
+	mutRes, err := globalCollection.Upsert("expires", doc, &UpsertOptions{
+		Expiry: 1 * time.Second,
+	})
+	if err != nil {
+		suite.T().Fatalf("Upsert failed, error was %v", err)
+	}
+
+	if mutRes.Cas() == 0 {
+		suite.T().Fatalf("Upsert CAS was 0")
+	}
+
+	globalCluster.TimeTravel(3000 * time.Millisecond)
+
+	_, err = globalCollection.Get("expires", nil)
+	if !errors.Is(err, ErrDocumentNotFound) {
+		suite.T().Fatalf("Get should have failed with doc not found but was: %v", err)
+	}
+}
+
 func (suite *IntegrationTestSuite) TestGetAndLock() {
 	suite.skipIfUnsupported(KeyValueFeature)
 
@@ -1503,7 +1553,9 @@ func (suite *IntegrationTestSuite) TestGetAndLock() {
 
 	globalCluster.TimeTravel(2000 * time.Millisecond)
 
-	mutRes, err = globalCollection.Upsert("getAndLock", doc, nil)
+	mutRes, err = globalCollection.Upsert("getAndLock", doc, &UpsertOptions{
+		RetryStrategy: newFailFastRetryStrategy(),
+	})
 	if err != nil {
 		suite.T().Fatalf("Upsert failed, error was %v", err)
 	}
@@ -1803,6 +1855,12 @@ func (suite *IntegrationTestSuite) TestTouchMissingDocFail() {
 	suite.AssertKvOpSpan(nilParents[0], "touch", memd.CmdTouch.Name(), 1, false, false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "touch", 1, false)
+}
+
+func (suite *IntegrationTestSuite) TestInsertReplicateStartupWait() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
+	globalCollection.Get("touchMissing", nil)
 }
 
 func (suite *IntegrationTestSuite) TestInsertReplicateToGetAnyReplica() {

@@ -1,10 +1,9 @@
 package gocb
 
 import (
-	"math"
 	"time"
 
-	gojcbmock "github.com/couchbase/gocbcore/v10/jcbmock"
+	cavescli "github.com/couchbaselabs/gocaves/client"
 )
 
 var (
@@ -73,6 +72,7 @@ var (
 	EventingFunctionManagerFeature          = FeatureCode("eventingmanagement")
 	RateLimitingFeature                     = FeatureCode("ratelimits")
 	StorageBackendFeature                   = FeatureCode("storagebackend")
+	HLCFeature                              = FeatureCode("hlc")
 )
 
 type TestFeatureFlag struct {
@@ -95,7 +95,8 @@ func (e testClusterErrorWrap) Unwrap() error {
 
 type testCluster struct {
 	*Cluster
-	Mock    *gojcbmock.Mock
+	Mock    *cavescli.Client
+	RunID   string
 	Version *NodeVersion
 
 	FeatureFlags []TestFeatureFlag
@@ -127,8 +128,6 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		supported = true
 
 		switch feature {
-		case RbacFeature:
-			supported = !c.Version.Lower(mockVer156)
 		case SearchIndexFeature:
 			supported = false
 		case AnalyticsFeature:
@@ -137,23 +136,11 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case SearchFeature:
 			supported = false
-		case XattrFeature:
-			supported = false
 		case CollectionsFeature:
-			supported = false
-		case CollectionsManagerFeature:
-			supported = false
-		case CollectionsManagerMaxCollectionsFeature:
-			supported = false
-		case SubdocMockBugFeature:
-			supported = false
-		case ExpandMacrosFeature:
 			supported = false
 		case DurabilityFeature:
 			supported = false
 		case UserGroupFeature:
-			supported = false
-		case UserManagerFeature:
 			supported = false
 		case AnalyticsIndexFeature:
 			supported = false
@@ -162,14 +149,6 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case SearchAnalyzeFeature:
 			supported = false
 		case AnalyticsIndexPendingMutationsFeature:
-			supported = false
-		case GetMetaFeature:
-			supported = false
-		case PingFeature:
-			supported = false
-		case WaitUntilReadyFeature:
-			supported = false
-		case WaitUntilReadyClusterFeature:
 			supported = false
 		case QueryIndexFeature:
 			supported = false
@@ -276,6 +255,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer710)
 		case StorageBackendFeature:
 			supported = !c.Version.Lower(srvVer710) && (c.Version.Edition != CommunityNodeEdition)
+		case HLCFeature:
+			supported = !c.Version.Lower(srvVer660)
 		}
 	}
 
@@ -287,11 +268,8 @@ func (c *testCluster) NotSupportsFeature(feature FeatureCode) bool {
 }
 
 func (c *testCluster) TimeTravel(waitDura time.Duration) {
-	if c.isMock() {
-		waitSecs := int(math.Ceil(float64(waitDura) / float64(time.Second)))
-		c.Mock.Control(gojcbmock.NewCommand(gojcbmock.CTimeTravel, map[string]interface{}{
-			"Offset": waitSecs,
-		}))
+	if c.Mock != nil {
+		c.Mock.TimeTravelRun(c.RunID, waitDura)
 	} else {
 		time.Sleep(waitDura)
 	}

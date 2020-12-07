@@ -3,8 +3,6 @@ package gocb
 import (
 	"crypto/x509"
 	"flag"
-	"fmt"
-	gojcbmock "github.com/couchbase/gocbcore/v10/jcbmock"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -14,6 +12,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	cavescli "github.com/couchbaselabs/gocaves/client"
+	"github.com/google/uuid"
 )
 
 var globalConfig testConfig
@@ -131,6 +132,13 @@ func TestMain(m *testing.M) {
 		if err != nil {
 			panic(err)
 		}
+
+		if globalCluster.Mock != nil {
+			err := globalCluster.Mock.Shutdown()
+			if err != nil {
+				panic(err)
+			}
+		}
 	}
 
 	// Loop for at most a second checking for goroutines leaks, this gives any HTTP goroutines time to shutdown
@@ -180,43 +188,31 @@ func envFlagBool(envName, name string, value bool, usage string) *bool {
 func setupCluster() {
 	var err error
 	var connStr string
-	var mock *gojcbmock.Mock
-	var auth PasswordAuthenticator
+	var mock *cavescli.Client
+	var mockID string
 	if globalConfig.Server == "" {
 		if globalConfig.Version != "" {
 			panic("version cannot be specified with mock")
 		}
 
-		mpath, err := gojcbmock.GetMockPath()
+		mock, err = cavescli.NewClient(cavescli.NewClientOptions{
+			Version: "v0.0.1-53",
+		})
 		if err != nil {
 			panic(err.Error())
+		}
+
+		mockID = uuid.New().String()
+		connStr, err = mock.StartTesting(mockID, "gocb-"+Version())
+		if err != nil {
+			panic(err)
 		}
 
 		globalConfig.Bucket = "default"
-		mock, err = gojcbmock.NewMock(mpath, 4, 1, 64, []gojcbmock.BucketSpec{
-			{Name: "default", Type: gojcbmock.BCouchbase},
-		}...)
-		if err != nil {
-			panic(err.Error())
-		}
-
-		mock.Control(gojcbmock.NewCommand(gojcbmock.CSetCCCP,
-			map[string]interface{}{"enabled": "true"}))
-		mock.Control(gojcbmock.NewCommand(gojcbmock.CSetSASLMechanisms,
-			map[string]interface{}{"mechs": []string{"SCRAM-SHA512"}}))
-
-		globalConfig.Version = mock.Version()
-
-		var addrs []string
-		for _, mcport := range mock.MemcachedPorts() {
-			addrs = append(addrs, fmt.Sprintf("127.0.0.1:%d", mcport))
-		}
-		connStr = fmt.Sprintf("couchbase://%s", strings.Join(addrs, ","))
+		globalConfig.Version = "0.0.1-53"
 		globalConfig.Server = connStr
-		auth = PasswordAuthenticator{
-			Username: "Administrator",
-			Password: "password",
-		}
+		globalConfig.User = "Administrator"
+		globalConfig.Password = "password"
 
 		// gocb itself doesn't use the default client but the mock downloader does so let's make sure that it
 		// doesn't hold any goroutines open which will affect our goroutine leak detector.
@@ -224,14 +220,14 @@ func setupCluster() {
 	} else {
 		connStr = globalConfig.Server
 
-		auth = PasswordAuthenticator{
-			Username: globalConfig.User,
-			Password: globalConfig.Password,
-		}
-
 		if globalConfig.Version == "" {
 			globalConfig.Version = defaultServerVersion
 		}
+	}
+
+	auth := PasswordAuthenticator{
+		Username: globalConfig.User,
+		Password: globalConfig.Password,
 	}
 
 	options := ClusterOptions{Authenticator: auth}
@@ -278,6 +274,7 @@ func setupCluster() {
 	globalCluster = &testCluster{
 		Cluster:      cluster,
 		Mock:         mock,
+		RunID:        mockID,
 		Version:      nodeVersion,
 		FeatureFlags: globalConfig.FeatureFlags,
 	}
