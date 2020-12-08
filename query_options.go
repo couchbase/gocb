@@ -55,7 +55,6 @@ type QueryOptions struct {
 	RetryStrategy RetryStrategy
 
 	// FlexIndex tells the query engine to use a flex index (utilizing the search service).
-	//  UNCOMMITTED: This API may change in the future.
 	FlexIndex bool
 
 	parentSpan requestSpanContext
