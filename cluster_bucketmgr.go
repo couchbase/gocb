@@ -109,6 +109,7 @@ func (bs *BucketSettings) fromData(data jsonBucketSettings) error {
 	bs.NumReplicas = data.ReplicaNumber
 	bs.EvictionPolicy = EvictionPolicyType(data.EvictionPolicy)
 	bs.MaxTTL = time.Duration(data.MaxTTL) * time.Second
+	bs.MaxExpiry = time.Duration(data.MaxTTL) * time.Second
 	bs.CompressionMode = CompressionMode(data.CompressionMode)
 
 	switch data.BucketType {
