@@ -48,11 +48,9 @@ const (
 	EvictionPolicyTypeValueOnly EvictionPolicyType = "valueOnly"
 
 	// EvictionPolicyTypeNotRecentlyUsed specifies to use not recently used (nru) eviction for an ephemeral bucket.
-	// UNCOMMITTED: This API may change in the future.
 	EvictionPolicyTypeNotRecentlyUsed EvictionPolicyType = "nruEviction"
 
 	// EvictionPolicyTypeNRU specifies to use no eviction for an ephemeral bucket.
-	// UNCOMMITTED: This API may change in the future.
 	EvictionPolicyTypeNoEviction EvictionPolicyType = "noEviction"
 )
 
