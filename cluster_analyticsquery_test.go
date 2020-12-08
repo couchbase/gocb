@@ -602,3 +602,49 @@ func (suite *UnitTestSuite) analyticsCluster(reader analyticsRowReader, runFn fu
 
 	return cluster
 }
+
+func (suite *UnitTestSuite) TestAnalyticsQueryRaw() {
+	var dataset testAnalyticsDataset
+	err := loadJSONTestDataset("beer_sample_analytics_dataset", &dataset)
+	suite.Require().Nil(err, err)
+
+	reader := &mockAnalyticsRowReader{
+		Dataset: dataset.Results,
+		Meta:    suite.mustConvertToBytes(dataset.jsonAnalyticsResponse),
+		Suite:   suite,
+	}
+
+	statement := "SELECT * FROM dataset"
+
+	var cluster *Cluster
+	cluster = suite.analyticsCluster(reader, func(args mock.Arguments) {})
+
+	result, err := cluster.AnalyticsQuery(statement, nil)
+	suite.Require().Nil(err, err)
+	suite.Require().NotNil(result)
+
+	raw := result.Raw()
+
+	suite.Assert().False(result.Next())
+	suite.Assert().Error(result.One([]string{}))
+	suite.Assert().Error(result.Err())
+	suite.Assert().Error(result.Close())
+	suite.Assert().Error(result.Row([]string{}))
+
+	_, err = result.MetaData()
+	suite.Assert().Error(err)
+
+	var i int
+	for b := raw.NextBytes(); b != nil; b = raw.NextBytes() {
+		suite.Assert().Equal(suite.mustConvertToBytes(dataset.Results[i]), b)
+		i++
+	}
+
+	err = raw.Err()
+	suite.Require().Nil(err, err)
+
+	metadata, err := raw.MetaData()
+	suite.Require().Nil(err, err)
+
+	suite.Assert().Equal(reader.Meta, metadata)
+}

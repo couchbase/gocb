@@ -370,3 +370,54 @@ func (suite *UnitTestSuite) TestSearchQueryExplicitlyEnableScoring() {
 	})
 	suite.Require().Nil(err, err)
 }
+
+func (suite *UnitTestSuite) TestSearchQueryRaw() {
+	var dataset testSearchDataset
+	err := loadJSONTestDataset("beer_sample_search_dataset", &dataset)
+	suite.Require().Nil(err, err)
+
+	reader := &mockSearchRowReader{
+		Dataset: dataset.Hits,
+		Meta:    suite.mustConvertToBytes(dataset.jsonSearchResponse),
+		Suite:   suite,
+	}
+
+	query := search.NewTermQuery("term").Field("field").Fuzziness(1).Boost(2).PrefixLength(3)
+
+	var cluster *Cluster
+	cluster = suite.searchCluster(reader, func(args mock.Arguments) {})
+
+	result, err := cluster.SearchQuery("testindex", query, &SearchOptions{
+		Fields: []string{"name"},
+		Facets: map[string]search.Facet{
+			"type": search.NewTermFacet("country", 5),
+		},
+		Sort: []search.Sort{search.NewSearchSortID().Descending(true)},
+	})
+	suite.Require().Nil(err, err)
+	suite.Require().NotNil(result)
+
+	raw := result.Raw()
+
+	suite.Assert().False(result.Next())
+	suite.Assert().Error(result.Err())
+	suite.Assert().Error(result.Close())
+	suite.Assert().Zero(result.Row())
+
+	_, err = result.MetaData()
+	suite.Assert().Error(err)
+
+	var i int
+	for b := raw.NextBytes(); b != nil; b = raw.NextBytes() {
+		suite.Assert().Equal(suite.mustConvertToBytes(dataset.Hits[i]), b)
+		i++
+	}
+
+	err = raw.Err()
+	suite.Require().Nil(err, err)
+
+	metadata, err := raw.MetaData()
+	suite.Require().Nil(err, err)
+
+	suite.Assert().Equal(reader.Meta, metadata)
+}

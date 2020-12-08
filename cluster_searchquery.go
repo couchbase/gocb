@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"encoding/json"
+	"errors"
 	"time"
 
 	cbsearch "github.com/couchbase/gocb/v2/search"
@@ -196,6 +197,32 @@ type searchRowReader interface {
 	Close() error
 }
 
+// SearchResultRaw provides raw access to search data.
+// VOLATILE: This API is subject to change at any time.
+type SearchResultRaw struct {
+	reader searchRowReader
+}
+
+// NextBytes returns the next row as bytes.
+func (srr *SearchResultRaw) NextBytes() []byte {
+	return srr.reader.NextRow()
+}
+
+// Err returns any errors that have occurred on the stream
+func (srr *SearchResultRaw) Err() error {
+	return srr.reader.Err()
+}
+
+// Close marks the results as closed, returning any errors that occurred during reading the results.
+func (srr *SearchResultRaw) Close() error {
+	return srr.reader.Close()
+}
+
+// MetaData returns any meta-data that was available from this query as bytes.
+func (srr *SearchResultRaw) MetaData() ([]byte, error) {
+	return srr.reader.MetaData()
+}
+
 // SearchResult allows access to the results of a search query.
 type SearchResult struct {
 	reader searchRowReader
@@ -210,8 +237,24 @@ func newSearchResult(reader searchRowReader) *SearchResult {
 	}
 }
 
+// Raw returns a SearchResultRaw which can be used to access the raw byte data from search queries.
+// Calling this function invalidates the underlying SearchResult which will no longer be able to be used.
+// VOLATILE: This API is subject to change at any time.
+func (r *SearchResult) Raw() *SearchResultRaw {
+	vr := &SearchResultRaw{
+		reader: r.reader,
+	}
+
+	r.reader = nil
+	return vr
+}
+
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
 func (r *SearchResult) Next() bool {
+	if r.reader == nil {
+		return false
+	}
+
 	rowBytes := r.reader.NextRow()
 	if rowBytes == nil {
 		return false
@@ -256,11 +299,19 @@ func (r *SearchResult) Next() bool {
 
 // Row returns the contents of the current row.
 func (r *SearchResult) Row() SearchRow {
+	if r.reader == nil {
+		return SearchRow{}
+	}
+
 	return r.currentRow
 }
 
 // Err returns any errors that have occurred on the stream
 func (r *SearchResult) Err() error {
+	if r.reader == nil {
+		return errors.New("result object is no longer valid")
+	}
+
 	err := r.reader.Err()
 	if err != nil {
 		return err
@@ -270,6 +321,10 @@ func (r *SearchResult) Err() error {
 
 // Close marks the results as closed, returning any errors that occurred during reading the results.
 func (r *SearchResult) Close() error {
+	if r.reader == nil {
+		return r.Err()
+	}
+
 	return r.reader.Close()
 }
 
@@ -292,6 +347,10 @@ func (r *SearchResult) getJSONResp() (jsonSearchResponse, error) {
 // the meta-data will only be available once the object has been closed (either
 // implicitly or explicitly).
 func (r *SearchResult) MetaData() (*SearchMetaData, error) {
+	if r.reader == nil {
+		return nil, r.Err()
+	}
+
 	jsonResp, err := r.getJSONResp()
 	if err != nil {
 		return nil, err

@@ -233,3 +233,51 @@ func (suite *UnitTestSuite) TestViewQuery() {
 	suite.Assert().Equal(dataset.TotalRows, meta.TotalRows)
 	suite.Assert().Equal(dataset.DebugInfo, meta.Debug)
 }
+
+func (suite *UnitTestSuite) TestViewQueryRaw() {
+	var dataset testViewDataset
+	err := loadJSONTestDataset("beer_sample_views_dataset", &dataset)
+	suite.Require().Nil(err, err)
+
+	reader := &mockViewRowReader{
+		Dataset: dataset.Rows,
+		Meta:    suite.mustConvertToBytes(dataset.jsonViewResponse),
+		Suite:   suite,
+	}
+
+	var bucket *Bucket
+	bucket = suite.viewsBucket(reader, func(args mock.Arguments) {})
+
+	result, err := bucket.ViewQuery("ddoc", "view", &ViewOptions{
+		Namespace: DesignDocumentNamespaceDevelopment,
+		Skip:      56,
+		Limit:     10,
+		Debug:     true,
+	})
+	suite.Require().Nil(err, err)
+	suite.Require().NotNil(result)
+
+	raw := result.Raw()
+
+	suite.Assert().False(result.Next())
+	suite.Assert().Error(result.Err())
+	suite.Assert().Error(result.Close())
+	suite.Assert().Zero(result.Row())
+
+	_, err = result.MetaData()
+	suite.Assert().Error(err)
+
+	var i int
+	for b := raw.NextBytes(); b != nil; b = raw.NextBytes() {
+		suite.Assert().Equal(suite.mustConvertToBytes(dataset.Rows[i]), b)
+		i++
+	}
+
+	err = raw.Err()
+	suite.Require().Nil(err, err)
+
+	metadata, err := raw.MetaData()
+	suite.Require().Nil(err, err)
+
+	suite.Assert().Equal(reader.Meta, metadata)
+}

@@ -610,3 +610,54 @@ func (suite *UnitTestSuite) TestQueryNoMetrics() {
 	suite.Assert().Zero(metadata.Metrics.SortCount)
 	suite.Assert().Zero(metadata.Metrics.WarningCount)
 }
+
+func (suite *UnitTestSuite) TestQueryRaw() {
+	var dataset testQueryDataset
+	err := loadJSONTestDataset("beer_sample_query_dataset", &dataset)
+	suite.Require().Nil(err, err)
+
+	reader := &mockQueryRowReader{
+		Dataset: dataset.Results,
+		mockQueryRowReaderBase: mockQueryRowReaderBase{
+			Meta:  suite.mustConvertToBytes(dataset.jsonQueryResponse),
+			Suite: suite,
+			PName: dataset.jsonQueryResponse.Prepared,
+		},
+	}
+
+	statement := "SELECT * FROM dataset"
+
+	var cluster *Cluster
+	cluster = suite.queryCluster(false, reader, func(args mock.Arguments) {})
+
+	result, err := cluster.Query(statement, &QueryOptions{
+		Adhoc: true,
+	})
+	suite.Require().Nil(err, err)
+	suite.Require().NotNil(result)
+
+	raw := result.Raw()
+
+	suite.Assert().False(result.Next())
+	suite.Assert().Error(result.One([]string{}))
+	suite.Assert().Error(result.Err())
+	suite.Assert().Error(result.Close())
+	suite.Assert().Error(result.Row([]string{}))
+
+	_, err = result.MetaData()
+	suite.Assert().Error(err)
+
+	var i int
+	for b := raw.NextBytes(); b != nil; b = raw.NextBytes() {
+		suite.Assert().Equal(suite.mustConvertToBytes(dataset.Results[i]), b)
+		i++
+	}
+
+	err = raw.Err()
+	suite.Require().Nil(err, err)
+
+	metadata, err := raw.MetaData()
+	suite.Require().Nil(err, err)
+
+	suite.Assert().Equal(reader.Meta, metadata)
+}

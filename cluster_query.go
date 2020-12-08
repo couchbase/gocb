@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"encoding/json"
+	"errors"
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v9"
@@ -123,6 +124,32 @@ func (meta *QueryMetaData) fromData(data jsonQueryResponse) error {
 	return nil
 }
 
+// QueryResultRaw provides raw access to query data.
+// VOLATILE: This API is subject to change at any time.
+type QueryResultRaw struct {
+	reader queryRowReader
+}
+
+// NextBytes returns the next row as bytes.
+func (qrr *QueryResultRaw) NextBytes() []byte {
+	return qrr.reader.NextRow()
+}
+
+// Err returns any errors that have occurred on the stream
+func (qrr *QueryResultRaw) Err() error {
+	return qrr.reader.Err()
+}
+
+// Close marks the results as closed, returning any errors that occurred during reading the results.
+func (qrr *QueryResultRaw) Close() error {
+	return qrr.reader.Close()
+}
+
+// MetaData returns any meta-data that was available from this query as bytes.
+func (qrr *QueryResultRaw) MetaData() ([]byte, error) {
+	return qrr.reader.MetaData()
+}
+
 // QueryResult allows access to the results of a query.
 type QueryResult struct {
 	reader queryRowReader
@@ -136,8 +163,24 @@ func newQueryResult(reader queryRowReader) *QueryResult {
 	}
 }
 
+// Raw returns a QueryResultRaw which can be used to access the raw byte data from search queries.
+// Calling this function invalidates the underlying QueryResult which will no longer be able to be used.
+// VOLATILE: This API is subject to change at any time.
+func (r *QueryResult) Raw() *QueryResultRaw {
+	vr := &QueryResultRaw{
+		reader: r.reader,
+	}
+
+	r.reader = nil
+	return vr
+}
+
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
 func (r *QueryResult) Next() bool {
+	if r.reader == nil {
+		return false
+	}
+
 	rowBytes := r.reader.NextRow()
 	if rowBytes == nil {
 		return false
@@ -149,6 +192,10 @@ func (r *QueryResult) Next() bool {
 
 // Row returns the contents of the current row
 func (r *QueryResult) Row(valuePtr interface{}) error {
+	if r.reader == nil {
+		return r.Err()
+	}
+
 	if r.rowBytes == nil {
 		return ErrNoResult
 	}
@@ -163,11 +210,19 @@ func (r *QueryResult) Row(valuePtr interface{}) error {
 
 // Err returns any errors that have occurred on the stream
 func (r *QueryResult) Err() error {
+	if r.reader == nil {
+		return errors.New("result object is no longer valid")
+	}
+
 	return r.reader.Err()
 }
 
 // Close marks the results as closed, returning any errors that occurred during reading the results.
 func (r *QueryResult) Close() error {
+	if r.reader == nil {
+		return r.Err()
+	}
+
 	return r.reader.Close()
 }
 
@@ -176,6 +231,10 @@ func (r *QueryResult) Close() error {
 // results, as such this should only be used for very small resultsets - ideally
 // of, at most, length 1.
 func (r *QueryResult) One(valuePtr interface{}) error {
+	if r.reader == nil {
+		return r.Err()
+	}
+
 	// Read the bytes from the first row
 	valueBytes := r.reader.NextRow()
 	if valueBytes == nil {
@@ -194,6 +253,10 @@ func (r *QueryResult) One(valuePtr interface{}) error {
 // the meta-data will only be available once the object has been closed (either
 // implicitly or explicitly).
 func (r *QueryResult) MetaData() (*QueryMetaData, error) {
+	if r.reader == nil {
+		return nil, r.Err()
+	}
+
 	metaDataBytes, err := r.reader.MetaData()
 	if err != nil {
 		return nil, err
