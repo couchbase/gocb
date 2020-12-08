@@ -626,13 +626,11 @@ type Coordinate struct {
 }
 
 // GeoPolygonQuery represents a search query which allows to match inside a geo polygon.
-//  UNCOMMITTED: This API may change in the future.
 type GeoPolygonQuery struct {
 	searchQueryBase
 }
 
 // NewGeoPolygonQuery creates a new GeoPolygonQuery.
-//  UNCOMMITTED: This API may change in the future.
 func NewGeoPolygonQuery(coords []Coordinate) *GeoPolygonQuery {
 	q := &GeoPolygonQuery{newSearchQueryBase()}
 	var polyPoints [][]float64
