@@ -43,6 +43,11 @@ type InsertOptions struct {
 	Transcoder      Transcoder
 	Timeout         time.Duration
 	RetryStrategy   RetryStrategy
+
+	// Internal: This should never be used and is not supported.
+	Internal struct {
+		User []byte
+	}
 }
 
 // Insert creates a new document in the Collection.
@@ -60,6 +65,7 @@ func (c *Collection) Insert(id string, val interface{}, opts *InsertOptions) (mu
 	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetImpersonate(opts.Internal.User)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -81,6 +87,7 @@ func (c *Collection) Insert(id string, val interface{}, opts *InsertOptions) (mu
 		RetryStrategy:          opm.RetryStrategy(),
 		TraceContext:           opm.TraceSpan(),
 		Deadline:               opm.Deadline(),
+		User:                   opm.Impersonate(),
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -109,6 +116,11 @@ type UpsertOptions struct {
 	Transcoder      Transcoder
 	Timeout         time.Duration
 	RetryStrategy   RetryStrategy
+
+	// Internal: This should never be used and is not supported.
+	Internal struct {
+		User []byte
+	}
 }
 
 // Upsert creates a new document in the Collection if it does not exist, if it does exist then it updates it.
@@ -126,6 +138,7 @@ func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mu
 	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetImpersonate(opts.Internal.User)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -147,6 +160,7 @@ func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mu
 		RetryStrategy:          opm.RetryStrategy(),
 		TraceContext:           opm.TraceSpan(),
 		Deadline:               opm.Deadline(),
+		User:                   opm.Impersonate(),
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -176,6 +190,11 @@ type ReplaceOptions struct {
 	Transcoder      Transcoder
 	Timeout         time.Duration
 	RetryStrategy   RetryStrategy
+
+	// Internal: This should never be used and is not supported.
+	Internal struct {
+		User []byte
+	}
 }
 
 // Replace updates a document in the collection.
@@ -193,6 +212,7 @@ func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (
 	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetImpersonate(opts.Internal.User)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -215,6 +235,7 @@ func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (
 		RetryStrategy:          opm.RetryStrategy(),
 		TraceContext:           opm.TraceSpan(),
 		Deadline:               opm.Deadline(),
+		User:                   opm.Impersonate(),
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -244,6 +265,11 @@ type GetOptions struct {
 	Transcoder    Transcoder
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+
+	// Internal: This should never be used and is not supported.
+	Internal struct {
+		User []byte
+	}
 }
 
 // Get performs a fetch operation against the collection. This can take 3 paths, a standard full document
@@ -273,6 +299,7 @@ func (c *Collection) getDirect(id string, opts *GetOptions) (docOut *GetResult, 
 	opm.SetTranscoder(opts.Transcoder)
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetImpersonate(opts.Internal.User)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -289,6 +316,7 @@ func (c *Collection) getDirect(id string, opts *GetOptions) (docOut *GetResult, 
 		RetryStrategy:  opm.RetryStrategy(),
 		TraceContext:   opm.TraceSpan(),
 		Deadline:       opm.Deadline(),
+		User:           opm.Impersonate(),
 	}, func(res *gocbcore.GetResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -327,6 +355,7 @@ func (c *Collection) getProjected(id string, opts *GetOptions) (docOut *GetResul
 	opm.SetTranscoder(opts.Transcoder)
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetImpersonate(opts.Internal.User)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -422,6 +451,11 @@ func (c *Collection) getProjected(id string, opts *GetOptions) (docOut *GetResul
 type ExistsOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+
+	// Internal: This should never be used and is not supported.
+	Internal struct {
+		User []byte
+	}
 }
 
 // Exists checks if a document exists for the given id.
@@ -436,6 +470,7 @@ func (c *Collection) Exists(id string, opts *ExistsOptions) (docOut *ExistsResul
 	opm.SetDocumentID(id)
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetImpersonate(opts.Internal.User)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -452,6 +487,7 @@ func (c *Collection) Exists(id string, opts *ExistsOptions) (docOut *ExistsResul
 		RetryStrategy:  opm.RetryStrategy(),
 		TraceContext:   opm.TraceSpan,
 		Deadline:       opm.Deadline(),
+		User:           opm.Impersonate(),
 	}, func(res *gocbcore.GetMetaResult, err error) {
 		if errors.Is(err, ErrDocumentNotFound) {
 			docOut = &ExistsResult{
@@ -495,6 +531,7 @@ func (c *Collection) getOneReplica(
 	retryStrategy RetryStrategy,
 	cancelCh chan struct{},
 	timeout time.Duration,
+	user []byte,
 ) (docOut *GetReplicaResult, errOut error) {
 	opm := c.newKvOpManager("getOneReplica", span)
 	defer opm.Finish()
@@ -504,6 +541,7 @@ func (c *Collection) getOneReplica(
 	opm.SetRetryStrategy(retryStrategy)
 	opm.SetTimeout(timeout)
 	opm.SetCancelCh(cancelCh)
+	opm.SetImpersonate(user)
 
 	agent, err := c.getKvProvider()
 	if err != nil {
@@ -517,6 +555,7 @@ func (c *Collection) getOneReplica(
 			RetryStrategy:  opm.RetryStrategy(),
 			TraceContext:   opm.TraceSpan(),
 			Deadline:       opm.Deadline(),
+			User:           opm.Impersonate(),
 		}, func(res *gocbcore.GetResult, err error) {
 			if err != nil {
 				errOut = opm.EnhanceErr(err)
@@ -547,6 +586,7 @@ func (c *Collection) getOneReplica(
 		RetryStrategy:  opm.RetryStrategy(),
 		TraceContext:   opm.TraceSpan(),
 		Deadline:       opm.Deadline(),
+		User:           opm.Impersonate(),
 	}, func(res *gocbcore.GetReplicaResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -574,6 +614,11 @@ type GetAllReplicaOptions struct {
 	Transcoder    Transcoder
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+
+	// Internal: This should never be used and is not supported.
+	Internal struct {
+		User []byte
+	}
 }
 
 // GetAllReplicasResult represents the results of a GetAllReplicas operation.
@@ -687,7 +732,7 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 			// This timeout value will cause the getOneReplica operation to timeout after our deadline has expired,
 			// as the deadline has already begun. getOneReplica timing out before our deadline would cause inconsistent
 			// behaviour.
-			res, err := c.getOneReplica(span, id, replicaIdx, transcoder, retryStrategy, cancelCh, timeout)
+			res, err := c.getOneReplica(span, id, replicaIdx, transcoder, retryStrategy, cancelCh, timeout, opts.Internal.User)
 			if err != nil {
 				logDebugf("Failed to fetch replica from replica %d: %s", replicaIdx, err)
 			} else {
@@ -720,6 +765,11 @@ type GetAnyReplicaOptions struct {
 	Transcoder    Transcoder
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+
+	// Internal: This should never be used and is not supported.
+	Internal struct {
+		User []byte
+	}
 }
 
 // GetAnyReplica returns the value of a particular document from a replica server.
@@ -735,6 +785,7 @@ func (c *Collection) GetAnyReplica(id string, opts *GetAnyReplicaOptions) (docOu
 		Timeout:       opts.Timeout,
 		Transcoder:    opts.Transcoder,
 		RetryStrategy: opts.RetryStrategy,
+		Internal:      opts.Internal,
 	})
 	if err != nil {
 		return nil, err
@@ -769,6 +820,11 @@ type RemoveOptions struct {
 	DurabilityLevel DurabilityLevel
 	Timeout         time.Duration
 	RetryStrategy   RetryStrategy
+
+	// Internal: This should never be used and is not supported.
+	Internal struct {
+		User []byte
+	}
 }
 
 // Remove removes a document from the collection.
@@ -784,6 +840,7 @@ func (c *Collection) Remove(id string, opts *RemoveOptions) (mutOut *MutationRes
 	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetImpersonate(opts.Internal.User)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -803,6 +860,7 @@ func (c *Collection) Remove(id string, opts *RemoveOptions) (mutOut *MutationRes
 		RetryStrategy:          opm.RetryStrategy(),
 		TraceContext:           opm.TraceSpan(),
 		Deadline:               opm.Deadline(),
+		User:                   opm.Impersonate(),
 	}, func(res *gocbcore.DeleteResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -827,6 +885,11 @@ type GetAndTouchOptions struct {
 	Transcoder    Transcoder
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+
+	// Internal: This should never be used and is not supported.
+	Internal struct {
+		User []byte
+	}
 }
 
 // GetAndTouch retrieves a document and simultaneously updates its expiry time.
@@ -842,6 +905,7 @@ func (c *Collection) GetAndTouch(id string, expiry time.Duration, opts *GetAndTo
 	opm.SetTranscoder(opts.Transcoder)
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetImpersonate(opts.Internal.User)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -859,6 +923,7 @@ func (c *Collection) GetAndTouch(id string, expiry time.Duration, opts *GetAndTo
 		RetryStrategy:  opm.RetryStrategy(),
 		TraceContext:   opm.TraceSpan(),
 		Deadline:       opm.Deadline(),
+		User:           opm.Impersonate(),
 	}, func(res *gocbcore.GetAndTouchResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -892,6 +957,11 @@ type GetAndLockOptions struct {
 	Transcoder    Transcoder
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+
+	// Internal: This should never be used and is not supported.
+	Internal struct {
+		User []byte
+	}
 }
 
 // GetAndLock locks a document for a period of time, providing exclusive RW access to it.
@@ -909,6 +979,7 @@ func (c *Collection) GetAndLock(id string, lockTime time.Duration, opts *GetAndL
 	opm.SetTranscoder(opts.Transcoder)
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetImpersonate(opts.Internal.User)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -926,6 +997,7 @@ func (c *Collection) GetAndLock(id string, lockTime time.Duration, opts *GetAndL
 		RetryStrategy:  opm.RetryStrategy(),
 		TraceContext:   opm.TraceSpan(),
 		Deadline:       opm.Deadline(),
+		User:           opm.Impersonate(),
 	}, func(res *gocbcore.GetAndLockResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -958,6 +1030,11 @@ func (c *Collection) GetAndLock(id string, lockTime time.Duration, opts *GetAndL
 type UnlockOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+
+	// Internal: This should never be used and is not supported.
+	Internal struct {
+		User []byte
+	}
 }
 
 // Unlock unlocks a document which was locked with GetAndLock.
@@ -972,6 +1049,7 @@ func (c *Collection) Unlock(id string, cas Cas, opts *UnlockOptions) (errOut err
 	opm.SetDocumentID(id)
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetImpersonate(opts.Internal.User)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return err
@@ -989,6 +1067,7 @@ func (c *Collection) Unlock(id string, cas Cas, opts *UnlockOptions) (errOut err
 		RetryStrategy:  opm.RetryStrategy(),
 		TraceContext:   opm.TraceSpan(),
 		Deadline:       opm.Deadline(),
+		User:           opm.Impersonate(),
 	}, func(res *gocbcore.UnlockResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -1009,6 +1088,11 @@ func (c *Collection) Unlock(id string, cas Cas, opts *UnlockOptions) (errOut err
 type TouchOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+
+	// Internal: This should never be used and is not supported.
+	Internal struct {
+		User []byte
+	}
 }
 
 // Touch touches a document, specifying a new expiry time for it.
@@ -1023,6 +1107,7 @@ func (c *Collection) Touch(id string, expiry time.Duration, opts *TouchOptions) 
 	opm.SetDocumentID(id)
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetImpersonate(opts.Internal.User)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -1040,6 +1125,7 @@ func (c *Collection) Touch(id string, expiry time.Duration, opts *TouchOptions) 
 		RetryStrategy:  opm.RetryStrategy(),
 		TraceContext:   opm.TraceSpan(),
 		Deadline:       opm.Deadline(),
+		User:           opm.Impersonate(),
 	}, func(res *gocbcore.TouchResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)

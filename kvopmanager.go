@@ -29,6 +29,7 @@ type kvOpManager struct {
 	durabilityLevel DurabilityLevel
 	retryStrategy   *retryStrategyWrapper
 	cancelCh        chan struct{}
+	impersonate     []byte
 }
 
 func (m *kvOpManager) getTimeout() time.Duration {
@@ -120,6 +121,10 @@ func (m *kvOpManager) SetRetryStrategy(retryStrategy RetryStrategy) {
 	m.retryStrategy = wrapper
 }
 
+func (m *kvOpManager) SetImpersonate(user []byte) {
+	m.impersonate = user
+}
+
 func (m *kvOpManager) Finish() {
 	m.span.Finish()
 }
@@ -187,6 +192,10 @@ func (m *kvOpManager) Deadline() time.Time {
 
 func (m *kvOpManager) RetryStrategy() *retryStrategyWrapper {
 	return m.retryStrategy
+}
+
+func (m *kvOpManager) Impersonate() []byte {
+	return m.impersonate
 }
 
 func (m *kvOpManager) CheckReadyForOp() error {
@@ -259,6 +268,7 @@ func (m *kvOpManager) Wait(op gocbcore.PendingOp, err error) error {
 			m.persistTo,
 			m.Deadline(),
 			m.cancelCh,
+			m.impersonate,
 		)
 	}
 
