@@ -6,7 +6,7 @@ import (
 )
 
 // AnalyticsQuery executes the analytics query statement on the server, constraining the query to the bucket and scope.
-// UNCOMMITTED: This API may change in the future.
+// VOLATILE: This API is subject to change at any time.
 func (s *Scope) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*AnalyticsResult, error) {
 	if opts == nil {
 		opts = &AnalyticsOptions{}
