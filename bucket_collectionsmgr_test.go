@@ -8,6 +8,7 @@ import (
 
 func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(CollectionsManagerFeature)
 
 	mgr := globalBucket.Collections()
 
@@ -63,6 +64,7 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 
 func (suite *IntegrationTestSuite) TestDropNonExistentScope() {
 	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(CollectionsManagerFeature)
 
 	mgr := globalBucket.Collections()
 
@@ -86,6 +88,7 @@ func (suite *IntegrationTestSuite) TestDropNonExistentScope() {
 
 func (suite *IntegrationTestSuite) TestDropNonExistentCollection() {
 	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(CollectionsManagerFeature)
 
 	mgr := globalBucket.Collections()
 	err := mgr.CreateScope("testDropScopeY", nil)
@@ -112,6 +115,7 @@ func (suite *IntegrationTestSuite) TestDropNonExistentCollection() {
 
 func (suite *IntegrationTestSuite) TestCollectionsAreNotPresent() {
 	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(CollectionsManagerFeature)
 
 	mgr := globalBucket.Collections()
 
@@ -169,6 +173,7 @@ func (suite *IntegrationTestSuite) TestCollectionsAreNotPresent() {
 
 func (suite *IntegrationTestSuite) TestDropScopesAreNotExist() {
 	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(CollectionsManagerFeature)
 
 	mgr := globalBucket.Collections()
 
@@ -263,6 +268,7 @@ func (suite *IntegrationTestSuite) TestGetAllScopes() {
 
 func (suite *IntegrationTestSuite) TestCollectionsInBucket() {
 	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(CollectionsManagerFeature)
 
 	bucket1 := globalBucket.Collections()
 
@@ -337,6 +343,7 @@ func (suite *IntegrationTestSuite) TestCollectionsInBucket() {
 
 func (suite *IntegrationTestSuite) TestNumberOfCollectionInScope() {
 	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(CollectionsManagerFeature)
 
 	bucketX := globalBucket.Collections()
 
@@ -427,6 +434,8 @@ func (suite *IntegrationTestSuite) TestNumberOfCollectionInScope() {
 
 func (suite *IntegrationTestSuite) TestMaxNumberOfCollectionInScope() {
 	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(CollectionsManagerFeature)
+	suite.skipIfUnsupported(CollectionsManagerMaxCollectionsFeature)
 
 	testBucket1 := globalBucket.Collections()
 	err := testBucket1.CreateScope("singleScope", nil)

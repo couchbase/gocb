@@ -32,37 +32,39 @@ var (
 type FeatureCode string
 
 var (
-	KeyValueFeature                       = FeatureCode("keyvalue")
-	ViewFeature                           = FeatureCode("view")
-	QueryFeature                          = FeatureCode("query")
-	SubdocFeature                         = FeatureCode("subdoc")
-	RbacFeature                           = FeatureCode("rbac")
-	SearchFeature                         = FeatureCode("search")
-	SearchIndexFeature                    = FeatureCode("searchindex")
-	AnalyticsFeature                      = FeatureCode("analytics")
-	XattrFeature                          = FeatureCode("xattrs")
-	CollectionsFeature                    = FeatureCode("collections")
-	SubdocMockBugFeature                  = FeatureCode("subdocmockbug")
-	AdjoinFeature                         = FeatureCode("adjoin")
-	ExpandMacrosFeature                   = FeatureCode("expandmacros")
-	DurabilityFeature                     = FeatureCode("durability")
-	UserGroupFeature                      = FeatureCode("usergroup")
-	UserManagerFeature                    = FeatureCode("usermanager")
-	AnalyticsIndexFeature                 = FeatureCode("analyticsindex")
-	BucketMgrFeature                      = FeatureCode("bucketmgr")
-	SearchAnalyzeFeature                  = FeatureCode("searchanalyze")
-	AnalyticsIndexPendingMutationsFeature = FeatureCode("analyticspending")
-	GetMetaFeature                        = FeatureCode("getmeta")
-	PingFeature                           = FeatureCode("ping")
-	ViewIndexUpsertBugFeature             = FeatureCode("viewinsertupsertbug")
-	ReplicasFeature                       = FeatureCode("replicas")
-	PingAnalyticsFeature                  = FeatureCode("pinganalytics")
-	WaitUntilReadyFeature                 = FeatureCode("waituntilready")
-	WaitUntilReadyClusterFeature          = FeatureCode("waituntilreadycluster")
-	QueryIndexFeature                     = FeatureCode("queryindex")
-	CollectionsQueryFeature               = FeatureCode("collectionsquery")
-	CollectionsAnalyticsFeature           = FeatureCode("collectionsanalytics")
-	BucketMgrDurabilityFeature            = FeatureCode("bucketmgrdura")
+	KeyValueFeature                         = FeatureCode("keyvalue")
+	ViewFeature                             = FeatureCode("view")
+	QueryFeature                            = FeatureCode("query")
+	SubdocFeature                           = FeatureCode("subdoc")
+	RbacFeature                             = FeatureCode("rbac")
+	SearchFeature                           = FeatureCode("search")
+	SearchIndexFeature                      = FeatureCode("searchindex")
+	AnalyticsFeature                        = FeatureCode("analytics")
+	XattrFeature                            = FeatureCode("xattrs")
+	CollectionsFeature                      = FeatureCode("collections")
+	CollectionsManagerMaxCollectionsFeature = FeatureCode("collectionsmgrmaxcollections")
+	CollectionsManagerFeature               = FeatureCode("collectionsmgr")
+	SubdocMockBugFeature                    = FeatureCode("subdocmockbug")
+	AdjoinFeature                           = FeatureCode("adjoin")
+	ExpandMacrosFeature                     = FeatureCode("expandmacros")
+	DurabilityFeature                       = FeatureCode("durability")
+	UserGroupFeature                        = FeatureCode("usergroup")
+	UserManagerFeature                      = FeatureCode("usermanager")
+	AnalyticsIndexFeature                   = FeatureCode("analyticsindex")
+	BucketMgrFeature                        = FeatureCode("bucketmgr")
+	SearchAnalyzeFeature                    = FeatureCode("searchanalyze")
+	AnalyticsIndexPendingMutationsFeature   = FeatureCode("analyticspending")
+	GetMetaFeature                          = FeatureCode("getmeta")
+	PingFeature                             = FeatureCode("ping")
+	ViewIndexUpsertBugFeature               = FeatureCode("viewinsertupsertbug")
+	ReplicasFeature                         = FeatureCode("replicas")
+	PingAnalyticsFeature                    = FeatureCode("pinganalytics")
+	WaitUntilReadyFeature                   = FeatureCode("waituntilready")
+	WaitUntilReadyClusterFeature            = FeatureCode("waituntilreadycluster")
+	QueryIndexFeature                       = FeatureCode("queryindex")
+	CollectionsQueryFeature                 = FeatureCode("collectionsquery")
+	CollectionsAnalyticsFeature             = FeatureCode("collectionsanalytics")
+	BucketMgrDurabilityFeature              = FeatureCode("bucketmgrdura")
 )
 
 type TestFeatureFlag struct {
@@ -130,6 +132,10 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case XattrFeature:
 			supported = false
 		case CollectionsFeature:
+			supported = false
+		case CollectionsManagerFeature:
+			supported = false
+		case CollectionsManagerMaxCollectionsFeature:
 			supported = false
 		case SubdocMockBugFeature:
 			supported = false
@@ -227,6 +233,10 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case CollectionsQueryFeature:
 			supported = !c.Version.Lower(srvVer700)
 		case CollectionsAnalyticsFeature:
+			supported = !c.Version.Lower(srvVer700)
+		case CollectionsManagerFeature:
+			supported = !c.Version.Lower(srvVer700)
+		case CollectionsManagerMaxCollectionsFeature:
 			supported = !c.Version.Lower(srvVer700)
 		case BucketMgrDurabilityFeature:
 			supported = !c.Version.Lower(srvVer660)
