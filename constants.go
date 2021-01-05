@@ -129,6 +129,10 @@ const (
 
 	// SubdocDocFlagAccessDeleted indicates that you wish to receive soft-deleted documents.
 	SubdocDocFlagAccessDeleted SubdocDocFlag = SubdocDocFlag(memd.SubdocDocFlagAccessDeleted)
+
+	// SubdocDocFlagCreateAsDeleted indicates that you wish to create a document in deleted state.
+	// Internal: This should never be used and is not supported.
+	SubdocDocFlagCreateAsDeleted SubdocDocFlag = SubdocDocFlag(memd.SubdocDocFlagCreateAsDeleted)
 )
 
 // DurabilityLevel specifies the level of synchronous replication to use.
