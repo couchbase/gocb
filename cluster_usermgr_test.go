@@ -24,7 +24,7 @@ func (suite *IntegrationTestSuite) TestUserManagerGroupCrud() {
 				Bucket: globalBucket.Name(),
 			},
 			{
-				Name: "security_admin",
+				Name: "replication_admin",
 			},
 		},
 		LDAPGroupReference: "asda=price",
@@ -92,7 +92,7 @@ func (suite *IntegrationTestSuite) TestUserManagerWithGroupsCrud() {
 				Bucket: globalBucket.Name(),
 			},
 			{
-				Name: "security_admin",
+				Name: "replication_admin",
 			},
 		},
 	}, nil)
@@ -152,7 +152,7 @@ func (suite *IntegrationTestSuite) TestUserManagerWithGroupsCrud() {
 			},
 			{
 				Role: Role{
-					Name: "security_admin",
+					Name: "replication_admin",
 				},
 				Origins: []Origin{
 					{
@@ -214,7 +214,7 @@ func (suite *IntegrationTestSuite) TestUserManagerCrud() {
 				Bucket: globalBucket.Name(),
 			},
 			{
-				Name: "security_admin",
+				Name: "replication_admin",
 			},
 			{
 				Name:   "replication_target",
@@ -256,7 +256,7 @@ func (suite *IntegrationTestSuite) TestUserManagerCrud() {
 			},
 			{
 				Role: Role{
-					Name: "security_admin",
+					Name: "replication_admin",
 				},
 			},
 			{
