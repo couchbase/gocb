@@ -14,6 +14,7 @@ type connectionManager interface {
 	openBucket(bucketName string) error
 	buildConfig(cluster *Cluster) error
 	getKvProvider(bucketName string) (kvProvider, error)
+	getKvCapabilitiesProvider(bucketName string) (kvCapabilityVerifier, error)
 	getViewProvider(bucketName string) (viewProvider, error)
 	getQueryProvider() (queryProvider, error)
 	getAnalyticsProvider() (analyticsProvider, error)
@@ -139,6 +140,17 @@ func (c *stdConnectionMgr) getKvProvider(bucketName string) (kvProvider, error) 
 		return nil, errors.New("bucket not yet connected")
 	}
 	return agent, nil
+}
+
+func (c *stdConnectionMgr) getKvCapabilitiesProvider(bucketName string) (kvCapabilityVerifier, error) {
+	if c.agentgroup == nil {
+		return nil, errors.New("cluster not yet connected")
+	}
+	agent := c.agentgroup.GetAgent(bucketName)
+	if agent == nil {
+		return nil, errors.New("bucket not yet connected")
+	}
+	return agent.Internal(), nil
 }
 
 func (c *stdConnectionMgr) getViewProvider(bucketName string) (viewProvider, error) {

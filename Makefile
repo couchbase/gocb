@@ -34,6 +34,7 @@ updatemocks:
 	mockery -name searchProvider -output . -testonly -inpkg
 	mockery -name viewProvider -output . -testonly -inpkg
 	mockery -name waitUntilReadyProvider -output . -testonly -inpkg
+	mockery -name kvCapabilityVerifier -output . -testonly -inpkg
 	# pendingOp is manually mocked
 
 .PHONY: all test devsetup fasttest lint cover check bench updatetestcases updatemocks

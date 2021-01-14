@@ -260,3 +260,23 @@ const (
 	// ScramSha512SaslMechanism represents that SCRAM SHA512 auth should be performed.
 	ScramSha512SaslMechanism SaslMechanism = SaslMechanism(gocbcore.ScramSha512AuthMechanism)
 )
+
+// Capability represents a server capability.
+// Internal: This should never be used and is not supported.
+type Capability uint32
+
+const (
+	CapabilityDurableWrites Capability = iota + 1
+	CapabilityCreateAsDeleted
+	CapabilityReplaceBodyWithXattr
+)
+
+// CapabilityStatus represents a status for a server capability.
+// Internal: This should never be used and is not supported.
+type CapabilityStatus uint32
+
+const (
+	CapabilityStatusUnknown     CapabilityStatus = CapabilityStatus(gocbcore.BucketCapabilityStatusUnknown)
+	CapabilityStatusSupported   CapabilityStatus = CapabilityStatus(gocbcore.BucketCapabilityStatusSupported)
+	CapabilityStatusUnsupported CapabilityStatus = CapabilityStatus(gocbcore.BucketCapabilityStatusUnsupported)
+)

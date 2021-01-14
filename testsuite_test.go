@@ -298,6 +298,12 @@ func (suite *UnitTestSuite) kvProvider(provider kvProvider, err error) func() (k
 	}
 }
 
+func (suite *UnitTestSuite) kvCapabilityProvider(provider kvCapabilityVerifier, err error) func() (kvCapabilityVerifier, error) {
+	return func() (kvCapabilityVerifier, error) {
+		return provider, err
+	}
+}
+
 func (suite *UnitTestSuite) collection(bucket, scope, collection string, provider kvProvider) *Collection {
 	return &Collection{
 		bucket: &Bucket{bucketName: bucket},
