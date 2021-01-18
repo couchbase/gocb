@@ -29,7 +29,7 @@ func (suite *IntegrationTestSuite) TestClusterAnalyticsQuery() {
 }
 
 func (suite *IntegrationTestSuite) runAnalyticsTest(n int, query string, provider analyticsIface) {
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(60 * time.Second)
 	for {
 		result, err := provider.AnalyticsQuery(query, &AnalyticsOptions{
 			PositionalParameters: []interface{}{"analytics"},

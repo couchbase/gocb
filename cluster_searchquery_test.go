@@ -18,7 +18,7 @@ func (suite *IntegrationTestSuite) TestSearch() {
 }
 
 func (suite *IntegrationTestSuite) runSearchTest(n int) {
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(60 * time.Second)
 	query := search.NewTermQuery("search").Field("service")
 	var result *SearchResult
 	for {

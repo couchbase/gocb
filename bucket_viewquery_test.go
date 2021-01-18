@@ -17,7 +17,7 @@ func (suite *IntegrationTestSuite) TestViewQuery() {
 }
 
 func (suite *IntegrationTestSuite) runViewsTest(n int) {
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(60 * time.Second)
 	var result *ViewResult
 	for {
 		var err error

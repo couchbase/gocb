@@ -36,7 +36,7 @@ func (suite *IntegrationTestSuite) TestQuery() {
 }
 
 func (suite *IntegrationTestSuite) runPreparedQueryTest(n int, query string, queryFn queryIface) {
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(60 * time.Second)
 	for {
 		result, err := queryFn.Query(query, &QueryOptions{
 			PositionalParameters: []interface{}{"query"},
@@ -83,7 +83,7 @@ func (suite *IntegrationTestSuite) runClusterPreparedQueryTest(n int) {
 }
 
 func (suite *IntegrationTestSuite) runQueryTest(n int, query string, queryFn queryIface, withMetrics bool) {
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(60 * time.Second)
 	for {
 		result, err := queryFn.Query(query, &QueryOptions{
 			PositionalParameters: []interface{}{"query"},
