@@ -25,23 +25,32 @@ func (suite *IntegrationTestSuite) TestQuery() {
 
 	n := suite.setupClusterQuery()
 	suite.Run("TestClusterQuery", func() {
-		suite.runClusterQueryTest(n, true)
+		suite.runClusterQueryPositionalTest(n, true)
+		suite.runClusterQueryNamedTest(n, true)
 	})
 	suite.Run("TestClusterQueryNoMetrics", func() {
-		suite.runClusterQueryTest(n, false)
+		suite.runClusterQueryPositionalTest(n, false)
+		suite.runClusterQueryNamedTest(n, false)
 	})
 	suite.Run("TestClusterPreparedQuery", func() {
-		suite.runClusterPreparedQueryTest(n)
+		suite.runClusterPreparedQueryPositionalTest(n)
+		suite.runClusterPreparedQueryNamedTest(n)
 	})
 }
 
-func (suite *IntegrationTestSuite) runPreparedQueryTest(n int, query string, queryFn queryIface) {
+func (suite *IntegrationTestSuite) runPreparedQueryTest(n int, query string, queryFn queryIface, params interface{}) {
 	deadline := time.Now().Add(60 * time.Second)
 	for {
-		result, err := queryFn.Query(query, &QueryOptions{
-			PositionalParameters: []interface{}{"query"},
-			Timeout:              5 * time.Second,
-		})
+		opts := &QueryOptions{
+			Timeout: 5 * time.Second,
+		}
+		switch p := params.(type) {
+		case []interface{}:
+			opts.PositionalParameters = p
+		case map[string]interface{}:
+			opts.NamedParameters = p
+		}
+		result, err := queryFn.Query(query, opts)
 		suite.Require().Nil(err, "Failed to execute query %v", err)
 
 		var samples []interface{}
@@ -77,20 +86,31 @@ func (suite *IntegrationTestSuite) runPreparedQueryTest(n int, query string, que
 	}
 }
 
-func (suite *IntegrationTestSuite) runClusterPreparedQueryTest(n int) {
+func (suite *IntegrationTestSuite) runClusterPreparedQueryPositionalTest(n int) {
 	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=? LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
-	suite.runPreparedQueryTest(n, query, globalCluster)
+	suite.runPreparedQueryTest(n, query, globalCluster, []interface{}{"query"})
 }
 
-func (suite *IntegrationTestSuite) runQueryTest(n int, query string, queryFn queryIface, withMetrics bool) {
+func (suite *IntegrationTestSuite) runClusterPreparedQueryNamedTest(n int) {
+	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=$service LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
+	suite.runPreparedQueryTest(n, query, globalCluster, map[string]interface{}{"service": "query"})
+}
+
+func (suite *IntegrationTestSuite) runQueryTest(n int, query string, queryFn queryIface, withMetrics bool, params interface{}) {
 	deadline := time.Now().Add(60 * time.Second)
 	for {
-		result, err := queryFn.Query(query, &QueryOptions{
-			PositionalParameters: []interface{}{"query"},
-			Timeout:              5 * time.Second,
-			Adhoc:                true,
-			Metrics:              withMetrics,
-		})
+		opts := &QueryOptions{
+			Timeout: 5 * time.Second,
+			Adhoc:   true,
+			Metrics: withMetrics,
+		}
+		switch p := params.(type) {
+		case []interface{}:
+			opts.PositionalParameters = p
+		case map[string]interface{}:
+			opts.NamedParameters = p
+		}
+		result, err := queryFn.Query(query, opts)
 		suite.Require().Nil(err, "Failed to execute query %v", err)
 
 		var samples []interface{}
@@ -133,9 +153,14 @@ func (suite *IntegrationTestSuite) runQueryTest(n int, query string, queryFn que
 	}
 }
 
-func (suite *IntegrationTestSuite) runClusterQueryTest(n int, withMetrics bool) {
+func (suite *IntegrationTestSuite) runClusterQueryPositionalTest(n int, withMetrics bool) {
 	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=? LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
-	suite.runQueryTest(n, query, globalCluster, withMetrics)
+	suite.runQueryTest(n, query, globalCluster, withMetrics, []interface{}{"query"})
+}
+
+func (suite *IntegrationTestSuite) runClusterQueryNamedTest(n int, withMetrics bool) {
+	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=$service LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
+	suite.runQueryTest(n, query, globalCluster, withMetrics, map[string]interface{}{"service": "query"})
 }
 
 func (suite *IntegrationTestSuite) setupClusterQuery() int {

@@ -15,18 +15,21 @@ func (suite *IntegrationTestSuite) TestScopeQuery() {
 
 	n := suite.setupScopeQuery()
 	suite.Run("TestScopeQuery", func() {
-		suite.runScopeQueryTest(n, true)
+		suite.runScopeQueryPositionalTest(n, true)
+		suite.runScopeQueryNamedTest(n, true)
 	})
 	suite.Run("TestScopeQueryNoMetrics", func() {
-		suite.runScopeQueryTest(n, false)
+		suite.runScopeQueryPositionalTest(n, false)
+		suite.runScopeQueryNamedTest(n, false)
 	})
 	suite.Run("TestScopePreparedQuery", func() {
-		suite.runScopePreparedQueryTest(n)
+		suite.runScopePreparedQueryPositionalTest(n)
+		suite.runScopePreparedQueryNamedTest(n)
 	})
 }
 
 func (suite *IntegrationTestSuite) setupScopeQuery() int {
-	n, err := suite.createBreweryDataset("beer_sample_brewery_five", "query", globalScope.Name(),
+	n, err := suite.createBreweryDataset("beer_sample_brewery_five", "scopequery", globalScope.Name(),
 		globalCollection.Name())
 	suite.Require().Nil(err, "Failed to create dataset %v", err)
 
@@ -36,16 +39,24 @@ func (suite *IntegrationTestSuite) setupScopeQuery() int {
 	return n
 }
 
-func (suite *IntegrationTestSuite) runScopePreparedQueryTest(n int) {
-	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=? LIMIT %d;", globalCollection.Name(),
-		globalCollection.Name(), n)
-	suite.runPreparedQueryTest(n, query, globalScope)
+func (suite *IntegrationTestSuite) runScopePreparedQueryPositionalTest(n int) {
+	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=? LIMIT %d;", globalCollection.Name(), globalCollection.Name(), n)
+	suite.runPreparedQueryTest(n, query, globalScope, []interface{}{"scopequery"})
 }
 
-func (suite *IntegrationTestSuite) runScopeQueryTest(n int, withMetrics bool) {
-	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=? LIMIT %d;", globalCollection.Name(),
-		globalCollection.Name(), n)
-	suite.runQueryTest(n, query, globalScope, withMetrics)
+func (suite *IntegrationTestSuite) runScopePreparedQueryNamedTest(n int) {
+	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=$service LIMIT %d;", globalCollection.Name(), globalCollection.Name(), n)
+	suite.runPreparedQueryTest(n, query, globalScope, map[string]interface{}{"service": "scopequery"})
+}
+
+func (suite *IntegrationTestSuite) runScopeQueryPositionalTest(n int, withMetrics bool) {
+	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=? LIMIT %d;", globalCollection.Name(), globalCollection.Name(), n)
+	suite.runQueryTest(n, query, globalScope, withMetrics, []interface{}{"scopequery"})
+}
+
+func (suite *IntegrationTestSuite) runScopeQueryNamedTest(n int, withMetrics bool) {
+	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=$service LIMIT %d;", globalCollection.Name(), globalCollection.Name(), n)
+	suite.runQueryTest(n, query, globalScope, withMetrics, map[string]interface{}{"service": "scopequery"})
 }
 
 func (suite *UnitTestSuite) queryScope(prepared bool, reader queryRowReader, runFn func(args mock.Arguments)) *Scope {
