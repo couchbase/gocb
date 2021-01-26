@@ -91,8 +91,9 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 				CanaryTimeout:            breakerCfg.CanaryTimeout,
 				CompletionCallback:       completionCallback,
 			},
-			DefaultRetryStrategy: cluster.retryStrategyWrapper,
-			AuthMechanisms:       authMechanisms,
+			DefaultRetryStrategy:   cluster.retryStrategyWrapper,
+			AuthMechanisms:         authMechanisms,
+			UseOutOfOrderResponses: true,
 		},
 	}
 
