@@ -94,7 +94,7 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
-		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/scopes", cm.bucketName),
 		Method:        "GET",
 		RetryStrategy: opts.RetryStrategy,
 		IsIdempotent:  true,
@@ -195,7 +195,7 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
-		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections/%s", cm.bucketName, spec.ScopeName),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections", cm.bucketName, spec.ScopeName),
 		Method:        "POST",
 		Body:          []byte(posts.Encode()),
 		ContentType:   "application/x-www-form-urlencoded",
@@ -253,7 +253,7 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
-		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections/%s/%s", cm.bucketName, spec.ScopeName, spec.Name),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections/%s", cm.bucketName, spec.ScopeName, spec.Name),
 		Method:        "DELETE",
 		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
@@ -308,7 +308,7 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
-		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections", cm.bucketName),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/scopes", cm.bucketName),
 		Method:        "POST",
 		Body:          []byte(posts.Encode()),
 		ContentType:   "application/x-www-form-urlencoded",
@@ -358,7 +358,7 @@ func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions)
 
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
-		Path:          fmt.Sprintf("/pools/default/buckets/%s/collections/%s", cm.bucketName, scopeName),
+		Path:          fmt.Sprintf("/pools/default/buckets/%s/scopes/%s", cm.bucketName, scopeName),
 		Method:        "DELETE",
 		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
