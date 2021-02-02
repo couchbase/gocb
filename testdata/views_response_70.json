@@ -1,0 +1,80 @@
+{
+  "rows": [
+    {
+      "doc": {
+        "meta": {
+          "id": "_design/aaa",
+          "rev": "1-5d93a19b"
+        },
+        "json": {
+          "views": {
+            "aaa": {
+              "map": "function (doc, meta) {\n  emit(meta.id, null);\n}"
+            }
+          }
+        }
+      },
+      "controllers": {
+        "compact": "/pools/default/buckets/default/ddocs/_design%2Faaa/controller/compactView",
+        "setUpdateMinChanges": "/pools/default/buckets/default/ddocs/_design%2Faaa/controller/setUpdateMinChanges"
+      }
+    },
+    {
+      "doc": {
+        "meta": {
+          "id": "_design/dev_aaa",
+          "rev": "1-53f6e7e2"
+        },
+        "json": {
+          "views": {
+            "aaa": {
+              "map": "function (doc, meta) {\n  emit(meta.id, null);\n}"
+            }
+          }
+        }
+      },
+      "controllers": {
+        "compact": "/pools/default/buckets/default/ddocs/_design%2Fdev_aaa/controller/compactView",
+        "setUpdateMinChanges": "/pools/default/buckets/default/ddocs/_design%2Fdev_aaa/controller/setUpdateMinChanges"
+      }
+    },
+    {
+      "doc": {
+        "meta": {
+          "id": "_design/dev_test",
+          "rev": "1-19f7cc03"
+        },
+        "json": {
+          "views": {
+            "test": {
+              "map": "function (doc, meta) {\n  emit(meta.id, null);\n}"
+            }
+          }
+        }
+      },
+      "controllers": {
+        "compact": "/pools/default/buckets/default/ddocs/_design%2Fdev_test/controller/compactView",
+        "setUpdateMinChanges": "/pools/default/buckets/default/ddocs/_design%2Fdev_test/controller/setUpdateMinChanges"
+      }
+    },
+    {
+      "doc": {
+        "meta": {
+          "id": "_design/dev_test12",
+          "rev": "1-3df87cb6"
+        },
+        "json": {
+          "views": {
+            "test12": {
+              "map": "function (doc, meta) {\n  emit(meta.id, null);\n}"
+            }
+          }
+        }
+      },
+      "controllers": {
+        "compact": "/pools/default/buckets/default/ddocs/_design%2Fdev_test12/controller/compactView",
+        "setUpdateMinChanges": "/pools/default/buckets/default/ddocs/_design%2Fdev_test12/controller/setUpdateMinChanges"
+      }
+    }
+  ]
+}

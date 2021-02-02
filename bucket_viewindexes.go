@@ -284,14 +284,35 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamesp
 		return nil, err
 	}
 
-	ddocs := make([]DesignDocument, len(ddocsResp.Rows))
-	for ddocIdx, ddocData := range ddocsResp.Rows {
-		ddocName := strings.TrimPrefix(ddocData.Doc.Meta.ID[8:], "dev_")
+	var ddocs []DesignDocument
+	for _, ddocData := range ddocsResp.Rows {
+		if len(ddocData.Doc.Meta.ID) <= 8 {
+			logErrorf("Design document name was less than 9 characters long: %s", ddocData.Doc.Meta.ID)
+			continue
+		}
+		ddocName := ddocData.Doc.Meta.ID[8:]
+		isDevDoc := strings.HasPrefix(ddocName, "dev_")
+		switch namespace {
+		case DesignDocumentNamespaceProduction:
+			if isDevDoc {
+				continue
+			}
+		case DesignDocumentNamespaceDevelopment:
+			if !isDevDoc {
+				continue
+			}
 
-		err := ddocs[ddocIdx].fromData(ddocData.Doc.JSON, ddocName)
+			ddocName = strings.TrimPrefix(ddocName, "dev_")
+		default:
+			return nil, makeInvalidArgumentsError("design document namespace unknown")
+		}
+
+		var ddoc DesignDocument
+		err := ddoc.fromData(ddocData.Doc.JSON, ddocName)
 		if err != nil {
 			return nil, err
 		}
+		ddocs = append(ddocs, ddoc)
 	}
 
 	return ddocs, nil

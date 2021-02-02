@@ -203,3 +203,85 @@ func (suite *UnitTestSuite) TestViewIndexManagerDropDoesntExist() {
 		suite.T().Fatalf("Expected design document not found: %s", err)
 	}
 }
+
+func (suite *UnitTestSuite) TestViewIndexManagerGetAllDesignDocumentsFiltersCorrectlyProduction() {
+	payload, err := loadRawTestDataset("views_response_70")
+	suite.Require().Nil(err)
+
+	resp := &mgmtResponse{
+		Endpoint:   "http://localhost:8092/default",
+		StatusCode: 200,
+		Body:       ioutil.NopCloser(bytes.NewReader(payload)),
+	}
+
+	mockProvider := new(mockMgmtProvider)
+	mockProvider.
+		On("executeMgmtRequest", mock.AnythingOfType("mgmtRequest")).
+		Run(func(args mock.Arguments) {
+			req := args.Get(0).(mgmtRequest)
+
+			suite.Assert().Equal("/pools/default/buckets/mock/ddocs", req.Path)
+			suite.Assert().Equal(ServiceTypeManagement, req.Service)
+			suite.Assert().True(req.IsIdempotent)
+			suite.Assert().Equal(1*time.Second, req.Timeout)
+			suite.Assert().Equal("GET", req.Method)
+			suite.Assert().Nil(req.RetryStrategy)
+		}).
+		Return(resp, nil)
+
+	viewMgr := ViewIndexManager{
+		mgmtProvider: mockProvider,
+		bucketName:   "mock",
+		tracer:       &noopTracer{},
+	}
+
+	ddocs, err := viewMgr.GetAllDesignDocuments(DesignDocumentNamespaceProduction, &GetAllDesignDocumentsOptions{
+		Timeout: 1 * time.Second,
+	})
+	suite.Require().Nil(err)
+
+	suite.Require().Len(ddocs, 1)
+	suite.Assert().Equal("aaa", ddocs[0].Name)
+}
+
+func (suite *UnitTestSuite) TestViewIndexManagerGetAllDesignDocumentsFiltersCorrectlyDevelopment() {
+	payload, err := loadRawTestDataset("views_response_70")
+	suite.Require().Nil(err)
+
+	resp := &mgmtResponse{
+		Endpoint:   "http://localhost:8092/default",
+		StatusCode: 200,
+		Body:       ioutil.NopCloser(bytes.NewReader(payload)),
+	}
+
+	mockProvider := new(mockMgmtProvider)
+	mockProvider.
+		On("executeMgmtRequest", mock.AnythingOfType("mgmtRequest")).
+		Run(func(args mock.Arguments) {
+			req := args.Get(0).(mgmtRequest)
+
+			suite.Assert().Equal("/pools/default/buckets/mock/ddocs", req.Path)
+			suite.Assert().Equal(ServiceTypeManagement, req.Service)
+			suite.Assert().True(req.IsIdempotent)
+			suite.Assert().Equal(1*time.Second, req.Timeout)
+			suite.Assert().Equal("GET", req.Method)
+			suite.Assert().Nil(req.RetryStrategy)
+		}).
+		Return(resp, nil)
+
+	viewMgr := ViewIndexManager{
+		mgmtProvider: mockProvider,
+		bucketName:   "mock",
+		tracer:       &noopTracer{},
+	}
+
+	ddocs, err := viewMgr.GetAllDesignDocuments(DesignDocumentNamespaceDevelopment, &GetAllDesignDocumentsOptions{
+		Timeout: 1 * time.Second,
+	})
+	suite.Require().Nil(err)
+
+	suite.Require().Len(ddocs, 3)
+	suite.Assert().Equal("aaa", ddocs[0].Name)
+	suite.Assert().Equal("test", ddocs[1].Name)
+	suite.Assert().Equal("test12", ddocs[2].Name)
+}
