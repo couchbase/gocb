@@ -14,15 +14,18 @@ func (c *Cluster) Ping(opts *PingOptions) (*PingResult, error) {
 		opts = &PingOptions{}
 	}
 
+	span := createSpan(c.tracer, opts.ParentSpan, "ping", "kv")
+	defer span.End()
+
 	provider, err := c.getDiagnosticsProvider()
 	if err != nil {
 		return nil, err
 	}
 
-	return ping(provider, opts, c.timeoutsConfig)
+	return ping(provider, opts, c.timeoutsConfig, span)
 }
 
-func ping(provider diagnosticsProvider, opts *PingOptions, timeouts TimeoutsConfig) (*PingResult, error) {
+func ping(provider diagnosticsProvider, opts *PingOptions, timeouts TimeoutsConfig, parentSpan RequestSpan) (*PingResult, error) {
 	services := opts.ServiceTypes
 
 	gocbcoreServices := make([]gocbcore.ServiceType, len(services))
@@ -32,6 +35,7 @@ func ping(provider diagnosticsProvider, opts *PingOptions, timeouts TimeoutsConf
 
 	coreopts := gocbcore.PingOptions{
 		ServiceTypes: gocbcoreServices,
+		TraceContext: parentSpan.Context(),
 	}
 	now := time.Now()
 	timeout := opts.Timeout

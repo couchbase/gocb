@@ -57,7 +57,7 @@ type QueryOptions struct {
 	// FlexIndex tells the query engine to use a flex index (utilizing the search service).
 	FlexIndex bool
 
-	parentSpan requestSpanContext
+	ParentSpan RequestSpan
 }
 
 func (opts *QueryOptions) toMap() (map[string]interface{}, error) {

@@ -15,10 +15,12 @@ type thresholdLogGroup struct {
 	lock  sync.RWMutex
 }
 
-func (g *thresholdLogGroup) init(name string, floor time.Duration, size uint32) {
-	g.name = name
-	g.floor = floor
-	g.ops = make([]*thresholdLogSpan, 0, size)
+func initThresholdLogGroup(name string, floor time.Duration, size uint32) *thresholdLogGroup {
+	return &thresholdLogGroup{
+		name:  name,
+		floor: floor,
+		ops:   make([]*thresholdLogSpan, 0, size),
+	}
 }
 
 func (g *thresholdLogGroup) recordOp(span *thresholdLogSpan) {
@@ -70,80 +72,24 @@ func (g *thresholdLogGroup) recordOp(span *thresholdLogSpan) {
 
 type thresholdLogItem struct {
 	OperationName          string `json:"operation_name,omitempty"`
-	TotalTimeUs            uint64 `json:"total_us,omitempty"`
-	EncodeDurationUs       uint64 `json:"encode_us,omitempty"`
-	DispatchDurationUs     uint64 `json:"dispatch_us,omitempty"`
-	ServerDurationUs       uint64 `json:"server_us,omitempty"`
-	LastRemoteAddress      string `json:"last_remote_address,omitempty"`
-	LastLocalAddress       string `json:"last_local_address,omitempty"`
-	LastDispatchDurationUs uint64 `json:"last_dispatch_us,omitempty"`
-	LastOperationID        string `json:"last_operation_id,omitempty"`
+	TotalTimeUs            uint64 `json:"total_duration_us,omitempty"`
+	EncodeDurationUs       uint64 `json:"encode_duration_us,omitempty"`
+	DispatchDurationUs     uint64 `json:"total_dispatch_duration_us,omitempty"`
+	ServerDurationUs       uint64 `json:"total_server_duration_us,omitempty"`
+	LastRemoteAddress      string `json:"last_remote_socket,omitempty"`
+	LastLocalAddress       string `json:"last_local_socket,omitempty"`
+	LastDispatchDurationUs uint64 `json:"last_dispatch_duration_us,omitempty"`
+	LastServerDurationUs   uint64 `json:"last_server_duration_us,omitempty"`
+	LastOperationID        string `json:"operation_id,omitempty"`
 	LastLocalID            string `json:"last_local_id,omitempty"`
-	DocumentKey            string `json:"document_key,omitempty"`
 }
 
-type thresholdLogService struct {
-	Service string             `json:"service"`
-	Count   uint64             `json:"count"`
-	Top     []thresholdLogItem `json:"top"`
+type thresholdLogEntry struct {
+	Count uint64             `json:"total_count"`
+	Top   []thresholdLogItem `json:"top_requests"`
 }
 
-func (g *thresholdLogGroup) logRecordedRecords(sampleSize uint32) {
-	// Preallocate space to copy the ops into...
-	oldOps := make([]*thresholdLogSpan, sampleSize)
-
-	g.lock.Lock()
-	// Escape early if we have no ops to log...
-	if len(g.ops) == 0 {
-		g.lock.Unlock()
-		return
-	}
-
-	// Copy out our ops so we can cheaply print them out without blocking
-	// our ops from actually being recorded in other goroutines (which would
-	// effectively slow down the op pipeline for logging).
-
-	oldOps = oldOps[0:len(g.ops)]
-	copy(oldOps, g.ops)
-	g.ops = g.ops[:0]
-
-	g.lock.Unlock()
-
-	jsonData := thresholdLogService{
-		Service: g.name,
-	}
-
-	for i := len(oldOps) - 1; i >= 0; i-- {
-		op := oldOps[i]
-
-		peerAddr := op.lastDispatchPeer
-		if peerAddr != "" && op.lastDispatchPeerPort != "" {
-			peerAddr = peerAddr + ":" + op.lastDispatchPeerPort
-		}
-
-		jsonData.Top = append(jsonData.Top, thresholdLogItem{
-			OperationName:          op.opName,
-			TotalTimeUs:            uint64(op.duration / time.Microsecond),
-			DispatchDurationUs:     uint64(op.totalDispatchDuration / time.Microsecond),
-			ServerDurationUs:       uint64(op.totalServerDuration / time.Microsecond),
-			EncodeDurationUs:       uint64(op.totalEncodeDuration / time.Microsecond),
-			LastRemoteAddress:      peerAddr,
-			LastDispatchDurationUs: uint64(op.lastDispatchDuration / time.Microsecond),
-			LastOperationID:        op.lastOperationID,
-			LastLocalID:            op.lastLocalID,
-			DocumentKey:            op.documentKey,
-		})
-	}
-
-	jsonData.Count = uint64(len(jsonData.Top))
-
-	jsonBytes, err := json.Marshal(jsonData)
-	if err != nil {
-		logDebugf("Failed to generate threshold logging service JSON: %s", err)
-	}
-
-	logInfof("Threshold Log: %s", jsonBytes)
-}
+type thresholdLogService map[string]thresholdLogEntry
 
 // ThresholdLoggingOptions is the set of options available for configuring threshold logging.
 type ThresholdLoggingOptions struct {
@@ -172,15 +118,10 @@ type ThresholdLoggingTracer struct {
 	AnalyticsThreshold  time.Duration
 	ManagementThreshold time.Duration
 
-	killCh          chan struct{}
-	refCount        int32
-	nextTick        time.Time
-	kvGroup         thresholdLogGroup
-	viewsGroup      thresholdLogGroup
-	queryGroup      thresholdLogGroup
-	searchGroup     thresholdLogGroup
-	analyticsGroup  thresholdLogGroup
-	managementGroup thresholdLogGroup
+	killCh   chan struct{}
+	refCount int32
+	nextTick time.Time
+	groups   map[string]*thresholdLogGroup
 }
 
 func NewThresholdLoggingTracer(opts *ThresholdLoggingOptions) *ThresholdLoggingTracer {
@@ -223,12 +164,14 @@ func NewThresholdLoggingTracer(opts *ThresholdLoggingOptions) *ThresholdLoggingT
 		ManagementThreshold: opts.ManagementThreshold,
 	}
 
-	t.kvGroup.init("kv", t.KVThreshold, t.SampleSize)
-	t.viewsGroup.init("views", t.ViewsThreshold, t.SampleSize)
-	t.queryGroup.init("query", t.QueryThreshold, t.SampleSize)
-	t.searchGroup.init("search", t.SearchThreshold, t.SampleSize)
-	t.analyticsGroup.init("analytics", t.AnalyticsThreshold, t.SampleSize)
-	t.managementGroup.init("management", t.ManagementThreshold, t.SampleSize)
+	t.groups = map[string]*thresholdLogGroup{
+		"kv":         initThresholdLogGroup("kv", t.KVThreshold, t.SampleSize),
+		"views":      initThresholdLogGroup("views", t.ViewsThreshold, t.SampleSize),
+		"query":      initThresholdLogGroup("query", t.QueryThreshold, t.SampleSize),
+		"search":     initThresholdLogGroup("search", t.SearchThreshold, t.SampleSize),
+		"analytics":  initThresholdLogGroup("analytics", t.AnalyticsThreshold, t.SampleSize),
+		"management": initThresholdLogGroup("management", t.ManagementThreshold, t.SampleSize),
+	}
 
 	if t.killCh == nil {
 		t.killCh = make(chan struct{})
@@ -261,13 +204,81 @@ func (t *ThresholdLoggingTracer) DecRef() int32 {
 	return newRefCount
 }
 
+func (t *ThresholdLoggingTracer) buildJSONData() thresholdLogService {
+	// Preallocate space to copy the ops into...
+	oldOps := make([]*thresholdLogSpan, t.SampleSize)
+
+	jsonData := make(thresholdLogService)
+	for _, g := range t.groups {
+		g.lock.Lock()
+		// Escape early if we have no ops to log...
+		if len(g.ops) == 0 {
+			g.lock.Unlock()
+			continue
+		}
+
+		// Copy out our ops so we can cheaply print them out without blocking
+		// our ops from actually being recorded in other goroutines (which would
+		// effectively slow down the op pipeline for logging).
+
+		oldOps = oldOps[0:len(g.ops)]
+		copy(oldOps, g.ops)
+		g.ops = g.ops[:0]
+
+		g.lock.Unlock()
+
+		entry := thresholdLogEntry{}
+
+		for i := len(oldOps) - 1; i >= 0; i-- {
+			op := oldOps[i]
+
+			localAddr := op.lastDispatchLocal
+			if localAddr != "" && op.lastDispatchLocalPort != "" {
+				localAddr = localAddr + ":" + op.lastDispatchLocalPort
+			}
+
+			peerAddr := op.lastDispatchPeer
+			if peerAddr != "" && op.lastDispatchPeerPort != "" {
+				peerAddr = peerAddr + ":" + op.lastDispatchPeerPort
+			}
+
+			entry.Top = append(entry.Top, thresholdLogItem{
+				OperationName:          op.opName,
+				TotalTimeUs:            uint64(op.duration / time.Microsecond),
+				DispatchDurationUs:     uint64(op.totalDispatchDuration / time.Microsecond),
+				ServerDurationUs:       uint64(op.totalServerDuration / time.Microsecond),
+				EncodeDurationUs:       uint64(op.totalEncodeDuration / time.Microsecond),
+				LastLocalAddress:       localAddr,
+				LastRemoteAddress:      peerAddr,
+				LastDispatchDurationUs: uint64(op.lastDispatchDuration / time.Microsecond),
+				LastServerDurationUs:   uint64(op.lastServerDuration / time.Microsecond),
+				LastOperationID:        op.lastOperationID,
+				LastLocalID:            op.lastLocalID,
+			})
+		}
+
+		entry.Count = uint64(len(entry.Top))
+
+		jsonData[g.name] = entry
+	}
+
+	return jsonData
+}
+
 func (t *ThresholdLoggingTracer) logRecordedRecords() {
-	t.kvGroup.logRecordedRecords(t.SampleSize)
-	t.viewsGroup.logRecordedRecords(t.SampleSize)
-	t.queryGroup.logRecordedRecords(t.SampleSize)
-	t.searchGroup.logRecordedRecords(t.SampleSize)
-	t.analyticsGroup.logRecordedRecords(t.SampleSize)
-	t.managementGroup.logRecordedRecords(t.SampleSize)
+	jsonData := t.buildJSONData()
+
+	if len(jsonData) == 0 {
+		// Nothing to log so make sure we don't just log empty objects.
+		return
+	}
+
+	jsonBytes, err := json.Marshal(jsonData)
+	if err != nil {
+		logDebugf("Failed to generate threshold logging service JSON: %s", err)
+	}
+
+	logInfof("Threshold Log: %s", jsonBytes)
 }
 
 func (t *ThresholdLoggingTracer) startLoggerRoutine() {
@@ -290,22 +301,22 @@ func (t *ThresholdLoggingTracer) loggerRoutine() {
 func (t *ThresholdLoggingTracer) recordOp(span *thresholdLogSpan) {
 	switch span.serviceName {
 	case "mgmt":
-		t.managementGroup.recordOp(span)
+		t.groups["management"].recordOp(span)
 	case "kv":
-		t.kvGroup.recordOp(span)
+		t.groups["kv"].recordOp(span)
 	case "views":
-		t.viewsGroup.recordOp(span)
+		t.groups["views"].recordOp(span)
 	case "query":
-		t.queryGroup.recordOp(span)
+		t.groups["query"].recordOp(span)
 	case "search":
-		t.searchGroup.recordOp(span)
+		t.groups["search"].recordOp(span)
 	case "analytics":
-		t.analyticsGroup.recordOp(span)
+		t.groups["analytics"].recordOp(span)
 	}
 }
 
-// StartSpan belongs to the Tracer interface.
-func (t *ThresholdLoggingTracer) StartSpan(operationName string, parentContext requestSpanContext) requestSpan {
+// RequestSpan belongs to the Tracer interface.
+func (t *ThresholdLoggingTracer) RequestSpan(parentContext RequestSpanContext, operationName string) RequestSpan {
 	span := &thresholdLogSpan{
 		tracer:    t,
 		opName:    operationName,
@@ -326,48 +337,52 @@ type thresholdLogSpan struct {
 	startTime             time.Time
 	serviceName           string
 	peerAddress           string
+	localAddress          string
 	peerPort              string
+	localPort             string
 	serverDuration        time.Duration
 	duration              time.Duration
 	totalServerDuration   time.Duration
 	totalDispatchDuration time.Duration
 	totalEncodeDuration   time.Duration
 	lastDispatchPeer      string
+	lastDispatchLocal     string
 	lastDispatchPeerPort  string
+	lastDispatchLocalPort string
 	lastDispatchDuration  time.Duration
+	lastServerDuration    time.Duration
 	lastOperationID       string
 	lastLocalID           string
-	documentKey           string
 	lock                  sync.Mutex
 }
 
-func (n *thresholdLogSpan) Context() requestSpanContext {
+func (n *thresholdLogSpan) Context() RequestSpanContext {
 	return &thresholdLogSpanContext{n}
 }
 
-func (n *thresholdLogSpan) SetTag(key string, value interface{}) requestSpan {
+func (n *thresholdLogSpan) SetAttribute(key string, value interface{}) {
 	var ok bool
 
 	switch key {
 	case spanAttribServerDurationKey:
 		if n.serverDuration, ok = value.(time.Duration); !ok {
-			logDebugf("Failed to cast span server_duration tag")
+			logDebugf("Failed to cast span db.couchbase.server_duration tag")
 		}
 	case spanAttribServiceKey:
 		if n.serviceName, ok = value.(string); !ok {
-			logDebugf("Failed to cast span couchbase.service tag")
+			logDebugf("Failed to cast span db.couchbase.service tag")
 		}
 	case spanAttribNetPeerNameKey:
 		if n.peerAddress, ok = value.(string); !ok {
 			logDebugf("Failed to cast span net.peer.name tag")
 		}
+	case spanAttribNetHostNameKey:
+		if n.localAddress, ok = value.(string); !ok {
+			logDebugf("Failed to cast span net.host.local tag")
+		}
 	case spanAttribOperationIDKey:
 		if n.lastOperationID, ok = value.(string); !ok {
 			logDebugf("Failed to cast span db.couchbase.operation_id tag")
-		}
-	case "couchbase.document_key":
-		if n.documentKey, ok = value.(string); !ok {
-			logDebugf("Failed to cast span couchbase.document_key tag")
 		}
 	case spanAttribLocalIDKey:
 		if n.lastLocalID, ok = value.(string); !ok {
@@ -377,19 +392,28 @@ func (n *thresholdLogSpan) SetTag(key string, value interface{}) requestSpan {
 		if n.peerPort, ok = value.(string); !ok {
 			logDebugf("Failed to cast span net.peer.port tag")
 		}
+	case spanAttribNetHostPortKey:
+		if n.localPort, ok = value.(string); !ok {
+			logDebugf("Failed to cast span net.host.port tag")
+		}
 	}
-	return n
 }
 
-func (n *thresholdLogSpan) Finish() {
+func (n *thresholdLogSpan) AddEvent(key string, timestamp time.Time) {
+}
+
+func (n *thresholdLogSpan) End() {
 	n.duration = time.Since(n.startTime)
 
 	n.totalServerDuration += n.serverDuration
 	if n.opName == spanNameDispatchToServer {
 		n.totalDispatchDuration += n.duration
 		n.lastDispatchPeer = n.peerAddress
+		n.lastDispatchLocal = n.localAddress
 		n.lastDispatchPeerPort = n.peerPort
+		n.lastDispatchLocalPort = n.localPort
 		n.lastDispatchDuration = n.duration
+		n.lastServerDuration = n.serverDuration
 	}
 	if n.opName == spanNameRequestEncoding {
 		n.totalEncodeDuration += n.duration
@@ -404,14 +428,23 @@ func (n *thresholdLogSpan) Finish() {
 			n.parent.lastDispatchPeer = n.lastDispatchPeer
 			n.parent.lastDispatchDuration = n.lastDispatchDuration
 		}
+		if n.lastDispatchPeer != "" || n.lastServerDuration > 0 {
+			n.parent.lastServerDuration = n.lastServerDuration
+		}
+		if n.lastDispatchLocal != "" {
+			n.parent.lastDispatchLocal = n.lastDispatchLocal
+		}
 		if n.lastOperationID != "" {
 			n.parent.lastOperationID = n.lastOperationID
 		}
 		if n.lastLocalID != "" {
 			n.parent.lastLocalID = n.lastLocalID
 		}
-		if n.documentKey != "" {
-			n.parent.documentKey = n.documentKey
+		if n.lastDispatchLocalPort != "" {
+			n.parent.lastDispatchLocalPort = n.lastDispatchLocalPort
+		}
+		if n.lastDispatchPeerPort != "" {
+			n.parent.lastDispatchPeerPort = n.lastDispatchPeerPort
 		}
 		if n.lastDispatchPeerPort != "" {
 			n.parent.lastDispatchPeerPort = n.lastDispatchPeerPort

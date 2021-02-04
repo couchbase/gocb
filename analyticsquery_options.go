@@ -36,7 +36,7 @@ type AnalyticsOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 
-	parentSpan requestSpanContext
+	ParentSpan RequestSpan
 }
 
 func (opts *AnalyticsOptions) toMap() (map[string]interface{}, error) {

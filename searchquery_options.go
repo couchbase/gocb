@@ -59,7 +59,7 @@ type SearchOptions struct {
 	// UNCOMMITTED: This API may change in the future.
 	Collections []string
 
-	parentSpan requestSpanContext
+	ParentSpan RequestSpan
 }
 
 func (opts *SearchOptions) toMap() (map[string]interface{}, error) {

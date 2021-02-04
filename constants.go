@@ -282,15 +282,20 @@ const (
 )
 
 const (
-	// These are part of spans which come from gocbcore.
-	spanNameDispatchToServer    = "dispatch_to_server"
-	spanAttribOperationIDKey    = "db.couchbase.operation_id"
-	spanAttribLocalIDKey        = "db.couchbase.local_id"
-	spanAttribNetPeerNameKey    = "net.peer.name"
-	spanAttribNetPeerPortKey    = "net.peer.port"
-	spanAttribServerDurationKey = "db.couchbase.server_duration"
-
-	// These are part of spans which come from gocb itself.
-	spanNameRequestEncoding = "encode"
-	spanAttribServiceKey    = "couchbase.service"
+	spanNameDispatchToServer      = "dispatch_to_server"
+	spanNameRequestEncoding       = "request_encoding"
+	spanAttribDBSystemKey         = "db.system"
+	spanAttribDBSystemValue       = "couchbase"
+	spanAttribOperationIDKey      = "db.couchbase.operation_id"
+	spanAttribOperationKey        = "db.operation"
+	spanAttribLocalIDKey          = "db.couchbase.local_id"
+	spanAttribNetHostNameKey      = "net.host.name"
+	spanAttribNetHostPortKey      = "net.host.port"
+	spanAttribNetPeerNameKey      = "net.peer.name"
+	spanAttribNetPeerPortKey      = "net.peer.port"
+	spanAttribServerDurationKey   = "db.couchbase.server_duration"
+	spanAttribServiceKey          = "db.couchbase.service"
+	spanAttribDBNameKey           = "db.name"
+	spanAttribDBCollectionNameKey = "db.couchbase.collection"
+	spanAttribDBScopeNameKey      = "db.couchbase.scope"
 )

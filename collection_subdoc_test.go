@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"errors"
+	"github.com/couchbase/gocbcore/v9/memd"
 	"strings"
 )
 
@@ -89,6 +90,14 @@ func (suite *IntegrationTestSuite) TestInsertLookupIn() {
 	if count != 2 {
 		suite.T().Fatalf("LookupIn Result count should have be 2 but was %d", count)
 	}
+
+	suite.Require().Contains(suite.tracer.Spans, nil)
+	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Equal(len(nilParents), 2)
+	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), 1,
+		false, true)
+	suite.AssertKvOpSpan(nilParents[1], "lookup_in", memd.CmdSubDocMultiLookup.Name(), 1,
+		false, false)
 }
 
 func (suite *IntegrationTestSuite) TestMutateInBasicCrud() {
@@ -176,6 +185,17 @@ func (suite *IntegrationTestSuite) TestMutateInBasicCrud() {
 	if actualDoc != expectedDoc {
 		suite.T().Fatalf("results did not match, expected %#v but was %#v", expectedDoc, actualDoc)
 	}
+
+	suite.Require().Contains(suite.tracer.Spans, nil)
+	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Equal(len(nilParents), 3)
+	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), 1,
+		false, true)
+	suite.AssertKvSpan(nilParents[1], "mutate_in")
+	suite.AssertEncodingSpansEq(nilParents[1].Spans, 7)
+	suite.AssertCmdSpansEq(nilParents[1].Spans, memd.CmdSubDocMultiMutation.Name(), 1)
+	suite.AssertKvOpSpan(nilParents[2], "get", memd.CmdGet.Name(), 1,
+		false, false)
 }
 
 func (suite *IntegrationTestSuite) TestMutateInBasicArray() {

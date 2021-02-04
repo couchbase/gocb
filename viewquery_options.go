@@ -60,6 +60,7 @@ type ViewOptions struct {
 	EndKeyDocID     string
 	OnError         ViewErrorMode
 	Debug           bool
+	ParentSpan      RequestSpan
 
 	// Raw provides a way to provide extra parameters in the request body for the query.
 	Raw map[string]string
@@ -68,8 +69,6 @@ type ViewOptions struct {
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
-
-	parentSpan requestSpanContext
 }
 
 func (opts *ViewOptions) toURLValues() (*url.Values, error) {

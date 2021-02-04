@@ -114,6 +114,7 @@ func (suite *UnitTestSuite) TestClusterPingAll() {
 			SearchTimeout:    1000 * time.Second,
 		},
 		connectionManager: cli,
+		tracer:            &NoopTracer{},
 	}
 
 	report, err := c.Ping(nil)
@@ -198,6 +199,7 @@ func (suite *UnitTestSuite) TestClusterPingOne() {
 			SearchTimeout:    1000 * time.Second,
 		},
 		connectionManager: cli,
+		tracer:            &NoopTracer{},
 	}
 
 	reportID := "myreportid"

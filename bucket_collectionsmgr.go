@@ -47,7 +47,7 @@ type jsonManifestCollection struct {
 type CollectionManager struct {
 	mgmtProvider mgmtProvider
 	bucketName   string
-	tracer       requestTracer
+	tracer       RequestTracer
 }
 
 func (cm *CollectionManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
@@ -78,6 +78,7 @@ func (cm *CollectionManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtRe
 type GetAllScopesOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // GetAllScopes gets all scopes from the bucket.
@@ -86,19 +87,21 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 		opts = &GetAllScopesOptions{}
 	}
 
-	span := cm.tracer.StartSpan("GetAllScopes", nil).
-		SetTag("couchbase.service", "mgmt")
-	defer span.Finish()
+	path := fmt.Sprintf("/pools/default/buckets/%s/scopes", cm.bucketName)
+	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_get_all_scopes", "management")
+	span.SetAttribute("db.name", cm.bucketName)
+	span.SetAttribute("db.operation", "GET "+path)
+	defer span.End()
 
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
-		Path:          fmt.Sprintf("/pools/default/buckets/%s/scopes", cm.bucketName),
+		Path:          path,
 		Method:        "GET",
 		RetryStrategy: opts.RetryStrategy,
 		IsIdempotent:  true,
 		UniqueID:      uuid.New().String(),
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 
 	resp, err := cm.mgmtProvider.executeMgmtRequest(req)
@@ -165,6 +168,7 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 type CreateCollectionOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // CreateCollection creates a new collection on the bucket.
@@ -181,9 +185,13 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 		opts = &CreateCollectionOptions{}
 	}
 
-	span := cm.tracer.StartSpan("CreateCollection", nil).
-		SetTag("couchbase.service", "mgmt")
-	defer span.Finish()
+	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections", cm.bucketName, spec.ScopeName)
+	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_create_collection", "management")
+	span.SetAttribute("db.name", cm.bucketName)
+	span.SetAttribute("db.couchbase.scope", spec.ScopeName)
+	span.SetAttribute("db.couchbase.collection", spec.Name)
+	span.SetAttribute("db.operation", "POST "+path)
+	defer span.End()
 
 	posts := url.Values{}
 	posts.Add("name", spec.Name)
@@ -192,16 +200,20 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 		posts.Add("maxTTL", fmt.Sprintf("%d", int(spec.MaxExpiry.Seconds())))
 	}
 
+	eSpan := createSpan(cm.tracer, span, "request_encoding", "")
+	encoded := posts.Encode()
+	eSpan.End()
+
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
-		Path:          fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections", cm.bucketName, spec.ScopeName),
+		Path:          path,
 		Method:        "POST",
-		Body:          []byte(posts.Encode()),
+		Body:          []byte(encoded),
 		ContentType:   "application/x-www-form-urlencoded",
 		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 
 	resp, err := cm.mgmtProvider.executeMgmtRequest(req)
@@ -230,6 +242,7 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 type DropCollectionOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // DropCollection removes a collection.
@@ -246,18 +259,22 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 		opts = &DropCollectionOptions{}
 	}
 
-	span := cm.tracer.StartSpan("DropCollection", nil).
-		SetTag("couchbase.service", "mgmt")
-	defer span.Finish()
+	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections/%s", cm.bucketName, spec.ScopeName, spec.Name)
+	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_drop_collection", "management")
+	span.SetAttribute("db.name", cm.bucketName)
+	span.SetAttribute("db.couchbase.scope", spec.ScopeName)
+	span.SetAttribute("db.couchbase.collection", spec.Name)
+	span.SetAttribute("db.operation", "DELETE "+path)
+	defer span.End()
 
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
-		Path:          fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections/%s", cm.bucketName, spec.ScopeName, spec.Name),
+		Path:          path,
 		Method:        "DELETE",
 		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 
 	resp, err := cm.mgmtProvider.executeMgmtRequest(req)
@@ -286,6 +303,7 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 type CreateScopeOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // CreateScope creates a new scope on the bucket.
@@ -298,23 +316,30 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 		opts = &CreateScopeOptions{}
 	}
 
-	span := cm.tracer.StartSpan("CreateScope", nil).
-		SetTag("couchbase.service", "mgmt")
-	defer span.Finish()
+	path := fmt.Sprintf("/pools/default/buckets/%s/scopes", cm.bucketName)
+	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_create_scope", "management")
+	span.SetAttribute("db.name", cm.bucketName)
+	span.SetAttribute("db.couchbase.scope", scopeName)
+	span.SetAttribute("db.operation", "POST "+path)
+	defer span.End()
 
 	posts := url.Values{}
 	posts.Add("name", scopeName)
 
+	eSpan := createSpan(cm.tracer, span, "request_encoding", "")
+	encoded := posts.Encode()
+	eSpan.End()
+
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
-		Path:          fmt.Sprintf("/pools/default/buckets/%s/scopes", cm.bucketName),
+		Path:          path,
 		Method:        "POST",
-		Body:          []byte(posts.Encode()),
+		Body:          []byte(encoded),
 		ContentType:   "application/x-www-form-urlencoded",
 		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 
 	resp, err := cm.mgmtProvider.executeMgmtRequest(req)
@@ -343,6 +368,7 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 type DropScopeOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // DropScope removes a scope.
@@ -351,18 +377,21 @@ func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions)
 		opts = &DropScopeOptions{}
 	}
 
-	span := cm.tracer.StartSpan("DropScope", nil).
-		SetTag("couchbase.service", "mgmt")
-	defer span.Finish()
+	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s", cm.bucketName, scopeName)
+	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_drop_scope", "management")
+	span.SetAttribute("db.name", cm.bucketName)
+	span.SetAttribute("db.couchbase.scope", scopeName)
+	span.SetAttribute("db.operation", "DELETE "+path)
+	defer span.End()
 
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
-		Path:          fmt.Sprintf("/pools/default/buckets/%s/scopes/%s", cm.bucketName, scopeName),
+		Path:          path,
 		Method:        "DELETE",
 		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 
 	resp, err := cm.mgmtProvider.executeMgmtRequest(req)

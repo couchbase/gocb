@@ -77,6 +77,7 @@ type PingOptions struct {
 	ServiceTypes []ServiceType
 	ReportID     string
 	Timeout      time.Duration
+	ParentSpan   RequestSpan
 }
 
 // Ping will ping a list of services and verify they are active and
@@ -86,10 +87,13 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 		opts = &PingOptions{}
 	}
 
+	span := createSpan(b.tracer, opts.ParentSpan, "ping", "kv")
+	defer span.End()
+
 	provider, err := b.connectionManager.getDiagnosticsProvider(b.bucketName)
 	if err != nil {
 		return nil, err
 	}
 
-	return ping(provider, opts, b.timeoutsConfig)
+	return ping(provider, opts, b.timeoutsConfig, span)
 }

@@ -291,9 +291,9 @@ func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResult, err
 		opts = &QueryOptions{}
 	}
 
-	span := c.tracer.StartSpan("Query", opts.parentSpan).
-		SetTag("couchbase.service", "query")
-	defer span.Finish()
+	span := createSpan(c.tracer, opts.ParentSpan, "query", "query")
+	span.SetAttribute("db.statement", statement)
+	defer span.End()
 
 	timeout := opts.Timeout
 	if timeout == 0 {
@@ -337,18 +337,19 @@ func maybeGetQueryOption(options map[string]interface{}, name string) string {
 }
 
 func execN1qlQuery(
-	span requestSpan,
+	span RequestSpan,
 	options map[string]interface{},
 	deadline time.Time,
 	retryStrategy *retryStrategyWrapper,
 	adHoc bool,
 	provider queryProvider,
-	tracer requestTracer,
+	tracer RequestTracer,
 ) (*QueryResult, error) {
 
-	eSpan := tracer.StartSpan("request_encoding", span.Context())
+	eSpan := tracer.RequestSpan(span.Context(), "request_encoding")
+	eSpan.SetAttribute("db.system", "couchbase")
 	reqBytes, err := json.Marshal(options)
-	eSpan.Finish()
+	eSpan.End()
 	if err != nil {
 		return nil, QueryError{
 			InnerError:      wrapError(err, "failed to marshall query body"),

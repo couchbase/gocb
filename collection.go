@@ -17,7 +17,7 @@ type Collection struct {
 
 	transcoder           Transcoder
 	retryStrategyWrapper *retryStrategyWrapper
-	tracer               requestTracer
+	tracer               RequestTracer
 
 	useMutationTokens bool
 
@@ -66,11 +66,18 @@ func (c *Collection) Name() string {
 	return c.collectionName
 }
 
-func (c *Collection) startKvOpTrace(operationName string, tracectx requestSpanContext) requestSpan {
-	return c.tracer.StartSpan(operationName, tracectx).
-		SetTag("couchbase.bucket", c.bucket).
-		SetTag("couchbase.collection", c.collectionName).
-		SetTag("couchbase.service", "kv")
+func (c *Collection) startKvOpTrace(operationName string, tracectx RequestSpanContext, noAttributes bool) RequestSpan {
+	span := c.tracer.RequestSpan(tracectx, operationName)
+	if !noAttributes {
+		span.SetAttribute(spanAttribDBNameKey, c.bucket.Name())
+		span.SetAttribute(spanAttribDBCollectionNameKey, c.Name())
+		span.SetAttribute(spanAttribDBScopeNameKey, c.ScopeName())
+		span.SetAttribute(spanAttribServiceKey, "kv")
+		span.SetAttribute(spanAttribOperationKey, operationName)
+	}
+	span.SetAttribute(spanAttribDBSystemKey, spanAttribDBSystemValue)
+
+	return span
 }
 
 func (c *Collection) bucketName() string {

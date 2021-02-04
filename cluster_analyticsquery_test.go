@@ -25,16 +25,34 @@ func (suite *IntegrationTestSuite) TestClusterAnalyticsQuery() {
 
 	n := suite.setupClusterAnalytics()
 	query := fmt.Sprintf("SELECT `testAnalytics`.* FROM `testAnalytics` WHERE service=? LIMIT %d;", n)
-	suite.runAnalyticsTest(n, query, globalCluster)
+	suite.runAnalyticsTest(n, query, "", "", globalCluster)
 }
 
-func (suite *IntegrationTestSuite) runAnalyticsTest(n int, query string, provider analyticsIface) {
+func (suite *IntegrationTestSuite) runAnalyticsTest(n int, query, bucket, scope string, provider analyticsIface) {
 	deadline := time.Now().Add(60 * time.Second)
 	for {
+		suite.tracer.Reset()
+		contextID := "contextID"
 		result, err := provider.AnalyticsQuery(query, &AnalyticsOptions{
 			PositionalParameters: []interface{}{"analytics"},
+			ClientContextID:      contextID,
 		})
 		suite.Require().Nil(err, "Failed to execute query %v", err)
+
+		suite.Require().Contains(suite.tracer.Spans, nil)
+		nilParents := suite.tracer.Spans[nil]
+		suite.Require().Equal(1, len(nilParents))
+		suite.AssertHTTPOpSpan(nilParents[0], "analytics",
+			HTTPOpSpanExpectations{
+				bucket:                  bucket,
+				scope:                   scope,
+				statement:               query,
+				numDispatchSpans:        1,
+				atLeastNumDispatchSpans: false,
+				hasEncoding:             true,
+				service:                 "analytics",
+				dispatchOperationID:     "contextID",
+			})
 
 		var samples []interface{}
 		for result.Next() {

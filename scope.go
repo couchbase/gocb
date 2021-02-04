@@ -10,7 +10,7 @@ type Scope struct {
 
 	transcoder           Transcoder
 	retryStrategyWrapper *retryStrategyWrapper
-	tracer               requestTracer
+	tracer               RequestTracer
 
 	useMutationTokens bool
 

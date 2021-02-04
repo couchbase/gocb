@@ -394,9 +394,9 @@ func (c *Cluster) SearchQuery(indexName string, query cbsearch.Query, opts *Sear
 		opts = &SearchOptions{}
 	}
 
-	span := c.tracer.StartSpan("SearchQuery", opts.parentSpan).
-		SetTag("couchbase.service", "search")
-	defer span.Finish()
+	span := createSpan(c.tracer, opts.ParentSpan, "search", "search")
+	span.SetAttribute("db.operation", indexName)
+	defer span.End()
 
 	timeout := opts.Timeout
 	if timeout == 0 {
@@ -430,7 +430,7 @@ func maybeGetSearchOptionQuery(options map[string]interface{}) interface{} {
 }
 
 func (c *Cluster) execSearchQuery(
-	span requestSpan,
+	span RequestSpan,
 	indexName string,
 	options map[string]interface{},
 	deadline time.Time,
@@ -444,7 +444,9 @@ func (c *Cluster) execSearchQuery(
 		}
 	}
 
+	eSpan := createSpan(c.tracer, span, "request_encoding", "")
 	reqBytes, err := json.Marshal(options)
+	eSpan.End()
 	if err != nil {
 		return nil, SearchError{
 			InnerError: wrapError(err, "failed to marshall query body"),

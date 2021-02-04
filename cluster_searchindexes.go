@@ -95,7 +95,7 @@ func (si *SearchIndex) toData() (jsonSearchIndex, error) {
 type SearchIndexManager struct {
 	mgmtProvider mgmtProvider
 
-	tracer requestTracer
+	tracer RequestTracer
 }
 
 func (sm *SearchIndexManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
@@ -130,6 +130,7 @@ func (sm *SearchIndexManager) doMgmtRequest(req mgmtRequest) (*mgmtResponse, err
 type GetAllSearchIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // GetAllIndexes retrieves all of the search indexes for the cluster.
@@ -138,9 +139,9 @@ func (sm *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]S
 		opts = &GetAllSearchIndexOptions{}
 	}
 
-	span := sm.tracer.StartSpan("GetAllIndexes", nil).
-		SetTag("couchbase.service", "search")
-	defer span.Finish()
+	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_get_all_indexes", "management")
+	span.SetAttribute("db.operation", "GET /api/index")
+	defer span.End()
 
 	req := mgmtRequest{
 		Service:       ServiceTypeSearch,
@@ -149,7 +150,7 @@ func (sm *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]S
 		IsIdempotent:  true,
 		RetryStrategy: opts.RetryStrategy,
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 	resp, err := sm.doMgmtRequest(req)
 	if err != nil {
@@ -192,6 +193,7 @@ func (sm *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]S
 type GetSearchIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // GetIndex retrieves a specific search index by name.
@@ -200,18 +202,19 @@ func (sm *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOpt
 		opts = &GetSearchIndexOptions{}
 	}
 
-	span := sm.tracer.StartSpan("GetIndex", nil).
-		SetTag("couchbase.service", "search")
-	defer span.Finish()
+	path := fmt.Sprintf("/api/index/%s", indexName)
+	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_get_index", "management")
+	span.SetAttribute("db.operation", "GET "+path)
+	defer span.End()
 
 	req := mgmtRequest{
 		Service:       ServiceTypeSearch,
 		Method:        "GET",
-		Path:          fmt.Sprintf("/api/index/%s", indexName),
+		Path:          path,
 		IsIdempotent:  true,
 		RetryStrategy: opts.RetryStrategy,
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 	resp, err := sm.doMgmtRequest(req)
 	if err != nil {
@@ -248,6 +251,7 @@ func (sm *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOpt
 type UpsertSearchIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // UpsertIndex creates or updates a search index.
@@ -263,9 +267,10 @@ func (sm *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Ups
 		return invalidArgumentsError{"index type cannot be empty"}
 	}
 
-	span := sm.tracer.StartSpan("UpsertIndex", nil).
-		SetTag("couchbase.service", "search")
-	defer span.Finish()
+	path := fmt.Sprintf("/api/index/%s", indexDefinition.Name)
+	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_upsert_index", "management")
+	span.SetAttribute("db.operation", "PUT "+path)
+	defer span.End()
 
 	indexData, err := indexDefinition.toData()
 	if err != nil {
@@ -280,14 +285,14 @@ func (sm *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Ups
 	req := mgmtRequest{
 		Service: ServiceTypeSearch,
 		Method:  "PUT",
-		Path:    fmt.Sprintf("/api/index/%s", indexDefinition.Name),
+		Path:    path,
 		Headers: map[string]string{
 			"cache-control": "no-cache",
 		},
 		Body:          b,
 		RetryStrategy: opts.RetryStrategy,
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 	resp, err := sm.doMgmtRequest(req)
 	if err != nil {
@@ -311,6 +316,7 @@ func (sm *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Ups
 type DropSearchIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // DropIndex removes the search index with the specific name.
@@ -323,17 +329,18 @@ func (sm *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndexO
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	span := sm.tracer.StartSpan("DropIndex", nil).
-		SetTag("couchbase.service", "search")
-	defer span.Finish()
+	path := fmt.Sprintf("/api/index/%s", indexName)
+	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_drop_index", "management")
+	span.SetAttribute("db.operation", "DELETE "+path)
+	defer span.End()
 
 	req := mgmtRequest{
 		Service:       ServiceTypeSearch,
 		Method:        "DELETE",
-		Path:          fmt.Sprintf("/api/index/%s", indexName),
+		Path:          path,
 		RetryStrategy: opts.RetryStrategy,
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 	resp, err := sm.doMgmtRequest(req)
 	if err != nil {
@@ -352,6 +359,7 @@ func (sm *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndexO
 type AnalyzeDocumentOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // AnalyzeDocument returns how a doc is analyzed against a specific index.
@@ -364,9 +372,10 @@ func (sm *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{},
 		return nil, invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	span := sm.tracer.StartSpan("AnalyzeDocument", nil).
-		SetTag("couchbase.service", "search")
-	defer span.Finish()
+	path := fmt.Sprintf("/api/index/%s/analyzeDoc", indexName)
+	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_analyze_document", "management")
+	span.SetAttribute("db.operation", "POST "+path)
+	defer span.End()
 
 	b, err := json.Marshal(doc)
 	if err != nil {
@@ -376,12 +385,12 @@ func (sm *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{},
 	req := mgmtRequest{
 		Service:       ServiceTypeSearch,
 		Method:        "POST",
-		Path:          fmt.Sprintf("/api/index/%s/analyzeDoc", indexName),
+		Path:          path,
 		Body:          b,
 		IsIdempotent:  true,
 		RetryStrategy: opts.RetryStrategy,
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 	resp, err := sm.doMgmtRequest(req)
 	if err != nil {
@@ -415,6 +424,7 @@ func (sm *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{},
 type GetIndexedDocumentsCountOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // GetIndexedDocumentsCount retrieves the document count for a search index.
@@ -427,18 +437,19 @@ func (sm *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *G
 		return 0, invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	span := sm.tracer.StartSpan("GetIndexedDocumentsCount", nil).
-		SetTag("couchbase.service", "search")
-	defer span.Finish()
+	path := fmt.Sprintf("/api/index/%s/count", indexName)
+	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_get_indexed_documents_count", "management")
+	span.SetAttribute("db.operation", "GET "+path)
+	defer span.End()
 
 	req := mgmtRequest{
 		Service:       ServiceTypeSearch,
 		Method:        "GET",
-		Path:          fmt.Sprintf("/api/index/%s/count", indexName),
+		Path:          path,
 		IsIdempotent:  true,
 		RetryStrategy: opts.RetryStrategy,
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 	resp, err := sm.doMgmtRequest(req)
 	if err != nil {
@@ -468,7 +479,7 @@ func (sm *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *G
 }
 
 func (sm *SearchIndexManager) performControlRequest(
-	tracectx requestSpanContext,
+	tracectx RequestSpanContext,
 	method, uri string,
 	timeout time.Duration,
 	retryStrategy RetryStrategy,
@@ -480,7 +491,7 @@ func (sm *SearchIndexManager) performControlRequest(
 		IsIdempotent:  true,
 		Timeout:       timeout,
 		RetryStrategy: retryStrategy,
-		parentSpan:    tracectx,
+		parentSpanCtx: tracectx,
 	}
 
 	resp, err := sm.doMgmtRequest(req)
@@ -505,6 +516,7 @@ func (sm *SearchIndexManager) performControlRequest(
 type PauseIngestSearchIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // PauseIngest pauses updates and maintenance for an index.
@@ -517,14 +529,15 @@ func (sm *SearchIndexManager) PauseIngest(indexName string, opts *PauseIngestSea
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	span := sm.tracer.StartSpan("PauseIngest", nil).
-		SetTag("couchbase.service", "search")
-	defer span.Finish()
+	path := fmt.Sprintf("/api/index/%s/ingestControl/pause", indexName)
+	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_pause_ingest", "management")
+	span.SetAttribute("db.operation", "POST "+path)
+	defer span.End()
 
 	return sm.performControlRequest(
 		span.Context(),
 		"POST",
-		fmt.Sprintf("/api/index/%s/ingestControl/pause", indexName),
+		path,
 		opts.Timeout,
 		opts.RetryStrategy)
 }
@@ -533,6 +546,7 @@ func (sm *SearchIndexManager) PauseIngest(indexName string, opts *PauseIngestSea
 type ResumeIngestSearchIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // ResumeIngest resumes updates and maintenance for an index.
@@ -545,14 +559,15 @@ func (sm *SearchIndexManager) ResumeIngest(indexName string, opts *ResumeIngestS
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	span := sm.tracer.StartSpan("ResumeIngest", nil).
-		SetTag("couchbase.service", "search")
-	defer span.Finish()
+	path := fmt.Sprintf("/api/index/%s/ingestControl/resume", indexName)
+	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_resume_ingest", "management")
+	span.SetAttribute("db.operation", "POST "+path)
+	defer span.End()
 
 	return sm.performControlRequest(
 		span.Context(),
 		"POST",
-		fmt.Sprintf("/api/index/%s/ingestControl/resume", indexName),
+		path,
 		opts.Timeout,
 		opts.RetryStrategy)
 }
@@ -561,6 +576,7 @@ func (sm *SearchIndexManager) ResumeIngest(indexName string, opts *ResumeIngestS
 type AllowQueryingSearchIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // AllowQuerying allows querying against an index.
@@ -573,14 +589,15 @@ func (sm *SearchIndexManager) AllowQuerying(indexName string, opts *AllowQueryin
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	span := sm.tracer.StartSpan("AllowQuerying", nil).
-		SetTag("couchbase.service", "search")
-	defer span.Finish()
+	path := fmt.Sprintf("/api/index/%s/queryControl/allow", indexName)
+	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_allow_querying", "management")
+	span.SetAttribute("db.operation", "POST "+path)
+	defer span.End()
 
 	return sm.performControlRequest(
 		span.Context(),
 		"POST",
-		fmt.Sprintf("/api/index/%s/queryControl/allow", indexName),
+		path,
 		opts.Timeout,
 		opts.RetryStrategy)
 }
@@ -589,6 +606,7 @@ func (sm *SearchIndexManager) AllowQuerying(indexName string, opts *AllowQueryin
 type DisallowQueryingSearchIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // DisallowQuerying disallows querying against an index.
@@ -601,14 +619,15 @@ func (sm *SearchIndexManager) DisallowQuerying(indexName string, opts *AllowQuer
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	span := sm.tracer.StartSpan("DisallowQuerying", nil).
-		SetTag("couchbase.service", "search")
-	defer span.Finish()
+	path := fmt.Sprintf("/api/index/%s/queryControl/disallow", indexName)
+	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_disallow_querying", "management")
+	span.SetAttribute("db.operation", "POST "+path)
+	defer span.End()
 
 	return sm.performControlRequest(
 		span.Context(),
 		"POST",
-		fmt.Sprintf("/api/index/%s/queryControl/disallow", indexName),
+		path,
 		opts.Timeout,
 		opts.RetryStrategy)
 }
@@ -617,6 +636,7 @@ func (sm *SearchIndexManager) DisallowQuerying(indexName string, opts *AllowQuer
 type FreezePlanSearchIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // FreezePlan freezes the assignment of index partitions to nodes.
@@ -629,14 +649,15 @@ func (sm *SearchIndexManager) FreezePlan(indexName string, opts *AllowQueryingSe
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	span := sm.tracer.StartSpan("FreezePlan", nil).
-		SetTag("couchbase.service", "search")
-	defer span.Finish()
+	path := fmt.Sprintf("/api/index/%s/planFreezeControl/freeze", indexName)
+	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_freeze_plan", "management")
+	span.SetAttribute("db.operation", "POST "+path)
+	defer span.End()
 
 	return sm.performControlRequest(
 		span.Context(),
 		"POST",
-		fmt.Sprintf("/api/index/%s/planFreezeControl/freeze", indexName),
+		path,
 		opts.Timeout,
 		opts.RetryStrategy)
 }
@@ -645,6 +666,7 @@ func (sm *SearchIndexManager) FreezePlan(indexName string, opts *AllowQueryingSe
 type UnfreezePlanSearchIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // UnfreezePlan unfreezes the assignment of index partitions to nodes.
@@ -657,14 +679,15 @@ func (sm *SearchIndexManager) UnfreezePlan(indexName string, opts *AllowQuerying
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	span := sm.tracer.StartSpan("UnfreezePlan", nil).
-		SetTag("couchbase.service", "search")
-	defer span.Finish()
+	path := fmt.Sprintf("/api/index/%s/planFreezeControl/unfreeze", indexName)
+	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_unfreeze_plan", "management")
+	span.SetAttribute("db.operation", "POST "+path)
+	defer span.End()
 
 	return sm.performControlRequest(
 		span.Context(),
 		"POST",
-		fmt.Sprintf("/api/index/%s/planFreezeControl/unfreeze", indexName),
+		path,
 		opts.Timeout,
 		opts.RetryStrategy)
 }

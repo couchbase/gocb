@@ -14,6 +14,7 @@ import (
 type LookupInOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -28,7 +29,7 @@ func (c *Collection) LookupIn(id string, ops []LookupInSpec, opts *LookupInOptio
 		opts = &LookupInOptions{}
 	}
 
-	opm := c.newKvOpManager("LookupIn", nil)
+	opm := c.newKvOpManager("lookup_in", opts.ParentSpan)
 	defer opm.Finish()
 
 	opm.SetDocumentID(id)
@@ -95,7 +96,7 @@ func (c *Collection) internalLookupIn(
 		CollectionName: opm.CollectionName(),
 		ScopeName:      opm.ScopeName(),
 		RetryStrategy:  opm.RetryStrategy(),
-		TraceContext:   opm.TraceSpan(),
+		TraceContext:   opm.TraceSpanContext(),
 		Deadline:       opm.Deadline(),
 		Flags:          flags,
 		User:           opm.Impersonate(),
@@ -151,6 +152,7 @@ type MutateInOptions struct {
 	StoreSemantic   StoreSemantics
 	Timeout         time.Duration
 	RetryStrategy   RetryStrategy
+	ParentSpan      RequestSpan
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -165,7 +167,7 @@ func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptio
 		opts = &MutateInOptions{}
 	}
 
-	opm := c.newKvOpManager("MutateIn", nil)
+	opm := c.newKvOpManager("mutate_in", opts.ParentSpan)
 	defer opm.Finish()
 
 	opm.SetDocumentID(id)
@@ -261,9 +263,9 @@ func (c *Collection) internalMutateIn(
 			}
 		}
 
-		etrace := c.startKvOpTrace("encode", opm.TraceSpan())
+		etrace := c.startKvOpTrace("request_encoding", opm.TraceSpanContext(), true)
 		bytes, flags, err := jsonMarshalMutateSpec(op)
-		etrace.Finish()
+		etrace.End()
 		if err != nil {
 			return nil, err
 		}
@@ -299,7 +301,7 @@ func (c *Collection) internalMutateIn(
 		DurabilityLevel:        opm.DurabilityLevel(),
 		DurabilityLevelTimeout: opm.DurabilityTimeout(),
 		RetryStrategy:          opm.RetryStrategy(),
-		TraceContext:           opm.TraceSpan(),
+		TraceContext:           opm.TraceSpanContext(),
 		Deadline:               opm.Deadline(),
 		User:                   opm.Impersonate(),
 	}, func(res *gocbcore.MutateInResult, err error) {

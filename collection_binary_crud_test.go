@@ -1,5 +1,7 @@
 package gocb
 
+import "github.com/couchbase/gocbcore/v9/memd"
+
 func (suite *IntegrationTestSuite) TestBinaryAppend() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(AdjoinFeature)
@@ -42,6 +44,16 @@ func (suite *IntegrationTestSuite) TestBinaryAppend() {
 	if string(appendContent) != "foobar" {
 		suite.T().Fatalf("Expected append result to be foobar but was %s", appendContent)
 	}
+
+	suite.Require().Contains(suite.tracer.Spans, nil)
+	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Equal(len(nilParents), 3)
+	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), 1,
+		false, true)
+	suite.AssertKvOpSpan(nilParents[1], "append", memd.CmdAppend.Name(), 1,
+		false, false)
+	suite.AssertKvOpSpan(nilParents[2], "get", memd.CmdGet.Name(), 1,
+		false, false)
 }
 
 func (suite *IntegrationTestSuite) TestBinaryPrepend() {
@@ -87,6 +99,16 @@ func (suite *IntegrationTestSuite) TestBinaryPrepend() {
 	if string(appendContent) != "barfoo" {
 		suite.T().Fatalf("Expected prepend result to be boofar but was %s", appendContent)
 	}
+
+	suite.Require().Contains(suite.tracer.Spans, nil)
+	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Equal(len(nilParents), 3)
+	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), 1,
+		false, true)
+	suite.AssertKvOpSpan(nilParents[1], "prepend", memd.CmdPrepend.Name(), 1,
+		false, false)
+	suite.AssertKvOpSpan(nilParents[2], "get", memd.CmdGet.Name(), 1,
+		false, false)
 }
 
 func (suite *IntegrationTestSuite) TestBinaryIncrement() {
@@ -153,6 +175,18 @@ func (suite *IntegrationTestSuite) TestBinaryIncrement() {
 	if incrementContent != 20 {
 		suite.T().Fatalf("Expected counter value to be 20 but was %d", res.Content())
 	}
+
+	suite.Require().Contains(suite.tracer.Spans, nil)
+	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Equal(len(nilParents), 4)
+	suite.AssertKvOpSpan(nilParents[0], "increment", memd.CmdIncrement.Name(), 1,
+		false, false)
+	suite.AssertKvOpSpan(nilParents[1], "increment", memd.CmdIncrement.Name(), 1,
+		false, false)
+	suite.AssertKvOpSpan(nilParents[2], "increment", memd.CmdIncrement.Name(), 1,
+		false, false)
+	suite.AssertKvOpSpan(nilParents[3], "get", memd.CmdGet.Name(), 1,
+		false, false)
 }
 
 func (suite *IntegrationTestSuite) TestBinaryDecrement() {
@@ -220,4 +254,16 @@ func (suite *IntegrationTestSuite) TestBinaryDecrement() {
 	if incrementContent != 80 {
 		suite.T().Fatalf("Expected counter value to be 80 but was %d", res.Content())
 	}
+
+	suite.Require().Contains(suite.tracer.Spans, nil)
+	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Equal(len(nilParents), 4)
+	suite.AssertKvOpSpan(nilParents[0], "decrement", memd.CmdDecrement.Name(), 1,
+		false, false)
+	suite.AssertKvOpSpan(nilParents[1], "decrement", memd.CmdDecrement.Name(), 1,
+		false, false)
+	suite.AssertKvOpSpan(nilParents[2], "decrement", memd.CmdDecrement.Name(), 1,
+		false, false)
+	suite.AssertKvOpSpan(nilParents[3], "get", memd.CmdGet.Name(), 1,
+		false, false)
 }

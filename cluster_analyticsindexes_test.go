@@ -198,4 +198,126 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrud() {
 	if !errors.Is(err, ErrDataverseNotFound) {
 		suite.T().Fatalf("Expected error to be dataverse not found but was %v", err)
 	}
+
+	spans := 22
+	if globalCluster.SupportsFeature(AnalyticsIndexPendingMutationsFeature) {
+		spans = 23
+	}
+
+	suite.Require().Contains(suite.tracer.Spans, nil)
+	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Equal(spans, len(nilParents))
+	span := suite.RequireQueryMgmtOpSpan(nilParents[0], "manager_analytics_create_dataverse", "analytics")
+	suite.AssertHTTPOpSpan(span, "analytics",
+		HTTPOpSpanExpectations{
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             true,
+			dispatchOperationID:     "any",
+			service:                 "analytics",
+			statement:               "any",
+		})
+	span = suite.RequireQueryMgmtOpSpan(nilParents[3], "manager_analytics_create_dataset", "analytics")
+	suite.AssertHTTPOpSpan(span, "analytics",
+		HTTPOpSpanExpectations{
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             true,
+			dispatchOperationID:     "any",
+			service:                 "analytics",
+			statement:               "any",
+		})
+	span = suite.RequireQueryMgmtOpSpan(nilParents[6], "manager_analytics_create_index", "analytics")
+	suite.AssertHTTPOpSpan(span, "analytics",
+		HTTPOpSpanExpectations{
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             true,
+			dispatchOperationID:     "any",
+			service:                 "analytics",
+			statement:               "any",
+		})
+	span = suite.RequireQueryMgmtOpSpan(nilParents[9], "manager_analytics_connect_link", "analytics")
+	suite.AssertHTTPOpSpan(span, "analytics",
+		HTTPOpSpanExpectations{
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "analytics",
+			statement:               "any",
+		})
+	span = suite.RequireQueryMgmtOpSpan(nilParents[10], "manager_analytics_get_all_datasets", "analytics")
+	suite.AssertHTTPOpSpan(span, "analytics",
+		HTTPOpSpanExpectations{
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "analytics",
+			statement:               "any",
+		})
+	span = suite.RequireQueryMgmtOpSpan(nilParents[11], "manager_analytics_get_all_indexes", "analytics")
+	suite.AssertHTTPOpSpan(span, "analytics",
+		HTTPOpSpanExpectations{
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "analytics",
+			statement:               "any",
+		})
+	offset := 0
+	if globalCluster.SupportsFeature(AnalyticsIndexPendingMutationsFeature) {
+		offset = 1
+		suite.AssertHTTPOpSpan(nilParents[12], "manager_analytics_get_pending_mutations",
+			HTTPOpSpanExpectations{
+				operationID:             "GET /analytics/node/agg/stats/remaining",
+				numDispatchSpans:        1,
+				atLeastNumDispatchSpans: false,
+				hasEncoding:             false,
+				dispatchOperationID:     "any",
+				service:                 "management",
+			})
+	}
+	span = suite.RequireQueryMgmtOpSpan(nilParents[12+offset], "manager_analytics_disconnect_link", "analytics")
+	suite.AssertHTTPOpSpan(span, "analytics",
+		HTTPOpSpanExpectations{
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "analytics",
+			statement:               "any",
+		})
+	span = suite.RequireQueryMgmtOpSpan(nilParents[13+offset], "manager_analytics_drop_index", "analytics")
+	suite.AssertHTTPOpSpan(span, "analytics",
+		HTTPOpSpanExpectations{
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "analytics",
+			statement:               "any",
+		})
+	span = suite.RequireQueryMgmtOpSpan(nilParents[16+offset], "manager_analytics_drop_dataset", "analytics")
+	suite.AssertHTTPOpSpan(span, "analytics",
+		HTTPOpSpanExpectations{
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "analytics",
+			statement:               "any",
+		})
+	span = suite.RequireQueryMgmtOpSpan(nilParents[19+offset], "manager_analytics_drop_dataverse", "analytics")
+	suite.AssertHTTPOpSpan(span, "analytics",
+		HTTPOpSpanExpectations{
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "analytics",
+			statement:               "any",
+		})
 }

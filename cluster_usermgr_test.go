@@ -509,7 +509,7 @@ func (suite *UnitTestSuite) TestUserManagerGetUserDoesntExist() {
 
 	usrMgr := &UserManager{
 		provider: mockProvider,
-		tracer:   &noopTracer{},
+		tracer:   &NoopTracer{},
 	}
 	_, err := usrMgr.GetUser(username, &GetUserOptions{
 		Timeout: 1 * time.Second,
@@ -542,7 +542,7 @@ func (suite *UnitTestSuite) TestUserManagerDropUserDoesntExist() {
 
 	usrMgr := &UserManager{
 		provider: mockProvider,
-		tracer:   &noopTracer{},
+		tracer:   &NoopTracer{},
 	}
 	err := usrMgr.DropUser(username, &DropUserOptions{
 		Timeout: 1 * time.Second,
@@ -575,7 +575,7 @@ func (suite *UnitTestSuite) TestUserManagerGetGroupDoesntExist() {
 
 	usrMgr := &UserManager{
 		provider: mockProvider,
-		tracer:   &noopTracer{},
+		tracer:   &NoopTracer{},
 	}
 	_, err := usrMgr.GetGroup(name, &GetGroupOptions{
 		Timeout: 1 * time.Second,
@@ -608,7 +608,7 @@ func (suite *UnitTestSuite) TestUserManagerDropGroupDoesntExist() {
 
 	usrMgr := &UserManager{
 		provider: mockProvider,
-		tracer:   &noopTracer{},
+		tracer:   &NoopTracer{},
 	}
 	err := usrMgr.DropGroup(name, &DropGroupOptions{
 		Timeout: 1 * time.Second,

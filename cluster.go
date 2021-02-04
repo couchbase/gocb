@@ -30,7 +30,7 @@ type Cluster struct {
 	orphanLoggerInterval   time.Duration
 	orphanLoggerSampleSize uint32
 
-	tracer requestTracer
+	tracer RequestTracer
 
 	circuitBreakerConfig CircuitBreakerConfig
 	securityConfig       SecurityConfig
@@ -106,8 +106,8 @@ type ClusterOptions struct {
 	RetryStrategy RetryStrategy
 
 	// Tracer specifies the tracer to use for requests.
-	// VOLATILE: This API is subject to change at any time.
-	Tracer requestTracer
+	// UNCOMMITTED: This API may change in the future.
+	Tracer RequestTracer
 
 	// OrphanReporterConfig specifies options for the orphan reporter.
 	OrphanReporterConfig OrphanReporterConfig
@@ -186,7 +186,7 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 		useServerDurations = false
 	}
 
-	var initialTracer requestTracer
+	var initialTracer RequestTracer
 	if opts.Tracer != nil {
 		initialTracer = opts.Tracer
 	} else {

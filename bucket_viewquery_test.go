@@ -20,6 +20,7 @@ func (suite *IntegrationTestSuite) runViewsTest(n int) {
 	deadline := time.Now().Add(60 * time.Second)
 	var result *ViewResult
 	for {
+		suite.tracer.Reset()
 		var err error
 		result, err = globalBucket.ViewQuery("ddoc_test", "test", &ViewOptions{
 			Timeout:   1 * time.Second,
@@ -76,6 +77,20 @@ func (suite *IntegrationTestSuite) runViewsTest(n int) {
 			suite.T().Errorf("timed out waiting for indexing")
 			return
 		}
+
+		suite.Require().Contains(suite.tracer.Spans, nil)
+		nilParents := suite.tracer.Spans[nil]
+		suite.Require().Equal(1, len(nilParents))
+		suite.AssertHTTPOpSpan(nilParents[0], "views",
+			HTTPOpSpanExpectations{
+				bucket:                  globalConfig.Bucket,
+				operationID:             "dev_ddoc_test/test",
+				numDispatchSpans:        1,
+				atLeastNumDispatchSpans: false,
+				hasEncoding:             false,
+				dispatchOperationID:     "",
+				service:                 "views",
+			})
 	}
 
 	metadata, err := result.MetaData()

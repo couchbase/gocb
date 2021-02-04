@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 )
@@ -90,6 +91,66 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 	if !errors.Is(err, ErrScopeNotFound) {
 		suite.T().Fatalf("Expected drop scope to error with ErrScopeNotFound but was %v", err)
 	}
+
+	suite.Require().Contains(suite.tracer.Spans, nil)
+	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Equal(9, len(nilParents))
+	suite.AssertHTTPOpSpan(nilParents[0], "manager_collections_create_scope",
+		HTTPOpSpanExpectations{
+			bucket:                  globalConfig.Bucket,
+			scope:                   "testScope",
+			service:                 "management",
+			operationID:             "POST " + fmt.Sprintf("/pools/default/buckets/%s/scopes", globalConfig.Bucket),
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             true,
+			dispatchOperationID:     "any",
+		})
+	suite.AssertHTTPOpSpan(nilParents[2], "manager_collections_create_collection",
+		HTTPOpSpanExpectations{
+			bucket:                  globalConfig.Bucket,
+			scope:                   "testScope",
+			collection:              "testCollection",
+			service:                 "management",
+			operationID:             "POST " + fmt.Sprintf("/pools/default/buckets/%s/scopes/testScope/collections", globalConfig.Bucket),
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             true,
+			dispatchOperationID:     "any",
+		})
+	suite.AssertHTTPOpSpan(nilParents[4], "manager_collections_get_all_scopes",
+		HTTPOpSpanExpectations{
+			bucket:                  globalConfig.Bucket,
+			service:                 "management",
+			operationID:             "GET " + fmt.Sprintf("/pools/default/buckets/%s/scopes", globalConfig.Bucket),
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+		})
+	suite.AssertHTTPOpSpan(nilParents[5], "manager_collections_drop_collection",
+		HTTPOpSpanExpectations{
+			bucket:                  globalConfig.Bucket,
+			scope:                   "testScope",
+			collection:              "testCollection",
+			service:                 "management",
+			operationID:             "DELETE " + fmt.Sprintf("/pools/default/buckets/%s/scopes/testScope/collections/testCollection", globalConfig.Bucket),
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+		})
+	suite.AssertHTTPOpSpan(nilParents[7], "manager_collections_drop_scope",
+		HTTPOpSpanExpectations{
+			bucket:                  globalConfig.Bucket,
+			scope:                   "testScope",
+			service:                 "management",
+			operationID:             "DELETE " + fmt.Sprintf("/pools/default/buckets/%s/scopes/testScope", globalConfig.Bucket),
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+		})
 }
 
 func (suite *IntegrationTestSuite) TestDropNonExistentScope() {

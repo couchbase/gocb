@@ -17,7 +17,7 @@ type kvOpManager struct {
 	wasResolved   bool
 	mutationToken *MutationToken
 
-	span            requestSpan
+	span            RequestSpan
 	documentID      string
 	transcoder      Transcoder
 	timeout         time.Duration
@@ -82,8 +82,8 @@ func (m *kvOpManager) SetValue(val interface{}) {
 		return
 	}
 
-	espan := m.parent.startKvOpTrace("encode", m.span)
-	defer espan.Finish()
+	espan := m.parent.startKvOpTrace("request_encoding", m.span.Context(), true)
+	defer espan.End()
 
 	bytes, flags, err := m.transcoder.Encode(val)
 	if err != nil {
@@ -126,11 +126,15 @@ func (m *kvOpManager) SetImpersonate(user []byte) {
 }
 
 func (m *kvOpManager) Finish() {
-	m.span.Finish()
+	m.span.End()
 }
 
-func (m *kvOpManager) TraceSpan() requestSpanContext {
+func (m *kvOpManager) TraceSpanContext() RequestSpanContext {
 	return m.span.Context()
+}
+
+func (m *kvOpManager) TraceSpan() RequestSpan {
+	return m.span
 }
 
 func (m *kvOpManager) DocumentID() []byte {
@@ -275,8 +279,13 @@ func (m *kvOpManager) Wait(op gocbcore.PendingOp, err error) error {
 	return nil
 }
 
-func (c *Collection) newKvOpManager(opName string, tracectx requestSpanContext) *kvOpManager {
-	span := c.startKvOpTrace(opName, tracectx)
+func (c *Collection) newKvOpManager(opName string, parentSpan RequestSpan) *kvOpManager {
+	var tracectx RequestSpanContext
+	if parentSpan != nil {
+		tracectx = parentSpan.Context()
+	}
+
+	span := c.startKvOpTrace(opName, tracectx, false)
 
 	return &kvOpManager{
 		parent: c,

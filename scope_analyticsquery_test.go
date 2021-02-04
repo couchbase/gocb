@@ -13,7 +13,7 @@ func (suite *IntegrationTestSuite) TestScopeAnalyticsQuery() {
 		globalBucket.Name(),
 		globalScope.Name(),
 		globalCollection.Name(), n)
-	suite.runAnalyticsTest(n, query, globalScope)
+	suite.runAnalyticsTest(n, query, globalBucket.Name(), globalScope.Name(), globalScope)
 }
 
 func (suite *IntegrationTestSuite) setupScopeAnalytics() int {

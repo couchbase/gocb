@@ -282,9 +282,9 @@ func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*Ana
 		opts = &AnalyticsOptions{}
 	}
 
-	span := c.tracer.StartSpan("Query", opts.parentSpan).
-		SetTag("couchbase.service", "analytics")
-	defer span.Finish()
+	span := createSpan(c.tracer, opts.ParentSpan, "analytics", "analytics")
+	span.SetAttribute("db.statement", statement)
+	defer span.End()
 
 	timeout := opts.Timeout
 	if opts.Timeout == 0 {
@@ -333,17 +333,17 @@ func maybeGetAnalyticsOption(options map[string]interface{}, name string) string
 }
 
 func execAnalyticsQuery(
-	span requestSpan,
+	span RequestSpan,
 	options map[string]interface{},
 	priority int32,
 	deadline time.Time,
 	retryStrategy *retryStrategyWrapper,
 	provider analyticsProvider,
-	tracer requestTracer,
+	tracer RequestTracer,
 ) (*AnalyticsResult, error) {
-	eSpan := tracer.StartSpan("request_encoding", span.Context())
+	eSpan := createSpan(tracer, span, "request_encoding", "")
 	reqBytes, err := json.Marshal(options)
-	eSpan.Finish()
+	eSpan.End()
 	if err != nil {
 		return nil, AnalyticsError{
 			InnerError:      wrapError(err, "failed to marshall query body"),

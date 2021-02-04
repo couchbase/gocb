@@ -12,9 +12,11 @@ func (s *Scope) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*Analy
 		opts = &AnalyticsOptions{}
 	}
 
-	span := s.tracer.StartSpan("Query", opts.parentSpan).
-		SetTag("couchbase.service", "analytics")
-	defer span.Finish()
+	span := createSpan(s.tracer, opts.ParentSpan, "analytics", "analytics")
+	span.SetAttribute("db.statement", statement)
+	span.SetAttribute("db.name", s.BucketName())
+	span.SetAttribute("db.couchbase.scope", s.Name())
+	defer span.End()
 
 	timeout := opts.Timeout
 	if opts.Timeout == 0 {

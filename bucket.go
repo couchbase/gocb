@@ -14,7 +14,7 @@ type Bucket struct {
 
 	transcoder           Transcoder
 	retryStrategyWrapper *retryStrategyWrapper
-	tracer               requestTracer
+	tracer               RequestTracer
 
 	useServerDurations bool
 	useMutationTokens  bool

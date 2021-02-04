@@ -22,6 +22,12 @@ var globalCluster *testCluster
 
 type IntegrationTestSuite struct {
 	suite.Suite
+
+	tracer *testTracer
+}
+
+func (suite *IntegrationTestSuite) BeforeTest(suiteName, testName string) {
+	suite.tracer.Reset()
 }
 
 func (suite *IntegrationTestSuite) SetupSuite() {
@@ -77,10 +83,18 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 		}
 	}
 
-	cluster, err := Connect(connStr, ClusterOptions{Authenticator: auth})
+	suite.tracer = newTestTracer()
+
+	cluster, err := Connect(connStr, ClusterOptions{
+		Authenticator: auth,
+		Tracer:        suite.tracer,
+	})
 	if err != nil {
 		panic(err.Error())
 	}
+
+	globalConfig.connstr = connStr
+	globalConfig.auth = auth
 
 	nodeVersion, err := newNodeVersion(globalConfig.Version, mock != nil)
 	if err != nil {
@@ -262,7 +276,7 @@ func (suite *UnitTestSuite) bucket(name string, timeouts TimeoutsConfig, cli *mo
 		},
 		transcoder:           NewJSONTranscoder(),
 		retryStrategyWrapper: newRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
-		tracer:               &noopTracer{},
+		tracer:               &NoopTracer{},
 		useServerDurations:   true,
 		useMutationTokens:    true,
 
@@ -274,7 +288,7 @@ func (suite *UnitTestSuite) bucket(name string, timeouts TimeoutsConfig, cli *mo
 
 func (suite *UnitTestSuite) newCluster(cli connectionManager) *Cluster {
 	cluster := clusterFromOptions(ClusterOptions{
-		Tracer: &noopTracer{},
+		Tracer: &NoopTracer{},
 	})
 	cluster.connectionManager = cli
 
@@ -316,7 +330,7 @@ func (suite *UnitTestSuite) collection(bucket, scope, collection string, provide
 			KVTimeout: 2500 * time.Millisecond,
 		},
 		transcoder:           NewJSONTranscoder(),
-		tracer:               &noopTracer{},
+		tracer:               &NoopTracer{},
 		retryStrategyWrapper: newRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
 	}
 }

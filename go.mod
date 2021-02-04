@@ -6,7 +6,7 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/objx v0.1.1 // indirect
-	github.com/stretchr/testify v1.5.1
+	github.com/stretchr/testify v1.6.1
 )
 
 go 1.13

@@ -20,7 +20,7 @@ type mgmtRequest struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 
-	parentSpan requestSpanContext
+	parentSpanCtx RequestSpanContext
 }
 
 type mgmtResponse struct {
@@ -60,7 +60,7 @@ func (c *Cluster) executeMgmtRequest(req mgmtRequest) (mgmtRespOut *mgmtResponse
 		UniqueID:      req.UniqueID,
 		Deadline:      time.Now().Add(timeout),
 		RetryStrategy: retryStrategy,
-		TraceContext:  req.parentSpan,
+		TraceContext:  req.parentSpanCtx,
 	}
 
 	coreresp, err := provider.DoHTTPRequest(corereq)
@@ -103,6 +103,7 @@ func (b *Bucket) executeMgmtRequest(req mgmtRequest) (mgmtRespOut *mgmtResponse,
 		UniqueID:      req.UniqueID,
 		Deadline:      time.Now().Add(timeout),
 		RetryStrategy: retryStrategy,
+		TraceContext:  req.parentSpanCtx,
 	}
 
 	coreresp, err := provider.DoHTTPRequest(corereq)

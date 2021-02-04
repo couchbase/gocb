@@ -2,7 +2,6 @@ package gocb
 
 import (
 	"errors"
-	"github.com/couchbase/gocbcore/v9/memd"
 	"sync"
 	"time"
 
@@ -44,6 +43,7 @@ type InsertOptions struct {
 	Transcoder      Transcoder
 	Timeout         time.Duration
 	RetryStrategy   RetryStrategy
+	ParentSpan      RequestSpan
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -57,7 +57,7 @@ func (c *Collection) Insert(id string, val interface{}, opts *InsertOptions) (mu
 		opts = &InsertOptions{}
 	}
 
-	opm := c.newKvOpManager("Insert", nil)
+	opm := c.newKvOpManager("insert", opts.ParentSpan)
 	defer opm.Finish()
 
 	opm.SetDocumentID(id)
@@ -86,7 +86,7 @@ func (c *Collection) Insert(id string, val interface{}, opts *InsertOptions) (mu
 		DurabilityLevel:        opm.DurabilityLevel(),
 		DurabilityLevelTimeout: opm.DurabilityTimeout(),
 		RetryStrategy:          opm.RetryStrategy(),
-		TraceContext:           opm.TraceSpan(),
+		TraceContext:           opm.TraceSpanContext(),
 		Deadline:               opm.Deadline(),
 		User:                   opm.Impersonate(),
 	}, func(res *gocbcore.StoreResult, err error) {
@@ -117,6 +117,7 @@ type UpsertOptions struct {
 	Transcoder      Transcoder
 	Timeout         time.Duration
 	RetryStrategy   RetryStrategy
+	ParentSpan      RequestSpan
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -130,7 +131,7 @@ func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mu
 		opts = &UpsertOptions{}
 	}
 
-	opm := c.newKvOpManager("Upsert", nil)
+	opm := c.newKvOpManager("upsert", opts.ParentSpan)
 	defer opm.Finish()
 
 	opm.SetDocumentID(id)
@@ -159,7 +160,7 @@ func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mu
 		DurabilityLevel:        opm.DurabilityLevel(),
 		DurabilityLevelTimeout: opm.DurabilityTimeout(),
 		RetryStrategy:          opm.RetryStrategy(),
-		TraceContext:           opm.TraceSpan(),
+		TraceContext:           opm.TraceSpanContext(),
 		Deadline:               opm.Deadline(),
 		User:                   opm.Impersonate(),
 	}, func(res *gocbcore.StoreResult, err error) {
@@ -191,6 +192,7 @@ type ReplaceOptions struct {
 	Transcoder      Transcoder
 	Timeout         time.Duration
 	RetryStrategy   RetryStrategy
+	ParentSpan      RequestSpan
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -204,7 +206,7 @@ func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (
 		opts = &ReplaceOptions{}
 	}
 
-	opm := c.newKvOpManager("Replace", nil)
+	opm := c.newKvOpManager("replace", opts.ParentSpan)
 	defer opm.Finish()
 
 	opm.SetDocumentID(id)
@@ -234,7 +236,7 @@ func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (
 		DurabilityLevel:        opm.DurabilityLevel(),
 		DurabilityLevelTimeout: opm.DurabilityTimeout(),
 		RetryStrategy:          opm.RetryStrategy(),
-		TraceContext:           opm.TraceSpan(),
+		TraceContext:           opm.TraceSpanContext(),
 		Deadline:               opm.Deadline(),
 		User:                   opm.Impersonate(),
 	}, func(res *gocbcore.StoreResult, err error) {
@@ -266,6 +268,7 @@ type GetOptions struct {
 	Transcoder    Transcoder
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -293,7 +296,7 @@ func (c *Collection) getDirect(id string, opts *GetOptions) (docOut *GetResult, 
 		opts = &GetOptions{}
 	}
 
-	opm := c.newKvOpManager("Get", nil)
+	opm := c.newKvOpManager("get", opts.ParentSpan)
 	defer opm.Finish()
 
 	opm.SetDocumentID(id)
@@ -315,7 +318,7 @@ func (c *Collection) getDirect(id string, opts *GetOptions) (docOut *GetResult, 
 		CollectionName: opm.CollectionName(),
 		ScopeName:      opm.ScopeName(),
 		RetryStrategy:  opm.RetryStrategy(),
-		TraceContext:   opm.TraceSpan(),
+		TraceContext:   opm.TraceSpanContext(),
 		Deadline:       opm.Deadline(),
 		User:           opm.Impersonate(),
 	}, func(res *gocbcore.GetResult, err error) {
@@ -349,7 +352,7 @@ func (c *Collection) getProjected(id string, opts *GetOptions) (docOut *GetResul
 		opts = &GetOptions{}
 	}
 
-	opm := c.newKvOpManager("Get", nil)
+	opm := c.newKvOpManager("get", opts.ParentSpan)
 	defer opm.Finish()
 
 	opm.SetDocumentID(id)
@@ -397,7 +400,9 @@ func (c *Collection) getProjected(id string, opts *GetOptions) (docOut *GetResul
 		}
 	}
 
-	result, err := c.internalLookupIn(opm, ops, memd.SubdocDocFlagNone)
+	result, err := c.LookupIn(id, ops, &LookupInOptions{
+		ParentSpan: opm.TraceSpan(),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -452,6 +457,7 @@ func (c *Collection) getProjected(id string, opts *GetOptions) (docOut *GetResul
 type ExistsOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -465,7 +471,7 @@ func (c *Collection) Exists(id string, opts *ExistsOptions) (docOut *ExistsResul
 		opts = &ExistsOptions{}
 	}
 
-	opm := c.newKvOpManager("Exists", nil)
+	opm := c.newKvOpManager("exists", opts.ParentSpan)
 	defer opm.Finish()
 
 	opm.SetDocumentID(id)
@@ -486,7 +492,7 @@ func (c *Collection) Exists(id string, opts *ExistsOptions) (docOut *ExistsResul
 		CollectionName: opm.CollectionName(),
 		ScopeName:      opm.ScopeName(),
 		RetryStrategy:  opm.RetryStrategy(),
-		TraceContext:   opm.TraceSpan,
+		TraceContext:   opm.TraceSpanContext(),
 		Deadline:       opm.Deadline(),
 		User:           opm.Impersonate(),
 	}, func(res *gocbcore.GetMetaResult, err error) {
@@ -525,7 +531,7 @@ func (c *Collection) Exists(id string, opts *ExistsOptions) (docOut *ExistsResul
 }
 
 func (c *Collection) getOneReplica(
-	span requestSpanContext,
+	span RequestSpan,
 	id string,
 	replicaIdx int,
 	transcoder Transcoder,
@@ -534,7 +540,7 @@ func (c *Collection) getOneReplica(
 	timeout time.Duration,
 	user []byte,
 ) (docOut *GetReplicaResult, errOut error) {
-	opm := c.newKvOpManager("getOneReplica", span)
+	opm := c.newKvOpManager("get_replica", span)
 	defer opm.Finish()
 
 	opm.SetDocumentID(id)
@@ -554,7 +560,7 @@ func (c *Collection) getOneReplica(
 			CollectionName: opm.CollectionName(),
 			ScopeName:      opm.ScopeName(),
 			RetryStrategy:  opm.RetryStrategy(),
-			TraceContext:   opm.TraceSpan(),
+			TraceContext:   opm.TraceSpanContext(),
 			Deadline:       opm.Deadline(),
 			User:           opm.Impersonate(),
 		}, func(res *gocbcore.GetResult, err error) {
@@ -585,7 +591,7 @@ func (c *Collection) getOneReplica(
 		CollectionName: opm.CollectionName(),
 		ScopeName:      opm.ScopeName(),
 		RetryStrategy:  opm.RetryStrategy(),
-		TraceContext:   opm.TraceSpan(),
+		TraceContext:   opm.TraceSpanContext(),
 		Deadline:       opm.Deadline(),
 		User:           opm.Impersonate(),
 	}, func(res *gocbcore.GetReplicaResult, err error) {
@@ -615,6 +621,7 @@ type GetAllReplicaOptions struct {
 	Transcoder    Transcoder
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -629,6 +636,7 @@ type GetAllReplicasResult struct {
 	totalResults  uint32
 	resCh         chan *GetReplicaResult
 	cancelCh      chan struct{}
+	span          RequestSpan
 }
 
 func (r *GetAllReplicasResult) addResult(res *GetReplicaResult) {
@@ -647,6 +655,8 @@ func (r *GetAllReplicasResult) addResult(res *GetReplicaResult) {
 	if resultCount == r.totalRequests {
 		close(r.cancelCh)
 		close(r.resCh)
+
+		r.span.End()
 	}
 
 	r.lock.Unlock()
@@ -673,6 +683,8 @@ func (r *GetAllReplicasResult) Close() error {
 	if prevResultCount < r.totalRequests {
 		close(r.cancelCh)
 		close(r.resCh)
+
+		r.span.End()
 	}
 
 	r.lock.Unlock()
@@ -687,8 +699,12 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 		opts = &GetAllReplicaOptions{}
 	}
 
-	span := c.startKvOpTrace("GetAllReplicas", nil)
-	defer span.Finish()
+	var tracectx RequestSpanContext
+	if opts.ParentSpan != nil {
+		tracectx = opts.ParentSpan.Context()
+	}
+
+	span := c.startKvOpTrace("get_all_replicas", tracectx, false)
 
 	// Timeout needs to be adjusted here, since we use it at the bottom of this
 	// function, but the remaining options are all passed downwards and get handled
@@ -725,6 +741,7 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 		totalRequests: uint32(numServers),
 		resCh:         outCh,
 		cancelCh:      cancelCh,
+		span:          span,
 	}
 
 	// Loop all the servers and populate the result object
@@ -751,10 +768,8 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 			if err != nil {
 				logDebugf("failed to close GetAllReplicas response: %s", err)
 			}
-			return
 		case <-cancelCh:
 			// If the cancel channel closes, we are done
-			return
 		}
 	}()
 
@@ -766,6 +781,7 @@ type GetAnyReplicaOptions struct {
 	Transcoder    Transcoder
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -779,14 +795,20 @@ func (c *Collection) GetAnyReplica(id string, opts *GetAnyReplicaOptions) (docOu
 		opts = &GetAnyReplicaOptions{}
 	}
 
-	span := c.startKvOpTrace("GetAnyReplica", nil)
-	defer span.Finish()
+	var tracectx RequestSpanContext
+	if opts.ParentSpan != nil {
+		tracectx = opts.ParentSpan.Context()
+	}
+
+	span := c.startKvOpTrace("get_any_replica", tracectx, false)
+	defer span.End()
 
 	repRes, err := c.GetAllReplicas(id, &GetAllReplicaOptions{
 		Timeout:       opts.Timeout,
 		Transcoder:    opts.Transcoder,
 		RetryStrategy: opts.RetryStrategy,
 		Internal:      opts.Internal,
+		ParentSpan:    span,
 	})
 	if err != nil {
 		return nil, err
@@ -821,6 +843,7 @@ type RemoveOptions struct {
 	DurabilityLevel DurabilityLevel
 	Timeout         time.Duration
 	RetryStrategy   RetryStrategy
+	ParentSpan      RequestSpan
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -834,7 +857,7 @@ func (c *Collection) Remove(id string, opts *RemoveOptions) (mutOut *MutationRes
 		opts = &RemoveOptions{}
 	}
 
-	opm := c.newKvOpManager("Remove", nil)
+	opm := c.newKvOpManager("remove", opts.ParentSpan)
 	defer opm.Finish()
 
 	opm.SetDocumentID(id)
@@ -859,7 +882,7 @@ func (c *Collection) Remove(id string, opts *RemoveOptions) (mutOut *MutationRes
 		DurabilityLevel:        opm.DurabilityLevel(),
 		DurabilityLevelTimeout: opm.DurabilityTimeout(),
 		RetryStrategy:          opm.RetryStrategy(),
-		TraceContext:           opm.TraceSpan(),
+		TraceContext:           opm.TraceSpanContext(),
 		Deadline:               opm.Deadline(),
 		User:                   opm.Impersonate(),
 	}, func(res *gocbcore.DeleteResult, err error) {
@@ -886,6 +909,7 @@ type GetAndTouchOptions struct {
 	Transcoder    Transcoder
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -899,7 +923,7 @@ func (c *Collection) GetAndTouch(id string, expiry time.Duration, opts *GetAndTo
 		opts = &GetAndTouchOptions{}
 	}
 
-	opm := c.newKvOpManager("GetAndTouch", nil)
+	opm := c.newKvOpManager("get_and_touch", opts.ParentSpan)
 	defer opm.Finish()
 
 	opm.SetDocumentID(id)
@@ -922,7 +946,7 @@ func (c *Collection) GetAndTouch(id string, expiry time.Duration, opts *GetAndTo
 		CollectionName: opm.CollectionName(),
 		ScopeName:      opm.ScopeName(),
 		RetryStrategy:  opm.RetryStrategy(),
-		TraceContext:   opm.TraceSpan(),
+		TraceContext:   opm.TraceSpanContext(),
 		Deadline:       opm.Deadline(),
 		User:           opm.Impersonate(),
 	}, func(res *gocbcore.GetAndTouchResult, err error) {
@@ -958,6 +982,7 @@ type GetAndLockOptions struct {
 	Transcoder    Transcoder
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -973,7 +998,7 @@ func (c *Collection) GetAndLock(id string, lockTime time.Duration, opts *GetAndL
 		opts = &GetAndLockOptions{}
 	}
 
-	opm := c.newKvOpManager("GetAndLock", nil)
+	opm := c.newKvOpManager("get_and_lock", opts.ParentSpan)
 	defer opm.Finish()
 
 	opm.SetDocumentID(id)
@@ -996,7 +1021,7 @@ func (c *Collection) GetAndLock(id string, lockTime time.Duration, opts *GetAndL
 		CollectionName: opm.CollectionName(),
 		ScopeName:      opm.ScopeName(),
 		RetryStrategy:  opm.RetryStrategy(),
-		TraceContext:   opm.TraceSpan(),
+		TraceContext:   opm.TraceSpanContext(),
 		Deadline:       opm.Deadline(),
 		User:           opm.Impersonate(),
 	}, func(res *gocbcore.GetAndLockResult, err error) {
@@ -1031,6 +1056,7 @@ func (c *Collection) GetAndLock(id string, lockTime time.Duration, opts *GetAndL
 type UnlockOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -1044,7 +1070,7 @@ func (c *Collection) Unlock(id string, cas Cas, opts *UnlockOptions) (errOut err
 		opts = &UnlockOptions{}
 	}
 
-	opm := c.newKvOpManager("Unlock", nil)
+	opm := c.newKvOpManager("unlock", nil)
 	defer opm.Finish()
 
 	opm.SetDocumentID(id)
@@ -1066,7 +1092,7 @@ func (c *Collection) Unlock(id string, cas Cas, opts *UnlockOptions) (errOut err
 		CollectionName: opm.CollectionName(),
 		ScopeName:      opm.ScopeName(),
 		RetryStrategy:  opm.RetryStrategy(),
-		TraceContext:   opm.TraceSpan(),
+		TraceContext:   opm.TraceSpanContext(),
 		Deadline:       opm.Deadline(),
 		User:           opm.Impersonate(),
 	}, func(res *gocbcore.UnlockResult, err error) {
@@ -1089,6 +1115,7 @@ func (c *Collection) Unlock(id string, cas Cas, opts *UnlockOptions) (errOut err
 type TouchOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -1102,7 +1129,7 @@ func (c *Collection) Touch(id string, expiry time.Duration, opts *TouchOptions) 
 		opts = &TouchOptions{}
 	}
 
-	opm := c.newKvOpManager("Touch", nil)
+	opm := c.newKvOpManager("touch", nil)
 	defer opm.Finish()
 
 	opm.SetDocumentID(id)
@@ -1124,7 +1151,7 @@ func (c *Collection) Touch(id string, expiry time.Duration, opts *TouchOptions) 
 		CollectionName: opm.CollectionName(),
 		ScopeName:      opm.ScopeName(),
 		RetryStrategy:  opm.RetryStrategy(),
-		TraceContext:   opm.TraceSpan(),
+		TraceContext:   opm.TraceSpanContext(),
 		Deadline:       opm.Deadline(),
 		User:           opm.Impersonate(),
 	}, func(res *gocbcore.TouchResult, err error) {

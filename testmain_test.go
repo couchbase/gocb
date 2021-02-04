@@ -22,6 +22,9 @@ type testConfig struct {
 	Collection   string
 	Scope        string
 	FeatureFlags []TestFeatureFlag
+
+	connstr string
+	auth    Authenticator
 }
 
 func TestMain(m *testing.M) {

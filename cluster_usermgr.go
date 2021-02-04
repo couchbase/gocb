@@ -244,7 +244,7 @@ func (g *Group) fromData(data jsonGroup) error {
 // UserManager provides methods for performing Couchbase user management.
 type UserManager struct {
 	provider mgmtProvider
-	tracer   requestTracer
+	tracer   RequestTracer
 }
 
 func (um *UserManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
@@ -280,6 +280,7 @@ type GetAllUsersOptions struct {
 	RetryStrategy RetryStrategy
 
 	DomainName string
+	ParentSpan RequestSpan
 }
 
 // GetAllUsers returns a list of all the users from the cluster.
@@ -288,23 +289,24 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 		opts = &GetAllUsersOptions{}
 	}
 
-	span := um.tracer.StartSpan("GetAllUsers", nil).
-		SetTag("couchbase.service", "mgmt")
-	defer span.Finish()
-
 	if opts.DomainName == "" {
 		opts.DomainName = string(LocalDomain)
 	}
 
+	path := fmt.Sprintf("/settings/rbac/users/%s", opts.DomainName)
+	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_get_all_users", "management")
+	span.SetAttribute("db.operation", "GET "+path)
+	defer span.End()
+
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
 		Method:        "GET",
-		Path:          fmt.Sprintf("/settings/rbac/users/%s", opts.DomainName),
+		Path:          path,
 		IsIdempotent:  true,
 		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 
 	resp, err := um.provider.executeMgmtRequest(req)
@@ -345,6 +347,7 @@ type GetUserOptions struct {
 	RetryStrategy RetryStrategy
 
 	DomainName string
+	ParentSpan RequestSpan
 }
 
 // GetUser returns the data for a particular user
@@ -353,23 +356,24 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 		opts = &GetUserOptions{}
 	}
 
-	span := um.tracer.StartSpan("GetUser", nil).
-		SetTag("couchbase.service", "mgmt")
-	defer span.Finish()
-
 	if opts.DomainName == "" {
 		opts.DomainName = string(LocalDomain)
 	}
 
+	path := fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, name)
+	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_get_user", "management")
+	span.SetAttribute("db.operation", "GET "+path)
+	defer span.End()
+
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
 		Method:        "GET",
-		Path:          fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, name),
+		Path:          path,
 		IsIdempotent:  true,
 		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 
 	resp, err := um.provider.executeMgmtRequest(req)
@@ -408,6 +412,7 @@ type UpsertUserOptions struct {
 	RetryStrategy RetryStrategy
 
 	DomainName string
+	ParentSpan RequestSpan
 }
 
 // UpsertUser updates a built-in RBAC user on the cluster.
@@ -415,10 +420,6 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 	if opts == nil {
 		opts = &UpsertUserOptions{}
 	}
-
-	span := um.tracer.StartSpan("UpsertUser", nil).
-		SetTag("couchbase.service", "mgmt")
-	defer span.Finish()
 
 	if opts.DomainName == "" {
 		opts.DomainName = string(LocalDomain)
@@ -439,6 +440,11 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 
 		return false
 	}
+
+	path := fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, user.Username)
+	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_upsert_user", "management")
+	span.SetAttribute("db.operation", "PUT "+path)
+	defer span.End()
 
 	var reqRoleStrs []string
 	for _, roleData := range user.Roles {
@@ -482,13 +488,13 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
 		Method:        "PUT",
-		Path:          fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, user.Username),
+		Path:          path,
 		Body:          []byte(reqForm.Encode()),
 		ContentType:   "application/x-www-form-urlencoded",
 		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 
 	resp, err := um.provider.executeMgmtRequest(req)
@@ -514,6 +520,7 @@ type DropUserOptions struct {
 	RetryStrategy RetryStrategy
 
 	DomainName string
+	ParentSpan RequestSpan
 }
 
 // DropUser removes a built-in RBAC user on the cluster.
@@ -522,22 +529,23 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 		opts = &DropUserOptions{}
 	}
 
-	span := um.tracer.StartSpan("DropUser", nil).
-		SetTag("couchbase.service", "mgmt")
-	defer span.Finish()
-
 	if opts.DomainName == "" {
 		opts.DomainName = string(LocalDomain)
 	}
 
+	path := fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, name)
+	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_drop_user", "management")
+	span.SetAttribute("db.operation", "DELETE "+path)
+	defer span.End()
+
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
 		Method:        "DELETE",
-		Path:          fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, name),
+		Path:          path,
 		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 
 	resp, err := um.provider.executeMgmtRequest(req)
@@ -561,6 +569,7 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 type GetRolesOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // GetRoles lists the roles supported by the cluster.
@@ -569,9 +578,9 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 		opts = &GetRolesOptions{}
 	}
 
-	span := um.tracer.StartSpan("GetRoles", nil).
-		SetTag("couchbase.service", "mgmt")
-	defer span.Finish()
+	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_get_roles", "management")
+	span.SetAttribute("db.operation", "GET /settings/rbac/roles")
+	defer span.End()
 
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
@@ -581,7 +590,7 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 		IsIdempotent:  true,
 		UniqueID:      uuid.New().String(),
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 
 	resp, err := um.provider.executeMgmtRequest(req)
@@ -620,6 +629,7 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 type GetGroupOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // GetGroup fetches a single group from the server.
@@ -631,19 +641,20 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 		opts = &GetGroupOptions{}
 	}
 
-	span := um.tracer.StartSpan("GetGroup", nil).
-		SetTag("couchbase.service", "mgmt")
-	defer span.Finish()
+	path := fmt.Sprintf("/settings/rbac/groups/%s", groupName)
+	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_get_group", "management")
+	span.SetAttribute("db.operation", "GET "+path)
+	defer span.End()
 
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
 		Method:        "GET",
-		Path:          fmt.Sprintf("/settings/rbac/groups/%s", groupName),
+		Path:          path,
 		RetryStrategy: opts.RetryStrategy,
 		IsIdempotent:  true,
 		UniqueID:      uuid.New().String(),
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 
 	resp, err := um.provider.executeMgmtRequest(req)
@@ -680,6 +691,7 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 type GetAllGroupsOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // GetAllGroups fetches all groups from the server.
@@ -688,19 +700,20 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 		opts = &GetAllGroupsOptions{}
 	}
 
-	span := um.tracer.StartSpan("GetAllGroups", nil).
-		SetTag("couchbase.service", "mgmt")
-	defer span.Finish()
+	path := "/settings/rbac/groups"
+	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_get_all_groups", "management")
+	span.SetAttribute("db.operation", "GET "+path)
+	defer span.End()
 
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
 		Method:        "GET",
-		Path:          "/settings/rbac/groups",
+		Path:          path,
 		RetryStrategy: opts.RetryStrategy,
 		IsIdempotent:  true,
 		UniqueID:      uuid.New().String(),
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 
 	resp, err := um.provider.executeMgmtRequest(req)
@@ -739,6 +752,7 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 type UpsertGroupOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // UpsertGroup creates, or updates, a group on the server.
@@ -750,9 +764,10 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 		opts = &UpsertGroupOptions{}
 	}
 
-	span := um.tracer.StartSpan("UpsertGroup", nil).
-		SetTag("couchbase.service", "mgmt")
-	defer span.Finish()
+	path := fmt.Sprintf("/settings/rbac/groups/%s", group.Name)
+	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_upsert_group", "management")
+	span.SetAttribute("db.operation", "PUT "+path)
+	defer span.End()
 
 	var reqRoleStrs []string
 	for _, roleData := range group.Roles {
@@ -771,13 +786,13 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
 		Method:        "PUT",
-		Path:          fmt.Sprintf("/settings/rbac/groups/%s", group.Name),
+		Path:          path,
 		Body:          []byte(reqForm.Encode()),
 		ContentType:   "application/x-www-form-urlencoded",
 		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 
 	resp, err := um.provider.executeMgmtRequest(req)
@@ -801,6 +816,7 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 type DropGroupOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // DropGroup removes a group from the server.
@@ -813,18 +829,19 @@ func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error
 		opts = &DropGroupOptions{}
 	}
 
-	span := um.tracer.StartSpan("DropGroup", nil).
-		SetTag("couchbase.service", "mgmt")
-	defer span.Finish()
+	path := fmt.Sprintf("/settings/rbac/groups/%s", groupName)
+	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_drop_group", "management")
+	span.SetAttribute("db.operation", "DELETE "+path)
+	defer span.End()
 
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
 		Method:        "DELETE",
-		Path:          fmt.Sprintf("/settings/rbac/groups/%s", groupName),
+		Path:          path,
 		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 
 	resp, err := um.provider.executeMgmtRequest(req)

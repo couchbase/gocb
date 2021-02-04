@@ -3,6 +3,7 @@ package gocb
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"time"
 
@@ -32,7 +33,9 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 	suite.Require().Nil(err, err)
 
 	var designdoc *DesignDocument
+	numGetsStart := 0
 	success := suite.tryUntil(time.Now().Add(5*time.Second), 500*time.Millisecond, func() bool {
+		numGetsStart++
 		designdoc, err = mgr.GetDesignDocument("test", DesignDocumentNamespaceDevelopment, &GetDesignDocumentOptions{
 			Timeout: 1 * time.Second,
 		})
@@ -67,7 +70,9 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 	suite.Require().Nil(err, err)
 
 	// It can take time for the published doc to come online
+	numGetsPublished := 0
 	success = suite.tryUntil(time.Now().Add(5*time.Second), 500*time.Millisecond, func() bool {
+		numGetsPublished++
 		designdoc, err = mgr.GetDesignDocument("test", DesignDocumentNamespaceProduction, &GetDesignDocumentOptions{
 			Timeout: 1 * time.Second,
 		})
@@ -88,6 +93,67 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 		Timeout: 1 * time.Second,
 	})
 	suite.Require().Nil(err, err)
+
+	suite.Require().Contains(suite.tracer.Spans, nil)
+	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Equal(4+numGetsPublished+numGetsStart, len(nilParents))
+	suite.AssertHTTPOpSpan(nilParents[0], "manager_views_upsert_design_document",
+		HTTPOpSpanExpectations{
+			bucket:                  globalConfig.Bucket,
+			operationID:             "PUT /_design/dev_test",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             true,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+	suite.AssertHTTPOpSpan(nilParents[1], "manager_views_get_design_document",
+		HTTPOpSpanExpectations{
+			bucket:                  globalConfig.Bucket,
+			operationID:             "GET /_design/dev_test",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+	suite.AssertHTTPOpSpan(nilParents[numGetsStart+1], "manager_views_get_all_design_documents",
+		HTTPOpSpanExpectations{
+			bucket:                  globalConfig.Bucket,
+			operationID:             "GET " + fmt.Sprintf("/pools/default/buckets/%s/ddocs", globalConfig.Bucket),
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+
+	publishParents := nilParents[numGetsStart+2]
+	suite.AssertHTTPSpan(publishParents, "manager_views_publish_design_document", globalConfig.Bucket, "",
+		"", "management", "", "")
+	suite.Require().Len(publishParents.Spans, 2)
+	suite.Require().Contains(publishParents.Spans, "manager_views_get_design_document")
+	suite.Require().Contains(publishParents.Spans, "manager_views_upsert_design_document")
+	suite.AssertHTTPOpSpan(publishParents.Spans["manager_views_get_design_document"][0], "manager_views_get_design_document",
+		HTTPOpSpanExpectations{
+			bucket:                  globalConfig.Bucket,
+			operationID:             "GET /_design/dev_test",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+	suite.AssertHTTPOpSpan(publishParents.Spans["manager_views_upsert_design_document"][0], "manager_views_upsert_design_document",
+		HTTPOpSpanExpectations{
+			bucket:                  globalConfig.Bucket,
+			operationID:             "PUT /_design/test",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             true,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
 }
 
 func (suite *UnitTestSuite) TestViewIndexManagerGetDoesntExist() {
@@ -117,7 +183,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerGetDoesntExist() {
 	viewMgr := ViewIndexManager{
 		mgmtProvider: mockProvider,
 		bucketName:   "mock",
-		tracer:       &noopTracer{},
+		tracer:       &NoopTracer{},
 	}
 
 	_, err := viewMgr.GetDesignDocument(ddocName, DesignDocumentNamespaceDevelopment, &GetDesignDocumentOptions{
@@ -155,7 +221,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerPublishDoesntExist() {
 	viewMgr := ViewIndexManager{
 		mgmtProvider: mockProvider,
 		bucketName:   "mock",
-		tracer:       &noopTracer{},
+		tracer:       &NoopTracer{},
 	}
 
 	err := viewMgr.PublishDesignDocument(ddocName, &PublishDesignDocumentOptions{
@@ -193,7 +259,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerDropDoesntExist() {
 	viewMgr := ViewIndexManager{
 		mgmtProvider: mockProvider,
 		bucketName:   "mock",
-		tracer:       &noopTracer{},
+		tracer:       &NoopTracer{},
 	}
 
 	err := viewMgr.DropDesignDocument(ddocName, DesignDocumentNamespaceProduction, &DropDesignDocumentOptions{
@@ -232,7 +298,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerGetAllDesignDocumentsFiltersCorr
 	viewMgr := ViewIndexManager{
 		mgmtProvider: mockProvider,
 		bucketName:   "mock",
-		tracer:       &noopTracer{},
+		tracer:       &NoopTracer{},
 	}
 
 	ddocs, err := viewMgr.GetAllDesignDocuments(DesignDocumentNamespaceProduction, &GetAllDesignDocumentsOptions{
@@ -272,7 +338,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerGetAllDesignDocumentsFiltersCorr
 	viewMgr := ViewIndexManager{
 		mgmtProvider: mockProvider,
 		bucketName:   "mock",
-		tracer:       &noopTracer{},
+		tracer:       &NoopTracer{},
 	}
 
 	ddocs, err := viewMgr.GetAllDesignDocuments(DesignDocumentNamespaceDevelopment, &GetAllDesignDocumentsOptions{

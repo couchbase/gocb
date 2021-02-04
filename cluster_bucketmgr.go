@@ -208,13 +208,14 @@ func (bm *BucketManager) tryParseFlushErrorMessage(req *mgmtRequest, resp *mgmtR
 // See BucketManager for methods that allow creating and removing buckets themselves.
 type BucketManager struct {
 	provider mgmtProvider
-	tracer   requestTracer
+	tracer   RequestTracer
 }
 
 // GetBucketOptions is the set of options available to the bucket manager GetBucket operation.
 type GetBucketOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // GetBucket returns settings for a bucket on the cluster.
@@ -223,25 +224,27 @@ func (bm *BucketManager) GetBucket(bucketName string, opts *GetBucketOptions) (*
 		opts = &GetBucketOptions{}
 	}
 
-	span := bm.tracer.StartSpan("GetBucket", nil).
-		SetTag("couchbase.service", "mgmt")
-	defer span.Finish()
+	path := fmt.Sprintf("/pools/default/buckets/%s", bucketName)
+	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_create_bucket", "management")
+	span.SetAttribute("db.name", bucketName)
+	span.SetAttribute("db.operation", "GET "+path)
+	defer span.End()
 
-	return bm.get(span.Context(), bucketName, opts.RetryStrategy, opts.Timeout)
+	return bm.get(span.Context(), path, opts.RetryStrategy, opts.Timeout)
 }
 
-func (bm *BucketManager) get(tracectx requestSpanContext, bucketName string,
+func (bm *BucketManager) get(tracectx RequestSpanContext, path string,
 	strategy RetryStrategy, timeout time.Duration) (*BucketSettings, error) {
 
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
-		Path:          fmt.Sprintf("/pools/default/buckets/%s", bucketName),
+		Path:          path,
 		Method:        "GET",
 		IsIdempotent:  true,
 		RetryStrategy: strategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       timeout,
-		parentSpan:    tracectx,
+		parentSpanCtx: tracectx,
 	}
 
 	resp, err := bm.provider.executeMgmtRequest(req)
@@ -279,6 +282,7 @@ func (bm *BucketManager) get(tracectx requestSpanContext, bucketName string,
 type GetAllBucketsOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // GetAllBuckets returns a list of all active buckets on the cluster.
@@ -287,9 +291,9 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 		opts = &GetAllBucketsOptions{}
 	}
 
-	span := bm.tracer.StartSpan("GetAllBuckets", nil).
-		SetTag("couchbase.service", "mgmt")
-	defer span.Finish()
+	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_get_all_buckets", "management")
+	span.SetAttribute("db.operation", "GET /pools/default/buckets")
+	defer span.End()
 
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
@@ -299,7 +303,7 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 
 	resp, err := bm.provider.executeMgmtRequest(req)
@@ -348,6 +352,7 @@ type CreateBucketSettings struct {
 type CreateBucketOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // CreateBucket creates a bucket on the cluster.
@@ -356,9 +361,10 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 		opts = &CreateBucketOptions{}
 	}
 
-	span := bm.tracer.StartSpan("CreateBucket", nil).
-		SetTag("couchbase.service", "mgmt")
-	defer span.Finish()
+	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_create_bucket", "management")
+	span.SetAttribute("db.name", settings.Name)
+	span.SetAttribute("db.operation", "POST /pools/default/buckets")
+	defer span.End()
 
 	posts, err := bm.settingsToPostData(&settings.BucketSettings)
 	if err != nil {
@@ -369,16 +375,20 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 		posts.Add("conflictResolutionType", string(settings.ConflictResolutionType))
 	}
 
+	eSpan := createSpan(bm.tracer, span, "request_encoding", "")
+	d := posts.Encode()
+	eSpan.End()
+
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
 		Path:          "/pools/default/buckets",
 		Method:        "POST",
-		Body:          []byte(posts.Encode()),
+		Body:          []byte(d),
 		ContentType:   "application/x-www-form-urlencoded",
 		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 
 	resp, err := bm.provider.executeMgmtRequest(req)
@@ -403,6 +413,7 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 type UpdateBucketOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // UpdateBucket updates a bucket on the cluster.
@@ -411,25 +422,31 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 		opts = &UpdateBucketOptions{}
 	}
 
-	span := bm.tracer.StartSpan("UpdateBucket", nil).
-		SetTag("couchbase.service", "mgmt")
-	defer span.Finish()
+	path := fmt.Sprintf("/pools/default/buckets/%s", settings.Name)
+	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_update_bucket", "management")
+	span.SetAttribute("db.name", settings.Name)
+	span.SetAttribute("db.operation", "POST "+path)
+	defer span.End()
 
 	posts, err := bm.settingsToPostData(&settings)
 	if err != nil {
 		return err
 	}
 
+	eSpan := createSpan(bm.tracer, span, "request_encoding", "")
+	d := posts.Encode()
+	eSpan.End()
+
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
-		Path:          fmt.Sprintf("/pools/default/buckets/%s", settings.Name),
+		Path:          path,
 		Method:        "POST",
-		Body:          []byte(posts.Encode()),
+		Body:          []byte(d),
 		ContentType:   "application/x-www-form-urlencoded",
 		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 
 	resp, err := bm.provider.executeMgmtRequest(req)
@@ -454,6 +471,7 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 type DropBucketOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // DropBucket will delete a bucket from the cluster by name.
@@ -462,18 +480,20 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 		opts = &DropBucketOptions{}
 	}
 
-	span := bm.tracer.StartSpan("DropBucket", nil).
-		SetTag("couchbase.service", "mgmt")
-	defer span.Finish()
+	path := fmt.Sprintf("/pools/default/buckets/%s", name)
+	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_drop_bucket", "management")
+	span.SetAttribute("db.name", name)
+	span.SetAttribute("db.operation", "DELETE "+path)
+	defer span.End()
 
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
-		Path:          fmt.Sprintf("/pools/default/buckets/%s", name),
+		Path:          path,
 		Method:        "DELETE",
 		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 
 	resp, err := bm.provider.executeMgmtRequest(req)
@@ -498,6 +518,7 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 type FlushBucketOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // FlushBucket will delete all the of the data from a bucket.
@@ -507,18 +528,20 @@ func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) erro
 		opts = &FlushBucketOptions{}
 	}
 
-	span := bm.tracer.StartSpan("FlushBucket", nil).
-		SetTag("couchbase.service", "mgmt")
-	defer span.Finish()
+	path := fmt.Sprintf("/pools/default/buckets/%s/controller/doFlush", name)
+	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_flush_bucket", "management")
+	span.SetAttribute("db.name", name)
+	span.SetAttribute("db.operation", "POST "+path)
+	defer span.End()
 
 	req := mgmtRequest{
 		Service:       ServiceTypeManagement,
-		Path:          fmt.Sprintf("/pools/default/buckets/%s/controller/doFlush", name),
+		Path:          path,
 		Method:        "POST",
 		RetryStrategy: opts.RetryStrategy,
 		UniqueID:      uuid.New().String(),
 		Timeout:       opts.Timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 
 	resp, err := bm.provider.executeMgmtRequest(req)

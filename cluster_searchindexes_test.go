@@ -255,7 +255,7 @@ func (suite *UnitTestSuite) TestSearchIndexesAnalyzeDocument() {
 
 	mgr := SearchIndexManager{
 		mgmtProvider: mockProvider,
-		tracer:       &noopTracer{},
+		tracer:       &NoopTracer{},
 	}
 
 	res, err := mgr.AnalyzeDocument(indexName, struct{}{}, &AnalyzeDocumentOptions{

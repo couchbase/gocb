@@ -203,11 +203,12 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 		opts = &ViewOptions{}
 	}
 
-	span := b.tracer.StartSpan("ViewQuery", opts.parentSpan).
-		SetTag("couchbase.service", "view")
-	defer span.Finish()
-
 	designDoc = b.maybePrefixDevDocument(opts.Namespace, designDoc)
+
+	span := createSpan(b.tracer, opts.ParentSpan, "views", "views")
+	span.SetAttribute("db.name", b.Name())
+	span.SetAttribute("db.operation", designDoc+"/"+viewName)
+	defer span.End()
 
 	timeout := opts.Timeout
 	if timeout == 0 {
@@ -229,7 +230,7 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 }
 
 func (b *Bucket) execViewQuery(
-	span requestSpanContext,
+	span RequestSpanContext,
 	viewType, ddoc, viewName string,
 	options url.Values,
 	deadline time.Time,

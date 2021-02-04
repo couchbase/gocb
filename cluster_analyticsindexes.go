@@ -3,6 +3,7 @@ package gocb
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"strings"
 	"time"
 )
@@ -13,7 +14,7 @@ type AnalyticsIndexManager struct {
 	mgmtProvider mgmtProvider
 
 	globalTimeout time.Duration
-	tracer        requestTracer
+	tracer        RequestTracer
 }
 
 type analyticsIndexQueryProvider interface {
@@ -111,6 +112,7 @@ type CreateAnalyticsDataverseOptions struct {
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // CreateDataverse creates a new analytics dataset.
@@ -125,20 +127,21 @@ func (am *AnalyticsIndexManager) CreateDataverse(dataverseName string, opts *Cre
 		}
 	}
 
-	span := am.tracer.StartSpan("CreateDataverse", nil).
-		SetTag("couchbase.service", "analytics")
-	defer span.Finish()
-
 	var ignoreStr string
 	if opts.IgnoreIfExists {
 		ignoreStr = "IF NOT EXISTS"
 	}
 
 	q := fmt.Sprintf("CREATE DATAVERSE `%s` %s", dataverseName, ignoreStr)
+
+	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_create_dataverse", "management")
+	defer span.End()
+
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
-		Timeout:       opts.Timeout,
-		RetryStrategy: opts.RetryStrategy,
-		parentSpan:    span,
+		Timeout:         opts.Timeout,
+		RetryStrategy:   opts.RetryStrategy,
+		ParentSpan:      span,
+		ClientContextID: uuid.New().String(),
 	})
 	if err != nil {
 		return err
@@ -153,6 +156,7 @@ type DropAnalyticsDataverseOptions struct {
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // DropDataverse drops an analytics dataset.
@@ -160,21 +164,20 @@ func (am *AnalyticsIndexManager) DropDataverse(dataverseName string, opts *DropA
 	if opts == nil {
 		opts = &DropAnalyticsDataverseOptions{}
 	}
-
-	span := am.tracer.StartSpan("DropDataverse", nil).
-		SetTag("couchbase.service", "analytics")
-	defer span.Finish()
-
 	var ignoreStr string
 	if opts.IgnoreIfNotExists {
 		ignoreStr = "IF EXISTS"
 	}
 
 	q := fmt.Sprintf("DROP DATAVERSE %s %s", dataverseName, ignoreStr)
+
+	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_drop_dataverse", "management")
+	defer span.End()
+
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
-		parentSpan:    span,
+		ParentSpan:    span,
 	})
 	if err != nil {
 		return err
@@ -191,6 +194,7 @@ type CreateAnalyticsDatasetOptions struct {
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // CreateDataset creates a new analytics dataset.
@@ -204,10 +208,6 @@ func (am *AnalyticsIndexManager) CreateDataset(datasetName, bucketName string, o
 			message: "dataset name cannot be empty",
 		}
 	}
-
-	span := am.tracer.StartSpan("CreateDataset", nil).
-		SetTag("couchbase.service", "analytics")
-	defer span.Finish()
 
 	var ignoreStr string
 	if opts.IgnoreIfExists {
@@ -229,10 +229,14 @@ func (am *AnalyticsIndexManager) CreateDataset(datasetName, bucketName string, o
 	}
 
 	q := fmt.Sprintf("CREATE DATASET %s %s ON `%s` %s", ignoreStr, datasetName, bucketName, where)
+
+	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_create_dataset", "management")
+	defer span.End()
+
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
-		parentSpan:    span,
+		ParentSpan:    span,
 	})
 	if err != nil {
 		return err
@@ -248,6 +252,7 @@ type DropAnalyticsDatasetOptions struct {
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // DropDataset drops an analytics dataset.
@@ -255,10 +260,6 @@ func (am *AnalyticsIndexManager) DropDataset(datasetName string, opts *DropAnaly
 	if opts == nil {
 		opts = &DropAnalyticsDatasetOptions{}
 	}
-
-	span := am.tracer.StartSpan("DropDataset", nil).
-		SetTag("couchbase.service", "analytics")
-	defer span.Finish()
 
 	var ignoreStr string
 	if opts.IgnoreIfNotExists {
@@ -272,10 +273,14 @@ func (am *AnalyticsIndexManager) DropDataset(datasetName string, opts *DropAnaly
 	}
 
 	q := fmt.Sprintf("DROP DATASET %s %s", datasetName, ignoreStr)
+
+	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_drop_dataset", "management")
+	defer span.End()
+
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
-		parentSpan:    span,
+		ParentSpan:    span,
 	})
 	if err != nil {
 		return err
@@ -288,6 +293,7 @@ func (am *AnalyticsIndexManager) DropDataset(datasetName string, opts *DropAnaly
 type GetAllAnalyticsDatasetsOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // GetAllDatasets gets all analytics datasets.
@@ -296,15 +302,15 @@ func (am *AnalyticsIndexManager) GetAllDatasets(opts *GetAllAnalyticsDatasetsOpt
 		opts = &GetAllAnalyticsDatasetsOptions{}
 	}
 
-	span := am.tracer.StartSpan("GetAllDatasets", nil).
-		SetTag("couchbase.service", "analytics")
-	defer span.Finish()
-
 	q := "SELECT d.* FROM Metadata.`Dataset` d WHERE d.DataverseName <> \"Metadata\""
+	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_get_all_datasets", "management")
+	span.SetAttribute("db.statement", q)
+	defer span.End()
+
 	rows, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
-		parentSpan:    span,
+		ParentSpan:    span,
 	})
 	if err != nil {
 		return nil, err
@@ -334,6 +340,7 @@ type CreateAnalyticsIndexOptions struct {
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // CreateIndex creates a new analytics dataset.
@@ -353,10 +360,6 @@ func (am *AnalyticsIndexManager) CreateIndex(datasetName, indexName string, fiel
 		}
 	}
 
-	span := am.tracer.StartSpan("CreateIndex", nil).
-		SetTag("couchbase.service", "analytics")
-	defer span.Finish()
-
 	var ignoreStr string
 	if opts.IgnoreIfExists {
 		ignoreStr = "IF NOT EXISTS"
@@ -374,10 +377,14 @@ func (am *AnalyticsIndexManager) CreateIndex(datasetName, indexName string, fiel
 	}
 
 	q := fmt.Sprintf("CREATE INDEX `%s` %s ON %s (%s)", indexName, ignoreStr, datasetName, strings.Join(indexFields, ","))
+
+	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_create_index", "management")
+	defer span.End()
+
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
-		parentSpan:    span,
+		ParentSpan:    span,
 	})
 	if err != nil {
 		return err
@@ -393,6 +400,7 @@ type DropAnalyticsIndexOptions struct {
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // DropIndex drops an analytics index.
@@ -400,10 +408,6 @@ func (am *AnalyticsIndexManager) DropIndex(datasetName, indexName string, opts *
 	if opts == nil {
 		opts = &DropAnalyticsIndexOptions{}
 	}
-
-	span := am.tracer.StartSpan("DropIndex", nil).
-		SetTag("couchbase.service", "analytics")
-	defer span.Finish()
 
 	var ignoreStr string
 	if opts.IgnoreIfNotExists {
@@ -417,10 +421,15 @@ func (am *AnalyticsIndexManager) DropIndex(datasetName, indexName string, opts *
 	}
 
 	q := fmt.Sprintf("DROP INDEX %s.%s %s", datasetName, indexName, ignoreStr)
+
+	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_drop_index", "management")
+	span.SetAttribute("db.statement", q)
+	defer span.End()
+
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
-		parentSpan:    span,
+		ParentSpan:    span,
 	})
 	if err != nil {
 		return err
@@ -433,6 +442,7 @@ func (am *AnalyticsIndexManager) DropIndex(datasetName, indexName string, opts *
 type GetAllAnalyticsIndexesOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // GetAllIndexes gets all analytics indexes.
@@ -441,15 +451,14 @@ func (am *AnalyticsIndexManager) GetAllIndexes(opts *GetAllAnalyticsIndexesOptio
 		opts = &GetAllAnalyticsIndexesOptions{}
 	}
 
-	span := am.tracer.StartSpan("GetAllIndexes", nil).
-		SetTag("couchbase.service", "analytics")
-	defer span.Finish()
-
 	q := "SELECT d.* FROM Metadata.`Index` d WHERE d.DataverseName <> \"Metadata\""
+	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_get_all_indexes", "management")
+	defer span.End()
+
 	rows, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
-		parentSpan:    span,
+		ParentSpan:    span,
 	})
 	if err != nil {
 		return nil, err
@@ -478,6 +487,7 @@ type ConnectAnalyticsLinkOptions struct {
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // ConnectLink connects an analytics link.
@@ -486,19 +496,19 @@ func (am *AnalyticsIndexManager) ConnectLink(opts *ConnectAnalyticsLinkOptions) 
 		opts = &ConnectAnalyticsLinkOptions{}
 	}
 
-	span := am.tracer.StartSpan("ConnectLink", nil).
-		SetTag("couchbase.service", "analytics")
-	defer span.Finish()
-
 	if opts.LinkName == "" {
 		opts.LinkName = "Local"
 	}
 
 	q := fmt.Sprintf("CONNECT LINK %s", opts.LinkName)
+	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_connect_link", "management")
+	span.SetAttribute("db.statement", q)
+	defer span.End()
+
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
-		parentSpan:    span,
+		ParentSpan:    span,
 	})
 	if err != nil {
 		return err
@@ -513,6 +523,7 @@ type DisconnectAnalyticsLinkOptions struct {
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // DisconnectLink disconnects an analytics link.
@@ -521,19 +532,18 @@ func (am *AnalyticsIndexManager) DisconnectLink(opts *DisconnectAnalyticsLinkOpt
 		opts = &DisconnectAnalyticsLinkOptions{}
 	}
 
-	span := am.tracer.StartSpan("DisconnectLink", nil).
-		SetTag("couchbase.service", "analytics")
-	defer span.Finish()
-
 	if opts.LinkName == "" {
 		opts.LinkName = "Local"
 	}
 
 	q := fmt.Sprintf("DISCONNECT LINK %s", opts.LinkName)
+	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_disconnect_link", "management")
+	defer span.End()
+
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
-		parentSpan:    span,
+		ParentSpan:    span,
 	})
 	if err != nil {
 		return err
@@ -546,6 +556,7 @@ func (am *AnalyticsIndexManager) DisconnectLink(opts *DisconnectAnalyticsLinkOpt
 type GetPendingMutationsAnalyticsOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // GetPendingMutations returns the number of pending mutations for all indexes in the form of dataverse.dataset:mutations.
@@ -554,9 +565,9 @@ func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAn
 		opts = &GetPendingMutationsAnalyticsOptions{}
 	}
 
-	span := am.tracer.StartSpan("GetPendingMutations", nil).
-		SetTag("couchbase.service", "analytics")
-	defer span.Finish()
+	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_get_pending_mutations", "management")
+	span.SetAttribute("db.operation", "GET /analytics/node/agg/stats/remaining")
+	defer span.End()
 
 	timeout := opts.Timeout
 	if timeout == 0 {
@@ -570,7 +581,7 @@ func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAn
 		IsIdempotent:  true,
 		RetryStrategy: opts.RetryStrategy,
 		Timeout:       timeout,
-		parentSpan:    span.Context(),
+		parentSpanCtx: span.Context(),
 	}
 	resp, err := am.doMgmtRequest(req)
 	if err != nil {

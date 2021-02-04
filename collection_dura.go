@@ -8,7 +8,7 @@ import (
 )
 
 func (c *Collection) observeOnceSeqNo(
-	tracectx requestSpanContext,
+	trace RequestSpan,
 	docID string,
 	mt gocbcore.MutationToken,
 	replicaIdx int,
@@ -16,7 +16,7 @@ func (c *Collection) observeOnceSeqNo(
 	timeout time.Duration,
 	user []byte,
 ) (didReplicate, didPersist bool, errOut error) {
-	opm := c.newKvOpManager("observeOnceSeqNo", tracectx)
+	opm := c.newKvOpManager("observe_once", trace)
 	defer opm.Finish()
 
 	opm.SetDocumentID(docID)
@@ -32,7 +32,7 @@ func (c *Collection) observeOnceSeqNo(
 		VbID:         mt.VbID,
 		VbUUID:       mt.VbUUID,
 		ReplicaIdx:   replicaIdx,
-		TraceContext: opm.TraceSpan(),
+		TraceContext: opm.TraceSpanContext(),
 		Deadline:     opm.Deadline(),
 		User:         opm.Impersonate(),
 	}, func(res *gocbcore.ObserveVbResult, err error) {
@@ -47,19 +47,18 @@ func (c *Collection) observeOnceSeqNo(
 
 		opm.Resolve(nil)
 	}))
-	if err != nil {
+	if err == nil {
 		errOut = err
 	}
 	return
 }
 
 func (c *Collection) observeOne(
-	tracectx requestSpanContext,
+	trace RequestSpan,
 	docID string,
 	mt gocbcore.MutationToken,
 	replicaIdx int,
-	replicaCh, persistCh chan struct{},
-	cancelCh chan struct{},
+	replicaCh, persistCh, cancelCh chan struct{},
 	timeout time.Duration,
 	user []byte,
 ) {
@@ -78,7 +77,7 @@ ObserveLoop:
 			// not cancelled yet
 		}
 
-		didReplicate, didPersist, err := c.observeOnceSeqNo(tracectx, docID, mt, replicaIdx, cancelCh, timeout, user)
+		didReplicate, didPersist, err := c.observeOnceSeqNo(trace, docID, mt, replicaIdx, cancelCh, timeout, user)
 		if err != nil {
 			logDebugf("ObserveOnce failed unexpected: %s", err)
 			return
@@ -111,7 +110,7 @@ ObserveLoop:
 }
 
 func (c *Collection) waitForDurability(
-	tracectx requestSpanContext,
+	trace RequestSpan,
 	docID string,
 	mt gocbcore.MutationToken,
 	replicateTo uint,
@@ -120,7 +119,7 @@ func (c *Collection) waitForDurability(
 	cancelCh chan struct{},
 	user []byte,
 ) error {
-	opm := c.newKvOpManager("waitForDurability", tracectx)
+	opm := c.newKvOpManager("observe", trace)
 	defer opm.Finish()
 
 	opm.SetDocumentID(docID)
@@ -149,8 +148,8 @@ func (c *Collection) waitForDurability(
 	replicaCh := make(chan struct{}, numServers)
 	persistCh := make(chan struct{}, numServers)
 
-	// When we cancel the sub op channel we need to wait for the child operations to complete so that we don't race
-	// on completion of the child and parent spans.
+	// If we cancel the sub ops then we need to wait for cancellation to complete before we exit, otherwise
+	// we will attempt to close our span before the child spans complete.
 	var wg sync.WaitGroup
 	for replicaIdx := 0; replicaIdx < numServers; replicaIdx++ {
 		wg.Add(1)

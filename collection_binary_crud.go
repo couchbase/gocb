@@ -19,6 +19,7 @@ type AppendOptions struct {
 	ReplicateTo     uint
 	Cas             Cas
 	RetryStrategy   RetryStrategy
+	ParentSpan      RequestSpan
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -31,7 +32,7 @@ func (c *Collection) binaryAppend(id string, val []byte, opts *AppendOptions) (m
 		opts = &AppendOptions{}
 	}
 
-	opm := c.newKvOpManager("Append", nil)
+	opm := c.newKvOpManager("append", opts.ParentSpan)
 	defer opm.Finish()
 
 	opm.SetDocumentID(id)
@@ -57,7 +58,7 @@ func (c *Collection) binaryAppend(id string, val []byte, opts *AppendOptions) (m
 		DurabilityLevelTimeout: opm.DurabilityTimeout(),
 		Cas:                    gocbcore.Cas(opts.Cas),
 		RetryStrategy:          opm.RetryStrategy(),
-		TraceContext:           opm.TraceSpan(),
+		TraceContext:           opm.TraceSpanContext(),
 		Deadline:               opm.Deadline(),
 		User:                   opm.Impersonate(),
 	}, func(res *gocbcore.AdjoinResult, err error) {
@@ -92,6 +93,7 @@ type PrependOptions struct {
 	ReplicateTo     uint
 	Cas             Cas
 	RetryStrategy   RetryStrategy
+	ParentSpan      RequestSpan
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -104,7 +106,7 @@ func (c *Collection) binaryPrepend(id string, val []byte, opts *PrependOptions) 
 		opts = &PrependOptions{}
 	}
 
-	opm := c.newKvOpManager("Prepend", nil)
+	opm := c.newKvOpManager("prepend", opts.ParentSpan)
 	defer opm.Finish()
 
 	opm.SetDocumentID(id)
@@ -130,7 +132,7 @@ func (c *Collection) binaryPrepend(id string, val []byte, opts *PrependOptions) 
 		DurabilityLevelTimeout: opm.DurabilityTimeout(),
 		Cas:                    gocbcore.Cas(opts.Cas),
 		RetryStrategy:          opm.RetryStrategy(),
-		TraceContext:           opm.TraceSpan(),
+		TraceContext:           opm.TraceSpanContext(),
 		Deadline:               opm.Deadline(),
 		User:                   opm.Impersonate(),
 	}, func(res *gocbcore.AdjoinResult, err error) {
@@ -173,6 +175,7 @@ type IncrementOptions struct {
 	ReplicateTo     uint
 	Cas             Cas
 	RetryStrategy   RetryStrategy
+	ParentSpan      RequestSpan
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -185,7 +188,7 @@ func (c *Collection) binaryIncrement(id string, opts *IncrementOptions) (countOu
 		opts = &IncrementOptions{}
 	}
 
-	opm := c.newKvOpManager("Increment", nil)
+	opm := c.newKvOpManager("increment", opts.ParentSpan)
 	defer opm.Finish()
 
 	opm.SetDocumentID(id)
@@ -218,7 +221,7 @@ func (c *Collection) binaryIncrement(id string, opts *IncrementOptions) (countOu
 		DurabilityLevelTimeout: opm.DurabilityTimeout(),
 		Cas:                    gocbcore.Cas(opts.Cas),
 		RetryStrategy:          opm.RetryStrategy(),
-		TraceContext:           opm.TraceSpan(),
+		TraceContext:           opm.TraceSpanContext(),
 		Deadline:               opm.Deadline(),
 		User:                   opm.Impersonate(),
 	}, func(res *gocbcore.CounterResult, err error) {
@@ -264,6 +267,7 @@ type DecrementOptions struct {
 	ReplicateTo     uint
 	Cas             Cas
 	RetryStrategy   RetryStrategy
+	ParentSpan      RequestSpan
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -276,7 +280,7 @@ func (c *Collection) binaryDecrement(id string, opts *DecrementOptions) (countOu
 		opts = &DecrementOptions{}
 	}
 
-	opm := c.newKvOpManager("Decrement", nil)
+	opm := c.newKvOpManager("decrement", opts.ParentSpan)
 	defer opm.Finish()
 
 	opm.SetDocumentID(id)
@@ -309,7 +313,7 @@ func (c *Collection) binaryDecrement(id string, opts *DecrementOptions) (countOu
 		DurabilityLevelTimeout: opm.DurabilityTimeout(),
 		Cas:                    gocbcore.Cas(opts.Cas),
 		RetryStrategy:          opm.RetryStrategy(),
-		TraceContext:           opm.TraceSpan(),
+		TraceContext:           opm.TraceSpanContext(),
 		Deadline:               opm.Deadline(),
 		User:                   opm.Impersonate(),
 	}, func(res *gocbcore.CounterResult, err error) {

@@ -22,6 +22,7 @@ func (suite *IntegrationTestSuite) runSearchTest(n int) {
 	query := search.NewTermQuery("search").Field("service")
 	var result *SearchResult
 	for {
+		suite.tracer.Reset()
 		var err error
 		result, err = globalCluster.SearchQuery("search_test_index", query, &SearchOptions{
 			Timeout: 1 * time.Second,
@@ -31,6 +32,19 @@ func (suite *IntegrationTestSuite) runSearchTest(n int) {
 				"numeric": search.NewNumericFacet("geo.lat", 5).AddRange("lat", 30, 31),
 			},
 		})
+
+		suite.Require().Contains(suite.tracer.Spans, nil)
+		nilParents := suite.tracer.Spans[nil]
+		suite.Require().Equal(1, len(nilParents))
+		suite.AssertHTTPOpSpan(nilParents[0], "search",
+			HTTPOpSpanExpectations{
+				operationID:             "search_test_index",
+				numDispatchSpans:        1,
+				atLeastNumDispatchSpans: false,
+				hasEncoding:             true,
+				service:                 "search",
+			})
+
 		if err != nil {
 			sleepDeadline := time.Now().Add(1000 * time.Millisecond)
 			if sleepDeadline.After(deadline) {

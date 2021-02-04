@@ -13,7 +13,7 @@ type QueryIndexManager struct {
 	provider queryIndexQueryProvider
 
 	globalTimeout time.Duration
-	tracer        requestTracer
+	tracer        RequestTracer
 }
 
 type queryIndexQueryProvider interface {
@@ -131,14 +131,17 @@ type createQueryIndexOptions struct {
 }
 
 func (qm *QueryIndexManager) createIndex(
-	tracectx requestSpanContext,
+	parent RequestSpan,
 	bucketName, indexName string,
 	fields []string,
 	opts createQueryIndexOptions,
 ) error {
 	var qs string
 
+	spanName := "manager_query_create_index"
+
 	if len(fields) == 0 {
+		spanName = "manager_query_create_primary_index"
 		qs += "CREATE PRIMARY INDEX"
 	} else {
 		qs += "CREATE INDEX"
@@ -161,11 +164,14 @@ func (qm *QueryIndexManager) createIndex(
 		qs += " WITH {\"defer_build\": true}"
 	}
 
+	span := createSpan(qm.tracer, parent, spanName, "management")
+	defer span.End()
+
 	_, err := qm.doQuery(qs, &QueryOptions{
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
 		Adhoc:         true,
-		parentSpan:    tracectx,
+		ParentSpan:    span,
 	})
 	if err == nil {
 		return nil
@@ -185,6 +191,7 @@ type CreateQueryIndexOptions struct {
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // CreateIndex creates an index over the specified fields.
@@ -204,11 +211,7 @@ func (qm *QueryIndexManager) CreateIndex(bucketName, indexName string, fields []
 		}
 	}
 
-	span := qm.tracer.StartSpan("CreateIndex", nil).
-		SetTag("couchbase.service", "query")
-	defer span.Finish()
-
-	return qm.createIndex(span.Context(), bucketName, indexName, fields, createQueryIndexOptions{
+	return qm.createIndex(opts.ParentSpan, bucketName, indexName, fields, createQueryIndexOptions{
 		IgnoreIfExists: opts.IgnoreIfExists,
 		Deferred:       opts.Deferred,
 		Timeout:        opts.Timeout,
@@ -224,6 +227,7 @@ type CreatePrimaryQueryIndexOptions struct {
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // CreatePrimaryIndex creates a primary index.  An empty customName uses the default naming.
@@ -232,12 +236,8 @@ func (qm *QueryIndexManager) CreatePrimaryIndex(bucketName string, opts *CreateP
 		opts = &CreatePrimaryQueryIndexOptions{}
 	}
 
-	span := qm.tracer.StartSpan("CreatePrimaryIndex", nil).
-		SetTag("couchbase.service", "query")
-	defer span.Finish()
-
 	return qm.createIndex(
-		span.Context(),
+		opts.ParentSpan,
 		bucketName,
 		opts.CustomName,
 		nil,
@@ -257,23 +257,28 @@ type dropQueryIndexOptions struct {
 }
 
 func (qm *QueryIndexManager) dropIndex(
-	tracectx requestSpanContext,
+	parent RequestSpan,
 	bucketName, indexName string,
 	opts dropQueryIndexOptions,
 ) error {
 	var qs string
 
+	spanName := "manager_query_drop_index"
 	if indexName == "" {
+		spanName = "manager_query_drop_primary_index"
 		qs += "DROP PRIMARY INDEX ON `" + bucketName + "`"
 	} else {
 		qs += "DROP INDEX `" + bucketName + "`.`" + indexName + "`"
 	}
 
+	span := createSpan(qm.tracer, parent, spanName, "management")
+	defer span.End()
+
 	_, err := qm.doQuery(qs, &QueryOptions{
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
 		Adhoc:         true,
-		parentSpan:    tracectx,
+		ParentSpan:    span,
 	})
 	if err == nil {
 		return nil
@@ -292,6 +297,7 @@ type DropQueryIndexOptions struct {
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // DropIndex drops a specific index by name.
@@ -306,12 +312,8 @@ func (qm *QueryIndexManager) DropIndex(bucketName, indexName string, opts *DropQ
 		}
 	}
 
-	span := qm.tracer.StartSpan("DropIndex", nil).
-		SetTag("couchbase.service", "query")
-	defer span.Finish()
-
 	return qm.dropIndex(
-		span.Context(),
+		opts.ParentSpan,
 		bucketName,
 		indexName,
 		dropQueryIndexOptions{
@@ -328,6 +330,7 @@ type DropPrimaryQueryIndexOptions struct {
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // DropPrimaryIndex drops the primary index.  Pass an empty customName for unnamed primary indexes.
@@ -336,12 +339,8 @@ func (qm *QueryIndexManager) DropPrimaryIndex(bucketName string, opts *DropPrima
 		opts = &DropPrimaryQueryIndexOptions{}
 	}
 
-	span := qm.tracer.StartSpan("DropPrimaryIndex", nil).
-		SetTag("couchbase.service", "query")
-	defer span.Finish()
-
 	return qm.dropIndex(
-		span.Context(),
+		opts.ParentSpan,
 		bucketName,
 		opts.CustomName,
 		dropQueryIndexOptions{
@@ -355,6 +354,7 @@ func (qm *QueryIndexManager) DropPrimaryIndex(bucketName string, opts *DropPrima
 type GetAllQueryIndexesOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // GetAllIndexes returns a list of all currently registered indexes.
@@ -363,26 +363,26 @@ func (qm *QueryIndexManager) GetAllIndexes(bucketName string, opts *GetAllQueryI
 		opts = &GetAllQueryIndexesOptions{}
 	}
 
-	span := qm.tracer.StartSpan("GetAllIndexes", nil).
-		SetTag("couchbase.service", "query")
-	defer span.Finish()
-
-	return qm.getAllIndexes(span.Context(), bucketName, opts)
+	return qm.getAllIndexes(opts.ParentSpan, bucketName, opts)
 }
 
 func (qm *QueryIndexManager) getAllIndexes(
-	tracectx requestSpanContext,
+	parent RequestSpan,
 	bucketName string,
 	opts *GetAllQueryIndexesOptions,
 ) ([]QueryIndex, error) {
 	q := "SELECT `indexes`.* FROM system:indexes WHERE keyspace_id=? AND `using`=\"gsi\""
+
+	span := createSpan(qm.tracer, parent, "manager_query_get_all_indexes", "management")
+	defer span.End()
+
 	rows, err := qm.doQuery(q, &QueryOptions{
 		PositionalParameters: []interface{}{bucketName},
 		Readonly:             true,
 		Timeout:              opts.Timeout,
 		RetryStrategy:        opts.RetryStrategy,
 		Adhoc:                true,
-		parentSpan:           tracectx,
+		ParentSpan:           span,
 	})
 	if err != nil {
 		return nil, err
@@ -412,6 +412,7 @@ func (qm *QueryIndexManager) getAllIndexes(
 type BuildDeferredQueryIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // BuildDeferredIndexes builds all indexes which are currently in deferred state.
@@ -420,12 +421,11 @@ func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *Build
 		opts = &BuildDeferredQueryIndexOptions{}
 	}
 
-	span := qm.tracer.StartSpan("BuildDeferredIndexes", nil).
-		SetTag("couchbase.service", "query")
-	defer span.Finish()
+	span := createSpan(qm.tracer, opts.ParentSpan, "manager_query_build_deferred_indexes", "management")
+	defer span.End()
 
 	indexList, err := qm.getAllIndexes(
-		span.Context(),
+		span,
 		bucketName,
 		&GetAllQueryIndexesOptions{
 			Timeout:       opts.Timeout,
@@ -462,7 +462,7 @@ func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *Build
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
 		Adhoc:         true,
-		parentSpan:    span,
+		ParentSpan:    span,
 	})
 	if err != nil {
 		return nil, err
@@ -501,6 +501,7 @@ type WatchQueryIndexOptions struct {
 	WatchPrimary bool
 
 	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
 }
 
 // WatchIndexes waits for a set of indexes to come online.
@@ -509,9 +510,8 @@ func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string,
 		opts = &WatchQueryIndexOptions{}
 	}
 
-	span := qm.tracer.StartSpan("WatchIndexes", nil).
-		SetTag("couchbase.service", "query")
-	defer span.Finish()
+	span := createSpan(qm.tracer, opts.ParentSpan, "manager_query_watch_indexes", "management")
+	defer span.End()
 
 	if opts.WatchPrimary {
 		watchList = append(watchList, "#primary")
@@ -526,7 +526,7 @@ func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string,
 		}
 
 		indexes, err := qm.getAllIndexes(
-			span.Context(),
+			span,
 			bucketName,
 			&GetAllQueryIndexesOptions{
 				Timeout:       time.Until(deadline),

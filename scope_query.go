@@ -12,9 +12,11 @@ func (s *Scope) Query(statement string, opts *QueryOptions) (*QueryResult, error
 		opts = &QueryOptions{}
 	}
 
-	span := s.tracer.StartSpan("Query", opts.parentSpan).
-		SetTag("couchbase.service", "query")
-	defer span.Finish()
+	span := createSpan(s.tracer, opts.ParentSpan, "query", "query")
+	span.SetAttribute("db.statement", statement)
+	span.SetAttribute("db.name", s.BucketName())
+	span.SetAttribute("db.couchbase.scope", s.Name())
+	defer span.End()
 
 	timeout := opts.Timeout
 	if timeout == 0 {
