@@ -17,8 +17,8 @@ type LookupInOptions struct {
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
-		AccessDeleted bool
-		User          []byte
+		DocFlags SubdocDocFlag
+		User     []byte
 	}
 }
 
@@ -40,13 +40,13 @@ func (c *Collection) LookupIn(id string, ops []LookupInSpec, opts *LookupInOptio
 		return nil, err
 	}
 
-	return c.internalLookupIn(opm, ops, opts.Internal.AccessDeleted)
+	return c.internalLookupIn(opm, ops, memd.SubdocDocFlag(opts.Internal.DocFlags))
 }
 
 func (c *Collection) internalLookupIn(
 	opm *kvOpManager,
 	ops []LookupInSpec,
-	accessDeleted bool,
+	flags memd.SubdocDocFlag,
 ) (docOut *LookupInResult, errOut error) {
 	var subdocs []gocbcore.SubDocOp
 	for _, op := range ops {
@@ -82,11 +82,6 @@ func (c *Collection) internalLookupIn(
 			Path:  op.path,
 			Flags: flags,
 		})
-	}
-
-	var flags memd.SubdocDocFlag
-	if accessDeleted {
-		flags = memd.SubdocDocFlagAccessDeleted
 	}
 
 	agent, err := c.getKvProvider()
@@ -159,8 +154,8 @@ type MutateInOptions struct {
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
-		AccessDeleted bool
-		User          []byte
+		DocFlags SubdocDocFlag
+		User     []byte
 	}
 }
 
@@ -182,7 +177,7 @@ func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptio
 		return nil, err
 	}
 
-	return c.internalMutateIn(opm, opts.StoreSemantic, opts.Expiry, opts.Cas, ops, opts.Internal.AccessDeleted)
+	return c.internalMutateIn(opm, opts.StoreSemantic, opts.Expiry, opts.Cas, ops, memd.SubdocDocFlag(opts.Internal.DocFlags))
 }
 
 func jsonMarshalMultiArray(in interface{}) ([]byte, error) {
@@ -238,9 +233,8 @@ func (c *Collection) internalMutateIn(
 	expiry time.Duration,
 	cas Cas,
 	ops []MutateInSpec,
-	accessDeleted bool,
+	docFlags memd.SubdocDocFlag,
 ) (mutOut *MutateInResult, errOut error) {
-	var docFlags memd.SubdocDocFlag
 	if action == StoreSemanticsReplace {
 		// this is the default behaviour
 	} else if action == StoreSemanticsUpsert {
@@ -249,10 +243,6 @@ func (c *Collection) internalMutateIn(
 		docFlags |= memd.SubdocDocFlagAddDoc
 	} else {
 		return nil, makeInvalidArgumentsError("invalid StoreSemantics value provided")
-	}
-
-	if accessDeleted {
-		docFlags |= memd.SubdocDocFlagAccessDeleted
 	}
 
 	var subdocs []gocbcore.SubDocOp

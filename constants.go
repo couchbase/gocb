@@ -128,6 +128,7 @@ const (
 	SubdocDocFlagAddDoc SubdocDocFlag = SubdocDocFlag(memd.SubdocDocFlagAddDoc)
 
 	// SubdocDocFlagAccessDeleted indicates that you wish to receive soft-deleted documents.
+	// Internal: This should never be used and is not supported.
 	SubdocDocFlagAccessDeleted SubdocDocFlag = SubdocDocFlag(memd.SubdocDocFlagAccessDeleted)
 
 	// SubdocDocFlagCreateAsDeleted indicates that you wish to create a document in deleted state.

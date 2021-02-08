@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"errors"
+	"github.com/couchbase/gocbcore/v9/memd"
 	"sync"
 	"time"
 
@@ -396,7 +397,7 @@ func (c *Collection) getProjected(id string, opts *GetOptions) (docOut *GetResul
 		}
 	}
 
-	result, err := c.internalLookupIn(opm, ops, false)
+	result, err := c.internalLookupIn(opm, ops, memd.SubdocDocFlagNone)
 	if err != nil {
 		return nil, err
 	}
