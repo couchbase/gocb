@@ -59,17 +59,15 @@ func (cm *CollectionManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtRe
 
 	errText := strings.ToLower(string(b))
 
-	if resp.StatusCode == 404 {
-		if strings.Contains(errText, "not_found") && strings.Contains(errText, "collection") {
-			return makeGenericMgmtError(ErrCollectionNotFound, req, resp)
-		} else if strings.Contains(errText, "not_found") && strings.Contains(errText, "scope") {
-			return makeGenericMgmtError(ErrScopeNotFound, req, resp)
-		}
+	if strings.Contains(errText, "not_found") && strings.Contains(errText, "collection") {
+		return makeGenericMgmtError(ErrCollectionNotFound, req, resp)
+	} else if strings.Contains(errText, "not_found") && strings.Contains(errText, "scope") {
+		return makeGenericMgmtError(ErrScopeNotFound, req, resp)
 	}
 
-	if strings.Contains(errText, "already_exists") && strings.Contains(errText, "collection") {
+	if strings.Contains(errText, "already exists") && strings.Contains(errText, "collection") {
 		return makeGenericMgmtError(ErrCollectionExists, req, resp)
-	} else if strings.Contains(errText, "already_exists") && strings.Contains(errText, "scope") {
+	} else if strings.Contains(errText, "already exists") && strings.Contains(errText, "scope") {
 		return makeGenericMgmtError(ErrScopeExists, req, resp)
 	}
 
@@ -128,6 +126,7 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 				collections = append(collections, CollectionSpec{
 					Name:      col.Name,
 					ScopeName: scope.Name,
+					MaxExpiry: time.Duration(col.MaxTTL) * time.Second,
 				})
 			}
 			scopes = append(scopes, ScopeSpec{

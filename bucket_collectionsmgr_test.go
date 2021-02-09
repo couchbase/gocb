@@ -48,6 +48,23 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 		suite.T().Fatalf("Expected scopes to contain at least 2 scopes but was %v", scopes)
 	}
 
+	var found bool
+	for _, scope := range scopes {
+		if scope.Name != "testScope" {
+			continue
+		}
+
+		found = true
+		if suite.Assert().Len(scope.Collections, 1) {
+			col := scope.Collections[0]
+			suite.Assert().Equal("testCollection", col.Name)
+			suite.Assert().Equal("testScope", col.ScopeName)
+			suite.Assert().Equal(5*time.Second, col.MaxExpiry)
+		}
+		break
+	}
+	suite.Assert().True(found)
+
 	err = mgr.DropCollection(CollectionSpec{
 		Name:      "testCollection",
 		ScopeName: "testScope",
@@ -56,9 +73,22 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 		suite.T().Fatalf("Expected DropCollection to not error but was %v", err)
 	}
 
+	err = mgr.DropCollection(CollectionSpec{
+		Name:      "testCollection",
+		ScopeName: "testScope",
+	}, nil)
+	if !errors.Is(err, ErrCollectionNotFound) {
+		suite.T().Fatalf("Expected drop collection to error with ErrCollectionNotFound but was %v", err)
+	}
+
 	err = mgr.DropScope("testScope", nil)
 	if err != nil {
 		suite.T().Fatalf("Expected DropScope to not error but was %v", err)
+	}
+
+	err = mgr.DropScope("testScope", nil)
+	if !errors.Is(err, ErrScopeNotFound) {
+		suite.T().Fatalf("Expected drop scope to error with ErrScopeNotFound but was %v", err)
 	}
 }
 
