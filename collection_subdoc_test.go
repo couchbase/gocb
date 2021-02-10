@@ -529,3 +529,32 @@ func (suite *IntegrationTestSuite) TestSubdocNil() {
 		suite.Assert().Nil(doc)
 	}
 }
+
+func (suite *IntegrationTestSuite) TestMutateInBlankPathRemove() {
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(SubdocFeature)
+	suite.skipIfUnsupported(XattrFeature)
+
+	doc := struct {
+		Thing string `json:"thing"`
+	}{
+		Thing: "from the depths",
+	}
+
+	mutRes, err := globalCollection.Upsert("mutateInBlankPathRemove", doc, nil)
+	suite.Require().Nil(err)
+
+	suite.Assert().NotZero(mutRes.Cas())
+
+	subRes, err := globalCollection.MutateIn("mutateInBlankPathRemove", []MutateInSpec{
+		RemoveSpec("", nil),
+	}, nil)
+	suite.Require().Nil(err)
+
+	suite.Assert().NotZero(subRes.Cas())
+
+	_, err = globalCollection.Get("mutateInBlankPathRemove", nil)
+	if !errors.Is(err, ErrDocumentNotFound) {
+		suite.T().Fatalf("Expected error to be doc not found but was %v", err)
+	}
+}

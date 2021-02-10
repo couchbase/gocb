@@ -254,7 +254,7 @@ func (c *Collection) internalMutateIn(
 			case memd.SubDocOpDictSet:
 				return nil, makeInvalidArgumentsError("cannot specify a blank path with UpsertSpec")
 			case memd.SubDocOpDelete:
-				return nil, makeInvalidArgumentsError("cannot specify a blank path with DeleteSpec")
+				op.op = memd.SubDocOpDeleteDoc
 			case memd.SubDocOpReplace:
 				op.op = memd.SubDocOpSetDoc
 			default:
