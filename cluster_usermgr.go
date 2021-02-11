@@ -143,14 +143,14 @@ func (ro *RoleAndOrigins) fromData(data jsonRoleOrigins) error {
 	}
 
 	origins := make([]Origin, len(data.Origins))
-	for _, originData := range data.Origins {
+	for i, originData := range data.Origins {
 		var origin Origin
 		err := origin.fromData(originData)
 		if err != nil {
 			return err
 		}
 
-		origins = append(origins, origin)
+		origins[i] = origin
 	}
 	ro.Origins = origins
 
