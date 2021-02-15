@@ -110,7 +110,7 @@ func (suite *IntegrationTestSuite) TestExpiryConversions() {
 
 			actualExpirySecs := time.Unix(exp.Expiration, 0).Sub(start).Seconds()
 
-			if actualExpirySecs > (tCase.expiry + (500 * time.Millisecond)).Seconds() {
+			if actualExpirySecs > (tCase.expiry + (1000 * time.Millisecond)).Seconds() {
 				te.Fatalf("Expected expiry to be less than %f but was %f", tCase.expiry.Seconds(),
 					actualExpirySecs)
 			}
