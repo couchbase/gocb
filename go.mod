@@ -1,7 +1,7 @@
 module github.com/couchbase/gocb/v2
 
 require (
-	github.com/couchbase/gocbcore/v9 v9.1.2-0.20210209094434-1b2ac8939b69
+	github.com/couchbase/gocbcore/v9 v9.1.2
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/google/uuid v1.1.1
 	github.com/pkg/errors v0.9.1
