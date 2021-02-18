@@ -3,6 +3,8 @@
 package gocb
 
 import (
+	context "context"
+
 	gocbcore "github.com/couchbase/gocbcore/v9"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -35,13 +37,13 @@ func (_m *mockDiagnosticsProvider) Diagnostics(opts gocbcore.DiagnosticsOptions)
 	return r0, r1
 }
 
-// Ping provides a mock function with given fields: opts
-func (_m *mockDiagnosticsProvider) Ping(opts gocbcore.PingOptions) (*gocbcore.PingResult, error) {
-	ret := _m.Called(opts)
+// Ping provides a mock function with given fields: ctx, opts
+func (_m *mockDiagnosticsProvider) Ping(ctx context.Context, opts gocbcore.PingOptions) (*gocbcore.PingResult, error) {
+	ret := _m.Called(ctx, opts)
 
 	var r0 *gocbcore.PingResult
-	if rf, ok := ret.Get(0).(func(gocbcore.PingOptions) *gocbcore.PingResult); ok {
-		r0 = rf(opts)
+	if rf, ok := ret.Get(0).(func(context.Context, gocbcore.PingOptions) *gocbcore.PingResult); ok {
+		r0 = rf(ctx, opts)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*gocbcore.PingResult)
@@ -49,8 +51,8 @@ func (_m *mockDiagnosticsProvider) Ping(opts gocbcore.PingOptions) (*gocbcore.Pi
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(gocbcore.PingOptions) error); ok {
-		r1 = rf(opts)
+	if rf, ok := ret.Get(1).(func(context.Context, gocbcore.PingOptions) error); ok {
+		r1 = rf(ctx, opts)
 	} else {
 		r1 = ret.Error(1)
 	}

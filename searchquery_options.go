@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"time"
 
 	cbsearch "github.com/couchbase/gocb/v2/search"
@@ -60,6 +61,11 @@ type SearchOptions struct {
 	Collections []string
 
 	ParentSpan RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 func (opts *SearchOptions) toMap() (map[string]interface{}, error) {

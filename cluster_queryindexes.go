@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"regexp"
@@ -132,6 +133,7 @@ type createQueryIndexOptions struct {
 }
 
 func (qm *QueryIndexManager) createIndex(
+	ctx context.Context,
 	parent RequestSpan,
 	bucketName, indexName string,
 	fields []string,
@@ -176,6 +178,7 @@ func (qm *QueryIndexManager) createIndex(
 		RetryStrategy: opts.RetryStrategy,
 		Adhoc:         true,
 		ParentSpan:    span,
+		Context:       ctx,
 	})
 	if err == nil {
 		return nil
@@ -196,6 +199,11 @@ type CreateQueryIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // CreateIndex creates an index over the specified fields.
@@ -215,7 +223,7 @@ func (qm *QueryIndexManager) CreateIndex(bucketName, indexName string, fields []
 		}
 	}
 
-	return qm.createIndex(opts.ParentSpan, bucketName, indexName, fields, createQueryIndexOptions{
+	return qm.createIndex(opts.Context, opts.ParentSpan, bucketName, indexName, fields, createQueryIndexOptions{
 		IgnoreIfExists: opts.IgnoreIfExists,
 		Deferred:       opts.Deferred,
 		Timeout:        opts.Timeout,
@@ -232,6 +240,11 @@ type CreatePrimaryQueryIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // CreatePrimaryIndex creates a primary index.  An empty customName uses the default naming.
@@ -241,6 +254,7 @@ func (qm *QueryIndexManager) CreatePrimaryIndex(bucketName string, opts *CreateP
 	}
 
 	return qm.createIndex(
+		opts.Context,
 		opts.ParentSpan,
 		bucketName,
 		opts.CustomName,
@@ -261,6 +275,7 @@ type dropQueryIndexOptions struct {
 }
 
 func (qm *QueryIndexManager) dropIndex(
+	ctx context.Context,
 	parent RequestSpan,
 	bucketName, indexName string,
 	opts dropQueryIndexOptions,
@@ -286,6 +301,7 @@ func (qm *QueryIndexManager) dropIndex(
 		RetryStrategy: opts.RetryStrategy,
 		Adhoc:         true,
 		ParentSpan:    span,
+		Context:       ctx,
 	})
 	if err == nil {
 		return nil
@@ -305,6 +321,11 @@ type DropQueryIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // DropIndex drops a specific index by name.
@@ -320,6 +341,7 @@ func (qm *QueryIndexManager) DropIndex(bucketName, indexName string, opts *DropQ
 	}
 
 	return qm.dropIndex(
+		opts.Context,
 		opts.ParentSpan,
 		bucketName,
 		indexName,
@@ -338,6 +360,11 @@ type DropPrimaryQueryIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // DropPrimaryIndex drops the primary index.  Pass an empty customName for unnamed primary indexes.
@@ -347,6 +374,7 @@ func (qm *QueryIndexManager) DropPrimaryIndex(bucketName string, opts *DropPrima
 	}
 
 	return qm.dropIndex(
+		opts.Context,
 		opts.ParentSpan,
 		bucketName,
 		opts.CustomName,
@@ -362,6 +390,11 @@ type GetAllQueryIndexesOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // GetAllIndexes returns a list of all currently registered indexes.
@@ -373,10 +406,11 @@ func (qm *QueryIndexManager) GetAllIndexes(bucketName string, opts *GetAllQueryI
 	start := time.Now()
 	defer valueRecord(qm.meter, meterValueServiceManagement, "manager_query_get_all_indexes", start)
 
-	return qm.getAllIndexes(opts.ParentSpan, bucketName, opts)
+	return qm.getAllIndexes(opts.Context, opts.ParentSpan, bucketName, opts)
 }
 
 func (qm *QueryIndexManager) getAllIndexes(
+	ctx context.Context,
 	parent RequestSpan,
 	bucketName string,
 	opts *GetAllQueryIndexesOptions,
@@ -393,6 +427,7 @@ func (qm *QueryIndexManager) getAllIndexes(
 		RetryStrategy:        opts.RetryStrategy,
 		Adhoc:                true,
 		ParentSpan:           span,
+		Context:              ctx,
 	})
 	if err != nil {
 		return nil, err
@@ -423,6 +458,11 @@ type BuildDeferredQueryIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // BuildDeferredIndexes builds all indexes which are currently in deferred state.
@@ -438,6 +478,7 @@ func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *Build
 	defer span.End()
 
 	indexList, err := qm.getAllIndexes(
+		opts.Context,
 		span,
 		bucketName,
 		&GetAllQueryIndexesOptions{
@@ -476,6 +517,7 @@ func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *Build
 		RetryStrategy: opts.RetryStrategy,
 		Adhoc:         true,
 		ParentSpan:    span,
+		Context:       opts.Context,
 	})
 	if err != nil {
 		return nil, err
@@ -515,6 +557,11 @@ type WatchQueryIndexOptions struct {
 
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // WatchIndexes waits for a set of indexes to come online.
@@ -542,6 +589,7 @@ func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string,
 		}
 
 		indexes, err := qm.getAllIndexes(
+			opts.Context,
 			span,
 			bucketName,
 			&GetAllQueryIndexesOptions{

@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v9"
@@ -30,9 +31,12 @@ type kvOpManager struct {
 	retryStrategy   *retryStrategyWrapper
 	cancelCh        chan struct{}
 	impersonate     []byte
-	operationName   string
-	createdTime     time.Time
-	meter           Meter
+
+	operationName string
+	createdTime   time.Time
+	meter         Meter
+
+	ctx context.Context
 }
 
 func (m *kvOpManager) getTimeout() time.Duration {
@@ -135,6 +139,13 @@ func (m *kvOpManager) SetRetryStrategy(retryStrategy RetryStrategy) {
 
 func (m *kvOpManager) SetImpersonate(user []byte) {
 	m.impersonate = user
+}
+
+func (m *kvOpManager) SetContext(ctx context.Context) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	m.ctx = ctx
 }
 
 func (m *kvOpManager) Finish(noMetrics bool) {
@@ -282,6 +293,9 @@ func (m *kvOpManager) Wait(op gocbcore.PendingOp, err error) error {
 	case <-m.cancelCh:
 		op.Cancel()
 		<-m.signal
+	case <-m.ctx.Done():
+		op.Cancel()
+		<-m.signal
 	}
 
 	if m.wasResolved && (m.persistTo > 0 || m.replicateTo > 0) {
@@ -290,6 +304,7 @@ func (m *kvOpManager) Wait(op gocbcore.PendingOp, err error) error {
 		}
 
 		return m.parent.waitForDurability(
+			m.ctx,
 			m.span,
 			m.documentID,
 			m.mutationToken.token,

@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"time"
@@ -45,6 +46,11 @@ type InsertOptions struct {
 	RetryStrategy   RetryStrategy
 	ParentSpan      RequestSpan
 
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+
 	// Internal: This should never be used and is not supported.
 	Internal struct {
 		User []byte
@@ -67,6 +73,7 @@ func (c *Collection) Insert(id string, val interface{}, opts *InsertOptions) (mu
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -119,6 +126,11 @@ type UpsertOptions struct {
 	RetryStrategy   RetryStrategy
 	ParentSpan      RequestSpan
 
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+
 	// Internal: This should never be used and is not supported.
 	Internal struct {
 		User []byte
@@ -141,6 +153,7 @@ func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mu
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -194,6 +207,11 @@ type ReplaceOptions struct {
 	RetryStrategy   RetryStrategy
 	ParentSpan      RequestSpan
 
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+
 	// Internal: This should never be used and is not supported.
 	Internal struct {
 		User []byte
@@ -216,6 +234,7 @@ func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -270,6 +289,11 @@ type GetOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+
 	// Internal: This should never be used and is not supported.
 	Internal struct {
 		User []byte
@@ -304,6 +328,7 @@ func (c *Collection) getDirect(id string, opts *GetOptions) (docOut *GetResult, 
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -360,6 +385,7 @@ func (c *Collection) getProjected(id string, opts *GetOptions) (docOut *GetResul
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -403,6 +429,7 @@ func (c *Collection) getProjected(id string, opts *GetOptions) (docOut *GetResul
 	result, err := c.LookupIn(id, ops, &LookupInOptions{
 		ParentSpan: opm.TraceSpan(),
 		noMetrics:  true,
+		Context:    opts.Context,
 	})
 	if err != nil {
 		return nil, err
@@ -460,6 +487,11 @@ type ExistsOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+
 	// Internal: This should never be used and is not supported.
 	Internal struct {
 		User []byte
@@ -479,6 +511,7 @@ func (c *Collection) Exists(id string, opts *ExistsOptions) (docOut *ExistsResul
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -532,6 +565,7 @@ func (c *Collection) Exists(id string, opts *ExistsOptions) (docOut *ExistsResul
 }
 
 func (c *Collection) getOneReplica(
+	ctx context.Context,
 	span RequestSpan,
 	id string,
 	replicaIdx int,
@@ -550,6 +584,7 @@ func (c *Collection) getOneReplica(
 	opm.SetTimeout(timeout)
 	opm.SetCancelCh(cancelCh)
 	opm.SetImpersonate(user)
+	opm.SetContext(ctx)
 
 	agent, err := c.getKvProvider()
 	if err != nil {
@@ -623,6 +658,11 @@ type GetAllReplicaOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -737,6 +777,11 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 		tracectx = opts.ParentSpan.Context()
 	}
 
+	ctx := opts.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	span := c.startKvOpTrace("get_all_replicas", tracectx, false)
 
 	// Timeout needs to be adjusted here, since we use it at the bottom of this
@@ -797,7 +842,8 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 			// This timeout value will cause the getOneReplica operation to timeout after our deadline has expired,
 			// as the deadline has already begun. getOneReplica timing out before our deadline would cause inconsistent
 			// behaviour.
-			res, err := c.getOneReplica(span, id, replicaIdx, transcoder, retryStrategy, cancelCh, timeout, opts.Internal.User)
+			res, err := c.getOneReplica(context.Background(), span, id, replicaIdx, transcoder, retryStrategy, cancelCh,
+				timeout, opts.Internal.User)
 			if err != nil {
 				repRes.addFailed()
 				logDebugf("Failed to fetch replica from replica %d: %s", replicaIdx, err)
@@ -817,7 +863,12 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 				logDebugf("failed to close GetAllReplicas response: %s", err)
 			}
 		case <-cancelCh:
-			// If the cancel channel closes, we are done
+		// If the cancel channel closes, we are done
+		case <-ctx.Done():
+			err := repRes.Close()
+			if err != nil {
+				logDebugf("failed to close GetAllReplicas response: %s", err)
+			}
 		}
 	}()
 
@@ -830,6 +881,11 @@ type GetAnyReplicaOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -861,6 +917,7 @@ func (c *Collection) GetAnyReplica(id string, opts *GetAnyReplicaOptions) (docOu
 		Internal:      opts.Internal,
 		ParentSpan:    span,
 		noMetrics:     true,
+		Context:       opts.Context,
 	})
 	if err != nil {
 		return nil, err
@@ -897,6 +954,11 @@ type RemoveOptions struct {
 	RetryStrategy   RetryStrategy
 	ParentSpan      RequestSpan
 
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+
 	// Internal: This should never be used and is not supported.
 	Internal struct {
 		User []byte
@@ -917,6 +979,7 @@ func (c *Collection) Remove(id string, opts *RemoveOptions) (mutOut *MutationRes
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -963,6 +1026,11 @@ type GetAndTouchOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+
 	// Internal: This should never be used and is not supported.
 	Internal struct {
 		User []byte
@@ -983,6 +1051,7 @@ func (c *Collection) GetAndTouch(id string, expiry time.Duration, opts *GetAndTo
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -1036,6 +1105,11 @@ type GetAndLockOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+
 	// Internal: This should never be used and is not supported.
 	Internal struct {
 		User []byte
@@ -1058,6 +1132,7 @@ func (c *Collection) GetAndLock(id string, lockTime time.Duration, opts *GetAndL
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -1110,6 +1185,11 @@ type UnlockOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+
 	// Internal: This should never be used and is not supported.
 	Internal struct {
 		User []byte
@@ -1129,6 +1209,7 @@ func (c *Collection) Unlock(id string, cas Cas, opts *UnlockOptions) (errOut err
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return err
@@ -1169,6 +1250,11 @@ type TouchOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+
 	// Internal: This should never be used and is not supported.
 	Internal struct {
 		User []byte
@@ -1188,6 +1274,7 @@ func (c *Collection) Touch(id string, expiry time.Duration, opts *TouchOptions) 
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err

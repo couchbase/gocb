@@ -1,7 +1,9 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/couchbase/gocbcore/v9"
@@ -130,6 +132,32 @@ function (doc, meta) {
 	return n
 }
 
+func (suite *IntegrationTestSuite) TestViewQueryContext() {
+	suite.skipIfUnsupported(SearchFeature)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	res, err := globalBucket.ViewQuery("test", "test", &ViewOptions{
+		Context: ctx,
+	})
+	if !errors.Is(err, ErrRequestCanceled) {
+		suite.T().Fatalf("Expected error to be canceled but was %v", err)
+	}
+	suite.Require().Nil(res)
+
+	ctx, cancel = context.WithDeadline(context.Background(), time.Now().Add(1*time.Nanosecond))
+	defer cancel()
+
+	res, err = globalBucket.ViewQuery("test", "test", &ViewOptions{
+		Context: ctx,
+	})
+	if !errors.Is(err, ErrRequestCanceled) {
+		suite.T().Fatalf("Expected error to be canceled but was %v", err)
+	}
+	suite.Require().Nil(res)
+}
+
 // We have to manually mock this because testify won't let return something which can iterate.
 type mockViewRowReader struct {
 	Dataset  []jsonViewRow
@@ -174,7 +202,7 @@ type testViewDataset struct {
 func (suite *UnitTestSuite) viewsBucket(reader viewRowReader, runFn func(args mock.Arguments)) *Bucket {
 	provider := new(mockViewProvider)
 	provider.
-		On("ViewQuery", mock.AnythingOfType("gocbcore.ViewQueryOptions")).
+		On("ViewQuery", nil, mock.AnythingOfType("gocbcore.ViewQueryOptions")).
 		Run(runFn).
 		Return(reader, nil)
 
@@ -200,7 +228,7 @@ func (suite *UnitTestSuite) TestViewQuery() {
 
 	var bucket *Bucket
 	bucket = suite.viewsBucket(reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.ViewQueryOptions)
+		opts := args.Get(1).(gocbcore.ViewQueryOptions)
 		suite.Assert().Equal(bucket.retryStrategyWrapper, opts.RetryStrategy)
 		now := time.Now()
 		if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {

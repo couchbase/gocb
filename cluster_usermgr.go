@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -282,6 +283,11 @@ type GetAllUsersOptions struct {
 
 	DomainName string
 	ParentSpan RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // GetAllUsers returns a list of all the users from the cluster.
@@ -313,7 +319,7 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 		parentSpanCtx: span.Context(),
 	}
 
-	resp, err := um.provider.executeMgmtRequest(req)
+	resp, err := um.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
 		return nil, makeGenericMgmtError(err, &req, resp)
 	}
@@ -352,6 +358,11 @@ type GetUserOptions struct {
 
 	DomainName string
 	ParentSpan RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // GetUser returns the data for a particular user
@@ -383,7 +394,7 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 		parentSpanCtx: span.Context(),
 	}
 
-	resp, err := um.provider.executeMgmtRequest(req)
+	resp, err := um.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
 		return nil, makeGenericMgmtError(err, &req, resp)
 	}
@@ -420,6 +431,11 @@ type UpsertUserOptions struct {
 
 	DomainName string
 	ParentSpan RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // UpsertUser updates a built-in RBAC user on the cluster.
@@ -507,7 +523,7 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 		parentSpanCtx: span.Context(),
 	}
 
-	resp, err := um.provider.executeMgmtRequest(req)
+	resp, err := um.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}
@@ -531,6 +547,11 @@ type DropUserOptions struct {
 
 	DomainName string
 	ParentSpan RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // DropUser removes a built-in RBAC user on the cluster.
@@ -561,7 +582,7 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 		parentSpanCtx: span.Context(),
 	}
 
-	resp, err := um.provider.executeMgmtRequest(req)
+	resp, err := um.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}
@@ -583,6 +604,11 @@ type GetRolesOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // GetRoles lists the roles supported by the cluster.
@@ -609,7 +635,7 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 		parentSpanCtx: span.Context(),
 	}
 
-	resp, err := um.provider.executeMgmtRequest(req)
+	resp, err := um.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
 		return nil, makeGenericMgmtError(err, &req, resp)
 	}
@@ -646,6 +672,11 @@ type GetGroupOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // GetGroup fetches a single group from the server.
@@ -676,7 +707,7 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 		parentSpanCtx: span.Context(),
 	}
 
-	resp, err := um.provider.executeMgmtRequest(req)
+	resp, err := um.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
 		return nil, makeGenericMgmtError(err, &req, resp)
 	}
@@ -711,6 +742,11 @@ type GetAllGroupsOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // GetAllGroups fetches all groups from the server.
@@ -738,7 +774,7 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 		parentSpanCtx: span.Context(),
 	}
 
-	resp, err := um.provider.executeMgmtRequest(req)
+	resp, err := um.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
 		return nil, makeGenericMgmtError(err, &req, resp)
 	}
@@ -775,6 +811,11 @@ type UpsertGroupOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // UpsertGroup creates, or updates, a group on the server.
@@ -820,7 +861,7 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 		parentSpanCtx: span.Context(),
 	}
 
-	resp, err := um.provider.executeMgmtRequest(req)
+	resp, err := um.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}
@@ -842,6 +883,11 @@ type DropGroupOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // DropGroup removes a group from the server.
@@ -872,7 +918,7 @@ func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error
 		parentSpanCtx: span.Context(),
 	}
 
-	resp, err := um.provider.executeMgmtRequest(req)
+	resp, err := um.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}

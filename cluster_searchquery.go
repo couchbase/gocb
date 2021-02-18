@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"time"
@@ -422,7 +423,7 @@ func (c *Cluster) SearchQuery(indexName string, query cbsearch.Query, opts *Sear
 
 	searchOpts["query"] = query
 
-	return c.execSearchQuery(span, indexName, searchOpts, deadline, retryStrategy)
+	return c.execSearchQuery(opts.Context, span, indexName, searchOpts, deadline, retryStrategy)
 }
 
 func maybeGetSearchOptionQuery(options map[string]interface{}) interface{} {
@@ -433,6 +434,7 @@ func maybeGetSearchOptionQuery(options map[string]interface{}) interface{} {
 }
 
 func (c *Cluster) execSearchQuery(
+	ctx context.Context,
 	span RequestSpan,
 	indexName string,
 	options map[string]interface{},
@@ -457,7 +459,7 @@ func (c *Cluster) execSearchQuery(
 		}
 	}
 
-	res, err := provider.SearchQuery(gocbcore.SearchQueryOptions{
+	res, err := provider.SearchQuery(ctx, gocbcore.SearchQueryOptions{
 		IndexName:     indexName,
 		Payload:       reqBytes,
 		RetryStrategy: retryStrategy,

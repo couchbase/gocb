@@ -3,6 +3,8 @@
 package gocb
 
 import (
+	context "context"
+
 	gocbcore "github.com/couchbase/gocbcore/v9"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -12,13 +14,13 @@ type mockViewProvider struct {
 	mock.Mock
 }
 
-// ViewQuery provides a mock function with given fields: opts
-func (_m *mockViewProvider) ViewQuery(opts gocbcore.ViewQueryOptions) (viewRowReader, error) {
-	ret := _m.Called(opts)
+// ViewQuery provides a mock function with given fields: ctx, opts
+func (_m *mockViewProvider) ViewQuery(ctx context.Context, opts gocbcore.ViewQueryOptions) (viewRowReader, error) {
+	ret := _m.Called(ctx, opts)
 
 	var r0 viewRowReader
-	if rf, ok := ret.Get(0).(func(gocbcore.ViewQueryOptions) viewRowReader); ok {
-		r0 = rf(opts)
+	if rf, ok := ret.Get(0).(func(context.Context, gocbcore.ViewQueryOptions) viewRowReader); ok {
+		r0 = rf(ctx, opts)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(viewRowReader)
@@ -26,8 +28,8 @@ func (_m *mockViewProvider) ViewQuery(opts gocbcore.ViewQueryOptions) (viewRowRe
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(gocbcore.ViewQueryOptions) error); ok {
-		r1 = rf(opts)
+	if rf, ok := ret.Get(1).(func(context.Context, gocbcore.ViewQueryOptions) error); ok {
+		r1 = rf(ctx, opts)
 	} else {
 		r1 = ret.Error(1)
 	}

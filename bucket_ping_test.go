@@ -81,9 +81,12 @@ func (suite *UnitTestSuite) TestPingAll() {
 
 	pingProvider := new(mockDiagnosticsProvider)
 	pingProvider.
-		On("Ping", mock.AnythingOfType("gocbcore.PingOptions")).
+		On("Ping", nil, mock.AnythingOfType("gocbcore.PingOptions")).
 		Run(func(args mock.Arguments) {
-			opts := args.Get(0).(gocbcore.PingOptions)
+			if len(args) != 2 {
+				suite.T().Fatalf("Expected options to contain two arguments, was: %v", args)
+			}
+			opts := args.Get(1).(gocbcore.PingOptions)
 
 			if len(opts.ServiceTypes) != 0 {
 				suite.T().Errorf("Expected service types to be len 0 but was %v", opts.ServiceTypes)

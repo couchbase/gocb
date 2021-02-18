@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/url"
 	"strconv"
@@ -69,6 +70,11 @@ type ViewOptions struct {
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 func (opts *ViewOptions) toURLValues() (*url.Values, error) {

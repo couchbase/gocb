@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/couchbase/gocbcore/v9/memd"
@@ -2174,6 +2175,54 @@ func (suite *UnitTestSuite) TestGetErrorCollectionUnknown() {
 	if !errors.Is(err, ErrCollectionNotFound) {
 		suite.T().Fatalf("Error should have been collection missing but was %v", err)
 	}
+}
+
+func (suite *IntegrationTestSuite) TestBasicCrudContext() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	res, err := globalCollection.Upsert("context", "test", &UpsertOptions{
+		Context: ctx,
+	})
+	if !errors.Is(err, ErrRequestCanceled) {
+		suite.T().Fatalf("Expected error to be canceled but was %v", err)
+	}
+	suite.Require().Nil(res)
+
+	ctx, cancel = context.WithDeadline(context.Background(), time.Now().Add(1*time.Nanosecond))
+	defer cancel()
+
+	res, err = globalCollection.Upsert("context", "test", &UpsertOptions{
+		Context: ctx,
+	})
+	if !errors.Is(err, ErrRequestCanceled) {
+		suite.T().Fatalf("Expected error to be canceled but was %v", err)
+	}
+	suite.Require().Nil(res)
+
+	ctx, cancel = context.WithCancel(context.Background())
+	cancel()
+
+	getRes, err := globalCollection.Get("context", &GetOptions{
+		Context: ctx,
+	})
+	if !errors.Is(err, ErrRequestCanceled) {
+		suite.T().Fatalf("Expected error to be canceled but was %v", err)
+	}
+	suite.Require().Nil(getRes)
+
+	ctx, cancel = context.WithDeadline(context.Background(), time.Now().Add(1*time.Nanosecond))
+	defer cancel()
+
+	getRes, err = globalCollection.Get("context", &GetOptions{
+		Context: ctx,
+	})
+	if !errors.Is(err, ErrRequestCanceled) {
+		suite.T().Fatalf("Expected error to be canceled but was %v", err)
+	}
+	suite.Require().Nil(getRes)
 }
 
 func (suite *UnitTestSuite) TestGetErrorProperties() {

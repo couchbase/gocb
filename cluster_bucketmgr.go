@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -217,6 +218,11 @@ type GetBucketOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // GetBucket returns settings for a bucket on the cluster.
@@ -234,10 +240,10 @@ func (bm *BucketManager) GetBucket(bucketName string, opts *GetBucketOptions) (*
 	span.SetAttribute("db.operation", "GET "+path)
 	defer span.End()
 
-	return bm.get(span.Context(), path, opts.RetryStrategy, opts.Timeout)
+	return bm.get(opts.Context, span.Context(), path, opts.RetryStrategy, opts.Timeout)
 }
 
-func (bm *BucketManager) get(tracectx RequestSpanContext, path string,
+func (bm *BucketManager) get(ctx context.Context, tracectx RequestSpanContext, path string,
 	strategy RetryStrategy, timeout time.Duration) (*BucketSettings, error) {
 
 	req := mgmtRequest{
@@ -251,7 +257,7 @@ func (bm *BucketManager) get(tracectx RequestSpanContext, path string,
 		parentSpanCtx: tracectx,
 	}
 
-	resp, err := bm.provider.executeMgmtRequest(req)
+	resp, err := bm.provider.executeMgmtRequest(ctx, req)
 	if err != nil {
 		return nil, makeGenericMgmtError(err, &req, resp)
 	}
@@ -287,6 +293,11 @@ type GetAllBucketsOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // GetAllBuckets returns a list of all active buckets on the cluster.
@@ -313,7 +324,7 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 		parentSpanCtx: span.Context(),
 	}
 
-	resp, err := bm.provider.executeMgmtRequest(req)
+	resp, err := bm.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
 		return nil, makeGenericMgmtError(err, &req, resp)
 	}
@@ -360,6 +371,11 @@ type CreateBucketOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // CreateBucket creates a bucket on the cluster.
@@ -401,7 +417,7 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 		parentSpanCtx: span.Context(),
 	}
 
-	resp, err := bm.provider.executeMgmtRequest(req)
+	resp, err := bm.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}
@@ -424,6 +440,11 @@ type UpdateBucketOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // UpdateBucket updates a bucket on the cluster.
@@ -462,7 +483,7 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 		parentSpanCtx: span.Context(),
 	}
 
-	resp, err := bm.provider.executeMgmtRequest(req)
+	resp, err := bm.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}
@@ -485,6 +506,11 @@ type DropBucketOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // DropBucket will delete a bucket from the cluster by name.
@@ -512,7 +538,7 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 		parentSpanCtx: span.Context(),
 	}
 
-	resp, err := bm.provider.executeMgmtRequest(req)
+	resp, err := bm.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}
@@ -535,6 +561,11 @@ type FlushBucketOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // FlushBucket will delete all the of the data from a bucket.
@@ -563,7 +594,7 @@ func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) erro
 		parentSpanCtx: span.Context(),
 	}
 
-	resp, err := bm.provider.executeMgmtRequest(req)
+	resp, err := bm.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}

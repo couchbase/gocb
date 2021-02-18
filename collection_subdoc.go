@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"time"
@@ -15,6 +16,11 @@ type LookupInOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -38,6 +44,7 @@ func (c *Collection) LookupIn(id string, ops []LookupInSpec, opts *LookupInOptio
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -156,6 +163,11 @@ type MutateInOptions struct {
 	RetryStrategy   RetryStrategy
 	ParentSpan      RequestSpan
 
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+
 	// Internal: This should never be used and is not supported.
 	Internal struct {
 		DocFlags SubdocDocFlag
@@ -176,6 +188,7 @@ func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptio
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err

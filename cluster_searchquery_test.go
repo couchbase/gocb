@@ -1,7 +1,9 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/couchbase/gocbcore/v9"
@@ -157,6 +159,32 @@ func (suite *IntegrationTestSuite) setupSearch() int {
 	return n
 }
 
+func (suite *IntegrationTestSuite) TestSearchContext() {
+	suite.skipIfUnsupported(SearchFeature)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	res, err := globalCluster.SearchQuery("test", search.NewMatchAllQuery(), &SearchOptions{
+		Context: ctx,
+	})
+	if !errors.Is(err, ErrRequestCanceled) {
+		suite.T().Fatalf("Expected error to be canceled but was %v", err)
+	}
+	suite.Require().Nil(res)
+
+	ctx, cancel = context.WithDeadline(context.Background(), time.Now().Add(1*time.Nanosecond))
+	defer cancel()
+
+	res, err = globalCluster.SearchQuery("test", search.NewMatchAllQuery(), &SearchOptions{
+		Context: ctx,
+	})
+	if !errors.Is(err, ErrRequestCanceled) {
+		suite.T().Fatalf("Expected error to be canceled but was %v", err)
+	}
+	suite.Require().Nil(res)
+}
+
 // We have to manually mock this because testify won't let return something which can iterate.
 type mockSearchRowReader struct {
 	Dataset  []jsonSearchRow
@@ -201,7 +229,7 @@ type testSearchDataset struct {
 func (suite *UnitTestSuite) searchCluster(reader searchRowReader, runFn func(args mock.Arguments)) *Cluster {
 	provider := new(mockSearchProvider)
 	provider.
-		On("SearchQuery", mock.AnythingOfType("gocbcore.SearchQueryOptions")).
+		On("SearchQuery", nil, mock.AnythingOfType("gocbcore.SearchQueryOptions")).
 		Run(runFn).
 		Return(reader, nil)
 
@@ -228,7 +256,7 @@ func (suite *UnitTestSuite) TestSearchQuery() {
 
 	var cluster *Cluster
 	cluster = suite.searchCluster(reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.SearchQueryOptions)
+		opts := args.Get(1).(gocbcore.SearchQueryOptions)
 		suite.Assert().Equal(cluster.retryStrategyWrapper, opts.RetryStrategy)
 		now := time.Now()
 		if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {
@@ -322,7 +350,7 @@ func (suite *UnitTestSuite) TestSearchQueryDisableScoring() {
 
 	var cluster *Cluster
 	cluster = suite.searchCluster(reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.SearchQueryOptions)
+		opts := args.Get(1).(gocbcore.SearchQueryOptions)
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
@@ -350,7 +378,7 @@ func (suite *UnitTestSuite) TestSearchQueryNoScoringSet() {
 
 	var cluster *Cluster
 	cluster = suite.searchCluster(reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.SearchQueryOptions)
+		opts := args.Get(1).(gocbcore.SearchQueryOptions)
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
@@ -374,7 +402,7 @@ func (suite *UnitTestSuite) TestSearchQueryExplicitlyEnableScoring() {
 
 	var cluster *Cluster
 	cluster = suite.searchCluster(reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.SearchQueryOptions)
+		opts := args.Get(1).(gocbcore.SearchQueryOptions)
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
@@ -451,7 +479,7 @@ func (suite *UnitTestSuite) TestSearchQueryCollections() {
 
 	var cluster *Cluster
 	cluster = suite.searchCluster(reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.SearchQueryOptions)
+		opts := args.Get(1).(gocbcore.SearchQueryOptions)
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)

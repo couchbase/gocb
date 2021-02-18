@@ -508,9 +508,9 @@ func (suite *UnitTestSuite) TestUserManagerGetUserDoesntExist() {
 	username := "larry"
 	mockProvider := new(mockMgmtProvider)
 	mockProvider.
-		On("executeMgmtRequest", mock.AnythingOfType("mgmtRequest")).
+		On("executeMgmtRequest", nil, mock.AnythingOfType("mgmtRequest")).
 		Run(func(args mock.Arguments) {
-			req := args.Get(0).(mgmtRequest)
+			req := args.Get(1).(mgmtRequest)
 
 			suite.Assert().Equal("/settings/rbac/users/local/"+username, req.Path)
 			suite.Assert().True(req.IsIdempotent)
@@ -542,9 +542,9 @@ func (suite *UnitTestSuite) TestUserManagerDropUserDoesntExist() {
 	username := "larry"
 	mockProvider := new(mockMgmtProvider)
 	mockProvider.
-		On("executeMgmtRequest", mock.AnythingOfType("mgmtRequest")).
+		On("executeMgmtRequest", nil, mock.AnythingOfType("mgmtRequest")).
 		Run(func(args mock.Arguments) {
-			req := args.Get(0).(mgmtRequest)
+			req := args.Get(1).(mgmtRequest)
 
 			suite.Assert().Equal("/settings/rbac/users/local/"+username, req.Path)
 			suite.Assert().False(req.IsIdempotent)
@@ -576,9 +576,9 @@ func (suite *UnitTestSuite) TestUserManagerGetGroupDoesntExist() {
 	name := "g"
 	mockProvider := new(mockMgmtProvider)
 	mockProvider.
-		On("executeMgmtRequest", mock.AnythingOfType("mgmtRequest")).
+		On("executeMgmtRequest", nil, mock.AnythingOfType("mgmtRequest")).
 		Run(func(args mock.Arguments) {
-			req := args.Get(0).(mgmtRequest)
+			req := args.Get(1).(mgmtRequest)
 
 			suite.Assert().Equal("/settings/rbac/groups/"+name, req.Path)
 			suite.Assert().True(req.IsIdempotent)
@@ -610,9 +610,9 @@ func (suite *UnitTestSuite) TestUserManagerDropGroupDoesntExist() {
 	name := "g"
 	mockProvider := new(mockMgmtProvider)
 	mockProvider.
-		On("executeMgmtRequest", mock.AnythingOfType("mgmtRequest")).
+		On("executeMgmtRequest", nil, mock.AnythingOfType("mgmtRequest")).
 		Run(func(args mock.Arguments) {
-			req := args.Get(0).(mgmtRequest)
+			req := args.Get(1).(mgmtRequest)
 
 			suite.Assert().Equal("/settings/rbac/groups/"+name, req.Path)
 			suite.Assert().False(req.IsIdempotent)

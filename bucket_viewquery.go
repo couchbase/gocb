@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
 	"net/url"
 	"strings"
@@ -229,10 +230,11 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 		return nil, errors.Wrap(err, "could not parse query options")
 	}
 
-	return b.execViewQuery(span.Context(), "_view", designDoc, viewName, *urlValues, deadline, retryWrapper)
+	return b.execViewQuery(opts.Context, span.Context(), "_view", designDoc, viewName, *urlValues, deadline, retryWrapper)
 }
 
 func (b *Bucket) execViewQuery(
+	ctx context.Context,
 	span RequestSpanContext,
 	viewType, ddoc, viewName string,
 	options url.Values,
@@ -248,7 +250,7 @@ func (b *Bucket) execViewQuery(
 		}
 	}
 
-	res, err := provider.ViewQuery(gocbcore.ViewQueryOptions{
+	res, err := provider.ViewQuery(ctx, gocbcore.ViewQueryOptions{
 		DesignDocumentName: ddoc,
 		ViewType:           viewType,
 		ViewName:           viewName,

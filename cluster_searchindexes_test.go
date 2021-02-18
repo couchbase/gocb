@@ -246,9 +246,9 @@ func (suite *UnitTestSuite) TestSearchIndexesAnalyzeDocument() {
 
 	mockProvider := new(mockMgmtProvider)
 	mockProvider.
-		On("executeMgmtRequest", mock.AnythingOfType("mgmtRequest")).
+		On("executeMgmtRequest", nil, mock.AnythingOfType("mgmtRequest")).
 		Run(func(args mock.Arguments) {
-			req := args.Get(0).(mgmtRequest)
+			req := args.Get(1).(mgmtRequest)
 
 			suite.Assert().Equal(fmt.Sprintf("/api/index/%s/analyzeDoc", indexName), req.Path)
 			suite.Assert().Equal(ServiceTypeSearch, req.Service)

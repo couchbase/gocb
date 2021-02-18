@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 )
 
 func (c *Collection) observeOnceSeqNo(
+	ctx context.Context,
 	trace RequestSpan,
 	docID string,
 	mt gocbcore.MutationToken,
@@ -23,6 +25,7 @@ func (c *Collection) observeOnceSeqNo(
 	opm.SetCancelCh(cancelCh)
 	opm.SetTimeout(timeout)
 	opm.SetImpersonate(user)
+	opm.SetContext(ctx)
 
 	agent, err := c.getKvProvider()
 	if err != nil {
@@ -54,6 +57,7 @@ func (c *Collection) observeOnceSeqNo(
 }
 
 func (c *Collection) observeOne(
+	ctx context.Context,
 	trace RequestSpan,
 	docID string,
 	mt gocbcore.MutationToken,
@@ -77,7 +81,7 @@ ObserveLoop:
 			// not cancelled yet
 		}
 
-		didReplicate, didPersist, err := c.observeOnceSeqNo(trace, docID, mt, replicaIdx, cancelCh, timeout, user)
+		didReplicate, didPersist, err := c.observeOnceSeqNo(ctx, trace, docID, mt, replicaIdx, cancelCh, timeout, user)
 		if err != nil {
 			logDebugf("ObserveOnce failed unexpected: %s", err)
 			return
@@ -110,6 +114,7 @@ ObserveLoop:
 }
 
 func (c *Collection) waitForDurability(
+	ctx context.Context,
 	trace RequestSpan,
 	docID string,
 	mt gocbcore.MutationToken,
@@ -154,7 +159,7 @@ func (c *Collection) waitForDurability(
 	for replicaIdx := 0; replicaIdx < numServers; replicaIdx++ {
 		wg.Add(1)
 		go func(ridx int) {
-			c.observeOne(opm.TraceSpan(), docID, mt, ridx, replicaCh, persistCh, subOpCancelCh,
+			c.observeOne(ctx, opm.TraceSpan(), docID, mt, ridx, replicaCh, persistCh, subOpCancelCh,
 				time.Until(deadline), user)
 			wg.Done()
 		}(replicaIdx)

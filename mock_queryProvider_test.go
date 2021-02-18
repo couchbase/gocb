@@ -3,6 +3,8 @@
 package gocb
 
 import (
+	context "context"
+
 	gocbcore "github.com/couchbase/gocbcore/v9"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -12,13 +14,13 @@ type mockQueryProvider struct {
 	mock.Mock
 }
 
-// N1QLQuery provides a mock function with given fields: opts
-func (_m *mockQueryProvider) N1QLQuery(opts gocbcore.N1QLQueryOptions) (queryRowReader, error) {
-	ret := _m.Called(opts)
+// N1QLQuery provides a mock function with given fields: ctx, opts
+func (_m *mockQueryProvider) N1QLQuery(ctx context.Context, opts gocbcore.N1QLQueryOptions) (queryRowReader, error) {
+	ret := _m.Called(ctx, opts)
 
 	var r0 queryRowReader
-	if rf, ok := ret.Get(0).(func(gocbcore.N1QLQueryOptions) queryRowReader); ok {
-		r0 = rf(opts)
+	if rf, ok := ret.Get(0).(func(context.Context, gocbcore.N1QLQueryOptions) queryRowReader); ok {
+		r0 = rf(ctx, opts)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(queryRowReader)
@@ -26,8 +28,8 @@ func (_m *mockQueryProvider) N1QLQuery(opts gocbcore.N1QLQueryOptions) (queryRow
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(gocbcore.N1QLQueryOptions) error); ok {
-		r1 = rf(opts)
+	if rf, ok := ret.Get(1).(func(context.Context, gocbcore.N1QLQueryOptions) error); ok {
+		r1 = rf(ctx, opts)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -35,13 +37,13 @@ func (_m *mockQueryProvider) N1QLQuery(opts gocbcore.N1QLQueryOptions) (queryRow
 	return r0, r1
 }
 
-// PreparedN1QLQuery provides a mock function with given fields: opts
-func (_m *mockQueryProvider) PreparedN1QLQuery(opts gocbcore.N1QLQueryOptions) (queryRowReader, error) {
-	ret := _m.Called(opts)
+// PreparedN1QLQuery provides a mock function with given fields: ctx, opts
+func (_m *mockQueryProvider) PreparedN1QLQuery(ctx context.Context, opts gocbcore.N1QLQueryOptions) (queryRowReader, error) {
+	ret := _m.Called(ctx, opts)
 
 	var r0 queryRowReader
-	if rf, ok := ret.Get(0).(func(gocbcore.N1QLQueryOptions) queryRowReader); ok {
-		r0 = rf(opts)
+	if rf, ok := ret.Get(0).(func(context.Context, gocbcore.N1QLQueryOptions) queryRowReader); ok {
+		r0 = rf(ctx, opts)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(queryRowReader)
@@ -49,8 +51,8 @@ func (_m *mockQueryProvider) PreparedN1QLQuery(opts gocbcore.N1QLQueryOptions) (
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(gocbcore.N1QLQueryOptions) error); ok {
-		r1 = rf(opts)
+	if rf, ok := ret.Get(1).(func(context.Context, gocbcore.N1QLQueryOptions) error); ok {
+		r1 = rf(ctx, opts)
 	} else {
 		r1 = ret.Error(1)
 	}

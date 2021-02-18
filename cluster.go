@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"crypto/x509"
 	"fmt"
 	"strconv"
@@ -333,6 +334,10 @@ func (c *Cluster) connSpec() gocbconnstr.ConnSpec {
 type WaitUntilReadyOptions struct {
 	DesiredState ClusterState
 	ServiceTypes []ServiceType
+
+	// Using a deadlined Context with WaitUntilReady will cause the shorter of the provided timeout and context deadline
+	// to cause cancellation.
+	Context context.Context
 }
 
 // WaitUntilReady will wait for the cluster object to be ready for use.
@@ -369,6 +374,7 @@ func (c *Cluster) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOpti
 	}
 
 	err = provider.WaitUntilReady(
+		opts.Context,
 		time.Now().Add(timeout),
 		gocbcore.WaitUntilReadyOptions{
 			DesiredState: gocbcore.ClusterState(desiredState),

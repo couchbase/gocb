@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -80,6 +81,11 @@ type GetAllScopesOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // GetAllScopes gets all scopes from the bucket.
@@ -108,7 +114,7 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 		parentSpanCtx: span.Context(),
 	}
 
-	resp, err := cm.mgmtProvider.executeMgmtRequest(req)
+	resp, err := cm.mgmtProvider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
 		colErr := cm.tryParseErrorMessage(&req, resp)
 		if colErr != nil {
@@ -173,6 +179,11 @@ type CreateCollectionOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // CreateCollection creates a new collection on the bucket.
@@ -223,7 +234,7 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 		parentSpanCtx: span.Context(),
 	}
 
-	resp, err := cm.mgmtProvider.executeMgmtRequest(req)
+	resp, err := cm.mgmtProvider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}
@@ -250,6 +261,11 @@ type DropCollectionOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // DropCollection removes a collection.
@@ -287,7 +303,7 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 		parentSpanCtx: span.Context(),
 	}
 
-	resp, err := cm.mgmtProvider.executeMgmtRequest(req)
+	resp, err := cm.mgmtProvider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}
@@ -314,6 +330,11 @@ type CreateScopeOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // CreateScope creates a new scope on the bucket.
@@ -355,7 +376,7 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 		parentSpanCtx: span.Context(),
 	}
 
-	resp, err := cm.mgmtProvider.executeMgmtRequest(req)
+	resp, err := cm.mgmtProvider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
 		return err
 	}
@@ -382,6 +403,11 @@ type DropScopeOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // DropScope removes a scope.
@@ -410,7 +436,7 @@ func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions)
 		parentSpanCtx: span.Context(),
 	}
 
-	resp, err := cm.mgmtProvider.executeMgmtRequest(req)
+	resp, err := cm.mgmtProvider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
 		return makeGenericMgmtError(err, &req, resp)
 	}

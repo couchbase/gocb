@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"strings"
 	"time"
 
@@ -37,6 +38,11 @@ type AnalyticsOptions struct {
 	RetryStrategy RetryStrategy
 
 	ParentSpan RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 func (opts *AnalyticsOptions) toMap() (map[string]interface{}, error) {

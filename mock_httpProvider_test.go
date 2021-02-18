@@ -3,6 +3,8 @@
 package gocb
 
 import (
+	context "context"
+
 	gocbcore "github.com/couchbase/gocbcore/v9"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -12,13 +14,13 @@ type mockHttpProvider struct {
 	mock.Mock
 }
 
-// DoHTTPRequest provides a mock function with given fields: req
-func (_m *mockHttpProvider) DoHTTPRequest(req *gocbcore.HTTPRequest) (*gocbcore.HTTPResponse, error) {
-	ret := _m.Called(req)
+// DoHTTPRequest provides a mock function with given fields: ctx, req
+func (_m *mockHttpProvider) DoHTTPRequest(ctx context.Context, req *gocbcore.HTTPRequest) (*gocbcore.HTTPResponse, error) {
+	ret := _m.Called(ctx, req)
 
 	var r0 *gocbcore.HTTPResponse
-	if rf, ok := ret.Get(0).(func(*gocbcore.HTTPRequest) *gocbcore.HTTPResponse); ok {
-		r0 = rf(req)
+	if rf, ok := ret.Get(0).(func(context.Context, *gocbcore.HTTPRequest) *gocbcore.HTTPResponse); ok {
+		r0 = rf(ctx, req)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*gocbcore.HTTPResponse)
@@ -26,8 +28,8 @@ func (_m *mockHttpProvider) DoHTTPRequest(req *gocbcore.HTTPRequest) (*gocbcore.
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(*gocbcore.HTTPRequest) error); ok {
-		r1 = rf(req)
+	if rf, ok := ret.Get(1).(func(context.Context, *gocbcore.HTTPRequest) error); ok {
+		r1 = rf(ctx, req)
 	} else {
 		r1 = ret.Error(1)
 	}

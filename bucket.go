@@ -182,6 +182,7 @@ func (b *Bucket) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOptio
 	}
 
 	err = provider.WaitUntilReady(
+		opts.Context,
 		time.Now().Add(timeout),
 		gocbcore.WaitUntilReadyOptions{
 			DesiredState: gocbcore.ClusterState(desiredState),

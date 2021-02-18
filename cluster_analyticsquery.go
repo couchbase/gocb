@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"time"
@@ -325,7 +326,7 @@ func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*Ana
 		}
 	}
 
-	return execAnalyticsQuery(span, queryOpts, priorityInt, deadline, retryStrategy, provider, c.tracer)
+	return execAnalyticsQuery(opts.Context, span, queryOpts, priorityInt, deadline, retryStrategy, provider, c.tracer)
 }
 
 func maybeGetAnalyticsOption(options map[string]interface{}, name string) string {
@@ -336,6 +337,7 @@ func maybeGetAnalyticsOption(options map[string]interface{}, name string) string
 }
 
 func execAnalyticsQuery(
+	ctx context.Context,
 	span RequestSpan,
 	options map[string]interface{},
 	priority int32,
@@ -355,7 +357,7 @@ func execAnalyticsQuery(
 		}
 	}
 
-	res, err := provider.AnalyticsQuery(gocbcore.AnalyticsQueryOptions{
+	res, err := provider.AnalyticsQuery(ctx, gocbcore.AnalyticsQueryOptions{
 		Payload:       reqBytes,
 		Priority:      int(priority),
 		RetryStrategy: retryStrategy,

@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 )
@@ -78,6 +79,11 @@ type PingOptions struct {
 	ReportID     string
 	Timeout      time.Duration
 	ParentSpan   RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // Ping will ping a list of services and verify they are active and
@@ -110,5 +116,5 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 		return nil, err
 	}
 
-	return ping(provider, opts, b.timeoutsConfig, span)
+	return ping(opts.Context, provider, opts, b.timeoutsConfig, span)
 }

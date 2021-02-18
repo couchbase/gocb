@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"time"
@@ -329,7 +330,7 @@ func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResult, err
 		}
 	}
 
-	return execN1qlQuery(span, queryOpts, deadline, retryStrategy, opts.Adhoc, provider, c.tracer)
+	return execN1qlQuery(opts.Context, span, queryOpts, deadline, retryStrategy, opts.Adhoc, provider, c.tracer)
 }
 
 func maybeGetQueryOption(options map[string]interface{}, name string) string {
@@ -340,6 +341,7 @@ func maybeGetQueryOption(options map[string]interface{}, name string) string {
 }
 
 func execN1qlQuery(
+	ctx context.Context,
 	span RequestSpan,
 	options map[string]interface{},
 	deadline time.Time,
@@ -348,7 +350,6 @@ func execN1qlQuery(
 	provider queryProvider,
 	tracer RequestTracer,
 ) (*QueryResult, error) {
-
 	eSpan := tracer.RequestSpan(span.Context(), "request_encoding")
 	eSpan.SetAttribute("db.system", "couchbase")
 	reqBytes, err := json.Marshal(options)
@@ -364,14 +365,14 @@ func execN1qlQuery(
 	var res queryRowReader
 	var qErr error
 	if adHoc {
-		res, qErr = provider.N1QLQuery(gocbcore.N1QLQueryOptions{
+		res, qErr = provider.N1QLQuery(ctx, gocbcore.N1QLQueryOptions{
 			Payload:       reqBytes,
 			RetryStrategy: retryStrategy,
 			Deadline:      deadline,
 			TraceContext:  span.Context(),
 		})
 	} else {
-		res, qErr = provider.PreparedN1QLQuery(gocbcore.N1QLQueryOptions{
+		res, qErr = provider.PreparedN1QLQuery(ctx, gocbcore.N1QLQueryOptions{
 			Payload:       reqBytes,
 			RetryStrategy: retryStrategy,
 			Deadline:      deadline,

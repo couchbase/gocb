@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"io"
 	"time"
 
@@ -30,10 +31,10 @@ type mgmtResponse struct {
 }
 
 type mgmtProvider interface {
-	executeMgmtRequest(req mgmtRequest) (*mgmtResponse, error)
+	executeMgmtRequest(ctx context.Context, req mgmtRequest) (*mgmtResponse, error)
 }
 
-func (c *Cluster) executeMgmtRequest(req mgmtRequest) (mgmtRespOut *mgmtResponse, errOut error) {
+func (c *Cluster) executeMgmtRequest(ctx context.Context, req mgmtRequest) (mgmtRespOut *mgmtResponse, errOut error) {
 	timeout := req.Timeout
 	if timeout == 0 {
 		timeout = c.timeoutsConfig.ManagementTimeout
@@ -63,7 +64,7 @@ func (c *Cluster) executeMgmtRequest(req mgmtRequest) (mgmtRespOut *mgmtResponse
 		TraceContext:  req.parentSpanCtx,
 	}
 
-	coreresp, err := provider.DoHTTPRequest(corereq)
+	coreresp, err := provider.DoHTTPRequest(ctx, corereq)
 	if err != nil {
 		return nil, makeGenericHTTPError(err, corereq, coreresp)
 	}
@@ -76,7 +77,7 @@ func (c *Cluster) executeMgmtRequest(req mgmtRequest) (mgmtRespOut *mgmtResponse
 	return resp, nil
 }
 
-func (b *Bucket) executeMgmtRequest(req mgmtRequest) (mgmtRespOut *mgmtResponse, errOut error) {
+func (b *Bucket) executeMgmtRequest(ctx context.Context, req mgmtRequest) (mgmtRespOut *mgmtResponse, errOut error) {
 	timeout := req.Timeout
 	if timeout == 0 {
 		timeout = b.timeoutsConfig.ManagementTimeout
@@ -106,7 +107,7 @@ func (b *Bucket) executeMgmtRequest(req mgmtRequest) (mgmtRespOut *mgmtResponse,
 		TraceContext:  req.parentSpanCtx,
 	}
 
-	coreresp, err := provider.DoHTTPRequest(corereq)
+	coreresp, err := provider.DoHTTPRequest(ctx, corereq)
 	if err != nil {
 		return nil, makeGenericHTTPError(err, corereq, coreresp)
 	}

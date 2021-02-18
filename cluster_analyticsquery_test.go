@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -146,6 +147,32 @@ func (arr *mockAnalyticsRowReader) Err() error {
 	return arr.RowsErr
 }
 
+func (suite *IntegrationTestSuite) TestClusterAnalyticsQueryContext() {
+	suite.skipIfUnsupported(AnalyticsFeature)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	res, err := globalCluster.AnalyticsQuery("SELECT 1=1", &AnalyticsOptions{
+		Context: ctx,
+	})
+	if !errors.Is(err, ErrRequestCanceled) {
+		suite.T().Fatalf("Expected error to be canceled but was %v", err)
+	}
+	suite.Require().Nil(res)
+
+	ctx, cancel = context.WithDeadline(context.Background(), time.Now().Add(1*time.Nanosecond))
+	defer cancel()
+
+	res, err = globalCluster.AnalyticsQuery("SELECT 1=1", &AnalyticsOptions{
+		Context: ctx,
+	})
+	if !errors.Is(err, ErrRequestCanceled) {
+		suite.T().Fatalf("Expected error to be canceled but was %v", err)
+	}
+	suite.Require().Nil(res)
+}
+
 func (suite *UnitTestSuite) TestAnalyticsQuery() {
 	var dataset testAnalyticsDataset
 	err := loadJSONTestDataset("beer_sample_analytics_dataset", &dataset)
@@ -160,8 +187,8 @@ func (suite *UnitTestSuite) TestAnalyticsQuery() {
 	statement := "SELECT * FROM dataset"
 
 	var cluster *Cluster
-	cluster = suite.analyticsCluster(reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.AnalyticsQueryOptions)
+	cluster = suite.analyticsCluster(nil, func(args mock.Arguments) {
+		opts := args.Get(1).(gocbcore.AnalyticsQueryOptions)
 		suite.Assert().Equal(0, opts.Priority)
 		suite.Assert().Equal(cluster.retryStrategyWrapper, opts.RetryStrategy)
 		now := time.Now()
@@ -176,7 +203,7 @@ func (suite *UnitTestSuite) TestAnalyticsQuery() {
 		suite.Assert().Contains(actualOptions, "statement")
 		suite.Assert().Contains(actualOptions, "client_context_id")
 		suite.Assert().Equal(statement, actualOptions["statement"])
-	})
+	}, reader)
 
 	result, err := cluster.AnalyticsQuery(statement, nil)
 	suite.Require().Nil(err, err)
@@ -273,7 +300,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryUntypedError() {
 	retErr := errors.New("an error")
 	analyticsProvider := new(mockAnalyticsProvider)
 	analyticsProvider.
-		On("AnalyticsQuery", mock.AnythingOfType("gocbcore.AnalyticsQueryOptions")).
+		On("AnalyticsQuery", nil, mock.AnythingOfType("gocbcore.AnalyticsQueryOptions")).
 		Return(nil, retErr)
 
 	cli := new(mockConnectionManager)
@@ -296,7 +323,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryGocbcoreError() {
 
 	analyticsProvider := new(mockAnalyticsProvider)
 	analyticsProvider.
-		On("AnalyticsQuery", mock.AnythingOfType("gocbcore.AnalyticsQueryOptions")).
+		On("AnalyticsQuery", nil, mock.AnythingOfType("gocbcore.AnalyticsQueryOptions")).
 		Return(nil, retErr)
 
 	cli := new(mockConnectionManager)
@@ -322,9 +349,9 @@ func (suite *UnitTestSuite) TestAnalyticsQueryPriority() {
 
 	analyticsProvider := new(mockAnalyticsProvider)
 	analyticsProvider.
-		On("AnalyticsQuery", mock.AnythingOfType("gocbcore.AnalyticsQueryOptions")).
+		On("AnalyticsQuery", nil, mock.AnythingOfType("gocbcore.AnalyticsQueryOptions")).
 		Run(func(args mock.Arguments) {
-			opts := args.Get(0).(gocbcore.AnalyticsQueryOptions)
+			opts := args.Get(1).(gocbcore.AnalyticsQueryOptions)
 			suite.Assert().Equal(-1, opts.Priority)
 		}).
 		Return(reader, nil)
@@ -347,15 +374,15 @@ func (suite *UnitTestSuite) TestAnalyticsQueryTimeoutOption() {
 	statement := "SELECT * FROM dataset"
 
 	var cluster *Cluster
-	cluster = suite.analyticsCluster(reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.AnalyticsQueryOptions)
+	cluster = suite.analyticsCluster(nil, func(args mock.Arguments) {
+		opts := args.Get(1).(gocbcore.AnalyticsQueryOptions)
 		suite.Assert().Equal(0, opts.Priority)
 		suite.Assert().Equal(cluster.retryStrategyWrapper, opts.RetryStrategy)
 		now := time.Now()
 		if opts.Deadline.Before(now.Add(20*time.Second)) || opts.Deadline.After(now.Add(25*time.Second)) {
 			suite.Fail("Deadline should have been <75s and >70s but was %s", opts.Deadline)
 		}
-	})
+	}, reader)
 
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		Timeout: 25 * time.Second,
@@ -368,7 +395,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryGCCCPUnsupported() {
 	retErr := errors.New("an error")
 	analyticsProvider := new(mockAnalyticsProvider)
 	analyticsProvider.
-		On("AnalyticsQuery", mock.AnythingOfType("gocbcore.AnalyticsQueryOptions")).
+		On("AnalyticsQuery", nil, mock.AnythingOfType("gocbcore.AnalyticsQueryOptions")).
 		Return(nil, retErr)
 
 	cli := new(mockConnectionManager)
@@ -390,8 +417,8 @@ func (suite *UnitTestSuite) TestAnalyticsQueryNamedParams() {
 		"$cilit":  "bang",
 	}
 
-	cluster := suite.analyticsCluster(reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.AnalyticsQueryOptions)
+	cluster := suite.analyticsCluster(nil, func(args mock.Arguments) {
+		opts := args.Get(1).(gocbcore.AnalyticsQueryOptions)
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
@@ -402,7 +429,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryNamedParams() {
 		suite.Assert().Equal(float64(1), actualOptions["$num"])
 		suite.Assert().Equal("namedbarry", actualOptions["$imafish"])
 		suite.Assert().Equal("bang", actualOptions["$cilit"])
-	})
+	}, reader)
 
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		NamedParameters: params,
@@ -417,8 +444,8 @@ func (suite *UnitTestSuite) TestAnalyticsQueryPositionalParams() {
 	statement := "SELECT * FROM dataset"
 	params := []interface{}{float64(1), "imafish"}
 
-	cluster := suite.analyticsCluster(reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.AnalyticsQueryOptions)
+	cluster := suite.analyticsCluster(nil, func(args mock.Arguments) {
+		opts := args.Get(1).(gocbcore.AnalyticsQueryOptions)
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
@@ -429,7 +456,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryPositionalParams() {
 		if suite.Assert().Contains(actualOptions, "args") {
 			suite.Require().Equal(params, actualOptions["args"])
 		}
-	})
+	}, reader)
 
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		PositionalParameters: params,
@@ -471,8 +498,8 @@ func (suite *UnitTestSuite) TestAnalyticsQueryClientContextID() {
 	statement := "SELECT * FROM dataset"
 	contextID := "62d29101-0c9f-400d-af2b-9bd44a557a7c"
 
-	cluster := suite.analyticsCluster(reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.AnalyticsQueryOptions)
+	cluster := suite.analyticsCluster(nil, func(args mock.Arguments) {
+		opts := args.Get(1).(gocbcore.AnalyticsQueryOptions)
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
@@ -480,7 +507,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryClientContextID() {
 
 		suite.Assert().Equal(statement, actualOptions["statement"])
 		suite.Assert().Equal(contextID, actualOptions["client_context_id"])
-	})
+	}, reader)
 
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		ClientContextID: contextID,
@@ -497,8 +524,8 @@ func (suite *UnitTestSuite) TestAnalyticsQueryRawParam() {
 		"raw": "param",
 	}
 
-	cluster := suite.analyticsCluster(reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.AnalyticsQueryOptions)
+	cluster := suite.analyticsCluster(nil, func(args mock.Arguments) {
+		opts := args.Get(1).(gocbcore.AnalyticsQueryOptions)
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
@@ -509,7 +536,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryRawParam() {
 		if suite.Assert().Contains(actualOptions, "raw") {
 			suite.Require().Equal("param", actualOptions["raw"])
 		}
-	})
+	}, reader)
 
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		Raw: params,
@@ -523,8 +550,8 @@ func (suite *UnitTestSuite) TestAnalyticsQueryReadonly() {
 
 	statement := "SELECT * FROM dataset"
 
-	cluster := suite.analyticsCluster(reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.AnalyticsQueryOptions)
+	cluster := suite.analyticsCluster(nil, func(args mock.Arguments) {
+		opts := args.Get(1).(gocbcore.AnalyticsQueryOptions)
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
@@ -533,7 +560,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryReadonly() {
 		suite.Assert().Equal(statement, actualOptions["statement"])
 		suite.Assert().NotEmpty(actualOptions["client_context_id"])
 		suite.Assert().Equal(true, actualOptions["readonly"])
-	})
+	}, reader)
 
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		Readonly: true,
@@ -547,8 +574,8 @@ func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyNotBounded() {
 
 	statement := "SELECT * FROM dataset"
 
-	cluster := suite.analyticsCluster(reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.AnalyticsQueryOptions)
+	cluster := suite.analyticsCluster(nil, func(args mock.Arguments) {
+		opts := args.Get(1).(gocbcore.AnalyticsQueryOptions)
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
@@ -557,7 +584,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyNotBounded() {
 		suite.Assert().Equal(statement, actualOptions["statement"])
 		suite.Assert().NotEmpty(actualOptions["client_context_id"])
 		suite.Assert().Equal("not_bounded", actualOptions["scan_consistency"])
-	})
+	}, reader)
 
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		ScanConsistency: AnalyticsScanConsistencyNotBounded,
@@ -571,8 +598,8 @@ func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyRequestPlus() {
 
 	statement := "SELECT * FROM dataset"
 
-	cluster := suite.analyticsCluster(reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.AnalyticsQueryOptions)
+	cluster := suite.analyticsCluster(nil, func(args mock.Arguments) {
+		opts := args.Get(1).(gocbcore.AnalyticsQueryOptions)
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
@@ -581,7 +608,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyRequestPlus() {
 		suite.Assert().Equal(statement, actualOptions["statement"])
 		suite.Assert().NotEmpty(actualOptions["client_context_id"])
 		suite.Assert().Equal("request_plus", actualOptions["scan_consistency"])
-	})
+	}, reader)
 
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		ScanConsistency: AnalyticsScanConsistencyRequestPlus,
@@ -610,10 +637,10 @@ func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyInvalid() {
 	analyticsProvider.AssertNotCalled(suite.T(), "AnalyticsQuery")
 }
 
-func (suite *UnitTestSuite) analyticsCluster(reader analyticsRowReader, runFn func(args mock.Arguments)) *Cluster {
+func (suite *UnitTestSuite) analyticsCluster(ctx context.Context, runFn func(args mock.Arguments), reader analyticsRowReader) *Cluster {
 	analyticsProvider := new(mockAnalyticsProvider)
 	analyticsProvider.
-		On("AnalyticsQuery", mock.AnythingOfType("gocbcore.AnalyticsQueryOptions")).
+		On("AnalyticsQuery", ctx, mock.AnythingOfType("gocbcore.AnalyticsQueryOptions")).
 		Run(runFn).
 		Return(reader, nil)
 
@@ -639,7 +666,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryRaw() {
 	statement := "SELECT * FROM dataset"
 
 	var cluster *Cluster
-	cluster = suite.analyticsCluster(reader, func(args mock.Arguments) {})
+	cluster = suite.analyticsCluster(nil, func(args mock.Arguments) {}, reader)
 
 	result, err := cluster.AnalyticsQuery(statement, nil)
 	suite.Require().Nil(err, err)

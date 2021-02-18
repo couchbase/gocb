@@ -3,6 +3,8 @@
 package gocb
 
 import (
+	context "context"
+
 	gocbcore "github.com/couchbase/gocbcore/v9"
 	mock "github.com/stretchr/testify/mock"
 
@@ -14,13 +16,13 @@ type mockWaitUntilReadyProvider struct {
 	mock.Mock
 }
 
-// WaitUntilReady provides a mock function with given fields: deadline, opts
-func (_m *mockWaitUntilReadyProvider) WaitUntilReady(deadline time.Time, opts gocbcore.WaitUntilReadyOptions) error {
-	ret := _m.Called(deadline, opts)
+// WaitUntilReady provides a mock function with given fields: ctx, deadline, opts
+func (_m *mockWaitUntilReadyProvider) WaitUntilReady(ctx context.Context, deadline time.Time, opts gocbcore.WaitUntilReadyOptions) error {
+	ret := _m.Called(ctx, deadline, opts)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(time.Time, gocbcore.WaitUntilReadyOptions) error); ok {
-		r0 = rf(deadline, opts)
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, gocbcore.WaitUntilReadyOptions) error); ok {
+		r0 = rf(ctx, deadline, opts)
 	} else {
 		r0 = ret.Error(0)
 	}

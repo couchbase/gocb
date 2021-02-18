@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
@@ -143,8 +144,8 @@ func (vm *ViewIndexManager) tryParseErrorMessage(req mgmtRequest, resp *mgmtResp
 	return makeGenericMgmtError(bodyErr, &req, resp)
 }
 
-func (vm *ViewIndexManager) doMgmtRequest(req mgmtRequest) (*mgmtResponse, error) {
-	resp, err := vm.mgmtProvider.executeMgmtRequest(req)
+func (vm *ViewIndexManager) doMgmtRequest(ctx context.Context, req mgmtRequest) (*mgmtResponse, error) {
+	resp, err := vm.mgmtProvider.executeMgmtRequest(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -157,6 +158,11 @@ type GetDesignDocumentOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 func (vm *ViewIndexManager) ddocName(name string, namespace DesignDocumentNamespace) string {
@@ -205,7 +211,7 @@ func (vm *ViewIndexManager) getDesignDocument(name string, namespace DesignDocum
 		parentSpanCtx: span.Context(),
 		UniqueID:      uuid.New().String(),
 	}
-	resp, err := vm.doMgmtRequest(req)
+	resp, err := vm.doMgmtRequest(opts.Context, req)
 	if err != nil {
 		return nil, err
 	}
@@ -243,6 +249,11 @@ type GetAllDesignDocumentsOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // GetAllDesignDocuments will retrieve all design documents for the given bucket.
@@ -270,7 +281,7 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamesp
 		parentSpanCtx: span.Context(),
 		UniqueID:      uuid.New().String(),
 	}
-	resp, err := vm.doMgmtRequest(req)
+	resp, err := vm.doMgmtRequest(opts.Context, req)
 	if err != nil {
 		return nil, err
 	}
@@ -340,6 +351,11 @@ type UpsertDesignDocumentOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // UpsertDesignDocument will insert a design document to the given bucket, or update
@@ -390,7 +406,7 @@ func (vm *ViewIndexManager) upsertDesignDocument(
 		parentSpanCtx: span.Context(),
 		UniqueID:      uuid.New().String(),
 	}
-	resp, err := vm.doMgmtRequest(req)
+	resp, err := vm.doMgmtRequest(opts.Context, req)
 	if err != nil {
 		return err
 	}
@@ -413,6 +429,11 @@ type DropDesignDocumentOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // DropDesignDocument will remove a design document from the given bucket.
@@ -446,7 +467,7 @@ func (vm *ViewIndexManager) dropDesignDocument(tracectx RequestSpanContext, name
 		parentSpanCtx: tracectx,
 		UniqueID:      uuid.New().String(),
 	}
-	resp, err := vm.doMgmtRequest(req)
+	resp, err := vm.doMgmtRequest(opts.Context, req)
 	if err != nil {
 		return err
 	}
@@ -469,6 +490,11 @@ type PublishDesignDocumentOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // PublishDesignDocument publishes a design document to the given bucket.
@@ -493,6 +519,7 @@ func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesi
 			RetryStrategy: opts.RetryStrategy,
 			Timeout:       opts.Timeout,
 			ParentSpan:    span,
+			Context:       opts.Context,
 		})
 	if err != nil {
 		return err
@@ -506,6 +533,7 @@ func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesi
 			RetryStrategy: opts.RetryStrategy,
 			Timeout:       opts.Timeout,
 			ParentSpan:    span,
+			Context:       opts.Context,
 		})
 	if err != nil {
 		return err

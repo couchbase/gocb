@@ -91,7 +91,7 @@ func (suite *UnitTestSuite) TestScopeQueryPrepared() {
 
 	var scope *Scope
 	scope = suite.queryScope(true, reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.N1QLQueryOptions)
+		opts := args.Get(1).(gocbcore.N1QLQueryOptions)
 		suite.Assert().Equal(scope.retryStrategyWrapper, opts.RetryStrategy)
 		now := time.Now()
 		if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {

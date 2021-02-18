@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v9"
@@ -21,6 +22,11 @@ type AppendOptions struct {
 	RetryStrategy   RetryStrategy
 	ParentSpan      RequestSpan
 
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+
 	// Internal: This should never be used and is not supported.
 	Internal struct {
 		User []byte
@@ -40,6 +46,7 @@ func (c *Collection) binaryAppend(id string, val []byte, opts *AppendOptions) (m
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -95,6 +102,11 @@ type PrependOptions struct {
 	RetryStrategy   RetryStrategy
 	ParentSpan      RequestSpan
 
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+
 	// Internal: This should never be used and is not supported.
 	Internal struct {
 		User []byte
@@ -114,6 +126,7 @@ func (c *Collection) binaryPrepend(id string, val []byte, opts *PrependOptions) 
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -177,6 +190,11 @@ type IncrementOptions struct {
 	RetryStrategy   RetryStrategy
 	ParentSpan      RequestSpan
 
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+
 	// Internal: This should never be used and is not supported.
 	Internal struct {
 		User []byte
@@ -196,6 +214,7 @@ func (c *Collection) binaryIncrement(id string, opts *IncrementOptions) (countOu
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
+	opm.SetContext(opts.Context)
 
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
 	if opts.Initial >= 0 {
@@ -269,6 +288,11 @@ type DecrementOptions struct {
 	RetryStrategy   RetryStrategy
 	ParentSpan      RequestSpan
 
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+
 	// Internal: This should never be used and is not supported.
 	Internal struct {
 		User []byte
@@ -288,6 +312,7 @@ func (c *Collection) binaryDecrement(id string, opts *DecrementOptions) (countOu
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
+	opm.SetContext(opts.Context)
 
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
 	if opts.Initial >= 0 {

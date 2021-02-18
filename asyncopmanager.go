@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	gocbcore "github.com/couchbase/gocbcore/v9"
 )
 
@@ -19,14 +20,18 @@ func (m *asyncOpManager) Resolve() {
 	m.signal <- struct{}{}
 }
 
-func (m *asyncOpManager) Wait(op gocbcore.PendingOp, err error) error {
-	if err != nil {
-		return err
+func (m *asyncOpManager) Wait(ctx context.Context, op gocbcore.PendingOp) {
+	if ctx == nil {
+		ctx = context.Background()
 	}
 
-	<-m.signal
-
-	return nil
+	select {
+	case <-m.signal:
+		// Good to go
+	case <-ctx.Done():
+		op.Cancel()
+		<-m.signal
+	}
 }
 
 func newAsyncOpManager() *asyncOpManager {

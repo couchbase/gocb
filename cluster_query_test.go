@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -221,6 +222,32 @@ func (suite *IntegrationTestSuite) setupClusterQuery() int {
 	return n
 }
 
+func (suite *IntegrationTestSuite) TestClusterQueryContext() {
+	suite.skipIfUnsupported(QueryFeature)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	res, err := globalCluster.Query("SELECT 1=1", &QueryOptions{
+		Context: ctx,
+	})
+	if !errors.Is(err, ErrRequestCanceled) {
+		suite.T().Fatalf("Expected error to be canceled but was %v", err)
+	}
+	suite.Require().Nil(res)
+
+	ctx, cancel = context.WithDeadline(context.Background(), time.Now().Add(1*time.Nanosecond))
+	defer cancel()
+
+	res, err = globalCluster.Query("SELECT 1=1", &QueryOptions{
+		Context: ctx,
+	})
+	if !errors.Is(err, ErrRequestCanceled) {
+		suite.T().Fatalf("Expected error to be canceled but was %v", err)
+	}
+	suite.Require().Nil(res)
+}
+
 // We have to manually mock this because testify won't let return something which can iterate.
 type mockQueryRowReader struct {
 	Dataset []testBreweryDocument
@@ -273,7 +300,7 @@ func (suite *UnitTestSuite) newMockQueryProvider(prepared bool, reader queryRowR
 		methodName = "PreparedN1QLQuery"
 	}
 	call := queryProvider.
-		On(methodName, mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
+		On(methodName, nil, mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
 		Return(reader, nil).
 		Once()
 
@@ -335,7 +362,7 @@ func (suite *UnitTestSuite) TestQueryAdhoc() {
 
 	var cluster *Cluster
 	cluster = suite.queryCluster(false, reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.N1QLQueryOptions)
+		opts := args.Get(1).(gocbcore.N1QLQueryOptions)
 		suite.Assert().Equal(cluster.retryStrategyWrapper, opts.RetryStrategy)
 		now := time.Now()
 		if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {
@@ -377,7 +404,7 @@ func (suite *UnitTestSuite) TestQueryPrepared() {
 
 	var cluster *Cluster
 	cluster = suite.queryCluster(true, reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.N1QLQueryOptions)
+		opts := args.Get(1).(gocbcore.N1QLQueryOptions)
 		suite.Assert().Equal(cluster.retryStrategyWrapper, opts.RetryStrategy)
 		now := time.Now()
 		if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {
@@ -473,7 +500,7 @@ func (suite *UnitTestSuite) TestQueryUntypedError() {
 	retErr := errors.New("an error")
 	queryProvider := new(mockQueryProvider)
 	queryProvider.
-		On("N1QLQuery", mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
+		On("N1QLQuery", nil, mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
 		Return(nil, retErr)
 
 	cli := new(mockConnectionManager)
@@ -498,7 +525,7 @@ func (suite *UnitTestSuite) TestQueryGocbcoreError() {
 
 	queryProvider := new(mockQueryProvider)
 	queryProvider.
-		On("N1QLQuery", mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
+		On("N1QLQuery", nil, mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
 		Return(nil, retErr)
 
 	cli := new(mockConnectionManager)
@@ -527,9 +554,9 @@ func (suite *UnitTestSuite) TestQueryTimeoutOption() {
 
 	queryProvider := new(mockQueryProvider)
 	queryProvider.
-		On("N1QLQuery", mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
+		On("N1QLQuery", nil, mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
 		Run(func(args mock.Arguments) {
-			opts := args.Get(0).(gocbcore.N1QLQueryOptions)
+			opts := args.Get(1).(gocbcore.N1QLQueryOptions)
 			suite.Assert().Equal(cluster.retryStrategyWrapper, opts.RetryStrategy)
 			now := time.Now()
 			if opts.Deadline.Before(now.Add(20*time.Second)) || opts.Deadline.After(now.Add(25*time.Second)) {
@@ -562,7 +589,7 @@ func (suite *UnitTestSuite) TestQueryNamedParams() {
 	}
 
 	cluster := suite.queryCluster(false, reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.N1QLQueryOptions)
+		opts := args.Get(1).(gocbcore.N1QLQueryOptions)
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
@@ -588,7 +615,7 @@ func (suite *UnitTestSuite) TestQueryPositionalParams() {
 	params := []interface{}{float64(1), "imafish"}
 
 	cluster := suite.queryCluster(false, reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.N1QLQueryOptions)
+		opts := args.Get(1).(gocbcore.N1QLQueryOptions)
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
@@ -614,7 +641,7 @@ func (suite *UnitTestSuite) TestQueryClientContextID() {
 	contextID := "62d29101-0c9f-400d-af2b-9bd44a557a7c"
 
 	cluster := suite.queryCluster(false, reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.N1QLQueryOptions)
+		opts := args.Get(1).(gocbcore.N1QLQueryOptions)
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
@@ -649,7 +676,7 @@ func (suite *UnitTestSuite) TestQueryNoMetrics() {
 
 	var cluster *Cluster
 	cluster = suite.queryCluster(true, reader, func(args mock.Arguments) {
-		opts := args.Get(0).(gocbcore.N1QLQueryOptions)
+		opts := args.Get(1).(gocbcore.N1QLQueryOptions)
 		suite.Assert().Equal(cluster.retryStrategyWrapper, opts.RetryStrategy)
 		now := time.Now()
 		if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {

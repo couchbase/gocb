@@ -175,9 +175,9 @@ func (suite *UnitTestSuite) TestViewIndexManagerGetDoesntExist() {
 
 	mockProvider := new(mockMgmtProvider)
 	mockProvider.
-		On("executeMgmtRequest", mock.AnythingOfType("mgmtRequest")).
+		On("executeMgmtRequest", nil, mock.AnythingOfType("mgmtRequest")).
 		Run(func(args mock.Arguments) {
-			req := args.Get(0).(mgmtRequest)
+			req := args.Get(1).(mgmtRequest)
 
 			suite.Assert().Equal("/_design/dev_"+ddocName, req.Path)
 			suite.Assert().Equal(ServiceTypeViews, req.Service)
@@ -214,9 +214,9 @@ func (suite *UnitTestSuite) TestViewIndexManagerPublishDoesntExist() {
 
 	mockProvider := new(mockMgmtProvider)
 	mockProvider.
-		On("executeMgmtRequest", mock.AnythingOfType("mgmtRequest")).
+		On("executeMgmtRequest", nil, mock.AnythingOfType("mgmtRequest")).
 		Run(func(args mock.Arguments) {
-			req := args.Get(0).(mgmtRequest)
+			req := args.Get(1).(mgmtRequest)
 
 			suite.Assert().Equal("/_design/dev_"+ddocName, req.Path)
 			suite.Assert().Equal(ServiceTypeViews, req.Service)
@@ -253,9 +253,9 @@ func (suite *UnitTestSuite) TestViewIndexManagerDropDoesntExist() {
 
 	mockProvider := new(mockMgmtProvider)
 	mockProvider.
-		On("executeMgmtRequest", mock.AnythingOfType("mgmtRequest")).
+		On("executeMgmtRequest", nil, mock.AnythingOfType("mgmtRequest")).
 		Run(func(args mock.Arguments) {
-			req := args.Get(0).(mgmtRequest)
+			req := args.Get(1).(mgmtRequest)
 
 			suite.Assert().Equal("/_design/"+ddocName, req.Path)
 			suite.Assert().Equal(ServiceTypeViews, req.Service)
@@ -293,9 +293,9 @@ func (suite *UnitTestSuite) TestViewIndexManagerGetAllDesignDocumentsFiltersCorr
 
 	mockProvider := new(mockMgmtProvider)
 	mockProvider.
-		On("executeMgmtRequest", mock.AnythingOfType("mgmtRequest")).
+		On("executeMgmtRequest", nil, mock.AnythingOfType("mgmtRequest")).
 		Run(func(args mock.Arguments) {
-			req := args.Get(0).(mgmtRequest)
+			req := args.Get(1).(mgmtRequest)
 
 			suite.Assert().Equal("/pools/default/buckets/mock/ddocs", req.Path)
 			suite.Assert().Equal(ServiceTypeManagement, req.Service)
@@ -334,9 +334,9 @@ func (suite *UnitTestSuite) TestViewIndexManagerGetAllDesignDocumentsFiltersCorr
 
 	mockProvider := new(mockMgmtProvider)
 	mockProvider.
-		On("executeMgmtRequest", mock.AnythingOfType("mgmtRequest")).
+		On("executeMgmtRequest", nil, mock.AnythingOfType("mgmtRequest")).
 		Run(func(args mock.Arguments) {
-			req := args.Get(0).(mgmtRequest)
+			req := args.Get(1).(mgmtRequest)
 
 			suite.Assert().Equal("/pools/default/buckets/mock/ddocs", req.Path)
 			suite.Assert().Equal(ServiceTypeManagement, req.Service)

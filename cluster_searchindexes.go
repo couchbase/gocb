@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -118,8 +119,8 @@ func (sm *SearchIndexManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtR
 	return makeGenericMgmtError(bodyErr, req, resp)
 }
 
-func (sm *SearchIndexManager) doMgmtRequest(req mgmtRequest) (*mgmtResponse, error) {
-	resp, err := sm.mgmtProvider.executeMgmtRequest(req)
+func (sm *SearchIndexManager) doMgmtRequest(ctx context.Context, req mgmtRequest) (*mgmtResponse, error) {
+	resp, err := sm.mgmtProvider.executeMgmtRequest(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -132,6 +133,11 @@ type GetAllSearchIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // GetAllIndexes retrieves all of the search indexes for the cluster.
@@ -156,7 +162,7 @@ func (sm *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]S
 		Timeout:       opts.Timeout,
 		parentSpanCtx: span.Context(),
 	}
-	resp, err := sm.doMgmtRequest(req)
+	resp, err := sm.doMgmtRequest(opts.Context, req)
 	if err != nil {
 		return nil, err
 	}
@@ -198,6 +204,11 @@ type GetSearchIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // GetIndex retrieves a specific search index by name.
@@ -223,7 +234,7 @@ func (sm *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOpt
 		Timeout:       opts.Timeout,
 		parentSpanCtx: span.Context(),
 	}
-	resp, err := sm.doMgmtRequest(req)
+	resp, err := sm.doMgmtRequest(opts.Context, req)
 	if err != nil {
 		return nil, err
 	}
@@ -259,6 +270,11 @@ type UpsertSearchIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // UpsertIndex creates or updates a search index.
@@ -304,7 +320,7 @@ func (sm *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Ups
 		Timeout:       opts.Timeout,
 		parentSpanCtx: span.Context(),
 	}
-	resp, err := sm.doMgmtRequest(req)
+	resp, err := sm.doMgmtRequest(opts.Context, req)
 	if err != nil {
 		return err
 	}
@@ -327,6 +343,11 @@ type DropSearchIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // DropIndex removes the search index with the specific name.
@@ -355,7 +376,7 @@ func (sm *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndexO
 		Timeout:       opts.Timeout,
 		parentSpanCtx: span.Context(),
 	}
-	resp, err := sm.doMgmtRequest(req)
+	resp, err := sm.doMgmtRequest(opts.Context, req)
 	if err != nil {
 		return err
 	}
@@ -373,6 +394,11 @@ type AnalyzeDocumentOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // AnalyzeDocument returns how a doc is analyzed against a specific index.
@@ -405,7 +431,7 @@ func (sm *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{},
 		Timeout:       opts.Timeout,
 		parentSpanCtx: span.Context(),
 	}
-	resp, err := sm.doMgmtRequest(req)
+	resp, err := sm.doMgmtRequest(opts.Context, req)
 	if err != nil {
 		return nil, err
 	}
@@ -438,6 +464,11 @@ type GetIndexedDocumentsCountOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // GetIndexedDocumentsCount retrieves the document count for a search index.
@@ -464,7 +495,7 @@ func (sm *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *G
 		Timeout:       opts.Timeout,
 		parentSpanCtx: span.Context(),
 	}
-	resp, err := sm.doMgmtRequest(req)
+	resp, err := sm.doMgmtRequest(opts.Context, req)
 	if err != nil {
 		return 0, err
 	}
@@ -492,6 +523,7 @@ func (sm *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *G
 }
 
 func (sm *SearchIndexManager) performControlRequest(
+	ctx context.Context,
 	tracectx RequestSpanContext,
 	method, uri string,
 	timeout time.Duration,
@@ -507,7 +539,7 @@ func (sm *SearchIndexManager) performControlRequest(
 		parentSpanCtx: tracectx,
 	}
 
-	resp, err := sm.doMgmtRequest(req)
+	resp, err := sm.doMgmtRequest(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -530,6 +562,11 @@ type PauseIngestSearchIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // PauseIngest pauses updates and maintenance for an index.
@@ -548,6 +585,7 @@ func (sm *SearchIndexManager) PauseIngest(indexName string, opts *PauseIngestSea
 	defer span.End()
 
 	return sm.performControlRequest(
+		opts.Context,
 		span.Context(),
 		"POST",
 		path,
@@ -560,6 +598,11 @@ type ResumeIngestSearchIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // ResumeIngest resumes updates and maintenance for an index.
@@ -578,6 +621,7 @@ func (sm *SearchIndexManager) ResumeIngest(indexName string, opts *ResumeIngestS
 	defer span.End()
 
 	return sm.performControlRequest(
+		opts.Context,
 		span.Context(),
 		"POST",
 		path,
@@ -590,6 +634,11 @@ type AllowQueryingSearchIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // AllowQuerying allows querying against an index.
@@ -608,6 +657,7 @@ func (sm *SearchIndexManager) AllowQuerying(indexName string, opts *AllowQueryin
 	defer span.End()
 
 	return sm.performControlRequest(
+		opts.Context,
 		span.Context(),
 		"POST",
 		path,
@@ -620,6 +670,11 @@ type DisallowQueryingSearchIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // DisallowQuerying disallows querying against an index.
@@ -638,6 +693,7 @@ func (sm *SearchIndexManager) DisallowQuerying(indexName string, opts *AllowQuer
 	defer span.End()
 
 	return sm.performControlRequest(
+		opts.Context,
 		span.Context(),
 		"POST",
 		path,
@@ -650,6 +706,11 @@ type FreezePlanSearchIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // FreezePlan freezes the assignment of index partitions to nodes.
@@ -668,6 +729,7 @@ func (sm *SearchIndexManager) FreezePlan(indexName string, opts *AllowQueryingSe
 	defer span.End()
 
 	return sm.performControlRequest(
+		opts.Context,
 		span.Context(),
 		"POST",
 		path,
@@ -680,6 +742,11 @@ type UnfreezePlanSearchIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // UnfreezePlan unfreezes the assignment of index partitions to nodes.
@@ -698,6 +765,7 @@ func (sm *SearchIndexManager) UnfreezePlan(indexName string, opts *AllowQuerying
 	defer span.End()
 
 	return sm.performControlRequest(
+		opts.Context,
 		span.Context(),
 		"POST",
 		path,

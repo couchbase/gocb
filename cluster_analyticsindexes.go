@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
@@ -50,8 +51,8 @@ func (am *AnalyticsIndexManager) doAnalyticsQuery(q string, opts *AnalyticsOptio
 	return rows, nil
 }
 
-func (am *AnalyticsIndexManager) doMgmtRequest(req mgmtRequest) (*mgmtResponse, error) {
-	resp, err := am.mgmtProvider.executeMgmtRequest(req)
+func (am *AnalyticsIndexManager) doMgmtRequest(ctx context.Context, req mgmtRequest) (*mgmtResponse, error) {
+	resp, err := am.mgmtProvider.executeMgmtRequest(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +115,11 @@ type CreateAnalyticsDataverseOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // CreateDataverse creates a new analytics dataset.
@@ -146,6 +152,7 @@ func (am *AnalyticsIndexManager) CreateDataverse(dataverseName string, opts *Cre
 		RetryStrategy:   opts.RetryStrategy,
 		ParentSpan:      span,
 		ClientContextID: uuid.New().String(),
+		Context:         opts.Context,
 	})
 	if err != nil {
 		return err
@@ -161,6 +168,11 @@ type DropAnalyticsDataverseOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // DropDataverse drops an analytics dataset.
@@ -186,6 +198,7 @@ func (am *AnalyticsIndexManager) DropDataverse(dataverseName string, opts *DropA
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
 		ParentSpan:    span,
+		Context:       opts.Context,
 	})
 	if err != nil {
 		return err
@@ -203,6 +216,11 @@ type CreateAnalyticsDatasetOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // CreateDataset creates a new analytics dataset.
@@ -248,6 +266,7 @@ func (am *AnalyticsIndexManager) CreateDataset(datasetName, bucketName string, o
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
 		ParentSpan:    span,
+		Context:       opts.Context,
 	})
 	if err != nil {
 		return err
@@ -264,6 +283,11 @@ type DropAnalyticsDatasetOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // DropDataset drops an analytics dataset.
@@ -295,6 +319,7 @@ func (am *AnalyticsIndexManager) DropDataset(datasetName string, opts *DropAnaly
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
 		ParentSpan:    span,
+		Context:       opts.Context,
 	})
 	if err != nil {
 		return err
@@ -308,6 +333,11 @@ type GetAllAnalyticsDatasetsOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // GetAllDatasets gets all analytics datasets.
@@ -328,6 +358,7 @@ func (am *AnalyticsIndexManager) GetAllDatasets(opts *GetAllAnalyticsDatasetsOpt
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
 		ParentSpan:    span,
+		Context:       opts.Context,
 	})
 	if err != nil {
 		return nil, err
@@ -358,6 +389,11 @@ type CreateAnalyticsIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // CreateIndex creates a new analytics dataset.
@@ -405,6 +441,7 @@ func (am *AnalyticsIndexManager) CreateIndex(datasetName, indexName string, fiel
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
 		ParentSpan:    span,
+		Context:       opts.Context,
 	})
 	if err != nil {
 		return err
@@ -421,6 +458,11 @@ type DropAnalyticsIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // DropIndex drops an analytics index.
@@ -453,6 +495,7 @@ func (am *AnalyticsIndexManager) DropIndex(datasetName, indexName string, opts *
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
 		ParentSpan:    span,
+		Context:       opts.Context,
 	})
 	if err != nil {
 		return err
@@ -466,6 +509,11 @@ type GetAllAnalyticsIndexesOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // GetAllIndexes gets all analytics indexes.
@@ -485,6 +533,7 @@ func (am *AnalyticsIndexManager) GetAllIndexes(opts *GetAllAnalyticsIndexesOptio
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
 		ParentSpan:    span,
+		Context:       opts.Context,
 	})
 	if err != nil {
 		return nil, err
@@ -514,6 +563,11 @@ type ConnectAnalyticsLinkOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // ConnectLink connects an analytics link.
@@ -538,6 +592,7 @@ func (am *AnalyticsIndexManager) ConnectLink(opts *ConnectAnalyticsLinkOptions) 
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
 		ParentSpan:    span,
+		Context:       opts.Context,
 	})
 	if err != nil {
 		return err
@@ -553,6 +608,11 @@ type DisconnectAnalyticsLinkOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // DisconnectLink disconnects an analytics link.
@@ -576,6 +636,7 @@ func (am *AnalyticsIndexManager) DisconnectLink(opts *DisconnectAnalyticsLinkOpt
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
 		ParentSpan:    span,
+		Context:       opts.Context,
 	})
 	if err != nil {
 		return err
@@ -589,6 +650,11 @@ type GetPendingMutationsAnalyticsOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
 }
 
 // GetPendingMutations returns the number of pending mutations for all indexes in the form of dataverse.dataset:mutations.
@@ -618,7 +684,7 @@ func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAn
 		Timeout:       timeout,
 		parentSpanCtx: span.Context(),
 	}
-	resp, err := am.doMgmtRequest(req)
+	resp, err := am.doMgmtRequest(opts.Context, req)
 	if err != nil {
 		return nil, err
 	}
