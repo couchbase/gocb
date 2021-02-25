@@ -56,6 +56,9 @@ type SearchOptions struct {
 
 	DisableScoring bool
 
+	// UNCOMMITTED: This API may change in the future.
+	Collections []string
+
 	parentSpan requestSpanContext
 }
 
@@ -138,6 +141,10 @@ func (opts *SearchOptions) toMap() (map[string]interface{}, error) {
 		for k, v := range opts.Raw {
 			data[k] = v
 		}
+	}
+
+	if len(opts.Collections) > 0 {
+		data["collections"] = opts.Collections
 	}
 
 	return data, nil

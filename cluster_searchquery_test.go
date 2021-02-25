@@ -421,3 +421,33 @@ func (suite *UnitTestSuite) TestSearchQueryRaw() {
 
 	suite.Assert().Equal(reader.Meta, metadata)
 }
+
+func (suite *UnitTestSuite) TestSearchQueryCollections() {
+	reader := &mockSearchRowReader{
+		Dataset: []jsonSearchRow{},
+		Meta:    []byte{},
+		Suite:   suite,
+	}
+
+	query := search.NewMatchAllQuery()
+
+	var cluster *Cluster
+	cluster = suite.searchCluster(reader, func(args mock.Arguments) {
+		opts := args.Get(0).(gocbcore.SearchQueryOptions)
+
+		var actualOptions map[string]interface{}
+		err := json.Unmarshal(opts.Payload, &actualOptions)
+		suite.Require().Nil(err)
+
+		suite.Require().Contains(actualOptions, "collections")
+		collections := actualOptions["collections"].([]interface{})
+		suite.Require().Len(collections, 2)
+		suite.Assert().Equal("collection1", collections[0])
+		suite.Assert().Equal("collection2", collections[1])
+	})
+
+	_, err := cluster.SearchQuery("testindex", query, &SearchOptions{
+		Collections: []string{"collection1", "collection2"},
+	})
+	suite.Require().Nil(err, err)
+}
