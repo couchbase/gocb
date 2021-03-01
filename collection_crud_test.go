@@ -27,7 +27,8 @@ func (suite *IntegrationTestSuite) TestErrorNonExistant() {
 	nilParents := suite.tracer.Spans[nil]
 	suite.Require().Equal(len(nilParents), 1)
 	suite.AssertKvOpSpan(nilParents[0], "get", memd.CmdGet.Name(), 1, false, false)
-
+	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdGet.Name(), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestErrorDoubleInsert() {
@@ -53,6 +54,9 @@ func (suite *IntegrationTestSuite) TestErrorDoubleInsert() {
 		false, true)
 	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), 1,
 		false, true)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "insert", 2, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdAdd.Name(), 2, false)
 }
 
 func (suite *IntegrationTestSuite) TestExpiryConversions() {
@@ -134,6 +138,10 @@ func (suite *IntegrationTestSuite) TestExpiryConversions() {
 			}
 		})
 	}
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 3, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "lookup_in", 3, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSet.Name(), 3, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSubDocMultiLookup.Name(), 3, false)
 }
 
 func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {
@@ -192,6 +200,11 @@ func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {
 	suite.Require().Equal(len(lookupSpans), 1)
 	suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), 1,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "insert", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdAdd.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSubDocMultiLookup.Name(), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestUpsertGetWithExpiryTranscoder() {
@@ -248,6 +261,11 @@ func (suite *IntegrationTestSuite) TestUpsertGetWithExpiryTranscoder() {
 	suite.Require().Equal(len(lookupSpans), 1)
 	suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), 1,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSet.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSubDocMultiLookup.Name(), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestInsertGetProjection() {
@@ -544,6 +562,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 
 	for _, testCase := range testCases {
 		suite.tracer.Reset()
+		suite.meter.Reset()
 		suite.T().Run(testCase.name, func(t *testing.T) {
 			doc, err := globalCollection.Get("projectDoc", &GetOptions{
 				Project: testCase.project,
@@ -575,6 +594,9 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 			suite.Require().Equal(len(lookupSpans), 1)
 			suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), 1,
 				false, false)
+
+			suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
+			suite.AssertKVMetrics(meterNameResponses, memd.CmdSubDocMultiLookup.Name(), 1, false)
 		})
 	}
 }
@@ -661,6 +683,11 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection18Fields() {
 		false, true)
 	suite.AssertKvOpSpan(nilParents[1], "get", "", 0,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "insert", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdAdd.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSubDocMultiLookup.Name(), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestInsertGetProjection16FieldsExpiry() {
@@ -760,6 +787,11 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection16FieldsExpiry() {
 	suite.Require().Equal(len(lookupSpans), 1)
 	suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), 1,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSet.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSubDocMultiLookup.Name(), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestInsertGetProjectionPathMissing() {
@@ -794,6 +826,11 @@ func (suite *IntegrationTestSuite) TestInsertGetProjectionPathMissing() {
 		false, true)
 	suite.AssertKvOpSpan(nilParents[1], "get", "", 0,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "insert", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdAdd.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSubDocMultiLookup.Name(), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestInsertGetProjectionTranscoders() {
@@ -924,6 +961,11 @@ func (suite *IntegrationTestSuite) TestInsertGet() {
 		false, true)
 	suite.AssertKvOpSpan(nilParents[1], "get", memd.CmdGet.Name(), 1,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "insert", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdAdd.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdGet.Name(), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestExists() {
@@ -969,6 +1011,13 @@ func (suite *IntegrationTestSuite) TestExists() {
 		false, false)
 	suite.AssertKvOpSpan(nilParents[3], "exists", memd.CmdGetMeta.Name(), 1,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "insert", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "remove", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "exists", 2, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdAdd.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdDelete.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdGetMeta.Name(), 2, false)
 }
 
 // Following test tests that if a collection is deleted and recreated midway through a set of operations
@@ -1046,6 +1095,14 @@ func (suite *IntegrationTestSuite) TestCollectionRetry() {
 	if doc != insertedDocContent {
 		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
 	}
+
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, meterValueServiceManagement, "manager_collections_create_collection"), 2, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, meterValueServiceManagement, "manager_collections_drop_collection"), 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 2, true)
+	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSet.Name(), 2, true)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdCollectionsGetID.Name(), 1, true)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdGet.Name(), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestUpsertGetRemove() {
@@ -1118,6 +1175,15 @@ func (suite *IntegrationTestSuite) TestUpsertGetRemove() {
 		false, false)
 	suite.AssertKvOpSpan(nilParents[4], "exists", memd.CmdGetMeta.Name(), 1,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "remove", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "exists", 2, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSet.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdGet.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdDelete.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdGetMeta.Name(), 2, false)
 }
 
 type upsertRetriesStrategy struct {
@@ -1178,6 +1244,11 @@ func (suite *IntegrationTestSuite) TestUpsertRetries() {
 		false, false)
 	suite.AssertKvOpSpan(nilParents[2], "upsert", memd.CmdSet.Name(), retryStrategy.retries+1,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 2, true)
+	suite.AssertKVMetrics(meterNameCBOperations, "get_and_lock", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSet.Name(), 2, true)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdGetLocked.Name(), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestRemoveWithCas() {
@@ -1255,6 +1326,13 @@ func (suite *IntegrationTestSuite) TestRemoveWithCas() {
 		false, false)
 	suite.AssertKvOpSpan(nilParents[5], "exists", memd.CmdGetMeta.Name(), 1,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "exists", 3, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "remove", 2, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSet.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdGetMeta.Name(), 3, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdDelete.Name(), 2, false)
 }
 
 func (suite *IntegrationTestSuite) TestUpsertAndReplace() {
@@ -1326,6 +1404,13 @@ func (suite *IntegrationTestSuite) TestUpsertAndReplace() {
 		false, false)
 	suite.AssertKvOpSpan(nilParents[3], "get", memd.CmdGet.Name(), 1,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get", 2, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "replace", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSet.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdGet.Name(), 2, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdReplace.Name(), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestGetAndTouch() {
@@ -1401,6 +1486,13 @@ func (suite *IntegrationTestSuite) TestGetAndTouch() {
 	suite.Require().Equal(len(lookupSpans), 1)
 	suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), 1,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get_and_touch", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSet.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSubDocMultiLookup.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdGAT.Name(), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestGetAndLock() {
@@ -1469,6 +1561,11 @@ func (suite *IntegrationTestSuite) TestGetAndLock() {
 		false, false)
 	suite.AssertKvOpSpan(nilParents[3], "upsert", memd.CmdSet.Name(), 1,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 3, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get_and_lock", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSet.Name(), 3, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdGetLocked.Name(), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestUnlock() {
@@ -1529,6 +1626,13 @@ func (suite *IntegrationTestSuite) TestUnlock() {
 		false, false)
 	suite.AssertKvOpSpan(nilParents[3], "upsert", memd.CmdSet.Name(), 1,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 2, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get_and_lock", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "unlock", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSet.Name(), 2, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdGetLocked.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdUnlockKey.Name(), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestUnlockInvalidCas() {
@@ -1585,6 +1689,13 @@ func (suite *IntegrationTestSuite) TestUnlockInvalidCas() {
 		false, false)
 	suite.AssertKvOpSpan(nilParents[2], "unlock", memd.CmdUnlockKey.Name(), 1,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get_and_lock", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "unlock", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSet.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdGetLocked.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdUnlockKey.Name(), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestDoubleLockFail() {
@@ -1641,6 +1752,11 @@ func (suite *IntegrationTestSuite) TestDoubleLockFail() {
 		false, false)
 	suite.AssertKvOpSpan(nilParents[2], "get_and_lock", memd.CmdGetLocked.Name(), 1,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get_and_lock", 2, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSet.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdGetLocked.Name(), 2, false)
 }
 
 func (suite *IntegrationTestSuite) TestUnlockMissingDocFail() {
@@ -1729,6 +1845,13 @@ func (suite *IntegrationTestSuite) TestTouch() {
 	suite.Require().Equal(len(lookupSpans), 1)
 	suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), 1,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "touch", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSet.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdTouch.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSubDocMultiLookup.Name(), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestTouchMissingDocFail() {
@@ -1748,6 +1871,9 @@ func (suite *IntegrationTestSuite) TestTouchMissingDocFail() {
 	suite.Require().Equal(len(nilParents), 1)
 	suite.AssertKvOpSpan(nilParents[0], "touch", memd.CmdTouch.Name(), 1,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "touch", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdTouch.Name(), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestInsertReplicateToGetAnyReplica() {
@@ -1810,6 +1936,12 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAnyReplica() {
 		suite.AssertKvSpan(span, "get_replica")
 		// We don't know which span was actually cancelled so we don't check the CMD spans.
 	}
+
+	suite.AssertKVMetrics(meterNameCBOperations, "insert", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get_any_replica", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdAdd.Name(), 1, false)
+
+	// We can't reliably check the metrics for the get cmd spans, as we don't know which one will have won.
 }
 
 func (suite *IntegrationTestSuite) TestInsertReplicateToGetAllReplicas() {
@@ -1895,6 +2027,13 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAllReplicas() {
 	if numMasters != 1 {
 		suite.T().Fatalf("Expected number of masters to be 1 but was %d", numMasters)
 	}
+
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get_all_replicas", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSet.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdObserveSeqNo.Name(), 1, true)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdGet.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdGetReplica.Name(), 1, true)
 }
 
 func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {

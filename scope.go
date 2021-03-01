@@ -11,6 +11,7 @@ type Scope struct {
 	transcoder           Transcoder
 	retryStrategyWrapper *retryStrategyWrapper
 	tracer               RequestTracer
+	meter                Meter
 
 	useMutationTokens bool
 
@@ -29,6 +30,7 @@ func newScope(bucket *Bucket, scopeName string) *Scope {
 		transcoder:           bucket.transcoder,
 		retryStrategyWrapper: bucket.retryStrategyWrapper,
 		tracer:               bucket.tracer,
+		meter:                bucket.meter,
 
 		useMutationTokens: bucket.useMutationTokens,
 

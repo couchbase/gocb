@@ -23,6 +23,7 @@ func (suite *IntegrationTestSuite) runSearchTest(n int) {
 	var result *SearchResult
 	for {
 		suite.tracer.Reset()
+		suite.meter.Reset()
 		var err error
 		result, err = globalCluster.SearchQuery("search_test_index", query, &SearchOptions{
 			Timeout: 1 * time.Second,
@@ -44,6 +45,9 @@ func (suite *IntegrationTestSuite) runSearchTest(n int) {
 				hasEncoding:             true,
 				service:                 "search",
 			})
+
+		suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "search", "search"), 1, false)
+		suite.AssertMetrics(makeMetricsKey(meterNameResponses, "search", ""), 1, true)
 
 		if err != nil {
 			sleepDeadline := time.Now().Add(1000 * time.Millisecond)

@@ -17,7 +17,7 @@ func (c *Collection) observeOnceSeqNo(
 	user []byte,
 ) (didReplicate, didPersist bool, errOut error) {
 	opm := c.newKvOpManager("observe_once", trace)
-	defer opm.Finish()
+	defer opm.Finish(true)
 
 	opm.SetDocumentID(docID)
 	opm.SetCancelCh(cancelCh)
@@ -120,7 +120,7 @@ func (c *Collection) waitForDurability(
 	user []byte,
 ) error {
 	opm := c.newKvOpManager("observe", trace)
-	defer opm.Finish()
+	defer opm.Finish(true)
 
 	opm.SetDocumentID(docID)
 

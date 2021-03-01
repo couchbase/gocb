@@ -154,6 +154,14 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 			dispatchOperationID:     "any",
 			service:                 "management",
 		})
+
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_views_upsert_design_document"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_views_get_design_document"), 2, true)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_views_get_all_design_documents"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_views_drop_design_document"), 1, false)
+	// GetAllDesignDocuments goes via the management service rather than views.
+	suite.AssertMetrics(makeMetricsKey(meterNameResponses, "management", ""), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameResponses, "views", ""), 5, true)
 }
 
 func (suite *UnitTestSuite) TestViewIndexManagerGetDoesntExist() {
@@ -184,6 +192,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerGetDoesntExist() {
 		mgmtProvider: mockProvider,
 		bucketName:   "mock",
 		tracer:       &NoopTracer{},
+		meter:        &NoopMeter{},
 	}
 
 	_, err := viewMgr.GetDesignDocument(ddocName, DesignDocumentNamespaceDevelopment, &GetDesignDocumentOptions{
@@ -222,6 +231,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerPublishDoesntExist() {
 		mgmtProvider: mockProvider,
 		bucketName:   "mock",
 		tracer:       &NoopTracer{},
+		meter:        &NoopMeter{},
 	}
 
 	err := viewMgr.PublishDesignDocument(ddocName, &PublishDesignDocumentOptions{
@@ -260,6 +270,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerDropDoesntExist() {
 		mgmtProvider: mockProvider,
 		bucketName:   "mock",
 		tracer:       &NoopTracer{},
+		meter:        &NoopMeter{},
 	}
 
 	err := viewMgr.DropDesignDocument(ddocName, DesignDocumentNamespaceProduction, &DropDesignDocumentOptions{
@@ -299,6 +310,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerGetAllDesignDocumentsFiltersCorr
 		mgmtProvider: mockProvider,
 		bucketName:   "mock",
 		tracer:       &NoopTracer{},
+		meter:        &NoopMeter{},
 	}
 
 	ddocs, err := viewMgr.GetAllDesignDocuments(DesignDocumentNamespaceProduction, &GetAllDesignDocumentsOptions{
@@ -339,6 +351,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerGetAllDesignDocumentsFiltersCorr
 		mgmtProvider: mockProvider,
 		bucketName:   "mock",
 		tracer:       &NoopTracer{},
+		meter:        &NoopMeter{},
 	}
 
 	ddocs, err := viewMgr.GetAllDesignDocuments(DesignDocumentNamespaceDevelopment, &GetAllDesignDocumentsOptions{

@@ -54,6 +54,13 @@ func (suite *IntegrationTestSuite) TestBinaryAppend() {
 		false, false)
 	suite.AssertKvOpSpan(nilParents[2], "get", memd.CmdGet.Name(), 1,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "append", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSet.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdAppend.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdGet.Name(), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestBinaryPrepend() {
@@ -109,6 +116,13 @@ func (suite *IntegrationTestSuite) TestBinaryPrepend() {
 		false, false)
 	suite.AssertKvOpSpan(nilParents[2], "get", memd.CmdGet.Name(), 1,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "prepend", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdSet.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdPrepend.Name(), 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdGet.Name(), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestBinaryIncrement() {
@@ -187,6 +201,11 @@ func (suite *IntegrationTestSuite) TestBinaryIncrement() {
 		false, false)
 	suite.AssertKvOpSpan(nilParents[3], "get", memd.CmdGet.Name(), 1,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "increment", 3, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdIncrement.Name(), 3, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdGet.Name(), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestBinaryDecrement() {
@@ -266,4 +285,9 @@ func (suite *IntegrationTestSuite) TestBinaryDecrement() {
 		false, false)
 	suite.AssertKvOpSpan(nilParents[3], "get", memd.CmdGet.Name(), 1,
 		false, false)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "decrement", 3, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdDecrement.Name(), 3, false)
+	suite.AssertKVMetrics(meterNameResponses, memd.CmdGet.Name(), 1, false)
 }

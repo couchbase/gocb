@@ -123,6 +123,17 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 	if !errors.Is(err, ErrIndexNotFound) {
 		suite.T().Fatalf("Expected index not found error but was %s", err)
 	}
+
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_bucket_create_bucket"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_query_create_primary_index"), 2, true)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_query_create_index"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_query_build_deferred_indexes"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_query_watch_indexes"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_query_get_all_indexes"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_query_drop_primary_index"), 2, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_query_drop_index"), 2, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameResponses, "query", ""), 12, true)
+	suite.AssertMetrics(makeMetricsKey(meterNameResponses, "management", ""), 1, false)
 }
 
 type testQueryIndexDataset struct {
@@ -165,6 +176,7 @@ func (suite *UnitTestSuite) TestQueryIndexesParsing() {
 	mgr := QueryIndexManager{
 		provider: cluster,
 		tracer:   &NoopTracer{},
+		meter:    &NoopMeter{},
 	}
 
 	res, err := mgr.GetAllIndexes("mybucket", nil)

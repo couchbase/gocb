@@ -291,6 +291,9 @@ func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResult, err
 		opts = &QueryOptions{}
 	}
 
+	start := time.Now()
+	defer valueRecord(c.meter, meterValueServiceQuery, "query", start)
+
 	span := createSpan(c.tracer, opts.ParentSpan, "query", "query")
 	span.SetAttribute("db.statement", statement)
 	defer span.End()

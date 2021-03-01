@@ -48,6 +48,7 @@ type CollectionManager struct {
 	mgmtProvider mgmtProvider
 	bucketName   string
 	tracer       RequestTracer
+	meter        Meter
 }
 
 func (cm *CollectionManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
@@ -86,6 +87,9 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 	if opts == nil {
 		opts = &GetAllScopesOptions{}
 	}
+
+	start := time.Now()
+	defer valueRecord(cm.meter, meterValueServiceManagement, "manager_collections_get_all_scopes", start)
 
 	path := fmt.Sprintf("/pools/default/buckets/%s/scopes", cm.bucketName)
 	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_get_all_scopes", "management")
@@ -185,6 +189,9 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 		opts = &CreateCollectionOptions{}
 	}
 
+	start := time.Now()
+	defer valueRecord(cm.meter, meterValueServiceManagement, "manager_collections_create_collection", start)
+
 	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections", cm.bucketName, spec.ScopeName)
 	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_create_collection", "management")
 	span.SetAttribute("db.name", cm.bucketName)
@@ -259,6 +266,9 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 		opts = &DropCollectionOptions{}
 	}
 
+	start := time.Now()
+	defer valueRecord(cm.meter, meterValueServiceManagement, "manager_collections_drop_collection", start)
+
 	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections/%s", cm.bucketName, spec.ScopeName, spec.Name)
 	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_drop_collection", "management")
 	span.SetAttribute("db.name", cm.bucketName)
@@ -315,6 +325,9 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 	if opts == nil {
 		opts = &CreateScopeOptions{}
 	}
+
+	start := time.Now()
+	defer valueRecord(cm.meter, meterValueServiceManagement, "manager_collections_create_scope", start)
 
 	path := fmt.Sprintf("/pools/default/buckets/%s/scopes", cm.bucketName)
 	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_create_scope", "management")
@@ -376,6 +389,9 @@ func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions)
 	if opts == nil {
 		opts = &DropScopeOptions{}
 	}
+
+	start := time.Now()
+	defer valueRecord(cm.meter, meterValueServiceManagement, "manager_collections_drop_scope", start)
 
 	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s", cm.bucketName, scopeName)
 	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_drop_scope", "management")

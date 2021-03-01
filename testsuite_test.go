@@ -24,10 +24,12 @@ type IntegrationTestSuite struct {
 	suite.Suite
 
 	tracer *testTracer
+	meter  *testMeter
 }
 
 func (suite *IntegrationTestSuite) BeforeTest(suiteName, testName string) {
 	suite.tracer.Reset()
+	suite.meter.Reset()
 }
 
 func (suite *IntegrationTestSuite) SetupSuite() {
@@ -84,10 +86,12 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 	}
 
 	suite.tracer = newTestTracer()
+	suite.meter = newTestMeter()
 
 	cluster, err := Connect(connStr, ClusterOptions{
 		Authenticator: auth,
 		Tracer:        suite.tracer,
+		Meter:         suite.meter,
 	})
 	if err != nil {
 		panic(err.Error())
@@ -134,6 +138,39 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 func (suite *IntegrationTestSuite) TearDownSuite() {
 	err := globalCluster.Close(nil)
 	suite.Require().Nil(err, err)
+}
+
+func (suite *IntegrationTestSuite) AssertKVMetrics(metricName, op string, length int, atLeastLen bool) {
+	suite.AssertMetrics(makeMetricsKeyFromCmd(metricName, "kv", op), length, atLeastLen)
+}
+
+func makeMetricsKeyFromCmd(metricName, service, op string) string {
+	return makeMetricsKey(metricName, service, op)
+}
+
+func makeMetricsKey(metricName, service, op string) string {
+	key := metricName + ":" + service
+	if op != "" {
+		key = key + ":" + op
+	}
+
+	return key
+}
+
+func (suite *IntegrationTestSuite) AssertMetrics(key string, length int, atLeastLen bool) {
+	suite.meter.lock.Lock()
+	defer suite.meter.lock.Unlock()
+	recorders := suite.meter.recorders
+	if suite.Assert().Contains(recorders, key) {
+		if atLeastLen {
+			suite.Assert().GreaterOrEqual(len(recorders[key].values), length)
+		} else {
+			suite.Assert().Len(recorders[key].values, length)
+		}
+		for _, val := range recorders[key].values {
+			suite.Assert().NotZero(val)
+		}
+	}
 }
 
 func (suite *IntegrationTestSuite) ensureReplicasUpEnhDura() {
@@ -277,6 +314,7 @@ func (suite *UnitTestSuite) bucket(name string, timeouts TimeoutsConfig, cli *mo
 		transcoder:           NewJSONTranscoder(),
 		retryStrategyWrapper: newRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
 		tracer:               &NoopTracer{},
+		meter:                &NoopMeter{},
 		useServerDurations:   true,
 		useMutationTokens:    true,
 
@@ -289,6 +327,7 @@ func (suite *UnitTestSuite) bucket(name string, timeouts TimeoutsConfig, cli *mo
 func (suite *UnitTestSuite) newCluster(cli connectionManager) *Cluster {
 	cluster := clusterFromOptions(ClusterOptions{
 		Tracer: &NoopTracer{},
+		Meter:  &NoopMeter{},
 	})
 	cluster.connectionManager = cli
 
@@ -331,6 +370,7 @@ func (suite *UnitTestSuite) collection(bucket, scope, collection string, provide
 		},
 		transcoder:           NewJSONTranscoder(),
 		tracer:               &NoopTracer{},
+		meter:                &NoopMeter{},
 		retryStrategyWrapper: newRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
 	}
 }

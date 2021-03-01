@@ -90,6 +90,21 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 	span := createSpan(b.tracer, opts.ParentSpan, "ping", "kv")
 	defer span.End()
 
+	startTime := time.Now()
+	defer valueRecord(b.meter, meterValueServiceKV, "ping", startTime)
+	defer func() {
+		recorder, err := b.meter.ValueRecorder("meterNameCBOperations", map[string]string{
+			"db.couchbase.service": "kv",
+			"db.operation":         "ping",
+		})
+		if err != nil {
+			logDebugf("Failed to get value recorder: %v", err)
+			return
+		}
+
+		recorder.RecordValue(uint64(time.Since(startTime).Microseconds()))
+	}()
+
 	provider, err := b.connectionManager.getDiagnosticsProvider(b.bucketName)
 	if err != nil {
 		return nil, err

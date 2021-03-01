@@ -32,6 +32,7 @@ func (suite *IntegrationTestSuite) runAnalyticsTest(n int, query, bucket, scope 
 	deadline := time.Now().Add(60 * time.Second)
 	for {
 		suite.tracer.Reset()
+		suite.meter.Reset()
 		contextID := "contextID"
 		result, err := provider.AnalyticsQuery(query, &AnalyticsOptions{
 			PositionalParameters: []interface{}{"analytics"},
@@ -53,6 +54,9 @@ func (suite *IntegrationTestSuite) runAnalyticsTest(n int, query, bucket, scope 
 				service:                 "analytics",
 				dispatchOperationID:     "contextID",
 			})
+
+		suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "analytics"), 1, false)
+		suite.AssertMetrics(makeMetricsKey(meterNameResponses, "analytics", ""), 1, true)
 
 		var samples []interface{}
 		for result.Next() {

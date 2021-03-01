@@ -21,6 +21,7 @@ func (suite *IntegrationTestSuite) runViewsTest(n int) {
 	var result *ViewResult
 	for {
 		suite.tracer.Reset()
+		suite.meter.Reset()
 		var err error
 		result, err = globalBucket.ViewQuery("ddoc_test", "test", &ViewOptions{
 			Timeout:   1 * time.Second,
@@ -91,6 +92,9 @@ func (suite *IntegrationTestSuite) runViewsTest(n int) {
 				dispatchOperationID:     "",
 				service:                 "views",
 			})
+
+		suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "views", "views"), 1, false)
+		suite.AssertMetrics(makeMetricsKey(meterNameResponses, "views", ""), 1, true)
 	}
 
 	metadata, err := result.MetaData()

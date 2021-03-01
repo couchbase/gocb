@@ -21,6 +21,8 @@ type LookupInOptions struct {
 		DocFlags SubdocDocFlag
 		User     []byte
 	}
+
+	noMetrics bool
 }
 
 // LookupIn performs a set of subdocument lookup operations on the document identified by id.
@@ -30,7 +32,7 @@ func (c *Collection) LookupIn(id string, ops []LookupInSpec, opts *LookupInOptio
 	}
 
 	opm := c.newKvOpManager("lookup_in", opts.ParentSpan)
-	defer opm.Finish()
+	defer opm.Finish(opts.noMetrics)
 
 	opm.SetDocumentID(id)
 	opm.SetRetryStrategy(opts.RetryStrategy)
@@ -168,7 +170,7 @@ func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptio
 	}
 
 	opm := c.newKvOpManager("mutate_in", opts.ParentSpan)
-	defer opm.Finish()
+	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
 	opm.SetRetryStrategy(opts.RetryStrategy)

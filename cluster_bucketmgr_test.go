@@ -106,6 +106,14 @@ func (suite *IntegrationTestSuite) TestBucketMgrOps() {
 	if !success {
 		suite.T().Fatal("Wait time for drop bucket expired")
 	}
+
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_bucket_create_bucket"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_bucket_update_bucket"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_bucket_get_bucket"), 1, true)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_bucket_get_all_buckets"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_bucket_flush_bucket"), 1, true)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_bucket_drop_bucket"), 1, true)
+	suite.AssertMetrics(makeMetricsKey(meterNameResponses, "management", ""), 6, true)
 }
 
 func (suite *IntegrationTestSuite) TestBucketMgrFlushDisabled() {

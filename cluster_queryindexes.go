@@ -14,6 +14,7 @@ type QueryIndexManager struct {
 
 	globalTimeout time.Duration
 	tracer        RequestTracer
+	meter         Meter
 }
 
 type queryIndexQueryProvider interface {
@@ -164,6 +165,9 @@ func (qm *QueryIndexManager) createIndex(
 		qs += " WITH {\"defer_build\": true}"
 	}
 
+	start := time.Now()
+	defer valueRecord(qm.meter, meterValueServiceManagement, spanName, start)
+
 	span := createSpan(qm.tracer, parent, spanName, "management")
 	defer span.End()
 
@@ -271,6 +275,9 @@ func (qm *QueryIndexManager) dropIndex(
 		qs += "DROP INDEX `" + bucketName + "`.`" + indexName + "`"
 	}
 
+	start := time.Now()
+	defer valueRecord(qm.meter, meterValueServiceManagement, spanName, start)
+
 	span := createSpan(qm.tracer, parent, spanName, "management")
 	defer span.End()
 
@@ -363,6 +370,9 @@ func (qm *QueryIndexManager) GetAllIndexes(bucketName string, opts *GetAllQueryI
 		opts = &GetAllQueryIndexesOptions{}
 	}
 
+	start := time.Now()
+	defer valueRecord(qm.meter, meterValueServiceManagement, "manager_query_get_all_indexes", start)
+
 	return qm.getAllIndexes(opts.ParentSpan, bucketName, opts)
 }
 
@@ -420,6 +430,9 @@ func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *Build
 	if opts == nil {
 		opts = &BuildDeferredQueryIndexOptions{}
 	}
+
+	start := time.Now()
+	defer valueRecord(qm.meter, meterValueServiceManagement, "manager_query_build_deferred_indexes", start)
 
 	span := createSpan(qm.tracer, opts.ParentSpan, "manager_query_build_deferred_indexes", "management")
 	defer span.End()
@@ -509,6 +522,9 @@ func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string,
 	if opts == nil {
 		opts = &WatchQueryIndexOptions{}
 	}
+
+	start := time.Now()
+	defer valueRecord(qm.meter, meterValueServiceManagement, "manager_query_watch_indexes", start)
 
 	span := createSpan(qm.tracer, opts.ParentSpan, "manager_query_watch_indexes", "management")
 	defer span.End()

@@ -12,6 +12,9 @@ func (s *Scope) Query(statement string, opts *QueryOptions) (*QueryResult, error
 		opts = &QueryOptions{}
 	}
 
+	start := time.Now()
+	defer valueRecord(s.meter, meterValueServiceQuery, "query", start)
+
 	span := createSpan(s.tracer, opts.ParentSpan, "query", "query")
 	span.SetAttribute("db.statement", statement)
 	span.SetAttribute("db.name", s.BucketName())

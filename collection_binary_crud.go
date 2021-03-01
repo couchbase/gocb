@@ -33,7 +33,7 @@ func (c *Collection) binaryAppend(id string, val []byte, opts *AppendOptions) (m
 	}
 
 	opm := c.newKvOpManager("append", opts.ParentSpan)
-	defer opm.Finish()
+	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
@@ -107,7 +107,7 @@ func (c *Collection) binaryPrepend(id string, val []byte, opts *PrependOptions) 
 	}
 
 	opm := c.newKvOpManager("prepend", opts.ParentSpan)
-	defer opm.Finish()
+	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
@@ -189,7 +189,7 @@ func (c *Collection) binaryIncrement(id string, opts *IncrementOptions) (countOu
 	}
 
 	opm := c.newKvOpManager("increment", opts.ParentSpan)
-	defer opm.Finish()
+	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
@@ -281,7 +281,7 @@ func (c *Collection) binaryDecrement(id string, opts *DecrementOptions) (countOu
 	}
 
 	opm := c.newKvOpManager("decrement", opts.ParentSpan)
-	defer opm.Finish()
+	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)

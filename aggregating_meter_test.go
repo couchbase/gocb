@@ -1,0 +1,117 @@
+package gocb
+
+import (
+	"time"
+)
+
+func (suite *UnitTestSuite) TestLatencyHistogram() {
+	histo := newLatencyHistogram(2000000, 1000, 1.5)
+	suite.Require().Len(histo.bins, 21)
+
+	histo.RecordValue(1000)
+	histo.RecordValue(1000)
+	histo.RecordValue(1000)
+	histo.RecordValue(1000)
+	histo.RecordValue(1000)
+	histo.RecordValue(100000)
+	histo.RecordValue(200000)
+	histo.RecordValue(300000)
+	histo.RecordValue(500000)
+	histo.RecordValue(2000000)
+
+	chisto := histo.AggregateAndReset()
+	suite.Assert().Equal("<= 1000.00", chisto.BinAtPercentile(50))
+	suite.Assert().Equal("<= 129746.34", chisto.BinAtPercentile(60))
+	suite.Assert().Equal("<= 291929.26", chisto.BinAtPercentile(70))
+	suite.Assert().Equal("<= 437893.89", chisto.BinAtPercentile(80))
+	suite.Assert().Equal("<= 656840.84", chisto.BinAtPercentile(90))
+	suite.Assert().Equal("<= 2216837.82", chisto.BinAtPercentile(100))
+}
+
+func (suite *UnitTestSuite) TestLatencyHistogramGreaterThanMax() {
+	histo := newLatencyHistogram(2000000, 1000, 1.5)
+	histo.RecordValue(4000000)
+
+	chisto := histo.AggregateAndReset()
+	suite.Assert().Equal("> 2216837.82", chisto.BinAtPercentile(100))
+}
+
+func (suite *UnitTestSuite) TestAggregatingMeter() {
+	meter := NewAggregatingMeter(&AggregatingMeterOptions{
+		EmitInterval: 10 * time.Second,
+	})
+	r1, err := meter.ValueRecorder(meterNameResponses, map[string]string{
+		meterAttribServiceKey: "kv",
+		meterAttribPeerName:   "127.0.0.1",
+	})
+	suite.Require().Nil(err)
+	r2, err := meter.ValueRecorder(meterNameResponses, map[string]string{
+		meterAttribServiceKey: "kv",
+		meterAttribPeerName:   "127.0.0.2",
+	})
+	suite.Require().Nil(err)
+	r3, err := meter.ValueRecorder(meterNameResponses, map[string]string{
+		meterAttribServiceKey: "query",
+		meterAttribPeerName:   "127.0.0.1",
+	})
+	suite.Require().Nil(err)
+
+	r1.RecordValue(1000)
+	r1.RecordValue(1000)
+	r1.RecordValue(10000)
+	r1.RecordValue(20000)
+	r1.RecordValue(1500)
+
+	r2.RecordValue(2000)
+	r2.RecordValue(1000)
+	r2.RecordValue(3500)
+	r2.RecordValue(10000)
+	r2.RecordValue(20000)
+	r2.RecordValue(50000)
+
+	r3.RecordValue(112000)
+
+	output := meter.generateOutput()
+	meta := output["meta"].(map[string]interface{})
+	suite.Assert().Equal(10*time.Second, meta["emit_interval_s"])
+
+	suite.Require().Contains(output, "kv")
+	kvOutput := output["kv"].(map[string]interface{})
+
+	suite.Require().Contains(output, "query")
+	queryOutput := output["query"].(map[string]interface{})
+
+	suite.Require().Contains(kvOutput, "127.0.0.1")
+	suite.Require().Contains(queryOutput, "127.0.0.1")
+	suite.Require().Contains(kvOutput, "127.0.0.2")
+
+	output1 := kvOutput["127.0.0.1"].(map[string]interface{})
+	output2 := kvOutput["127.0.0.2"].(map[string]interface{})
+	qoutput := queryOutput["127.0.0.1"].(map[string]interface{})
+
+	suite.Assert().Equal(uint64(5), output1["total_count"])
+	suite.Assert().Equal(uint64(6), output2["total_count"])
+	suite.Assert().Equal(uint64(1), qoutput["total_count"])
+
+	percentiles1 := output1["percentiles_us"].(map[string]string)
+	percentiles2 := output2["percentiles_us"].(map[string]string)
+	percentilesq := qoutput["percentiles_us"].(map[string]string)
+
+	suite.Assert().Equal("<= 1500.00", percentiles1["50.0"])
+	suite.Assert().Equal("<= 25628.91", percentiles1["90.0"])
+	suite.Assert().Equal("<= 25628.91", percentiles1["99.0"])
+	suite.Assert().Equal("<= 25628.91", percentiles1["99.9"])
+	suite.Assert().Equal("<= 25628.91", percentiles1["100.0"])
+
+	suite.Assert().Equal("<= 5062.50", percentiles2["50.0"])
+	suite.Assert().Equal("<= 57665.04", percentiles2["90.0"])
+	suite.Assert().Equal("<= 57665.04", percentiles2["99.0"])
+	suite.Assert().Equal("<= 57665.04", percentiles2["99.9"])
+	suite.Assert().Equal("<= 57665.04", percentiles2["100.0"])
+
+	suite.Assert().Equal("<= 129746.34", percentilesq["50.0"])
+	suite.Assert().Equal("<= 129746.34", percentilesq["90.0"])
+	suite.Assert().Equal("<= 129746.34", percentilesq["99.0"])
+	suite.Assert().Equal("<= 129746.34", percentilesq["99.9"])
+	suite.Assert().Equal("<= 129746.34", percentilesq["100.0"])
+}

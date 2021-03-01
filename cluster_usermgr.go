@@ -245,6 +245,7 @@ func (g *Group) fromData(data jsonGroup) error {
 type UserManager struct {
 	provider mgmtProvider
 	tracer   RequestTracer
+	meter    Meter
 }
 
 func (um *UserManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
@@ -292,6 +293,9 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 	if opts.DomainName == "" {
 		opts.DomainName = string(LocalDomain)
 	}
+
+	start := time.Now()
+	defer valueRecord(um.meter, meterValueServiceManagement, "manager_users_get_all_users", start)
 
 	path := fmt.Sprintf("/settings/rbac/users/%s", opts.DomainName)
 	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_get_all_users", "management")
@@ -360,6 +364,9 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 		opts.DomainName = string(LocalDomain)
 	}
 
+	start := time.Now()
+	defer valueRecord(um.meter, meterValueServiceManagement, "manager_users_get_user", start)
+
 	path := fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, name)
 	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_get_user", "management")
 	span.SetAttribute("db.operation", "GET "+path)
@@ -420,6 +427,9 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 	if opts == nil {
 		opts = &UpsertUserOptions{}
 	}
+
+	start := time.Now()
+	defer valueRecord(um.meter, meterValueServiceManagement, "manager_users_upsert_user", start)
 
 	if opts.DomainName == "" {
 		opts.DomainName = string(LocalDomain)
@@ -533,6 +543,9 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 		opts.DomainName = string(LocalDomain)
 	}
 
+	start := time.Now()
+	defer valueRecord(um.meter, meterValueServiceManagement, "manager_users_drop_user", start)
+
 	path := fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, name)
 	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_drop_user", "management")
 	span.SetAttribute("db.operation", "DELETE "+path)
@@ -577,6 +590,9 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 	if opts == nil {
 		opts = &GetRolesOptions{}
 	}
+
+	start := time.Now()
+	defer valueRecord(um.meter, meterValueServiceManagement, "manager_users_get_roles", start)
 
 	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_get_roles", "management")
 	span.SetAttribute("db.operation", "GET /settings/rbac/roles")
@@ -641,6 +657,9 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 		opts = &GetGroupOptions{}
 	}
 
+	start := time.Now()
+	defer valueRecord(um.meter, meterValueServiceManagement, "manager_users_get_group", start)
+
 	path := fmt.Sprintf("/settings/rbac/groups/%s", groupName)
 	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_get_group", "management")
 	span.SetAttribute("db.operation", "GET "+path)
@@ -699,6 +718,9 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 	if opts == nil {
 		opts = &GetAllGroupsOptions{}
 	}
+
+	start := time.Now()
+	defer valueRecord(um.meter, meterValueServiceManagement, "manager_users_get_all_groups", start)
 
 	path := "/settings/rbac/groups"
 	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_get_all_groups", "management")
@@ -764,6 +786,9 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 		opts = &UpsertGroupOptions{}
 	}
 
+	start := time.Now()
+	defer valueRecord(um.meter, meterValueServiceManagement, "manager_users_upsert_group", start)
+
 	path := fmt.Sprintf("/settings/rbac/groups/%s", group.Name)
 	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_upsert_group", "management")
 	span.SetAttribute("db.operation", "PUT "+path)
@@ -828,6 +853,9 @@ func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error
 	if opts == nil {
 		opts = &DropGroupOptions{}
 	}
+
+	start := time.Now()
+	defer valueRecord(um.meter, meterValueServiceManagement, "manager_users_drop_group", start)
 
 	path := fmt.Sprintf("/settings/rbac/groups/%s", groupName)
 	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_drop_group", "management")

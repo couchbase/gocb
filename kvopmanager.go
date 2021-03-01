@@ -30,6 +30,9 @@ type kvOpManager struct {
 	retryStrategy   *retryStrategyWrapper
 	cancelCh        chan struct{}
 	impersonate     []byte
+	operationName   string
+	createdTime     time.Time
+	meter           Meter
 }
 
 func (m *kvOpManager) getTimeout() time.Duration {
@@ -125,8 +128,21 @@ func (m *kvOpManager) SetImpersonate(user []byte) {
 	m.impersonate = user
 }
 
-func (m *kvOpManager) Finish() {
+func (m *kvOpManager) Finish(noMetrics bool) {
 	m.span.End()
+
+	if !noMetrics {
+		recorder, err := m.meter.ValueRecorder(meterNameCBOperations, map[string]string{
+			meterAttribServiceKey:   meterValueServiceKV,
+			meterAttribOperationKey: m.operationName,
+		})
+		if err != nil {
+			logDebugf("Failed to create value recorder: %v", err)
+			return
+		}
+
+		recorder.RecordValue(uint64(time.Since(m.createdTime).Microseconds()))
+	}
 }
 
 func (m *kvOpManager) TraceSpanContext() RequestSpanContext {
@@ -288,9 +304,12 @@ func (c *Collection) newKvOpManager(opName string, parentSpan RequestSpan) *kvOp
 	span := c.startKvOpTrace(opName, tracectx, false)
 
 	return &kvOpManager{
-		parent: c,
-		signal: make(chan struct{}, 1),
-		span:   span,
+		parent:        c,
+		signal:        make(chan struct{}, 1),
+		span:          span,
+		operationName: opName,
+		createdTime:   time.Now(),
+		meter:         c.meter,
 	}
 }
 

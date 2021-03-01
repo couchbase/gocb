@@ -58,7 +58,7 @@ func (c *Collection) Insert(id string, val interface{}, opts *InsertOptions) (mu
 	}
 
 	opm := c.newKvOpManager("insert", opts.ParentSpan)
-	defer opm.Finish()
+	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -132,7 +132,7 @@ func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mu
 	}
 
 	opm := c.newKvOpManager("upsert", opts.ParentSpan)
-	defer opm.Finish()
+	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -207,7 +207,7 @@ func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (
 	}
 
 	opm := c.newKvOpManager("replace", opts.ParentSpan)
-	defer opm.Finish()
+	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -297,7 +297,7 @@ func (c *Collection) getDirect(id string, opts *GetOptions) (docOut *GetResult, 
 	}
 
 	opm := c.newKvOpManager("get", opts.ParentSpan)
-	defer opm.Finish()
+	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -353,7 +353,7 @@ func (c *Collection) getProjected(id string, opts *GetOptions) (docOut *GetResul
 	}
 
 	opm := c.newKvOpManager("get", opts.ParentSpan)
-	defer opm.Finish()
+	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -402,6 +402,7 @@ func (c *Collection) getProjected(id string, opts *GetOptions) (docOut *GetResul
 
 	result, err := c.LookupIn(id, ops, &LookupInOptions{
 		ParentSpan: opm.TraceSpan(),
+		noMetrics:  true,
 	})
 	if err != nil {
 		return nil, err
@@ -472,7 +473,7 @@ func (c *Collection) Exists(id string, opts *ExistsOptions) (docOut *ExistsResul
 	}
 
 	opm := c.newKvOpManager("exists", opts.ParentSpan)
-	defer opm.Finish()
+	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
 	opm.SetRetryStrategy(opts.RetryStrategy)
@@ -541,7 +542,7 @@ func (c *Collection) getOneReplica(
 	user []byte,
 ) (docOut *GetReplicaResult, errOut error) {
 	opm := c.newKvOpManager("get_replica", span)
-	defer opm.Finish()
+	defer opm.Finish(true)
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(transcoder)
@@ -627,6 +628,8 @@ type GetAllReplicaOptions struct {
 	Internal struct {
 		User []byte
 	}
+
+	noMetrics bool
 }
 
 // GetAllReplicasResult represents the results of a GetAllReplicas operation.
@@ -639,6 +642,8 @@ type GetAllReplicasResult struct {
 	cancelCh            chan struct{}
 	span                RequestSpan
 	childReqsCompleteCh chan struct{}
+	valueRecorder       ValueRecorder
+	startedTime         time.Time
 }
 
 func (r *GetAllReplicasResult) addFailed() {
@@ -670,6 +675,9 @@ func (r *GetAllReplicasResult) addResult(res *GetReplicaResult) {
 		close(r.resCh)
 
 		r.span.End()
+		if r.valueRecorder != nil {
+			r.valueRecorder.RecordValue(uint64(time.Since(r.startedTime).Microseconds()))
+		}
 	}
 
 	r.totalResults++
@@ -762,12 +770,25 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 	outCh := make(chan *GetReplicaResult, numServers)
 	cancelCh := make(chan struct{})
 
+	var recorder ValueRecorder
+	if !opts.noMetrics {
+		recorder, err = c.meter.ValueRecorder(meterNameCBOperations, map[string]string{
+			"db.couchbase.service": "kv",
+			"db.operation":         "get_all_replicas",
+		})
+		if err != nil {
+			logDebugf("Failed to create value recorder: %v", err)
+		}
+	}
+
 	repRes := &GetAllReplicasResult{
 		totalRequests:       uint32(numServers),
 		resCh:               outCh,
 		cancelCh:            cancelCh,
 		span:                span,
 		childReqsCompleteCh: make(chan struct{}),
+		valueRecorder:       recorder,
+		startedTime:         time.Now(),
 	}
 
 	// Loop all the servers and populate the result object
@@ -822,6 +843,9 @@ func (c *Collection) GetAnyReplica(id string, opts *GetAnyReplicaOptions) (docOu
 		opts = &GetAnyReplicaOptions{}
 	}
 
+	start := time.Now()
+	defer valueRecord(c.meter, "kv", "get_any_replica", start)
+
 	var tracectx RequestSpanContext
 	if opts.ParentSpan != nil {
 		tracectx = opts.ParentSpan.Context()
@@ -836,6 +860,7 @@ func (c *Collection) GetAnyReplica(id string, opts *GetAnyReplicaOptions) (docOu
 		RetryStrategy: opts.RetryStrategy,
 		Internal:      opts.Internal,
 		ParentSpan:    span,
+		noMetrics:     true,
 	})
 	if err != nil {
 		return nil, err
@@ -885,7 +910,7 @@ func (c *Collection) Remove(id string, opts *RemoveOptions) (mutOut *MutationRes
 	}
 
 	opm := c.newKvOpManager("remove", opts.ParentSpan)
-	defer opm.Finish()
+	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
@@ -951,7 +976,7 @@ func (c *Collection) GetAndTouch(id string, expiry time.Duration, opts *GetAndTo
 	}
 
 	opm := c.newKvOpManager("get_and_touch", opts.ParentSpan)
-	defer opm.Finish()
+	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -1026,7 +1051,7 @@ func (c *Collection) GetAndLock(id string, lockTime time.Duration, opts *GetAndL
 	}
 
 	opm := c.newKvOpManager("get_and_lock", opts.ParentSpan)
-	defer opm.Finish()
+	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -1098,7 +1123,7 @@ func (c *Collection) Unlock(id string, cas Cas, opts *UnlockOptions) (errOut err
 	}
 
 	opm := c.newKvOpManager("unlock", nil)
-	defer opm.Finish()
+	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
 	opm.SetRetryStrategy(opts.RetryStrategy)
@@ -1157,7 +1182,7 @@ func (c *Collection) Touch(id string, expiry time.Duration, opts *TouchOptions) 
 	}
 
 	opm := c.newKvOpManager("touch", nil)
-	defer opm.Finish()
+	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
 	opm.SetRetryStrategy(opts.RetryStrategy)

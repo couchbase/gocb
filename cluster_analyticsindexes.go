@@ -15,6 +15,7 @@ type AnalyticsIndexManager struct {
 
 	globalTimeout time.Duration
 	tracer        RequestTracer
+	meter         Meter
 }
 
 type analyticsIndexQueryProvider interface {
@@ -127,6 +128,9 @@ func (am *AnalyticsIndexManager) CreateDataverse(dataverseName string, opts *Cre
 		}
 	}
 
+	start := time.Now()
+	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_create_dataverse", start)
+
 	var ignoreStr string
 	if opts.IgnoreIfExists {
 		ignoreStr = "IF NOT EXISTS"
@@ -164,6 +168,10 @@ func (am *AnalyticsIndexManager) DropDataverse(dataverseName string, opts *DropA
 	if opts == nil {
 		opts = &DropAnalyticsDataverseOptions{}
 	}
+
+	start := time.Now()
+	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_drop_dataverse", start)
+
 	var ignoreStr string
 	if opts.IgnoreIfNotExists {
 		ignoreStr = "IF EXISTS"
@@ -208,6 +216,9 @@ func (am *AnalyticsIndexManager) CreateDataset(datasetName, bucketName string, o
 			message: "dataset name cannot be empty",
 		}
 	}
+
+	start := time.Now()
+	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_create_dataset", start)
 
 	var ignoreStr string
 	if opts.IgnoreIfExists {
@@ -261,6 +272,9 @@ func (am *AnalyticsIndexManager) DropDataset(datasetName string, opts *DropAnaly
 		opts = &DropAnalyticsDatasetOptions{}
 	}
 
+	start := time.Now()
+	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_drop_dataset", start)
+
 	var ignoreStr string
 	if opts.IgnoreIfNotExists {
 		ignoreStr = "IF EXISTS"
@@ -301,6 +315,9 @@ func (am *AnalyticsIndexManager) GetAllDatasets(opts *GetAllAnalyticsDatasetsOpt
 	if opts == nil {
 		opts = &GetAllAnalyticsDatasetsOptions{}
 	}
+
+	start := time.Now()
+	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_get_all_datasets", start)
 
 	q := "SELECT d.* FROM Metadata.`Dataset` d WHERE d.DataverseName <> \"Metadata\""
 	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_get_all_datasets", "management")
@@ -360,6 +377,9 @@ func (am *AnalyticsIndexManager) CreateIndex(datasetName, indexName string, fiel
 		}
 	}
 
+	start := time.Now()
+	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_create_index", start)
+
 	var ignoreStr string
 	if opts.IgnoreIfExists {
 		ignoreStr = "IF NOT EXISTS"
@@ -409,6 +429,9 @@ func (am *AnalyticsIndexManager) DropIndex(datasetName, indexName string, opts *
 		opts = &DropAnalyticsIndexOptions{}
 	}
 
+	start := time.Now()
+	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_drop_index", start)
+
 	var ignoreStr string
 	if opts.IgnoreIfNotExists {
 		ignoreStr = "IF EXISTS"
@@ -450,6 +473,9 @@ func (am *AnalyticsIndexManager) GetAllIndexes(opts *GetAllAnalyticsIndexesOptio
 	if opts == nil {
 		opts = &GetAllAnalyticsIndexesOptions{}
 	}
+
+	start := time.Now()
+	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_get_all_indexes", start)
 
 	q := "SELECT d.* FROM Metadata.`Index` d WHERE d.DataverseName <> \"Metadata\""
 	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_get_all_indexes", "management")
@@ -496,6 +522,9 @@ func (am *AnalyticsIndexManager) ConnectLink(opts *ConnectAnalyticsLinkOptions) 
 		opts = &ConnectAnalyticsLinkOptions{}
 	}
 
+	start := time.Now()
+	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_connect_link", start)
+
 	if opts.LinkName == "" {
 		opts.LinkName = "Local"
 	}
@@ -532,6 +561,9 @@ func (am *AnalyticsIndexManager) DisconnectLink(opts *DisconnectAnalyticsLinkOpt
 		opts = &DisconnectAnalyticsLinkOptions{}
 	}
 
+	start := time.Now()
+	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_disconnect_link", start)
+
 	if opts.LinkName == "" {
 		opts.LinkName = "Local"
 	}
@@ -564,6 +596,9 @@ func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAn
 	if opts == nil {
 		opts = &GetPendingMutationsAnalyticsOptions{}
 	}
+
+	start := time.Now()
+	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_get_pending_mutations", start)
 
 	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_get_pending_mutations", "management")
 	span.SetAttribute("db.operation", "GET /analytics/node/agg/stats/remaining")

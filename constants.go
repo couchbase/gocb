@@ -298,4 +298,16 @@ const (
 	spanAttribDBNameKey           = "db.name"
 	spanAttribDBCollectionNameKey = "db.couchbase.collection"
 	spanAttribDBScopeNameKey      = "db.couchbase.scope"
+
+	meterNameCBOperations       = "db.couchbase.operations"
+	meterAttribServiceKey       = "db.couchbase.service"
+	meterAttribOperationKey     = "db.operation"
+	meterAttribPeerName         = "net.peer.name"
+	meterValueServiceKV         = "kv"
+	meterValueServiceQuery      = "query"
+	meterValueServiceAnalytics  = "analytics"
+	meterValueServiceSearch     = "search"
+	meterValueServiceViews      = "views"
+	meterValueServiceManagement = "management"
+	meterNameResponses          = "db.couchbase.responses"
 )

@@ -18,6 +18,7 @@ type Collection struct {
 	transcoder           Transcoder
 	retryStrategyWrapper *retryStrategyWrapper
 	tracer               RequestTracer
+	meter                Meter
 
 	useMutationTokens bool
 
@@ -38,6 +39,7 @@ func newCollection(scope *Scope, collectionName string) *Collection {
 		transcoder:           scope.transcoder,
 		retryStrategyWrapper: scope.retryStrategyWrapper,
 		tracer:               scope.tracer,
+		meter:                scope.meter,
 
 		useMutationTokens: scope.useMutationTokens,
 

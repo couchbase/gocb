@@ -151,6 +151,13 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 			hasEncoding:             false,
 			dispatchOperationID:     "any",
 		})
+
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_collections_create_scope"), 2, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_collections_create_collection"), 2, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_collections_get_all_scopes"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_collections_drop_scope"), 2, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_collections_drop_collection"), 2, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameResponses, "management", ""), 9, false)
 }
 
 func (suite *IntegrationTestSuite) TestDropNonExistentScope() {

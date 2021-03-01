@@ -42,6 +42,7 @@ func (suite *IntegrationTestSuite) runPreparedQueryTest(n int, query, bucket, sc
 	deadline := time.Now().Add(60 * time.Second)
 	for {
 		suite.tracer.Reset()
+		suite.meter.Reset()
 		contextID := "contextID"
 		opts := &QueryOptions{
 			Timeout:         5 * time.Second,
@@ -70,6 +71,9 @@ func (suite *IntegrationTestSuite) runPreparedQueryTest(n int, query, bucket, sc
 				service:                 "query",
 				dispatchOperationID:     contextID,
 			})
+
+		suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "query", "query"), 1, false)
+		suite.AssertMetrics(makeMetricsKey(meterNameResponses, "query", ""), 1, true)
 
 		var samples []interface{}
 		for result.Next() {
@@ -118,6 +122,7 @@ func (suite *IntegrationTestSuite) runQueryTest(n int, query, bucket, scope stri
 	deadline := time.Now().Add(60 * time.Second)
 	for {
 		suite.tracer.Reset()
+		suite.meter.Reset()
 		contextID := "contextID"
 		opts := &QueryOptions{
 			Timeout:         5 * time.Second,
@@ -148,6 +153,9 @@ func (suite *IntegrationTestSuite) runQueryTest(n int, query, bucket, scope stri
 				service:                 "query",
 				dispatchOperationID:     contextID,
 			})
+
+		suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "query", "query"), 1, false)
+		suite.AssertMetrics(makeMetricsKey(meterNameResponses, "query", ""), 1, true)
 
 		var samples []interface{}
 		for result.Next() {

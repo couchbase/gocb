@@ -31,6 +31,7 @@ type Cluster struct {
 	orphanLoggerSampleSize uint32
 
 	tracer RequestTracer
+	meter  Meter
 
 	circuitBreakerConfig CircuitBreakerConfig
 	securityConfig       SecurityConfig
@@ -108,6 +109,8 @@ type ClusterOptions struct {
 	// Tracer specifies the tracer to use for requests.
 	// UNCOMMITTED: This API may change in the future.
 	Tracer RequestTracer
+
+	Meter Meter
 
 	// OrphanReporterConfig specifies options for the orphan reporter.
 	OrphanReporterConfig OrphanReporterConfig
@@ -194,6 +197,13 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 	}
 	tracerAddRef(initialTracer)
 
+	meter := opts.Meter
+	if meter == nil {
+		agMeter := NewAggregatingMeter(nil)
+		agMeter.startLoggerRoutine()
+		meter = agMeter
+	}
+
 	return &Cluster{
 		auth: opts.Authenticator,
 		timeoutsConfig: TimeoutsConfig{
@@ -214,6 +224,7 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 		orphanLoggerSampleSize: opts.OrphanReporterConfig.SampleSize,
 		useServerDurations:     useServerDurations,
 		tracer:                 initialTracer,
+		meter:                  meter,
 		circuitBreakerConfig:   opts.CircuitBreakerConfig,
 		securityConfig:         opts.SecurityConfig,
 		internalConfig:         opts.InternalConfig,
@@ -387,6 +398,12 @@ func (c *Cluster) Close(opts *ClusterCloseOptions) error {
 		tracerDecRef(c.tracer)
 		c.tracer = nil
 	}
+	if c.meter != nil {
+		if meter, ok := c.meter.(*AggregatingMeter); ok {
+			meter.close()
+		}
+		c.meter = nil
+	}
 
 	return overallErr
 }
@@ -441,6 +458,7 @@ func (c *Cluster) Users() *UserManager {
 	return &UserManager{
 		provider: c,
 		tracer:   c.tracer,
+		meter:    c.meter,
 	}
 }
 
@@ -449,6 +467,7 @@ func (c *Cluster) Buckets() *BucketManager {
 	return &BucketManager{
 		provider: c,
 		tracer:   c.tracer,
+		meter:    c.meter,
 	}
 }
 
@@ -459,6 +478,7 @@ func (c *Cluster) AnalyticsIndexes() *AnalyticsIndexManager {
 		mgmtProvider:  c,
 		globalTimeout: c.timeoutsConfig.ManagementTimeout,
 		tracer:        c.tracer,
+		meter:         c.meter,
 	}
 }
 
@@ -468,6 +488,7 @@ func (c *Cluster) QueryIndexes() *QueryIndexManager {
 		provider:      c,
 		globalTimeout: c.timeoutsConfig.ManagementTimeout,
 		tracer:        c.tracer,
+		meter:         c.meter,
 	}
 }
 
@@ -476,5 +497,6 @@ func (c *Cluster) SearchIndexes() *SearchIndexManager {
 	return &SearchIndexManager{
 		mgmtProvider: c,
 		tracer:       c.tracer,
+		meter:        c.meter,
 	}
 }

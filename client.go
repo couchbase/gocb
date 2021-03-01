@@ -82,7 +82,8 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 			ZombieLoggerInterval:   cluster.orphanLoggerInterval,
 			ZombieLoggerSampleSize: int(cluster.orphanLoggerSampleSize),
 			NoRootTraceSpans:       true,
-			Tracer:                 &coreRequestTracerWrapper{cluster.tracer},
+			Tracer:                 &coreRequestTracerWrapper{tracer: cluster.tracer},
+			Meter:                  &coreMeterWrapper{meter: cluster.meter},
 			CircuitBreakerConfig: gocbcore.CircuitBreakerConfig{
 				Enabled:                  !breakerCfg.Disabled,
 				VolumeThreshold:          breakerCfg.VolumeThreshold,

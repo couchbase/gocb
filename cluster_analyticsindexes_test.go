@@ -320,4 +320,21 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrud() {
 			service:                 "analytics",
 			statement:               "any",
 		})
+
+	numResponses := 22
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_create_dataverse"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_create_dataset"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_create_index"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_connect_link"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_get_all_datasets"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_get_all_indexes"), 1, false)
+	if globalCluster.SupportsFeature(AnalyticsIndexPendingMutationsFeature) {
+		numResponses++
+		suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_get_pending_mutations"), 1, false)
+	}
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_disconnect_link"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_dataverse"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_dataset"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_index"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameResponses, "analytics", ""), numResponses, false)
 }

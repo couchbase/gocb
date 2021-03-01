@@ -76,6 +76,13 @@ func (suite *IntegrationTestSuite) TestUserManagerGroupCrud() {
 	if err != nil {
 		suite.T().Fatalf("Expected Drop to not error: %v", err)
 	}
+
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_upsert_group"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_get_group"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_get_all_groups"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_get_roles"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_drop_group"), 2, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameResponses, "management", ""), 8, true)
 }
 
 func (suite *IntegrationTestSuite) TestUserManagerWithGroupsCrud() {
@@ -324,6 +331,11 @@ func (suite *IntegrationTestSuite) TestUserManagerCrud() {
 	if !errors.Is(err, ErrUserNotFound) {
 		suite.T().Fatalf("Expected error to be user not found but was %v", err)
 	}
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_upsert_user"), 2, true)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_get_user"), 3, true)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_get_all_users"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_drop_user"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameResponses, "management", ""), 7, true)
 }
 
 func (suite *IntegrationTestSuite) TestUserManagerAvailableRoles() {
@@ -510,6 +522,7 @@ func (suite *UnitTestSuite) TestUserManagerGetUserDoesntExist() {
 	usrMgr := &UserManager{
 		provider: mockProvider,
 		tracer:   &NoopTracer{},
+		meter:    &NoopMeter{},
 	}
 	_, err := usrMgr.GetUser(username, &GetUserOptions{
 		Timeout: 1 * time.Second,
@@ -543,6 +556,7 @@ func (suite *UnitTestSuite) TestUserManagerDropUserDoesntExist() {
 	usrMgr := &UserManager{
 		provider: mockProvider,
 		tracer:   &NoopTracer{},
+		meter:    &NoopMeter{},
 	}
 	err := usrMgr.DropUser(username, &DropUserOptions{
 		Timeout: 1 * time.Second,
@@ -576,6 +590,7 @@ func (suite *UnitTestSuite) TestUserManagerGetGroupDoesntExist() {
 	usrMgr := &UserManager{
 		provider: mockProvider,
 		tracer:   &NoopTracer{},
+		meter:    &NoopMeter{},
 	}
 	_, err := usrMgr.GetGroup(name, &GetGroupOptions{
 		Timeout: 1 * time.Second,
@@ -609,6 +624,7 @@ func (suite *UnitTestSuite) TestUserManagerDropGroupDoesntExist() {
 	usrMgr := &UserManager{
 		provider: mockProvider,
 		tracer:   &NoopTracer{},
+		meter:    &NoopMeter{},
 	}
 	err := usrMgr.DropGroup(name, &DropGroupOptions{
 		Timeout: 1 * time.Second,

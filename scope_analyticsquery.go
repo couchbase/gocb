@@ -12,6 +12,9 @@ func (s *Scope) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*Analy
 		opts = &AnalyticsOptions{}
 	}
 
+	start := time.Now()
+	defer valueRecord(s.meter, meterValueServiceAnalytics, "analytics", start)
+
 	span := createSpan(s.tracer, opts.ParentSpan, "analytics", "analytics")
 	span.SetAttribute("db.statement", statement)
 	span.SetAttribute("db.name", s.BucketName())

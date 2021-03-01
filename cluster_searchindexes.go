@@ -96,6 +96,7 @@ type SearchIndexManager struct {
 	mgmtProvider mgmtProvider
 
 	tracer RequestTracer
+	meter  Meter
 }
 
 func (sm *SearchIndexManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
@@ -138,6 +139,9 @@ func (sm *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]S
 	if opts == nil {
 		opts = &GetAllSearchIndexOptions{}
 	}
+
+	start := time.Now()
+	defer valueRecord(sm.meter, meterValueServiceManagement, "manager_search_get_all_indexes", start)
 
 	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_get_all_indexes", "management")
 	span.SetAttribute("db.operation", "GET /api/index")
@@ -201,6 +205,9 @@ func (sm *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOpt
 	if opts == nil {
 		opts = &GetSearchIndexOptions{}
 	}
+
+	start := time.Now()
+	defer valueRecord(sm.meter, meterValueServiceManagement, "manager_search_get_index", start)
 
 	path := fmt.Sprintf("/api/index/%s", indexName)
 	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_get_index", "management")
@@ -267,6 +274,9 @@ func (sm *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Ups
 		return invalidArgumentsError{"index type cannot be empty"}
 	}
 
+	start := time.Now()
+	defer valueRecord(sm.meter, meterValueServiceManagement, "manager_search_upsert_index", start)
+
 	path := fmt.Sprintf("/api/index/%s", indexDefinition.Name)
 	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_upsert_index", "management")
 	span.SetAttribute("db.operation", "PUT "+path)
@@ -328,6 +338,9 @@ func (sm *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndexO
 	if indexName == "" {
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
+
+	start := time.Now()
+	defer valueRecord(sm.meter, meterValueServiceManagement, "manager_search_drop_index", start)
 
 	path := fmt.Sprintf("/api/index/%s", indexName)
 	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_drop_index", "management")

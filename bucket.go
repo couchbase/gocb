@@ -15,6 +15,7 @@ type Bucket struct {
 	transcoder           Transcoder
 	retryStrategyWrapper *retryStrategyWrapper
 	tracer               RequestTracer
+	meter                Meter
 
 	useServerDurations bool
 	useMutationTokens  bool
@@ -34,6 +35,7 @@ func newBucket(c *Cluster, bucketName string) *Bucket {
 		retryStrategyWrapper: c.retryStrategyWrapper,
 
 		tracer: c.tracer,
+		meter:  c.meter,
 
 		useServerDurations: c.useServerDurations,
 		useMutationTokens:  c.useMutationTokens,
@@ -132,6 +134,7 @@ func (b *Bucket) ViewIndexes() *ViewIndexManager {
 		mgmtProvider: b,
 		bucketName:   b.Name(),
 		tracer:       b.tracer,
+		meter:        b.meter,
 	}
 }
 
@@ -142,6 +145,7 @@ func (b *Bucket) Collections() *CollectionManager {
 		mgmtProvider: b,
 		bucketName:   b.Name(),
 		tracer:       b.tracer,
+		meter:        b.meter,
 	}
 }
 
