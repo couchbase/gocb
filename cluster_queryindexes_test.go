@@ -87,6 +87,24 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 	suite.Require().Nil(err, err)
 
 	suite.Assert().Len(indexes, 3)
+	var index QueryIndex
+	for _, idx := range indexes {
+		if idx.Name == "testIndex" {
+			index = idx
+			break
+		}
+	}
+	suite.Assert().Equal("testIndex", index.Name)
+	suite.Assert().False(index.IsPrimary)
+	suite.Assert().Equal(QueryIndexTypeGsi, index.Type)
+	suite.Assert().Equal("online", index.State)
+	suite.Assert().Equal("testIndexes", index.Keyspace)
+	suite.Assert().Equal("default", index.Namespace)
+	if suite.Assert().Len(index.IndexKey, 1) {
+		suite.Assert().Equal("`field`", index.IndexKey[0])
+	}
+	suite.Assert().Empty(index.Condition)
+	suite.Assert().Empty(index.Partition)
 
 	err = mgr.DropIndex(bucketName, "testIndex", nil)
 	suite.Require().Nil(err, err)
@@ -105,4 +123,64 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 	if !errors.Is(err, ErrIndexNotFound) {
 		suite.T().Fatalf("Expected index not found error but was %s", err)
 	}
+}
+
+type testQueryIndexDataset struct {
+	Results []map[string]interface{}
+	jsonQueryResponse
+}
+
+type mockQueryIndexRowReader struct {
+	Dataset []map[string]interface{}
+	mockQueryRowReaderBase
+}
+
+func (arr *mockQueryIndexRowReader) NextRow() []byte {
+	if arr.idx == len(arr.Dataset) {
+		return nil
+	}
+
+	idx := arr.idx
+	arr.idx++
+
+	return arr.Suite.mustConvertToBytes(arr.Dataset[idx])
+}
+
+func (suite *UnitTestSuite) TestQueryIndexesParsing() {
+	var dataset testQueryIndexDataset
+	err := loadJSONTestDataset("query_index_response", &dataset)
+	suite.Require().Nil(err, err)
+
+	reader := &mockQueryIndexRowReader{
+		Dataset: dataset.Results,
+		mockQueryRowReaderBase: mockQueryRowReaderBase{
+			Meta:  suite.mustConvertToBytes(dataset.jsonQueryResponse),
+			Suite: suite,
+		},
+	}
+
+	var cluster *Cluster
+	cluster = suite.queryCluster(false, reader, nil)
+
+	mgr := QueryIndexManager{
+		provider: cluster,
+		tracer:   &noopTracer{},
+	}
+
+	res, err := mgr.GetAllIndexes("mybucket", nil)
+	suite.Require().Nil(err, err)
+
+	suite.Require().Len(res, 1)
+	index := res[0]
+	suite.Assert().Equal("ih", index.Name)
+	suite.Assert().False(index.IsPrimary)
+	suite.Assert().Equal(QueryIndexTypeGsi, index.Type)
+	suite.Assert().Equal("online", index.State)
+	suite.Assert().Equal("test", index.Keyspace)
+	suite.Assert().Equal("default", index.Namespace)
+	if suite.Assert().Len(index.IndexKey, 1) {
+		suite.Assert().Equal("`_type`", index.IndexKey[0])
+	}
+	suite.Assert().Empty(index.Condition)
+	suite.Assert().Equal("HASH(`_type`)", index.Partition)
 }

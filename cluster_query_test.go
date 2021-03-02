@@ -238,7 +238,9 @@ func (suite *UnitTestSuite) newMockQueryProvider(prepared bool, reader queryRowR
 
 func (suite *UnitTestSuite) queryCluster(prepared bool, reader queryRowReader, runFn func(args mock.Arguments)) *Cluster {
 	queryProvider, call := suite.newMockQueryProvider(prepared, reader)
-	call.Run(runFn)
+	if runFn != nil {
+		call.Run(runFn)
+	}
 
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)

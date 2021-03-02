@@ -1,0 +1,27 @@
+{
+  "requestID": "a2c943b7-2950-432d-823b-4587ecabfe54",
+  "clientContextID": "c6766223-4fb9-4369-96c1-4e7b28d0cf68",
+  "signature": "*:*",
+  "results": [
+    {
+      "datastore_id": "http://127.0.0.1:8091",
+      "id": "c8b609c6d50798e0",
+      "index_key": [
+        "`_type`"
+      ],
+      "keyspace_id": "test",
+      "name": "ih",
+      "namespace_id": "default",
+      "partition": "HASH(`_type`)",
+      "state": "online",
+      "using": "gsi"
+    }
+  ],
+  "status": "success",
+  "metrics": {
+    "elapsedTime": "13.491479ms",
+    "executionTime": "13.376689ms",
+    "resultCount": 1,
+    "resultSize": 1473
+  }
+}

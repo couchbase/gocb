@@ -92,6 +92,7 @@ type jsonQueryIndex struct {
 	Namespace string         `json:"namespace_id"`
 	IndexKey  []string       `json:"index_key"`
 	Condition string         `json:"condition"`
+	Partition string         `json:"partition"`
 }
 
 // QueryIndex represents a Couchbase GSI index.
@@ -104,6 +105,7 @@ type QueryIndex struct {
 	Namespace string
 	IndexKey  []string
 	Condition string
+	Partition string
 }
 
 func (index *QueryIndex) fromData(data jsonQueryIndex) error {
@@ -115,6 +117,7 @@ func (index *QueryIndex) fromData(data jsonQueryIndex) error {
 	index.Namespace = data.Namespace
 	index.IndexKey = data.IndexKey
 	index.Condition = data.Condition
+	index.Partition = data.Partition
 
 	return nil
 }
