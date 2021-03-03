@@ -81,7 +81,7 @@ var (
 type noopTracer struct { // nolint: unused
 }
 
-func (tracer *noopTracer) StartSpan(operationName string, parentContext requestSpanContext) requestSpan {
+func (tracer *noopTracer) StartSpan(operationName string, parentContext requestSpanContext) requestSpan { // nolint: unused
 	return defaultNoopSpan
 }
 
