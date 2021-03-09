@@ -59,9 +59,9 @@ func (cm *CollectionManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtRe
 
 	errText := strings.ToLower(string(b))
 
-	if strings.Contains(errText, "not_found") && strings.Contains(errText, "collection") {
+	if strings.Contains(errText, "not found") && strings.Contains(errText, "collection") {
 		return makeGenericMgmtError(ErrCollectionNotFound, req, resp)
-	} else if strings.Contains(errText, "not_found") && strings.Contains(errText, "scope") {
+	} else if strings.Contains(errText, "not found") && strings.Contains(errText, "scope") {
 		return makeGenericMgmtError(ErrScopeNotFound, req, resp)
 	}
 
