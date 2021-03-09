@@ -523,3 +523,18 @@ func (suite *IntegrationTestSuite) TestBucketMgrMinDurability() {
 		})
 	}
 }
+
+func (suite *IntegrationTestSuite) TestBucketMgrFlushBucketNotFound() {
+	suite.skipIfUnsupported(BucketMgrFeature)
+
+	mgr := globalCluster.Buckets()
+
+	err := mgr.FlushBucket("testFlushBucketNotFound", nil)
+	if err == nil {
+		suite.T().Fatalf("Expected to fail to flush bucket")
+	}
+
+	if !errors.Is(err, ErrBucketNotFound) {
+		suite.T().Fatalf("Expected error to be bucket not found but was %v", err)
+	}
+}

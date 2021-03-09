@@ -180,6 +180,15 @@ func (bm *BucketManager) tryParseFlushErrorMessage(req *mgmtRequest, resp *mgmtR
 		return makeMgmtBadStatusError("failed to flush bucket", req, resp)
 	}
 
+	if resp.StatusCode == 404 {
+		// If it was a 404 then there's no chance of the response body containing any structure
+		if strings.Contains(strings.ToLower(string(b)), "resource not found") {
+			return makeGenericMgmtError(ErrBucketNotFound, req, resp)
+		}
+
+		return makeGenericMgmtError(errors.New(string(b)), req, resp)
+	}
+
 	var bodyErrMsgs map[string]string
 	err = json.Unmarshal(b, &bodyErrMsgs)
 	if err != nil {
