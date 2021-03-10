@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"github.com/couchbase/gocbcore/v9"
+	"time"
 )
 
 func tracerAddRef(tracer requestTracer) {
@@ -46,7 +47,7 @@ type requestTracerWrapper struct {
 	tracer requestTracer
 }
 
-func (tracer *requestTracerWrapper) StartSpan(operationName string, parentContext gocbcore.RequestSpanContext) gocbcore.RequestSpan {
+func (tracer *requestTracerWrapper) RequestSpan(parentContext gocbcore.RequestSpanContext, operationName string) gocbcore.RequestSpan {
 	return requestSpanWrapper{
 		span: tracer.tracer.StartSpan(operationName, parentContext),
 	}
@@ -56,7 +57,7 @@ type requestSpanWrapper struct {
 	span requestSpan
 }
 
-func (span requestSpanWrapper) Finish() {
+func (span requestSpanWrapper) End() {
 	span.span.Finish()
 }
 
@@ -64,9 +65,11 @@ func (span requestSpanWrapper) Context() gocbcore.RequestSpanContext {
 	return span.span.Context()
 }
 
-func (span requestSpanWrapper) SetTag(key string, value interface{}) gocbcore.RequestSpan {
+func (span requestSpanWrapper) AddEvent(name string, timestamp time.Time) {
+}
+
+func (span requestSpanWrapper) SetAttribute(key string, value interface{}) {
 	span.span = span.span.SetTag(key, value)
-	return span
 }
 
 type noopSpan struct{}
