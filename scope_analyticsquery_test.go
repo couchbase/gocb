@@ -20,7 +20,7 @@ func (suite *IntegrationTestSuite) setupScopeAnalytics() int {
 	n, err := suite.createBreweryDataset("beer_sample_brewery_five", "analytics", "", globalCollection.Name())
 	suite.Require().Nil(err, "Failed to create dataset %v", err)
 
-	_, err = globalCluster.AnalyticsQuery(
+	results, err := globalCluster.AnalyticsQuery(
 		fmt.Sprintf("ALTER COLLECTION %s.%s.%s ENABLE ANALYTICS",
 			globalBucket.Name(),
 			globalScope.Name(),
@@ -31,6 +31,8 @@ func (suite *IntegrationTestSuite) setupScopeAnalytics() int {
 		},
 	)
 	suite.Require().Nil(err, "Failed to create analytics collection %v", err)
+
+	suite.Require().Nil(results.Close())
 
 	return n
 }
