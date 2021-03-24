@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"sync"
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v9"
@@ -148,9 +149,16 @@ func (c *Collection) waitForDurability(
 	replicaCh := make(chan struct{}, numServers)
 	persistCh := make(chan struct{}, numServers)
 
+	// When we cancel the sub op channel we need to wait for the child operations to complete so that we don't race
+	// on completion of the child and parent spans.
+	var wg sync.WaitGroup
 	for replicaIdx := 0; replicaIdx < numServers; replicaIdx++ {
-		go c.observeOne(opm.TraceSpan(), docID, mt, replicaIdx, replicaCh, persistCh, subOpCancelCh,
-			time.Until(deadline), user)
+		wg.Add(1)
+		go func(ridx int) {
+			c.observeOne(opm.TraceSpan(), docID, mt, ridx, replicaCh, persistCh, subOpCancelCh,
+				time.Until(deadline), user)
+			wg.Done()
+		}(replicaIdx)
 	}
 
 	numReplicated := uint(0)
@@ -165,15 +173,18 @@ func (c *Collection) waitForDurability(
 		case <-time.After(time.Until(deadline)):
 			// deadline exceeded
 			close(subOpCancelCh)
+			wg.Wait()
 			return opm.EnhanceErr(ErrAmbiguousTimeout)
 		case <-cancelCh:
 			// parent asked for cancellation
 			close(subOpCancelCh)
+			wg.Wait()
 			return opm.EnhanceErr(ErrRequestCanceled)
 		}
 
 		if numReplicated >= replicateTo && numPersisted >= persistTo {
 			close(subOpCancelCh)
+			wg.Wait()
 			return nil
 		}
 	}

@@ -129,8 +129,8 @@ func (m *kvOpManager) Finish() {
 	m.span.Finish()
 }
 
-func (m *kvOpManager) TraceSpan() requestSpan {
-	return m.span
+func (m *kvOpManager) TraceSpan() requestSpanContext {
+	return m.span.Context()
 }
 
 func (m *kvOpManager) DocumentID() []byte {

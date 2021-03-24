@@ -116,13 +116,18 @@ func (g *thresholdLogGroup) logRecordedRecords(sampleSize uint32) {
 	for i := len(oldOps) - 1; i >= 0; i-- {
 		op := oldOps[i]
 
+		peerAddr := op.lastDispatchPeer
+		if peerAddr != "" && op.lastDispatchPeerPort != "" {
+			peerAddr = peerAddr + ":" + op.lastDispatchPeerPort
+		}
+
 		jsonData.Top = append(jsonData.Top, thresholdLogItem{
 			OperationName:          op.opName,
 			TotalTimeUs:            uint64(op.duration / time.Microsecond),
 			DispatchDurationUs:     uint64(op.totalDispatchDuration / time.Microsecond),
 			ServerDurationUs:       uint64(op.totalServerDuration / time.Microsecond),
 			EncodeDurationUs:       uint64(op.totalEncodeDuration / time.Microsecond),
-			LastRemoteAddress:      op.lastDispatchPeer,
+			LastRemoteAddress:      peerAddr,
 			LastDispatchDurationUs: uint64(op.lastDispatchDuration / time.Microsecond),
 			LastOperationID:        op.lastOperationID,
 			LastLocalID:            op.lastLocalID,
@@ -321,12 +326,14 @@ type thresholdLogSpan struct {
 	startTime             time.Time
 	serviceName           string
 	peerAddress           string
+	peerPort              string
 	serverDuration        time.Duration
 	duration              time.Duration
 	totalServerDuration   time.Duration
 	totalDispatchDuration time.Duration
 	totalEncodeDuration   time.Duration
 	lastDispatchPeer      string
+	lastDispatchPeerPort  string
 	lastDispatchDuration  time.Duration
 	lastOperationID       string
 	lastLocalID           string
@@ -342,29 +349,33 @@ func (n *thresholdLogSpan) SetTag(key string, value interface{}) requestSpan {
 	var ok bool
 
 	switch key {
-	case "server_duration":
+	case spanAttribServerDurationKey:
 		if n.serverDuration, ok = value.(time.Duration); !ok {
 			logDebugf("Failed to cast span server_duration tag")
 		}
-	case "couchbase.service":
+	case spanAttribServiceKey:
 		if n.serviceName, ok = value.(string); !ok {
 			logDebugf("Failed to cast span couchbase.service tag")
 		}
-	case "peer.address":
+	case spanAttribNetPeerNameKey:
 		if n.peerAddress, ok = value.(string); !ok {
-			logDebugf("Failed to cast span peer.address tag")
+			logDebugf("Failed to cast span net.peer.name tag")
 		}
-	case "couchbase.operation_id":
+	case spanAttribOperationIDKey:
 		if n.lastOperationID, ok = value.(string); !ok {
-			logDebugf("Failed to cast span couchbase.operation_id tag")
+			logDebugf("Failed to cast span db.couchbase.operation_id tag")
 		}
 	case "couchbase.document_key":
 		if n.documentKey, ok = value.(string); !ok {
 			logDebugf("Failed to cast span couchbase.document_key tag")
 		}
-	case "couchbase.local_id":
+	case spanAttribLocalIDKey:
 		if n.lastLocalID, ok = value.(string); !ok {
-			logDebugf("Failed to cast span couchbase.local_id tag")
+			logDebugf("Failed to cast span db.couchbase.local_id tag")
+		}
+	case spanAttribNetPeerPortKey:
+		if n.peerPort, ok = value.(string); !ok {
+			logDebugf("Failed to cast span net.peer.port tag")
 		}
 	}
 	return n
@@ -374,12 +385,13 @@ func (n *thresholdLogSpan) Finish() {
 	n.duration = time.Since(n.startTime)
 
 	n.totalServerDuration += n.serverDuration
-	if n.opName == "dispatch" {
+	if n.opName == spanNameDispatchToServer {
 		n.totalDispatchDuration += n.duration
 		n.lastDispatchPeer = n.peerAddress
+		n.lastDispatchPeerPort = n.peerPort
 		n.lastDispatchDuration = n.duration
 	}
-	if n.opName == "encode" {
+	if n.opName == spanNameRequestEncoding {
 		n.totalEncodeDuration += n.duration
 	}
 
@@ -400,6 +412,9 @@ func (n *thresholdLogSpan) Finish() {
 		}
 		if n.documentKey != "" {
 			n.parent.documentKey = n.documentKey
+		}
+		if n.lastDispatchPeerPort != "" {
+			n.parent.lastDispatchPeerPort = n.lastDispatchPeerPort
 		}
 		n.parent.lock.Unlock()
 	}

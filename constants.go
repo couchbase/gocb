@@ -280,3 +280,17 @@ const (
 	CapabilityStatusSupported   CapabilityStatus = CapabilityStatus(gocbcore.BucketCapabilityStatusSupported)
 	CapabilityStatusUnsupported CapabilityStatus = CapabilityStatus(gocbcore.BucketCapabilityStatusUnsupported)
 )
+
+const (
+	// These are part of spans which come from gocbcore.
+	spanNameDispatchToServer    = "dispatch_to_server"
+	spanAttribOperationIDKey    = "db.couchbase.operation_id"
+	spanAttribLocalIDKey        = "db.couchbase.local_id"
+	spanAttribNetPeerNameKey    = "net.peer.name"
+	spanAttribNetPeerPortKey    = "net.peer.port"
+	spanAttribServerDurationKey = "db.couchbase.server_duration"
+
+	// These are part of spans which come from gocb itself.
+	spanNameRequestEncoding = "encode"
+	spanAttribServiceKey    = "couchbase.service"
+)
