@@ -113,22 +113,31 @@ func (suite *IntegrationTestSuite) TestBucketMgrFlushDisabled() {
 
 	mgr := globalCluster.Buckets()
 
-	err := mgr.CreateBucket(CreateBucketSettings{
-		BucketSettings: BucketSettings{
-			Name:                 "testFlush",
-			RAMQuotaMB:           100,
-			NumReplicas:          0,
-			BucketType:           CouchbaseBucketType,
-			EvictionPolicy:       EvictionPolicyTypeValueOnly,
-			FlushEnabled:         false,
-			MaxExpiry:            10,
-			CompressionMode:      CompressionModeActive,
-			ReplicaIndexDisabled: true,
-		},
-		ConflictResolutionType: ConflictResolutionTypeSequenceNumber,
-	}, nil)
-	if err != nil {
-		suite.T().Fatalf("Failed to create bucket %v", err)
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		err := mgr.CreateBucket(CreateBucketSettings{
+			BucketSettings: BucketSettings{
+				Name:                 "testFlush",
+				RAMQuotaMB:           100,
+				NumReplicas:          0,
+				BucketType:           CouchbaseBucketType,
+				EvictionPolicy:       EvictionPolicyTypeValueOnly,
+				FlushEnabled:         false,
+				MaxExpiry:            10,
+				CompressionMode:      CompressionModeActive,
+				ReplicaIndexDisabled: true,
+			},
+			ConflictResolutionType: ConflictResolutionTypeSequenceNumber,
+		}, nil)
+		if err == nil {
+			break
+		}
+
+		suite.T().Logf("Failed to create bucket %v", err)
+
+		if time.Now().After(deadline) {
+			suite.T().Fatalf("Deadline exceeded for create bucket, failing test")
+		}
 	}
 	defer mgr.DropBucket("testFlush", nil)
 
@@ -158,7 +167,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrFlushDisabled() {
 	case <-bucketSignal:
 	}
 
-	err = mgr.FlushBucket("testFlush", nil)
+	err := mgr.FlushBucket("testFlush", nil)
 	if err == nil {
 		suite.T().Fatalf("Expected to fail to flush bucket")
 	}
