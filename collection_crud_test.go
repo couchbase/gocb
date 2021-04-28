@@ -1798,27 +1798,18 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAnyReplica() {
 
 	suite.Require().Equal(len(span.Spans), 1)
 	suite.Require().Contains(span.Spans, "get_all_replicas")
-	// allReplicasSpans := span.Spans["get_all_replicas"]
+	allReplicasSpans := span.Spans["get_all_replicas"]
 
-	// suite.Require().GreaterOrEqual(len(allReplicasSpans), 1)
-	// suite.Require().Contains(allReplicasSpans[0].Spans, "get_replica")
-	// getReplicaSpans := allReplicasSpans[0].Spans["get_replica"]
-	// suite.Require().GreaterOrEqual(len(getReplicaSpans), 2)
-	// // We don't actually know which of these will win.
-	// for _, span := range getReplicaSpans {
-	// 	var op string
-	// 	var cmd memd.CmdCode
-	// 	if span.Name == "get" {
-	// 		op = "get"
-	// 		cmd = memd.CmdGet
-	// 	} else {
-	// 		op = "get_replica"
-	// 		cmd = memd.CmdGetReplica
-	// 	}
-	// 	// TODO: DONT MERGE ME!
-	// 	suite.AssertKvOpSpan(span, op, cmd.Name(), 0,
-	// 		true, false)
-	// }
+	suite.Require().GreaterOrEqual(len(allReplicasSpans), 1)
+	suite.Require().Contains(allReplicasSpans[0].Spans, "get_replica")
+	getReplicaSpans := allReplicasSpans[0].Spans["get_replica"]
+	suite.Require().GreaterOrEqual(len(getReplicaSpans), 2)
+	// We don't actually know which of these will win.
+	for _, span := range getReplicaSpans {
+		suite.Require().Equal(1, len(span.Spans))
+		suite.AssertKvSpan(span, "get_replica")
+		// We don't know which span was actually cancelled so we don't check the CMD spans.
+	}
 }
 
 func (suite *IntegrationTestSuite) TestInsertReplicateToGetAllReplicas() {
@@ -1904,8 +1895,6 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAllReplicas() {
 	if numMasters != 1 {
 		suite.T().Fatalf("Expected number of masters to be 1 but was %d", numMasters)
 	}
-
-	// TODO: trace tests DONT MERGE ME
 }
 
 func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
@@ -2048,8 +2037,6 @@ func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 			}
 		})
 	}
-
-	// TODO: TRACE TESTS DONT MERGE ME BRO
 }
 
 func (suite *UnitTestSuite) TestGetErrorCollectionUnknown() {

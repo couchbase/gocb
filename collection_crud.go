@@ -631,12 +631,25 @@ type GetAllReplicaOptions struct {
 
 // GetAllReplicasResult represents the results of a GetAllReplicas operation.
 type GetAllReplicasResult struct {
-	lock          sync.Mutex
-	totalRequests uint32
-	totalResults  uint32
-	resCh         chan *GetReplicaResult
-	cancelCh      chan struct{}
-	span          RequestSpan
+	lock                sync.Mutex
+	totalRequests       uint32
+	successResults      uint32
+	totalResults        uint32
+	resCh               chan *GetReplicaResult
+	cancelCh            chan struct{}
+	span                RequestSpan
+	childReqsCompleteCh chan struct{}
+}
+
+func (r *GetAllReplicasResult) addFailed() {
+	r.lock.Lock()
+
+	r.totalResults++
+	if r.totalResults == r.totalRequests {
+		close(r.childReqsCompleteCh)
+	}
+
+	r.lock.Unlock()
 }
 
 func (r *GetAllReplicasResult) addResult(res *GetReplicaResult) {
@@ -645,8 +658,8 @@ func (r *GetAllReplicasResult) addResult(res *GetReplicaResult) {
 	// closed.  IE: T1-Incr, T2-Incr, T2-Send, T2-Close, T1-Send[PANIC]
 	r.lock.Lock()
 
-	r.totalResults++
-	resultCount := r.totalResults
+	r.successResults++
+	resultCount := r.successResults
 
 	if resultCount <= r.totalRequests {
 		r.resCh <- res
@@ -657,6 +670,11 @@ func (r *GetAllReplicasResult) addResult(res *GetReplicaResult) {
 		close(r.resCh)
 
 		r.span.End()
+	}
+
+	r.totalResults++
+	if r.totalResults == r.totalRequests {
+		close(r.childReqsCompleteCh)
 	}
 
 	r.lock.Unlock()
@@ -675,19 +693,26 @@ func (r *GetAllReplicasResult) Close() error {
 	// Note that this number increment must be high enough to be clear that
 	// the result set was closed, but low enough that it won't overflow if
 	// additional result objects are processed after the close.
-	prevResultCount := r.totalResults
-	r.totalResults += 100000
+	prevResultCount := r.successResults
+	r.successResults += 100000
 
 	// We only have to close everything if the addResult method didn't already
 	// close them due to already having completed every request
+	var weClosed bool
 	if prevResultCount < r.totalRequests {
 		close(r.cancelCh)
 		close(r.resCh)
 
-		r.span.End()
+		weClosed = true
 	}
 
 	r.lock.Unlock()
+
+	if weClosed {
+		// We need to wait for the child requests spans to be completed.
+		<-r.childReqsCompleteCh
+		r.span.End()
+	}
 
 	return nil
 }
@@ -738,10 +763,11 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 	cancelCh := make(chan struct{})
 
 	repRes := &GetAllReplicasResult{
-		totalRequests: uint32(numServers),
-		resCh:         outCh,
-		cancelCh:      cancelCh,
-		span:          span,
+		totalRequests:       uint32(numServers),
+		resCh:               outCh,
+		cancelCh:            cancelCh,
+		span:                span,
+		childReqsCompleteCh: make(chan struct{}),
 	}
 
 	// Loop all the servers and populate the result object
@@ -752,6 +778,7 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 			// behaviour.
 			res, err := c.getOneReplica(span, id, replicaIdx, transcoder, retryStrategy, cancelCh, timeout, opts.Internal.User)
 			if err != nil {
+				repRes.addFailed()
 				logDebugf("Failed to fetch replica from replica %d: %s", replicaIdx, err)
 			} else {
 				repRes.addResult(res)
