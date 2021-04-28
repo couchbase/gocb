@@ -310,3 +310,45 @@ const (
 	meterValueServiceViews      = "views"
 	meterValueServiceManagement = "management"
 )
+
+type AnalyticsLinkType string
+
+const (
+	AnalyticsLinkTypeS3External      AnalyticsLinkType = "s3"
+	AnalyticsLinkTypeAzureExternal   AnalyticsLinkType = "azureblob"
+	AnalyticsLinkTypeCouchbaseRemote AnalyticsLinkType = "couchbase"
+)
+
+type AnalyticsEncryptionLevel uint8
+
+const (
+	AnalyticsEncryptionLevelNone AnalyticsEncryptionLevel = iota
+	AnalyticsEncryptionLevelHalf
+	AnalyticsEncryptionLevelFull
+)
+
+func (ael AnalyticsEncryptionLevel) String() string {
+	switch ael {
+	case AnalyticsEncryptionLevelNone:
+		return "none"
+	case AnalyticsEncryptionLevelHalf:
+		return "half"
+	case AnalyticsEncryptionLevelFull:
+		return "full"
+	}
+
+	return ""
+}
+
+func analyticsEncryptionLevelFromString(level string) AnalyticsEncryptionLevel {
+	switch level {
+	case "none":
+		return AnalyticsEncryptionLevelNone
+	case "half":
+		return AnalyticsEncryptionLevelHalf
+	case "full":
+		return AnalyticsEncryptionLevelFull
+	}
+
+	return AnalyticsEncryptionLevelNone
+}

@@ -251,6 +251,9 @@ var (
 
 	// ErrLinkNotFound occurs when the analytics link requested could not be found.
 	ErrLinkNotFound = gocbcore.ErrLinkNotFound
+
+	// ErrAnalyticsLinkExists occurs when the analytics link already exists.
+	ErrAnalyticsLinkExists = errors.New("analytics clink already exists")
 )
 
 // Search Error Definitions RFC#58@15

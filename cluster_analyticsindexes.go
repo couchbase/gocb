@@ -3,8 +3,11 @@ package gocb
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
+	"io/ioutil"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -254,7 +257,7 @@ func (am *AnalyticsIndexManager) CreateDataset(datasetName, bucketName string, o
 	if opts.DataverseName == "" {
 		datasetName = fmt.Sprintf("`%s`", datasetName)
 	} else {
-		datasetName = fmt.Sprintf("`%s`.`%s`", opts.DataverseName, datasetName)
+		datasetName = fmt.Sprintf("`%s`.%s", opts.DataverseName, datasetName)
 	}
 
 	q := fmt.Sprintf("CREATE DATASET %s %s ON `%s` %s", ignoreStr, datasetName, bucketName, where)
@@ -706,4 +709,519 @@ func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAn
 	}
 
 	return pending, nil
+}
+
+// AnalyticsLink describes an external or remote analytics link, used to access data external to the cluster.
+type AnalyticsLink interface {
+	// Name returns the name of this link.
+	Name() string
+	// DataverseName returns the name of the dataverse that this link belongs to.
+	DataverseName() string
+	// FormEncode encodes the link into a form data representation, to be sent as the body of a CreateLink or ReplaceLink
+	// request.
+	FormEncode() ([]byte, error)
+	// Validate is used by CreateLink and ReplaceLink to ensure that the link is valid.
+	Validate() error
+	// LinkType returns the type of analytics type this link is.
+	LinkType() AnalyticsLinkType
+}
+
+// NewCouchbaseRemoteAnalyticsLinkOptions are the options available when creating a new CouchbaseRemoteAnalyticsLink.
+type NewCouchbaseRemoteAnalyticsLinkOptions struct {
+	Encryption CouchbaseRemoteAnalyticsEncryptionSettings
+	Username   string
+	Password   string
+}
+
+// NewCouchbaseRemoteAnalyticsLink creates a new CouchbaseRemoteAnalyticsLink.
+// Scope is the analytics scope in the form of "bucket/scope".
+func NewCouchbaseRemoteAnalyticsLink(linkName, hostname, dataverseName string,
+	opts *NewCouchbaseRemoteAnalyticsLinkOptions) *CouchbaseRemoteAnalyticsLink {
+	if opts == nil {
+		opts = &NewCouchbaseRemoteAnalyticsLinkOptions{}
+	}
+	return &CouchbaseRemoteAnalyticsLink{
+		Dataverse:  dataverseName,
+		LinkName:   linkName,
+		Hostname:   hostname,
+		Encryption: opts.Encryption,
+		Username:   opts.Username,
+		Password:   opts.Password,
+	}
+}
+
+// NewS3ExternalAnalyticsLinkOptions are the options available when creating a new S3ExternalAnalyticsLink.
+type NewS3ExternalAnalyticsLinkOptions struct {
+	SessionToken    string
+	ServiceEndpoint string
+}
+
+// NewS3ExternalAnalyticsLink creates a new S3ExternalAnalyticsLink with the scope field populated.
+// Scope is the analytics scope in the form of "bucket/scope".
+func NewS3ExternalAnalyticsLink(linkName, dataverseName, accessKeyID, secretAccessKey, region string,
+	opts *NewS3ExternalAnalyticsLinkOptions) *S3ExternalAnalyticsLink {
+	if opts == nil {
+		opts = &NewS3ExternalAnalyticsLinkOptions{}
+	}
+	return &S3ExternalAnalyticsLink{
+		Dataverse:       dataverseName,
+		LinkName:        linkName,
+		AccessKeyID:     accessKeyID,
+		SecretAccessKey: secretAccessKey,
+		SessionToken:    opts.SessionToken,
+		Region:          region,
+		ServiceEndpoint: opts.ServiceEndpoint,
+	}
+}
+
+// NewAzureBlobExternalAnalyticsLinkOptions are the options available when creating a new AzureBlobExternalAnalyticsLink.
+// VOLATILE: This API is subject to change at any time.
+type NewAzureBlobExternalAnalyticsLinkOptions struct {
+	ConnectionString      string
+	AccountName           string
+	AccountKey            string
+	SharedAccessSignature string
+	BlobEndpoint          string
+	EndpointSuffix        string
+}
+
+// NewAzureBlobExternalAnalyticsLink creates a new AzureBlobExternalAnalyticsLink.
+// VOLATILE: This API is subject to change at any time.
+func NewAzureBlobExternalAnalyticsLink(linkName, dataverseName string,
+	opts *NewAzureBlobExternalAnalyticsLinkOptions) *AzureBlobExternalAnalyticsLink {
+	if opts == nil {
+		opts = &NewAzureBlobExternalAnalyticsLinkOptions{}
+	}
+	return &AzureBlobExternalAnalyticsLink{
+		Dataverse:             dataverseName,
+		LinkName:              linkName,
+		ConnectionString:      opts.ConnectionString,
+		AccountName:           opts.AccountName,
+		AccountKey:            opts.AccountKey,
+		SharedAccessSignature: opts.SharedAccessSignature,
+		BlobEndpoint:          opts.BlobEndpoint,
+		EndpointSuffix:        opts.EndpointSuffix,
+	}
+}
+
+// CreateAnalyticsLinkOptions is the set of options available to the analytics manager CreateLink
+// function.
+type CreateAnalyticsLinkOptions struct {
+	Timeout       time.Duration
+	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+}
+
+// CreateLink creates an analytics link.
+func (am *AnalyticsIndexManager) CreateLink(link AnalyticsLink, opts *CreateAnalyticsLinkOptions) error {
+	if opts == nil {
+		opts = &CreateAnalyticsLinkOptions{}
+	}
+
+	start := time.Now()
+	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_create_link", start)
+
+	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_create_link", "management")
+	defer span.End()
+
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = am.globalTimeout
+	}
+
+	if err := link.Validate(); err != nil {
+		return err
+	}
+
+	endpoint := am.endpointFromLink(link)
+	span.SetAttribute("db.operation", "POST "+endpoint)
+
+	eSpan := createSpan(am.tracer, span, "request_encoding", "")
+	data, err := link.FormEncode()
+	eSpan.End()
+	if err != nil {
+		return err
+	}
+
+	req := mgmtRequest{
+		Service:       ServiceTypeAnalytics,
+		Method:        "POST",
+		Path:          endpoint,
+		RetryStrategy: opts.RetryStrategy,
+		Timeout:       timeout,
+		parentSpanCtx: span.Context(),
+		Body:          data,
+		ContentType:   "application/x-www-form-urlencoded",
+	}
+
+	resp, err := am.doMgmtRequest(opts.Context, req)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return am.tryParseLinkErrorMessage(&req, resp)
+	}
+
+	return nil
+}
+
+// ReplaceAnalyticsLinkOptions is the set of options available to the analytics manager ReplaceLink
+// function.
+type ReplaceAnalyticsLinkOptions struct {
+	Timeout       time.Duration
+	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+}
+
+// ReplaceLink modifies an existing analytics link.
+func (am *AnalyticsIndexManager) ReplaceLink(link AnalyticsLink, opts *ReplaceAnalyticsLinkOptions) error {
+	if opts == nil {
+		opts = &ReplaceAnalyticsLinkOptions{}
+	}
+
+	start := time.Now()
+	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_replace_link", start)
+
+	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_replace_link", "management")
+	defer span.End()
+
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = am.globalTimeout
+	}
+
+	if err := link.Validate(); err != nil {
+		return err
+	}
+
+	endpoint := am.endpointFromLink(link)
+	span.SetAttribute("db.operation", "PUT "+endpoint)
+
+	eSpan := createSpan(am.tracer, span, "request_encoding", "")
+	data, err := link.FormEncode()
+	eSpan.End()
+	if err != nil {
+		return err
+	}
+
+	req := mgmtRequest{
+		Service:       ServiceTypeAnalytics,
+		Method:        "PUT",
+		Path:          endpoint,
+		RetryStrategy: opts.RetryStrategy,
+		Timeout:       timeout,
+		parentSpanCtx: span.Context(),
+		Body:          data,
+		ContentType:   "application/x-www-form-urlencoded",
+	}
+
+	resp, err := am.doMgmtRequest(opts.Context, req)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != 200 {
+		return am.tryParseLinkErrorMessage(&req, resp)
+	}
+
+	return nil
+}
+
+// DropAnalyticsLinkOptions is the set of options available to the analytics manager DropLink
+// function.
+type DropAnalyticsLinkOptions struct {
+	Timeout       time.Duration
+	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+}
+
+// DropLink removes an existing external analytics link from specified scope.
+// dataverseName can be given in the form of "namepart" or "namepart1/namepart2".
+// Only available against Couchbase Server 7.0+.
+func (am *AnalyticsIndexManager) DropLink(linkName, dataverseName string, opts *DropAnalyticsLinkOptions) error {
+	if opts == nil {
+		opts = &DropAnalyticsLinkOptions{}
+	}
+
+	start := time.Now()
+	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_drop_link", start)
+
+	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_drop_link", "management")
+	defer span.End()
+
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = am.globalTimeout
+	}
+
+	var payload []byte
+	var endpoint string
+	if strings.Contains(dataverseName, "/") {
+		endpoint = fmt.Sprintf("/analytics/link/%s/%s", url.PathEscape(dataverseName), linkName)
+	} else {
+		endpoint = "/analytics/link"
+		values := url.Values{}
+		values.Add("dataverse", dataverseName)
+		values.Add("name", linkName)
+
+		eSpan := createSpan(am.tracer, span, spanNameRequestEncoding, "management")
+		payload = []byte(values.Encode())
+		eSpan.End()
+	}
+	span.SetAttribute("db.operation", "DELETE "+endpoint)
+
+	req := mgmtRequest{
+		Service:       ServiceTypeAnalytics,
+		Method:        "DELETE",
+		Path:          endpoint,
+		RetryStrategy: opts.RetryStrategy,
+		Timeout:       timeout,
+		parentSpanCtx: span.Context(),
+		ContentType:   "application/x-www-form-urlencoded",
+		Body:          payload,
+	}
+
+	resp, err := am.doMgmtRequest(opts.Context, req)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != 200 {
+		return am.tryParseLinkErrorMessage(&req, resp)
+	}
+
+	return nil
+}
+
+// GetAnalyticsLinksOptions are the options available to the AnalyticsManager GetLinks function.
+type GetAnalyticsLinksOptions struct {
+	Timeout       time.Duration
+	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
+
+	// Dataverse restricts the results to a given dataverse, can be given in the form of "namepart" or "namepart1/namepart2".
+	Dataverse string
+	// LinkType restricts the results to the given link type.
+	LinkType AnalyticsLinkType
+	// Name restricts the results to the link with the specified name.
+	// If set then `Scope` must also be set.
+	Name string
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+}
+
+// GetLinks retrieves all external or remote analytics links.
+func (am *AnalyticsIndexManager) GetLinks(opts *GetAnalyticsLinksOptions) ([]AnalyticsLink, error) {
+	if opts == nil {
+		opts = &GetAnalyticsLinksOptions{}
+	}
+
+	if opts.Name != "" && opts.Dataverse == "" {
+		return nil, makeInvalidArgumentsError("when name is set then dataverse must also be set")
+	}
+
+	start := time.Now()
+	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_get_all_links", start)
+
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = am.globalTimeout
+	}
+
+	var querystring []string
+	var endpoint string
+	if strings.Contains(opts.Dataverse, "/") {
+		endpoint = fmt.Sprintf("/analytics/link/%s", url.PathEscape(opts.Dataverse))
+
+		if opts.Name != "" {
+			endpoint = fmt.Sprintf("%s/%s", endpoint, opts.Name)
+		}
+		if opts.LinkType != "" {
+			querystring = append(querystring, fmt.Sprintf("type=%s", opts.LinkType))
+		}
+	} else {
+		endpoint = "/analytics/link"
+
+		if opts.Dataverse != "" {
+			querystring = append(querystring, "dataverse="+opts.Dataverse)
+			if opts.Name != "" {
+				querystring = append(querystring, "name="+opts.Name)
+			}
+		}
+		if opts.LinkType != "" {
+			querystring = append(querystring, fmt.Sprintf("type=%s", opts.LinkType))
+		}
+	}
+
+	if len(querystring) > 0 {
+		endpoint = endpoint + "?" + strings.Join(querystring, "&")
+	}
+
+	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_get_all_links", "management")
+	span.SetAttribute("db.operation", "GET "+endpoint)
+	defer span.End()
+
+	req := mgmtRequest{
+		Service:       ServiceTypeAnalytics,
+		Method:        "GET",
+		Path:          endpoint,
+		RetryStrategy: opts.RetryStrategy,
+		Timeout:       timeout,
+		parentSpanCtx: span.Context(),
+		IsIdempotent:  true,
+	}
+
+	resp, err := am.doMgmtRequest(opts.Context, req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != 200 {
+		return nil, am.tryParseLinkErrorMessage(&req, resp)
+	}
+
+	var jsonLinks []map[string]interface{}
+	jsonDec := json.NewDecoder(resp.Body)
+	err = jsonDec.Decode(&jsonLinks)
+	if err != nil {
+		return nil, err
+	}
+
+	var links []AnalyticsLink
+	for _, jsonLink := range jsonLinks {
+		linkType, ok := jsonLink["type"]
+		if !ok {
+			logWarnf("External analytics link missing type field, skipping")
+			continue
+		}
+
+		linkTypeStr, ok := linkType.(string)
+		if !ok {
+			logWarnf("External analytics link type field not a string, skipping")
+			continue
+		}
+
+		link := am.linkFromJSON(AnalyticsLinkType(linkTypeStr), jsonLink)
+		if link == nil {
+			logWarnf("External analytics link type %s unknown, skipping", linkTypeStr)
+			continue
+		}
+
+		links = append(links, link)
+	}
+
+	return links, nil
+}
+
+func (am *AnalyticsIndexManager) fieldFromJSONMapAsString(name string, json map[string]interface{}) string {
+	field, ok := json[name]
+	if !ok {
+		return ""
+	}
+
+	strField, ok := field.(string)
+	if !ok {
+		return ""
+	}
+
+	return strField
+}
+
+func (am *AnalyticsIndexManager) endpointFromLink(link AnalyticsLink) string {
+	var endpoint string
+	switch l := link.(type) {
+	case *CouchbaseRemoteAnalyticsLink:
+		if strings.Contains(l.Dataverse, "/") {
+			endpoint = fmt.Sprintf("/analytics/link/%s/%s", url.PathEscape(l.Dataverse), l.LinkName)
+		} else {
+			endpoint = "/analytics/link"
+		}
+	case *S3ExternalAnalyticsLink:
+		if strings.Contains(l.Dataverse, "/") {
+			endpoint = fmt.Sprintf("/analytics/link/%s/%s", url.PathEscape(l.Dataverse), l.LinkName)
+		} else {
+			endpoint = "/analytics/link"
+		}
+	case *AzureBlobExternalAnalyticsLink:
+		endpoint = fmt.Sprintf("/analytics/link/%s/%s", url.PathEscape(l.Dataverse), l.LinkName)
+	default:
+		endpoint = "/analytics/link"
+	}
+	return endpoint
+}
+
+func (am *AnalyticsIndexManager) tryParseLinkErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		logDebugf("Failed to read bucket manager response body: %s", err)
+		return nil
+	}
+
+	if strings.Contains(strings.ToLower(string(b)), "24055") {
+		return makeGenericMgmtError(ErrAnalyticsLinkExists, req, resp)
+	}
+	if strings.Contains(strings.ToLower(string(b)), "24034") {
+		return makeGenericMgmtError(ErrDataverseNotFound, req, resp)
+	}
+
+	return makeGenericMgmtError(errors.New(string(b)), req, resp)
+}
+
+func (am *AnalyticsIndexManager) linkFromJSON(linkType AnalyticsLinkType, jsonLink map[string]interface{}) AnalyticsLink {
+	dataverse := am.fieldFromJSONMapAsString("dataverse", jsonLink)
+	if dataverse == "" {
+		dataverse = am.fieldFromJSONMapAsString("scope", jsonLink)
+	}
+	switch linkType {
+	case AnalyticsLinkTypeCouchbaseRemote:
+		encryptionLevel := am.fieldFromJSONMapAsString("encryption", jsonLink)
+		return &CouchbaseRemoteAnalyticsLink{
+			Dataverse: dataverse,
+			LinkName:  am.fieldFromJSONMapAsString("name", jsonLink),
+			Hostname:  am.fieldFromJSONMapAsString("activeHostname", jsonLink),
+			Encryption: CouchbaseRemoteAnalyticsEncryptionSettings{
+				EncryptionLevel:   analyticsEncryptionLevelFromString(encryptionLevel),
+				Certificate:       []byte(am.fieldFromJSONMapAsString("certificate", jsonLink)),
+				ClientCertificate: []byte(am.fieldFromJSONMapAsString("clientCertificate", jsonLink)),
+			},
+			Username: am.fieldFromJSONMapAsString("username", jsonLink),
+		}
+	case AnalyticsLinkTypeS3External:
+		return &S3ExternalAnalyticsLink{
+			Dataverse:       dataverse,
+			LinkName:        am.fieldFromJSONMapAsString("name", jsonLink),
+			AccessKeyID:     am.fieldFromJSONMapAsString("accessKeyId", jsonLink),
+			Region:          am.fieldFromJSONMapAsString("region", jsonLink),
+			ServiceEndpoint: am.fieldFromJSONMapAsString("serviceEndpoint", jsonLink),
+		}
+	case AnalyticsLinkTypeAzureExternal:
+		return &AzureBlobExternalAnalyticsLink{
+			Dataverse:      dataverse,
+			LinkName:       am.fieldFromJSONMapAsString("name", jsonLink),
+			AccountName:    am.fieldFromJSONMapAsString("accountName", jsonLink),
+			BlobEndpoint:   am.fieldFromJSONMapAsString("blobEndpoint", jsonLink),
+			EndpointSuffix: am.fieldFromJSONMapAsString("endpointSuffix", jsonLink),
+		}
+	default:
+		return nil
+	}
 }

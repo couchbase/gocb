@@ -2,6 +2,8 @@ package gocb
 
 import (
 	"errors"
+	"fmt"
+	"net/url"
 )
 
 func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrud() {
@@ -336,4 +338,408 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrud() {
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_dataverse"), 3, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_dataset"), 3, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_index"), 3, false)
+}
+
+func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
+	suite.skipIfUnsupported(AnalyticsIndexFeature)
+	suite.skipIfUnsupported(AnalyticsIndexLinksFeature)
+
+	mgr := globalCluster.AnalyticsIndexes()
+
+	dataverse := "scopeslinkaverse"
+	err := mgr.CreateDataverse(dataverse, &CreateAnalyticsDataverseOptions{
+		IgnoreIfExists: true,
+	})
+	suite.Require().Nil(err, err)
+	defer mgr.DropDataverse(dataverse, nil)
+
+	link := NewS3ExternalAnalyticsLink("s3Link", dataverse, "accesskey",
+		"secretKey", "us-west", nil)
+
+	link2 := NewS3ExternalAnalyticsLink("s3Link2", dataverse, "2",
+		"secretKey2", "us-east", &NewS3ExternalAnalyticsLinkOptions{ServiceEndpoint: "end"})
+
+	err = mgr.CreateLink(link, nil)
+	suite.Require().Nil(err, err)
+	err = mgr.CreateLink(link2, nil)
+	suite.Require().Nil(err, err)
+
+	err = mgr.CreateLink(link, nil)
+	if !errors.Is(err, ErrAnalyticsLinkExists) {
+		suite.T().Fatalf("Expected error to be link already exists but was %v", err)
+	}
+
+	links, err := mgr.GetLinks(nil)
+	suite.Require().Nil(err, err)
+
+	resultLink1 := &S3ExternalAnalyticsLink{
+		Dataverse:       link.Dataverse,
+		LinkName:        link.Name(),
+		AccessKeyID:     link.AccessKeyID,
+		Region:          link.Region,
+		ServiceEndpoint: link.ServiceEndpoint,
+	}
+	resultLink2 := &S3ExternalAnalyticsLink{
+		Dataverse:       link2.Dataverse,
+		LinkName:        link2.Name(),
+		AccessKeyID:     link2.AccessKeyID,
+		Region:          link2.Region,
+		ServiceEndpoint: link2.ServiceEndpoint,
+	}
+
+	suite.Require().Len(links, 2)
+	suite.Assert().Contains(links, resultLink1)
+	suite.Assert().Contains(links, resultLink2)
+
+	links, err = mgr.GetLinks(&GetAnalyticsLinksOptions{
+		Dataverse: dataverse,
+		Name:      link.Name(),
+		LinkType:  AnalyticsLinkTypeS3External,
+	})
+	suite.Require().Nil(err, err)
+
+	suite.Require().Len(links, 1)
+	suite.Assert().Contains(links, resultLink1)
+
+	rLink := NewS3ExternalAnalyticsLink("s3Link", dataverse, "accesskey2",
+		"secretKey", "europe", nil)
+
+	err = mgr.ReplaceLink(rLink, nil)
+	suite.Require().Nil(err, err)
+
+	links, err = mgr.GetLinks(nil)
+	suite.Require().Nil(err, err)
+
+	suite.Require().Len(links, 2)
+
+	err = mgr.DropLink("s3Link", dataverse, nil)
+	suite.Require().Nil(err, err)
+	err = mgr.DropLink("s3Link2", dataverse, nil)
+	suite.Require().Nil(err, err)
+
+	suite.Require().Contains(suite.tracer.Spans, nil)
+	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Equal(10, len(nilParents))
+	span := suite.RequireQueryMgmtOpSpan(nilParents[0], "manager_analytics_create_dataverse", "analytics")
+	suite.AssertHTTPOpSpan(span, "analytics",
+		HTTPOpSpanExpectations{
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             true,
+			dispatchOperationID:     "any",
+			service:                 "analytics",
+			statement:               "any",
+		})
+	suite.AssertHTTPOpSpan(nilParents[1], "manager_analytics_create_link",
+		HTTPOpSpanExpectations{
+			operationID:             "POST /analytics/link",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             true,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+	suite.AssertHTTPOpSpan(nilParents[2], "manager_analytics_create_link",
+		HTTPOpSpanExpectations{
+			operationID:             "POST /analytics/link",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             true,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+	suite.AssertHTTPOpSpan(nilParents[3], "manager_analytics_create_link",
+		HTTPOpSpanExpectations{
+			operationID:             "POST /analytics/link",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             true,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+	suite.AssertHTTPOpSpan(nilParents[4], "manager_analytics_get_all_links",
+		HTTPOpSpanExpectations{
+			operationID:             "GET /analytics/link",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+	suite.AssertHTTPOpSpan(nilParents[5], "manager_analytics_get_all_links",
+		HTTPOpSpanExpectations{
+			operationID:             "GET /analytics/link?dataverse=" + dataverse + "&name=" + link.LinkName + "&type=s3",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+	suite.AssertHTTPOpSpan(nilParents[6], "manager_analytics_replace_link",
+		HTTPOpSpanExpectations{
+			operationID:             "PUT /analytics/link",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             true,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+	suite.AssertHTTPOpSpan(nilParents[7], "manager_analytics_get_all_links",
+		HTTPOpSpanExpectations{
+			operationID:             "GET /analytics/link",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+	suite.AssertHTTPOpSpan(nilParents[8], "manager_analytics_drop_link",
+		HTTPOpSpanExpectations{
+			operationID:             "DELETE /analytics/link",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+	suite.AssertHTTPOpSpan(nilParents[9], "manager_analytics_drop_link",
+		HTTPOpSpanExpectations{
+			operationID:             "DELETE /analytics/link",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_create_dataverse"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_create_link"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_replace_link"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_get_all_links"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_link"), 2, false)
+}
+
+func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
+	suite.skipIfUnsupported(AnalyticsIndexFeature)
+	suite.skipIfUnsupported(AnalyticsIndexLinksFeature)
+	suite.skipIfUnsupported(AnalyticsIndexLinksScopesFeature)
+
+	mgr := globalCluster.AnalyticsIndexes()
+
+	_, err := globalCluster.AnalyticsQuery(fmt.Sprintf("ALTER COLLECTION `%s`.`%s`.`%s` ENABLE ANALYTICS",
+		globalBucket.Name(),
+		globalScope.Name(),
+		globalCollection.Name()), nil)
+	suite.Require().Nil(err, err)
+
+	dataverse := globalBucket.Name() + "/" + globalScope.Name()
+
+	link := NewS3ExternalAnalyticsLink("s3LinkScope", dataverse, "accesskey",
+		"secretKey", "us-west", nil)
+
+	link2 := NewS3ExternalAnalyticsLink("s3LinkScope2", dataverse, "2",
+		"secretKey2", "us-east", &NewS3ExternalAnalyticsLinkOptions{ServiceEndpoint: "end"})
+
+	err = mgr.CreateLink(link, nil)
+	suite.Require().Nil(err, err)
+	err = mgr.CreateLink(link2, nil)
+	suite.Require().Nil(err, err)
+
+	err = mgr.CreateLink(link, nil)
+	if !errors.Is(err, ErrAnalyticsLinkExists) {
+		suite.T().Fatalf("Expected error to be link already exists but was %v", err)
+	}
+
+	links, err := mgr.GetLinks(nil)
+	suite.Require().Nil(err, err)
+
+	resultLink1 := &S3ExternalAnalyticsLink{
+		Dataverse:       link.Dataverse,
+		LinkName:        link.LinkName,
+		AccessKeyID:     link.AccessKeyID,
+		Region:          link.Region,
+		ServiceEndpoint: link.ServiceEndpoint,
+	}
+	resultLink2 := &S3ExternalAnalyticsLink{
+		Dataverse:       link2.Dataverse,
+		LinkName:        link2.LinkName,
+		AccessKeyID:     link2.AccessKeyID,
+		Region:          link2.Region,
+		ServiceEndpoint: link2.ServiceEndpoint,
+	}
+
+	suite.Require().Len(links, 2)
+	suite.Assert().Contains(links, resultLink1)
+	suite.Assert().Contains(links, resultLink2)
+
+	links, err = mgr.GetLinks(&GetAnalyticsLinksOptions{
+		Dataverse: dataverse,
+		Name:      link.Name(),
+		LinkType:  AnalyticsLinkTypeS3External,
+	})
+	suite.Require().Nil(err, err)
+
+	suite.Require().Len(links, 1)
+	suite.Assert().Contains(links, resultLink1)
+
+	rLink := NewS3ExternalAnalyticsLink("s3LinkScope", dataverse, "accesskey2",
+		"secretKey", "europe", nil)
+
+	err = mgr.ReplaceLink(rLink, nil)
+	suite.Require().Nil(err, err)
+
+	links, err = mgr.GetLinks(nil)
+	suite.Require().Nil(err, err)
+
+	suite.Require().Len(links, 2)
+
+	err = mgr.DropLink("s3LinkScope", dataverse, nil)
+	suite.Require().Nil(err, err)
+	err = mgr.DropLink("s3LinkScope2", dataverse, nil)
+	suite.Require().Nil(err, err)
+
+	escapedScope := url.PathEscape(dataverse)
+
+	suite.Require().Contains(suite.tracer.Spans, nil)
+	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Equal(10, len(nilParents))
+	suite.AssertHTTPOpSpan(nilParents[0], "analytics",
+		HTTPOpSpanExpectations{
+			statement:               "any",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             true,
+			service:                 "analytics",
+			dispatchOperationID:     "contextID",
+		})
+	suite.AssertHTTPOpSpan(nilParents[1], "manager_analytics_create_link",
+		HTTPOpSpanExpectations{
+			operationID:             "POST /analytics/link/" + escapedScope + "/s3LinkScope",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+	suite.AssertHTTPOpSpan(nilParents[2], "manager_analytics_create_link",
+		HTTPOpSpanExpectations{
+			operationID:             "POST /analytics/link/" + escapedScope + "/s3LinkScope2",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             true,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+	suite.AssertHTTPOpSpan(nilParents[3], "manager_analytics_create_link",
+		HTTPOpSpanExpectations{
+			operationID:             "POST /analytics/link/" + escapedScope + "/s3LinkScope",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             true,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+	suite.AssertHTTPOpSpan(nilParents[4], "manager_analytics_get_all_links",
+		HTTPOpSpanExpectations{
+			operationID:             "GET /analytics/link",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+	suite.AssertHTTPOpSpan(nilParents[5], "manager_analytics_get_all_links",
+		HTTPOpSpanExpectations{
+			operationID:             "GET /analytics/link/" + escapedScope + "/s3LinkScope" + "?type=s3",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+	suite.AssertHTTPOpSpan(nilParents[6], "manager_analytics_replace_link",
+		HTTPOpSpanExpectations{
+			operationID:             "PUT /analytics/link/" + escapedScope + "/s3LinkScope",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             true,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+	suite.AssertHTTPOpSpan(nilParents[7], "manager_analytics_get_all_links",
+		HTTPOpSpanExpectations{
+			operationID:             "GET /analytics/link",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+	suite.AssertHTTPOpSpan(nilParents[8], "manager_analytics_drop_link",
+		HTTPOpSpanExpectations{
+			operationID:             "DELETE /analytics/link/" + escapedScope + "/s3LinkScope",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+	suite.AssertHTTPOpSpan(nilParents[9], "manager_analytics_drop_link",
+		HTTPOpSpanExpectations{
+			operationID:             "DELETE /analytics/link/" + escapedScope + "/s3LinkScope2",
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "management",
+		})
+
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "analytics"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_create_link"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_replace_link"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_get_all_links"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_link"), 2, false)
+}
+
+func (suite *UnitTestSuite) TestAnalyticsIndexesCouchbaseLinksFormEncode() {
+	link := NewCouchbaseRemoteAnalyticsLink("link", "host", "scope",
+		&NewCouchbaseRemoteAnalyticsLinkOptions{
+			Username: "username",
+			Password: "password",
+		})
+
+	body, err := link.FormEncode()
+	suite.Require().Nil(err, err)
+	data := string(body)
+	q, err := url.ParseQuery(data)
+	suite.Require().Nil(err)
+
+	suite.Assert().Equal("host", q.Get("hostname"))
+	suite.Assert().Equal(string(AnalyticsLinkTypeCouchbaseRemote), q.Get("type"))
+	suite.Assert().Equal("none", q.Get("encryption"))
+	suite.Assert().Equal("username", q.Get("username"))
+	suite.Assert().Equal("password", q.Get("password"))
+
+	link = NewCouchbaseRemoteAnalyticsLink("link", "host", "scope",
+		&NewCouchbaseRemoteAnalyticsLinkOptions{
+			Encryption: CouchbaseRemoteAnalyticsEncryptionSettings{
+				EncryptionLevel:   AnalyticsEncryptionLevelFull,
+				Certificate:       []byte("certificate"),
+				ClientCertificate: []byte("clientcertificate"),
+				ClientKey:         []byte("clientkey"),
+			},
+		})
+
+	body, err = link.FormEncode()
+	suite.Require().Nil(err, err)
+	data = string(body)
+	q, err = url.ParseQuery(data)
+	suite.Require().Nil(err)
+
+	suite.Assert().Equal("host", q.Get("hostname"))
+	suite.Assert().Equal(string(AnalyticsLinkTypeCouchbaseRemote), q.Get("type"))
+	suite.Assert().Equal("full", q.Get("encryption"))
+	suite.Assert().Equal("certificate", q.Get("certificate"))
+	suite.Assert().Equal("clientcertificate", q.Get("clientCertificate"))
+	suite.Assert().Equal("clientkey", q.Get("clientKey"))
 }

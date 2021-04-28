@@ -65,6 +65,8 @@ var (
 	CollectionsQueryFeature                 = FeatureCode("collectionsquery")
 	CollectionsAnalyticsFeature             = FeatureCode("collectionsanalytics")
 	BucketMgrDurabilityFeature              = FeatureCode("bucketmgrdura")
+	AnalyticsIndexLinksFeature              = FeatureCode("analyticsindexlinks")
+	AnalyticsIndexLinksScopesFeature        = FeatureCode("analyticsindexscopeslinks")
 )
 
 type TestFeatureFlag struct {
@@ -171,6 +173,10 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case BucketMgrDurabilityFeature:
 			supported = false
+		case AnalyticsIndexLinksFeature:
+			supported = false
+		case AnalyticsIndexLinksScopesFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -240,6 +246,10 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer700)
 		case BucketMgrDurabilityFeature:
 			supported = !c.Version.Lower(srvVer660)
+		case AnalyticsIndexLinksFeature:
+			supported = !c.Version.Lower(srvVer660)
+		case AnalyticsIndexLinksScopesFeature:
+			supported = !c.Version.Lower(srvVer700)
 		}
 	}
 
