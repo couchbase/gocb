@@ -1,5 +1,5 @@
 devsetup:
-	go get github.com/golangci/golangci-lint/cmd/golangci-lint
+	go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.39.0
 	go get github.com/vektra/mockery/.../
 	git submodule update --remote --init --recursive
 
