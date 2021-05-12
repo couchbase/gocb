@@ -298,6 +298,7 @@ const (
 	spanAttribDBNameKey           = "db.name"
 	spanAttribDBCollectionNameKey = "db.couchbase.collection"
 	spanAttribDBScopeNameKey      = "db.couchbase.scope"
+	spanAttribDBDurability        = "db.couchbase.durability"
 
 	meterNameCBOperations       = "db.couchbase.operations"
 	meterAttribServiceKey       = "db.couchbase.service"

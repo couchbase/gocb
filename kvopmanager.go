@@ -114,6 +114,15 @@ func (m *kvOpManager) SetDuraOptions(persistTo, replicateTo uint, level Durabili
 	m.persistTo = persistTo
 	m.replicateTo = replicateTo
 	m.durabilityLevel = level
+
+	if level > DurabilityLevelNone {
+		levelStr, err := level.toManagementAPI()
+		if err != nil {
+			logDebugf("Could not convert durability level to string: %v", err)
+			return
+		}
+		m.span.SetAttribute(spanAttribDBDurability, levelStr)
+	}
 }
 
 func (m *kvOpManager) SetRetryStrategy(retryStrategy RetryStrategy) {

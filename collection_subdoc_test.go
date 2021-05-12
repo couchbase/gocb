@@ -94,10 +94,8 @@ func (suite *IntegrationTestSuite) TestInsertLookupIn() {
 	suite.Require().Contains(suite.tracer.Spans, nil)
 	nilParents := suite.tracer.Spans[nil]
 	suite.Require().Equal(len(nilParents), 2)
-	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), 1,
-		false, true)
-	suite.AssertKvOpSpan(nilParents[1], "lookup_in", memd.CmdSubDocMultiLookup.Name(), 1,
-		false, false)
+	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), 1, false, true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[1], "lookup_in", memd.CmdSubDocMultiLookup.Name(), 1, false, false, DurabilityLevelNone)
 }
 
 func (suite *IntegrationTestSuite) TestMutateInBasicCrud() {
@@ -189,13 +187,11 @@ func (suite *IntegrationTestSuite) TestMutateInBasicCrud() {
 	suite.Require().Contains(suite.tracer.Spans, nil)
 	nilParents := suite.tracer.Spans[nil]
 	suite.Require().Equal(len(nilParents), 3)
-	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), 1,
-		false, true)
-	suite.AssertKvSpan(nilParents[1], "mutate_in")
+	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), 1, false, true, DurabilityLevelNone)
+	suite.AssertKvSpan(nilParents[1], "mutate_in", DurabilityLevelNone)
 	suite.AssertEncodingSpansEq(nilParents[1].Spans, 7)
 	suite.AssertCmdSpansEq(nilParents[1].Spans, memd.CmdSubDocMultiMutation.Name(), 1)
-	suite.AssertKvOpSpan(nilParents[2], "get", memd.CmdGet.Name(), 1,
-		false, false)
+	suite.AssertKvOpSpan(nilParents[2], "get", memd.CmdGet.Name(), 1, false, false, DurabilityLevelNone)
 }
 
 func (suite *IntegrationTestSuite) TestMutateInBasicArray() {

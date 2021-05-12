@@ -71,8 +71,8 @@ func (tt *testTracer) Reset() {
 }
 
 func (suite *IntegrationTestSuite) AssertKvOpSpan(span *testSpan, opName, cmdName string, numCmdSpans int,
-	atLeastNumCmdSpans, hasEncoding bool) {
-	suite.AssertKvSpan(span, opName)
+	atLeastNumCmdSpans, hasEncoding bool, durability DurabilityLevel) {
+	suite.AssertKvSpan(span, opName, durability)
 
 	if hasEncoding {
 		suite.AssertEncodingSpansEq(span.Spans, 1)
@@ -114,7 +114,7 @@ func (suite *IntegrationTestSuite) RequireQueryMgmtOpSpan(span *testSpan, opName
 	return span.Spans[childType][0]
 }
 
-func (suite *IntegrationTestSuite) AssertKvSpan(span *testSpan, expectedName string) {
+func (suite *IntegrationTestSuite) AssertKvSpan(span *testSpan, expectedName string, durability DurabilityLevel) {
 	scope := globalConfig.Scope
 	if scope == "" {
 		scope = "_default"
@@ -124,13 +124,28 @@ func (suite *IntegrationTestSuite) AssertKvSpan(span *testSpan, expectedName str
 		col = "_default"
 	}
 	suite.Assert().Equal(expectedName, span.Name)
-	suite.Assert().Equal(6, len(span.Tags))
+
+	numTags := 6
+	if durability > DurabilityLevelNone {
+		numTags = 7
+	}
+
+	suite.Assert().Equal(numTags, len(span.Tags))
 	suite.Assert().Equal("couchbase", span.Tags["db.system"])
 	suite.Assert().Equal(globalConfig.Bucket, span.Tags["db.name"])
 	suite.Assert().Equal(scope, span.Tags["db.couchbase.scope"])
 	suite.Assert().Equal(col, span.Tags["db.couchbase.collection"])
 	suite.Assert().Equal("kv", span.Tags["db.couchbase.service"])
 	suite.Assert().Equal(expectedName, span.Tags["db.operation"])
+	if durability == DurabilityLevelNone {
+		suite.Assert().NotContains(span.Tags, "db.couchbase.durability")
+	} else {
+		if duraLevel, err := durability.toManagementAPI(); err == nil {
+			suite.Assert().Equal(duraLevel, span.Tags["db.couchbase.durability"])
+		} else {
+			logDebugf("Failed to get durability level: %v", err)
+		}
+	}
 	suite.Assert().True(span.Finished)
 }
 
