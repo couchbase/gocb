@@ -125,6 +125,11 @@ type CreateAnalyticsDataverseOptions struct {
 	Context context.Context
 }
 
+func (am *AnalyticsIndexManager) uncompoundName(dataverse string) string {
+	dvPieces := strings.Split(dataverse, "/")
+	return "`" + strings.Join(dvPieces, "`.`") + "`"
+}
+
 // CreateDataverse creates a new analytics dataset.
 func (am *AnalyticsIndexManager) CreateDataverse(dataverseName string, opts *CreateAnalyticsDataverseOptions) error {
 	if opts == nil {
@@ -145,7 +150,7 @@ func (am *AnalyticsIndexManager) CreateDataverse(dataverseName string, opts *Cre
 		ignoreStr = "IF NOT EXISTS"
 	}
 
-	q := fmt.Sprintf("CREATE DATAVERSE `%s` %s", dataverseName, ignoreStr)
+	q := fmt.Sprintf("CREATE DATAVERSE %s %s", am.uncompoundName(dataverseName), ignoreStr)
 
 	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_create_dataverse", "management")
 	defer span.End()
@@ -192,7 +197,7 @@ func (am *AnalyticsIndexManager) DropDataverse(dataverseName string, opts *DropA
 		ignoreStr = "IF EXISTS"
 	}
 
-	q := fmt.Sprintf("DROP DATAVERSE %s %s", dataverseName, ignoreStr)
+	q := fmt.Sprintf("DROP DATAVERSE %s %s", am.uncompoundName(dataverseName), ignoreStr)
 
 	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_drop_dataverse", "management")
 	defer span.End()
@@ -257,7 +262,7 @@ func (am *AnalyticsIndexManager) CreateDataset(datasetName, bucketName string, o
 	if opts.DataverseName == "" {
 		datasetName = fmt.Sprintf("`%s`", datasetName)
 	} else {
-		datasetName = fmt.Sprintf("`%s`.%s", opts.DataverseName, datasetName)
+		datasetName = fmt.Sprintf("%s.`%s`", am.uncompoundName(opts.DataverseName), datasetName)
 	}
 
 	q := fmt.Sprintf("CREATE DATASET %s %s ON `%s` %s", ignoreStr, datasetName, bucketName, where)
@@ -310,7 +315,7 @@ func (am *AnalyticsIndexManager) DropDataset(datasetName string, opts *DropAnaly
 	if opts.DataverseName == "" {
 		datasetName = fmt.Sprintf("`%s`", datasetName)
 	} else {
-		datasetName = fmt.Sprintf("`%s`.`%s`", opts.DataverseName, datasetName)
+		datasetName = fmt.Sprintf("%s.`%s`", am.uncompoundName(opts.DataverseName), datasetName)
 	}
 
 	q := fmt.Sprintf("DROP DATASET %s %s", datasetName, ignoreStr)
@@ -432,7 +437,7 @@ func (am *AnalyticsIndexManager) CreateIndex(datasetName, indexName string, fiel
 	if opts.DataverseName == "" {
 		datasetName = fmt.Sprintf("`%s`", datasetName)
 	} else {
-		datasetName = fmt.Sprintf("`%s`.`%s`", opts.DataverseName, datasetName)
+		datasetName = fmt.Sprintf("%s.`%s`", am.uncompoundName(opts.DataverseName), datasetName)
 	}
 
 	q := fmt.Sprintf("CREATE INDEX `%s` %s ON %s (%s)", indexName, ignoreStr, datasetName, strings.Join(indexFields, ","))
@@ -485,7 +490,7 @@ func (am *AnalyticsIndexManager) DropIndex(datasetName, indexName string, opts *
 	if opts.DataverseName == "" {
 		datasetName = fmt.Sprintf("`%s`", datasetName)
 	} else {
-		datasetName = fmt.Sprintf("`%s`.`%s`", opts.DataverseName, datasetName)
+		datasetName = fmt.Sprintf("%s.`%s`", am.uncompoundName(opts.DataverseName), datasetName)
 	}
 
 	q := fmt.Sprintf("DROP INDEX %s.%s %s", datasetName, indexName, ignoreStr)
@@ -561,7 +566,8 @@ func (am *AnalyticsIndexManager) GetAllIndexes(opts *GetAllAnalyticsIndexesOptio
 
 // ConnectAnalyticsLinkOptions is the set of options available to the AnalyticsManager ConnectLink operation.
 type ConnectAnalyticsLinkOptions struct {
-	LinkName string
+	LinkName      string
+	DataverseName string
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
@@ -582,11 +588,15 @@ func (am *AnalyticsIndexManager) ConnectLink(opts *ConnectAnalyticsLinkOptions) 
 	start := time.Now()
 	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_connect_link", start)
 
-	if opts.LinkName == "" {
-		opts.LinkName = "Local"
+	linkName := opts.LinkName
+	if linkName == "" {
+		linkName = "Local"
+	}
+	if opts.DataverseName != "" {
+		linkName = fmt.Sprintf("%s.`%s`", am.uncompoundName(opts.DataverseName), linkName)
 	}
 
-	q := fmt.Sprintf("CONNECT LINK %s", opts.LinkName)
+	q := fmt.Sprintf("CONNECT LINK %s", linkName)
 	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_connect_link", "management")
 	span.SetAttribute("db.statement", q)
 	defer span.End()
@@ -606,7 +616,8 @@ func (am *AnalyticsIndexManager) ConnectLink(opts *ConnectAnalyticsLinkOptions) 
 
 // DisconnectAnalyticsLinkOptions is the set of options available to the AnalyticsManager DisconnectLink operation.
 type DisconnectAnalyticsLinkOptions struct {
-	LinkName string
+	LinkName      string
+	DataverseName string
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
@@ -627,11 +638,15 @@ func (am *AnalyticsIndexManager) DisconnectLink(opts *DisconnectAnalyticsLinkOpt
 	start := time.Now()
 	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_disconnect_link", start)
 
-	if opts.LinkName == "" {
-		opts.LinkName = "Local"
+	linkName := opts.LinkName
+	if linkName == "" {
+		linkName = "Local"
+	}
+	if opts.DataverseName != "" {
+		linkName = fmt.Sprintf("%s.`%s`", am.uncompoundName(opts.DataverseName), linkName)
 	}
 
-	q := fmt.Sprintf("DISCONNECT LINK %s", opts.LinkName)
+	q := fmt.Sprintf("DISCONNECT LINK %s", linkName)
 	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_disconnect_link", "management")
 	defer span.End()
 

@@ -2,7 +2,6 @@ package gocb
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
 )
 
@@ -340,6 +339,163 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrud() {
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_index"), 3, false)
 }
 
+func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrudCompoundNames() {
+	suite.skipIfUnsupported(AnalyticsIndexFeature)
+	suite.skipIfUnsupported(AnalyticsIndexLinksScopesFeature)
+
+	mgr := globalCluster.AnalyticsIndexes()
+
+	dataverse := "namepart1/namepart2"
+	err := mgr.CreateDataverse(dataverse, nil)
+	if err != nil {
+		suite.T().Fatalf("Expected CreateDataverse to not error %v", err)
+	}
+
+	err = mgr.CreateDataset("testaset", globalBucket.Name(), &CreateAnalyticsDatasetOptions{
+		DataverseName: dataverse,
+	})
+	if err != nil {
+		suite.T().Fatalf("Expected CreateDataset to not error %v", err)
+	}
+
+	err = mgr.CreateIndex("testaset", "testindex", map[string]string{
+		"testkey": "string",
+	}, &CreateAnalyticsIndexOptions{
+		IgnoreIfExists: true,
+		DataverseName:  dataverse,
+	})
+	if err != nil {
+		suite.T().Fatalf("Expected CreateIndex to not error %v", err)
+	}
+
+	err = mgr.ConnectLink(&ConnectAnalyticsLinkOptions{
+		DataverseName: dataverse,
+	})
+	if err != nil {
+		suite.T().Fatalf("Expected ConnectLink to not error %v", err)
+	}
+
+	err = mgr.DisconnectLink(&DisconnectAnalyticsLinkOptions{
+		DataverseName: dataverse,
+	})
+	if err != nil {
+		suite.T().Fatalf("Expected DisconnectLink to not error %v", err)
+	}
+
+	err = mgr.DropIndex("testaset", "testindex", &DropAnalyticsIndexOptions{
+		IgnoreIfNotExists: true,
+		DataverseName:     dataverse,
+	})
+	if err != nil {
+		suite.T().Fatalf("Expected DropIndex to not error %v", err)
+	}
+
+	err = mgr.DropDataset("testaset", &DropAnalyticsDatasetOptions{
+		DataverseName: dataverse,
+	})
+	if err != nil {
+		suite.T().Fatalf("Expected DropDataset to not error %v", err)
+	}
+
+	err = mgr.DropDataverse(dataverse, nil)
+	if err != nil {
+		suite.T().Fatalf("Expected DropDataverse to not error %v", err)
+	}
+
+	suite.Require().Contains(suite.tracer.Spans, nil)
+	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Equal(8, len(nilParents))
+	span := suite.RequireQueryMgmtOpSpan(nilParents[0], "manager_analytics_create_dataverse", "analytics")
+	suite.AssertHTTPOpSpan(span, "analytics",
+		HTTPOpSpanExpectations{
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             true,
+			dispatchOperationID:     "any",
+			service:                 "analytics",
+			statement:               "any",
+		})
+	span = suite.RequireQueryMgmtOpSpan(nilParents[1], "manager_analytics_create_dataset", "analytics")
+	suite.AssertHTTPOpSpan(span, "analytics",
+		HTTPOpSpanExpectations{
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             true,
+			dispatchOperationID:     "any",
+			service:                 "analytics",
+			statement:               "any",
+		})
+	span = suite.RequireQueryMgmtOpSpan(nilParents[2], "manager_analytics_create_index", "analytics")
+	suite.AssertHTTPOpSpan(span, "analytics",
+		HTTPOpSpanExpectations{
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             true,
+			dispatchOperationID:     "any",
+			service:                 "analytics",
+			statement:               "any",
+		})
+	span = suite.RequireQueryMgmtOpSpan(nilParents[3], "manager_analytics_connect_link", "analytics")
+	suite.AssertHTTPOpSpan(span, "analytics",
+		HTTPOpSpanExpectations{
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "analytics",
+			statement:               "any",
+		})
+	span = suite.RequireQueryMgmtOpSpan(nilParents[4], "manager_analytics_disconnect_link", "analytics")
+	suite.AssertHTTPOpSpan(span, "analytics",
+		HTTPOpSpanExpectations{
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "analytics",
+			statement:               "any",
+		})
+	span = suite.RequireQueryMgmtOpSpan(nilParents[5], "manager_analytics_drop_index", "analytics")
+	suite.AssertHTTPOpSpan(span, "analytics",
+		HTTPOpSpanExpectations{
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "analytics",
+			statement:               "any",
+		})
+	span = suite.RequireQueryMgmtOpSpan(nilParents[6], "manager_analytics_drop_dataset", "analytics")
+	suite.AssertHTTPOpSpan(span, "analytics",
+		HTTPOpSpanExpectations{
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "analytics",
+			statement:               "any",
+		})
+	span = suite.RequireQueryMgmtOpSpan(nilParents[7], "manager_analytics_drop_dataverse", "analytics")
+	suite.AssertHTTPOpSpan(span, "analytics",
+		HTTPOpSpanExpectations{
+			numDispatchSpans:        1,
+			atLeastNumDispatchSpans: false,
+			hasEncoding:             false,
+			dispatchOperationID:     "any",
+			service:                 "analytics",
+			statement:               "any",
+		})
+
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_create_dataverse"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_create_dataset"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_create_index"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_connect_link"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_disconnect_link"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_dataverse"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_dataset"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_index"), 1, false)
+}
+
 func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 	suite.skipIfUnsupported(AnalyticsIndexFeature)
 	suite.skipIfUnsupported(AnalyticsIndexLinksFeature)
@@ -526,13 +682,12 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 
 	mgr := globalCluster.AnalyticsIndexes()
 
-	_, err := globalCluster.AnalyticsQuery(fmt.Sprintf("ALTER COLLECTION `%s`.`%s`.`%s` ENABLE ANALYTICS",
-		globalBucket.Name(),
-		globalScope.Name(),
-		globalCollection.Name()), nil)
-	suite.Require().Nil(err, err)
-
 	dataverse := globalBucket.Name() + "/" + globalScope.Name()
+	err := mgr.CreateDataverse(dataverse, &CreateAnalyticsDataverseOptions{
+		IgnoreIfExists: true,
+	})
+	suite.Require().Nil(err, err)
+	defer mgr.DropDataverse(dataverse, nil)
 
 	link := NewS3ExternalAnalyticsLink("s3LinkScope", dataverse, "accesskey",
 		"secretKey", "us-west", nil)
@@ -603,14 +758,15 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 	suite.Require().Contains(suite.tracer.Spans, nil)
 	nilParents := suite.tracer.Spans[nil]
 	suite.Require().Equal(10, len(nilParents))
-	suite.AssertHTTPOpSpan(nilParents[0], "analytics",
+	span := suite.RequireQueryMgmtOpSpan(nilParents[0], "manager_analytics_create_dataverse", "analytics")
+	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
-			statement:               "any",
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             true,
+			dispatchOperationID:     "any",
 			service:                 "analytics",
-			dispatchOperationID:     "contextID",
+			statement:               "any",
 		})
 	suite.AssertHTTPOpSpan(nilParents[1], "manager_analytics_create_link",
 		HTTPOpSpanExpectations{
@@ -694,7 +850,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 			service:                 "management",
 		})
 
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "analytics"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_create_dataverse"), 1, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_create_link"), 3, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_replace_link"), 1, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_get_all_links"), 3, false)
