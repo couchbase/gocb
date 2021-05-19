@@ -81,7 +81,7 @@ type SearchMetrics struct {
 func (metrics *SearchMetrics) fromData(data jsonSearchResponse) error {
 	metrics.TotalRows = data.TotalHits
 	metrics.MaxScore = data.MaxScore
-	metrics.Took = time.Duration(data.Took) * time.Microsecond
+	metrics.Took = time.Duration(data.Took) / time.Nanosecond
 
 	return nil
 }

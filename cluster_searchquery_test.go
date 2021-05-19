@@ -291,10 +291,10 @@ func (suite *UnitTestSuite) TestSearchQuery() {
 	metadata, err := result.MetaData()
 	suite.Require().Nil(err, err)
 
-	var meta SearchMetaData
-	err = meta.fromData(dataset.jsonSearchResponse)
-	suite.Require().Nil(err, err)
-	suite.Assert().Equal(&meta, metadata)
+	suite.Assert().Nil(metadata.Errors)
+	suite.Assert().Equal(uint64(809), metadata.Metrics.TotalRows)
+	suite.Assert().Equal(1.156383395549805, metadata.Metrics.MaxScore)
+	suite.Assert().Equal(time.Duration(62511375), metadata.Metrics.Took)
 
 	facets, err := result.Facets()
 	suite.Require().Nil(err, err)
