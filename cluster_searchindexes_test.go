@@ -131,7 +131,6 @@ func (suite *IntegrationTestSuite) TestSearchIndexesCrud() {
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_search_get_index"), 4, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_search_drop_index"), 3, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_search_get_all_indexes"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameResponses, "search", ""), 13, true)
 }
 
 func (suite *IntegrationTestSuite) TestSearchIndexesUpsertIndexNoName() {

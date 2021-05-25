@@ -96,7 +96,6 @@ func (suite *IntegrationTestSuite) runViewsTest(n int) {
 			})
 
 		suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "views", "views"), 1, false)
-		suite.AssertMetrics(makeMetricsKey(meterNameResponses, "views", ""), 1, true)
 	}
 
 	metadata, err := result.MetaData()

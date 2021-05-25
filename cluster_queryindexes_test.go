@@ -132,8 +132,6 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_query_get_all_indexes"), 1, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_query_drop_primary_index"), 2, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_query_drop_index"), 2, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameResponses, "query", ""), 12, true)
-	suite.AssertMetrics(makeMetricsKey(meterNameResponses, "management", ""), 1, false)
 }
 
 type testQueryIndexDataset struct {

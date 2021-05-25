@@ -109,13 +109,13 @@ func (span noopSpan) SetAttribute(key string, value interface{}) {
 func (span noopSpan) AddEvent(key string, timestamp time.Time) {
 }
 
-func createSpan(tracer RequestTracer, parent RequestSpan, operation, service string) RequestSpan {
+func createSpan(tracer RequestTracer, parent RequestSpan, operationType, service string) RequestSpan {
 	var tracectx RequestSpanContext
 	if parent != nil {
 		tracectx = parent.Context()
 	}
 
-	span := tracer.RequestSpan(tracectx, operation)
+	span := tracer.RequestSpan(tracectx, operationType)
 	span.SetAttribute(spanAttribDBSystemKey, spanAttribDBSystemValue)
 	if service != "" {
 		span.SetAttribute(spanAttribServiceKey, service)

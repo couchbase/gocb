@@ -49,7 +49,6 @@ func (suite *IntegrationTestSuite) runSearchTest(n int) {
 			})
 
 		suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "search", "search"), 1, false)
-		suite.AssertMetrics(makeMetricsKey(meterNameResponses, "search", ""), 1, true)
 
 		if err != nil {
 			sleepDeadline := time.Now().Add(1000 * time.Millisecond)

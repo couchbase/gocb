@@ -57,7 +57,6 @@ func (suite *IntegrationTestSuite) runAnalyticsTest(n int, query, bucket, scope 
 			})
 
 		suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "analytics"), 1, false)
-		suite.AssertMetrics(makeMetricsKey(meterNameResponses, "analytics", ""), 1, true)
 
 		var samples []interface{}
 		for result.Next() {

@@ -83,7 +83,8 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 			ZombieLoggerSampleSize: int(cluster.orphanLoggerSampleSize),
 			NoRootTraceSpans:       true,
 			Tracer:                 &coreRequestTracerWrapper{tracer: cluster.tracer},
-			Meter:                  &coreMeterWrapper{meter: cluster.meter},
+			// At the moment we only support our own operations metric so there's no point in setting a meter for gocbcore.
+			Meter: nil,
 			CircuitBreakerConfig: gocbcore.CircuitBreakerConfig{
 				Enabled:                  !breakerCfg.Disabled,
 				VolumeThreshold:          breakerCfg.VolumeThreshold,

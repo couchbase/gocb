@@ -74,7 +74,6 @@ func (suite *IntegrationTestSuite) runPreparedQueryTest(n int, query, bucket, sc
 			})
 
 		suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "query", "query"), 1, false)
-		suite.AssertMetrics(makeMetricsKey(meterNameResponses, "query", ""), 1, true)
 
 		var samples []interface{}
 		for result.Next() {
@@ -156,7 +155,6 @@ func (suite *IntegrationTestSuite) runQueryTest(n int, query, bucket, scope stri
 			})
 
 		suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "query", "query"), 1, false)
-		suite.AssertMetrics(makeMetricsKey(meterNameResponses, "query", ""), 1, true)
 
 		var samples []interface{}
 		for result.Next() {

@@ -159,9 +159,6 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_views_get_design_document"), 2, true)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_views_get_all_design_documents"), 1, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_views_drop_design_document"), 1, false)
-	// GetAllDesignDocuments goes via the management service rather than views.
-	suite.AssertMetrics(makeMetricsKey(meterNameResponses, "management", ""), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameResponses, "views", ""), 5, true)
 }
 
 func (suite *UnitTestSuite) TestViewIndexManagerGetDoesntExist() {

@@ -336,5 +336,4 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrud() {
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_dataverse"), 3, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_dataset"), 3, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_index"), 3, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameResponses, "analytics", ""), numResponses, false)
 }

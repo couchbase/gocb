@@ -201,7 +201,6 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 	meter := opts.Meter
 	if meter == nil {
 		agMeter := NewAggregatingMeter(nil)
-		agMeter.startLoggerRoutine()
 		meter = agMeter
 	}
 

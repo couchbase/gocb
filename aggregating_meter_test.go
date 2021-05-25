@@ -37,22 +37,22 @@ func (suite *UnitTestSuite) TestLatencyHistogramGreaterThanMax() {
 }
 
 func (suite *UnitTestSuite) TestAggregatingMeter() {
-	meter := NewAggregatingMeter(&AggregatingMeterOptions{
+	meter := newAggregatingMeter(&AggregatingMeterOptions{
 		EmitInterval: 10 * time.Second,
 	})
-	r1, err := meter.ValueRecorder(meterNameResponses, map[string]string{
-		meterAttribServiceKey: "kv",
-		meterAttribPeerName:   "127.0.0.1",
+	r1, err := meter.ValueRecorder(meterNameCBOperations, map[string]string{
+		meterAttribServiceKey:   "kv",
+		meterAttribOperationKey: "get",
 	})
 	suite.Require().Nil(err)
-	r2, err := meter.ValueRecorder(meterNameResponses, map[string]string{
-		meterAttribServiceKey: "kv",
-		meterAttribPeerName:   "127.0.0.2",
+	r2, err := meter.ValueRecorder(meterNameCBOperations, map[string]string{
+		meterAttribServiceKey:   "kv",
+		meterAttribOperationKey: "replace",
 	})
 	suite.Require().Nil(err)
-	r3, err := meter.ValueRecorder(meterNameResponses, map[string]string{
-		meterAttribServiceKey: "query",
-		meterAttribPeerName:   "127.0.0.1",
+	r3, err := meter.ValueRecorder(meterNameCBOperations, map[string]string{
+		meterAttribServiceKey:   "query",
+		meterAttribOperationKey: "query",
 	})
 	suite.Require().Nil(err)
 
@@ -81,13 +81,13 @@ func (suite *UnitTestSuite) TestAggregatingMeter() {
 	suite.Require().Contains(output, "query")
 	queryOutput := output["query"].(map[string]interface{})
 
-	suite.Require().Contains(kvOutput, "127.0.0.1")
-	suite.Require().Contains(queryOutput, "127.0.0.1")
-	suite.Require().Contains(kvOutput, "127.0.0.2")
+	suite.Require().Contains(kvOutput, "get")
+	suite.Require().Contains(queryOutput, "query")
+	suite.Require().Contains(kvOutput, "replace")
 
-	output1 := kvOutput["127.0.0.1"].(map[string]interface{})
-	output2 := kvOutput["127.0.0.2"].(map[string]interface{})
-	qoutput := queryOutput["127.0.0.1"].(map[string]interface{})
+	output1 := kvOutput["get"].(map[string]interface{})
+	output2 := kvOutput["replace"].(map[string]interface{})
+	qoutput := queryOutput["query"].(map[string]interface{})
 
 	suite.Assert().Equal(uint64(5), output1["total_count"])
 	suite.Assert().Equal(uint64(6), output2["total_count"])

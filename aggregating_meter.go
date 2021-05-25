@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -44,6 +45,13 @@ type AggregatingMeterOptions struct {
 }
 
 func NewAggregatingMeter(opts *AggregatingMeterOptions) *AggregatingMeter {
+	am := newAggregatingMeter(opts)
+	am.startLoggerRoutine()
+
+	return am
+}
+
+func newAggregatingMeter(opts *AggregatingMeterOptions) *AggregatingMeter {
 	if opts == nil {
 		opts = &AggregatingMeterOptions{}
 	}
@@ -97,7 +105,11 @@ func (am *AggregatingMeter) loggerRoutine() {
 			return
 		}
 
-		jsonBytes, err := json.Marshal(jsonData)
+		// If we don't do this then json.Marshal will escape any < and > characters.
+		jsonBytes := &bytes.Buffer{}
+		encoder := json.NewEncoder(jsonBytes)
+		encoder.SetEscapeHTML(false)
+		err := encoder.Encode(jsonData)
 		if err != nil {
 			logDebugf("Failed to generate threshold logging service JSON: %s", err)
 		}
@@ -120,7 +132,7 @@ func (am *AggregatingMeter) generateOutput() map[string]interface{} {
 			continue
 		}
 		for _, recorder := range recorders {
-			serviceMap[recorder.peerName] = recorder.GetAndResetValues()
+			serviceMap[recorder.operationName] = recorder.GetAndResetValues()
 		}
 		if len(serviceMap) > 0 {
 			output[serviceName] = serviceMap
@@ -135,7 +147,7 @@ func (am *AggregatingMeter) Counter(_ string, _ map[string]string) (Counter, err
 }
 
 func (am *AggregatingMeter) ValueRecorder(name string, tags map[string]string) (ValueRecorder, error) {
-	if name != meterNameResponses {
+	if name != meterNameCBOperations {
 		return defaultNoopValueRecorder, nil
 	}
 
@@ -148,17 +160,17 @@ func (am *AggregatingMeter) ValueRecorder(name string, tags map[string]string) (
 		return defaultNoopValueRecorder, nil
 	}
 
-	peerName, ok := tags[meterAttribPeerName]
+	operationName, ok := tags[meterAttribOperationKey]
 	if !ok {
 		return defaultNoopValueRecorder, nil
 	}
 	// We don't need to lock around accessing recorder groups itself, it must never be modified.
 	recorderGroup := am.valueRecorderGroups[service]
 	recorderGroup.lock.Lock()
-	recorder := recorderGroup.recorders[peerName]
+	recorder := recorderGroup.recorders[operationName]
 	if recorder == nil {
-		recorder = newAggregatingValueRecorder(peerName)
-		recorderGroup.recorders[peerName] = recorder
+		recorder = newAggregatingValueRecorder(operationName)
+		recorderGroup.recorders[operationName] = recorder
 	}
 	recorderGroup.lock.Unlock()
 
@@ -249,14 +261,14 @@ func (lhs *cumulativeLatencyHistogram) BinAtPercentile(percentile float64) strin
 }
 
 type aggregatingValueRecorder struct {
-	peerName string
-	hist     *latencyHistogram
+	operationName string
+	hist          *latencyHistogram
 }
 
-func newAggregatingValueRecorder(peerName string) *aggregatingValueRecorder {
+func newAggregatingValueRecorder(operationName string) *aggregatingValueRecorder {
 	return &aggregatingValueRecorder{
-		peerName: peerName,
-		hist:     newLatencyHistogram(2000000, 1000, 1.5),
+		operationName: operationName,
+		hist:          newLatencyHistogram(2000000, 1000, 1.5),
 	}
 }
 

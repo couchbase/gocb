@@ -113,7 +113,6 @@ func (suite *IntegrationTestSuite) TestBucketMgrOps() {
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_bucket_get_all_buckets"), 1, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_bucket_flush_bucket"), 1, true)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_bucket_drop_bucket"), 1, true)
-	suite.AssertMetrics(makeMetricsKey(meterNameResponses, "management", ""), 6, true)
 }
 
 func (suite *IntegrationTestSuite) TestBucketMgrFlushDisabled() {

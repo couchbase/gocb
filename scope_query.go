@@ -15,7 +15,7 @@ func (s *Scope) Query(statement string, opts *QueryOptions) (*QueryResult, error
 	start := time.Now()
 	defer valueRecord(s.meter, meterValueServiceQuery, "query", start)
 
-	span := createSpan(s.tracer, opts.ParentSpan, "query", "query")
+	span := createSpan(s.tracer, opts.ParentSpan, "", "query")
 	span.SetAttribute("db.statement", statement)
 	span.SetAttribute("db.name", s.BucketName())
 	span.SetAttribute("db.couchbase.scope", s.Name())

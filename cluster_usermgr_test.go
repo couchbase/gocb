@@ -82,7 +82,6 @@ func (suite *IntegrationTestSuite) TestUserManagerGroupCrud() {
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_get_all_groups"), 1, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_get_roles"), 1, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_drop_group"), 2, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameResponses, "management", ""), 8, true)
 }
 
 func (suite *IntegrationTestSuite) TestUserManagerWithGroupsCrud() {
@@ -335,7 +334,6 @@ func (suite *IntegrationTestSuite) TestUserManagerCrud() {
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_get_user"), 3, true)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_get_all_users"), 1, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_drop_user"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameResponses, "management", ""), 7, true)
 }
 
 func (suite *IntegrationTestSuite) TestUserManagerAvailableRoles() {
