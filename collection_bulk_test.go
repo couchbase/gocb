@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"fmt"
+	"github.com/couchbase/gocbcore/v9/memd"
 	"time"
 )
 
@@ -73,6 +74,23 @@ func (suite *IntegrationTestSuite) TestUpsertGetBulk() {
 			suite.T().Fatalf("Expected GetOp value to be test but was %s", val)
 		}
 	}
+
+	suite.Require().Contains(suite.tracer.Spans, nil)
+	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Equal(len(nilParents), 2)
+	suite.AssertKvSpan(nilParents[0], "bulk", DurabilityLevelNone)
+	suite.AssertKvSpan(nilParents[1], "bulk", DurabilityLevelNone)
+	suite.Require().Len(nilParents[0].Spans["upsert"], 20)
+	suite.Require().Len(nilParents[1].Spans["get"], 20)
+	for _, span := range nilParents[0].Spans["upsert"] {
+		suite.AssertKvOpSpan(span, "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
+	}
+	for _, span := range nilParents[1].Spans["get"] {
+		suite.AssertKvOpSpan(span, "get", memd.CmdGet.Name(), 1, false, false, DurabilityLevelNone)
+	}
+
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 20, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get", 20, false)
 }
 func (suite *IntegrationTestSuite) TestInsertDocsBulk() {
 	suite.skipIfUnsupported(KeyValueFeature)
@@ -100,8 +118,17 @@ func (suite *IntegrationTestSuite) TestInsertDocsBulk() {
 		if insertOp.Err != nil {
 			suite.T().Fatalf("Expected UpsertOp Err to be nil but was %v", insertOp.Err)
 		}
-
 	}
+	suite.Require().Contains(suite.tracer.Spans, nil)
+	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Equal(len(nilParents), 1)
+	suite.AssertKvSpan(nilParents[0], "bulk", DurabilityLevelNone)
+	suite.Require().Len(nilParents[0].Spans["insert"], 20)
+	for _, span := range nilParents[0].Spans["insert"] {
+		suite.AssertKvOpSpan(span, "insert", memd.CmdAdd.Name(), 1, false, true, DurabilityLevelNone)
+	}
+
+	suite.AssertKVMetrics(meterNameCBOperations, "insert", 20, false)
 }
 
 func (suite *IntegrationTestSuite) TestReplaceOperationBulk() {
@@ -154,8 +181,24 @@ func (suite *IntegrationTestSuite) TestReplaceOperationBulk() {
 		if replaceOp.Err != nil {
 			suite.T().Fatalf("Expected UpsertOp Err to be nil but was %v", replaceOp.Err)
 		}
-
 	}
+
+	suite.Require().Contains(suite.tracer.Spans, nil)
+	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Equal(len(nilParents), 2)
+	suite.AssertKvSpan(nilParents[0], "bulk", DurabilityLevelNone)
+	suite.AssertKvSpan(nilParents[1], "bulk", DurabilityLevelNone)
+	suite.Require().Len(nilParents[0].Spans["upsert"], 20)
+	suite.Require().Len(nilParents[1].Spans["replace"], 20)
+	for _, span := range nilParents[0].Spans["upsert"] {
+		suite.AssertKvOpSpan(span, "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
+	}
+	for _, span := range nilParents[1].Spans["replace"] {
+		suite.AssertKvOpSpan(span, "replace", memd.CmdReplace.Name(), 1, false, true, DurabilityLevelNone)
+	}
+
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 20, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "replace", 20, false)
 }
 
 func (suite *IntegrationTestSuite) TestRemoveOperationBulk() {
@@ -216,4 +259,21 @@ func (suite *IntegrationTestSuite) TestRemoveOperationBulk() {
 			suite.T().Fatalf("Expected RemoveOp Cas to be non zero")
 		}
 	}
+
+	suite.Require().Contains(suite.tracer.Spans, nil)
+	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Equal(len(nilParents), 2)
+	suite.AssertKvSpan(nilParents[0], "bulk", DurabilityLevelNone)
+	suite.AssertKvSpan(nilParents[1], "bulk", DurabilityLevelNone)
+	suite.Require().Len(nilParents[0].Spans["upsert"], 20)
+	suite.Require().Len(nilParents[1].Spans["remove"], 20)
+	for _, span := range nilParents[0].Spans["upsert"] {
+		suite.AssertKvOpSpan(span, "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
+	}
+	for _, span := range nilParents[1].Spans["remove"] {
+		suite.AssertKvOpSpan(span, "remove", memd.CmdDelete.Name(), 1, false, false, DurabilityLevelNone)
+	}
+
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 20, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "remove", 20, false)
 }

@@ -9,8 +9,8 @@ import (
 )
 
 type bulkOp struct {
-	pendop gocbcore.PendingOp
-	span   RequestSpan
+	pendop   gocbcore.PendingOp
+	finishFn func()
 }
 
 func (op *bulkOp) cancel() {
@@ -18,7 +18,7 @@ func (op *bulkOp) cancel() {
 }
 
 func (op *bulkOp) finish() {
-	op.span.End()
+	op.finishFn()
 }
 
 // BulkOp represents a single operation that can be submitted (within a list of more operations) to .Do()
@@ -59,6 +59,7 @@ func (c *Collection) Do(ops []BulkOp, opts *BulkOpOptions) error {
 	}
 
 	span := c.startKvOpTrace("bulk", tracectx, false)
+	defer span.End()
 
 	timeout := opts.Timeout
 	if opts.Timeout == 0 {
@@ -113,7 +114,11 @@ func (item *GetOp) markError(err error) {
 func (item *GetOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
 	span := startSpanFunc("get", tracectx, false)
-	item.bulkOp.span = span
+	start := time.Now()
+	item.bulkOp.finishFn = func() {
+		span.End()
+		valueRecord(c.meter, meterValueServiceKV, "get", start)
+	}
 
 	op, err := provider.Get(gocbcore.GetOptions{
 		Key:            []byte(item.ID),
@@ -162,7 +167,11 @@ func (item *GetAndTouchOp) markError(err error) {
 func (item *GetAndTouchOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
 	span := startSpanFunc("get_and_touch", tracectx, false)
-	item.bulkOp.span = span
+	start := time.Now()
+	item.bulkOp.finishFn = func() {
+		span.End()
+		valueRecord(c.meter, meterValueServiceKV, "get_and_touch", start)
+	}
 
 	op, err := provider.GetAndTouch(gocbcore.GetAndTouchOptions{
 		Key:            []byte(item.ID),
@@ -212,7 +221,11 @@ func (item *TouchOp) markError(err error) {
 func (item *TouchOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
 	span := startSpanFunc("touch", tracectx, false)
-	item.bulkOp.span = span
+	start := time.Now()
+	item.bulkOp.finishFn = func() {
+		span.End()
+		valueRecord(c.meter, meterValueServiceKV, "touch", start)
+	}
 
 	op, err := provider.Touch(gocbcore.TouchOptions{
 		Key:            []byte(item.ID),
@@ -267,7 +280,11 @@ func (item *RemoveOp) markError(err error) {
 func (item *RemoveOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
 	span := startSpanFunc("remove", tracectx, false)
-	item.bulkOp.span = span
+	start := time.Now()
+	item.bulkOp.finishFn = func() {
+		span.End()
+		valueRecord(c.meter, meterValueServiceKV, "remove", start)
+	}
 
 	op, err := provider.Delete(gocbcore.DeleteOptions{
 		Key:            []byte(item.ID),
@@ -324,7 +341,11 @@ func (item *UpsertOp) markError(err error) {
 func (item *UpsertOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder,
 	signal chan BulkOp, retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
 	span := startSpanFunc("upsert", tracectx, false)
-	item.bulkOp.span = span
+	start := time.Now()
+	item.bulkOp.finishFn = func() {
+		span.End()
+		valueRecord(c.meter, meterValueServiceKV, "upsert", start)
+	}
 
 	etrace := c.startKvOpTrace("request_encoding", span.Context(), true)
 	bytes, flags, err := transcoder.Encode(item.Value)
@@ -392,7 +413,11 @@ func (item *InsertOp) markError(err error) {
 func (item *InsertOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
 	span := startSpanFunc("insert", tracectx, false)
-	item.bulkOp.span = span
+	start := time.Now()
+	item.bulkOp.finishFn = func() {
+		span.End()
+		valueRecord(c.meter, meterValueServiceKV, "insert", start)
+	}
 
 	etrace := c.startKvOpTrace("request_encoding", span.Context(), true)
 	bytes, flags, err := transcoder.Encode(item.Value)
@@ -461,7 +486,11 @@ func (item *ReplaceOp) markError(err error) {
 func (item *ReplaceOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
 	span := startSpanFunc("replace", tracectx, false)
-	item.bulkOp.span = span
+	start := time.Now()
+	item.bulkOp.finishFn = func() {
+		span.End()
+		valueRecord(c.meter, meterValueServiceKV, "replace", start)
+	}
 
 	etrace := c.startKvOpTrace("request_encoding", span.Context(), true)
 	bytes, flags, err := transcoder.Encode(item.Value)
@@ -529,7 +558,11 @@ func (item *AppendOp) markError(err error) {
 func (item *AppendOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
 	span := startSpanFunc("append", tracectx, false)
-	item.bulkOp.span = span
+	start := time.Now()
+	item.bulkOp.finishFn = func() {
+		span.End()
+		valueRecord(c.meter, meterValueServiceKV, "append", start)
+	}
 
 	op, err := provider.Append(gocbcore.AdjoinOptions{
 		Key:            []byte(item.ID),
@@ -584,7 +617,11 @@ func (item *PrependOp) markError(err error) {
 func (item *PrependOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
 	span := startSpanFunc("prepend", tracectx, false)
-	item.bulkOp.span = span
+	start := time.Now()
+	item.bulkOp.finishFn = func() {
+		span.End()
+		valueRecord(c.meter, meterValueServiceKV, "prepend", start)
+	}
 
 	op, err := provider.Prepend(gocbcore.AdjoinOptions{
 		Key:            []byte(item.ID),
@@ -642,7 +679,11 @@ func (item *IncrementOp) markError(err error) {
 func (item *IncrementOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
 	span := startSpanFunc("increment", tracectx, false)
-	item.bulkOp.span = span
+	start := time.Now()
+	item.bulkOp.finishFn = func() {
+		span.End()
+		valueRecord(c.meter, meterValueServiceKV, "increment", start)
+	}
 
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
 	if item.Initial > 0 {
@@ -710,7 +751,11 @@ func (item *DecrementOp) markError(err error) {
 func (item *DecrementOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *retryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
 	span := startSpanFunc("decrement", tracectx, false)
-	item.bulkOp.span = span
+	start := time.Now()
+	item.bulkOp.finishFn = func() {
+		span.End()
+		valueRecord(c.meter, meterValueServiceKV, "decrement", start)
+	}
 
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
 	if item.Initial > 0 {
