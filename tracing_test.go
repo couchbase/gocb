@@ -215,7 +215,7 @@ func (suite *IntegrationTestSuite) AssertCmdSpansEq(parents map[RequestSpanConte
 	spans := parents[cmdName]
 	if suite.Assert().Equal(num, len(spans)) {
 		for i := 0; i < num; i++ {
-			suite.AssertCmdSpan(spans[i], cmdName)
+			suite.AssertCmdSpan(spans[i], cmdName, i)
 		}
 	}
 }
@@ -225,16 +225,17 @@ func (suite *IntegrationTestSuite) AssertCmdSpansGE(parents map[RequestSpanConte
 	spans := parents[cmdName]
 	if suite.Assert().GreaterOrEqual(len(spans), num) {
 		for i := 0; i < len(spans); i++ {
-			suite.AssertCmdSpan(spans[i], cmdName)
+			suite.AssertCmdSpan(spans[i], cmdName, i)
 		}
 	}
 }
 
-func (suite *IntegrationTestSuite) AssertCmdSpan(span *testSpan, expectedName string) {
+func (suite *IntegrationTestSuite) AssertCmdSpan(span *testSpan, expectedName string, numRetries int) {
 	suite.Assert().Equal(expectedName, span.Name)
-	suite.Assert().Equal(1, len(span.Tags))
+	suite.Assert().Equal(2, len(span.Tags))
 	suite.Assert().True(span.Finished)
 	suite.Assert().Equal("couchbase", span.Tags["db.system"])
+	suite.Assert().Equal(uint32(numRetries), span.Tags["db.couchbase.retries"])
 
 	suite.AssertKVDispatchSpansEQ(span.Spans, 1)
 }
