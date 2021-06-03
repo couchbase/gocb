@@ -404,7 +404,7 @@ func (c *Cluster) Close(opts *ClusterCloseOptions) error {
 		c.tracer = nil
 	}
 	if c.meter != nil {
-		if meter, ok := c.meter.(*AggregatingMeter); ok {
+		if meter, ok := c.meter.(*LoggingMeter); ok {
 			meter.close()
 		}
 		c.meter = nil

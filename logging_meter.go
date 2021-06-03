@@ -32,8 +32,8 @@ func (amg *aggregatingMeterGroup) Recorders() []*aggregatingValueRecorder {
 	return recorders
 }
 
-// AggregatingMeter is a Meter implementation providing a simplified, but useful, view into current SDK state.
-type AggregatingMeter struct {
+// LoggingMeter is a Meter implementation providing a simplified, but useful, view into current SDK state.
+type LoggingMeter struct {
 	interval time.Duration
 
 	valueRecorderGroups map[string]*aggregatingMeterGroup
@@ -44,14 +44,14 @@ type AggregatingMeterOptions struct {
 	EmitInterval time.Duration
 }
 
-func NewAggregatingMeter(opts *AggregatingMeterOptions) *AggregatingMeter {
+func NewAggregatingMeter(opts *AggregatingMeterOptions) *LoggingMeter {
 	am := newAggregatingMeter(opts)
 	am.startLoggerRoutine()
 
 	return am
 }
 
-func newAggregatingMeter(opts *AggregatingMeterOptions) *AggregatingMeter {
+func newAggregatingMeter(opts *AggregatingMeterOptions) *LoggingMeter {
 	if opts == nil {
 		opts = &AggregatingMeterOptions{}
 	}
@@ -59,7 +59,7 @@ func newAggregatingMeter(opts *AggregatingMeterOptions) *AggregatingMeter {
 	if interval == 0 {
 		interval = 10 * time.Minute
 	}
-	am := &AggregatingMeter{
+	am := &LoggingMeter{
 		interval: interval,
 		valueRecorderGroups: map[string]*aggregatingMeterGroup{
 			meterValueServiceKV: {
@@ -87,11 +87,11 @@ func newAggregatingMeter(opts *AggregatingMeterOptions) *AggregatingMeter {
 	return am
 }
 
-func (am *AggregatingMeter) startLoggerRoutine() {
+func (am *LoggingMeter) startLoggerRoutine() {
 	go am.loggerRoutine()
 }
 
-func (am *AggregatingMeter) loggerRoutine() {
+func (am *LoggingMeter) loggerRoutine() {
 	for {
 		select {
 		case <-am.stopCh:
@@ -118,7 +118,7 @@ func (am *AggregatingMeter) loggerRoutine() {
 	}
 }
 
-func (am *AggregatingMeter) generateOutput() map[string]interface{} {
+func (am *LoggingMeter) generateOutput() map[string]interface{} {
 	output := make(map[string]interface{})
 	output["meta"] = map[string]interface{}{
 		"emit_interval_s": am.interval,
@@ -142,11 +142,11 @@ func (am *AggregatingMeter) generateOutput() map[string]interface{} {
 	return output
 }
 
-func (am *AggregatingMeter) Counter(_ string, _ map[string]string) (Counter, error) {
+func (am *LoggingMeter) Counter(_ string, _ map[string]string) (Counter, error) {
 	return defaultNoopCounter, nil
 }
 
-func (am *AggregatingMeter) ValueRecorder(name string, tags map[string]string) (ValueRecorder, error) {
+func (am *LoggingMeter) ValueRecorder(name string, tags map[string]string) (ValueRecorder, error) {
 	if name != meterNameCBOperations {
 		return defaultNoopValueRecorder, nil
 	}
@@ -177,7 +177,7 @@ func (am *AggregatingMeter) ValueRecorder(name string, tags map[string]string) (
 	return recorder, nil
 }
 
-func (am *AggregatingMeter) close() {
+func (am *LoggingMeter) close() {
 	am.stopCh <- struct{}{}
 }
 
