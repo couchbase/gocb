@@ -61,12 +61,18 @@ func (suite *IntegrationTestSuite) runPreparedQueryTest(n int, query, bucket, sc
 		suite.Require().Contains(suite.tracer.Spans, nil)
 		nilParents := suite.tracer.Spans[nil]
 		suite.Require().Equal(1, len(nilParents))
+
+		numDispatchSpans := 1
+		if !globalCluster.SupportsFeature(EnhancedPreparedStatementsFeature) {
+			// Old style prepared statements means 2 requests.
+			numDispatchSpans = 2
+		}
 		suite.AssertHTTPOpSpan(nilParents[0], "query",
 			HTTPOpSpanExpectations{
 				bucket:                  bucket,
 				scope:                   scope,
 				statement:               query,
-				numDispatchSpans:        1,
+				numDispatchSpans:        numDispatchSpans,
 				atLeastNumDispatchSpans: false,
 				hasEncoding:             true,
 				service:                 "query",

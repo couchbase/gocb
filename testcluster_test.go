@@ -67,6 +67,7 @@ var (
 	BucketMgrDurabilityFeature              = FeatureCode("bucketmgrdura")
 	AnalyticsIndexLinksFeature              = FeatureCode("analyticsindexlinks")
 	AnalyticsIndexLinksScopesFeature        = FeatureCode("analyticsindexscopeslinks")
+	EnhancedPreparedStatementsFeature       = FeatureCode("enhancedpreparedstatements")
 )
 
 type TestFeatureFlag struct {
@@ -177,6 +178,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case AnalyticsIndexLinksScopesFeature:
 			supported = false
+		case EnhancedPreparedStatementsFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -250,6 +253,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer660)
 		case AnalyticsIndexLinksScopesFeature:
 			supported = !c.Version.Lower(srvVer700)
+		case EnhancedPreparedStatementsFeature:
+			supported = !c.Version.Lower(srvVer650)
 		}
 	}
 

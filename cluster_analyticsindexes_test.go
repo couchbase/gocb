@@ -277,7 +277,6 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrud() {
 				numDispatchSpans:        1,
 				atLeastNumDispatchSpans: false,
 				hasEncoding:             false,
-				dispatchOperationID:     "any",
 				service:                 "management",
 			})
 	}

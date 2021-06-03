@@ -102,6 +102,15 @@ func (suite *IntegrationTestSuite) AssertHTTPOpSpan(span *testSpan, opName strin
 	suite.AssertHTTPSpan(span, opName, expectations.bucket, expectations.scope, expectations.collection, expectations.service,
 		expectations.operationID, expectations.statement)
 
+	if expectations.hasEncoding {
+		suite.AssertEncodingSpansEq(span.Spans, 1)
+	}
+
+	if expectations.atLeastNumDispatchSpans {
+		suite.AssertHTTPDispatchSpansGE(span.Spans, expectations.numDispatchSpans, expectations.dispatchOperationID)
+	} else {
+		suite.AssertHTTPDispatchSpansEQ(span.Spans, expectations.numDispatchSpans, expectations.dispatchOperationID)
+	}
 }
 
 func (suite *IntegrationTestSuite) RequireQueryMgmtOpSpan(span *testSpan, opName, childType string) *testSpan {
@@ -298,7 +307,7 @@ func (suite *IntegrationTestSuite) AssertHTTPDispatchSpan(span *testSpan, operat
 	suite.Assert().Equal("IP.TCP", span.Tags["net.transport"])
 	suite.Assert().NotEmpty(span.Tags["net.peer.name"])
 	suite.Assert().NotEmpty(span.Tags["net.peer.port"])
-	spans := 4
+	spans := 5
 	if operationID == "" {
 		suite.Assert().NotContains(span.Tags, "db.couchbase.operation_id")
 	} else if operationID == "any" {
