@@ -60,8 +60,12 @@ type jsonSearchRow struct {
 	Fields      json.RawMessage        `json:"fields"`
 }
 
+type jsonSearchResponseStatus struct {
+	Errors map[string]string `json:"errors"`
+}
+
 type jsonSearchResponse struct {
-	Errors    map[string]string          `json:"errors"`
+	Status    jsonSearchResponseStatus   `json:"status,omitempty"`
 	TotalHits uint64                     `json:"total_hits"`
 	MaxScore  float64                    `json:"max_score"`
 	Took      uint64                     `json:"took"`
@@ -99,7 +103,7 @@ func (meta *SearchMetaData) fromData(data jsonSearchResponse) error {
 	}
 
 	meta.Metrics = metrics
-	meta.Errors = data.Errors
+	meta.Errors = data.Status.Errors
 
 	return nil
 }
