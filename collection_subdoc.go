@@ -162,6 +162,7 @@ type MutateInOptions struct {
 	Timeout         time.Duration
 	RetryStrategy   RetryStrategy
 	ParentSpan      RequestSpan
+	PreserveExpiry  bool
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
 	// also applies to global level timeouts.
@@ -189,6 +190,7 @@ func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptio
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
 	opm.SetContext(opts.Context)
+	opm.SetPreserveExpiry(opts.PreserveExpiry)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -252,11 +254,18 @@ func (c *Collection) internalMutateIn(
 	ops []MutateInSpec,
 	docFlags memd.SubdocDocFlag,
 ) (mutOut *MutateInResult, errOut error) {
+	preserveTTL := opm.PreserveExpiry()
 	if action == StoreSemanticsReplace {
 		// this is the default behaviour
+		if expiry > 0 && preserveTTL {
+			return nil, makeInvalidArgumentsError("cannot use preserve ttl with expiry for replace store semantics")
+		}
 	} else if action == StoreSemanticsUpsert {
 		docFlags |= memd.SubdocDocFlagMkDoc
 	} else if action == StoreSemanticsInsert {
+		if preserveTTL {
+			return nil, makeInvalidArgumentsError("cannot use preserve ttl with insert store semantics")
+		}
 		docFlags |= memd.SubdocDocFlagAddDoc
 	} else {
 		return nil, makeInvalidArgumentsError("invalid StoreSemantics value provided")
@@ -319,6 +328,7 @@ func (c *Collection) internalMutateIn(
 		TraceContext:           opm.TraceSpanContext(),
 		Deadline:               opm.Deadline(),
 		User:                   opm.Impersonate(),
+		PreserveExpiry:         preserveTTL,
 	}, func(res *gocbcore.MutateInResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)

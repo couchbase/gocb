@@ -68,6 +68,7 @@ var (
 	AnalyticsIndexLinksFeature              = FeatureCode("analyticsindexlinks")
 	AnalyticsIndexLinksScopesFeature        = FeatureCode("analyticsindexscopeslinks")
 	EnhancedPreparedStatementsFeature       = FeatureCode("enhancedpreparedstatements")
+	PreserveExpiryFeature                   = FeatureCode("preserveexpiry")
 )
 
 type TestFeatureFlag struct {
@@ -180,6 +181,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case EnhancedPreparedStatementsFeature:
 			supported = false
+		case PreserveExpiryFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -255,6 +258,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer700)
 		case EnhancedPreparedStatementsFeature:
 			supported = !c.Version.Lower(srvVer650)
+		case PreserveExpiryFeature:
+			supported = !c.Version.Lower(srvVer700)
 		}
 	}
 

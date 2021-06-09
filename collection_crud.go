@@ -125,6 +125,7 @@ type UpsertOptions struct {
 	Timeout         time.Duration
 	RetryStrategy   RetryStrategy
 	ParentSpan      RequestSpan
+	PreserveExpiry  bool
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
 	// also applies to global level timeouts.
@@ -154,6 +155,7 @@ func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mu
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
 	opm.SetContext(opts.Context)
+	opm.SetPreserveExpiry(opts.PreserveExpiry)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -176,6 +178,7 @@ func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mu
 		TraceContext:           opm.TraceSpanContext(),
 		Deadline:               opm.Deadline(),
 		User:                   opm.Impersonate(),
+		PreserveExpiry:         opm.PreserveExpiry(),
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)
@@ -206,6 +209,7 @@ type ReplaceOptions struct {
 	Timeout         time.Duration
 	RetryStrategy   RetryStrategy
 	ParentSpan      RequestSpan
+	PreserveExpiry  bool
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
 	// also applies to global level timeouts.
@@ -224,6 +228,10 @@ func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (
 		opts = &ReplaceOptions{}
 	}
 
+	if opts.Expiry > 0 && opts.PreserveExpiry {
+		return nil, makeInvalidArgumentsError("cannot use expiry and preserve ttl together for replace")
+	}
+
 	opm := c.newKvOpManager("replace", opts.ParentSpan)
 	defer opm.Finish(false)
 
@@ -235,6 +243,7 @@ func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
 	opm.SetContext(opts.Context)
+	opm.SetPreserveExpiry(opts.PreserveExpiry)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -258,6 +267,7 @@ func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (
 		TraceContext:           opm.TraceSpanContext(),
 		Deadline:               opm.Deadline(),
 		User:                   opm.Impersonate(),
+		PreserveExpiry:         opm.PreserveExpiry(),
 	}, func(res *gocbcore.StoreResult, err error) {
 		if err != nil {
 			errOut = opm.EnhanceErr(err)

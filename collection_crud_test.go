@@ -140,6 +140,44 @@ func (suite *IntegrationTestSuite) TestExpiryConversions() {
 	suite.AssertKVMetrics(meterNameCBOperations, "lookup_in", 3, false)
 }
 
+func (suite *IntegrationTestSuite) TestPreserveExpiry() {
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(XattrFeature)
+	suite.skipIfUnsupported(PreserveExpiryFeature)
+
+	var doc testBeerDocument
+	err := loadJSONTestDataset("beer_sample_single", &doc)
+	suite.Require().Nil(err, err)
+
+	start := time.Now()
+	mutRes, err := globalCollection.Upsert("preservettl", doc, &UpsertOptions{Expiry: 25 * time.Second})
+	suite.Require().Nil(err, err)
+
+	suite.Assert().NotZero(mutRes.Cas())
+
+	mutRes, err = globalCollection.Upsert("preservettl", doc, &UpsertOptions{PreserveExpiry: true})
+	suite.Require().Nil(err, err)
+
+	suite.Assert().NotZero(mutRes.Cas())
+
+	insertedDoc, err := globalCollection.Get("preservettl", &GetOptions{WithExpiry: true})
+	suite.Require().Nil(err, err)
+
+	suite.Assert().InDelta(start.Add(25*time.Second).Unix(), insertedDoc.ExpiryTime().Unix(), 5)
+
+	mutRes, err = globalCollection.Replace("preservettl", doc, &ReplaceOptions{PreserveExpiry: true})
+	suite.Require().Nil(err, err)
+
+	if mutRes.Cas() == 0 {
+		suite.T().Fatalf("Replace CAS was 0")
+	}
+
+	replacedDoc, err := globalCollection.Get("preservettl", &GetOptions{WithExpiry: true})
+	suite.Require().Nil(err, err)
+
+	suite.Assert().InDelta(start.Add(25*time.Second).Unix(), replacedDoc.ExpiryTime().Unix(), 5)
+}
+
 func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(XattrFeature)

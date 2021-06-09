@@ -35,6 +35,7 @@ type kvOpManager struct {
 	operationName string
 	createdTime   time.Time
 	meter         Meter
+	preserveTTL   bool
 
 	ctx context.Context
 }
@@ -148,6 +149,10 @@ func (m *kvOpManager) SetContext(ctx context.Context) {
 	m.ctx = ctx
 }
 
+func (m *kvOpManager) SetPreserveExpiry(preserveTTL bool) {
+	m.preserveTTL = preserveTTL
+}
+
 func (m *kvOpManager) Finish(noMetrics bool) {
 	m.span.End()
 
@@ -236,6 +241,10 @@ func (m *kvOpManager) RetryStrategy() *retryStrategyWrapper {
 
 func (m *kvOpManager) Impersonate() []byte {
 	return m.impersonate
+}
+
+func (m *kvOpManager) PreserveExpiry() bool {
+	return m.preserveTTL
 }
 
 func (m *kvOpManager) CheckReadyForOp() error {

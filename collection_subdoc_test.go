@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/couchbase/gocbcore/v9/memd"
 	"strings"
+	"time"
 )
 
 func (suite *IntegrationTestSuite) TestInsertLookupIn() {
@@ -572,5 +573,47 @@ func (suite *IntegrationTestSuite) TestMutateInBlankPathRemove() {
 	_, err = globalCollection.Get("mutateInBlankPathRemove", nil)
 	if !errors.Is(err, ErrDocumentNotFound) {
 		suite.T().Fatalf("Expected error to be doc not found but was %v", err)
+	}
+}
+
+func (suite *IntegrationTestSuite) TestPreserveExpiryMutateIn() {
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(XattrFeature)
+	suite.skipIfUnsupported(PreserveExpiryFeature)
+
+	var doc testBeerDocument
+	err := loadJSONTestDataset("beer_sample_single", &doc)
+	suite.Require().Nil(err, err)
+
+	start := time.Now()
+	mutRes, err := globalCollection.Upsert("preservettlmutatein", doc, &UpsertOptions{Expiry: 25 * time.Second})
+	suite.Require().Nil(err, err)
+
+	suite.Assert().NotZero(mutRes.Cas())
+
+	mutInRes, err := globalCollection.MutateIn("preservettlmutatein", []MutateInSpec{
+		UpsertSpec("test", "test", nil),
+	}, &MutateInOptions{PreserveExpiry: true})
+	suite.Require().Nil(err, err)
+
+	suite.Assert().NotZero(mutInRes.Cas())
+
+	mutatedDoc, err := globalCollection.Get("preservettlmutatein", &GetOptions{WithExpiry: true})
+	suite.Require().Nil(err, err)
+
+	suite.Assert().InDelta(start.Add(25*time.Second).Unix(), mutatedDoc.ExpiryTime().Unix(), 5)
+
+	_, err = globalCollection.MutateIn("preservettlmutatein", []MutateInSpec{
+		UpsertSpec("test", "test", nil),
+	}, &MutateInOptions{PreserveExpiry: true, StoreSemantic: StoreSemanticsInsert})
+	if !errors.Is(err, ErrInvalidArgument) {
+		suite.T().Fatalf("Expected invalid args error but was %v", err)
+	}
+
+	_, err = globalCollection.MutateIn("preservettlmutatein", []MutateInSpec{
+		UpsertSpec("test", "test", nil),
+	}, &MutateInOptions{PreserveExpiry: true, Expiry: 5 * time.Second})
+	if !errors.Is(err, ErrInvalidArgument) {
+		suite.T().Fatalf("Expected invalid args error but was %v", err)
 	}
 }
