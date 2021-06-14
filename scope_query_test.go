@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -34,7 +35,13 @@ func (suite *IntegrationTestSuite) setupScopeQuery() int {
 	suite.Require().Nil(err, "Failed to create dataset %v", err)
 
 	_, err = globalScope.Query(fmt.Sprintf("CREATE PRIMARY INDEX ON `%s`", globalCollection.Name()), nil)
-	suite.Require().Nil(err, "Failed to create index %v", err)
+	if err != nil {
+		mgr := globalCluster.QueryIndexes()
+		err = mgr.tryParseErrorMessage(err)
+		if !errors.Is(err, ErrIndexExists) {
+			suite.T().Fatalf("Failed to create index %v", err)
+		}
+	}
 
 	return n
 }
