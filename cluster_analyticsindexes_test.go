@@ -591,7 +591,6 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             true,
-			dispatchOperationID:     "any",
 			service:                 "management",
 		})
 	suite.AssertHTTPOpSpan(nilParents[2], "manager_analytics_create_link",
@@ -600,7 +599,6 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             true,
-			dispatchOperationID:     "any",
 			service:                 "management",
 		})
 	suite.AssertHTTPOpSpan(nilParents[3], "manager_analytics_create_link",
@@ -609,7 +607,6 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             true,
-			dispatchOperationID:     "any",
 			service:                 "management",
 		})
 	suite.AssertHTTPOpSpan(nilParents[4], "manager_analytics_get_all_links",
@@ -618,7 +615,6 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			dispatchOperationID:     "any",
 			service:                 "management",
 		})
 	suite.AssertHTTPOpSpan(nilParents[5], "manager_analytics_get_all_links",
@@ -627,7 +623,6 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			dispatchOperationID:     "any",
 			service:                 "management",
 		})
 	suite.AssertHTTPOpSpan(nilParents[6], "manager_analytics_replace_link",
@@ -636,7 +631,6 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             true,
-			dispatchOperationID:     "any",
 			service:                 "management",
 		})
 	suite.AssertHTTPOpSpan(nilParents[7], "manager_analytics_get_all_links",
@@ -645,7 +639,6 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			dispatchOperationID:     "any",
 			service:                 "management",
 		})
 	suite.AssertHTTPOpSpan(nilParents[8], "manager_analytics_drop_link",
@@ -654,7 +647,6 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			dispatchOperationID:     "any",
 			service:                 "management",
 		})
 	suite.AssertHTTPOpSpan(nilParents[9], "manager_analytics_drop_link",
@@ -663,7 +655,6 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			dispatchOperationID:     "any",
 			service:                 "management",
 		})
 
@@ -773,7 +764,6 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			dispatchOperationID:     "any",
 			service:                 "management",
 		})
 	suite.AssertHTTPOpSpan(nilParents[2], "manager_analytics_create_link",
@@ -782,7 +772,6 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             true,
-			dispatchOperationID:     "any",
 			service:                 "management",
 		})
 	suite.AssertHTTPOpSpan(nilParents[3], "manager_analytics_create_link",
@@ -791,7 +780,6 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             true,
-			dispatchOperationID:     "any",
 			service:                 "management",
 		})
 	suite.AssertHTTPOpSpan(nilParents[4], "manager_analytics_get_all_links",
@@ -800,7 +788,6 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			dispatchOperationID:     "any",
 			service:                 "management",
 		})
 	suite.AssertHTTPOpSpan(nilParents[5], "manager_analytics_get_all_links",
@@ -809,7 +796,6 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			dispatchOperationID:     "any",
 			service:                 "management",
 		})
 	suite.AssertHTTPOpSpan(nilParents[6], "manager_analytics_replace_link",
@@ -818,7 +804,6 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             true,
-			dispatchOperationID:     "any",
 			service:                 "management",
 		})
 	suite.AssertHTTPOpSpan(nilParents[7], "manager_analytics_get_all_links",
@@ -827,7 +812,6 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			dispatchOperationID:     "any",
 			service:                 "management",
 		})
 	suite.AssertHTTPOpSpan(nilParents[8], "manager_analytics_drop_link",
@@ -836,7 +820,6 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			dispatchOperationID:     "any",
 			service:                 "management",
 		})
 	suite.AssertHTTPOpSpan(nilParents[9], "manager_analytics_drop_link",
@@ -845,7 +828,6 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			dispatchOperationID:     "any",
 			service:                 "management",
 		})
 
