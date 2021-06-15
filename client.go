@@ -2,11 +2,9 @@ package gocb
 
 import (
 	"crypto/x509"
-	"sync"
-	"time"
-
-	gocbcore "github.com/couchbase/gocbcore/v9"
+	"github.com/couchbase/gocbcore/v9"
 	"github.com/pkg/errors"
+	"sync"
 )
 
 type connectionManager interface {
@@ -71,20 +69,21 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 
 	config := &gocbcore.AgentGroupConfig{
 		AgentConfig: gocbcore.AgentConfig{
-			UserAgent:              Identifier(),
-			TLSRootCAProvider:      tlsRootCAProvider,
-			ConnectTimeout:         cluster.timeoutsConfig.ConnectTimeout,
-			UseMutationTokens:      cluster.useMutationTokens,
-			KVConnectTimeout:       7000 * time.Millisecond,
-			UseDurations:           cluster.useServerDurations,
-			UseCollections:         true,
-			UseZombieLogger:        cluster.orphanLoggerEnabled,
-			ZombieLoggerInterval:   cluster.orphanLoggerInterval,
-			ZombieLoggerSampleSize: int(cluster.orphanLoggerSampleSize),
-			NoRootTraceSpans:       true,
-			Tracer:                 &coreRequestTracerWrapper{tracer: cluster.tracer},
-			// At the moment we only support our own operations metric so there's no point in setting a meter for gocbcore.
-			Meter: nil,
+			UserAgent: Identifier(),
+			SecurityConfig: gocbcore.SecurityConfig{
+				TLSRootCAProvider: tlsRootCAProvider,
+				AuthMechanisms:    authMechanisms,
+			},
+			IoConfig: gocbcore.IoConfig{
+				UseCollections:         true,
+				UseDurations:           cluster.useServerDurations,
+				UseMutationTokens:      cluster.useMutationTokens,
+				UseOutOfOrderResponses: true,
+			},
+			KVConfig: gocbcore.KVConfig{
+				ConnectTimeout: cluster.timeoutsConfig.ConnectTimeout,
+			},
+			DefaultRetryStrategy: cluster.retryStrategyWrapper,
 			CircuitBreakerConfig: gocbcore.CircuitBreakerConfig{
 				Enabled:                  !breakerCfg.Disabled,
 				VolumeThreshold:          breakerCfg.VolumeThreshold,
@@ -94,9 +93,19 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 				CanaryTimeout:            breakerCfg.CanaryTimeout,
 				CompletionCallback:       completionCallback,
 			},
-			DefaultRetryStrategy:   cluster.retryStrategyWrapper,
-			AuthMechanisms:         authMechanisms,
-			UseOutOfOrderResponses: true,
+			OrphanReporterConfig: gocbcore.OrphanReporterConfig{
+				Enabled:        cluster.orphanLoggerEnabled,
+				ReportInterval: cluster.orphanLoggerInterval,
+				SampleSize:     int(cluster.orphanLoggerSampleSize),
+			},
+			TracerConfig: gocbcore.TracerConfig{
+				NoRootTraceSpans: true,
+				Tracer:           &coreRequestTracerWrapper{tracer: cluster.tracer},
+			},
+			MeterConfig: gocbcore.MeterConfig{
+				// At the moment we only support our own operations metric so there's no point in setting a meter for gocbcore.
+				Meter: nil,
+			},
 		},
 	}
 
@@ -105,7 +114,7 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 		return err
 	}
 
-	config.Auth = &coreAuthWrapper{
+	config.SecurityConfig.Auth = &coreAuthWrapper{
 		auth: cluster.authenticator(),
 	}
 

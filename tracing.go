@@ -75,6 +75,10 @@ func (span *coreRequestSpanWrapper) AddEvent(key string, timestamp time.Time) {
 	span.span.SetAttribute(key, timestamp)
 }
 
+// TODO (chvck): Update this when SetStatus is added to gocb.
+func (span *coreRequestSpanWrapper) SetStatus(status gocbcore.SpanStatus) {
+}
+
 type noopSpan struct{}
 type noopSpanContext struct{}
 
