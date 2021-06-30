@@ -22,8 +22,8 @@ func (suite *IntegrationTestSuite) runViewsTest(n int) {
 	deadline := time.Now().Add(60 * time.Second)
 	var result *ViewResult
 	for {
-		suite.tracer.Reset()
-		suite.meter.Reset()
+		globalTracer.Reset()
+		globalMeter.Reset()
 		var err error
 		result, err = globalBucket.ViewQuery("ddoc_test", "test", &ViewOptions{
 			Timeout:   1 * time.Second,
@@ -81,8 +81,8 @@ func (suite *IntegrationTestSuite) runViewsTest(n int) {
 			return
 		}
 
-		suite.Require().Contains(suite.tracer.Spans, nil)
-		nilParents := suite.tracer.Spans[nil]
+		suite.Require().Contains(globalTracer.Spans, nil)
+		nilParents := globalTracer.Spans[nil]
 		suite.Require().Equal(1, len(nilParents))
 		suite.AssertHTTPOpSpan(nilParents[0], "views",
 			HTTPOpSpanExpectations{

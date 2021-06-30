@@ -2,6 +2,8 @@ package gocb
 
 import (
 	"flag"
+	"fmt"
+	gojcbmock "github.com/couchbase/gocbcore/v9/jcbmock"
 	"log"
 	"os"
 	"runtime"
@@ -12,6 +14,13 @@ import (
 )
 
 var globalConfig testConfig
+
+var globalBucket *Bucket
+var globalCollection *Collection
+var globalScope *Scope
+var globalCluster *testCluster
+var globalTracer *testTracer
+var globalMeter *testMeter
 
 type testConfig struct {
 	Server       string
@@ -104,7 +113,18 @@ func TestMain(m *testing.M) {
 	globalConfig.Scope = *scopeName
 	globalConfig.FeatureFlags = featureFlags
 
+	if !testing.Short() {
+		setupCluster()
+	}
+
 	result := m.Run()
+
+	if globalCluster != nil {
+		err := globalCluster.Close(nil)
+		if err != nil {
+			panic(err)
+		}
+	}
 
 	// Loop for at most a second checking for goroutines leaks, this gives any HTTP goroutines time to shutdown
 	start := time.Now()
@@ -148,4 +168,99 @@ func envFlagBool(envName, name string, value bool, usage string) *bool {
 		}
 	}
 	return flag.Bool(name, value, usage)
+}
+
+func setupCluster() {
+	var err error
+	var connStr string
+	var mock *gojcbmock.Mock
+	var auth PasswordAuthenticator
+	if globalConfig.Server == "" {
+		if globalConfig.Version != "" {
+			panic("version cannot be specified with mock")
+		}
+
+		mpath, err := gojcbmock.GetMockPath()
+		if err != nil {
+			panic(err.Error())
+		}
+
+		globalConfig.Bucket = "default"
+		mock, err = gojcbmock.NewMock(mpath, 4, 1, 64, []gojcbmock.BucketSpec{
+			{Name: "default", Type: gojcbmock.BCouchbase},
+		}...)
+		if err != nil {
+			panic(err.Error())
+		}
+
+		mock.Control(gojcbmock.NewCommand(gojcbmock.CSetCCCP,
+			map[string]interface{}{"enabled": "true"}))
+		mock.Control(gojcbmock.NewCommand(gojcbmock.CSetSASLMechanisms,
+			map[string]interface{}{"mechs": []string{"SCRAM-SHA512"}}))
+
+		globalConfig.Version = mock.Version()
+
+		var addrs []string
+		for _, mcport := range mock.MemcachedPorts() {
+			addrs = append(addrs, fmt.Sprintf("127.0.0.1:%d", mcport))
+		}
+		connStr = fmt.Sprintf("couchbase://%s", strings.Join(addrs, ","))
+		globalConfig.Server = connStr
+		auth = PasswordAuthenticator{
+			Username: "Administrator",
+			Password: "password",
+		}
+	} else {
+		connStr = globalConfig.Server
+
+		auth = PasswordAuthenticator{
+			Username: globalConfig.User,
+			Password: globalConfig.Password,
+		}
+
+		if globalConfig.Version == "" {
+			globalConfig.Version = defaultServerVersion
+		}
+	}
+
+	globalTracer = newTestTracer()
+	globalMeter = newTestMeter()
+
+	cluster, err := Connect(connStr, ClusterOptions{
+		Authenticator: auth,
+		Tracer:        globalTracer,
+		Meter:         globalMeter,
+	})
+	if err != nil {
+		panic(err.Error())
+	}
+
+	globalConfig.connstr = connStr
+	globalConfig.auth = auth
+
+	nodeVersion, err := newNodeVersion(globalConfig.Version, mock != nil)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	globalCluster = &testCluster{
+		Cluster:      cluster,
+		Mock:         mock,
+		Version:      nodeVersion,
+		FeatureFlags: globalConfig.FeatureFlags,
+	}
+
+	globalBucket = globalCluster.Bucket(globalConfig.Bucket)
+
+	if globalConfig.Scope != "" {
+		globalScope = globalBucket.Scope(globalConfig.Scope)
+	} else {
+		globalScope = globalBucket.DefaultScope()
+	}
+
+	if globalConfig.Collection != "" {
+		globalCollection = globalScope.Collection(globalConfig.Collection)
+	} else {
+		globalCollection = globalScope.Collection("_default")
+	}
 }

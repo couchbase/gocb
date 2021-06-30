@@ -94,8 +94,8 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 	})
 	suite.Require().Nil(err, err)
 
-	suite.Require().Contains(suite.tracer.Spans, nil)
-	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Contains(globalTracer.Spans, nil)
+	nilParents := globalTracer.Spans[nil]
 	suite.Require().Equal(4+numGetsPublished+numGetsStart, len(nilParents))
 	suite.AssertHTTPOpSpan(nilParents[0], "manager_views_upsert_design_document",
 		HTTPOpSpanExpectations{

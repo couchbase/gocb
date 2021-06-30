@@ -32,8 +32,8 @@ func (suite *IntegrationTestSuite) TestClusterAnalyticsQuery() {
 func (suite *IntegrationTestSuite) runAnalyticsTest(n int, query, bucket, scope string, provider analyticsIface) {
 	deadline := time.Now().Add(60 * time.Second)
 	for {
-		suite.tracer.Reset()
-		suite.meter.Reset()
+		globalTracer.Reset()
+		globalMeter.Reset()
 		contextID := "contextID"
 		result, err := provider.AnalyticsQuery(query, &AnalyticsOptions{
 			PositionalParameters: []interface{}{"analytics"},
@@ -41,8 +41,8 @@ func (suite *IntegrationTestSuite) runAnalyticsTest(n int, query, bucket, scope 
 		})
 		suite.Require().Nil(err, "Failed to execute query %v", err)
 
-		suite.Require().Contains(suite.tracer.Spans, nil)
-		nilParents := suite.tracer.Spans[nil]
+		suite.Require().Contains(globalTracer.Spans, nil)
+		nilParents := globalTracer.Spans[nil]
 		suite.Require().Equal(1, len(nilParents))
 		suite.AssertHTTPOpSpan(nilParents[0], "analytics",
 			HTTPOpSpanExpectations{

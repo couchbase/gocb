@@ -42,8 +42,8 @@ func (suite *IntegrationTestSuite) TestQuery() {
 func (suite *IntegrationTestSuite) runPreparedQueryTest(n int, query, bucket, scope string, queryFn queryIface, params interface{}) {
 	deadline := time.Now().Add(60 * time.Second)
 	for {
-		suite.tracer.Reset()
-		suite.meter.Reset()
+		globalTracer.Reset()
+		globalMeter.Reset()
 		contextID := "contextID"
 		opts := &QueryOptions{
 			Timeout:         5 * time.Second,
@@ -58,8 +58,8 @@ func (suite *IntegrationTestSuite) runPreparedQueryTest(n int, query, bucket, sc
 		result, err := queryFn.Query(query, opts)
 		suite.Require().Nil(err, "Failed to execute query %v", err)
 
-		suite.Require().Contains(suite.tracer.Spans, nil)
-		nilParents := suite.tracer.Spans[nil]
+		suite.Require().Contains(globalTracer.Spans, nil)
+		nilParents := globalTracer.Spans[nil]
 		suite.Require().Equal(1, len(nilParents))
 
 		numDispatchSpans := 1
@@ -127,8 +127,8 @@ func (suite *IntegrationTestSuite) runClusterPreparedQueryNamedTest(n int) {
 func (suite *IntegrationTestSuite) runQueryTest(n int, query, bucket, scope string, queryFn queryIface, withMetrics bool, params interface{}) {
 	deadline := time.Now().Add(60 * time.Second)
 	for {
-		suite.tracer.Reset()
-		suite.meter.Reset()
+		globalTracer.Reset()
+		globalMeter.Reset()
 		contextID := "contextID"
 		opts := &QueryOptions{
 			Timeout:         5 * time.Second,
@@ -145,8 +145,8 @@ func (suite *IntegrationTestSuite) runQueryTest(n int, query, bucket, scope stri
 		result, err := queryFn.Query(query, opts)
 		suite.Require().Nil(err, "Failed to execute query %v", err)
 
-		suite.Require().Contains(suite.tracer.Spans, nil)
-		nilParents := suite.tracer.Spans[nil]
+		suite.Require().Contains(globalTracer.Spans, nil)
+		nilParents := globalTracer.Spans[nil]
 		suite.Require().Equal(1, len(nilParents))
 		suite.AssertHTTPOpSpan(nilParents[0], "query",
 			HTTPOpSpanExpectations{

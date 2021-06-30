@@ -92,8 +92,8 @@ func (suite *IntegrationTestSuite) TestInsertLookupIn() {
 		suite.T().Fatalf("LookupIn Result count should have be 2 but was %d", count)
 	}
 
-	suite.Require().Contains(suite.tracer.Spans, nil)
-	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Contains(globalTracer.Spans, nil)
+	nilParents := globalTracer.Spans[nil]
 	suite.Require().Equal(len(nilParents), 2)
 	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), 1, false, true, DurabilityLevelNone)
 	suite.AssertKvOpSpan(nilParents[1], "lookup_in", memd.CmdSubDocMultiLookup.Name(), 1, false, false, DurabilityLevelNone)
@@ -185,8 +185,8 @@ func (suite *IntegrationTestSuite) TestMutateInBasicCrud() {
 		suite.T().Fatalf("results did not match, expected %#v but was %#v", expectedDoc, actualDoc)
 	}
 
-	suite.Require().Contains(suite.tracer.Spans, nil)
-	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Contains(globalTracer.Spans, nil)
+	nilParents := globalTracer.Spans[nil]
 	suite.Require().Equal(len(nilParents), 3)
 	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), 1, false, true, DurabilityLevelNone)
 	suite.AssertKvSpan(nilParents[1], "mutate_in", DurabilityLevelNone)

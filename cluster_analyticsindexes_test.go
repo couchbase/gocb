@@ -205,8 +205,8 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrud() {
 		spans = 23
 	}
 
-	suite.Require().Contains(suite.tracer.Spans, nil)
-	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Contains(globalTracer.Spans, nil)
+	nilParents := globalTracer.Spans[nil]
 	suite.Require().Equal(spans, len(nilParents))
 	span := suite.RequireQueryMgmtOpSpan(nilParents[0], "manager_analytics_create_dataverse", "analytics")
 	suite.AssertHTTPOpSpan(span, "analytics",
@@ -401,8 +401,8 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrudCompoundNames() {
 		suite.T().Fatalf("Expected DropDataverse to not error %v", err)
 	}
 
-	suite.Require().Contains(suite.tracer.Spans, nil)
-	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Contains(globalTracer.Spans, nil)
+	nilParents := globalTracer.Spans[nil]
 	suite.Require().Equal(8, len(nilParents))
 	span := suite.RequireQueryMgmtOpSpan(nilParents[0], "manager_analytics_create_dataverse", "analytics")
 	suite.AssertHTTPOpSpan(span, "analytics",
@@ -572,8 +572,8 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 	err = mgr.DropLink("s3Link2", dataverse, nil)
 	suite.Require().Nil(err, err)
 
-	suite.Require().Contains(suite.tracer.Spans, nil)
-	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Contains(globalTracer.Spans, nil)
+	nilParents := globalTracer.Spans[nil]
 	suite.Require().Equal(10, len(nilParents))
 	span := suite.RequireQueryMgmtOpSpan(nilParents[0], "manager_analytics_create_dataverse", "analytics")
 	suite.AssertHTTPOpSpan(span, "analytics",
@@ -745,8 +745,8 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 
 	escapedScope := url.PathEscape(dataverse)
 
-	suite.Require().Contains(suite.tracer.Spans, nil)
-	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Contains(globalTracer.Spans, nil)
+	nilParents := globalTracer.Spans[nil]
 	suite.Require().Equal(10, len(nilParents))
 	span := suite.RequireQueryMgmtOpSpan(nilParents[0], "manager_analytics_create_dataverse", "analytics")
 	suite.AssertHTTPOpSpan(span, "analytics",

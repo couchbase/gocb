@@ -24,8 +24,8 @@ func (suite *IntegrationTestSuite) runSearchTest(n int) {
 	query := search.NewTermQuery("search").Field("service")
 	var result *SearchResult
 	for {
-		suite.tracer.Reset()
-		suite.meter.Reset()
+		globalTracer.Reset()
+		globalMeter.Reset()
 		var err error
 		result, err = globalCluster.SearchQuery("search_test_index", query, &SearchOptions{
 			Timeout: 1 * time.Second,
@@ -36,8 +36,8 @@ func (suite *IntegrationTestSuite) runSearchTest(n int) {
 			},
 		})
 
-		suite.Require().Contains(suite.tracer.Spans, nil)
-		nilParents := suite.tracer.Spans[nil]
+		suite.Require().Contains(globalTracer.Spans, nil)
+		nilParents := globalTracer.Spans[nil]
 		suite.Require().Equal(1, len(nilParents))
 		suite.AssertHTTPOpSpan(nilParents[0], "search",
 			HTTPOpSpanExpectations{

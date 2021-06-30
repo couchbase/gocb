@@ -75,8 +75,8 @@ func (suite *IntegrationTestSuite) TestUpsertGetBulk() {
 		}
 	}
 
-	suite.Require().Contains(suite.tracer.Spans, nil)
-	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Contains(globalTracer.Spans, nil)
+	nilParents := globalTracer.Spans[nil]
 	suite.Require().Equal(len(nilParents), 2)
 	suite.AssertKvSpan(nilParents[0], "bulk", DurabilityLevelNone)
 	suite.AssertKvSpan(nilParents[1], "bulk", DurabilityLevelNone)
@@ -119,8 +119,8 @@ func (suite *IntegrationTestSuite) TestInsertDocsBulk() {
 			suite.T().Fatalf("Expected UpsertOp Err to be nil but was %v", insertOp.Err)
 		}
 	}
-	suite.Require().Contains(suite.tracer.Spans, nil)
-	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Contains(globalTracer.Spans, nil)
+	nilParents := globalTracer.Spans[nil]
 	suite.Require().Equal(len(nilParents), 1)
 	suite.AssertKvSpan(nilParents[0], "bulk", DurabilityLevelNone)
 	suite.Require().Len(nilParents[0].Spans["insert"], 20)
@@ -183,8 +183,8 @@ func (suite *IntegrationTestSuite) TestReplaceOperationBulk() {
 		}
 	}
 
-	suite.Require().Contains(suite.tracer.Spans, nil)
-	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Contains(globalTracer.Spans, nil)
+	nilParents := globalTracer.Spans[nil]
 	suite.Require().Equal(len(nilParents), 2)
 	suite.AssertKvSpan(nilParents[0], "bulk", DurabilityLevelNone)
 	suite.AssertKvSpan(nilParents[1], "bulk", DurabilityLevelNone)
@@ -260,8 +260,8 @@ func (suite *IntegrationTestSuite) TestRemoveOperationBulk() {
 		}
 	}
 
-	suite.Require().Contains(suite.tracer.Spans, nil)
-	nilParents := suite.tracer.Spans[nil]
+	suite.Require().Contains(globalTracer.Spans, nil)
+	nilParents := globalTracer.Spans[nil]
 	suite.Require().Equal(len(nilParents), 2)
 	suite.AssertKvSpan(nilParents[0], "bulk", DurabilityLevelNone)
 	suite.AssertKvSpan(nilParents[1], "bulk", DurabilityLevelNone)
