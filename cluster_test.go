@@ -47,3 +47,41 @@ func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyInvalidAuth() {
 	suite.Assert().GreaterOrEqual(int64(elapsed), int64(7*time.Second))
 	suite.Assert().LessOrEqual(int64(elapsed), int64(8*time.Second))
 }
+
+func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyFastFailAuth() {
+	suite.skipIfUnsupported(WaitUntilReadyFeature)
+	suite.skipIfUnsupported(WaitUntilReadyClusterFeature)
+
+	c, err := Connect(globalConfig.Server, ClusterOptions{Authenticator: PasswordAuthenticator{
+		Username: globalConfig.User,
+		Password: "thisisaprettyunlikelypasswordtobeused",
+	}})
+	suite.Require().Nil(err, err)
+	defer c.Close(nil)
+
+	err = c.WaitUntilReady(7*time.Second, &WaitUntilReadyOptions{
+		RetryStrategy: newFailFastRetryStrategy(),
+	})
+	if !errors.Is(err, ErrAuthenticationFailure) {
+		suite.T().Fatalf("Expected authentication error but was: %v", err)
+	}
+}
+
+func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyFastFailConnStr() {
+	suite.skipIfUnsupported(WaitUntilReadyFeature)
+	suite.skipIfUnsupported(WaitUntilReadyClusterFeature)
+
+	c, err := Connect("10.10.10.10", ClusterOptions{Authenticator: PasswordAuthenticator{
+		Username: globalConfig.User,
+		Password: globalConfig.Password,
+	}})
+	suite.Require().Nil(err, err)
+	defer c.Close(nil)
+
+	err = c.WaitUntilReady(7*time.Second, &WaitUntilReadyOptions{
+		RetryStrategy: newFailFastRetryStrategy(),
+	})
+	if !errors.Is(err, ErrTimeout) {
+		suite.T().Fatalf("Expected timeout error but was: %v", err)
+	}
+}

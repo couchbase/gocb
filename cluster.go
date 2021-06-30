@@ -337,6 +337,9 @@ type WaitUntilReadyOptions struct {
 	// Using a deadlined Context with WaitUntilReady will cause the shorter of the provided timeout and context deadline
 	// to cause cancellation.
 	Context context.Context
+
+	// VOLATILE: This API is subject to change at any time.
+	RetryStrategy RetryStrategy
 }
 
 // WaitUntilReady will wait for the cluster object to be ready for use.
@@ -366,18 +369,23 @@ func (c *Cluster) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOpti
 		desiredState = ClusterStateOnline
 	}
 
-	services := opts.ServiceTypes
-	gocbcoreServices := make([]gocbcore.ServiceType, len(services))
-	for i, svc := range services {
+	gocbcoreServices := make([]gocbcore.ServiceType, len(opts.ServiceTypes))
+	for i, svc := range opts.ServiceTypes {
 		gocbcoreServices[i] = gocbcore.ServiceType(svc)
+	}
+
+	wrapper := c.retryStrategyWrapper
+	if opts.RetryStrategy != nil {
+		wrapper = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
 	err = provider.WaitUntilReady(
 		opts.Context,
 		time.Now().Add(timeout),
 		gocbcore.WaitUntilReadyOptions{
-			DesiredState: gocbcore.ClusterState(desiredState),
-			ServiceTypes: gocbcoreServices,
+			DesiredState:  gocbcore.ClusterState(desiredState),
+			ServiceTypes:  gocbcoreServices,
+			RetryStrategy: wrapper,
 		},
 	)
 	if err != nil {
