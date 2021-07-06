@@ -284,7 +284,7 @@ func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*Ana
 	}
 
 	start := time.Now()
-	defer valueRecord(c.meter, meterValueServiceAnalytics, "analytics", start)
+	defer c.meter.ValueRecord(meterValueServiceAnalytics, "analytics", start)
 
 	span := createSpan(c.tracer, opts.ParentSpan, "analytics", "analytics")
 	span.SetAttribute("db.statement", statement)

@@ -206,7 +206,7 @@ func (suite *UnitTestSuite) bucket(name string, timeouts TimeoutsConfig, cli *mo
 		transcoder:           NewJSONTranscoder(),
 		retryStrategyWrapper: newRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
 		tracer:               &NoopTracer{},
-		meter:                &NoopMeter{},
+		meter:                &meterWrapper{meter: &NoopMeter{}},
 		useServerDurations:   true,
 		useMutationTokens:    true,
 
@@ -262,7 +262,7 @@ func (suite *UnitTestSuite) collection(bucket, scope, collection string, provide
 		},
 		transcoder:           NewJSONTranscoder(),
 		tracer:               &NoopTracer{},
-		meter:                &NoopMeter{},
+		meter:                &meterWrapper{meter: &NoopMeter{}},
 		retryStrategyWrapper: newRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
 	}
 }

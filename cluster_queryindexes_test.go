@@ -174,7 +174,7 @@ func (suite *UnitTestSuite) TestQueryIndexesParsing() {
 	mgr := QueryIndexManager{
 		provider: cluster,
 		tracer:   &NoopTracer{},
-		meter:    &NoopMeter{},
+		meter:    &meterWrapper{meter: &NoopMeter{}},
 	}
 
 	res, err := mgr.GetAllIndexes("mybucket", nil)

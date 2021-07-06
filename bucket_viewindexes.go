@@ -103,7 +103,7 @@ type ViewIndexManager struct {
 	bucketName   string
 
 	tracer RequestTracer
-	meter  Meter
+	meter  *meterWrapper
 }
 
 func (vm *ViewIndexManager) tryParseErrorMessage(req mgmtRequest, resp *mgmtResponse) error {
@@ -186,7 +186,7 @@ func (vm *ViewIndexManager) GetDesignDocument(name string, namespace DesignDocum
 	}
 
 	start := time.Now()
-	defer valueRecord(vm.meter, meterValueServiceManagement, "manager_views_get_design_document", start)
+	defer vm.meter.ValueRecord(meterValueServiceManagement, "manager_views_get_design_document", start)
 
 	return vm.getDesignDocument(name, namespace, time.Now(), opts)
 }
@@ -263,7 +263,7 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamesp
 	}
 
 	start := time.Now()
-	defer valueRecord(vm.meter, meterValueServiceManagement, "manager_views_get_all_design_documents", start)
+	defer vm.meter.ValueRecord(meterValueServiceManagement, "manager_views_get_all_design_documents", start)
 
 	path := fmt.Sprintf("/pools/default/buckets/%s/ddocs", vm.bucketName)
 	span := createSpan(vm.tracer, opts.ParentSpan, "manager_views_get_all_design_documents", "management")
@@ -366,7 +366,7 @@ func (vm *ViewIndexManager) UpsertDesignDocument(ddoc DesignDocument, namespace 
 	}
 
 	start := time.Now()
-	defer valueRecord(vm.meter, meterValueServiceManagement, "manager_views_upsert_design_document", start)
+	defer vm.meter.ValueRecord(meterValueServiceManagement, "manager_views_upsert_design_document", start)
 
 	return vm.upsertDesignDocument(ddoc, namespace, time.Now(), opts)
 }
@@ -443,7 +443,7 @@ func (vm *ViewIndexManager) DropDesignDocument(name string, namespace DesignDocu
 	}
 
 	start := time.Now()
-	defer valueRecord(vm.meter, meterValueServiceManagement, "manager_views_drop_design_document", start)
+	defer vm.meter.ValueRecord(meterValueServiceManagement, "manager_views_drop_design_document", start)
 
 	span := createSpan(vm.tracer, opts.ParentSpan, "manager_views_drop_design_document", "management")
 	span.SetAttribute("db.operation", "DELETE "+fmt.Sprintf("/_design/%s", name))
@@ -505,7 +505,7 @@ func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesi
 	}
 
 	start := time.Now()
-	defer valueRecord(vm.meter, meterValueServiceManagement, "manager_views_publish_design_document", start)
+	defer vm.meter.ValueRecord(meterValueServiceManagement, "manager_views_publish_design_document", start)
 
 	span := createSpan(vm.tracer, opts.ParentSpan, "manager_views_publish_design_document", "management")
 	span.SetAttribute("db.name", vm.bucketName)

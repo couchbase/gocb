@@ -210,7 +210,7 @@ func (bm *BucketManager) tryParseFlushErrorMessage(req *mgmtRequest, resp *mgmtR
 type BucketManager struct {
 	provider mgmtProvider
 	tracer   RequestTracer
-	meter    Meter
+	meter    *meterWrapper
 }
 
 // GetBucketOptions is the set of options available to the bucket manager GetBucket operation.
@@ -232,7 +232,7 @@ func (bm *BucketManager) GetBucket(bucketName string, opts *GetBucketOptions) (*
 	}
 
 	start := time.Now()
-	defer valueRecord(bm.meter, meterValueServiceManagement, "manager_bucket_get_bucket", start)
+	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_get_bucket", start)
 
 	path := fmt.Sprintf("/pools/default/buckets/%s", bucketName)
 	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_create_bucket", "management")
@@ -307,7 +307,7 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 	}
 
 	start := time.Now()
-	defer valueRecord(bm.meter, meterValueServiceManagement, "manager_bucket_get_all_buckets", start)
+	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_get_all_buckets", start)
 
 	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_get_all_buckets", "management")
 	span.SetAttribute("db.operation", "GET /pools/default/buckets")
@@ -385,7 +385,7 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 	}
 
 	start := time.Now()
-	defer valueRecord(bm.meter, meterValueServiceManagement, "manager_bucket_create_bucket", start)
+	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_create_bucket", start)
 
 	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_create_bucket", "management")
 	span.SetAttribute("db.name", settings.Name)
@@ -454,7 +454,7 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 	}
 
 	start := time.Now()
-	defer valueRecord(bm.meter, meterValueServiceManagement, "manager_bucket_update_bucket", start)
+	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_update_bucket", start)
 
 	path := fmt.Sprintf("/pools/default/buckets/%s", settings.Name)
 	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_update_bucket", "management")
@@ -520,7 +520,7 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 	}
 
 	start := time.Now()
-	defer valueRecord(bm.meter, meterValueServiceManagement, "manager_bucket_drop_bucket", start)
+	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_drop_bucket", start)
 
 	path := fmt.Sprintf("/pools/default/buckets/%s", name)
 	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_drop_bucket", "management")
@@ -576,7 +576,7 @@ func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) erro
 	}
 
 	start := time.Now()
-	defer valueRecord(bm.meter, meterValueServiceManagement, "manager_bucket_flush_bucket", start)
+	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_flush_bucket", start)
 
 	path := fmt.Sprintf("/pools/default/buckets/%s/controller/doFlush", name)
 	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_flush_bucket", "management")

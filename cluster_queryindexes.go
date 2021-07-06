@@ -15,7 +15,7 @@ type QueryIndexManager struct {
 
 	globalTimeout time.Duration
 	tracer        RequestTracer
-	meter         Meter
+	meter         *meterWrapper
 }
 
 type queryIndexQueryProvider interface {
@@ -168,7 +168,7 @@ func (qm *QueryIndexManager) createIndex(
 	}
 
 	start := time.Now()
-	defer valueRecord(qm.meter, meterValueServiceManagement, spanName, start)
+	defer qm.meter.ValueRecord(meterValueServiceManagement, spanName, start)
 
 	span := createSpan(qm.tracer, parent, spanName, "management")
 	defer span.End()
@@ -291,7 +291,7 @@ func (qm *QueryIndexManager) dropIndex(
 	}
 
 	start := time.Now()
-	defer valueRecord(qm.meter, meterValueServiceManagement, spanName, start)
+	defer qm.meter.ValueRecord(meterValueServiceManagement, spanName, start)
 
 	span := createSpan(qm.tracer, parent, spanName, "management")
 	defer span.End()
@@ -404,7 +404,7 @@ func (qm *QueryIndexManager) GetAllIndexes(bucketName string, opts *GetAllQueryI
 	}
 
 	start := time.Now()
-	defer valueRecord(qm.meter, meterValueServiceManagement, "manager_query_get_all_indexes", start)
+	defer qm.meter.ValueRecord(meterValueServiceManagement, "manager_query_get_all_indexes", start)
 
 	return qm.getAllIndexes(opts.Context, opts.ParentSpan, bucketName, opts)
 }
@@ -472,7 +472,7 @@ func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *Build
 	}
 
 	start := time.Now()
-	defer valueRecord(qm.meter, meterValueServiceManagement, "manager_query_build_deferred_indexes", start)
+	defer qm.meter.ValueRecord(meterValueServiceManagement, "manager_query_build_deferred_indexes", start)
 
 	span := createSpan(qm.tracer, opts.ParentSpan, "manager_query_build_deferred_indexes", "management")
 	defer span.End()
@@ -571,7 +571,7 @@ func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string,
 	}
 
 	start := time.Now()
-	defer valueRecord(qm.meter, meterValueServiceManagement, "manager_query_watch_indexes", start)
+	defer qm.meter.ValueRecord(meterValueServiceManagement, "manager_query_watch_indexes", start)
 
 	span := createSpan(qm.tracer, opts.ParentSpan, "manager_query_watch_indexes", "management")
 	defer span.End()

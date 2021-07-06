@@ -246,7 +246,7 @@ func (g *Group) fromData(data jsonGroup) error {
 type UserManager struct {
 	provider mgmtProvider
 	tracer   RequestTracer
-	meter    Meter
+	meter    *meterWrapper
 }
 
 func (um *UserManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
@@ -301,7 +301,7 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 	}
 
 	start := time.Now()
-	defer valueRecord(um.meter, meterValueServiceManagement, "manager_users_get_all_users", start)
+	defer um.meter.ValueRecord(meterValueServiceManagement, "manager_users_get_all_users", start)
 
 	path := fmt.Sprintf("/settings/rbac/users/%s", opts.DomainName)
 	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_get_all_users", "management")
@@ -376,7 +376,7 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 	}
 
 	start := time.Now()
-	defer valueRecord(um.meter, meterValueServiceManagement, "manager_users_get_user", start)
+	defer um.meter.ValueRecord(meterValueServiceManagement, "manager_users_get_user", start)
 
 	path := fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, name)
 	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_get_user", "management")
@@ -445,7 +445,7 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 	}
 
 	start := time.Now()
-	defer valueRecord(um.meter, meterValueServiceManagement, "manager_users_upsert_user", start)
+	defer um.meter.ValueRecord(meterValueServiceManagement, "manager_users_upsert_user", start)
 
 	if opts.DomainName == "" {
 		opts.DomainName = string(LocalDomain)
@@ -565,7 +565,7 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 	}
 
 	start := time.Now()
-	defer valueRecord(um.meter, meterValueServiceManagement, "manager_users_drop_user", start)
+	defer um.meter.ValueRecord(meterValueServiceManagement, "manager_users_drop_user", start)
 
 	path := fmt.Sprintf("/settings/rbac/users/%s/%s", opts.DomainName, name)
 	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_drop_user", "management")
@@ -618,7 +618,7 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 	}
 
 	start := time.Now()
-	defer valueRecord(um.meter, meterValueServiceManagement, "manager_users_get_roles", start)
+	defer um.meter.ValueRecord(meterValueServiceManagement, "manager_users_get_roles", start)
 
 	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_get_roles", "management")
 	span.SetAttribute("db.operation", "GET /settings/rbac/roles")
@@ -689,7 +689,7 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 	}
 
 	start := time.Now()
-	defer valueRecord(um.meter, meterValueServiceManagement, "manager_users_get_group", start)
+	defer um.meter.ValueRecord(meterValueServiceManagement, "manager_users_get_group", start)
 
 	path := fmt.Sprintf("/settings/rbac/groups/%s", groupName)
 	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_get_group", "management")
@@ -756,7 +756,7 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 	}
 
 	start := time.Now()
-	defer valueRecord(um.meter, meterValueServiceManagement, "manager_users_get_all_groups", start)
+	defer um.meter.ValueRecord(meterValueServiceManagement, "manager_users_get_all_groups", start)
 
 	path := "/settings/rbac/groups"
 	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_get_all_groups", "management")
@@ -828,7 +828,7 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 	}
 
 	start := time.Now()
-	defer valueRecord(um.meter, meterValueServiceManagement, "manager_users_upsert_group", start)
+	defer um.meter.ValueRecord(meterValueServiceManagement, "manager_users_upsert_group", start)
 
 	path := fmt.Sprintf("/settings/rbac/groups/%s", group.Name)
 	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_upsert_group", "management")
@@ -901,7 +901,7 @@ func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error
 	}
 
 	start := time.Now()
-	defer valueRecord(um.meter, meterValueServiceManagement, "manager_users_drop_group", start)
+	defer um.meter.ValueRecord(meterValueServiceManagement, "manager_users_drop_group", start)
 
 	path := fmt.Sprintf("/settings/rbac/groups/%s", groupName)
 	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_drop_group", "management")

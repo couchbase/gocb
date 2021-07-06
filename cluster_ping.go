@@ -16,7 +16,7 @@ func (c *Cluster) Ping(opts *PingOptions) (*PingResult, error) {
 	}
 
 	startTime := time.Now()
-	defer valueRecord(c.meter, meterValueServiceKV, "ping", startTime)
+	defer c.meter.ValueRecord(meterValueServiceKV, "ping", startTime)
 
 	span := createSpan(c.tracer, opts.ParentSpan, "ping", "kv")
 	defer span.End()

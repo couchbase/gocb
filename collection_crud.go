@@ -827,10 +827,7 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 
 	var recorder ValueRecorder
 	if !opts.noMetrics {
-		recorder, err = c.meter.ValueRecorder(meterNameCBOperations, map[string]string{
-			"db.couchbase.service": "kv",
-			"db.operation":         "get_all_replicas",
-		})
+		recorder, err = c.meter.ValueRecorder(meterValueServiceKV, "get_all_replicas")
 		if err != nil {
 			logDebugf("Failed to create value recorder: %v", err)
 		}
@@ -910,7 +907,7 @@ func (c *Collection) GetAnyReplica(id string, opts *GetAnyReplicaOptions) (docOu
 	}
 
 	start := time.Now()
-	defer valueRecord(c.meter, "kv", "get_any_replica", start)
+	defer c.meter.ValueRecord("kv", "get_any_replica", start)
 
 	var tracectx RequestSpanContext
 	if opts.ParentSpan != nil {

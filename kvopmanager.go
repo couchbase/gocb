@@ -34,7 +34,7 @@ type kvOpManager struct {
 
 	operationName string
 	createdTime   time.Time
-	meter         Meter
+	meter         *meterWrapper
 	preserveTTL   bool
 
 	ctx context.Context
@@ -157,16 +157,7 @@ func (m *kvOpManager) Finish(noMetrics bool) {
 	m.span.End()
 
 	if !noMetrics {
-		recorder, err := m.meter.ValueRecorder(meterNameCBOperations, map[string]string{
-			meterAttribServiceKey:   meterValueServiceKV,
-			meterAttribOperationKey: m.operationName,
-		})
-		if err != nil {
-			logDebugf("Failed to create value recorder: %v", err)
-			return
-		}
-
-		recorder.RecordValue(uint64(time.Since(m.createdTime).Microseconds()))
+		m.meter.ValueRecord(meterValueServiceKV, m.operationName, m.createdTime)
 	}
 }
 

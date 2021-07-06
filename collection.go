@@ -1,6 +1,8 @@
 package gocb
 
-import "time"
+import (
+	"time"
+)
 
 type kvTimeoutsConfig struct {
 	KVTimeout        time.Duration
@@ -18,7 +20,7 @@ type Collection struct {
 	transcoder           Transcoder
 	retryStrategyWrapper *retryStrategyWrapper
 	tracer               RequestTracer
-	meter                Meter
+	meter                *meterWrapper
 
 	useMutationTokens bool
 

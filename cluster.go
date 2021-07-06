@@ -32,7 +32,7 @@ type Cluster struct {
 	orphanLoggerSampleSize uint32
 
 	tracer RequestTracer
-	meter  Meter
+	meter  *meterWrapper
 
 	circuitBreakerConfig CircuitBreakerConfig
 	securityConfig       SecurityConfig
@@ -224,7 +224,7 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 		orphanLoggerSampleSize: opts.OrphanReporterConfig.SampleSize,
 		useServerDurations:     useServerDurations,
 		tracer:                 initialTracer,
-		meter:                  meter,
+		meter:                  newMeterWrapper(meter),
 		circuitBreakerConfig:   opts.CircuitBreakerConfig,
 		securityConfig:         opts.SecurityConfig,
 		internalConfig:         opts.InternalConfig,
@@ -404,7 +404,7 @@ func (c *Cluster) Close(opts *ClusterCloseOptions) error {
 		c.tracer = nil
 	}
 	if c.meter != nil {
-		if meter, ok := c.meter.(*LoggingMeter); ok {
+		if meter, ok := c.meter.meter.(*LoggingMeter); ok {
 			meter.close()
 		}
 		c.meter = nil

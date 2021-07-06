@@ -205,7 +205,7 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 	}
 
 	start := time.Now()
-	defer valueRecord(b.meter, meterValueServiceViews, "views", start)
+	defer b.meter.ValueRecord(meterValueServiceViews, "views", start)
 
 	designDoc = b.maybePrefixDevDocument(opts.Namespace, designDoc)
 

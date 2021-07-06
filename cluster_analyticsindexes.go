@@ -19,7 +19,7 @@ type AnalyticsIndexManager struct {
 
 	globalTimeout time.Duration
 	tracer        RequestTracer
-	meter         Meter
+	meter         *meterWrapper
 }
 
 type analyticsIndexQueryProvider interface {
@@ -143,7 +143,7 @@ func (am *AnalyticsIndexManager) CreateDataverse(dataverseName string, opts *Cre
 	}
 
 	start := time.Now()
-	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_create_dataverse", start)
+	defer am.meter.ValueRecord(meterValueServiceManagement, "manager_analytics_create_dataverse", start)
 
 	var ignoreStr string
 	if opts.IgnoreIfExists {
@@ -190,7 +190,7 @@ func (am *AnalyticsIndexManager) DropDataverse(dataverseName string, opts *DropA
 	}
 
 	start := time.Now()
-	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_drop_dataverse", start)
+	defer am.meter.ValueRecord(meterValueServiceManagement, "manager_analytics_drop_dataverse", start)
 
 	var ignoreStr string
 	if opts.IgnoreIfNotExists {
@@ -244,7 +244,7 @@ func (am *AnalyticsIndexManager) CreateDataset(datasetName, bucketName string, o
 	}
 
 	start := time.Now()
-	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_create_dataset", start)
+	defer am.meter.ValueRecord(meterValueServiceManagement, "manager_analytics_create_dataset", start)
 
 	var ignoreStr string
 	if opts.IgnoreIfExists {
@@ -305,7 +305,7 @@ func (am *AnalyticsIndexManager) DropDataset(datasetName string, opts *DropAnaly
 	}
 
 	start := time.Now()
-	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_drop_dataset", start)
+	defer am.meter.ValueRecord(meterValueServiceManagement, "manager_analytics_drop_dataset", start)
 
 	var ignoreStr string
 	if opts.IgnoreIfNotExists {
@@ -355,7 +355,7 @@ func (am *AnalyticsIndexManager) GetAllDatasets(opts *GetAllAnalyticsDatasetsOpt
 	}
 
 	start := time.Now()
-	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_get_all_datasets", start)
+	defer am.meter.ValueRecord(meterValueServiceManagement, "manager_analytics_get_all_datasets", start)
 
 	q := "SELECT d.* FROM Metadata.`Dataset` d WHERE d.DataverseName <> \"Metadata\""
 	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_get_all_datasets", "management")
@@ -422,7 +422,7 @@ func (am *AnalyticsIndexManager) CreateIndex(datasetName, indexName string, fiel
 	}
 
 	start := time.Now()
-	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_create_index", start)
+	defer am.meter.ValueRecord(meterValueServiceManagement, "manager_analytics_create_index", start)
 
 	var ignoreStr string
 	if opts.IgnoreIfExists {
@@ -480,7 +480,7 @@ func (am *AnalyticsIndexManager) DropIndex(datasetName, indexName string, opts *
 	}
 
 	start := time.Now()
-	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_drop_index", start)
+	defer am.meter.ValueRecord(meterValueServiceManagement, "manager_analytics_drop_index", start)
 
 	var ignoreStr string
 	if opts.IgnoreIfNotExists {
@@ -531,7 +531,7 @@ func (am *AnalyticsIndexManager) GetAllIndexes(opts *GetAllAnalyticsIndexesOptio
 	}
 
 	start := time.Now()
-	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_get_all_indexes", start)
+	defer am.meter.ValueRecord(meterValueServiceManagement, "manager_analytics_get_all_indexes", start)
 
 	q := "SELECT d.* FROM Metadata.`Index` d WHERE d.DataverseName <> \"Metadata\""
 	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_get_all_indexes", "management")
@@ -586,7 +586,7 @@ func (am *AnalyticsIndexManager) ConnectLink(opts *ConnectAnalyticsLinkOptions) 
 	}
 
 	start := time.Now()
-	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_connect_link", start)
+	defer am.meter.ValueRecord(meterValueServiceManagement, "manager_analytics_connect_link", start)
 
 	linkName := opts.LinkName
 	if linkName == "" {
@@ -636,7 +636,7 @@ func (am *AnalyticsIndexManager) DisconnectLink(opts *DisconnectAnalyticsLinkOpt
 	}
 
 	start := time.Now()
-	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_disconnect_link", start)
+	defer am.meter.ValueRecord(meterValueServiceManagement, "manager_analytics_disconnect_link", start)
 
 	linkName := opts.LinkName
 	if linkName == "" {
@@ -682,7 +682,7 @@ func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAn
 	}
 
 	start := time.Now()
-	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_get_pending_mutations", start)
+	defer am.meter.ValueRecord(meterValueServiceManagement, "manager_analytics_get_pending_mutations", start)
 
 	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_get_pending_mutations", "management")
 	span.SetAttribute("db.operation", "GET /analytics/node/agg/stats/remaining")
@@ -839,7 +839,7 @@ func (am *AnalyticsIndexManager) CreateLink(link AnalyticsLink, opts *CreateAnal
 	}
 
 	start := time.Now()
-	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_create_link", start)
+	defer am.meter.ValueRecord(meterValueServiceManagement, "manager_analytics_create_link", start)
 
 	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_create_link", "management")
 	defer span.End()
@@ -906,7 +906,7 @@ func (am *AnalyticsIndexManager) ReplaceLink(link AnalyticsLink, opts *ReplaceAn
 	}
 
 	start := time.Now()
-	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_replace_link", start)
+	defer am.meter.ValueRecord(meterValueServiceManagement, "manager_analytics_replace_link", start)
 
 	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_replace_link", "management")
 	defer span.End()
@@ -975,7 +975,7 @@ func (am *AnalyticsIndexManager) DropLink(linkName, dataverseName string, opts *
 	}
 
 	start := time.Now()
-	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_drop_link", start)
+	defer am.meter.ValueRecord(meterValueServiceManagement, "manager_analytics_drop_link", start)
 
 	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_drop_link", "management")
 	defer span.End()
@@ -1055,7 +1055,7 @@ func (am *AnalyticsIndexManager) GetLinks(opts *GetAnalyticsLinksOptions) ([]Ana
 	}
 
 	start := time.Now()
-	defer valueRecord(am.meter, meterValueServiceManagement, "manager_analytics_get_all_links", start)
+	defer am.meter.ValueRecord(meterValueServiceManagement, "manager_analytics_get_all_links", start)
 
 	timeout := opts.Timeout
 	if timeout == 0 {

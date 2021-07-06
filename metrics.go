@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"github.com/couchbase/gocbcore/v9"
+	"sync"
 	"time"
 )
 
@@ -102,11 +103,48 @@ func (nm *coreValueRecorderWrapper) RecordValue(val uint64) {
 	nm.valueRecorder.RecordValue(val)
 }
 
-func valueRecord(meter Meter, service, operation string, start time.Time) {
-	recorder, err := meter.ValueRecorder(meterNameCBOperations, map[string]string{
-		meterAttribServiceKey:   service,
-		meterAttribOperationKey: operation,
-	})
+type meterWrapper struct {
+	attribsCache sync.Map
+	meter        Meter
+	isNoopMeter  bool
+}
+
+func newMeterWrapper(meter Meter) *meterWrapper {
+	_, ok := meter.(*NoopMeter)
+	return &meterWrapper{
+		meter:       meter,
+		isNoopMeter: ok,
+	}
+}
+
+func (mw *meterWrapper) ValueRecorder(service, operation string) (ValueRecorder, error) {
+	if mw.isNoopMeter {
+		// If it's a noop meter then let's not pay the overhead of creating and caching attributes.
+		return defaultNoopValueRecorder, nil
+	}
+
+	key := service + "." + operation
+	attribs, ok := mw.attribsCache.Load(key)
+	if !ok {
+		// It doesn't really matter if we end up storing the attribs against the same key multiple times. We just need
+		// to have a read efficient cache that doesn't cause actual data races.
+		attribs = map[string]string{
+			meterAttribServiceKey:   service,
+			meterAttribOperationKey: operation,
+		}
+		mw.attribsCache.Store(key, attribs)
+	}
+
+	recorder, err := mw.meter.ValueRecorder(meterNameCBOperations, attribs.(map[string]string))
+	if err != nil {
+		return nil, err
+	}
+
+	return recorder, nil
+}
+
+func (mw *meterWrapper) ValueRecord(service, operation string, start time.Time) {
+	recorder, err := mw.ValueRecorder(service, operation)
 	if err != nil {
 		logDebugf("Failed to create value recorder: %v", err)
 		return

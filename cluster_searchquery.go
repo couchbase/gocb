@@ -400,7 +400,7 @@ func (c *Cluster) SearchQuery(indexName string, query cbsearch.Query, opts *Sear
 	}
 
 	start := time.Now()
-	defer valueRecord(c.meter, meterValueServiceSearch, "search", start)
+	defer c.meter.ValueRecord(meterValueServiceSearch, "search", start)
 
 	span := createSpan(c.tracer, opts.ParentSpan, "search", "search")
 	span.SetAttribute("db.operation", indexName)
