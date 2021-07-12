@@ -5,6 +5,7 @@ import (
 	"fmt"
 	gojcbmock "github.com/couchbase/gocbcore/v9/jcbmock"
 	"log"
+	"net/http"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -210,6 +211,10 @@ func setupCluster() {
 			Username: "Administrator",
 			Password: "password",
 		}
+
+		// gocb itself doesn't use the default client but the mock downloader does so let's make sure that it
+		// doesn't hold any goroutines open which will affect our goroutine leak detector.
+		http.DefaultClient.CloseIdleConnections()
 	} else {
 		connStr = globalConfig.Server
 
