@@ -69,13 +69,9 @@ type jsonGroup struct {
 
 // Role represents a specific permission.
 type Role struct {
-	Name   string `json:"role"`
-	Bucket string `json:"bucket_name"`
-
-	// UNCOMMITTED: This API may change in the future.
-	Scope string `json:"scope_name"`
-
-	// UNCOMMITTED: This API may change in the future.
+	Name       string `json:"role"`
+	Bucket     string `json:"bucket_name"`
+	Scope      string `json:"scope_name"`
 	Collection string `json:"collection_name"`
 }
 

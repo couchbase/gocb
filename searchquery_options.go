@@ -57,7 +57,6 @@ type SearchOptions struct {
 
 	DisableScoring bool
 
-	// UNCOMMITTED: This API may change in the future.
 	Collections []string
 
 	ParentSpan RequestSpan

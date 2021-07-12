@@ -1,7 +1,6 @@
 package gocb
 
 // Scope represents a single scope within a bucket.
-// VOLATILE: This API is subject to change at any time.
 type Scope struct {
 	scopeName string
 	bucket    *Bucket
@@ -52,7 +51,6 @@ func (s *Scope) BucketName() string {
 }
 
 // Collection returns an instance of a collection.
-// VOLATILE: This API is subject to change at any time.
 func (s *Scope) Collection(collectionName string) *Collection {
 	return newCollection(s, collectionName)
 }

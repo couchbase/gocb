@@ -28,7 +28,6 @@ func tracerDecRef(tracer RequestTracer) {
 }
 
 // RequestTracer describes the tracing abstraction in the SDK.
-// UNCOMMITTED: This API may change in the future.
 type RequestTracer interface {
 	RequestSpan(parentContext RequestSpanContext, operationName string) RequestSpan
 }

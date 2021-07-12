@@ -54,7 +54,6 @@ func (c *Collection) name() string {
 }
 
 // ScopeName returns the name of the scope to which this collection belongs.
-// UNCOMMITTED: This API may change in the future.
 func (c *Collection) ScopeName() string {
 	return c.scope
 }

@@ -106,19 +106,16 @@ func (b *Bucket) Name() string {
 }
 
 // Scope returns an instance of a Scope.
-// VOLATILE: This API is subject to change at any time.
 func (b *Bucket) Scope(scopeName string) *Scope {
 	return newScope(b, scopeName)
 }
 
 // DefaultScope returns an instance of the default scope.
-// VOLATILE: This API is subject to change at any time.
 func (b *Bucket) DefaultScope() *Scope {
 	return b.Scope("_default")
 }
 
 // Collection returns an instance of a collection from within the default scope.
-// VOLATILE: This API is subject to change at any time.
 func (b *Bucket) Collection(collectionName string) *Collection {
 	return b.DefaultScope().Collection(collectionName)
 }

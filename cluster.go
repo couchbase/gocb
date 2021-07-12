@@ -108,7 +108,6 @@ type ClusterOptions struct {
 	RetryStrategy RetryStrategy
 
 	// Tracer specifies the tracer to use for requests.
-	// UNCOMMITTED: This API may change in the future.
 	Tracer RequestTracer
 
 	Meter Meter

@@ -6,7 +6,6 @@ import (
 )
 
 // Query executes the query statement on the server, constraining the query to the bucket and scope.
-// VOLATILE: This API is subject to change at any time.
 func (s *Scope) Query(statement string, opts *QueryOptions) (*QueryResult, error) {
 	if opts == nil {
 		opts = &QueryOptions{}
