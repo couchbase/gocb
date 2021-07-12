@@ -3,6 +3,7 @@ package gocb
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -64,6 +65,10 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 			Username: "Administrator",
 			Password: "password",
 		}
+
+		// gocb itself doesn't use the default client but the mock downloader does so let's make sure that it
+		// doesn't hold any goroutines open which will affect our goroutine leak detector.
+		http.DefaultClient.CloseIdleConnections()
 	} else {
 		connStr = globalConfig.Server
 
