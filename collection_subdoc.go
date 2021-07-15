@@ -6,9 +6,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/couchbase/gocbcore/v9/memd"
+	"github.com/couchbase/gocbcore/v10/memd"
 
-	"github.com/couchbase/gocbcore/v9"
+	"github.com/couchbase/gocbcore/v10"
 )
 
 // LookupInOptions are the set of options available to LookupIn.

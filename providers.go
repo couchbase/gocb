@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v9"
+	gocbcore "github.com/couchbase/gocbcore/v10"
 )
 
 // NOTE: context in these provider functions can be passed as a nil value.

@@ -1,6 +1,6 @@
 package gocb
 
-import "github.com/couchbase/gocbcore/v9/memd"
+import "github.com/couchbase/gocbcore/v10/memd"
 
 func (suite *IntegrationTestSuite) TestBinaryAppend() {
 	suite.skipIfUnsupported(KeyValueFeature)

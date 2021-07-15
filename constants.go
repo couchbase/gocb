@@ -2,13 +2,13 @@ package gocb
 
 import (
 	"fmt"
-	gocbcore "github.com/couchbase/gocbcore/v9"
-	"github.com/couchbase/gocbcore/v9/memd"
+	gocbcore "github.com/couchbase/gocbcore/v10"
+	"github.com/couchbase/gocbcore/v10/memd"
 	"time"
 )
 
 const (
-	goCbVersionStr = "v2.2.3"
+	goCbVersionStr = "v2.3.0"
 
 	durabilityTimeoutFloor = 1500 * time.Millisecond
 )

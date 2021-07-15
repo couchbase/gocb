@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v9"
+	gocbcore "github.com/couchbase/gocbcore/v10"
 )
 
 type jsonQueryMetrics struct {

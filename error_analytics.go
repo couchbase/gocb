@@ -2,7 +2,7 @@ package gocb
 
 import (
 	"encoding/json"
-	gocbcore "github.com/couchbase/gocbcore/v9"
+	gocbcore "github.com/couchbase/gocbcore/v10"
 )
 
 // AnalyticsErrorDesc represents a specific error returned from the analytics service.

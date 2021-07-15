@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/mock"
 
-	gocbcore "github.com/couchbase/gocbcore/v9"
+	gocbcore "github.com/couchbase/gocbcore/v10"
 	"github.com/pkg/errors"
 )
 

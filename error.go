@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	gocbcore "github.com/couchbase/gocbcore/v9"
+	gocbcore "github.com/couchbase/gocbcore/v10"
 )
 
 type wrappedError struct {

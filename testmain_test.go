@@ -3,7 +3,7 @@ package gocb
 import (
 	"flag"
 	"fmt"
-	gojcbmock "github.com/couchbase/gocbcore/v9/jcbmock"
+	gojcbmock "github.com/couchbase/gocbcore/v10/jcbmock"
 	"log"
 	"net/http"
 	"os"

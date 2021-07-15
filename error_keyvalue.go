@@ -2,7 +2,7 @@ package gocb
 
 import (
 	"encoding/json"
-	"github.com/couchbase/gocbcore/v9/memd"
+	"github.com/couchbase/gocbcore/v10/memd"
 )
 
 // KeyValueError wraps key-value errors that occur within the SDK.

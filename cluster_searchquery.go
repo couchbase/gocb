@@ -7,7 +7,7 @@ import (
 	"time"
 
 	cbsearch "github.com/couchbase/gocb/v2/search"
-	gocbcore "github.com/couchbase/gocbcore/v9"
+	gocbcore "github.com/couchbase/gocbcore/v10"
 )
 
 type jsonRowLocation struct {

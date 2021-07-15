@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v9"
-	"github.com/couchbase/gocbcore/v9/memd"
+	gocbcore "github.com/couchbase/gocbcore/v10"
+	"github.com/couchbase/gocbcore/v10/memd"
 
 	"github.com/pkg/errors"
 )

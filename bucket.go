@@ -3,7 +3,7 @@ package gocb
 import (
 	"time"
 
-	"github.com/couchbase/gocbcore/v9"
+	"github.com/couchbase/gocbcore/v10"
 )
 
 // Bucket represents a single bucket within a cluster.

@@ -1,6 +1,6 @@
 package gocb
 
-import "github.com/couchbase/gocbcore/v9"
+import "github.com/couchbase/gocbcore/v10"
 
 func (suite *UnitTestSuite) TestCollectionInternal_BucketCapabilityStatus_Supported() {
 	provider := new(mockKvCapabilityVerifier)

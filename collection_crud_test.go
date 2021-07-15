@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/couchbase/gocbcore/v9/memd"
+	"github.com/couchbase/gocbcore/v10/memd"
 	"reflect"
 	"strings"
 	"testing"
@@ -12,7 +12,7 @@ import (
 
 	"github.com/stretchr/testify/mock"
 
-	"github.com/couchbase/gocbcore/v9"
+	"github.com/couchbase/gocbcore/v10"
 )
 
 func (suite *IntegrationTestSuite) TestErrorNonExistant() {

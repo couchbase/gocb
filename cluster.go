@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v9"
-	gocbconnstr "github.com/couchbase/gocbcore/v9/connstr"
+	gocbcore "github.com/couchbase/gocbcore/v10"
+	gocbconnstr "github.com/couchbase/gocbcore/v10/connstr"
 	"github.com/pkg/errors"
 )
 

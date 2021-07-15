@@ -2,7 +2,7 @@ package gocb
 
 import (
 	"encoding/json"
-	gocbcore "github.com/couchbase/gocbcore/v9"
+	gocbcore "github.com/couchbase/gocbcore/v10"
 )
 
 // ViewErrorDesc represents a specific error returned from the views service.

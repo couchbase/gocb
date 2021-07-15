@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	gocbcore "github.com/couchbase/gocbcore/v9"
+	gocbcore "github.com/couchbase/gocbcore/v10"
 )
 
 func (suite *UnitTestSuite) TestMutationState_Add() {

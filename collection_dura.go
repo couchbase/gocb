@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v9"
+	gocbcore "github.com/couchbase/gocbcore/v10"
 )
 
 func (c *Collection) observeOnceSeqNo(

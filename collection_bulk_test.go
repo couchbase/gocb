@@ -2,7 +2,7 @@ package gocb
 
 import (
 	"fmt"
-	"github.com/couchbase/gocbcore/v9/memd"
+	"github.com/couchbase/gocbcore/v10/memd"
 	"time"
 )
 

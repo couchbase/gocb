@@ -3,7 +3,7 @@
 package gocb
 
 import (
-	gocbcore "github.com/couchbase/gocbcore/v9"
+	gocbcore "github.com/couchbase/gocbcore/v10"
 	mock "github.com/stretchr/testify/mock"
 )
 

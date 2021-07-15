@@ -1,6 +1,6 @@
 package gocb
 
-import "github.com/couchbase/gocbcore/v9"
+import "github.com/couchbase/gocbcore/v10"
 
 type kvCapabilityVerifier interface {
 	BucketCapabilityStatus(cap gocbcore.BucketCapability) gocbcore.BucketCapabilityStatus
