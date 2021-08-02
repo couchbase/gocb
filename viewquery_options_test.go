@@ -68,7 +68,7 @@ func (suite *UnitTestSuite) TestViewQueryOptionsToURLValues() {
 			if opts.Group {
 				suite.testAssertViewOption("true", "group", optValues)
 			} else {
-				suite.testAssertViewOption("false", "group", optValues)
+				suite.testAssertViewOption("", "group", optValues)
 			}
 
 			if opts.GroupLevel == 0 {

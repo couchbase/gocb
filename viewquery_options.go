@@ -115,7 +115,6 @@ func (opts *ViewOptions) toURLValues() (*url.Values, error) {
 		options.Set("reduce", "true")
 
 		// Only set group if a reduce view
-		options.Set("group", "false") // is this line necessary?
 		if opts.Group {
 			options.Set("group", "true")
 		}
