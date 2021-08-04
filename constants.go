@@ -80,6 +80,9 @@ const (
 
 	// ServiceTypeAnalytics represents an analytics service.
 	ServiceTypeAnalytics ServiceType = ServiceType(gocbcore.CbasService)
+
+	// ServiceTypeEventing represents an eventing service.
+	ServiceTypeEventing ServiceType = ServiceType(gocbcore.EventingService)
 )
 
 // QueryProfileMode specifies the profiling mode to use during a query.

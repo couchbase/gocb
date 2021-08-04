@@ -512,3 +512,13 @@ func (c *Cluster) SearchIndexes() *SearchIndexManager {
 		meter:        c.meter,
 	}
 }
+
+// EventingFunctions returns a EventingFunctionManager for managing eventing functions.
+// Volatile: This API is subject to change at any time.
+func (c *Cluster) EventingFunctions() *EventingFunctionManager {
+	return &EventingFunctionManager{
+		mgmtProvider: c,
+		tracer:       c.tracer,
+		meter:        c.meter,
+	}
+}
