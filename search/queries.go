@@ -263,6 +263,12 @@ func (q *DisjunctionQuery) Boost(boost float32) *DisjunctionQuery {
 	return q
 }
 
+// Min specifies the minimum number of queries that a document must satisfy.
+func (q *DisjunctionQuery) Min(min uint32) *DisjunctionQuery {
+	q.options["min"] = min
+	return q
+}
+
 type booleanQueryData struct {
 	Must    *ConjunctionQuery `json:"must,omitempty"`
 	Should  *DisjunctionQuery `json:"should,omitempty"`
