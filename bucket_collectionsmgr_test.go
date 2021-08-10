@@ -3,6 +3,7 @@ package gocb
 import (
 	"errors"
 	"fmt"
+	"github.com/stretchr/testify/mock"
 	"strconv"
 	"time"
 )
@@ -575,4 +576,19 @@ func (suite *IntegrationTestSuite) TestMaxNumberOfCollectionInScope() {
 	})
 
 	suite.Require().True(success)
+}
+
+func (suite *UnitTestSuite) TestGetAllScopesMgmtRequestFails() {
+	provider := new(mockMgmtProvider)
+	provider.On("executeMgmtRequest", nil, mock.AnythingOfType("gocb.mgmtRequest")).Return(nil, errors.New("http send failure"))
+
+	mgr := CollectionManager{
+		mgmtProvider: provider,
+		tracer:       &NoopTracer{},
+		meter:        &meterWrapper{meter: &NoopMeter{}, isNoopMeter: true},
+	}
+
+	scopes, err := mgr.GetAllScopes(nil)
+	suite.Require().NotNil(err)
+	suite.Require().Nil(scopes)
 }

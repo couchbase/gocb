@@ -116,15 +116,15 @@ func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpe
 
 	resp, err := cm.mgmtProvider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
-		colErr := cm.tryParseErrorMessage(&req, resp)
-		if colErr != nil {
-			return nil, colErr
-		}
 		return nil, makeMgmtBadStatusError("failed to get all scopes", &req, resp)
 	}
 	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
+		colErr := cm.tryParseErrorMessage(&req, resp)
+		if colErr != nil {
+			return nil, colErr
+		}
 		return nil, makeMgmtBadStatusError("failed to get all scopes", &req, resp)
 	}
 
@@ -378,7 +378,7 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 
 	resp, err := cm.mgmtProvider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
-		return err
+		return makeGenericMgmtError(err, &req, resp)
 	}
 	defer ensureBodyClosed(resp.Body)
 
