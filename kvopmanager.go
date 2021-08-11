@@ -30,7 +30,7 @@ type kvOpManager struct {
 	durabilityLevel DurabilityLevel
 	retryStrategy   *retryStrategyWrapper
 	cancelCh        chan struct{}
-	impersonate     []byte
+	impersonate     string
 
 	operationName string
 	createdTime   time.Time
@@ -138,7 +138,7 @@ func (m *kvOpManager) SetRetryStrategy(retryStrategy RetryStrategy) {
 	m.retryStrategy = wrapper
 }
 
-func (m *kvOpManager) SetImpersonate(user []byte) {
+func (m *kvOpManager) SetImpersonate(user string) {
 	m.impersonate = user
 }
 
@@ -230,7 +230,7 @@ func (m *kvOpManager) RetryStrategy() *retryStrategyWrapper {
 	return m.retryStrategy
 }
 
-func (m *kvOpManager) Impersonate() []byte {
+func (m *kvOpManager) Impersonate() string {
 	return m.impersonate
 }
 

@@ -16,7 +16,7 @@ func (c *Collection) observeOnceSeqNo(
 	replicaIdx int,
 	cancelCh chan struct{},
 	timeout time.Duration,
-	user []byte,
+	user string,
 ) (didReplicate, didPersist bool, errOut error) {
 	opm := c.newKvOpManager("observe_once", trace)
 	defer opm.Finish(true)
@@ -64,7 +64,7 @@ func (c *Collection) observeOne(
 	replicaIdx int,
 	replicaCh, persistCh, cancelCh chan struct{},
 	timeout time.Duration,
-	user []byte,
+	user string,
 ) {
 	sentReplicated := false
 	sentPersisted := false
@@ -122,7 +122,7 @@ func (c *Collection) waitForDurability(
 	persistTo uint,
 	deadline time.Time,
 	cancelCh chan struct{},
-	user []byte,
+	user string,
 ) error {
 	opm := c.newKvOpManager("observe", trace)
 	defer opm.Finish(true)

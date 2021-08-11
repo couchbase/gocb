@@ -29,7 +29,7 @@ type AppendOptions struct {
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
-		User []byte
+		User string
 	}
 }
 
@@ -109,7 +109,7 @@ type PrependOptions struct {
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
-		User []byte
+		User string
 	}
 }
 
@@ -197,7 +197,7 @@ type IncrementOptions struct {
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
-		User []byte
+		User string
 	}
 }
 
@@ -295,7 +295,7 @@ type DecrementOptions struct {
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
-		User []byte
+		User string
 	}
 }
 

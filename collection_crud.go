@@ -53,7 +53,7 @@ type InsertOptions struct {
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
-		User []byte
+		User string
 	}
 }
 
@@ -134,7 +134,7 @@ type UpsertOptions struct {
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
-		User []byte
+		User string
 	}
 }
 
@@ -218,7 +218,7 @@ type ReplaceOptions struct {
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
-		User []byte
+		User string
 	}
 }
 
@@ -306,7 +306,7 @@ type GetOptions struct {
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
-		User []byte
+		User string
 	}
 }
 
@@ -504,7 +504,7 @@ type ExistsOptions struct {
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
-		User []byte
+		User string
 	}
 }
 
@@ -583,7 +583,7 @@ func (c *Collection) getOneReplica(
 	retryStrategy RetryStrategy,
 	cancelCh chan struct{},
 	timeout time.Duration,
-	user []byte,
+	user string,
 ) (docOut *GetReplicaResult, errOut error) {
 	opm := c.newKvOpManager("get_replica", span)
 	defer opm.Finish(true)
@@ -676,7 +676,7 @@ type GetAllReplicaOptions struct {
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
-		User []byte
+		User string
 	}
 
 	noMetrics bool
@@ -896,7 +896,7 @@ type GetAnyReplicaOptions struct {
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
-		User []byte
+		User string
 	}
 }
 
@@ -968,7 +968,7 @@ type RemoveOptions struct {
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
-		User []byte
+		User string
 	}
 }
 
@@ -1040,7 +1040,7 @@ type GetAndTouchOptions struct {
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
-		User []byte
+		User string
 	}
 }
 
@@ -1119,7 +1119,7 @@ type GetAndLockOptions struct {
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
-		User []byte
+		User string
 	}
 }
 
@@ -1199,7 +1199,7 @@ type UnlockOptions struct {
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
-		User []byte
+		User string
 	}
 }
 
@@ -1264,7 +1264,7 @@ type TouchOptions struct {
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
-		User []byte
+		User string
 	}
 }
 

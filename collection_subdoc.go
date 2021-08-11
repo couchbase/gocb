@@ -25,7 +25,7 @@ type LookupInOptions struct {
 	// Internal: This should never be used and is not supported.
 	Internal struct {
 		DocFlags SubdocDocFlag
-		User     []byte
+		User     string
 	}
 
 	noMetrics bool
@@ -172,7 +172,7 @@ type MutateInOptions struct {
 	// Internal: This should never be used and is not supported.
 	Internal struct {
 		DocFlags SubdocDocFlag
-		User     []byte
+		User     string
 	}
 }
 
