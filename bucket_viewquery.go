@@ -230,7 +230,8 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 		return nil, errors.Wrap(err, "could not parse query options")
 	}
 
-	return b.execViewQuery(opts.Context, span.Context(), "_view", designDoc, viewName, *urlValues, deadline, retryWrapper)
+	return b.execViewQuery(opts.Context, span.Context(), "_view", designDoc, viewName, *urlValues, deadline,
+		retryWrapper, opts.Internal.User)
 }
 
 func (b *Bucket) execViewQuery(
@@ -240,6 +241,7 @@ func (b *Bucket) execViewQuery(
 	options url.Values,
 	deadline time.Time,
 	wrapper *retryStrategyWrapper,
+	user string,
 ) (*ViewResult, error) {
 	provider, err := b.connectionManager.getViewProvider(b.Name())
 	if err != nil {
@@ -258,6 +260,7 @@ func (b *Bucket) execViewQuery(
 		RetryStrategy:      wrapper,
 		Deadline:           deadline,
 		TraceContext:       span,
+		User:               user,
 	})
 	if err != nil {
 		return nil, maybeEnhanceViewError(err)

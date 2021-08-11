@@ -427,7 +427,7 @@ func (c *Cluster) SearchQuery(indexName string, query cbsearch.Query, opts *Sear
 
 	searchOpts["query"] = query
 
-	return c.execSearchQuery(opts.Context, span, indexName, searchOpts, deadline, retryStrategy)
+	return c.execSearchQuery(opts.Context, span, indexName, searchOpts, deadline, retryStrategy, opts.Internal.User)
 }
 
 func maybeGetSearchOptionQuery(options map[string]interface{}) interface{} {
@@ -444,6 +444,7 @@ func (c *Cluster) execSearchQuery(
 	options map[string]interface{},
 	deadline time.Time,
 	retryStrategy *retryStrategyWrapper,
+	user string,
 ) (*SearchResult, error) {
 	provider, err := c.getSearchProvider()
 	if err != nil {
@@ -469,6 +470,7 @@ func (c *Cluster) execSearchQuery(
 		RetryStrategy: retryStrategy,
 		Deadline:      deadline,
 		TraceContext:  span.Context(),
+		User:          user,
 	})
 	if err != nil {
 		return nil, maybeEnhanceSearchError(err)

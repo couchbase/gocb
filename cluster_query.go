@@ -330,7 +330,7 @@ func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResult, err
 		}
 	}
 
-	return execN1qlQuery(opts.Context, span, queryOpts, deadline, retryStrategy, opts.Adhoc, provider, c.tracer)
+	return execN1qlQuery(opts.Context, span, queryOpts, deadline, retryStrategy, opts.Adhoc, provider, c.tracer, opts.Internal.User)
 }
 
 func maybeGetQueryOption(options map[string]interface{}, name string) string {
@@ -349,6 +349,7 @@ func execN1qlQuery(
 	adHoc bool,
 	provider queryProvider,
 	tracer RequestTracer,
+	user string,
 ) (*QueryResult, error) {
 	eSpan := tracer.RequestSpan(span.Context(), "request_encoding")
 	eSpan.SetAttribute("db.system", "couchbase")
@@ -370,6 +371,7 @@ func execN1qlQuery(
 			RetryStrategy: retryStrategy,
 			Deadline:      deadline,
 			TraceContext:  span.Context(),
+			User:          user,
 		})
 	} else {
 		res, qErr = provider.PreparedN1QLQuery(ctx, gocbcore.N1QLQueryOptions{
@@ -377,6 +379,7 @@ func execN1qlQuery(
 			RetryStrategy: retryStrategy,
 			Deadline:      deadline,
 			TraceContext:  span.Context(),
+			User:          user,
 		})
 	}
 	if qErr != nil {

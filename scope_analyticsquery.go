@@ -57,5 +57,6 @@ func (s *Scope) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*Analy
 		}
 	}
 
-	return execAnalyticsQuery(opts.Context, span, queryOpts, priorityInt, deadline, retryStrategy, provider, s.tracer)
+	return execAnalyticsQuery(opts.Context, span, queryOpts, priorityInt, deadline, retryStrategy, provider, s.tracer,
+		opts.Internal.User)
 }

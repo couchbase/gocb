@@ -75,6 +75,11 @@ type ViewOptions struct {
 	// also applies to global level timeouts.
 	// UNCOMMITTED: This API may change in the future.
 	Context context.Context
+
+	// Internal: This should never be used and is not supported.
+	Internal struct {
+		User string
+	}
 }
 
 func (opts *ViewOptions) toURLValues() (*url.Values, error) {

@@ -326,7 +326,7 @@ func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*Ana
 		}
 	}
 
-	return execAnalyticsQuery(opts.Context, span, queryOpts, priorityInt, deadline, retryStrategy, provider, c.tracer)
+	return execAnalyticsQuery(opts.Context, span, queryOpts, priorityInt, deadline, retryStrategy, provider, c.tracer, opts.Internal.User)
 }
 
 func maybeGetAnalyticsOption(options map[string]interface{}, name string) string {
@@ -345,6 +345,7 @@ func execAnalyticsQuery(
 	retryStrategy *retryStrategyWrapper,
 	provider analyticsProvider,
 	tracer RequestTracer,
+	user string,
 ) (*AnalyticsResult, error) {
 	eSpan := createSpan(tracer, span, "request_encoding", "")
 	reqBytes, err := json.Marshal(options)
@@ -363,6 +364,7 @@ func execAnalyticsQuery(
 		RetryStrategy: retryStrategy,
 		Deadline:      deadline,
 		TraceContext:  span.Context(),
+		User:          user,
 	})
 	if err != nil {
 		return nil, maybeEnhanceAnalyticsError(err)
