@@ -9,6 +9,7 @@ type asyncOpManager struct {
 	signal chan struct{}
 
 	wasResolved bool
+	ctx         context.Context
 }
 
 func (m *asyncOpManager) Reject() {
@@ -20,22 +21,28 @@ func (m *asyncOpManager) Resolve() {
 	m.signal <- struct{}{}
 }
 
-func (m *asyncOpManager) Wait(ctx context.Context, op gocbcore.PendingOp) {
-	if ctx == nil {
-		ctx = context.Background()
+func (m *asyncOpManager) Wait(op gocbcore.PendingOp, err error) error {
+	if err != nil {
+		return err
 	}
 
 	select {
 	case <-m.signal:
 		// Good to go
-	case <-ctx.Done():
+	case <-m.ctx.Done():
 		op.Cancel()
 		<-m.signal
 	}
+
+	return nil
 }
 
-func newAsyncOpManager() *asyncOpManager {
+func newAsyncOpManager(ctx context.Context) *asyncOpManager {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	return &asyncOpManager{
 		signal: make(chan struct{}, 1),
+		ctx:    ctx,
 	}
 }

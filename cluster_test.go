@@ -85,3 +85,22 @@ func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyFastFailConnStr() {
 		suite.T().Fatalf("Expected timeout error but was: %v", err)
 	}
 }
+
+func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyKeyValueService() {
+	suite.skipIfUnsupported(WaitUntilReadyFeature)
+	suite.skipIfUnsupported(WaitUntilReadyClusterFeature)
+
+	c, err := Connect(globalConfig.Server, ClusterOptions{Authenticator: PasswordAuthenticator{
+		Username: globalConfig.User,
+		Password: globalConfig.Password,
+	}})
+	suite.Require().Nil(err, err)
+	defer c.Close(nil)
+
+	err = c.WaitUntilReady(7*time.Second, &WaitUntilReadyOptions{
+		ServiceTypes: []ServiceType{ServiceTypeKeyValue},
+	})
+	if !errors.Is(err, ErrInvalidArgument) {
+		suite.T().Fatalf("Expected error to be invalid argument but was %v", err)
+	}
+}
