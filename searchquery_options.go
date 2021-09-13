@@ -120,7 +120,7 @@ func (opts *SearchOptions) toMap() (map[string]interface{}, error) {
 		consistency := make(map[string]interface{})
 
 		if opts.ScanConsistency == SearchScanConsistencyNotBounded {
-			consistency["level"] = "not_bounded"
+			consistency["level"] = ""
 		} else {
 			return nil, makeInvalidArgumentsError("unexpected consistency option")
 		}
@@ -139,6 +139,7 @@ func (opts *SearchOptions) toMap() (map[string]interface{}, error) {
 		}
 		ctl["consistency"] = consistency
 	}
+
 	if ctl != nil {
 		data["ctl"] = ctl
 	}
