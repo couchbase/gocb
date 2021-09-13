@@ -34,12 +34,19 @@ func (qm *QueryIndexManager) tryParseErrorMessage(err error) error {
 
 	firstErr := qErr.Errors[0]
 	var innerErr error
-	// The server doesn't return meaningful error codes when it comes to index management so we need to go spelunking.
-	msg := strings.ToLower(firstErr.Message)
-	if match, err := regexp.MatchString(".*?ndex .*? not found.*", msg); err == nil && match {
+	if firstErr.Code == 12016 {
 		innerErr = ErrIndexNotFound
-	} else if match, err := regexp.MatchString(".*?ndex .*? already exists.*", msg); err == nil && match {
+	} else if firstErr.Code == 4300 {
 		innerErr = ErrIndexExists
+	} else {
+		// Older server versions don't return meaningful error codes when it comes to index management
+		// so we need to go spelunking.
+		msg := strings.ToLower(firstErr.Message)
+		if match, err := regexp.MatchString(".*?ndex .*? not found.*", msg); err == nil && match {
+			innerErr = ErrIndexNotFound
+		} else if match, err := regexp.MatchString(".*?ndex .*? already exists.*", msg); err == nil && match {
+			innerErr = ErrIndexExists
+		}
 	}
 
 	if innerErr == nil {
