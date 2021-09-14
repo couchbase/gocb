@@ -329,7 +329,7 @@ func (suite *IntegrationTestSuite) TestEventingManagerDeploysAndUndeploys() {
 	suite.Require().Nil(err, err)
 	suite.Require().Equal(EventingFunctionDeploymentStatusDeployed, actualFn.Settings.DeploymentStatus)
 
-	success := suite.tryUntil(time.Now().Add(30*time.Second), 500*time.Millisecond, func() bool {
+	success := suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
 		funcsStatus, err := mgr.FunctionsStatus(nil)
 		suite.Require().Nil(err)
 
@@ -354,7 +354,7 @@ func (suite *IntegrationTestSuite) TestEventingManagerDeploysAndUndeploys() {
 	suite.Require().Nil(err, err)
 	suite.Assert().Equal(EventingFunctionDeploymentStatusUndeployed, actualFn.Settings.DeploymentStatus)
 
-	success = suite.tryUntil(time.Now().Add(30*time.Second), 500*time.Millisecond, func() bool {
+	success = suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
 		funcsStatus, err := mgr.FunctionsStatus(nil)
 		suite.Require().Nil(err)
 
@@ -430,7 +430,7 @@ func (suite *IntegrationTestSuite) TestEventingManagerPausesAndResumes() {
 	suite.Require().Nil(err, err)
 	suite.Require().Equal(EventingFunctionProcessingStatusRunning, actualFn.Settings.ProcessingStatus)
 
-	success := suite.tryUntil(time.Now().Add(30*time.Second), 500*time.Millisecond, func() bool {
+	success := suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
 		funcsStatus, err := mgr.FunctionsStatus(nil)
 		suite.Require().Nil(err)
 
@@ -455,7 +455,7 @@ func (suite *IntegrationTestSuite) TestEventingManagerPausesAndResumes() {
 	suite.Require().Nil(err, err)
 	suite.Assert().Equal(EventingFunctionProcessingStatusPaused, actualFn.Settings.ProcessingStatus)
 
-	success = suite.tryUntil(time.Now().Add(30*time.Second), 500*time.Millisecond, func() bool {
+	success = suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
 		funcsStatus, err := mgr.FunctionsStatus(nil)
 		suite.Require().Nil(err)
 
