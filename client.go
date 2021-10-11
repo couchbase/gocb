@@ -56,6 +56,10 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 				return nil
 			}
 
+			if cluster.securityConfig.TLSRootCAs == nil {
+				return &x509.CertPool{}
+			}
+
 			return cluster.securityConfig.TLSRootCAs
 		}
 	} else {
