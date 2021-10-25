@@ -440,7 +440,7 @@ func (cs *CouchbaseSet) Remove(val string) error {
 				Cas:        cas,
 				ParentSpan: span,
 			})
-			if errors.Is(err, ErrCasMismatch) {
+			if errors.Is(err, ErrCasMismatch) || errors.Is(err, ErrDocumentExists) {
 				continue
 			}
 			if err != nil {
@@ -567,7 +567,7 @@ func (cs *CouchbaseQueue) Pop(valuePtr interface{}) error {
 			Cas:        cas,
 			ParentSpan: span,
 		})
-		if errors.Is(err, ErrCasMismatch) {
+		if errors.Is(err, ErrCasMismatch) || errors.Is(err, ErrDocumentExists) {
 			continue
 		}
 		if err != nil {
