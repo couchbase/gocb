@@ -102,7 +102,7 @@ func (am *LoggingMeter) loggerRoutine() {
 		jsonData := am.generateOutput()
 		if len(jsonData) == 1 {
 			// Nothing to log so make sure we don't just log empty objects.
-			return
+			continue
 		}
 
 		// If we don't do this then json.Marshal will escape any < and > characters.
