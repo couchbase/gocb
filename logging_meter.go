@@ -132,7 +132,11 @@ func (am *LoggingMeter) generateOutput() map[string]interface{} {
 			continue
 		}
 		for _, recorder := range recorders {
-			serviceMap[recorder.operationName] = recorder.GetAndResetValues()
+			count, values := recorder.GetAndResetValues()
+			// Don't log if there's nothing to log for this recorder.
+			if count > 0 {
+				serviceMap[recorder.operationName] = values
+			}
 		}
 		if len(serviceMap) > 0 {
 			output[serviceName] = serviceMap
@@ -276,10 +280,11 @@ func (bc *aggregatingValueRecorder) RecordValue(val uint64) {
 	bc.hist.RecordValue(val)
 }
 
-func (bc *aggregatingValueRecorder) GetAndResetValues() map[string]interface{} {
+func (bc *aggregatingValueRecorder) GetAndResetValues() (uint64, map[string]interface{}) {
 	hist := bc.hist.AggregateAndReset()
-	return map[string]interface{}{
-		"total_count": hist.TotalCount(),
+	c := hist.TotalCount()
+	return c, map[string]interface{}{
+		"total_count": c,
 		"percentiles_us": map[string]string{
 			"50.0":  hist.BinAtPercentile(50.0),
 			"90.0":  hist.BinAtPercentile(90.0),
