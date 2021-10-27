@@ -1192,13 +1192,13 @@ func (am *AnalyticsIndexManager) tryParseLinkErrorMessage(req *mgmtRequest, resp
 	}
 
 	if strings.Contains(strings.ToLower(string(b)), "24055") {
-		return makeGenericMgmtError(ErrAnalyticsLinkExists, req, resp)
+		return makeGenericMgmtError(ErrAnalyticsLinkExists, req, resp, string(b))
 	}
 	if strings.Contains(strings.ToLower(string(b)), "24034") {
-		return makeGenericMgmtError(ErrDataverseNotFound, req, resp)
+		return makeGenericMgmtError(ErrDataverseNotFound, req, resp, string(b))
 	}
 
-	return makeGenericMgmtError(errors.New(string(b)), req, resp)
+	return makeGenericMgmtError(errors.New(string(b)), req, resp, string(b))
 }
 
 func (am *AnalyticsIndexManager) linkFromJSON(linkType AnalyticsLinkType, jsonLink map[string]interface{}) AnalyticsLink {

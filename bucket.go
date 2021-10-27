@@ -193,7 +193,7 @@ func (b *Bucket) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOptio
 		},
 	)
 	if err != nil {
-		return err
+		return maybeEnhanceCoreErr(err)
 	}
 
 	return nil

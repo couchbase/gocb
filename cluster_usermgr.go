@@ -266,10 +266,14 @@ func (um *UserManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtResponse
 			bodyErr = errors.New(string(b))
 		}
 	} else {
+		if err := checkForRateLimitError(resp.StatusCode, string(b)); err != nil {
+			return makeGenericMgmtError(err, req, resp, string(b))
+		}
+
 		bodyErr = errors.New(string(b))
 	}
 
-	return makeGenericMgmtError(bodyErr, req, resp)
+	return makeGenericMgmtError(bodyErr, req, resp, string(b))
 }
 
 // GetAllUsersOptions is the set of options available to the user manager GetAll operation.
@@ -317,7 +321,7 @@ func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata,
 
 	resp, err := um.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
-		return nil, makeGenericMgmtError(err, &req, resp)
+		return nil, makeGenericMgmtError(err, &req, resp, "")
 	}
 	defer ensureBodyClosed(resp.Body)
 
@@ -392,7 +396,7 @@ func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetad
 
 	resp, err := um.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
-		return nil, makeGenericMgmtError(err, &req, resp)
+		return nil, makeGenericMgmtError(err, &req, resp, "")
 	}
 	defer ensureBodyClosed(resp.Body)
 
@@ -521,7 +525,7 @@ func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
 
 	resp, err := um.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
-		return makeGenericMgmtError(err, &req, resp)
+		return makeGenericMgmtError(err, &req, resp, "")
 	}
 	defer ensureBodyClosed(resp.Body)
 
@@ -580,7 +584,7 @@ func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
 
 	resp, err := um.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
-		return makeGenericMgmtError(err, &req, resp)
+		return makeGenericMgmtError(err, &req, resp, "")
 	}
 	defer ensureBodyClosed(resp.Body)
 
@@ -633,7 +637,7 @@ func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, er
 
 	resp, err := um.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
-		return nil, makeGenericMgmtError(err, &req, resp)
+		return nil, makeGenericMgmtError(err, &req, resp, "")
 	}
 	defer ensureBodyClosed(resp.Body)
 
@@ -705,7 +709,7 @@ func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group
 
 	resp, err := um.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
-		return nil, makeGenericMgmtError(err, &req, resp)
+		return nil, makeGenericMgmtError(err, &req, resp, "")
 	}
 	defer ensureBodyClosed(resp.Body)
 
@@ -772,7 +776,7 @@ func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) 
 
 	resp, err := um.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
-		return nil, makeGenericMgmtError(err, &req, resp)
+		return nil, makeGenericMgmtError(err, &req, resp, "")
 	}
 	defer ensureBodyClosed(resp.Body)
 
@@ -859,7 +863,7 @@ func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error 
 
 	resp, err := um.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
-		return makeGenericMgmtError(err, &req, resp)
+		return makeGenericMgmtError(err, &req, resp, "")
 	}
 	defer ensureBodyClosed(resp.Body)
 
@@ -916,7 +920,7 @@ func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error
 
 	resp, err := um.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
-		return makeGenericMgmtError(err, &req, resp)
+		return makeGenericMgmtError(err, &req, resp, "")
 	}
 	defer ensureBodyClosed(resp.Body)
 

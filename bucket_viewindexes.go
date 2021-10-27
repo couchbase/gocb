@@ -115,17 +115,21 @@ func (vm *ViewIndexManager) tryParseErrorMessage(req mgmtRequest, resp *mgmtResp
 
 	if resp.StatusCode == 404 {
 		if strings.Contains(strings.ToLower(string(b)), "not_found") {
-			return makeGenericMgmtError(ErrDesignDocumentNotFound, &req, resp)
+			return makeGenericMgmtError(ErrDesignDocumentNotFound, &req, resp, string(b))
 		}
 
-		return makeGenericMgmtError(errors.New(string(b)), &req, resp)
+		return makeGenericMgmtError(errors.New(string(b)), &req, resp, string(b))
+	}
+
+	if err := checkForRateLimitError(resp.StatusCode, string(b)); err != nil {
+		return makeGenericMgmtError(err, &req, resp, string(b))
 	}
 
 	var mgrErr bucketMgrErrorResp
 	err = json.Unmarshal(b, &mgrErr)
 	if err != nil {
 		logDebugf("Failed to unmarshal error body: %s", err)
-		return makeGenericMgmtError(errors.New(string(b)), &req, resp)
+		return makeGenericMgmtError(errors.New(string(b)), &req, resp, string(b))
 	}
 
 	var bodyErr error
@@ -141,7 +145,7 @@ func (vm *ViewIndexManager) tryParseErrorMessage(req mgmtRequest, resp *mgmtResp
 		bodyErr = errors.New(firstErr)
 	}
 
-	return makeGenericMgmtError(bodyErr, &req, resp)
+	return makeGenericMgmtError(bodyErr, &req, resp, string(b))
 }
 
 func (vm *ViewIndexManager) doMgmtRequest(ctx context.Context, req mgmtRequest) (*mgmtResponse, error) {
@@ -223,7 +227,7 @@ func (vm *ViewIndexManager) getDesignDocument(name string, namespace DesignDocum
 			return nil, vwErr
 		}
 
-		return nil, makeGenericMgmtError(errors.New("failed to get design document"), &req, resp)
+		return nil, makeMgmtBadStatusError("failed to get design document", &req, resp)
 	}
 
 	var ddocData jsonDesignDocument
@@ -293,7 +297,7 @@ func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamesp
 			return nil, vwErr
 		}
 
-		return nil, makeGenericMgmtError(errors.New("failed to get design documents"), &req, resp)
+		return nil, makeMgmtBadStatusError("failed to get design documents", &req, resp)
 	}
 
 	var ddocsResp struct {
@@ -418,7 +422,7 @@ func (vm *ViewIndexManager) upsertDesignDocument(
 			return vwErr
 		}
 
-		return makeGenericMgmtError(errors.New("failed to upsert design document"), &req, resp)
+		return makeMgmtBadStatusError("failed to upsert design document", &req, resp)
 	}
 
 	return nil
@@ -479,7 +483,7 @@ func (vm *ViewIndexManager) dropDesignDocument(tracectx RequestSpanContext, name
 			return vwErr
 		}
 
-		return makeGenericMgmtError(errors.New("failed to drop design document"), &req, resp)
+		return makeMgmtBadStatusError("failed to drop design document", &req, resp)
 	}
 
 	return nil

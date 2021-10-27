@@ -58,7 +58,7 @@ func (efm *EventingFunctionManager) tryParseErrorMessage(req *mgmtRequest, resp 
 		baseErr = errors.New(string(b))
 	}
 
-	return makeGenericMgmtError(baseErr, req, resp)
+	return makeGenericMgmtError(baseErr, req, resp, strBody)
 }
 
 type jsonEventingFunction struct {

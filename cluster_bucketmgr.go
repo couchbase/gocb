@@ -144,17 +144,21 @@ func (bm *BucketManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtRespon
 	if resp.StatusCode == 404 {
 		// If it was a 404 then there's no chance of the response body containing any structure
 		if strings.Contains(strings.ToLower(string(b)), "resource not found") {
-			return makeGenericMgmtError(ErrBucketNotFound, req, resp)
+			return makeGenericMgmtError(ErrBucketNotFound, req, resp, string(b))
 		}
 
-		return makeGenericMgmtError(errors.New(string(b)), req, resp)
+		return makeGenericMgmtError(errors.New(string(b)), req, resp, string(b))
+	}
+
+	if err := checkForRateLimitError(resp.StatusCode, string(b)); err != nil {
+		return makeGenericMgmtError(err, req, resp, string(b))
 	}
 
 	var mgrErr bucketMgrErrorResp
 	err = json.Unmarshal(b, &mgrErr)
 	if err != nil {
 		logDebugf("Failed to unmarshal error body: %s", err)
-		return makeGenericMgmtError(errors.New(string(b)), req, resp)
+		return makeGenericMgmtError(errors.New(string(b)), req, resp, string(b))
 	}
 
 	var bodyErr error
@@ -170,7 +174,7 @@ func (bm *BucketManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtRespon
 		bodyErr = errors.New(firstErr)
 	}
 
-	return makeGenericMgmtError(bodyErr, req, resp)
+	return makeGenericMgmtError(bodyErr, req, resp, string(b))
 }
 
 // Flush doesn't use the same body format as anything else...
@@ -184,10 +188,10 @@ func (bm *BucketManager) tryParseFlushErrorMessage(req *mgmtRequest, resp *mgmtR
 	if resp.StatusCode == 404 {
 		// If it was a 404 then there's no chance of the response body containing any structure
 		if strings.Contains(strings.ToLower(string(b)), "resource not found") {
-			return makeGenericMgmtError(ErrBucketNotFound, req, resp)
+			return makeGenericMgmtError(ErrBucketNotFound, req, resp, string(b))
 		}
 
-		return makeGenericMgmtError(errors.New(string(b)), req, resp)
+		return makeGenericMgmtError(errors.New(string(b)), req, resp, string(b))
 	}
 
 	var bodyErrMsgs map[string]string
@@ -198,7 +202,7 @@ func (bm *BucketManager) tryParseFlushErrorMessage(req *mgmtRequest, resp *mgmtR
 
 	if errMsg, ok := bodyErrMsgs["_"]; ok {
 		if strings.Contains(strings.ToLower(errMsg), "flush is disabled") {
-			return ErrBucketNotFlushable
+			return makeGenericMgmtError(ErrBucketNotFlushable, req, resp, string(b))
 		}
 	}
 
@@ -259,7 +263,7 @@ func (bm *BucketManager) get(ctx context.Context, tracectx RequestSpanContext, p
 
 	resp, err := bm.provider.executeMgmtRequest(ctx, req)
 	if err != nil {
-		return nil, makeGenericMgmtError(err, &req, resp)
+		return nil, makeGenericMgmtError(err, &req, resp, "")
 	}
 	defer ensureBodyClosed(resp.Body)
 
@@ -326,7 +330,7 @@ func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]B
 
 	resp, err := bm.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
-		return nil, makeGenericMgmtError(err, &req, resp)
+		return nil, makeGenericMgmtError(err, &req, resp, "")
 	}
 	defer ensureBodyClosed(resp.Body)
 
@@ -419,7 +423,7 @@ func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *Creat
 
 	resp, err := bm.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
-		return makeGenericMgmtError(err, &req, resp)
+		return makeGenericMgmtError(err, &req, resp, "")
 	}
 	defer ensureBodyClosed(resp.Body)
 
@@ -485,7 +489,7 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 
 	resp, err := bm.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
-		return makeGenericMgmtError(err, &req, resp)
+		return makeGenericMgmtError(err, &req, resp, "")
 	}
 	defer ensureBodyClosed(resp.Body)
 
@@ -540,7 +544,7 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 
 	resp, err := bm.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
-		return makeGenericMgmtError(err, &req, resp)
+		return makeGenericMgmtError(err, &req, resp, "")
 	}
 	defer ensureBodyClosed(resp.Body)
 
@@ -596,7 +600,7 @@ func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) erro
 
 	resp, err := bm.provider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
-		return makeGenericMgmtError(err, &req, resp)
+		return makeGenericMgmtError(err, &req, resp, "")
 	}
 	defer ensureBodyClosed(resp.Body)
 

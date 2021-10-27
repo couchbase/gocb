@@ -2,8 +2,9 @@ package gocb
 
 import (
 	"encoding/json"
-	gocbcore "github.com/couchbase/gocbcore/v10"
+	"github.com/couchbase/gocbcore/v10"
 	"github.com/pkg/errors"
+	"io/ioutil"
 )
 
 // HTTPError is the error type of management HTTP errors.
@@ -14,6 +15,7 @@ type HTTPError struct {
 	Endpoint      string        `json:"endpoint,omitempty"`
 	RetryReasons  []RetryReason `json:"retry_reasons,omitempty"`
 	RetryAttempts uint32        `json:"retry_attempts,omitempty"`
+	ErrorText     string        `json:"error_text,omitempty"`
 }
 
 // MarshalJSON implements the Marshaler interface.
@@ -28,12 +30,14 @@ func (e HTTPError) MarshalJSON() ([]byte, error) {
 		Endpoint      string        `json:"endpoint,omitempty"`
 		RetryReasons  []RetryReason `json:"retry_reasons,omitempty"`
 		RetryAttempts uint32        `json:"retry_attempts,omitempty"`
+		ErrorText     string        `json:"error_text,omitempty"`
 	}{
 		InnerError:    innerError,
 		UniqueID:      e.UniqueID,
 		Endpoint:      e.Endpoint,
 		RetryReasons:  e.RetryReasons,
 		RetryAttempts: e.RetryAttempts,
+		ErrorText:     e.ErrorText,
 	})
 }
 
@@ -45,12 +49,14 @@ func (e HTTPError) Error() string {
 		Endpoint      string        `json:"endpoint,omitempty"`
 		RetryReasons  []RetryReason `json:"retry_reasons,omitempty"`
 		RetryAttempts uint32        `json:"retry_attempts,omitempty"`
+		ErrorText     string        `json:"error_text,omitempty"`
 	}{
 		InnerError:    e.InnerError,
 		UniqueID:      e.UniqueID,
 		Endpoint:      e.Endpoint,
 		RetryReasons:  e.RetryReasons,
 		RetryAttempts: e.RetryAttempts,
+		ErrorText:     e.ErrorText,
 	})
 	if serErr != nil {
 		logErrorf("failed to serialize error to json: %s", serErr.Error())
@@ -85,7 +91,7 @@ func makeGenericHTTPError(baseErr error, req *gocbcore.HTTPRequest, resp *gocbco
 	return err
 }
 
-func makeGenericMgmtError(baseErr error, req *mgmtRequest, resp *mgmtResponse) error {
+func makeGenericMgmtError(baseErr error, req *mgmtRequest, resp *mgmtResponse, errText string) error {
 	if baseErr == nil {
 		logErrorf("makeGenericMgmtError got an empty error")
 		baseErr = errors.New("unknown error")
@@ -93,6 +99,7 @@ func makeGenericMgmtError(baseErr error, req *mgmtRequest, resp *mgmtResponse) e
 
 	err := HTTPError{
 		InnerError: baseErr,
+		ErrorText:  errText,
 	}
 
 	if req != nil {
@@ -107,5 +114,15 @@ func makeGenericMgmtError(baseErr error, req *mgmtRequest, resp *mgmtResponse) e
 }
 
 func makeMgmtBadStatusError(message string, req *mgmtRequest, resp *mgmtResponse) error {
-	return makeGenericMgmtError(errors.New(message), req, resp)
+	var errText string
+	if resp != nil {
+		b, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			logDebugf("failed to read http body: %s", err)
+			return nil
+		}
+
+		errText = string(b)
+	}
+	return makeGenericMgmtError(errors.New(message), req, resp, errText)
 }

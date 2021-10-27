@@ -24,6 +24,7 @@ var (
 	srvVer650DP = NodeVersion{6, 5, 0, 0, 0, "dp", false}
 	srvVer660   = NodeVersion{6, 6, 0, 0, 0, "", false}
 	srvVer700   = NodeVersion{7, 0, 0, 0, 0, "", false}
+	srvVer710   = NodeVersion{7, 1, 0, 0, 0, "", false}
 	mockVer156  = NodeVersion{1, 5, 6, 0, 0, "", true}
 	mockVer1513 = NodeVersion{1, 5, 13, 0, 0, "", true}
 	mockVer1515 = NodeVersion{1, 5, 15, 0, 0, "", true}
@@ -70,6 +71,7 @@ var (
 	EnhancedPreparedStatementsFeature       = FeatureCode("enhancedpreparedstatements")
 	PreserveExpiryFeature                   = FeatureCode("preserveexpiry")
 	EventingFunctionManagerFeature          = FeatureCode("eventingmanagement")
+	RateLimitingFeature                     = FeatureCode("ratelimits")
 )
 
 type TestFeatureFlag struct {
@@ -186,6 +188,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case EventingFunctionManagerFeature:
 			supported = false
+		case RateLimitingFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -265,6 +269,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer700)
 		case EventingFunctionManagerFeature:
 			supported = !c.Version.Lower(srvVer700)
+		case RateLimitingFeature:
+			supported = !c.Version.Lower(srvVer710)
 		}
 	}
 

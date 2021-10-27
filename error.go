@@ -108,6 +108,9 @@ var (
 
 	// ErrIndexExists occurs when creating an index that already exists.
 	ErrIndexExists = gocbcore.ErrIndexExists
+
+	ErrRateLimitingFailure  = gocbcore.ErrRateLimitingFailure
+	ErrQuotaLimitingFailure = gocbcore.ErrQuotaLimitingFailure
 )
 
 // Key Value Error Definitions RFC#58@15

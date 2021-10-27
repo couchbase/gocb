@@ -100,11 +100,36 @@ type SearchIndexManager struct {
 	meter  *meterWrapper
 }
 
+func (sm *SearchIndexManager) checkForRateLimitError(statusCode uint32, errMsg string) error {
+	errMsg = strings.ToLower(errMsg)
+
+	var err error
+	if statusCode == 400 && strings.Contains(errMsg, "createindex, prepare failed, err: num_fts_indexes") {
+		err = ErrQuotaLimitingFailure
+	} else if statusCode == 429 {
+		if strings.Contains(errMsg, "num_concurrent_requests") {
+			err = ErrRateLimitingFailure
+		} else if strings.Contains(errMsg, "num_queries_per_min") {
+			err = ErrRateLimitingFailure
+		} else if strings.Contains(errMsg, "ingress_mib_per_min") {
+			err = ErrRateLimitingFailure
+		} else if strings.Contains(errMsg, "egress_mib_per_min") {
+			err = ErrRateLimitingFailure
+		}
+	}
+
+	return err
+}
+
 func (sm *SearchIndexManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		logDebugf("Failed to read search index response body: %s", err)
 		return nil
+	}
+
+	if err := sm.checkForRateLimitError(resp.StatusCode, string(b)); err != nil {
+		return makeGenericMgmtError(err, req, resp, string(b))
 	}
 
 	var bodyErr error
@@ -116,7 +141,7 @@ func (sm *SearchIndexManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtR
 		bodyErr = errors.New(string(b))
 	}
 
-	return makeGenericMgmtError(bodyErr, req, resp)
+	return makeGenericMgmtError(bodyErr, req, resp, string(b))
 }
 
 func (sm *SearchIndexManager) doMgmtRequest(ctx context.Context, req mgmtRequest) (*mgmtResponse, error) {

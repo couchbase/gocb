@@ -3,6 +3,7 @@ package gocb
 import (
 	"context"
 	"io"
+	"strings"
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v10"
@@ -125,4 +126,24 @@ func ensureBodyClosed(body io.ReadCloser) {
 	if err != nil {
 		logDebugf("Failed to close socket: %v", err)
 	}
+}
+
+func checkForRateLimitError(statusCode uint32, errMsg string) error {
+	if statusCode != 429 {
+		return nil
+	}
+
+	errMsg = strings.ToLower(errMsg)
+	var err error
+	if strings.Contains(errMsg, "limit(s) exceeded [num_concurrent_requests]") {
+		err = ErrRateLimitingFailure
+	} else if strings.Contains(errMsg, "limit(s) exceeded [ingress]") {
+		err = ErrRateLimitingFailure
+	} else if strings.Contains(errMsg, "limit(s) exceeded [egress]") {
+		err = ErrRateLimitingFailure
+	} else if strings.Contains(errMsg, "maximum number of collections has been reached for scope") {
+		err = ErrQuotaLimitingFailure
+	}
+
+	return err
 }

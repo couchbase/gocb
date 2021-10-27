@@ -61,19 +61,23 @@ func (cm *CollectionManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtRe
 
 	errText := strings.ToLower(string(b))
 
+	if err := checkForRateLimitError(resp.StatusCode, errText); err != nil {
+		return makeGenericMgmtError(err, req, resp, string(b))
+	}
+
 	if strings.Contains(errText, "not found") && strings.Contains(errText, "collection") {
-		return makeGenericMgmtError(ErrCollectionNotFound, req, resp)
+		return makeGenericMgmtError(ErrCollectionNotFound, req, resp, string(b))
 	} else if strings.Contains(errText, "not found") && strings.Contains(errText, "scope") {
-		return makeGenericMgmtError(ErrScopeNotFound, req, resp)
+		return makeGenericMgmtError(ErrScopeNotFound, req, resp, string(b))
 	}
 
 	if strings.Contains(errText, "already exists") && strings.Contains(errText, "collection") {
-		return makeGenericMgmtError(ErrCollectionExists, req, resp)
+		return makeGenericMgmtError(ErrCollectionExists, req, resp, string(b))
 	} else if strings.Contains(errText, "already exists") && strings.Contains(errText, "scope") {
-		return makeGenericMgmtError(ErrScopeExists, req, resp)
+		return makeGenericMgmtError(ErrScopeExists, req, resp, string(b))
 	}
 
-	return makeGenericMgmtError(errors.New(errText), req, resp)
+	return makeGenericMgmtError(errors.New(errText), req, resp, string(b))
 }
 
 // GetAllScopesOptions is the set of options available to the GetAllScopes operation.
@@ -236,7 +240,7 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 
 	resp, err := cm.mgmtProvider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
-		return makeGenericMgmtError(err, &req, resp)
+		return makeGenericMgmtError(err, &req, resp, "")
 	}
 	defer ensureBodyClosed(resp.Body)
 
@@ -305,7 +309,7 @@ func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropColle
 
 	resp, err := cm.mgmtProvider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
-		return makeGenericMgmtError(err, &req, resp)
+		return makeGenericMgmtError(err, &req, resp, "")
 	}
 	defer ensureBodyClosed(resp.Body)
 
@@ -378,7 +382,7 @@ func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOpti
 
 	resp, err := cm.mgmtProvider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
-		return makeGenericMgmtError(err, &req, resp)
+		return makeGenericMgmtError(err, &req, resp, "")
 	}
 	defer ensureBodyClosed(resp.Body)
 
@@ -438,7 +442,7 @@ func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions)
 
 	resp, err := cm.mgmtProvider.executeMgmtRequest(opts.Context, req)
 	if err != nil {
-		return makeGenericMgmtError(err, &req, resp)
+		return makeGenericMgmtError(err, &req, resp, "")
 	}
 	defer ensureBodyClosed(resp.Body)
 

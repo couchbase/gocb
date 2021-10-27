@@ -388,7 +388,7 @@ func (c *Cluster) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOpti
 		},
 	)
 	if err != nil {
-		return err
+		return maybeEnhanceCoreErr(err)
 	}
 
 	return nil
