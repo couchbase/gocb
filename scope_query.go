@@ -53,5 +53,5 @@ func (s *Scope) Query(statement string, opts *QueryOptions) (*QueryResult, error
 	}
 
 	return execN1qlQuery(opts.Context, span, queryOpts, deadline, retryStrategy, opts.Adhoc, provider, s.tracer,
-		opts.Internal.User)
+		opts.Internal.User, opts.Internal.Endpoint)
 }

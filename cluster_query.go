@@ -156,11 +156,13 @@ type QueryResult struct {
 	reader queryRowReader
 
 	rowBytes []byte
+	endpoint string
 }
 
 func newQueryResult(reader queryRowReader) *QueryResult {
 	return &QueryResult{
-		reader: reader,
+		reader:   reader,
+		endpoint: reader.Endpoint(),
 	}
 }
 
@@ -278,12 +280,32 @@ func (r *QueryResult) MetaData() (*QueryMetaData, error) {
 	return &metaData, nil
 }
 
+// QueryResultInternal provides access to internal only functionality.
+// Internal: This should never be used and is not supported.
+type QueryResultInternal struct {
+	endpoint string
+}
+
+// Internal provides access to internal only functionality.
+// Internal: This should never be used and is not supported.
+func (r *QueryResult) Internal() *QueryResultInternal {
+	return &QueryResultInternal{
+		endpoint: r.endpoint,
+	}
+}
+
+// Endpoint returns the endpoint that this query was sent to.
+func (r *QueryResultInternal) Endpoint() string {
+	return r.endpoint
+}
+
 type queryRowReader interface {
 	NextRow() []byte
 	Err() error
 	MetaData() ([]byte, error)
 	Close() error
 	PreparedName() (string, error)
+	Endpoint() string
 }
 
 // Query executes the query statement on the server.
@@ -330,7 +352,18 @@ func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResult, err
 		}
 	}
 
-	return execN1qlQuery(opts.Context, span, queryOpts, deadline, retryStrategy, opts.Adhoc, provider, c.tracer, opts.Internal.User)
+	return execN1qlQuery(
+		opts.Context,
+		span,
+		queryOpts,
+		deadline,
+		retryStrategy,
+		opts.Adhoc,
+		provider,
+		c.tracer,
+		opts.Internal.User,
+		opts.Internal.Endpoint,
+	)
 }
 
 func maybeGetQueryOption(options map[string]interface{}, name string) string {
@@ -349,7 +382,8 @@ func execN1qlQuery(
 	adHoc bool,
 	provider queryProvider,
 	tracer RequestTracer,
-	user string,
+	user,
+	endpoint string,
 ) (*QueryResult, error) {
 	eSpan := tracer.RequestSpan(span.Context(), "request_encoding")
 	eSpan.SetAttribute("db.system", "couchbase")
@@ -372,6 +406,7 @@ func execN1qlQuery(
 			Deadline:      deadline,
 			TraceContext:  span.Context(),
 			User:          user,
+			Endpoint:      endpoint,
 		})
 	} else {
 		res, qErr = provider.PreparedN1QLQuery(ctx, gocbcore.N1QLQueryOptions{
@@ -380,6 +415,7 @@ func execN1qlQuery(
 			Deadline:      deadline,
 			TraceContext:  span.Context(),
 			User:          user,
+			Endpoint:      endpoint,
 		})
 	}
 	if qErr != nil {

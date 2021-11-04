@@ -297,6 +297,10 @@ func (arr *mockQueryRowReaderBase) PreparedName() (string, error) {
 	return arr.PName, nil
 }
 
+func (arr *mockQueryRowReaderBase) Endpoint() string {
+	return ""
+}
+
 func (suite *UnitTestSuite) newMockQueryProvider(prepared bool, reader queryRowReader) (*mockQueryProvider, *mock.Call) {
 	queryProvider := new(mockQueryProvider)
 	methodName := "N1QLQuery"

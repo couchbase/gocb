@@ -67,7 +67,8 @@ type QueryOptions struct {
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
-		User string
+		User     string
+		Endpoint string
 	}
 }
 
