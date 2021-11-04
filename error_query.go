@@ -32,6 +32,7 @@ type QueryError struct {
 	Endpoint        string           `json:"endpoint,omitempty"`
 	RetryReasons    []RetryReason    `json:"retry_reasons,omitempty"`
 	RetryAttempts   uint32           `json:"retry_attempts,omitempty"`
+	ResponseBody    string           `json:"response_body,omitempty"`
 }
 
 // MarshalJSON implements the Marshaler interface.
@@ -49,6 +50,7 @@ func (e QueryError) MarshalJSON() ([]byte, error) {
 		Endpoint        string           `json:"endpoint,omitempty"`
 		RetryReasons    []RetryReason    `json:"retry_reasons,omitempty"`
 		RetryAttempts   uint32           `json:"retry_attempts,omitempty"`
+		ResponseBody    string           `json:"response_body,omitempty"`
 	}{
 		InnerError:      innerError,
 		Statement:       e.Statement,
@@ -57,6 +59,7 @@ func (e QueryError) MarshalJSON() ([]byte, error) {
 		Endpoint:        e.Endpoint,
 		RetryReasons:    e.RetryReasons,
 		RetryAttempts:   e.RetryAttempts,
+		ResponseBody:    e.ResponseBody,
 	})
 }
 
@@ -70,6 +73,7 @@ func (e QueryError) Error() string {
 		Endpoint        string           `json:"endpoint,omitempty"`
 		RetryReasons    []RetryReason    `json:"retry_reasons,omitempty"`
 		RetryAttempts   uint32           `json:"retry_attempts,omitempty"`
+		ResponseBody    string           `json:"response_body,omitempty"`
 	}{
 		InnerError:      e.InnerError,
 		Statement:       e.Statement,
@@ -78,6 +82,7 @@ func (e QueryError) Error() string {
 		Endpoint:        e.Endpoint,
 		RetryReasons:    e.RetryReasons,
 		RetryAttempts:   e.RetryAttempts,
+		ResponseBody:    e.ResponseBody,
 	})
 	if serErr != nil {
 		logErrorf("failed to serialize error to json: %s", serErr.Error())

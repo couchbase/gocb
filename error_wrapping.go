@@ -56,6 +56,7 @@ func maybeEnhanceCoreErr(err error) error {
 			Endpoint:        queryErr.Endpoint,
 			RetryReasons:    translateCoreRetryReasons(queryErr.RetryReasons),
 			RetryAttempts:   queryErr.RetryAttempts,
+			ResponseBody:    queryErr.ResponseBody,
 		}
 	}
 	if analyticsErr, ok := err.(*gocbcore.AnalyticsError); ok {
