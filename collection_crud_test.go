@@ -130,7 +130,7 @@ func (suite *IntegrationTestSuite) TestExpiryConversions() {
 					actualExpirySecs)
 			}
 
-			if actualExpirySecs < (tCase.expiry - (2 * time.Second)).Seconds() {
+			if actualExpirySecs < (tCase.expiry - (2500 * time.Millisecond)).Seconds() {
 				te.Fatalf("Expected expiry to be greater than %f but was %f", tCase.expiry.Seconds(),
 					actualExpirySecs)
 			}
