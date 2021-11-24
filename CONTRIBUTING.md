@@ -61,7 +61,7 @@ Add your public SSH key to gerrit before submitting.
 Assuming you have a repository created like so:
 
 ```
-$ git clone git://github.com/couchbase/gocb.git
+$ git clone https://github.com/couchbase/gocb.git
 ```
 
 you can simply perform two simple steps to get started with gerrit:
