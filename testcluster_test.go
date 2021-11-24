@@ -72,6 +72,7 @@ var (
 	PreserveExpiryFeature                   = FeatureCode("preserveexpiry")
 	EventingFunctionManagerFeature          = FeatureCode("eventingmanagement")
 	RateLimitingFeature                     = FeatureCode("ratelimits")
+	StorageBackendFeature                   = FeatureCode("storagebackend")
 )
 
 type TestFeatureFlag struct {
@@ -190,6 +191,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case RateLimitingFeature:
 			supported = false
+		case StorageBackendFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -271,6 +274,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer700)
 		case RateLimitingFeature:
 			supported = !c.Version.Lower(srvVer710)
+		case StorageBackendFeature:
+			supported = !c.Version.Lower(srvVer710) && (c.Version.Edition != CommunityNodeEdition)
 		}
 	}
 

@@ -554,3 +554,77 @@ func (suite *IntegrationTestSuite) TestBucketMgrFlushBucketNotFound() {
 		suite.T().Fatalf("Expected error to be bucket not found but was %v", err)
 	}
 }
+
+func (suite *IntegrationTestSuite) TestBucketMgrStorageBackendCouchstore() {
+	suite.skipIfUnsupported(BucketMgrFeature)
+	suite.skipIfUnsupported(StorageBackendFeature)
+
+	mgr := globalCluster.Buckets()
+
+	bName := "testcouchbasestorage"
+	settings := BucketSettings{
+		Name:           bName,
+		RAMQuotaMB:     100,
+		NumReplicas:    1,
+		BucketType:     CouchbaseBucketType,
+		StorageBackend: StorageBackendCouchstore,
+	}
+
+	err := mgr.CreateBucket(CreateBucketSettings{
+		BucketSettings: settings,
+	}, nil)
+	suite.Require().Nil(err, err)
+	defer mgr.DropBucket(bName, nil)
+
+	b, err := mgr.GetBucket(bName, nil)
+	suite.Require().Nil(err, err)
+
+	suite.Assert().Equal(StorageBackendCouchstore, b.StorageBackend)
+}
+
+func (suite *IntegrationTestSuite) TestBucketMgrStorageBackendMagma() {
+	suite.skipIfUnsupported(BucketMgrFeature)
+	suite.skipIfUnsupported(StorageBackendFeature)
+
+	mgr := globalCluster.Buckets()
+
+	bName := "magma"
+	settings := BucketSettings{
+		Name:           bName,
+		RAMQuotaMB:     256,
+		NumReplicas:    1,
+		BucketType:     CouchbaseBucketType,
+		StorageBackend: StorageBackendMagma,
+	}
+
+	err := mgr.CreateBucket(CreateBucketSettings{
+		BucketSettings: settings,
+	}, nil)
+	suite.Require().Nil(err, err)
+	defer mgr.DropBucket(bName, nil)
+
+	var bucket *BucketSettings
+	success := suite.tryUntil(time.Now().Add(2*time.Second), 100*time.Millisecond, func() bool {
+		bucket, err = mgr.GetBucket(bName, nil)
+		if err != nil {
+			suite.T().Logf("Failed to get bucket %v", err)
+			return false
+		}
+
+		return true
+	})
+	suite.Assert().True(success, "GetBucket failed to execute within the required time")
+
+	suite.Assert().Equal(StorageBackendMagma, bucket.StorageBackend)
+	suite.Assert().Equal(256, int(bucket.RAMQuotaMB))
+
+	bucket.RAMQuotaMB = 300
+	err = mgr.UpdateBucket(*bucket, nil)
+	suite.Require().Nil(err, err)
+
+	bucket, err = mgr.GetBucket(bName, nil)
+	suite.Require().Nil(err, err)
+
+	suite.Assert().Equal(StorageBackendMagma, bucket.StorageBackend)
+	suite.Assert().Equal(300, int(bucket.RAMQuotaMB))
+}

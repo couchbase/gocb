@@ -69,6 +69,18 @@ const (
 	CompressionModeActive CompressionMode = "active"
 )
 
+// StorageBackend specifies the storage type to use for the bucket.
+// UNCOMMITTED: This API may change in the future.
+type StorageBackend string
+
+const (
+	// StorageBackendCouchstore specifies to use the couchstore storage type.
+	StorageBackendCouchstore StorageBackend = "couchstore"
+
+	// StorageBackendMagma specifies to use the magma storage type. EE only.
+	StorageBackendMagma StorageBackend = "magma"
+)
+
 type jsonBucketSettings struct {
 	Name        string `json:"name"`
 	Controllers struct {
@@ -86,6 +98,7 @@ type jsonBucketSettings struct {
 	MaxTTL                 uint32 `json:"maxTTL"`
 	CompressionMode        string `json:"compressionMode"`
 	MinimumDurabilityLevel string `json:"durabilityMinLevel"`
+	StorageBackend         string `json:"storageBackend"`
 }
 
 // BucketSettings holds information about the settings for a bucket.
@@ -102,6 +115,8 @@ type BucketSettings struct {
 	MaxExpiry              time.Duration
 	CompressionMode        CompressionMode
 	MinimumDurabilityLevel DurabilityLevel
+	// UNCOMMITTED: This API may change in the future.
+	StorageBackend StorageBackend
 }
 
 func (bs *BucketSettings) fromData(data jsonBucketSettings) error {
@@ -115,6 +130,7 @@ func (bs *BucketSettings) fromData(data jsonBucketSettings) error {
 	bs.MaxExpiry = time.Duration(data.MaxTTL) * time.Second
 	bs.CompressionMode = CompressionMode(data.CompressionMode)
 	bs.MinimumDurabilityLevel = durabilityLevelFromManagementAPI(data.MinimumDurabilityLevel)
+	bs.StorageBackend = StorageBackend(data.StorageBackend)
 
 	switch data.BucketType {
 	case "membase":
@@ -657,7 +673,7 @@ func (bm *BucketManager) settingsToPostData(settings *BucketSettings) (url.Value
 		posts.Add("bucketType", string(settings.BucketType))
 		posts.Add("replicaNumber", fmt.Sprintf("%d", settings.NumReplicas))
 	default:
-		return nil, makeInvalidArgumentsError("Unrecognized bucket type")
+		return nil, makeInvalidArgumentsError("unrecognized bucket type")
 	}
 
 	posts.Add("ramQuotaMB", fmt.Sprintf("%d", settings.RAMQuotaMB))
@@ -696,6 +712,10 @@ func (bm *BucketManager) settingsToPostData(settings *BucketSettings) (url.Value
 			return nil, err
 		}
 		posts.Add("durabilityMinLevel", level)
+	}
+
+	if settings.StorageBackend != "" {
+		posts.Add("storageBackend", string(settings.StorageBackend))
 	}
 
 	return posts, nil
