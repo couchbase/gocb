@@ -72,12 +72,22 @@ func (vrr *ViewResultRaw) NextBytes() []byte {
 
 // Err returns any errors that have occurred on the stream
 func (vrr *ViewResultRaw) Err() error {
-	return vrr.reader.Err()
+	err := vrr.reader.Err()
+	if err != nil {
+		return maybeEnhanceViewError(err)
+	}
+
+	return nil
 }
 
 // Close marks the results as closed, returning any errors that occurred during reading the results.
 func (vrr *ViewResultRaw) Close() error {
-	return vrr.reader.Close()
+	err := vrr.reader.Close()
+	if err != nil {
+		return maybeEnhanceViewError(err)
+	}
+
+	return nil
 }
 
 // MetaData returns any meta-data that was available from this query as bytes.
@@ -156,8 +166,9 @@ func (r *ViewResult) Err() error {
 
 	err := r.reader.Err()
 	if err != nil {
-		return err
+		return maybeEnhanceViewError(err)
 	}
+	// This is an error from json unmarshal so no point in trying to enhance it.
 	return r.jsonErr
 }
 
@@ -167,7 +178,12 @@ func (r *ViewResult) Close() error {
 		return r.Err()
 	}
 
-	return r.reader.Close()
+	err := r.reader.Close()
+	if err != nil {
+		return maybeEnhanceViewError(err)
+	}
+
+	return nil
 }
 
 // MetaData returns any meta-data that was available from this query.  Note that

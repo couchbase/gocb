@@ -130,12 +130,22 @@ func (arr *AnalyticsResultRaw) NextBytes() []byte {
 
 // Err returns any errors that have occurred on the stream
 func (arr *AnalyticsResultRaw) Err() error {
-	return arr.reader.Err()
+	err := arr.reader.Err()
+	if err != nil {
+		return maybeEnhanceAnalyticsError(err)
+	}
+
+	return nil
 }
 
 // Close marks the results as closed, returning any errors that occurred during reading the results.
 func (arr *AnalyticsResultRaw) Close() error {
-	return arr.reader.Close()
+	err := arr.reader.Close()
+	if err != nil {
+		return maybeEnhanceAnalyticsError(err)
+	}
+
+	return nil
 }
 
 // MetaData returns any meta-data that was available from this query as bytes.
@@ -214,7 +224,12 @@ func (r *AnalyticsResult) Err() error {
 		return errors.New("result object is no longer valid")
 	}
 
-	return r.reader.Err()
+	err := r.reader.Err()
+	if err != nil {
+		return maybeEnhanceAnalyticsError(err)
+	}
+
+	return nil
 }
 
 // Close marks the results as closed, returning any errors that occurred during reading the results.
@@ -223,7 +238,12 @@ func (r *AnalyticsResult) Close() error {
 		return r.Err()
 	}
 
-	return r.reader.Close()
+	err := r.reader.Close()
+	if err != nil {
+		return maybeEnhanceAnalyticsError(err)
+	}
+
+	return nil
 }
 
 // One assigns the first value from the results into the value pointer.

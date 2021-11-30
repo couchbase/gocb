@@ -138,12 +138,22 @@ func (qrr *QueryResultRaw) NextBytes() []byte {
 
 // Err returns any errors that have occurred on the stream
 func (qrr *QueryResultRaw) Err() error {
-	return qrr.reader.Err()
+	err := qrr.reader.Err()
+	if err != nil {
+		return maybeEnhanceQueryError(err)
+	}
+
+	return nil
 }
 
 // Close marks the results as closed, returning any errors that occurred during reading the results.
 func (qrr *QueryResultRaw) Close() error {
-	return qrr.reader.Close()
+	err := qrr.reader.Close()
+	if err != nil {
+		return maybeEnhanceQueryError(err)
+	}
+
+	return nil
 }
 
 // MetaData returns any meta-data that was available from this query as bytes.
@@ -217,7 +227,12 @@ func (r *QueryResult) Err() error {
 		return errors.New("result object is no longer valid")
 	}
 
-	return r.reader.Err()
+	err := r.reader.Err()
+	if err != nil {
+		return maybeEnhanceQueryError(err)
+	}
+
+	return nil
 }
 
 // Close marks the results as closed, returning any errors that occurred during reading the results.
@@ -226,7 +241,12 @@ func (r *QueryResult) Close() error {
 		return r.Err()
 	}
 
-	return r.reader.Close()
+	err := r.reader.Close()
+	if err != nil {
+		return maybeEnhanceQueryError(err)
+	}
+
+	return nil
 }
 
 // One assigns the first value from the results into the value pointer.

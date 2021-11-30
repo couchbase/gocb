@@ -16,6 +16,7 @@ type HTTPError struct {
 	RetryReasons  []RetryReason `json:"retry_reasons,omitempty"`
 	RetryAttempts uint32        `json:"retry_attempts,omitempty"`
 	ErrorText     string        `json:"error_text,omitempty"`
+	StatusCode    uint32        `json:"status_code,omitempty"`
 }
 
 // MarshalJSON implements the Marshaler interface.
@@ -31,6 +32,7 @@ func (e HTTPError) MarshalJSON() ([]byte, error) {
 		RetryReasons  []RetryReason `json:"retry_reasons,omitempty"`
 		RetryAttempts uint32        `json:"retry_attempts,omitempty"`
 		ErrorText     string        `json:"error_text,omitempty"`
+		StatusCode    uint32        `json:"status_code,omitempty"`
 	}{
 		InnerError:    innerError,
 		UniqueID:      e.UniqueID,
@@ -38,6 +40,7 @@ func (e HTTPError) MarshalJSON() ([]byte, error) {
 		RetryReasons:  e.RetryReasons,
 		RetryAttempts: e.RetryAttempts,
 		ErrorText:     e.ErrorText,
+		StatusCode:    e.StatusCode,
 	})
 }
 
@@ -50,6 +53,7 @@ func (e HTTPError) Error() string {
 		RetryReasons  []RetryReason `json:"retry_reasons,omitempty"`
 		RetryAttempts uint32        `json:"retry_attempts,omitempty"`
 		ErrorText     string        `json:"error_text,omitempty"`
+		StatusCode    uint32        `json:"status_code,omitempty"`
 	}{
 		InnerError:    e.InnerError,
 		UniqueID:      e.UniqueID,
@@ -57,6 +61,7 @@ func (e HTTPError) Error() string {
 		RetryReasons:  e.RetryReasons,
 		RetryAttempts: e.RetryAttempts,
 		ErrorText:     e.ErrorText,
+		StatusCode:    e.StatusCode,
 	})
 	if serErr != nil {
 		logErrorf("failed to serialize error to json: %s", serErr.Error())
@@ -86,6 +91,7 @@ func makeGenericHTTPError(baseErr error, req *gocbcore.HTTPRequest, resp *gocbco
 
 	if resp != nil {
 		err.Endpoint = resp.Endpoint
+		err.StatusCode = uint32(resp.StatusCode)
 	}
 
 	return err
@@ -108,6 +114,7 @@ func makeGenericMgmtError(baseErr error, req *mgmtRequest, resp *mgmtResponse, e
 
 	if resp != nil {
 		err.Endpoint = resp.Endpoint
+		err.StatusCode = resp.StatusCode
 	}
 
 	return err

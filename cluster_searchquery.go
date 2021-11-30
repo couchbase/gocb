@@ -215,12 +215,22 @@ func (srr *SearchResultRaw) NextBytes() []byte {
 
 // Err returns any errors that have occurred on the stream
 func (srr *SearchResultRaw) Err() error {
-	return srr.reader.Err()
+	err := srr.reader.Err()
+	if err != nil {
+		return maybeEnhanceSearchError(err)
+	}
+
+	return nil
 }
 
 // Close marks the results as closed, returning any errors that occurred during reading the results.
 func (srr *SearchResultRaw) Close() error {
-	return srr.reader.Close()
+	err := srr.reader.Close()
+	if err != nil {
+		return maybeEnhanceSearchError(err)
+	}
+
+	return nil
 }
 
 // MetaData returns any meta-data that was available from this query as bytes.
@@ -319,8 +329,9 @@ func (r *SearchResult) Err() error {
 
 	err := r.reader.Err()
 	if err != nil {
-		return err
+		return maybeEnhanceSearchError(err)
 	}
+	// This is an error from json unmarshal so no point in trying to enhance it.
 	return r.jsonErr
 }
 
@@ -330,7 +341,12 @@ func (r *SearchResult) Close() error {
 		return r.Err()
 	}
 
-	return r.reader.Close()
+	err := r.reader.Close()
+	if err != nil {
+		return maybeEnhanceSearchError(err)
+	}
+
+	return nil
 }
 
 func (r *SearchResult) getJSONResp() (jsonSearchResponse, error) {

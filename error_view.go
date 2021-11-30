@@ -32,6 +32,8 @@ type ViewError struct {
 	Endpoint           string          `json:"endpoint,omitempty"`
 	RetryReasons       []RetryReason   `json:"retry_reasons,omitempty"`
 	RetryAttempts      uint32          `json:"retry_attempts,omitempty"`
+	ErrorText          string          `json:"error_text,omitempty"`
+	HTTPStatusCode     int             `json:"http_status_code,omitempty"`
 }
 
 // MarshalJSON implements the Marshaler interface.
@@ -44,6 +46,7 @@ func (e ViewError) MarshalJSON() ([]byte, error) {
 		Endpoint           string          `json:"endpoint,omitempty"`
 		RetryReasons       []RetryReason   `json:"retry_reasons,omitempty"`
 		RetryAttempts      uint32          `json:"retry_attempts,omitempty"`
+		HTTPStatusCode     int             `json:"http_status_code,omitempty"`
 	}{
 		InnerError:         e.InnerError.Error(),
 		DesignDocumentName: e.DesignDocumentName,
@@ -52,6 +55,7 @@ func (e ViewError) MarshalJSON() ([]byte, error) {
 		Endpoint:           e.Endpoint,
 		RetryReasons:       e.RetryReasons,
 		RetryAttempts:      e.RetryAttempts,
+		HTTPStatusCode:     e.HTTPStatusCode,
 	})
 }
 
@@ -65,6 +69,8 @@ func (e ViewError) Error() string {
 		Endpoint           string          `json:"endpoint,omitempty"`
 		RetryReasons       []RetryReason   `json:"retry_reasons,omitempty"`
 		RetryAttempts      uint32          `json:"retry_attempts,omitempty"`
+		ErrorText          string          `json:"error_text,omitempty"`
+		HTTPStatusCode     int             `json:"http_status_code,omitempty"`
 	}{
 		InnerError:         e.InnerError,
 		DesignDocumentName: e.DesignDocumentName,
@@ -73,6 +79,8 @@ func (e ViewError) Error() string {
 		Endpoint:           e.Endpoint,
 		RetryReasons:       e.RetryReasons,
 		RetryAttempts:      e.RetryAttempts,
+		ErrorText:          e.ErrorText,
+		HTTPStatusCode:     e.HTTPStatusCode,
 	})
 	if serErr != nil {
 		logErrorf("failed to serialize error to json: %s", serErr.Error())

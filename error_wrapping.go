@@ -45,6 +45,8 @@ func maybeEnhanceCoreErr(err error) error {
 			Endpoint:           viewErr.Endpoint,
 			RetryReasons:       translateCoreRetryReasons(viewErr.RetryReasons),
 			RetryAttempts:      viewErr.RetryAttempts,
+			ErrorText:          viewErr.ErrorText,
+			HTTPStatusCode:     viewErr.HTTPResponseCode,
 		}
 	}
 	if queryErr, ok := err.(*gocbcore.N1QLError); ok {
@@ -56,7 +58,8 @@ func maybeEnhanceCoreErr(err error) error {
 			Endpoint:        queryErr.Endpoint,
 			RetryReasons:    translateCoreRetryReasons(queryErr.RetryReasons),
 			RetryAttempts:   queryErr.RetryAttempts,
-			ResponseBody:    queryErr.ResponseBody,
+			ErrorText:       queryErr.ErrorText,
+			HTTPStatusCode:  queryErr.HTTPResponseCode,
 		}
 	}
 	if analyticsErr, ok := err.(*gocbcore.AnalyticsError); ok {
@@ -68,17 +71,20 @@ func maybeEnhanceCoreErr(err error) error {
 			Endpoint:        analyticsErr.Endpoint,
 			RetryReasons:    translateCoreRetryReasons(analyticsErr.RetryReasons),
 			RetryAttempts:   analyticsErr.RetryAttempts,
+			ErrorText:       analyticsErr.ErrorText,
+			HTTPStatusCode:  analyticsErr.HTTPResponseCode,
 		}
 	}
 	if searchErr, ok := err.(*gocbcore.SearchError); ok {
 		return &SearchError{
-			InnerError:    searchErr.InnerError,
-			Query:         searchErr.Query,
-			Endpoint:      searchErr.Endpoint,
-			RetryReasons:  translateCoreRetryReasons(searchErr.RetryReasons),
-			RetryAttempts: searchErr.RetryAttempts,
-			ErrorText:     searchErr.ErrorText,
-			IndexName:     searchErr.IndexName,
+			InnerError:     searchErr.InnerError,
+			Query:          searchErr.Query,
+			Endpoint:       searchErr.Endpoint,
+			RetryReasons:   translateCoreRetryReasons(searchErr.RetryReasons),
+			RetryAttempts:  searchErr.RetryAttempts,
+			ErrorText:      searchErr.ErrorText,
+			IndexName:      searchErr.IndexName,
+			HTTPStatusCode: searchErr.HTTPResponseCode,
 		}
 	}
 	if httpErr, ok := err.(*gocbcore.HTTPError); ok {
