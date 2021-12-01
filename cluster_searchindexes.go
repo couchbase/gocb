@@ -105,16 +105,16 @@ func (sm *SearchIndexManager) checkForRateLimitError(statusCode uint32, errMsg s
 
 	var err error
 	if statusCode == 400 && strings.Contains(errMsg, "createindex, prepare failed, err: num_fts_indexes") {
-		err = ErrQuotaLimitingFailure
+		err = ErrQuotaLimitedFailure
 	} else if statusCode == 429 {
 		if strings.Contains(errMsg, "num_concurrent_requests") {
-			err = ErrRateLimitingFailure
+			err = ErrRateLimitedFailure
 		} else if strings.Contains(errMsg, "num_queries_per_min") {
-			err = ErrRateLimitingFailure
+			err = ErrRateLimitedFailure
 		} else if strings.Contains(errMsg, "ingress_mib_per_min") {
-			err = ErrRateLimitingFailure
+			err = ErrRateLimitedFailure
 		} else if strings.Contains(errMsg, "egress_mib_per_min") {
-			err = ErrRateLimitingFailure
+			err = ErrRateLimitedFailure
 		}
 	}
 

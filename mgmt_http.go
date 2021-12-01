@@ -136,9 +136,9 @@ func checkForRateLimitError(statusCode uint32, errMsg string) error {
 	errMsg = strings.ToLower(errMsg)
 	var err error
 	if strings.Contains(errMsg, "limit(s) exceeded") {
-		err = ErrRateLimitingFailure
+		err = ErrRateLimitedFailure
 	} else if strings.Contains(errMsg, "maximum number of collections has been reached for scope") {
-		err = ErrQuotaLimitingFailure
+		err = ErrQuotaLimitedFailure
 	}
 
 	return err

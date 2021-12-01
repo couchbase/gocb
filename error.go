@@ -109,8 +109,13 @@ var (
 	// ErrIndexExists occurs when creating an index that already exists.
 	ErrIndexExists = gocbcore.ErrIndexExists
 
-	ErrRateLimitingFailure  = gocbcore.ErrRateLimitingFailure
-	ErrQuotaLimitingFailure = gocbcore.ErrQuotaLimitingFailure
+	// ErrRateLimitedFailure occurs when a request is rate limited by the server.
+	// Uncommitted: This API may change in the future.
+	ErrRateLimitedFailure = gocbcore.ErrRateLimitedFailure
+
+	// ErrQuotaLimitedFailure occurs when a request triggers a resource to exceed the allowed quota.
+	// Uncommitted: This API may change in the future.
+	ErrQuotaLimitedFailure = gocbcore.ErrQuotaLimitedFailure
 )
 
 // Key Value Error Definitions RFC#58@15

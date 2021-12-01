@@ -55,7 +55,7 @@ func (suite *IntegrationTestSuite) TestRateLimits() {
 	})
 	suite.Require().True(success, "Request was not rate limited in time")
 
-	if !errors.Is(foundErr, ErrRateLimitingFailure) {
+	if !errors.Is(foundErr, ErrRateLimitedFailure) {
 		suite.T().Fatalf("Expected rate limiting error but was %s", err)
 	}
 }
@@ -94,7 +94,7 @@ func (suite *IntegrationTestSuite) TestRateLimitsIngress() {
 	_, err = collection.Upsert("ratelimitingress", doc, &UpsertOptions{})
 	suite.Require().Nil(err, err)
 	_, err = collection.Upsert("ratelimitingress", doc, &UpsertOptions{})
-	if !errors.Is(err, ErrRateLimitingFailure) {
+	if !errors.Is(err, ErrRateLimitedFailure) {
 		suite.T().Fatalf("Expected rate limiting error but was %s", err)
 	}
 }
@@ -143,7 +143,7 @@ func (suite *IntegrationTestSuite) TestRateLimitsEgress() {
 	_, err = collection.Get("ratelimitegress", &GetOptions{
 		Timeout: 10 * time.Second,
 	})
-	if !errors.Is(err, ErrRateLimitingFailure) {
+	if !errors.Is(err, ErrRateLimitedFailure) {
 		suite.T().Fatalf("Expected rate limiting error but was %s", err)
 	}
 }
@@ -187,7 +187,7 @@ func (suite *IntegrationTestSuite) TestRateLimitsMaxConnections() {
 	err = b.WaitUntilReady(7*time.Second, &WaitUntilReadyOptions{
 		RetryStrategy: newFailFastRetryStrategy(),
 	})
-	if !errors.Is(err, ErrRateLimitingFailure) {
+	if !errors.Is(err, ErrRateLimitedFailure) {
 		suite.T().Fatalf("Expected rate limiting error but was %s", err)
 	}
 }
@@ -239,7 +239,7 @@ func (suite *IntegrationTestSuite) TestRateLimitsQuery() {
 	})
 	suite.Require().True(success, "Query was never rate limited")
 
-	if !errors.Is(foundErr, ErrRateLimitingFailure) {
+	if !errors.Is(foundErr, ErrRateLimitedFailure) {
 		suite.T().Fatalf("Expected rate limiting error but was %v", err)
 	}
 }
@@ -288,7 +288,7 @@ func (suite *IntegrationTestSuite) TestRateLimitsSearch() {
 	suite.Require().Nil(err, err)
 
 	result, err = c.SearchQuery("ratelimits", query, &SearchOptions{})
-	if !errors.Is(err, ErrRateLimitingFailure) {
+	if !errors.Is(err, ErrRateLimitedFailure) {
 		suite.T().Fatalf("Expected rate limiting error but was %v", err)
 	}
 }
@@ -320,7 +320,7 @@ func (suite *IntegrationTestSuite) TestRateLimitsKVScopesDataSize() {
 	suite.Require().Nil(err, err)
 	doc = randomDoc(2048)
 	_, err = collection.Upsert("ratelimitkvscope", doc, &UpsertOptions{})
-	if !errors.Is(err, ErrQuotaLimitingFailure) {
+	if !errors.Is(err, ErrQuotaLimitedFailure) {
 		suite.T().Fatalf("Expected rate limiting error but was %s", err)
 	}
 }
@@ -409,7 +409,7 @@ func (suite *IntegrationTestSuite) TestRateLimitsFTSScopes() {
 			},
 		},
 	}, nil)
-	if !errors.Is(err, ErrQuotaLimitingFailure) {
+	if !errors.Is(err, ErrQuotaLimitedFailure) {
 		suite.T().Fatalf("Expected rate limiting error but was %s", err)
 	}
 }
@@ -444,7 +444,7 @@ func (suite *IntegrationTestSuite) TestRateLimitsIndexScopes() {
 	suite.Require().Nil(err, err)
 
 	_, err = scope.Query(fmt.Sprintf("CREATE INDEX ratelimit ON `%s`(somefield)", colname), nil)
-	if !errors.Is(err, ErrQuotaLimitingFailure) {
+	if !errors.Is(err, ErrQuotaLimitedFailure) {
 		suite.T().Fatalf("Expected rate limiting error but was %s", err)
 	}
 }
@@ -474,7 +474,7 @@ func (suite *IntegrationTestSuite) TestRateLimitsScopesCollectionsLimit() {
 		Name:      "hihohihohiho",
 		ScopeName: scopename,
 	}, nil)
-	if !errors.Is(err, ErrQuotaLimitingFailure) {
+	if !errors.Is(err, ErrQuotaLimitedFailure) {
 		suite.T().Fatalf("Expected rate limiting error but was %s", err)
 	}
 }
@@ -518,12 +518,12 @@ func (suite *IntegrationTestSuite) TestRateLimitsClusterManagerConcurrency() {
 			if err == nil {
 				err = mgr.DropScope(fmt.Sprintf("ratelimitingressclustermanagerconcurrency%d", i), nil)
 				if err != nil {
-					if errors.Is(err, ErrRateLimitingFailure) {
+					if errors.Is(err, ErrRateLimitedFailure) {
 						atomic.StoreUint32(&foundRateLimitErr, 1)
 					}
 				}
 			} else {
-				if errors.Is(err, ErrRateLimitingFailure) {
+				if errors.Is(err, ErrRateLimitedFailure) {
 					atomic.StoreUint32(&foundRateLimitErr, 1)
 				}
 			}
