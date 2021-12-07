@@ -66,6 +66,10 @@ type SearchOptions struct {
 	// UNCOMMITTED: This API may change in the future.
 	Context context.Context
 
+	// If set to true, will include the SearchRowLocations.
+	// UNCOMMITTED: This API may change in the future.
+	IncludeLocations bool
+
 	// Internal: This should never be used and is not supported.
 	Internal struct {
 		User string
@@ -156,6 +160,10 @@ func (opts *SearchOptions) toMap() (map[string]interface{}, error) {
 
 	if len(opts.Collections) > 0 {
 		data["collections"] = opts.Collections
+	}
+
+	if opts.IncludeLocations {
+		data["includeLocations"] = true
 	}
 
 	return data, nil

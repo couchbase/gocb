@@ -21,6 +21,18 @@ func (q searchQueryBase) MarshalJSON() ([]byte, error) {
 	return json.Marshal(q.options)
 }
 
+// MatchOperator defines how the individual match terms should be logically concatenated.
+// UNCOMMITTED: This API may change in the future.
+type MatchOperator string
+
+const (
+	// MatchOperatorOr specifies that individual match terms are concatenated with a logical OR - this is the default if not provided.
+	MatchOperatorOr MatchOperator = "or"
+
+	// MatchOperatorAnd specifies that individual match terms are concatenated with a logical AND.
+	MatchOperatorAnd MatchOperator = "and"
+)
+
 // MatchQuery represents a search match query.
 type MatchQuery struct {
 	searchQueryBase
@@ -60,6 +72,13 @@ func (q *MatchQuery) Fuzziness(fuzziness uint64) *MatchQuery {
 // Boost specifies the boost for this query.
 func (q *MatchQuery) Boost(boost float32) *MatchQuery {
 	q.options["boost"] = boost
+	return q
+}
+
+// Operator defines how the individual match terms should be logically concatenated.
+// UNCOMMITTED: This API may change in the future.
+func (q *MatchQuery) Operator(operator MatchOperator) *MatchQuery {
+	q.options["operator"] = string(operator)
 	return q
 }
 

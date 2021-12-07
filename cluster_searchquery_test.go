@@ -23,6 +23,7 @@ func (suite *IntegrationTestSuite) runSearchTest(n int) {
 	deadline := time.Now().Add(60 * time.Second)
 	query := search.NewTermQuery("search").Field("service")
 	var result *SearchResult
+	var rows []SearchRow
 	for {
 		globalTracer.Reset()
 		globalMeter.Reset()
@@ -34,6 +35,7 @@ func (suite *IntegrationTestSuite) runSearchTest(n int) {
 				"date":    search.NewDateFacet("updated", 5).AddRange("updated", "2000-07-22 20:00:20", "2020-07-22 20:00:20"),
 				"numeric": search.NewNumericFacet("geo.lat", 5).AddRange("lat", 30, 31),
 			},
+			IncludeLocations: true,
 		})
 
 		suite.Require().Contains(globalTracer.Spans, nil)
@@ -63,16 +65,17 @@ func (suite *IntegrationTestSuite) runSearchTest(n int) {
 			continue
 		}
 
-		var ids []string
+		var thisRows []SearchRow
 		for result.Next() {
 			row := result.Row()
-			ids = append(ids, row.ID)
+			thisRows = append(thisRows, row)
 		}
 
 		err = result.Err()
 		suite.Require().Nil(err, err)
 
-		if n == len(ids) {
+		if n == len(thisRows) {
+			rows = thisRows
 			break
 		}
 
@@ -84,6 +87,18 @@ func (suite *IntegrationTestSuite) runSearchTest(n int) {
 
 		if sleepDeadline == deadline {
 			suite.T().Fatalf("timed out waiting for indexing")
+		}
+	}
+
+	for _, row := range rows {
+		if suite.Assert().Contains(row.Locations, "service") {
+			if suite.Assert().Contains(row.Locations["service"], "search") {
+				if suite.Assert().NotZero(row.Locations["service"]["search"]) {
+					suite.Assert().Zero(row.Locations["service"]["search"][0].Start)
+					suite.Assert().NotZero(row.Locations["service"]["search"][0].End)
+					suite.Assert().Nil(row.Locations["service"]["search"][0].ArrayPositions)
+				}
+			}
 		}
 	}
 
