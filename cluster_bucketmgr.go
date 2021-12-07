@@ -36,6 +36,12 @@ const (
 
 	// ConflictResolutionTypeSequenceNumber specifies to use sequence number conflict resolution on the bucket.
 	ConflictResolutionTypeSequenceNumber ConflictResolutionType = "seqno"
+
+	// ConflictResolutionTypeCustom specifies to use a custom bucket conflict resolution.
+	// In Couchbase Server 7.1, this feature is only available in "developer-preview" mode. See the UI XDCR settings
+	// for the custom conflict resolution properties.
+	// VOLATILE: This API is subject to change at any time.
+	ConflictResolutionTypeCustom ConflictResolutionType = "custom"
 )
 
 // EvictionPolicyType specifies the kind of eviction policy to use for a bucket.
