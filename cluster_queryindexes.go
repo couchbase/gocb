@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -102,6 +103,8 @@ type jsonQueryIndex struct {
 	IndexKey  []string       `json:"index_key"`
 	Condition string         `json:"condition"`
 	Partition string         `json:"partition"`
+	Scope     string         `json:"scope_id"`
+	Bucket    string         `json:"bucket_id"`
 }
 
 // QueryIndex represents a Couchbase GSI index.
@@ -115,6 +118,12 @@ type QueryIndex struct {
 	IndexKey  []string
 	Condition string
 	Partition string
+	// UNCOMMITTED: This API may change in the future.
+	CollectionName string
+	// UNCOMMITTED: This API may change in the future.
+	ScopeName string
+	// UNCOMMITTED: This API may change in the future.
+	BucketName string
 }
 
 func (index *QueryIndex) fromData(data jsonQueryIndex) error {
@@ -127,6 +136,15 @@ func (index *QueryIndex) fromData(data jsonQueryIndex) error {
 	index.IndexKey = data.IndexKey
 	index.Condition = data.Condition
 	index.Partition = data.Partition
+	index.ScopeName = data.Scope
+	if data.Bucket == "" {
+		index.BucketName = data.Keyspace
+	} else {
+		index.BucketName = data.Bucket
+	}
+	if data.Scope != "" {
+		index.CollectionName = data.Keyspace
+	}
 
 	return nil
 }
@@ -137,6 +155,9 @@ type createQueryIndexOptions struct {
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
+
+	Scope      string
+	Collection string
 }
 
 func (qm *QueryIndexManager) createIndex(
@@ -150,6 +171,8 @@ func (qm *QueryIndexManager) createIndex(
 
 	spanName := "manager_query_create_index"
 
+	bucketName = qm.maybeAddScopeCollectionToBucket(bucketName, opts.Scope, opts.Collection)
+
 	if len(fields) == 0 {
 		spanName = "manager_query_create_primary_index"
 		qs += "CREATE PRIMARY INDEX"
@@ -159,7 +182,7 @@ func (qm *QueryIndexManager) createIndex(
 	if indexName != "" {
 		qs += " `" + indexName + "`"
 	}
-	qs += " ON `" + bucketName + "`"
+	qs += " ON " + bucketName
 	if len(fields) > 0 {
 		qs += " ("
 		for i := 0; i < len(fields); i++ {
@@ -198,6 +221,28 @@ func (qm *QueryIndexManager) createIndex(
 	return err
 }
 
+func (qm *QueryIndexManager) maybeAddScopeCollectionToBucket(bucketName, scope, collection string) string {
+	if scope != "" && collection != "" {
+		bucketName = fmt.Sprintf("`%s`.`%s`.`%s`", bucketName, scope, collection)
+	} else if collection == "" && scope != "" {
+		bucketName = fmt.Sprintf("`%s`.`%s`.`%s`", bucketName, scope, collection)
+	} else {
+		bucketName = "`" + bucketName + "`"
+	}
+
+	return bucketName
+}
+
+func (qm *QueryIndexManager) validateScopeCollection(scope, collection string) error {
+	if scope == "" && collection != "" {
+		return makeInvalidArgumentsError("if collection is set then scope must be set")
+	} else if scope != "" && collection == "" {
+		return makeInvalidArgumentsError("if scope is set then collection must be set")
+	}
+
+	return nil
+}
+
 // CreateQueryIndexOptions is the set of options available to the query indexes CreateIndex operation.
 type CreateQueryIndexOptions struct {
 	IgnoreIfExists bool
@@ -206,6 +251,11 @@ type CreateQueryIndexOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// UNCOMMITTED: This API may change in the future.
+	ScopeName string
+	// UNCOMMITTED: This API may change in the future.
+	CollectionName string
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
 	// also applies to global level timeouts.
@@ -229,12 +279,17 @@ func (qm *QueryIndexManager) CreateIndex(bucketName, indexName string, fields []
 			message: "you must specify at least one field to index",
 		}
 	}
+	if err := qm.validateScopeCollection(opts.ScopeName, opts.CollectionName); err != nil {
+		return err
+	}
 
 	return qm.createIndex(opts.Context, opts.ParentSpan, bucketName, indexName, fields, createQueryIndexOptions{
 		IgnoreIfExists: opts.IgnoreIfExists,
 		Deferred:       opts.Deferred,
 		Timeout:        opts.Timeout,
 		RetryStrategy:  opts.RetryStrategy,
+		Scope:          opts.ScopeName,
+		Collection:     opts.CollectionName,
 	})
 }
 
@@ -248,6 +303,11 @@ type CreatePrimaryQueryIndexOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
+	// UNCOMMITTED: This API may change in the future.
+	ScopeName string
+	// UNCOMMITTED: This API may change in the future.
+	CollectionName string
+
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
 	// also applies to global level timeouts.
 	// UNCOMMITTED: This API may change in the future.
@@ -258,6 +318,9 @@ type CreatePrimaryQueryIndexOptions struct {
 func (qm *QueryIndexManager) CreatePrimaryIndex(bucketName string, opts *CreatePrimaryQueryIndexOptions) error {
 	if opts == nil {
 		opts = &CreatePrimaryQueryIndexOptions{}
+	}
+	if err := qm.validateScopeCollection(opts.ScopeName, opts.CollectionName); err != nil {
+		return err
 	}
 
 	return qm.createIndex(
@@ -271,14 +334,18 @@ func (qm *QueryIndexManager) CreatePrimaryIndex(bucketName string, opts *CreateP
 			Deferred:       opts.Deferred,
 			Timeout:        opts.Timeout,
 			RetryStrategy:  opts.RetryStrategy,
+			Scope:          opts.ScopeName,
+			Collection:     opts.CollectionName,
 		})
 }
 
 type dropQueryIndexOptions struct {
 	IgnoreIfNotExists bool
 
-	Timeout       time.Duration
-	RetryStrategy RetryStrategy
+	Timeout        time.Duration
+	RetryStrategy  RetryStrategy
+	ScopeName      string
+	CollectionName string
 }
 
 func (qm *QueryIndexManager) dropIndex(
@@ -289,12 +356,18 @@ func (qm *QueryIndexManager) dropIndex(
 ) error {
 	var qs string
 
+	bucketName = qm.maybeAddScopeCollectionToBucket(bucketName, opts.ScopeName, opts.CollectionName)
+
 	spanName := "manager_query_drop_index"
 	if indexName == "" {
 		spanName = "manager_query_drop_primary_index"
-		qs += "DROP PRIMARY INDEX ON `" + bucketName + "`"
+		qs += "DROP PRIMARY INDEX ON " + bucketName
 	} else {
-		qs += "DROP INDEX `" + bucketName + "`.`" + indexName + "`"
+		if opts.ScopeName != "" || opts.CollectionName != "" {
+			qs += "DROP INDEX `" + indexName + "` ON " + bucketName
+		} else {
+			qs += "DROP INDEX " + bucketName + ".`" + indexName + "`"
+		}
 	}
 
 	start := time.Now()
@@ -329,6 +402,11 @@ type DropQueryIndexOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
+	// UNCOMMITTED: This API may change in the future.
+	ScopeName string
+	// UNCOMMITTED: This API may change in the future.
+	CollectionName string
+
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
 	// also applies to global level timeouts.
 	// UNCOMMITTED: This API may change in the future.
@@ -346,6 +424,9 @@ func (qm *QueryIndexManager) DropIndex(bucketName, indexName string, opts *DropQ
 			message: "an invalid index name was specified",
 		}
 	}
+	// if err := qm.validateScopeCollection(opts.ScopeName, opts.CollectionName); err != nil {
+	// 	return err
+	// }
 
 	return qm.dropIndex(
 		opts.Context,
@@ -356,6 +437,8 @@ func (qm *QueryIndexManager) DropIndex(bucketName, indexName string, opts *DropQ
 			IgnoreIfNotExists: opts.IgnoreIfNotExists,
 			Timeout:           opts.Timeout,
 			RetryStrategy:     opts.RetryStrategy,
+			ScopeName:         opts.ScopeName,
+			CollectionName:    opts.CollectionName,
 		})
 }
 
@@ -368,6 +451,11 @@ type DropPrimaryQueryIndexOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
+	// UNCOMMITTED: This API may change in the future.
+	ScopeName string
+	// UNCOMMITTED: This API may change in the future.
+	CollectionName string
+
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
 	// also applies to global level timeouts.
 	// UNCOMMITTED: This API may change in the future.
@@ -379,6 +467,9 @@ func (qm *QueryIndexManager) DropPrimaryIndex(bucketName string, opts *DropPrima
 	if opts == nil {
 		opts = &DropPrimaryQueryIndexOptions{}
 	}
+	if err := qm.validateScopeCollection(opts.ScopeName, opts.CollectionName); err != nil {
+		return err
+	}
 
 	return qm.dropIndex(
 		opts.Context,
@@ -389,6 +480,8 @@ func (qm *QueryIndexManager) DropPrimaryIndex(bucketName string, opts *DropPrima
 			IgnoreIfNotExists: opts.IgnoreIfNotExists,
 			Timeout:           opts.Timeout,
 			RetryStrategy:     opts.RetryStrategy,
+			ScopeName:         opts.ScopeName,
+			CollectionName:    opts.CollectionName,
 		})
 }
 
@@ -397,6 +490,11 @@ type GetAllQueryIndexesOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// UNCOMMITTED: This API may change in the future.
+	ScopeName string
+	// UNCOMMITTED: This API may change in the future.
+	CollectionName string
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
 	// also applies to global level timeouts.
@@ -409,6 +507,9 @@ func (qm *QueryIndexManager) GetAllIndexes(bucketName string, opts *GetAllQueryI
 	if opts == nil {
 		opts = &GetAllQueryIndexesOptions{}
 	}
+	// if err := qm.validateScopeCollection(opts.ScopeName, opts.CollectionName); err != nil {
+	// 	return nil, err
+	// }
 
 	start := time.Now()
 	defer qm.meter.ValueRecord(meterValueServiceManagement, "manager_query_get_all_indexes", start)
@@ -422,13 +523,24 @@ func (qm *QueryIndexManager) getAllIndexes(
 	bucketName string,
 	opts *GetAllQueryIndexesOptions,
 ) ([]QueryIndex, error) {
-	q := "SELECT `indexes`.* FROM system:indexes WHERE keyspace_id=? AND `using`=\"gsi\""
-
 	span := createSpan(qm.tracer, parent, "manager_query_get_all_indexes", "management")
 	defer span.End()
 
+	var q string
+	var params []interface{}
+	if opts.ScopeName == "" && opts.CollectionName == "" {
+		q = "SELECT `indexes`.* FROM system:indexes WHERE keyspace_id=? AND `using`=\"gsi\""
+		params = append(params, bucketName)
+	} else if opts.CollectionName == "" {
+		q = "SELECT `indexes`.* FROM system:indexes WHERE bucket_id=? AND scope_id = ? AND `using`=\"gsi\""
+		params = append(params, bucketName, opts.ScopeName)
+	} else {
+		q = "SELECT `indexes`.* FROM system:indexes WHERE bucket_id=? AND scope_id = ? AND keyspace_id = ? AND `using`=\"gsi\""
+		params = append(params, bucketName, opts.ScopeName, opts.CollectionName)
+	}
+
 	rows, err := qm.doQuery(q, &QueryOptions{
-		PositionalParameters: []interface{}{bucketName},
+		PositionalParameters: params,
 		Readonly:             true,
 		Timeout:              opts.Timeout,
 		RetryStrategy:        opts.RetryStrategy,
@@ -466,6 +578,11 @@ type BuildDeferredQueryIndexOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
+	// UNCOMMITTED: This API may change in the future.
+	ScopeName string
+	// UNCOMMITTED: This API may change in the future.
+	CollectionName string
+
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
 	// also applies to global level timeouts.
 	// UNCOMMITTED: This API may change in the future.
@@ -476,6 +593,9 @@ type BuildDeferredQueryIndexOptions struct {
 func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *BuildDeferredQueryIndexOptions) ([]string, error) {
 	if opts == nil {
 		opts = &BuildDeferredQueryIndexOptions{}
+	}
+	if err := qm.validateScopeCollection(opts.ScopeName, opts.CollectionName); err != nil {
+		return nil, err
 	}
 
 	start := time.Now()
@@ -489,8 +609,10 @@ func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *Build
 		span,
 		bucketName,
 		&GetAllQueryIndexesOptions{
-			Timeout:       opts.Timeout,
-			RetryStrategy: opts.RetryStrategy,
+			Timeout:        opts.Timeout,
+			RetryStrategy:  opts.RetryStrategy,
+			ScopeName:      opts.ScopeName,
+			CollectionName: opts.CollectionName,
 		})
 	if err != nil {
 		return nil, err
@@ -509,8 +631,10 @@ func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *Build
 		return nil, nil
 	}
 
+	bucketName = qm.maybeAddScopeCollectionToBucket(bucketName, opts.ScopeName, opts.CollectionName)
+
 	var qs string
-	qs += "BUILD INDEX ON `" + bucketName + "`("
+	qs += "BUILD INDEX ON " + bucketName + "("
 	for i := 0; i < len(deferredList); i++ {
 		if i > 0 {
 			qs += ", "
@@ -565,6 +689,11 @@ type WatchQueryIndexOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
+	// UNCOMMITTED: This API may change in the future.
+	ScopeName string
+	// UNCOMMITTED: This API may change in the future.
+	CollectionName string
+
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
 	// also applies to global level timeouts.
 	// UNCOMMITTED: This API may change in the future.
@@ -575,6 +704,9 @@ type WatchQueryIndexOptions struct {
 func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string, timeout time.Duration, opts *WatchQueryIndexOptions) error {
 	if opts == nil {
 		opts = &WatchQueryIndexOptions{}
+	}
+	if err := qm.validateScopeCollection(opts.ScopeName, opts.CollectionName); err != nil {
+		return err
 	}
 
 	start := time.Now()
@@ -600,8 +732,10 @@ func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string,
 			span,
 			bucketName,
 			&GetAllQueryIndexesOptions{
-				Timeout:       time.Until(deadline),
-				RetryStrategy: opts.RetryStrategy,
+				Timeout:        time.Until(deadline),
+				RetryStrategy:  opts.RetryStrategy,
+				ScopeName:      opts.ScopeName,
+				CollectionName: opts.CollectionName,
 			})
 		if err != nil {
 			return err
