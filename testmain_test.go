@@ -1,9 +1,11 @@
 package gocb
 
 import (
+	"crypto/x509"
 	"flag"
 	"fmt"
 	gojcbmock "github.com/couchbase/gocbcore/v10/jcbmock"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -33,8 +35,9 @@ type testConfig struct {
 	Scope        string
 	FeatureFlags []TestFeatureFlag
 
-	connstr string
-	auth    Authenticator
+	connstr   string
+	certsPath string
+	auth      Authenticator
 }
 
 func TestMain(m *testing.M) {
@@ -58,6 +61,8 @@ func TestMain(m *testing.M) {
 		"The features that should be tested, applicable only for integration test runs")
 	disableLogger := envFlagBool("GOCBNOLOG", "disable-logger", false,
 		"Whether to disable the logger")
+	certsPath := envFlagString("GOCBCERTS", "certs-path", "",
+		"The path to the couchbase certs directory")
 	flag.Parse()
 
 	if testing.Short() {
@@ -113,6 +118,7 @@ func TestMain(m *testing.M) {
 	globalConfig.Collection = *collectionName
 	globalConfig.Scope = *scopeName
 	globalConfig.FeatureFlags = featureFlags
+	globalConfig.certsPath = *certsPath
 
 	if !testing.Short() {
 		setupCluster()
@@ -228,14 +234,35 @@ func setupCluster() {
 		}
 	}
 
+	options := ClusterOptions{Authenticator: auth}
+
+	if globalConfig.certsPath != "" {
+		rootCAs := x509.NewCertPool()
+		files, err := ioutil.ReadDir(globalConfig.certsPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		for _, f := range files {
+			certs, err := ioutil.ReadFile(globalConfig.certsPath + "/" + f.Name())
+			if strings.Contains(f.Name(), "roots") {
+				if err != nil {
+					log.Fatalf("Failed to append %q to RootCAs: %v", f, err)
+				}
+				if ok := rootCAs.AppendCertsFromPEM(certs); !ok {
+					log.Println("No certs appended, using system certs only")
+				}
+			}
+		}
+		options.SecurityConfig.TLSRootCAs = rootCAs
+		connStr = "couchbases://" + connStr
+	}
+
 	globalTracer = newTestTracer()
 	globalMeter = newTestMeter()
+	options.Tracer = globalTracer
+	options.Meter = globalMeter
 
-	cluster, err := Connect(connStr, ClusterOptions{
-		Authenticator: auth,
-		Tracer:        globalTracer,
-		Meter:         globalMeter,
-	})
+	cluster, err := Connect(connStr, options)
 	if err != nil {
 		panic(err.Error())
 	}
