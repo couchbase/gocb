@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"io/ioutil"
 	"time"
 
@@ -15,8 +16,10 @@ func (suite *IntegrationTestSuite) TestSearchIndexesCrud() {
 
 	mgr := globalCluster.SearchIndexes()
 
+	indexName := uuid.New().String()
+
 	err := mgr.UpsertIndex(SearchIndex{
-		Name:       "test",
+		Name:       indexName,
 		Type:       "fulltext-index",
 		SourceType: "couchbase",
 		SourceName: globalBucket.Name(),
@@ -27,7 +30,7 @@ func (suite *IntegrationTestSuite) TestSearchIndexesCrud() {
 
 	// Upsert requires a UUID.
 	err = mgr.UpsertIndex(SearchIndex{
-		Name:       "test",
+		Name:       indexName,
 		Type:       "fulltext-index",
 		SourceType: "couchbase",
 		SourceName: globalBucket.Name(),
@@ -42,7 +45,7 @@ func (suite *IntegrationTestSuite) TestSearchIndexesCrud() {
 		SourceType: "couchbase",
 		SourceName: globalBucket.Name(),
 		PlanParams: map[string]interface{}{
-			"indexPartitions": 3,
+			"indexPartitions": 1,
 		},
 		Params: map[string]interface{}{
 			"store": map[string]string{
@@ -70,7 +73,7 @@ func (suite *IntegrationTestSuite) TestSearchIndexesCrud() {
 		suite.T().Fatalf("Expected UpsertIndexAlias err to be nil but was %v", err)
 	}
 
-	index, err := mgr.GetIndex("test", nil)
+	index, err := mgr.GetIndex(indexName, nil)
 	if err != nil {
 		suite.T().Fatalf("Expected GetIndex err to be nil but was %v", err)
 	}
@@ -80,7 +83,7 @@ func (suite *IntegrationTestSuite) TestSearchIndexesCrud() {
 		suite.T().Fatalf("Expected GetIndex err to be not exists but was %v", err)
 	}
 
-	if index.Name != "test" {
+	if index.Name != indexName {
 		suite.T().Fatalf("Index name was not equal, expected test but was %v", index.Name)
 	}
 
@@ -102,7 +105,7 @@ func (suite *IntegrationTestSuite) TestSearchIndexesCrud() {
 		suite.T().Fatalf("Expected GetAll to return more than 0 indexes")
 	}
 
-	err = mgr.DropIndex("test", nil)
+	err = mgr.DropIndex(indexName, nil)
 	if err != nil {
 		suite.T().Fatalf("Expected DropIndex err to be nil but was %v", err)
 	}
@@ -153,8 +156,10 @@ func (suite *IntegrationTestSuite) TestSearchIndexesIngestControl() {
 
 	mgr := globalCluster.SearchIndexes()
 
+	indexName := uuid.New().String()
+
 	err := mgr.UpsertIndex(SearchIndex{
-		Name:       "test",
+		Name:       indexName,
 		Type:       "fulltext-index",
 		SourceType: "couchbase",
 		SourceName: globalBucket.Name(),
@@ -163,14 +168,14 @@ func (suite *IntegrationTestSuite) TestSearchIndexesIngestControl() {
 		suite.T().Fatalf("Expected UpsertIndex err to be nil but was %v", err)
 	}
 
-	defer mgr.DropIndex("test", nil)
+	defer mgr.DropIndex(indexName, nil)
 
-	err = mgr.PauseIngest("test", nil)
+	err = mgr.PauseIngest(indexName, nil)
 	if err != nil {
 		suite.T().Fatalf("Expected PauseIngest err to be nil but was %v", err)
 	}
 
-	err = mgr.ResumeIngest("test", nil)
+	err = mgr.ResumeIngest(indexName, nil)
 	if err != nil {
 		suite.T().Fatalf("Expected ResumeIngest err to be nil but was %v", err)
 	}
@@ -181,8 +186,9 @@ func (suite *IntegrationTestSuite) TestSearchIndexesQueryControl() {
 
 	mgr := globalCluster.SearchIndexes()
 
+	indexName := uuid.New().String()
 	err := mgr.UpsertIndex(SearchIndex{
-		Name:       "test",
+		Name:       indexName,
 		Type:       "fulltext-index",
 		SourceType: "couchbase",
 		SourceName: globalBucket.Name(),
@@ -191,14 +197,14 @@ func (suite *IntegrationTestSuite) TestSearchIndexesQueryControl() {
 		suite.T().Fatalf("Expected UpsertIndex err to be nil but was %v", err)
 	}
 
-	defer mgr.DropIndex("test", nil)
+	defer mgr.DropIndex(indexName, nil)
 
-	err = mgr.DisallowQuerying("test", nil)
+	err = mgr.DisallowQuerying(indexName, nil)
 	if err != nil {
 		suite.T().Fatalf("Expected PauseIngest err to be nil but was %v", err)
 	}
 
-	err = mgr.AllowQuerying("test", nil)
+	err = mgr.AllowQuerying(indexName, nil)
 	if err != nil {
 		suite.T().Fatalf("Expected ResumeIngest err to be nil but was %v", err)
 	}
@@ -209,8 +215,9 @@ func (suite *IntegrationTestSuite) TestSearchIndexesPartitionControl() {
 
 	mgr := globalCluster.SearchIndexes()
 
+	indexName := uuid.New().String()
 	err := mgr.UpsertIndex(SearchIndex{
-		Name:       "test",
+		Name:       indexName,
 		Type:       "fulltext-index",
 		SourceType: "couchbase",
 		SourceName: globalBucket.Name(),
@@ -219,14 +226,14 @@ func (suite *IntegrationTestSuite) TestSearchIndexesPartitionControl() {
 		suite.T().Fatalf("Expected UpsertIndex err to be nil but was %v", err)
 	}
 
-	defer mgr.DropIndex("test", nil)
+	defer mgr.DropIndex(indexName, nil)
 
-	err = mgr.FreezePlan("test", nil)
+	err = mgr.FreezePlan(indexName, nil)
 	if err != nil {
 		suite.T().Fatalf("Expected PauseIngest err to be nil but was %v", err)
 	}
 
-	err = mgr.UnfreezePlan("test", nil)
+	err = mgr.UnfreezePlan(indexName, nil)
 	if err != nil {
 		suite.T().Fatalf("Expected ResumeIngest err to be nil but was %v", err)
 	}
