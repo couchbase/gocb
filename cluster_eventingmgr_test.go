@@ -158,19 +158,19 @@ func (suite *IntegrationTestSuite) TestEventingManagerUnknownFunction() {
 		suite.T().Logf("Expected PauseFunction to fail with not found but was %v", err)
 		suite.T().Fail()
 	}
-	// see MB-47840 on why those are not ErrEventingFunctionNotFound
+	// see MB-47840 on why those are not only ErrEventingFunctionNotFound
 	err = mgr.DropFunction(fnName, nil)
-	if !errors.Is(err, ErrEventingFunctionNotDeployed) {
+	if !errors.Is(err, ErrEventingFunctionNotDeployed) && !errors.Is(err, ErrEventingFunctionNotFound) {
 		suite.T().Logf("Expected DropFunction to fail with not deployed but was %v", err)
 		suite.T().Fail()
 	}
 	err = mgr.UndeployFunction(fnName, nil)
-	if !errors.Is(err, ErrEventingFunctionNotDeployed) {
+	if !errors.Is(err, ErrEventingFunctionNotDeployed) && !errors.Is(err, ErrEventingFunctionNotFound) {
 		suite.T().Logf("Expected UndeployFunction to fail with not deployed but was %v", err)
 		suite.T().Fail()
 	}
 	err = mgr.ResumeFunction(fnName, nil)
-	if !errors.Is(err, ErrEventingFunctionNotDeployed) {
+	if !errors.Is(err, ErrEventingFunctionNotDeployed) && !errors.Is(err, ErrEventingFunctionNotFound) {
 		suite.T().Logf("Expected ResumeFunction to fail with not deployed but was %v", err)
 		suite.T().Fail()
 	}
