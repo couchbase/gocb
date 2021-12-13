@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/couchbase/gocb/v2/search"
+	"github.com/google/uuid"
 	"math/rand"
 	"net/url"
 	"strings"
@@ -248,7 +249,7 @@ func (suite *IntegrationTestSuite) TestRateLimitsSearch() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(RateLimitingFeature)
 
-	username := "ratelimitsearch"
+	username := uuid.New().String()
 	suite.enforceRateLimits()
 	userMgr := globalCluster.Users()
 	suite.createRateLimitUser(username, rateLimits{
@@ -282,6 +283,26 @@ func (suite *IntegrationTestSuite) TestRateLimitsSearch() {
 	defer mgr.DropIndex("ratelimits", nil)
 
 	query := search.NewTermQuery("search").Field("service")
+	success := suite.tryUntil(time.Now().Add(5*time.Second), 100*time.Millisecond, func() bool {
+		result, err := globalCluster.SearchQuery("ratelimits", query, &SearchOptions{
+			Timeout: 1 * time.Second,
+		})
+		if err != nil {
+			suite.T().Logf("Search query returned error: %v", err)
+			return false
+		}
+
+		for result.Next() {
+		}
+		err = result.Err()
+		if err != nil {
+			suite.T().Logf("Search query returned error: %v", err)
+			return false
+		}
+		return true
+	})
+	suite.Require().True(success)
+
 	result, err := c.SearchQuery("ratelimits", query, &SearchOptions{})
 	suite.Require().Nil(err, err)
 	err = result.Close()
@@ -298,7 +319,7 @@ func (suite *IntegrationTestSuite) TestRateLimitsKVScopesDataSize() {
 	suite.skipIfUnsupported(RateLimitingFeature)
 	suite.skipIfUnsupported(CollectionsFeature)
 
-	scopename := "ratelimitDataSize2"
+	scopename := "ratelimitDataSize"
 	suite.enforceRateLimits()
 	colMgr := globalBucket.Collections()
 	suite.createRateLimitScope(scopename, globalBucket.Name(), scopeRateLimits{
@@ -307,11 +328,14 @@ func (suite *IntegrationTestSuite) TestRateLimitsKVScopesDataSize() {
 		},
 	})
 	defer colMgr.DropScope(scopename, nil)
+
 	err := colMgr.CreateCollection(CollectionSpec{
 		Name:      scopename,
 		ScopeName: scopename,
 	}, nil)
 	suite.Require().Nil(err, err)
+
+	suite.mustWaitForCollections(scopename, []string{scopename})
 
 	collection := globalBucket.Scope(scopename).Collection(scopename)
 
@@ -319,7 +343,7 @@ func (suite *IntegrationTestSuite) TestRateLimitsKVScopesDataSize() {
 	_, err = collection.Upsert("ratelimitkvscope", doc, &UpsertOptions{})
 	suite.Require().Nil(err, err)
 	doc = randomDoc(2048)
-	_, err = collection.Upsert("ratelimitkvscope", doc, &UpsertOptions{})
+	_, err = collection.Upsert("ratelimitkvscope2", doc, &UpsertOptions{})
 	if !errors.Is(err, ErrQuotaLimitedFailure) {
 		suite.T().Fatalf("Expected rate limiting error but was %s", err)
 	}
@@ -345,6 +369,8 @@ func (suite *IntegrationTestSuite) TestRateLimitsFTSScopes() {
 		ScopeName: scopename,
 	}, nil)
 	suite.Require().Nil(err, err)
+
+	suite.mustWaitForCollections(scopename, []string{colname})
 
 	mgr := globalCluster.SearchIndexes()
 
@@ -434,14 +460,26 @@ func (suite *IntegrationTestSuite) TestRateLimitsIndexScopes() {
 		ScopeName: scopename,
 	}, nil)
 	suite.Require().Nil(err, err)
+	suite.mustWaitForCollections(scopename, []string{colname})
 
 	scope := globalBucket.Scope(scopename)
 
-	result, err := scope.Query(fmt.Sprintf("CREATE PRIMARY INDEX ON `%s`", colname), nil)
-	suite.Require().Nil(err, err)
+	success := suite.tryUntil(time.Now().Add(2*time.Second), 100*time.Millisecond, func() bool {
+		result, err := scope.Query(fmt.Sprintf("CREATE PRIMARY INDEX ON `%s`", colname), nil)
+		if err != nil {
+			suite.T().Logf("Query returned error: %v", err)
+			return false
+		}
 
-	err = result.Close()
-	suite.Require().Nil(err, err)
+		err = result.Close()
+		if err != nil {
+			suite.T().Logf("Query returned error: %v", err)
+			return false
+		}
+
+		return true
+	})
+	suite.Require().True(success, "Query did not successfully create index in time")
 
 	_, err = scope.Query(fmt.Sprintf("CREATE INDEX ratelimit ON `%s`(somefield)", colname), nil)
 	if !errors.Is(err, ErrQuotaLimitedFailure) {

@@ -529,6 +529,10 @@ func (suite *IntegrationTestSuite) dropCollection(scope, collection string) {
 }
 
 func (suite *IntegrationTestSuite) mustWaitForEventingCollections(collections []string) {
+	suite.mustWaitForCollections("eventing", collections)
+}
+
+func (suite *IntegrationTestSuite) mustWaitForCollections(scopeName string, collections []string) {
 	success := suite.tryUntil(time.Now().Add(5*time.Second), 500*time.Millisecond, func() bool {
 		scopes, err := globalBucket.Collections().GetAllScopes(nil)
 		if err != nil {
@@ -537,7 +541,7 @@ func (suite *IntegrationTestSuite) mustWaitForEventingCollections(collections []
 
 		var scope *ScopeSpec
 		for _, s := range scopes {
-			if s.Name == "eventing" {
+			if s.Name == scopeName {
 				scope = &s
 				break
 			}
