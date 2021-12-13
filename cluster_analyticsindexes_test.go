@@ -509,10 +509,10 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 	defer mgr.DropDataverse(dataverse, nil)
 
 	link := NewS3ExternalAnalyticsLink("s3Link", dataverse, "accesskey",
-		"secretKey", "us-west", nil)
+		"secretKey", "us-east-1", nil)
 
 	link2 := NewS3ExternalAnalyticsLink("s3Link2", dataverse, "2",
-		"secretKey2", "us-east", &NewS3ExternalAnalyticsLinkOptions{ServiceEndpoint: "end"})
+		"secretKey2", "us-east-1", &NewS3ExternalAnalyticsLinkOptions{ServiceEndpoint: "end"})
 
 	err = mgr.CreateLink(link, nil)
 	suite.Require().Nil(err, err)
@@ -557,7 +557,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 	suite.Assert().Contains(links, resultLink1)
 
 	rLink := NewS3ExternalAnalyticsLink("s3Link", dataverse, "accesskey2",
-		"secretKey", "europe", nil)
+		"secretKey", "us-east-1", nil)
 
 	err = mgr.ReplaceLink(rLink, nil)
 	suite.Require().Nil(err, err)
@@ -680,10 +680,10 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 	defer mgr.DropDataverse(dataverse, nil)
 
 	link := NewS3ExternalAnalyticsLink("s3LinkScope", dataverse, "accesskey",
-		"secretKey", "us-west", nil)
+		"secretKey", "us-east-1", nil)
 
 	link2 := NewS3ExternalAnalyticsLink("s3LinkScope2", dataverse, "2",
-		"secretKey2", "us-east", &NewS3ExternalAnalyticsLinkOptions{ServiceEndpoint: "end"})
+		"secretKey2", "us-east-1", &NewS3ExternalAnalyticsLinkOptions{ServiceEndpoint: "end"})
 
 	err = mgr.CreateLink(link, nil)
 	suite.Require().Nil(err, err)
@@ -728,7 +728,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 	suite.Assert().Contains(links, resultLink1)
 
 	rLink := NewS3ExternalAnalyticsLink("s3LinkScope", dataverse, "accesskey2",
-		"secretKey", "europe", nil)
+		"secretKey", "us-east-1", nil)
 
 	err = mgr.ReplaceLink(rLink, nil)
 	suite.Require().Nil(err, err)
