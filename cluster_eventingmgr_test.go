@@ -66,8 +66,16 @@ func (suite *IntegrationTestSuite) TestEventingManagerUpsertGetDrop() {
 			Collection: "source",
 		},
 	}
-	err := mgr.UpsertFunction(expectedFn, nil)
-	suite.Require().Nil(err, err)
+	success := suite.tryUntil(time.Now().Add(2*time.Second), 100*time.Millisecond, func() bool {
+		err := mgr.UpsertFunction(expectedFn, nil)
+		if err != nil {
+			suite.T().Logf("Upsert function failed: %v", err)
+			return false
+		}
+
+		return true
+	})
+	suite.Require().True(success, "Upsert function did not succeed in time")
 
 	functions, err := mgr.GetAllFunctions(nil)
 	suite.Require().Nil(err, err)
@@ -205,11 +213,16 @@ func (suite *IntegrationTestSuite) TestEventingManagerInvalidCode() {
 			Collection: "source",
 		},
 	}
-	err := mgr.UpsertFunction(expectedFn, nil)
-	if !errors.Is(err, ErrEventingFunctionCompilationFailure) {
-		suite.T().Logf("Expected ResumeFunction to fail with compilation failure but was %v", err)
-		suite.T().Fail()
-	}
+	success := suite.tryUntil(time.Now().Add(2*time.Second), 100*time.Millisecond, func() bool {
+		err := mgr.UpsertFunction(expectedFn, nil)
+		if !errors.Is(err, ErrEventingFunctionCompilationFailure) {
+			suite.T().Logf("Expected ResumeFunction to fail with compilation failure but was %v", err)
+			return false
+		}
+
+		return true
+	})
+	suite.Require().True(success, "Upsert function did not fail in the expected way in time")
 }
 
 func (suite *IntegrationTestSuite) TestEventingManagerCollectionNotFound() {
@@ -273,11 +286,16 @@ func (suite *IntegrationTestSuite) TestEventingManagerSameSourceAndMetaKeyspace(
 			Collection: "source",
 		},
 	}
-	err := mgr.UpsertFunction(expectedFn, nil)
-	if !errors.Is(err, ErrEventingFunctionIdenticalKeyspace) {
-		suite.T().Logf("Expected ResumeFunction to fail with identical keyspace but was %v", err)
-		suite.T().Fail()
-	}
+	success := suite.tryUntil(time.Now().Add(2*time.Second), 100*time.Millisecond, func() bool {
+		err := mgr.UpsertFunction(expectedFn, nil)
+		if !errors.Is(err, ErrEventingFunctionIdenticalKeyspace) {
+			suite.T().Logf("Expected ResumeFunction to fail with identical keyspace but was %v", err)
+			return false
+		}
+
+		return true
+	})
+	suite.Require().True(success, "Upsert function did not fail in the expected way in time")
 }
 
 func (suite *IntegrationTestSuite) TestEventingManagerDeploysAndUndeploys() {
@@ -310,8 +328,16 @@ func (suite *IntegrationTestSuite) TestEventingManagerDeploysAndUndeploys() {
 			Collection: "source",
 		},
 	}
-	err := mgr.UpsertFunction(expectedFn, nil)
-	suite.Require().Nil(err, err)
+	success := suite.tryUntil(time.Now().Add(2*time.Second), 100*time.Millisecond, func() bool {
+		err := mgr.UpsertFunction(expectedFn, nil)
+		if err != nil {
+			suite.T().Logf("Expected UpsertFunction to succeed: %v", err)
+			return false
+		}
+
+		return true
+	})
+	suite.Require().True(success, "Upsert function did not succeed in time")
 
 	actualFn, err := mgr.GetFunction(fnName, nil)
 	suite.Require().Nil(err, err)
@@ -329,7 +355,7 @@ func (suite *IntegrationTestSuite) TestEventingManagerDeploysAndUndeploys() {
 	suite.Require().Nil(err, err)
 	suite.Require().Equal(EventingFunctionDeploymentStatusDeployed, actualFn.Settings.DeploymentStatus)
 
-	success := suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
+	success = suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
 		funcsStatus, err := mgr.FunctionsStatus(nil)
 		suite.Require().Nil(err)
 
@@ -406,8 +432,16 @@ func (suite *IntegrationTestSuite) TestEventingManagerPausesAndResumes() {
 			Collection: "source",
 		},
 	}
-	err := mgr.UpsertFunction(expectedFn, nil)
-	suite.Require().Nil(err, err)
+	success := suite.tryUntil(time.Now().Add(2*time.Second), 100*time.Millisecond, func() bool {
+		err := mgr.UpsertFunction(expectedFn, nil)
+		if err != nil {
+			suite.T().Logf("Expected UpsertFunction to succeed: %v", err)
+			return false
+		}
+
+		return true
+	})
+	suite.Require().True(success, "Upsert function did not succeed in time")
 
 	actualFn, err := mgr.GetFunction(fnName, nil)
 	suite.Require().Nil(err, err)
@@ -430,7 +464,7 @@ func (suite *IntegrationTestSuite) TestEventingManagerPausesAndResumes() {
 	suite.Require().Nil(err, err)
 	suite.Require().Equal(EventingFunctionProcessingStatusRunning, actualFn.Settings.ProcessingStatus)
 
-	success := suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
+	success = suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
 		funcsStatus, err := mgr.FunctionsStatus(nil)
 		suite.Require().Nil(err)
 
