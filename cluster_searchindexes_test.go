@@ -11,12 +11,17 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+func (suite *IntegrationTestSuite) newSearchIndexName() string {
+	indexName := "a" + uuid.New().String()
+	return indexName
+}
+
 func (suite *IntegrationTestSuite) TestSearchIndexesCrud() {
 	suite.skipIfUnsupported(SearchIndexFeature)
 
 	mgr := globalCluster.SearchIndexes()
 
-	indexName := uuid.New().String()
+	indexName := suite.newSearchIndexName()
 
 	err := mgr.UpsertIndex(SearchIndex{
 		Name:       indexName,
@@ -156,7 +161,7 @@ func (suite *IntegrationTestSuite) TestSearchIndexesIngestControl() {
 
 	mgr := globalCluster.SearchIndexes()
 
-	indexName := uuid.New().String()
+	indexName := suite.newSearchIndexName()
 
 	err := mgr.UpsertIndex(SearchIndex{
 		Name:       indexName,
@@ -186,7 +191,7 @@ func (suite *IntegrationTestSuite) TestSearchIndexesQueryControl() {
 
 	mgr := globalCluster.SearchIndexes()
 
-	indexName := uuid.New().String()
+	indexName := suite.newSearchIndexName()
 	err := mgr.UpsertIndex(SearchIndex{
 		Name:       indexName,
 		Type:       "fulltext-index",
@@ -215,7 +220,7 @@ func (suite *IntegrationTestSuite) TestSearchIndexesPartitionControl() {
 
 	mgr := globalCluster.SearchIndexes()
 
-	indexName := uuid.New().String()
+	indexName := suite.newSearchIndexName()
 	err := mgr.UpsertIndex(SearchIndex{
 		Name:       indexName,
 		Type:       "fulltext-index",
