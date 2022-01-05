@@ -767,3 +767,26 @@ func (suite *UnitTestSuite) TestQueryRaw() {
 
 	suite.Assert().Equal(reader.Meta, metadata)
 }
+
+func (suite *UnitTestSuite) TestQueryPreserveExpiry() {
+	reader := new(mockQueryRowReader)
+
+	statement := "UPDATE default AS d SET d.comment = \"xyz\";"
+
+	cluster := suite.queryCluster(false, reader, func(args mock.Arguments) {
+		opts := args.Get(1).(gocbcore.N1QLQueryOptions)
+
+		var actualOptions map[string]interface{}
+		err := json.Unmarshal(opts.Payload, &actualOptions)
+		suite.Require().Nil(err)
+
+		suite.Assert().Equal(true, actualOptions["preserve_expiry"])
+	})
+
+	result, err := cluster.Query(statement, &QueryOptions{
+		PreserveExpiry: true,
+		Adhoc:          true,
+	})
+	suite.Require().Nil(err)
+	suite.Require().NotNil(result)
+}

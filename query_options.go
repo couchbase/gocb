@@ -58,6 +58,10 @@ type QueryOptions struct {
 	// FlexIndex tells the query engine to use a flex index (utilizing the search service).
 	FlexIndex bool
 
+	// PreserveExpiry tells the query engine to preserve expiration values set on any documents modified by this query.
+	// UNCOMMITTED: This API may change in the future.
+	PreserveExpiry bool
+
 	ParentSpan RequestSpan
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
@@ -157,6 +161,10 @@ func (opts *QueryOptions) toMap() (map[string]interface{}, error) {
 
 	if opts.FlexIndex {
 		execOpts["use_fts"] = true
+	}
+
+	if opts.PreserveExpiry {
+		execOpts["preserve_expiry"] = true
 	}
 
 	return execOpts, nil
