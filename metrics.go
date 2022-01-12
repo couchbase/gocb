@@ -150,5 +150,10 @@ func (mw *meterWrapper) ValueRecord(service, operation string, start time.Time) 
 		return
 	}
 
-	recorder.RecordValue(uint64(time.Since(start).Microseconds()))
+	duration := uint64(time.Since(start).Microseconds())
+	if duration == 0 {
+		duration = uint64(1 * time.Microsecond)
+	}
+
+	recorder.RecordValue(duration)
 }
