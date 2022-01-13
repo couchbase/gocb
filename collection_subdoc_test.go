@@ -109,13 +109,13 @@ func (suite *IntegrationTestSuite) TestMutateInBasicCrud() {
 		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
-	mutRes, err := globalCollection.Insert("mutateIn", doc, nil)
+	mutRes, err := globalCollection.Upsert("mutateIn", doc, nil)
 	if err != nil {
-		suite.T().Fatalf("Insert failed, error: %v", err)
+		suite.T().Fatalf("Upsert failed, error: %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		suite.T().Fatalf("Insert CAS was 0")
+		suite.T().Fatalf("Upsert CAS was 0")
 	}
 
 	fishName := "blobfish"
@@ -132,9 +132,7 @@ func (suite *IntegrationTestSuite) TestMutateInBasicCrud() {
 		InsertSpec("x.foo.bar", "ddd", &InsertSpecOptions{CreatePath: true}),
 		UpsertSpec("x.foo.barbar", "barbar", &UpsertSpecOptions{}),
 		ReplaceSpec("x.foo.bar", "eee", &ReplaceSpecOptions{}),
-	}, &MutateInOptions{
-		StoreSemantic: StoreSemanticsUpsert,
-	})
+	}, nil)
 	if err != nil {
 		suite.T().Fatalf("MutateIn failed, error was %v", err)
 	}
@@ -193,7 +191,7 @@ func (suite *IntegrationTestSuite) TestMutateInBasicCrud() {
 	suite.Require().Contains(globalTracer.Spans, nil)
 	nilParents := globalTracer.Spans[nil]
 	suite.Require().Equal(len(nilParents), 3)
-	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), 1, false, true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
 	suite.AssertKvSpan(nilParents[1], "mutate_in", DurabilityLevelNone)
 	suite.AssertEncodingSpansEq(nilParents[1].Spans, 10)
 	suite.AssertCmdSpansEq(nilParents[1].Spans, memd.CmdSubDocMultiMutation.Name(), 1)
@@ -587,7 +585,7 @@ func (suite *IntegrationTestSuite) TestCasMismatchConvertedToExists() {
 	}
 }
 
-func (suite *IntegrationTestSuite) TestInsertLookupInXattrs() {
+func (suite *IntegrationTestSuite) TestMutateInLookupInXattrs() {
 	type beerWithCountable struct {
 		testBeerDocument
 		Countable []string `json:"countable"`
@@ -598,33 +596,36 @@ func (suite *IntegrationTestSuite) TestInsertLookupInXattrs() {
 		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
+	_, err = globalCollection.Upsert("lookupXattrDoc", doc, nil)
+	suite.Require().Nil(err, err)
+
 	doc.Countable = []string{"one", "two"}
 
 	mutRes, err := globalCollection.MutateIn("lookupXattrDoc", []MutateInSpec{
-		InsertSpec("name", doc.Name, &InsertSpecOptions{IsXattr: true}),
-		InsertSpec("description", "ddd", &InsertSpecOptions{IsXattr: true}),
-		UpsertSpec("style", doc.Style, &UpsertSpecOptions{IsXattr: true}),
-		UpsertSpec("countable", doc.Countable, &UpsertSpecOptions{IsXattr: true}),
-		ReplaceSpec("description", doc.Description, &ReplaceSpecOptions{IsXattr: true}),
+		InsertSpec("x.name", doc.Name, &InsertSpecOptions{IsXattr: true, CreatePath: true}),
+		InsertSpec("x.description", "ddd", &InsertSpecOptions{IsXattr: true}),
+		UpsertSpec("x.style", doc.Style, &UpsertSpecOptions{IsXattr: true}),
+		UpsertSpec("x.countable", doc.Countable, &UpsertSpecOptions{IsXattr: true}),
+		ReplaceSpec("x.description", doc.Description, &ReplaceSpecOptions{IsXattr: true}),
 		InsertSpec("x.foo.bar", "ddd", &InsertSpecOptions{IsXattr: true, CreatePath: true}),
 		UpsertSpec("x.foo.barbar", "barbar", &UpsertSpecOptions{IsXattr: true}),
 		ReplaceSpec("x.foo.bar", "eee", &ReplaceSpecOptions{IsXattr: true}),
-	}, &MutateInOptions{StoreSemantic: StoreSemanticsUpsert})
+	}, nil)
 	if err != nil {
-		suite.T().Fatalf("Insert failed, error was %v", err)
+		suite.T().Fatalf("MutateIn failed, error was %v", err)
 	}
 
 	if mutRes.Cas() == 0 {
-		suite.T().Fatalf("Insert CAS was 0")
+		suite.T().Fatalf("MutateIn CAS was 0")
 	}
 
 	result, err := globalCollection.LookupIn("lookupXattrDoc", []LookupInSpec{
-		GetSpec("name", &GetSpecOptions{IsXattr: true}),
-		GetSpec("description", &GetSpecOptions{IsXattr: true}),
-		ExistsSpec("doesnt", &ExistsSpecOptions{IsXattr: true}),
-		ExistsSpec("style", &ExistsSpecOptions{IsXattr: true}),
-		GetSpec("doesntexist", &GetSpecOptions{IsXattr: true}),
-		CountSpec("countable", &CountSpecOptions{IsXattr: true}),
+		GetSpec("x.name", &GetSpecOptions{IsXattr: true}),
+		GetSpec("x.description", &GetSpecOptions{IsXattr: true}),
+		ExistsSpec("x.doesnt", &ExistsSpecOptions{IsXattr: true}),
+		ExistsSpec("x.style", &ExistsSpecOptions{IsXattr: true}),
+		GetSpec("x.doesntexist", &GetSpecOptions{IsXattr: true}),
+		CountSpec("x.countable", &CountSpecOptions{IsXattr: true}),
 		GetSpec("x.foo.bar", &GetSpecOptions{IsXattr: true}),
 		GetSpec("x.foo.barbar", &GetSpecOptions{IsXattr: true}),
 	}, nil)
@@ -705,14 +706,17 @@ func (suite *IntegrationTestSuite) TestMutateInBasicArrayXattrs() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(SubdocFeature)
 
+	_, err := globalCollection.Upsert("mutateInArrayXattr", "{}", nil)
+	suite.Require().Nil(err, err)
+
 	subRes, err := globalCollection.MutateIn("mutateInArrayXattr", []MutateInSpec{
-		ArrayAppendSpec("array", "clownfish", &ArrayAppendSpecOptions{IsXattr: true}),
+		ArrayAppendSpec("array", "clownfish", &ArrayAppendSpecOptions{IsXattr: true, CreatePath: true}),
 		ArrayPrependSpec("array", "whaleshark", &ArrayPrependSpecOptions{IsXattr: true}),
 		ArrayInsertSpec("array[1]", "catfish", &ArrayInsertSpecOptions{IsXattr: true}),
 		ArrayAppendSpec("array", []string{"manta ray", "stingray"}, &ArrayAppendSpecOptions{IsXattr: true, HasMultiple: true}),
 		ArrayPrependSpec("array", []string{"carp", "goldfish"}, &ArrayPrependSpecOptions{IsXattr: true, HasMultiple: true}),
 		ArrayInsertSpec("array[1]", []string{"eel", "stonefish"}, &ArrayInsertSpecOptions{IsXattr: true, HasMultiple: true}),
-	}, &MutateInOptions{StoreSemantic: StoreSemanticsUpsert})
+	}, nil)
 	if err != nil {
 		suite.T().Fatalf("MutateIn failed, error was %v", err)
 	}
@@ -734,10 +738,6 @@ func (suite *IntegrationTestSuite) TestMutateInBasicArrayXattrs() {
 		suite.T().Fatalf("Failed to get actualDoc from LookupInResult, %v", err)
 	}
 
-	type fishBeerDocument struct {
-		Fish []string `json:"array"`
-	}
-
 	expectedDoc := []string{"carp", "eel", "stonefish", "goldfish", "whaleshark", "catfish", "clownfish", "manta ray", "stingray"}
 
 	if len(expectedDoc) != len(actualDoc) {
@@ -754,11 +754,12 @@ func (suite *IntegrationTestSuite) TestMutateInLookupInCountersXattrs() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(SubdocFeature)
 
+	_, err := globalCollection.Upsert("mutateInLookupInCountersXattrs", "{}", nil)
+	suite.Require().Nil(err, err)
+
 	subRes, err := globalCollection.MutateIn("mutateInLookupInCountersXattrs", []MutateInSpec{
 		InsertSpec("count", 10, &InsertSpecOptions{IsXattr: true}),
-	}, &MutateInOptions{
-		StoreSemantic: StoreSemanticsUpsert,
-	})
+	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Increment failed, error was %v", err)
 	}
