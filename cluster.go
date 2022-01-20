@@ -37,6 +37,7 @@ type Cluster struct {
 	circuitBreakerConfig CircuitBreakerConfig
 	securityConfig       SecurityConfig
 	internalConfig       InternalConfig
+	transactionsConfig   TransactionsConfig
 }
 
 // IoConfig specifies IO related configuration options.
@@ -123,6 +124,9 @@ type ClusterOptions struct {
 
 	// SecurityConfig specifies security related configuration options.
 	SecurityConfig SecurityConfig
+
+	// TransactionsConfig specifies transactions related configuration options.
+	TransactionsConfig TransactionsConfig
 
 	// Internal: This should never be used and is not supported.
 	InternalConfig InternalConfig
@@ -521,4 +525,10 @@ func (c *Cluster) EventingFunctions() *EventingFunctionManager {
 		tracer:       c.tracer,
 		meter:        c.meter,
 	}
+}
+
+// Transactions returns a Transactions instance for performing transactions.
+// UNCOMMITTED: This API may change in the future.
+func (c *Cluster) Transactions() (*Transactions, error) {
+	return c.initTransactions(c.transactionsConfig)
 }
