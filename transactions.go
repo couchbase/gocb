@@ -83,13 +83,13 @@ func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, er
 
 	atrLocation := gocbcore.TransactionATRLocation{}
 	if config.MetadataCollection != nil {
-		customATRAgent, err := config.MetadataCollection.Bucket().Internal().IORouter()
+		customATRAgent, err := c.Bucket(config.MetadataCollection.BucketName).Internal().IORouter()
 		if err != nil {
 			return nil, err
 		}
 		atrLocation.Agent = customATRAgent
-		atrLocation.CollectionName = config.MetadataCollection.Name()
-		atrLocation.ScopeName = config.MetadataCollection.ScopeName()
+		atrLocation.CollectionName = config.MetadataCollection.CollectionName
+		atrLocation.ScopeName = config.MetadataCollection.ScopeName
 	}
 
 	corecfg := &gocbcore.TransactionsConfig{}
@@ -311,31 +311,31 @@ func (t *Transactions) agentProvider(bucketName string) (*gocbcore.Agent, string
 
 func (t *Transactions) atrLocationsProvider() ([]gocbcore.TransactionLostATRLocation, error) {
 	meta := t.config.MetadataCollection
-	if meta == nil {
-		// This is going away soon.
-		b, err := t.cluster.Buckets().GetAllBuckets(&GetAllBucketsOptions{})
-		if err != nil {
-			return nil, err
-		}
-
-		var names []gocbcore.TransactionLostATRLocation
-		for name := range b {
-			names = append(names, gocbcore.TransactionLostATRLocation{
-				BucketName:     name,
-				ScopeName:      "",
-				CollectionName: "",
-			})
-		}
-		return names, nil
+	if meta != nil {
+		return []gocbcore.TransactionLostATRLocation{
+			{
+				BucketName:     meta.BucketName,
+				ScopeName:      meta.ScopeName,
+				CollectionName: meta.CollectionName,
+			},
+		}, nil
 	}
 
-	return []gocbcore.TransactionLostATRLocation{
-		{
-			BucketName:     meta.Bucket().Name(),
-			ScopeName:      meta.ScopeName(),
-			CollectionName: meta.Name(),
-		},
-	}, nil
+	// This is going away soon.
+	b, err := t.cluster.Buckets().GetAllBuckets(&GetAllBucketsOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var names []gocbcore.TransactionLostATRLocation
+	for name := range b {
+		names = append(names, gocbcore.TransactionLostATRLocation{
+			BucketName:     name,
+			ScopeName:      "",
+			CollectionName: "",
+		})
+	}
+	return names, nil
 }
 
 // TransactionsInternal exposes internal methods that are useful for testing and/or

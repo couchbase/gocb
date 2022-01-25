@@ -32,7 +32,7 @@ const (
 // UNCOMMITTED: This API may change in the future.
 type TransactionsConfig struct {
 	// MetadataCollection specifies a specific location to place meta-data.
-	MetadataCollection *Collection
+	MetadataCollection *TransactionKeyspace
 
 	// ExpirationTime sets the maximum time that transactions created
 	// by this Transactions object can run for, before expiring.
@@ -86,21 +86,21 @@ type TransactionsQueryConfig struct {
 	ScanConsistency QueryScanConsistency
 }
 
-// TransactionsATRLocation specifies a specific location where ATR entries should be
-// placed when performing transactions.
-// UNCOMMITTED: This API may change in the future.
-type TransactionsATRLocation struct {
-	BucketName     string
-	ScopeName      string
-	CollectionName string
-}
-
 // SingleQueryTransactionConfig specifies various tunable query options related to single query transactions.
 // type SingleQueryTransactionConfig struct {
 // 	QueryOptions    QueryOptions
 // 	DurabilityLevel TransactionDurabilityLevel
 // 	ExpirationTime  time.Duration
 // }
+
+// TransactionKeyspace specifies a specific location where ATR entries should be
+// placed when performing transactions.
+// UNCOMMITTED: This API may change in the future.
+type TransactionKeyspace struct {
+	BucketName     string
+	ScopeName      string
+	CollectionName string
+}
 
 // TransactionQueryOptions specifies the set of options available when running queries as a part of a transaction.
 // This is a subset of QueryOptions.
