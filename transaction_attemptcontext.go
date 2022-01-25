@@ -24,8 +24,6 @@ type TransactionAttemptContext struct {
 	cluster    *Cluster
 	hooks      TransactionHooks
 
-	userInvokedRollback bool
-
 	// State applicable to when we move into query mode
 	queryState *transactionQueryState
 	// Pointer to satisfy go vet complaining about the hooks.
@@ -303,8 +301,7 @@ func (c *TransactionAttemptContext) remove(doc *TransactionGetResult) (errOut er
 	return
 }
 
-// Commit will transactionAttempt to commit the transaction in its entirety.
-func (c *TransactionAttemptContext) Commit() error {
+func (c *TransactionAttemptContext) commit() (errOut error) {
 	c.queryStateLock.Lock()
 	if c.queryModeLocked() {
 		err := c.commitQueryMode()
@@ -313,10 +310,6 @@ func (c *TransactionAttemptContext) Commit() error {
 	}
 	c.queryStateLock.Unlock()
 
-	return c.commit()
-}
-
-func (c *TransactionAttemptContext) commit() (errOut error) {
 	waitCh := make(chan struct{}, 1)
 	err := c.txn.Commit(func(err error) {
 		errOut = createTransactionOperationFailedError(err)
@@ -330,10 +323,8 @@ func (c *TransactionAttemptContext) commit() (errOut error) {
 	return
 }
 
-// Rollback will undo all changes related to a transaction.
-func (c *TransactionAttemptContext) Rollback() error {
+func (c *TransactionAttemptContext) rollback() (errOut error) {
 	c.queryStateLock.Lock()
-	c.userInvokedRollback = true
 	if c.queryModeLocked() {
 		err := c.rollbackQueryMode()
 		c.queryStateLock.Unlock()
@@ -341,10 +332,6 @@ func (c *TransactionAttemptContext) Rollback() error {
 	}
 	c.queryStateLock.Unlock()
 
-	return c.rollback()
-}
-
-func (c *TransactionAttemptContext) rollback() (errOut error) {
 	waitCh := make(chan struct{}, 1)
 	err := c.txn.Rollback(func(err error) {
 		errOut = createTransactionOperationFailedError(err)

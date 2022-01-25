@@ -177,45 +177,27 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 
 		lambdaErr := logicFn(&attempt)
 
-		// The Rollback method when invoked by the user will potentially return nil with
-		// no errors indicating that a retry should not be performed.  In gocbcoretxn, this
-		// responsibility lies with the caller, so we need to wrap it in gocbtxn.
-		var userRolledback bool
-		if lambdaErr == nil && attempt.userInvokedRollback {
-			// lambdaErr = errors.New("user initiated rollback")
-			userRolledback = true
-		}
-
 		var finalErr error
-		// Only transactionAttempt commit or rollback if the user didn't initiate rollback, if they did then we know we can't
-		// commit or rollback anyway.
-		if userRolledback {
-			finalErr = lambdaErr
+		if lambdaErr == nil {
+			if attempt.canCommit() {
+				finalErr = attempt.commit()
+			} else if attempt.shouldRollback() {
+				finalErr = attempt.rollback()
+			}
 		} else {
-			if lambdaErr == nil {
-				if attempt.canCommit() {
-					finalErr = attempt.Commit()
-				} else if attempt.shouldRollback() {
-					finalErr = attempt.Rollback()
-				}
-			} else {
-				finalErr = lambdaErr
+			finalErr = lambdaErr
 
-				if attempt.shouldRollback() {
-					rollbackErr := attempt.Rollback()
-					if rollbackErr != nil {
-						logWarnf("rollback after error failed: %s", rollbackErr)
-					}
+			if attempt.shouldRollback() {
+				rollbackErr := attempt.rollback()
+				if rollbackErr != nil {
+					logWarnf("rollback after error failed: %s", rollbackErr)
 				}
 			}
 		}
 
 		var finalErrCause error
 		var wasUserError bool
-		if finalErr == nil && userRolledback {
-			// nasty
-			wasUserError = true
-		} else if finalErr != nil {
+		if finalErr != nil {
 			var txnErr *TransactionOperationFailedError
 			if errors.As(finalErr, &txnErr) {
 				finalErrCause = txnErr.Unwrap()
@@ -244,15 +226,6 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 		case AttemptStateAborted:
 			fallthrough
 		case AttemptStateRolledBack:
-			if attempt.userInvokedRollback && finalErr == nil {
-				unstagingComplete := a.State == AttemptStateCompleted
-
-				return &TransactionResult{
-					TransactionID:     txn.ID(),
-					UnstagingComplete: unstagingComplete,
-				}, nil
-			}
-
 			if a.Expired && !a.PreExpiryAutoRollback && !wasUserError {
 				return nil, &TransactionExpiredError{
 					result: &TransactionResult{

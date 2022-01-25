@@ -493,11 +493,6 @@ func (suite *IntegrationTestSuite) TestTransactions() {
 						}
 					}
 
-					err = ctx.Commit()
-					if err != nil {
-						return err
-					}
-
 					return nil
 				}, nil)
 			}
