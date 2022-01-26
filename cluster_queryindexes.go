@@ -529,13 +529,18 @@ func (qm *QueryIndexManager) getAllIndexes(
 	var q string
 	var params []interface{}
 	if opts.ScopeName == "" && opts.CollectionName == "" {
-		q = "SELECT `indexes`.* FROM system:indexes WHERE keyspace_id=? AND `using`=\"gsi\""
-		params = append(params, bucketName)
+		q = "SELECT `indexes`.* FROM system:indexes WHERE " +
+			"((bucket_id IS MISSING AND keyspace_id = ?) " +
+			"OR bucket_id = ?) AND `using`=\"gsi\" " +
+			"ORDER BY is_primary DESC, name ASC"
+		params = append(params, bucketName, bucketName)
 	} else if opts.CollectionName == "" {
-		q = "SELECT `indexes`.* FROM system:indexes WHERE bucket_id=? AND scope_id = ? AND `using`=\"gsi\""
+		q = "SELECT `indexes`.* FROM system:indexes WHERE bucket_id=? AND scope_id = ? AND `using`=\"gsi\" " +
+			"ORDER BY is_primary DESC, name ASC"
 		params = append(params, bucketName, opts.ScopeName)
 	} else {
-		q = "SELECT `indexes`.* FROM system:indexes WHERE bucket_id=? AND scope_id = ? AND keyspace_id = ? AND `using`=\"gsi\""
+		q = "SELECT `indexes`.* FROM system:indexes WHERE bucket_id=? AND scope_id = ? AND keyspace_id = ? AND `using`=\"gsi\" " +
+			"ORDER BY is_primary DESC, name ASC"
 		params = append(params, bucketName, opts.ScopeName, opts.CollectionName)
 	}
 
