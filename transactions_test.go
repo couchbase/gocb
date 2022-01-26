@@ -254,6 +254,20 @@ func (suite *IntegrationTestSuite) TestTransactionsInsertRemove() {
 	suite.verifyDocumentNotFound(docID)
 }
 
+func (suite *IntegrationTestSuite) TestTransactionsUserError() {
+	suite.skipIfUnsupported(TransactionsFeature)
+
+	var ErrOopsieDoodle = errors.New("im an error")
+
+	txns, err := globalCluster.Cluster.Transactions()
+	suite.Require().Nil(err)
+
+	_, err = txns.Run(func(ctx *TransactionAttemptContext) error {
+		return ErrOopsieDoodle
+	}, nil)
+	suite.Require().ErrorIs(err, ErrOopsieDoodle)
+}
+
 // Skip this, will have to break it up or maybe make it a benchmark.
 func (suite *IntegrationTestSuite) TestTransactions() {
 	suite.T().Skipf("Skipping test")

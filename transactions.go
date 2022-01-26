@@ -203,6 +203,7 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 				finalErrCause = txnErr.Unwrap()
 			} else {
 				wasUserError = true
+				finalErrCause = finalErr
 			}
 		}
 
