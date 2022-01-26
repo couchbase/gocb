@@ -104,7 +104,7 @@ func (sm *SearchIndexManager) checkForRateLimitError(statusCode uint32, errMsg s
 	errMsg = strings.ToLower(errMsg)
 
 	var err error
-	if statusCode == 400 && strings.Contains(errMsg, "createindex, prepare failed, err: exceeds indexes limit") {
+	if statusCode == 400 && strings.Contains(errMsg, "num_fts_indexes") {
 		err = ErrQuotaLimitedFailure
 	} else if statusCode == 429 {
 		if strings.Contains(errMsg, "num_concurrent_requests") {
