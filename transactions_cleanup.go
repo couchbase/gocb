@@ -95,7 +95,6 @@ func NewTransactionsCleaner(agentProvider gocbcore.TransactionsBucketAgentProvid
 
 	corecfg := &gocbcore.TransactionsConfig{}
 	corecfg.DurabilityLevel = gocbcore.TransactionDurabilityLevel(config.DurabilityLevel)
-	corecfg.KeyValueTimeout = config.KeyValueTimeout
 	corecfg.Internal.Hooks = nil
 	corecfg.CleanupQueueSize = config.CleanupQueueSize
 	corecfg.BucketAgentProvider = agentProvider
@@ -257,7 +256,6 @@ func NewLostTransactionsCleanup(agentProvider gocbcore.TransactionsBucketAgentPr
 
 	corecfg := &gocbcore.TransactionsConfig{}
 	corecfg.DurabilityLevel = gocbcore.TransactionDurabilityLevel(config.DurabilityLevel)
-	corecfg.KeyValueTimeout = config.KeyValueTimeout
 	corecfg.Internal.Hooks = nil
 	corecfg.CleanupQueueSize = config.CleanupQueueSize
 	corecfg.BucketAgentProvider = agentProvider

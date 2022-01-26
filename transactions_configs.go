@@ -42,9 +42,6 @@ type TransactionsConfig struct {
 	// for all write operations performed by this Transactions object.
 	DurabilityLevel TransactionDurabilityLevel
 
-	// KeyValueTimeout specifies the default timeout used for all KV writes.
-	KeyValueTimeout time.Duration
-
 	// CleanupWindow specifies how often to the cleanup process runs
 	// attempting to garbage collection transactions that have failed but
 	// were not cleaned up by the previous client.

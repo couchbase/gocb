@@ -28,9 +28,6 @@ type Transactions struct {
 // object which can be used to perform transactions.
 func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, error) {
 	// TODO we're gonna have to get this from gocb somehow.
-	if config.KeyValueTimeout == 0 {
-		config.KeyValueTimeout = 10000 * time.Millisecond
-	}
 	if config.QueryConfig.ScanConsistency == 0 {
 		config.QueryConfig.ScanConsistency = QueryScanConsistencyRequestPlus
 	}
@@ -97,7 +94,6 @@ func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, er
 
 	corecfg := &gocbcore.TransactionsConfig{}
 	corecfg.DurabilityLevel = gocbcore.TransactionDurabilityLevel(config.DurabilityLevel)
-	corecfg.KeyValueTimeout = config.KeyValueTimeout
 	corecfg.BucketAgentProvider = t.agentProvider
 	corecfg.LostCleanupATRLocationProvider = t.atrLocationsProvider
 	corecfg.CleanupClientAttempts = config.CleanupClientAttempts
@@ -352,9 +348,8 @@ func (t *Transactions) agentProvider(bucketName string) (*gocbcore.Agent, string
 func (t *Transactions) atrLocationsProvider() ([]gocbcore.TransactionLostATRLocation, error) {
 	meta := t.config.MetadataCollection
 	if meta == nil {
-		b, err := t.cluster.Buckets().GetAllBuckets(&GetAllBucketsOptions{
-			Timeout: t.config.KeyValueTimeout,
-		})
+		// This is going away soon.
+		b, err := t.cluster.Buckets().GetAllBuckets(&GetAllBucketsOptions{})
 		if err != nil {
 			return nil, err
 		}
