@@ -17,7 +17,7 @@ type transactionQueryState struct {
 	queryTarget string
 }
 
-// TransactionAttemptContext represents a single transactionAttempt to execute a transaction.
+// TransactionAttemptContext represents a single attempt to execute a transaction.
 type TransactionAttemptContext struct {
 	txn        *gocbcore.Transaction
 	transcoder Transcoder
@@ -68,33 +68,6 @@ type InternalTransactionAttemptContext struct {
 
 func (iac *InternalTransactionAttemptContext) IsExpired() bool {
 	return iac.ac.txn.HasExpired()
-}
-
-// GetOptional will transactionAttempt to fetch a document, and return nil if it does not exist.
-func (c *TransactionAttemptContext) GetOptional(collection *Collection, id string) (*TransactionGetResult, error) {
-	c.queryStateLock.Lock()
-	if c.queryModeLocked() {
-		res, err := c.getQueryMode(collection, id)
-		if err != nil {
-			if errors.Is(err, gocbcore.ErrDocumentNotFound) {
-				c.queryStateLock.Unlock()
-				return nil, nil
-			}
-			c.txn.UpdateState(gocbcore.TransactionUpdateStateOptions{
-				ShouldNotCommit: true,
-			})
-			c.queryStateLock.Unlock()
-			return nil, err
-		}
-		c.queryStateLock.Unlock()
-		return res, nil
-	}
-	c.queryStateLock.Unlock()
-	res, err := c.Get(collection, id)
-	if errors.Is(err, gocbcore.ErrDocumentNotFound) {
-		return nil, nil
-	}
-	return res, err
 }
 
 // Get will transactionAttempt to fetch a document, and fail the transaction if it does not exist.

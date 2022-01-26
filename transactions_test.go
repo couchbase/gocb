@@ -268,6 +268,51 @@ func (suite *IntegrationTestSuite) TestTransactionsUserError() {
 	suite.Require().ErrorIs(err, ErrOopsieDoodle)
 }
 
+func (suite *IntegrationTestSuite) TestTransactionsGetDocNotFoundAllowsContinue() {
+	suite.skipIfUnsupported(TransactionsFeature)
+
+	docID := "txndocnotfoundallowscontinue"
+	docValue := map[string]interface{}{
+		"test": "test",
+	}
+
+	txns, err := globalCluster.Cluster.Transactions()
+	suite.Require().Nil(err)
+
+	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
+		getRes, err := ctx.Get(globalCollection, docID)
+		if !errors.Is(err, ErrDocumentNotFound) {
+			return fmt.Errorf("get should have returned document not found but was %v", err)
+		}
+
+		_, err = ctx.Insert(globalCollection, docID, docValue)
+		if err != nil {
+			return err
+		}
+
+		getRes, err = ctx.Get(globalCollection, docID)
+		if err != nil {
+			return err
+		}
+
+		var actualDocValue map[string]interface{}
+		err = getRes.Content(&actualDocValue)
+		if err != nil {
+			return err
+		}
+
+		suite.Assert().Equal(docValue, actualDocValue)
+
+		return nil
+	}, nil)
+	suite.Require().Nil(err, err)
+
+	suite.Assert().True(txnRes.UnstagingComplete)
+	suite.Assert().NotEmpty(txnRes.TransactionID)
+
+	suite.verifyDocument(docID, docValue)
+}
+
 // Skip this, will have to break it up or maybe make it a benchmark.
 func (suite *IntegrationTestSuite) TestTransactions() {
 	suite.T().Skipf("Skipping test")
