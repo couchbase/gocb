@@ -266,16 +266,6 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 	}
 }
 
-// Commit will commit a previously prepared and serialized transaction.
-func (t *Transactions) Commit(serialized TransactionSerializedContext, perConfig *TransactionOptions) error {
-	return errors.New("not implemented")
-}
-
-// Rollback will commit a previously prepared and serialized transaction.
-func (t *Transactions) Rollback(serialized TransactionSerializedContext, perConfig *TransactionOptions) error {
-	return errors.New("not implemented")
-}
-
 //
 // func (t *Transactions) Query(statement string, options *SingleQueryTransactionConfig) (*SingleQueryTransactionResult, error) {
 // 	if options == nil {
