@@ -317,6 +317,165 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_query_drop_index"), 2, false)
 }
 
+func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNamesBucketOnly() {
+	suite.skipIfUnsupported(QueryIndexFeature)
+	suite.skipIfUnsupported(CollectionsFeature)
+
+	bucketMgr := globalCluster.Buckets()
+	bucketName := "testIndexesBuildDeferredBucketOnly"
+
+	err := bucketMgr.CreateBucket(CreateBucketSettings{
+		BucketSettings: BucketSettings{
+			Name:        bucketName,
+			RAMQuotaMB:  100,
+			NumReplicas: 0,
+			BucketType:  CouchbaseBucketType,
+		},
+	}, nil)
+	suite.Require().Nil(err, err)
+	defer bucketMgr.DropBucket(bucketName, nil)
+
+	collections := globalCluster.Bucket(bucketName).Collections()
+	err = collections.CreateCollection(CollectionSpec{
+		ScopeName: "_default",
+		Name:      bucketName,
+	}, nil)
+	suite.Require().Nil(err, err)
+
+	mgr := globalCluster.QueryIndexes()
+
+	suite.tryUntil(time.Now().Add(5*time.Second), 100*time.Millisecond, func() bool {
+		err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
+			Deferred: true,
+		})
+		if err == nil || errors.Is(err, ErrIndexExists) {
+			return true
+		}
+
+		suite.T().Logf("Unexpected error, retrying: %v", err)
+		return false
+	})
+
+	suite.tryUntil(time.Now().Add(5*time.Second), 100*time.Millisecond, func() bool {
+		err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
+			Deferred:       true,
+			ScopeName:      "_default",
+			CollectionName: bucketName,
+		})
+		if err == nil || errors.Is(err, ErrIndexExists) {
+			return true
+		}
+
+		suite.T().Logf("Unexpected error, retrying: %v", err)
+		return false
+	})
+
+	names, err := mgr.BuildDeferredIndexes(bucketName, nil)
+	suite.Require().Nil(err, err)
+
+	suite.Assert().Equal([]string{"#primary"}, names)
+
+	suite.Eventually(func() bool {
+		indexes, err := mgr.GetAllIndexes(bucketName, nil)
+		suite.Require().Nil(err, err)
+
+		suite.Assert().Len(indexes, 2)
+
+		for _, index := range indexes {
+			if index.CollectionName == "" {
+				if !(index.State == "building" || index.State == "online") {
+					return false
+				}
+			} else {
+				suite.Assert().Equal("deferred", index.State)
+			}
+		}
+
+		return true
+	}, 5*time.Second, 100*time.Millisecond)
+}
+
+func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNamesCollectionOnly() {
+	suite.skipIfUnsupported(QueryIndexFeature)
+	suite.skipIfUnsupported(CollectionsFeature)
+
+	bucketMgr := globalCluster.Buckets()
+	bucketName := "testIndexesBuildDeferredCollectionOnly"
+
+	err := bucketMgr.CreateBucket(CreateBucketSettings{
+		BucketSettings: BucketSettings{
+			Name:        bucketName,
+			RAMQuotaMB:  100,
+			NumReplicas: 0,
+			BucketType:  CouchbaseBucketType,
+		},
+	}, nil)
+	suite.Require().Nil(err, err)
+	defer bucketMgr.DropBucket(bucketName, nil)
+
+	collections := globalCluster.Bucket(bucketName).Collections()
+	err = collections.CreateCollection(CollectionSpec{
+		ScopeName: "_default",
+		Name:      bucketName,
+	}, nil)
+	suite.Require().Nil(err, err)
+
+	mgr := globalCluster.QueryIndexes()
+
+	suite.tryUntil(time.Now().Add(5*time.Second), 100*time.Millisecond, func() bool {
+		err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
+			Deferred: true,
+		})
+		if err == nil || errors.Is(err, ErrIndexExists) {
+			return true
+		}
+
+		suite.T().Logf("Unexpected error, retrying: %v", err)
+		return false
+	})
+
+	suite.tryUntil(time.Now().Add(5*time.Second), 100*time.Millisecond, func() bool {
+		err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
+			Deferred:       true,
+			ScopeName:      "_default",
+			CollectionName: bucketName,
+		})
+		if err == nil || errors.Is(err, ErrIndexExists) {
+			return true
+		}
+
+		suite.T().Logf("Unexpected error, retrying: %v", err)
+		return false
+	})
+
+	names, err := mgr.BuildDeferredIndexes(bucketName, &BuildDeferredQueryIndexOptions{
+		ScopeName:      "_default",
+		CollectionName: bucketName,
+	})
+	suite.Require().Nil(err, err)
+
+	suite.Assert().Equal([]string{"#primary"}, names)
+
+	suite.Eventually(func() bool {
+		indexes, err := mgr.GetAllIndexes(bucketName, nil)
+		suite.Require().Nil(err, err)
+
+		suite.Assert().Len(indexes, 2)
+
+		for _, index := range indexes {
+			if index.CollectionName == "" {
+				suite.Assert().Equal("deferred", index.State)
+			} else {
+				if !(index.State == "building" || index.State == "online") {
+					return false
+				}
+			}
+		}
+
+		return true
+	}, 5*time.Second, 100*time.Millisecond)
+}
+
 type testQueryIndexDataset struct {
 	Results []map[string]interface{}
 	jsonQueryResponse

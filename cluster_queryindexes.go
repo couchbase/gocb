@@ -507,9 +507,6 @@ func (qm *QueryIndexManager) GetAllIndexes(bucketName string, opts *GetAllQueryI
 	if opts == nil {
 		opts = &GetAllQueryIndexesOptions{}
 	}
-	// if err := qm.validateScopeCollection(opts.ScopeName, opts.CollectionName); err != nil {
-	// 	return nil, err
-	// }
 
 	start := time.Now()
 	defer qm.meter.ValueRecord(meterValueServiceManagement, "manager_query_get_all_indexes", start)
@@ -595,6 +592,8 @@ type BuildDeferredQueryIndexOptions struct {
 }
 
 // BuildDeferredIndexes builds all indexes which are currently in deferred state.
+// If no collection and scope names are specified in the options then *only* indexes created on the bucket directly
+// will be built.
 func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *BuildDeferredQueryIndexOptions) ([]string, error) {
 	if opts == nil {
 		opts = &BuildDeferredQueryIndexOptions{}
@@ -609,26 +608,37 @@ func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *Build
 	span := createSpan(qm.tracer, opts.ParentSpan, "manager_query_build_deferred_indexes", "management")
 	defer span.End()
 
-	indexList, err := qm.getAllIndexes(
-		opts.Context,
-		span,
-		bucketName,
-		&GetAllQueryIndexesOptions{
-			Timeout:        opts.Timeout,
-			RetryStrategy:  opts.RetryStrategy,
-			ScopeName:      opts.ScopeName,
-			CollectionName: opts.CollectionName,
-		})
+	var query string
+	var params []interface{}
+	if opts.CollectionName == "" {
+		query = "SELECT RAW name from system:indexes WHERE (keyspace_id = ? AND bucket_id IS MISSING) AND state = \"deferred\""
+		params = append(params, bucketName)
+	} else {
+		query = "SELECT RAW name from system:indexes WHERE bucket_id = ? AND scope_id = ? AND keyspace_id = ? AND state = \"deferred\""
+		params = append(params, bucketName, opts.ScopeName, opts.CollectionName)
+	}
+
+	indexesRes, err := qm.doQuery(query, &QueryOptions{
+		Timeout:              opts.Timeout,
+		RetryStrategy:        opts.RetryStrategy,
+		Adhoc:                true,
+		ParentSpan:           span,
+		Context:              opts.Context,
+		PositionalParameters: params,
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	var deferredList []string
-	for i := 0; i < len(indexList); i++ {
-		var index = indexList[i]
-		if index.State == "deferred" || index.State == "pending" {
-			deferredList = append(deferredList, index.Name)
+	for _, row := range indexesRes {
+		var name string
+		err := json.Unmarshal(row, &name)
+		if err != nil {
+			return nil, err
 		}
+
+		deferredList = append(deferredList, name)
 	}
 
 	if len(deferredList) == 0 {
