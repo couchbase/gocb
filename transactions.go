@@ -22,6 +22,7 @@ type Transactions struct {
 	txns                *gocbcore.TransactionsManager
 	hooksWrapper        transactionHooksWrapper
 	cleanupHooksWrapper transactionCleanupHooksWrapper
+	cleanupCollections  []gocbcore.TransactionLostATRLocation
 }
 
 // initTransactions will initialize the transactions library and return a Transactions
@@ -73,12 +74,22 @@ func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, er
 		}
 	}
 
+	var cleanupLocs []gocbcore.TransactionLostATRLocation
+	for _, keyspace := range config.CleanupCollections {
+		cleanupLocs = append(cleanupLocs, gocbcore.TransactionLostATRLocation{
+			BucketName:     keyspace.BucketName,
+			ScopeName:      keyspace.ScopeName,
+			CollectionName: keyspace.CollectionName,
+		})
+	}
+
 	t := &Transactions{
 		cluster:             c,
 		config:              config,
 		transcoder:          NewJSONTranscoder(),
 		hooksWrapper:        hooksWrapper,
 		cleanupHooksWrapper: cleanupHooksWrapper,
+		cleanupCollections:  cleanupLocs,
 	}
 
 	atrLocation := gocbcore.TransactionATRLocation{}
@@ -310,32 +321,7 @@ func (t *Transactions) agentProvider(bucketName string) (*gocbcore.Agent, string
 }
 
 func (t *Transactions) atrLocationsProvider() ([]gocbcore.TransactionLostATRLocation, error) {
-	meta := t.config.MetadataCollection
-	if meta != nil {
-		return []gocbcore.TransactionLostATRLocation{
-			{
-				BucketName:     meta.BucketName,
-				ScopeName:      meta.ScopeName,
-				CollectionName: meta.CollectionName,
-			},
-		}, nil
-	}
-
-	// This is going away soon.
-	b, err := t.cluster.Buckets().GetAllBuckets(&GetAllBucketsOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	var names []gocbcore.TransactionLostATRLocation
-	for name := range b {
-		names = append(names, gocbcore.TransactionLostATRLocation{
-			BucketName:     name,
-			ScopeName:      "",
-			CollectionName: "",
-		})
-	}
-	return names, nil
+	return t.cleanupCollections, nil
 }
 
 // TransactionsInternal exposes internal methods that are useful for testing and/or

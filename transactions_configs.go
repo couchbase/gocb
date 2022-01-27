@@ -58,6 +58,10 @@ type TransactionsConfig struct {
 	// CleanupQueueSize controls the maximum queue size for the cleanup thread.
 	CleanupQueueSize uint32
 
+	// CleanupCollections is a set of extra collections that should be monitored
+	// by the cleanup thread.
+	CleanupCollections []TransactionKeyspace
+
 	// QueryConfig specifies any query configuration to use in transactions.
 	QueryConfig TransactionsQueryConfig
 
