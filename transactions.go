@@ -13,7 +13,6 @@ import (
 type AttemptFunc func(*TransactionAttemptContext) error
 
 // Transactions can be used to perform transactions.
-// UNCOMMITTED: This API may change in the future.
 type Transactions struct {
 	config     TransactionsConfig
 	cluster    *Cluster

@@ -7,7 +7,6 @@ import (
 )
 
 // TransactionDurabilityLevel specifies the level of synchronous replication to use for a transaction.
-// UNCOMMITTED: This API may change in the future.
 type TransactionDurabilityLevel uint8
 
 const (
@@ -29,7 +28,6 @@ const (
 )
 
 // TransactionsConfig specifies various tunable options related to transactions.
-// UNCOMMITTED: This API may change in the future.
 type TransactionsConfig struct {
 	// MetadataCollection specifies a specific location to place meta-data.
 	MetadataCollection *TransactionKeyspace
@@ -76,7 +74,6 @@ type TransactionsConfig struct {
 }
 
 // TransactionOptions specifies options which can be overridden on a per transaction basis.
-// UNCOMMITTED: This API may change in the future.
 type TransactionOptions struct {
 	// DurabilityLevel specifies the durability level that should be used
 	// for all write operations performed by this transaction.
@@ -85,7 +82,6 @@ type TransactionOptions struct {
 }
 
 // TransactionsQueryConfig specifies various tunable query options related to transactions.
-// UNCOMMITTED: This API may change in the future.
 type TransactionsQueryConfig struct {
 	ScanConsistency QueryScanConsistency
 }
@@ -99,7 +95,6 @@ type TransactionsQueryConfig struct {
 
 // TransactionKeyspace specifies a specific location where ATR entries should be
 // placed when performing transactions.
-// UNCOMMITTED: This API may change in the future.
 type TransactionKeyspace struct {
 	BucketName     string
 	ScopeName      string
@@ -108,7 +103,6 @@ type TransactionKeyspace struct {
 
 // TransactionQueryOptions specifies the set of options available when running queries as a part of a transaction.
 // This is a subset of QueryOptions.
-// UNCOMMITTED: This API may change in the future.
 type TransactionQueryOptions struct {
 	ScanConsistency QueryScanConsistency
 	Profile         QueryProfileMode
