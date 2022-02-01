@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v10"
@@ -38,6 +39,9 @@ type Cluster struct {
 	securityConfig       SecurityConfig
 	internalConfig       InternalConfig
 	transactionsConfig   TransactionsConfig
+
+	transactionsLock sync.Mutex
+	transactions     *Transactions
 }
 
 // IoConfig specifies IO related configuration options.
@@ -530,5 +534,18 @@ func (c *Cluster) EventingFunctions() *EventingFunctionManager {
 // Transactions returns a Transactions instance for performing transactions.
 // UNCOMMITTED: This API may change in the future.
 func (c *Cluster) Transactions() (*Transactions, error) {
-	return c.initTransactions(c.transactionsConfig)
+	c.transactionsLock.Lock()
+	if c.transactions == nil {
+		t, err := c.initTransactions(c.transactionsConfig)
+		if err != nil {
+			c.transactionsLock.Unlock()
+			return nil, err
+		}
+
+		c.transactions = t
+	}
+	transactions := c.transactions
+	c.transactionsLock.Unlock()
+
+	return transactions, nil
 }
