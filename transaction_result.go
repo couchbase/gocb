@@ -24,8 +24,4 @@ type TransactionResult struct {
 	// UnstagingComplete indicates whether the transaction was succesfully
 	// unstaged, or if a later cleanup job will be responsible.
 	UnstagingComplete bool
-
-	// Serialized represents the serialized data from this transaction if
-	// the transaction was serialized as opposed to being executed.
-	Serialized *TransactionSerializedContext
 }

@@ -1,7 +1,6 @@
 package gocb
 
 import (
-	"errors"
 	"sync"
 
 	"github.com/couchbase/gocbcore/v10"
@@ -316,10 +315,4 @@ func (c *TransactionAttemptContext) rollback() (errOut error) {
 	}
 	<-waitCh
 	return
-}
-
-// Defer serializes the transaction to enable it to be completed at a later point in time.
-// VOLATILE: This API is subject to change at any time.
-func (c *TransactionAttemptContext) Defer() error {
-	return errors.New("not implemented")
 }
