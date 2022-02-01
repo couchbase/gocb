@@ -4,16 +4,38 @@ import (
 	"github.com/couchbase/gocbcore/v10"
 )
 
+// TransactionAttemptState represents the current state of a transaction attempt.
+// Internal: This should never be used and is not supported.
 type TransactionAttemptState int
 
 const (
-	AttemptStateNothingWritten = TransactionAttemptState(gocbcore.TransactionAttemptStateNothingWritten)
-	AttemptStatePending        = TransactionAttemptState(gocbcore.TransactionAttemptStatePending)
-	AttemptStateCommitting     = TransactionAttemptState(gocbcore.TransactionAttemptStateCommitting)
-	AttemptStateCommitted      = TransactionAttemptState(gocbcore.TransactionAttemptStateCommitted)
-	AttemptStateCompleted      = TransactionAttemptState(gocbcore.TransactionAttemptStateCompleted)
-	AttemptStateAborted        = TransactionAttemptState(gocbcore.TransactionAttemptStateAborted)
-	AttemptStateRolledBack     = TransactionAttemptState(gocbcore.TransactionAttemptStateRolledBack)
+	// TransactionAttemptStateNothingWritten indicates that nothing has been written in this attempt.
+	// Internal: This should never be used and is not supported.
+	TransactionAttemptStateNothingWritten = TransactionAttemptState(gocbcore.TransactionAttemptStateNothingWritten)
+
+	// TransactionAttemptStatePending indicates that this attempt is in pending state.
+	// Internal: This should never be used and is not supported.
+	TransactionAttemptStatePending = TransactionAttemptState(gocbcore.TransactionAttemptStatePending)
+
+	// TransactionAttemptStateCommitting indicates that this attempt is in committing state.
+	// Internal: This should never be used and is not supported.
+	TransactionAttemptStateCommitting = TransactionAttemptState(gocbcore.TransactionAttemptStateCommitting)
+
+	// TransactionAttemptStateCommitted indicates that this attempt is in committed state.
+	// Internal: This should never be used and is not supported.
+	TransactionAttemptStateCommitted = TransactionAttemptState(gocbcore.TransactionAttemptStateCommitted)
+
+	// TransactionAttemptStateCompleted indicates that this attempt is in completed state.
+	// Internal: This should never be used and is not supported.
+	TransactionAttemptStateCompleted = TransactionAttemptState(gocbcore.TransactionAttemptStateCompleted)
+
+	// TransactionAttemptStateAborted indicates that this attempt is in aborted state.
+	// Internal: This should never be used and is not supported.
+	TransactionAttemptStateAborted = TransactionAttemptState(gocbcore.TransactionAttemptStateAborted)
+
+	// TransactionAttemptStateRolledBack indicates that this attempt is in rolled back state.
+	// Internal: This should never be used and is not supported.
+	TransactionAttemptStateRolledBack = TransactionAttemptState(gocbcore.TransactionAttemptStateRolledBack)
 )
 
 // TransactionResult represents the result of a transaction which was executed.

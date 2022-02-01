@@ -9,6 +9,7 @@ import (
 	"github.com/couchbase/gocbcore/v10"
 )
 
+// Query executes the query statement on the server.
 func (c *TransactionAttemptContext) Query(statement string, options *TransactionQueryOptions) (*TransactionQueryResult, error) {
 	var opts TransactionQueryOptions
 	if options != nil {

@@ -69,7 +69,7 @@ func (iac *InternalTransactionAttemptContext) IsExpired() bool {
 	return iac.ac.txn.HasExpired()
 }
 
-// Get will transactionAttempt to fetch a document, and fail the transaction if it does not exist.
+// Get will attempt to fetch a document, and fail the transaction if it does not exist.
 func (c *TransactionAttemptContext) Get(collection *Collection, id string) (*TransactionGetResult, error) {
 	c.queryStateLock.Lock()
 	if c.queryModeLocked() {

@@ -231,13 +231,13 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 		}
 
 		switch a.State {
-		case AttemptStateNothingWritten:
+		case TransactionAttemptStateNothingWritten:
 			fallthrough
-		case AttemptStatePending:
+		case TransactionAttemptStatePending:
 			fallthrough
-		case AttemptStateAborted:
+		case TransactionAttemptStateAborted:
 			fallthrough
-		case AttemptStateRolledBack:
+		case TransactionAttemptStateRolledBack:
 			if a.Expired && !a.PreExpiryAutoRollback && !wasUserError {
 				return nil, &TransactionExpiredError{
 					result: &TransactionResult{
@@ -254,7 +254,7 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 					UnstagingComplete: false,
 				},
 			}
-		case AttemptStateCommitting:
+		case TransactionAttemptStateCommitting:
 			return nil, &TransactionCommitAmbiguousError{
 				cause: finalErrCause,
 				result: &TransactionResult{
@@ -262,10 +262,10 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 					UnstagingComplete: false,
 				},
 			}
-		case AttemptStateCommitted:
+		case TransactionAttemptStateCommitted:
 			fallthrough
-		case AttemptStateCompleted:
-			unstagingComplete := a.State == AttemptStateCompleted
+		case TransactionAttemptStateCompleted:
+			unstagingComplete := a.State == TransactionAttemptStateCompleted
 
 			return &TransactionResult{
 				TransactionID:     txn.ID(),
