@@ -23,6 +23,40 @@ func (suite *IntegrationTestSuite) verifyDocumentNotFound(key string) {
 	suite.Require().ErrorIs(err, ErrDocumentNotFound)
 }
 
+func (suite *IntegrationTestSuite) TestTransactionsDoubleInsert() {
+	suite.skipIfUnsupported(TransactionsFeature)
+
+	docID := "txninsert"
+	docValue := map[string]interface{}{
+		"test": "test",
+	}
+
+	txns, err := globalCluster.Cluster.Transactions()
+	suite.Require().Nil(err)
+	defer txns.Close()
+
+	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
+		_, err := ctx.Insert(globalCollection, docID, docValue)
+		if err != nil {
+			return err
+		}
+
+		_, err = ctx.Insert(globalCollection, docID, docValue)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}, nil)
+	suite.Assert().Nil(txnRes)
+	suite.Assert().ErrorIs(err, ErrDocumentExists)
+
+	var txnErr *TransactionFailedError
+	if suite.Assert().ErrorAs(err, &txnErr) {
+		suite.Assert().NotNil(txnErr.Result())
+	}
+}
+
 func (suite *IntegrationTestSuite) TestTransactionsInsert() {
 	suite.skipIfUnsupported(TransactionsFeature)
 
@@ -62,6 +96,208 @@ func (suite *IntegrationTestSuite) TestTransactionsInsert() {
 	suite.Assert().NotEmpty(txnRes.TransactionID)
 
 	suite.verifyDocument(docID, docValue)
+}
+
+func (suite *IntegrationTestSuite) TestTransactionsCustomMetadata() {
+	suite.skipIfUnsupported(TransactionsFeature)
+
+	metaCollectionName := "txnsCustomMetadata"
+	collections := globalBucket.Collections()
+	err := collections.CreateCollection(CollectionSpec{
+		Name:      metaCollectionName,
+		ScopeName: globalScope.Name(),
+	}, nil)
+	suite.Require().Nil(err, err)
+	defer collections.DropCollection(CollectionSpec{
+		Name:      metaCollectionName,
+		ScopeName: globalScope.Name(),
+	}, nil)
+	suite.mustWaitForCollections(globalScope.Name(), []string{metaCollectionName})
+
+	tConfig := globalCluster.transactionsConfig
+	tConfig.MetadataCollection = &TransactionKeyspace{
+		BucketName:     globalBucket.Name(),
+		ScopeName:      globalScope.Name(),
+		CollectionName: metaCollectionName,
+	}
+
+	c, err := Connect(globalConfig.Server, ClusterOptions{
+		Authenticator: PasswordAuthenticator{
+			Username: globalConfig.User,
+			Password: globalConfig.Password,
+		},
+		TransactionsConfig: tConfig,
+	})
+	suite.Require().Nil(err, err)
+	defer c.Close(nil)
+
+	docID := "txnsCustomMetadata"
+	docValue := map[string]interface{}{
+		"test": "test",
+	}
+
+	txns, err := c.Transactions()
+	suite.Require().Nil(err)
+	defer txns.Close()
+
+	var atr string
+	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
+		_, err := ctx.Insert(globalCollection, docID, docValue)
+		if err != nil {
+			return err
+		}
+
+		getRes, err := ctx.Get(globalCollection, docID)
+		if err != nil {
+			return err
+		}
+
+		var actualDocValue map[string]interface{}
+		err = getRes.Content(&actualDocValue)
+		if err != nil {
+			return err
+		}
+
+		suite.Assert().Equal(docValue, actualDocValue)
+
+		atr = string(ctx.txn.Attempt().AtrID)
+
+		return nil
+	}, nil)
+	suite.Require().Nil(err, err)
+
+	suite.Assert().True(txnRes.UnstagingComplete)
+	suite.Assert().NotEmpty(txnRes.TransactionID)
+
+	res, err := globalScope.Collection(metaCollectionName).LookupIn(atr,
+		[]LookupInSpec{
+			GetSpec("", nil),
+		}, &LookupInOptions{
+			Internal: struct {
+				DocFlags SubdocDocFlag
+				User     string
+			}{DocFlags: SubdocDocFlagAccessDeleted},
+		})
+	suite.Require().Nil(err, err)
+
+	suite.Assert().True(res.Exists(0))
+
+	suite.verifyDocument(docID, docValue)
+}
+
+func (suite *IntegrationTestSuite) TestTransactionsRollback() {
+	suite.skipIfUnsupported(TransactionsFeature)
+
+	docID := "txnreplace"
+	docValue := map[string]interface{}{
+		"test": "test",
+	}
+	docValue2 := map[string]interface{}{
+		"test": "test2",
+	}
+
+	_, err := globalCollection.Upsert(docID, docValue, nil)
+	suite.Require().Nil(err, err)
+
+	txns, err := globalCluster.Cluster.Transactions()
+	suite.Require().Nil(err)
+	defer txns.Close()
+
+	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
+		_, err := ctx.Insert(globalCollection, docID, docValue2)
+		if err != nil {
+			return err
+		}
+
+		getRes2, err := ctx.Get(globalCollection, docID)
+		if err != nil {
+			return err
+		}
+
+		var actualDocValue2 map[string]interface{}
+		err = getRes2.Content(&actualDocValue2)
+		if err != nil {
+			return err
+		}
+
+		suite.Assert().Equal(docValue2, actualDocValue2)
+
+		return errors.New("bail me out")
+	}, nil)
+	suite.Require().NotNil(err)
+	suite.Require().Nil(txnRes)
+
+	suite.verifyDocument(docID, docValue)
+}
+
+func (suite *IntegrationTestSuite) TestTransactionsReadExternalToTxn() {
+	suite.skipIfUnsupported(TransactionsFeature)
+
+	docID := "txnreplace"
+	docValue := map[string]interface{}{
+		"test": "test",
+	}
+	docValue2 := map[string]interface{}{
+		"test": "test2",
+	}
+
+	_, err := globalCollection.Upsert(docID, docValue, nil)
+	suite.Require().Nil(err, err)
+
+	txns, err := globalCluster.Cluster.Transactions()
+	suite.Require().Nil(err)
+	defer txns.Close()
+
+	interceptCh := make(chan struct{})
+	go func() {
+		txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
+			getRes, err := ctx.Get(globalCollection, docID)
+			if err != nil {
+				return err
+			}
+
+			var actualDocValue map[string]interface{}
+			err = getRes.Content(&actualDocValue)
+			if err != nil {
+				return err
+			}
+
+			suite.Assert().Equal(docValue, actualDocValue)
+
+			_, err = ctx.Replace(getRes, docValue2)
+			if err != nil {
+				return err
+			}
+
+			interceptCh <- struct{}{}
+			<-interceptCh
+
+			getRes2, err := ctx.Get(globalCollection, docID)
+			if err != nil {
+				return err
+			}
+
+			var actualDocValue2 map[string]interface{}
+			err = getRes2.Content(&actualDocValue2)
+			if err != nil {
+				return err
+			}
+
+			suite.Assert().Equal(docValue2, actualDocValue2)
+
+			return nil
+		}, nil)
+		suite.Assert().Nil(err, err)
+		suite.Assert().NotNil(txnRes)
+
+		interceptCh <- struct{}{}
+	}()
+
+	<-interceptCh
+	suite.verifyDocument(docID, docValue)
+	interceptCh <- struct{}{}
+	<-interceptCh
+	suite.verifyDocument(docID, docValue2)
 }
 
 func (suite *IntegrationTestSuite) TestTransactionsReplace() {

@@ -235,6 +235,7 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 		circuitBreakerConfig:   opts.CircuitBreakerConfig,
 		securityConfig:         opts.SecurityConfig,
 		internalConfig:         opts.InternalConfig,
+		transactionsConfig:     opts.TransactionsConfig,
 	}
 }
 
