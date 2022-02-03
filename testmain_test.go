@@ -64,6 +64,8 @@ func TestMain(m *testing.M) {
 		"Whether to disable the logger")
 	certsPath := envFlagString("GOCBCERTS", "certs-path", "",
 		"The path to the couchbase certs directory")
+	enableTxnLoadTests := envFlagBool("GOCBENABLETXNLOAD", "enable-txn-load-tests", false,
+		"Whether to enable transaction load tests")
 	flag.Parse()
 
 	if testing.Short() {
@@ -81,6 +83,7 @@ func TestMain(m *testing.M) {
 		mustBeNil(version, "version")
 		mustBeNil(collectionName, "collection-name")
 		mustBeNil(scopeName, "scope-name")
+		mustBeNil(scopeName, "enable-txn-load-tests")
 	}
 
 	var featureFlags []TestFeatureFlag
@@ -105,6 +108,14 @@ func TestMain(m *testing.M) {
 		}
 
 		panic("failed to parse specified feature codes")
+	}
+
+	// These are big tests, don't run unless explicitly enabled.
+	if !(*enableTxnLoadTests) {
+		featureFlags = append(featureFlags, TestFeatureFlag{
+			Enabled: false,
+			Feature: TransactionsBulkFeature,
+		})
 	}
 
 	if !*disableLogger {

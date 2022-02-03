@@ -13,6 +13,8 @@ const (
 	defaultServerVersion = "5.1.0"
 )
 
+var transactionsTestKeys map[string][]string
+
 type IntegrationTestSuite struct {
 	suite.Suite
 }
@@ -20,6 +22,9 @@ type IntegrationTestSuite struct {
 func (suite *IntegrationTestSuite) BeforeTest(suiteName, testName string) {
 	globalTracer.Reset()
 	globalMeter.Reset()
+	if globalCluster.SupportsFeature(TransactionsBulkFeature) {
+		suite.generateTransactionsKeys()
+	}
 }
 
 func (suite *IntegrationTestSuite) SetupSuite() {
@@ -30,6 +35,68 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 			suite.ensureReplicasUpLegacyDura()
 		}
 	}
+}
+
+func (suite *IntegrationTestSuite) generateTransactionsKeys() {
+	transactionsTestKeys = make(map[string][]string)
+
+	k00tok19 := make([]string, 20)
+	for i := range k00tok19 {
+		k00tok19[i] = fmt.Sprintf("k%02d", i)
+	}
+
+	k19tok00 := make([]string, 20)
+	for i := range k00tok19 {
+		k19tok00[i] = fmt.Sprintf("k%02d", 49-i)
+	}
+
+	k20tok39 := make([]string, 20)
+	for i := range k20tok39 {
+		k20tok39[i] = fmt.Sprintf("k%02d", 50+i)
+	}
+
+	k000tok099 := make([]string, 100)
+	for i := range k000tok099 {
+		k000tok099[i] = fmt.Sprintf("k%02d", i)
+	}
+
+	k100tok199 := make([]string, 100)
+	for i := range k100tok199 {
+		k100tok199[i] = fmt.Sprintf("k%02d", 100+i)
+	}
+
+	k000tok499 := make([]string, 500)
+	for i := range k000tok499 {
+		k000tok499[i] = fmt.Sprintf("k%02d", i)
+	}
+
+	kCON := []string{"kCON"}
+
+	kCandk00tok19 := append(append([]string{}, kCON...), k00tok19...)
+	k00tok19andkC := append(append([]string{}, k00tok19...), kCON...)
+	kCandk20tok39 := append(append([]string{}, kCON...), k20tok39...)
+	k20tok39andkC := append(append([]string{}, k20tok39...), kCON...)
+
+	kCandk000tok099 := append(append([]string{}, kCON...), k000tok099...)
+	k000tok099andkC := append(append([]string{}, k000tok099...), kCON...)
+	kCandk100tok199 := append(append([]string{}, kCON...), k100tok199...)
+	k100tok199andkC := append(append([]string{}, k100tok199...), kCON...)
+
+	transactionsTestKeys["k00tok19"] = k00tok19
+	transactionsTestKeys["k19tok00"] = k19tok00
+	transactionsTestKeys["k20tok39"] = k20tok39
+	transactionsTestKeys["k000tok099"] = k000tok099
+	transactionsTestKeys["k100tok199"] = k100tok199
+	transactionsTestKeys["k000tok499"] = k000tok499
+	transactionsTestKeys["kCON"] = kCON
+	transactionsTestKeys["kCandk00tok19"] = kCandk00tok19
+	transactionsTestKeys["k00tok19andkC"] = k00tok19andkC
+	transactionsTestKeys["kCandk20tok39"] = kCandk20tok39
+	transactionsTestKeys["k20tok39andkC"] = k20tok39andkC
+	transactionsTestKeys["kCandk000tok099"] = kCandk000tok099
+	transactionsTestKeys["k000tok099andkC"] = k000tok099andkC
+	transactionsTestKeys["kCandk100tok199"] = kCandk100tok199
+	transactionsTestKeys["k100tok199andkC"] = k100tok199andkC
 }
 
 func (suite *IntegrationTestSuite) AssertKVMetrics(metricName, op string, length int, atLeastLen bool) {
@@ -155,6 +222,20 @@ func (suite *IntegrationTestSuite) tryUntil(deadline time.Time, interval time.Du
 		}
 		time.Sleep(sleepDeadline.Sub(time.Now()))
 	}
+}
+
+func (suite *IntegrationTestSuite) tryTimes(times int, interval time.Duration, fn func() bool) bool {
+	for i := 0; i < times; i++ {
+		success := fn()
+		if success {
+			return true
+		}
+
+		sleepDeadline := time.Now().Add(interval)
+		time.Sleep(sleepDeadline.Sub(time.Now()))
+	}
+
+	return false
 }
 
 func (suite *IntegrationTestSuite) skipIfUnsupported(code FeatureCode) {

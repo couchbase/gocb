@@ -74,6 +74,7 @@ var (
 	StorageBackendFeature                   = FeatureCode("storagebackend")
 	HLCFeature                              = FeatureCode("hlc")
 	TransactionsFeature                     = FeatureCode("transactions")
+	TransactionsBulkFeature                 = FeatureCode("transactionsbulk")
 )
 
 type TestFeatureFlag struct {
@@ -176,6 +177,9 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case TransactionsFeature:
 			// Caves doesn't advertise that it supports sync replication.
 			supported = false
+		case TransactionsBulkFeature:
+			// Caves doesn't advertise that it supports sync replication.
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -262,6 +266,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case HLCFeature:
 			supported = !c.Version.Lower(srvVer660)
 		case TransactionsFeature:
+			supported = !c.Version.Lower(srvVer700)
+		case TransactionsBulkFeature:
 			supported = !c.Version.Lower(srvVer700)
 		}
 	}
