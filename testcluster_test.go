@@ -44,7 +44,6 @@ var (
 	CollectionsFeature                      = FeatureCode("collections")
 	CollectionsManagerMaxCollectionsFeature = FeatureCode("collectionsmgrmaxcollections")
 	CollectionsManagerFeature               = FeatureCode("collectionsmgr")
-	SubdocMockBugFeature                    = FeatureCode("subdocmockbug")
 	AdjoinFeature                           = FeatureCode("adjoin")
 	ExpandMacrosFeature                     = FeatureCode("expandmacros")
 	DurabilityFeature                       = FeatureCode("durability")
@@ -203,8 +202,6 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer600) && !c.Version.Equal(srvVer650DP)
 		case CollectionsFeature:
 			supported = c.Version.Equal(srvVer650DP) || !c.Version.Lower(srvVer700)
-		case SubdocMockBugFeature:
-			supported = true
 		case ExpandMacrosFeature:
 			supported = !c.Version.Lower(srvVer450)
 		case AdjoinFeature:

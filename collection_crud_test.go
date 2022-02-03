@@ -523,89 +523,83 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 				},
 			},
 		},
-	}
-
-	// a bug in Mock prevents these cases from working correctly
-	if globalCluster.SupportsFeature(SubdocMockBugFeature) {
-		testCases = append(testCases,
-			tCase{
-				name:    "nested-array-object-nested-field1",
-				project: []string{"attributes.hobbies[1].details.location"},
-				expected: Person{
-					Attributes: PersonAttributes{
-						Hobbies: []PersonHobbies{
-							{
-								Details: HobbyDetails{
-									Location: person.Attributes.Hobbies[1].Details.Location,
+		{
+			name:    "nested-array-object-nested-field1",
+			project: []string{"attributes.hobbies[1].details.location"},
+			expected: Person{
+				Attributes: PersonAttributes{
+					Hobbies: []PersonHobbies{
+						{
+							Details: HobbyDetails{
+								Location: person.Attributes.Hobbies[1].Details.Location,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:    "nested-array-object-nested-nested-field1",
+			project: []string{"attributes.hobbies[1].details.location.lat"},
+			expected: Person{
+				Attributes: PersonAttributes{
+					Hobbies: []PersonHobbies{
+						{
+							Details: HobbyDetails{
+								Location: Location{
+									Lat: person.Attributes.Hobbies[1].Details.Location.Lat,
 								},
 							},
 						},
 					},
 				},
 			},
-			tCase{
-				name:    "nested-array-object-nested-nested-field1",
-				project: []string{"attributes.hobbies[1].details.location.lat"},
-				expected: Person{
-					Attributes: PersonAttributes{
-						Hobbies: []PersonHobbies{
-							{
-								Details: HobbyDetails{
-									Location: Location{
-										Lat: person.Attributes.Hobbies[1].Details.Location.Lat,
-									},
+		},
+		{
+			name:    "nested-array-object-nested-nested-field2",
+			project: []string{"attributes.hobbies[1].details.location.long"},
+			expected: Person{
+				Attributes: PersonAttributes{
+					Hobbies: []PersonHobbies{
+						{
+							Details: HobbyDetails{
+								Location: Location{
+									Long: person.Attributes.Hobbies[1].Details.Location.Long,
 								},
 							},
 						},
 					},
 				},
 			},
-			tCase{
-				name:    "nested-array-object-nested-nested-field2",
-				project: []string{"attributes.hobbies[1].details.location.long"},
-				expected: Person{
-					Attributes: PersonAttributes{
-						Hobbies: []PersonHobbies{
-							{
-								Details: HobbyDetails{
-									Location: Location{
-										Long: person.Attributes.Hobbies[1].Details.Location.Long,
-									},
-								},
+		},
+		{
+			name:    "array-of-arrays-object",
+			project: []string{"tracking.locations[1][1].lat"},
+			expected: Person{
+				Tracking: Tracking{
+					Locations: [][]Location{
+						{
+							Location{
+								Lat: person.Tracking.Locations[1][1].Lat,
 							},
 						},
 					},
 				},
 			},
-			tCase{
-				name:    "array-of-arrays-object",
-				project: []string{"tracking.locations[1][1].lat"},
-				expected: Person{
-					Tracking: Tracking{
-						Locations: [][]Location{
-							{
-								Location{
-									Lat: person.Tracking.Locations[1][1].Lat,
-								},
-							},
+		},
+		{
+			name:    "array-of-arrays-native",
+			project: []string{"tracking.raw[1][1]"},
+			expected: Person{
+				Tracking: Tracking{
+					Raw: [][]float32{
+						{
+							person.Tracking.Raw[1][1],
 						},
 					},
 				},
 			},
-			tCase{
-				name:    "array-of-arrays-native",
-				project: []string{"tracking.raw[1][1]"},
-				expected: Person{
-					Tracking: Tracking{
-						Raw: [][]float32{
-							{
-								person.Tracking.Raw[1][1],
-							},
-						},
-					},
-				},
-			},
-		)
+		},
 	}
 
 	for _, testCase := range testCases {
