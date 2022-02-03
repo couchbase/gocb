@@ -443,6 +443,7 @@ func (suite *IntegrationTestSuite) TestRateLimitsFTSScopes() {
 func (suite *IntegrationTestSuite) TestRateLimitsIndexScopes() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(RateLimitingFeature)
+	suite.skipIfUnsupported(RateLimitingIndexBugFeature)
 	suite.skipIfUnsupported(CollectionsFeature)
 
 	scopename := "ratelimitindexscope"
