@@ -24,6 +24,7 @@ var (
 	srvVer660   = NodeVersion{6, 6, 0, 0, 0, "", false}
 	srvVer700   = NodeVersion{7, 0, 0, 0, 0, "", false}
 	srvVer710   = NodeVersion{7, 1, 0, 0, 0, "", false}
+	srvVer710DP = NodeVersion{7, 1, 0, 0, 0, "dp", false}
 	mockVer156  = NodeVersion{1, 5, 6, 0, 0, "", true}
 	mockVer1513 = NodeVersion{1, 5, 13, 0, 0, "", true}
 	mockVer1515 = NodeVersion{1, 5, 15, 0, 0, "", true}
@@ -75,6 +76,7 @@ var (
 	TransactionsFeature                     = FeatureCode("transactions")
 	TransactionsBulkFeature                 = FeatureCode("transactionsbulk")
 	RateLimitingIndexBugFeature             = FeatureCode("ratelimitsindexbug") // MB50725
+	CustomConflictResolutionFeature         = FeatureCode("customconflictresolution")
 )
 
 type TestFeatureFlag struct {
@@ -182,6 +184,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case RateLimitingIndexBugFeature:
 			supported = false
+		case CustomConflictResolutionFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -271,6 +275,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer700)
 		case RateLimitingIndexBugFeature:
 			supported = false
+		case CustomConflictResolutionFeature:
+			supported = c.Version.Equal(srvVer710DP)
 		}
 	}
 

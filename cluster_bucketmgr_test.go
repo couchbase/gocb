@@ -628,3 +628,31 @@ func (suite *IntegrationTestSuite) TestBucketMgrStorageBackendMagma() {
 	suite.Assert().Equal(StorageBackendMagma, bucket.StorageBackend)
 	suite.Assert().Equal(300, int(bucket.RAMQuotaMB))
 }
+
+func (suite *IntegrationTestSuite) TestBucketMgrCustomConflictResolution() {
+	suite.skipIfUnsupported(BucketMgrFeature)
+	suite.skipIfUnsupported(CustomConflictResolutionFeature)
+
+	mgr := globalCluster.Buckets()
+
+	bName := "testcouchbaseccr"
+	settings := BucketSettings{
+		Name:           bName,
+		RAMQuotaMB:     100,
+		NumReplicas:    1,
+		BucketType:     CouchbaseBucketType,
+		StorageBackend: StorageBackendCouchstore,
+	}
+
+	err := mgr.CreateBucket(CreateBucketSettings{
+		BucketSettings:         settings,
+		ConflictResolutionType: ConflictResolutionTypeCustom,
+	}, nil)
+	suite.Require().Nil(err, err)
+	defer mgr.DropBucket(bName, nil)
+
+	//Can't check Conflict resolution of bucket
+	b, err := mgr.GetBucket(bName, nil)
+	suite.Require().Nil(err, err)
+	suite.Assert().Equal(bName, b.Name)
+}
