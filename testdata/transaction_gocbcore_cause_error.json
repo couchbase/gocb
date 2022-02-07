@@ -1,0 +1,27 @@
+{
+  "requestID": "9605e383-3da3-440e-a4e1-47d4b673401f",
+  "clientContextID": "d4c97655-2e89-41ed-a46c-9f4e2a1eae5a",
+  "signature": {
+    "*": "*"
+  },
+  "results": [],
+  "errors": [
+    {
+      "code": 19000,
+      "msg": "Some pretend error",
+      "cause": {
+        "rollback": true,
+        "retry": false,
+        "raise": "expired"
+      }
+    }
+  ],
+  "status": "errors",
+  "metrics": {
+    "elapsedTime": "1.167435ms",
+    "executionTime": "1.117429ms",
+    "resultCount": 0,
+    "resultSize": 0,
+    "errorCount": 1
+  }
+}

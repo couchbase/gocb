@@ -16,19 +16,14 @@ func (c *TransactionAttemptContext) Query(statement string, options *Transaction
 		opts = *options
 	}
 	c.queryStateLock.Lock()
-	res, err := c.query(statement, opts, false)
+	res, err := c.queryWrapperWrapper(opts.Scope, statement, opts.toSDKOptions(), "query", false, true,
+		nil)
 	c.queryStateLock.Unlock()
 	if err != nil {
 		return nil, err
 	}
 
 	return res, nil
-}
-
-func (c *TransactionAttemptContext) query(statement string, options TransactionQueryOptions, tximplicit bool) (*TransactionQueryResult, error) {
-	sdkOpts := options.toSDKOptions()
-	return c.queryWrapper(options.Scope, statement, sdkOpts, "query", false, true,
-		nil, tximplicit)
 }
 
 func (c *TransactionAttemptContext) queryModeLocked() bool {
@@ -60,10 +55,10 @@ func (c *TransactionAttemptContext) getQueryMode(collection *Collection, id stri
 		})
 	}
 
-	res, err := c.queryWrapper(nil, "EXECUTE __get", QueryOptions{
+	res, err := c.queryWrapperWrapper(nil, "EXECUTE __get", QueryOptions{
 		PositionalParameters: []interface{}{c.keyspace(collection), id},
 		Adhoc:                true,
-	}, "queryKvGet", false, true, b, false)
+	}, "queryKvGet", false, true, b)
 	if err != nil {
 		return nil, handleErr(err)
 	}
@@ -148,10 +143,10 @@ func (c *TransactionAttemptContext) replaceQueryMode(doc *TransactionGetResult, 
 
 	params := []interface{}{c.keyspace(doc.collection), doc.docID, valueBytes, json.RawMessage("{}")}
 
-	res, err := c.queryWrapper(nil, "EXECUTE __update", QueryOptions{
+	res, err := c.queryWrapperWrapper(nil, "EXECUTE __update", QueryOptions{
 		PositionalParameters: params,
 		Adhoc:                true,
-	}, "queryKvReplace", false, true, b, false)
+	}, "queryKvReplace", false, true, b)
 	if err != nil {
 		return nil, handleErr(err)
 	}
@@ -217,10 +212,10 @@ func (c *TransactionAttemptContext) insertQueryMode(collection *Collection, id s
 
 	params := []interface{}{c.keyspace(collection), id, valueBytes, json.RawMessage("{}")}
 
-	res, err := c.queryWrapper(nil, "EXECUTE __insert", QueryOptions{
+	res, err := c.queryWrapperWrapper(nil, "EXECUTE __insert", QueryOptions{
 		PositionalParameters: params,
 		Adhoc:                true,
-	}, "queryKvInsert", false, true, b, false)
+	}, "queryKvInsert", false, true, b)
 	if err != nil {
 		return nil, handleErr(err)
 	}
@@ -301,15 +296,11 @@ func (c *TransactionAttemptContext) removeQueryMode(doc *TransactionGetResult) e
 
 	params := []interface{}{c.keyspace(doc.collection), doc.docID, json.RawMessage("{}")}
 
-	res, err := c.queryWrapper(nil, "EXECUTE __delete", QueryOptions{
+	_, err = c.queryWrapperWrapper(nil, "EXECUTE __delete", QueryOptions{
 		PositionalParameters: params,
 		Adhoc:                true,
-	}, "queryKvRemove", false, true, b, false)
+	}, "queryKvRemove", false, true, b)
 	if err != nil {
-		return handleErr(err)
-	}
-
-	if err := c.maybeExtractErrorFromQueryMutation(res); err != nil {
 		return handleErr(err)
 	}
 
@@ -341,17 +332,13 @@ func (c *TransactionAttemptContext) commitQueryMode() error {
 		})
 	}
 
-	res, err := c.queryWrapper(nil, "COMMIT", QueryOptions{
+	_, err := c.queryWrapperWrapper(nil, "COMMIT", QueryOptions{
 		Adhoc: true,
-	}, "queryCommit", false, true, nil, false)
+	}, "queryCommit", false, true, nil)
 	c.txn.UpdateState(gocbcore.TransactionUpdateStateOptions{
 		ShouldNotCommit: true,
 	})
 	if err != nil {
-		return handleErr(err)
-	}
-
-	if err := c.maybeExtractErrorFromQueryMutation(res); err != nil {
 		return handleErr(err)
 	}
 
@@ -384,18 +371,14 @@ func (c *TransactionAttemptContext) rollbackQueryMode() error {
 		})
 	}
 
-	res, err := c.queryWrapper(nil, "ROLLBACK", QueryOptions{
+	_, err := c.queryWrapperWrapper(nil, "ROLLBACK", QueryOptions{
 		Adhoc: true,
-	}, "queryRollback", false, false, nil, false)
+	}, "queryRollback", false, false, nil)
 	c.txn.UpdateState(gocbcore.TransactionUpdateStateOptions{
 		ShouldNotRollback: true,
 		ShouldNotCommit:   true,
 	})
 	if err != nil {
-		return handleErr(err)
-	}
-
-	if err := c.maybeExtractErrorFromQueryMutation(res); err != nil {
 		return handleErr(err)
 	}
 
@@ -435,19 +418,52 @@ func durabilityLevelToQueryString(level gocbcore.TransactionDurabilityLevel) str
 	return ""
 }
 
-func (c *TransactionAttemptContext) maybeExtractErrorFromQueryMutation(res *TransactionQueryResult) error {
-	for res.Next() {
+// queryWrapperWrapper is used by any Query based calls on TransactionAttemptContext that require a non-streaming
+// result. It handles converting QueryResult To TransactionQueryResult, handling any errors that occur on the stream,
+// or because of a FATAL status in metadata.
+func (c *TransactionAttemptContext) queryWrapperWrapper(scope *Scope, statement string, options QueryOptions, hookPoint string,
+	isBeginWork bool, existingErrorCheck bool, txData []byte) (*TransactionQueryResult, error) {
+	result, err := c.queryWrapper(scope, statement, options, hookPoint, isBeginWork, existingErrorCheck, txData, false)
+	if err != nil {
+		return nil, err
 	}
 
-	if err := res.Err(); err != nil {
-		return c.queryMaybeTranslateToTransactionsError(err)
+	var results []json.RawMessage
+	for result.Next() {
+		var r json.RawMessage
+		err = result.Row(&r)
+		if err != nil {
+			return nil, c.queryMaybeTranslateToTransactionsError(err)
+		}
+
+		results = append(results, r)
 	}
 
-	return nil
+	if err := result.Err(); err != nil {
+		return nil, c.queryMaybeTranslateToTransactionsError(err)
+	}
+
+	meta, err := result.MetaData()
+	if err != nil {
+		return nil, c.queryMaybeTranslateToTransactionsError(err)
+	}
+
+	if meta.Status == QueryStatusFatal {
+		return nil, c.operationFailed(transactionQueryOperationFailedDef{
+			ShouldNotRetry:  true,
+			Reason:          gocbcore.TransactionErrorReasonTransactionFailed,
+			ShouldNotCommit: true,
+		})
+	}
+
+	return newTransactionQueryResult(results, meta, result.endpoint), nil
 }
 
+// queryWrapper is used by every query based call on TransactionAttemptContext. It handles actually sending the
+// query as well as begin work and setting up query mode state. It returns a streaming QueryResult, handling only
+// errors that occur at query call time.
 func (c *TransactionAttemptContext) queryWrapper(scope *Scope, statement string, options QueryOptions, hookPoint string,
-	isBeginWork bool, existingErrorCheck bool, txData []byte, txImplicit bool) (*TransactionQueryResult, error) {
+	isBeginWork bool, existingErrorCheck bool, txData []byte, txImplicit bool) (*QueryResult, error) {
 
 	var target string
 	if !isBeginWork {
@@ -543,7 +559,7 @@ func (c *TransactionAttemptContext) queryWrapper(scope *Scope, statement string,
 		return nil, c.queryMaybeTranslateToTransactionsError(err)
 	}
 
-	return newTransactionQueryResult(result, c), nil
+	return result, nil
 }
 
 func (c *TransactionAttemptContext) queryBeginWork() (errOut error) {
@@ -584,27 +600,18 @@ func (c *TransactionAttemptContext) queryBeginWork() (errOut error) {
 			)
 		}
 
-		res, err := c.queryWrapper(nil, "BEGIN WORK", QueryOptions{
+		res, err := c.queryWrapperWrapper(nil, "BEGIN WORK", QueryOptions{
 			ScanConsistency: c.queryConfig.ScanConsistency,
 			Raw:             raw,
 			Adhoc:           true,
-		}, "queryBeginWork", true, false,
-			txdata, false)
+		}, "queryBeginWork", true, false, txdata)
 		if err != nil {
 			errOut = err
 			waitCh <- struct{}{}
 			return
 		}
 
-		for res.Next() {
-		}
-		if err := res.Err(); err != nil {
-			errOut = err
-			waitCh <- struct{}{}
-			return
-		}
-
-		c.queryState.queryTarget = res.wrapped.Internal().Endpoint()
+		c.queryState.queryTarget = res.endpoint
 
 		waitCh <- struct{}{}
 	})
