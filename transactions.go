@@ -116,6 +116,7 @@ func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, er
 	corecfg.Internal.CleanUpHooks = cleanupHooksWrapper
 	corecfg.Internal.ClientRecordHooks = clientRecordHooksWrapper
 	corecfg.Internal.NumATRs = config.Internal.NumATRs
+	corecfg.KeyValueTimeout = c.timeoutsConfig.KVTimeout
 
 	txns, err := gocbcore.InitTransactions(corecfg)
 	if err != nil {
