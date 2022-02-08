@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"github.com/couchbase/gocbcore/v10"
+	"time"
 )
 
 // TransactionDocRecord represents an individual document operation requiring cleanup.
@@ -100,6 +101,7 @@ func NewTransactionsCleaner(agentProvider gocbcore.TransactionsBucketAgentProvid
 	corecfg.BucketAgentProvider = agentProvider
 	corecfg.Internal.CleanUpHooks = cleanupHooksWrapper
 	corecfg.Internal.NumATRs = config.Internal.NumATRs
+	corecfg.KeyValueTimeout = 2500 * time.Millisecond
 
 	return &coreTransactionsCleanerWrapper{
 		wrapped: gocbcore.NewTransactionsCleaner(corecfg),
@@ -263,6 +265,7 @@ func NewLostTransactionsCleanup(agentProvider gocbcore.TransactionsBucketAgentPr
 	corecfg.Internal.CleanUpHooks = cleanupHooksWrapper
 	corecfg.Internal.ClientRecordHooks = cleanupHooksWrapper
 	corecfg.Internal.NumATRs = config.Internal.NumATRs
+	corecfg.KeyValueTimeout = 2500 * time.Millisecond
 
 	return &coreLostTransactionsCleanerWrapper{
 		wrapped: gocbcore.NewLostTransactionCleaner(corecfg),
