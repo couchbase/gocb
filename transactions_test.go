@@ -33,7 +33,6 @@ func (suite *IntegrationTestSuite) TestTransactionsDoubleInsert() {
 
 	txns, err := globalCluster.Cluster.Transactions()
 	suite.Require().Nil(err)
-	defer txns.Close()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		_, err := ctx.Insert(globalCollection, docID, docValue)
@@ -67,7 +66,6 @@ func (suite *IntegrationTestSuite) TestTransactionsInsert() {
 
 	txns, err := globalCluster.Cluster.Transactions()
 	suite.Require().Nil(err)
-	defer txns.Close()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		_, err := ctx.Insert(globalCollection, docID, docValue)
@@ -138,7 +136,6 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadata() {
 
 	txns, err := c.Transactions()
 	suite.Require().Nil(err)
-	defer txns.Close()
 
 	var atr string
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
@@ -201,7 +198,6 @@ func (suite *IntegrationTestSuite) TestTransactionsRollback() {
 
 	txns, err := globalCluster.Cluster.Transactions()
 	suite.Require().Nil(err)
-	defer txns.Close()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		_, err := ctx.Insert(globalCollection, docID, docValue2)
@@ -246,7 +242,6 @@ func (suite *IntegrationTestSuite) TestTransactionsReadExternalToTxn() {
 
 	txns, err := globalCluster.Cluster.Transactions()
 	suite.Require().Nil(err)
-	defer txns.Close()
 
 	interceptCh := make(chan struct{})
 	go func() {
@@ -316,7 +311,6 @@ func (suite *IntegrationTestSuite) TestTransactionsReplace() {
 
 	txns, err := globalCluster.Cluster.Transactions()
 	suite.Require().Nil(err)
-	defer txns.Close()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		getRes, err := ctx.Get(globalCollection, docID)
@@ -373,7 +367,6 @@ func (suite *IntegrationTestSuite) TestTransactionsRemove() {
 
 	txns, err := globalCluster.Cluster.Transactions()
 	suite.Require().Nil(err)
-	defer txns.Close()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		getRes, err := ctx.Get(globalCollection, docID)
@@ -420,7 +413,6 @@ func (suite *IntegrationTestSuite) TestTransactionsInsertReplace() {
 
 	txns, err := globalCluster.Cluster.Transactions()
 	suite.Require().Nil(err)
-	defer txns.Close()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		res, err := ctx.Insert(globalCollection, docID, docValue)
@@ -466,7 +458,6 @@ func (suite *IntegrationTestSuite) TestTransactionsInsertRemove() {
 
 	txns, err := globalCluster.Cluster.Transactions()
 	suite.Require().Nil(err)
-	defer txns.Close()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		res, err := ctx.Insert(globalCollection, docID, docValue)
@@ -501,7 +492,6 @@ func (suite *IntegrationTestSuite) TestTransactionsUserError() {
 
 	txns, err := globalCluster.Cluster.Transactions()
 	suite.Require().Nil(err)
-	defer txns.Close()
 
 	_, err = txns.Run(func(ctx *TransactionAttemptContext) error {
 		return ErrOopsieDoodle
@@ -519,7 +509,6 @@ func (suite *IntegrationTestSuite) TestTransactionsGetDocNotFoundAllowsContinue(
 
 	txns, err := globalCluster.Cluster.Transactions()
 	suite.Require().Nil(err)
-	defer txns.Close()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		getRes, err := ctx.Get(globalCollection, docID)
@@ -558,11 +547,9 @@ func (suite *IntegrationTestSuite) TestTransactionsGetDocNotFoundAllowsContinue(
 func (suite *IntegrationTestSuite) TestMultipleTransactionObjects() {
 	txns, err := globalCluster.Cluster.Transactions()
 	suite.Require().Nil(err)
-	defer txns.Close()
 
 	txns2, err := globalCluster.Cluster.Transactions()
 	suite.Require().Nil(err)
-	defer txns2.Close()
 
 	suite.Assert().Equal(&txns, &txns2)
 }

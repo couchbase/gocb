@@ -407,6 +407,15 @@ func (c *Cluster) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOpti
 func (c *Cluster) Close(opts *ClusterCloseOptions) error {
 	var overallErr error
 
+	// This needs to be closed first.
+	if c.transactions != nil {
+		err := c.transactions.close()
+		if err != nil {
+			logWarnf("Failed to close transactions in cluster close: %s", err)
+		}
+		c.transactions = nil
+	}
+
 	if c.connectionManager != nil {
 		err := c.connectionManager.close()
 		if err != nil {

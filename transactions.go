@@ -307,7 +307,7 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 
 // Close will shut down this Transactions object, shutting down all
 // background tasks associated with it.
-func (t *Transactions) Close() error {
+func (t *Transactions) close() error {
 	return t.txns.Close()
 }
 

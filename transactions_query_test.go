@@ -38,7 +38,6 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryModeInsert() {
 
 	suite.verifyDocument(docID, docValue)
 
-	suite.Require().Nil(txns.Close())
 }
 
 func (suite *IntegrationTestSuite) TestTransactionsQueryModeReplace() {
@@ -83,7 +82,6 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryModeReplace() {
 
 	suite.verifyDocument(docID, docValue2)
 
-	suite.Require().Nil(txns.Close())
 }
 
 func (suite *IntegrationTestSuite) TestTransactionsQueryModeRemove() {
@@ -125,7 +123,6 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryModeRemove() {
 
 	suite.verifyDocumentNotFound(docID)
 
-	suite.Require().Nil(txns.Close())
 }
 
 func (suite *IntegrationTestSuite) TestTransactionsQueryModeDocNotFound() {
@@ -152,7 +149,6 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryModeDocNotFound() {
 	suite.Assert().ErrorIs(err, ErrDocumentNotFound)
 	suite.Assert().Nil(txnRes)
 
-	suite.Require().Nil(txns.Close())
 }
 
 func (suite *IntegrationTestSuite) TestTransactionsQueryModeDocFound() {
@@ -197,7 +193,6 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryModeDocFound() {
 
 	suite.verifyDocument(docID, docValue)
 
-	suite.Require().Nil(txns.Close())
 }
 
 func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatement() {
@@ -265,7 +260,6 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatement() {
 
 	suite.verifyDocument(docID, resultDocValue)
 
-	suite.Require().Nil(txns.Close())
 }
 
 func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatementKVReplace() {
@@ -328,7 +322,6 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatementKVReplace
 
 	suite.verifyDocument(docID, resultDocValue)
 
-	suite.Require().Nil(txns.Close())
 }
 
 func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatementKVRemove() {
@@ -383,7 +376,6 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatementKVRemove(
 
 	suite.verifyDocumentNotFound(docID)
 
-	suite.Require().Nil(txns.Close())
 }
 
 func (suite *IntegrationTestSuite) TestTransactionsQueryDoubleInsertStatement() {
@@ -423,7 +415,6 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryDoubleInsertStatement() 
 	suite.Assert().ErrorIs(err, ErrDocumentExists)
 	suite.Assert().Nil(txnRes)
 
-	suite.Require().Nil(txns.Close())
 }
 
 func (suite *IntegrationTestSuite) TestTransactionsInsertReadByQuery() {
@@ -494,7 +485,6 @@ func (suite *IntegrationTestSuite) TestTransactionsInsertReadByQuery() {
 
 	suite.verifyDocument(docID, docValue)
 
-	suite.Require().Nil(txns.Close())
 }
 
 func (suite *IntegrationTestSuite) TestTransactionsQueryInsertDocExists() {
@@ -527,7 +517,6 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryInsertDocExists() {
 	suite.Assert().ErrorIs(err, ErrDocumentExists)
 	suite.Assert().Nil(txnRes)
 
-	suite.Require().Nil(txns.Close())
 }
 
 type transactionMockQueryRowReader struct {
