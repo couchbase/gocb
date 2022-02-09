@@ -173,6 +173,8 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 			return nil, err
 		}
 
+		logDebugf("New transaction attempt starting for %s, %s", txn.ID(), txn.Attempt().ID)
+
 		attempt := TransactionAttemptContext{
 			txn:            txn,
 			transcoder:     t.transcoder,
@@ -240,6 +242,12 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 		case TransactionAttemptStateAborted:
 			fallthrough
 		case TransactionAttemptStateRolledBack:
+			if finalErr == nil {
+				return &TransactionResult{
+					TransactionID: txn.ID(),
+				}, nil
+			}
+
 			if a.Expired && !a.PreExpiryAutoRollback && !wasUserError {
 				return nil, &TransactionExpiredError{
 					result: &TransactionResult{

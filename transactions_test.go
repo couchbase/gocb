@@ -554,6 +554,37 @@ func (suite *IntegrationTestSuite) TestMultipleTransactionObjects() {
 	suite.Assert().Equal(&txns, &txns2)
 }
 
+func (suite *IntegrationTestSuite) TestTransactionsGetOnly() {
+	docID := "getOnly"
+	docValue := map[string]interface{}{
+		"test": "test",
+	}
+
+	_, err := globalCollection.Upsert(docID, docValue, nil)
+	suite.Require().Nil(err, err)
+
+	txns, err := globalCluster.Cluster.Transactions()
+	suite.Require().Nil(err)
+
+	_, err = txns.Run(func(ctx *TransactionAttemptContext) error {
+		res, err := ctx.Get(globalCollection, docID)
+		if err != nil {
+			return err
+		}
+
+		var actualDocValue map[string]interface{}
+		err = res.Content(&actualDocValue)
+		if err != nil {
+			return err
+		}
+
+		suite.Assert().Equal(docValue, actualDocValue)
+
+		return nil
+	}, nil)
+	suite.Require().Nil(err, err)
+}
+
 func (suite *IntegrationTestSuite) TestTransactionsNoContentionSingleThreadPessimistic() {
 	suite.skipIfUnsupported(TransactionsBulkFeature)
 	suite.runTranasctionLoadTest([]transactionTestGroup{
