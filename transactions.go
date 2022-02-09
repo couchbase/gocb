@@ -31,8 +31,8 @@ func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, er
 	if config.QueryConfig.ScanConsistency == 0 {
 		config.QueryConfig.ScanConsistency = QueryScanConsistencyRequestPlus
 	}
-	if config.DurabilityLevel == TransactionDurabilityLevelUnknown {
-		config.DurabilityLevel = TransactionDurabilityLevelMajority
+	if config.DurabilityLevel == DurabilityLevelUnknown {
+		config.DurabilityLevel = DurabilityLevelMajority
 	}
 
 	var hooksWrapper transactionHooksWrapper

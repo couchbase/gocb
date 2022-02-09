@@ -2,29 +2,6 @@ package gocb
 
 import (
 	"time"
-
-	"github.com/couchbase/gocbcore/v10"
-)
-
-// TransactionDurabilityLevel specifies the level of synchronous replication to use for a transaction.
-type TransactionDurabilityLevel uint8
-
-const (
-	// TransactionDurabilityLevelUnknown indicates to use the default level.
-	TransactionDurabilityLevelUnknown = TransactionDurabilityLevel(gocbcore.TransactionDurabilityLevelUnknown)
-
-	// TransactionDurabilityLevelNone indicates that no durability is needed.
-	TransactionDurabilityLevelNone = TransactionDurabilityLevel(gocbcore.TransactionDurabilityLevelNone)
-
-	// TransactionDurabilityLevelMajority indicates the operation must be replicated to the majority.
-	TransactionDurabilityLevelMajority = TransactionDurabilityLevel(gocbcore.TransactionDurabilityLevelMajority)
-
-	// TransactionDurabilityLevelMajorityAndPersistToActive indicates the operation must be replicated
-	// to the majority and persisted to the active server.
-	TransactionDurabilityLevelMajorityAndPersistToActive = TransactionDurabilityLevel(gocbcore.TransactionDurabilityLevelMajorityAndPersistToActive)
-
-	// TransactionDurabilityLevelPersistToMajority indicates the operation must be persisted to the active server.
-	TransactionDurabilityLevelPersistToMajority = TransactionDurabilityLevel(gocbcore.TransactionDurabilityLevelPersistToMajority)
 )
 
 // TransactionsConfig specifies various tunable options related to transactions.
@@ -38,7 +15,7 @@ type TransactionsConfig struct {
 
 	// DurabilityLevel specifies the durability level that should be used
 	// for all write operations performed by this Transactions object.
-	DurabilityLevel TransactionDurabilityLevel
+	DurabilityLevel DurabilityLevel
 
 	// CleanupWindow specifies how often to the cleanup process runs
 	// attempting to garbage collection transactions that have failed but
@@ -77,7 +54,7 @@ type TransactionsConfig struct {
 type TransactionOptions struct {
 	// DurabilityLevel specifies the durability level that should be used
 	// for all write operations performed by this transaction.
-	DurabilityLevel TransactionDurabilityLevel
+	DurabilityLevel DurabilityLevel
 	ExpirationTime  time.Duration
 }
 
