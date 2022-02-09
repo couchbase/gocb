@@ -22,13 +22,13 @@ type TransactionsConfig struct {
 	// were not cleaned up by the previous client.
 	CleanupWindow time.Duration
 
-	// CleanupClientAttempts controls where any transaction attempts made
+	// DisableCleanupClientAttempts controls where any transaction attempts made
 	// by this client are automatically removed.
-	CleanupClientAttempts bool
+	DisableCleanupClientAttempts bool
 
-	// CleanupLostAttempts controls where a background process is created
+	// DisableCleanupLostAttempts controls where a background process is created
 	// to cleanup any ‘lost’ transaction attempts.
-	CleanupLostAttempts bool
+	DisableCleanupLostAttempts bool
 
 	// CleanupQueueSize controls the maximum queue size for the cleanup thread.
 	CleanupQueueSize uint32

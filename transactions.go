@@ -27,7 +27,8 @@ type Transactions struct {
 // initTransactions will initialize the transactions library and return a Transactions
 // object which can be used to perform transactions.
 func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, error) {
-	// TODO we're gonna have to get this from gocb somehow.
+	// Note that gocbcore will handle a lot of default values for us.
+
 	if config.QueryConfig.ScanConsistency == 0 {
 		config.QueryConfig.ScanConsistency = QueryScanConsistencyRequestPlus
 	}
@@ -106,12 +107,12 @@ func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, er
 	corecfg.DurabilityLevel = gocbcore.TransactionDurabilityLevel(config.DurabilityLevel)
 	corecfg.BucketAgentProvider = t.agentProvider
 	corecfg.LostCleanupATRLocationProvider = t.atrLocationsProvider
-	corecfg.CleanupClientAttempts = config.CleanupClientAttempts
+	corecfg.CleanupClientAttempts = !config.DisableCleanupClientAttempts
 	corecfg.CleanupQueueSize = config.CleanupQueueSize
 	corecfg.ExpirationTime = config.ExpirationTime
 	corecfg.CleanupWindow = config.CleanupWindow
-	corecfg.CleanupLostAttempts = config.CleanupLostAttempts
-	corecfg.CleanupWatchATRs = config.CleanupLostAttempts
+	corecfg.CleanupLostAttempts = !config.DisableCleanupLostAttempts
+	corecfg.CleanupWatchATRs = !config.DisableCleanupLostAttempts
 	corecfg.CustomATRLocation = atrLocation
 	corecfg.Internal.Hooks = hooksWrapper
 	corecfg.Internal.CleanUpHooks = cleanupHooksWrapper

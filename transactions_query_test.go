@@ -584,6 +584,7 @@ func (suite *UnitTestSuite) TestTransactionsQueryGocbcoreCauseError() {
 
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
+	cli.On("close").Return(nil)
 
 	cluster := suite.newCluster(cli)
 
@@ -602,4 +603,7 @@ func (suite *UnitTestSuite) TestTransactionsQueryGocbcoreCauseError() {
 	var finalErr *TransactionExpiredError
 	suite.Assert().True(errors.As(err, &finalErr))
 	suite.Assert().Nil(txnRes)
+
+	err = cluster.Close(nil)
+	suite.Require().Nil(err, err)
 }
