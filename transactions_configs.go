@@ -4,31 +4,20 @@ import (
 	"time"
 )
 
-// TransactionsConfig specifies various tunable options related to transactions.
-type TransactionsConfig struct {
-	// MetadataCollection specifies a specific location to place meta-data.
-	MetadataCollection *TransactionKeyspace
-
-	// Timeout sets the maximum time that transactions created
-	// by this Transactions object can run for, before expiring.
-	Timeout time.Duration
-
-	// DurabilityLevel specifies the durability level that should be used
-	// for all write operations performed by this Transactions object.
-	DurabilityLevel DurabilityLevel
-
+// TransactionsCleanupConfig specifies various tunable options related to transactions cleanup.
+type TransactionsCleanupConfig struct {
 	// CleanupWindow specifies how often to the cleanup process runs
 	// attempting to garbage collection transactions that have failed but
 	// were not cleaned up by the previous client.
 	CleanupWindow time.Duration
 
-	// DisableCleanupClientAttempts controls where any transaction attempts made
+	// DisableClientAttemptCleanup controls where any transaction attempts made
 	// by this client are automatically removed.
-	DisableCleanupClientAttempts bool
+	DisableClientAttemptCleanup bool
 
-	// DisableCleanupLostAttempts controls where a background process is created
+	// DisableLostAttemptCleanup controls where a background process is created
 	// to cleanup any ‘lost’ transaction attempts.
-	DisableCleanupLostAttempts bool
+	DisableLostAttemptCleanup bool
 
 	// CleanupQueueSize controls the maximum queue size for the cleanup thread.
 	CleanupQueueSize uint32
@@ -36,9 +25,26 @@ type TransactionsConfig struct {
 	// CleanupCollections is a set of extra collections that should be monitored
 	// by the cleanup thread.
 	CleanupCollections []TransactionKeyspace
+}
+
+// TransactionsConfig specifies various tunable options related to transactions.
+type TransactionsConfig struct {
+	// MetadataCollection specifies a specific location to place meta-data.
+	MetadataCollection *TransactionKeyspace
+
+	// ExpirationTimout sets the maximum time that transactions created
+	// by this Transactions object can run for, before expiring.
+	Timeout time.Duration
+
+	// DurabilityLevel specifies the durability level that should be used
+	// for all write operations performed by this Transactions object.
+	DurabilityLevel DurabilityLevel
 
 	// QueryConfig specifies any query configuration to use in transactions.
 	QueryConfig TransactionsQueryConfig
+
+	// CleanupConfig specifies cleanup configuration to use in transactions.
+	CleanupConfig TransactionsCleanupConfig
 
 	// Internal specifies a set of options for internal use.
 	// Internal: This should never be used and is not supported.

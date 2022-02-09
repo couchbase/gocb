@@ -75,7 +75,7 @@ func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, er
 	}
 
 	var cleanupLocs []gocbcore.TransactionLostATRLocation
-	for _, keyspace := range config.CleanupCollections {
+	for _, keyspace := range config.CleanupConfig.CleanupCollections {
 		cleanupLocs = append(cleanupLocs, gocbcore.TransactionLostATRLocation{
 			BucketName:     keyspace.BucketName,
 			ScopeName:      keyspace.ScopeName,
@@ -107,12 +107,12 @@ func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, er
 	corecfg.DurabilityLevel = gocbcore.TransactionDurabilityLevel(config.DurabilityLevel)
 	corecfg.BucketAgentProvider = t.agentProvider
 	corecfg.LostCleanupATRLocationProvider = t.atrLocationsProvider
-	corecfg.CleanupClientAttempts = !config.DisableCleanupClientAttempts
-	corecfg.CleanupQueueSize = config.CleanupQueueSize
+	corecfg.CleanupClientAttempts = !config.CleanupConfig.DisableClientAttemptCleanup
+	corecfg.CleanupQueueSize = config.CleanupConfig.CleanupQueueSize
 	corecfg.ExpirationTime = config.Timeout
-	corecfg.CleanupWindow = config.CleanupWindow
-	corecfg.CleanupLostAttempts = !config.DisableCleanupLostAttempts
-	corecfg.CleanupWatchATRs = !config.DisableCleanupLostAttempts
+	corecfg.CleanupWindow = config.CleanupConfig.CleanupWindow
+	corecfg.CleanupLostAttempts = !config.CleanupConfig.DisableLostAttemptCleanup
+	corecfg.CleanupWatchATRs = !config.CleanupConfig.DisableLostAttemptCleanup
 	corecfg.CustomATRLocation = atrLocation
 	corecfg.Internal.Hooks = hooksWrapper
 	corecfg.Internal.CleanUpHooks = cleanupHooksWrapper
