@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/couchbase/gocbcore/v10"
@@ -76,7 +77,7 @@ func (c *TransactionAttemptContext) Get(collection *Collection, id string) (*Tra
 		res, err := c.getQueryMode(collection, id)
 		if err != nil {
 			c.txn.UpdateState(gocbcore.TransactionUpdateStateOptions{
-				ShouldNotCommit: true,
+				ShouldNotCommit: !errors.Is(err, ErrDocumentNotFound),
 			})
 			c.queryStateLock.Unlock()
 			return nil, err
