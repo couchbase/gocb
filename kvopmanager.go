@@ -27,7 +27,7 @@ type kvOpManager struct {
 	flags           uint32
 	persistTo       uint
 	replicateTo     uint
-	durabilityLevel DurabilityLevel
+	durabilityLevel memd.DurabilityLevel
 	retryStrategy   *retryStrategyWrapper
 	cancelCh        chan struct{}
 	impersonate     string
@@ -50,7 +50,7 @@ func (m *kvOpManager) getTimeout() time.Duration {
 	}
 
 	defaultTimeout := m.parent.timeoutsConfig.KVTimeout
-	if m.durabilityLevel > DurabilityLevelMajority || m.persistTo > 0 {
+	if m.durabilityLevel > memd.DurabilityLevelMajority || m.persistTo > 0 {
 		defaultTimeout = m.parent.timeoutsConfig.KVDurableTimeout
 	}
 
@@ -116,9 +116,13 @@ func (m *kvOpManager) SetDuraOptions(persistTo, replicateTo uint, level Durabili
 		}
 	}
 
+	if level == DurabilityLevelUnknown {
+		level = DurabilityLevelNone
+	}
+
 	m.persistTo = persistTo
 	m.replicateTo = replicateTo
-	m.durabilityLevel = level
+	m.durabilityLevel, m.err = level.toMemd()
 
 	if level > DurabilityLevelNone {
 		levelStr, err := level.toManagementAPI()
@@ -198,7 +202,7 @@ func (m *kvOpManager) Transcoder() Transcoder {
 }
 
 func (m *kvOpManager) DurabilityLevel() memd.DurabilityLevel {
-	return memd.DurabilityLevel(m.durabilityLevel)
+	return m.durabilityLevel
 }
 
 func (m *kvOpManager) DurabilityTimeout() time.Duration {

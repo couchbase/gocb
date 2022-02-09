@@ -143,8 +143,11 @@ const (
 type DurabilityLevel uint8
 
 const (
+	// DurabilityLevelUnknown specifies that the durability level is not set and will default to the default durability level.
+	DurabilityLevelUnknown DurabilityLevel = iota
+
 	// DurabilityLevelNone specifies that no durability level should be applied.
-	DurabilityLevelNone DurabilityLevel = iota
+	DurabilityLevelNone
 
 	// DurabilityLevelMajority specifies that a mutation must be replicated (held in memory) to a majority of nodes.
 	DurabilityLevelMajority
@@ -172,6 +175,23 @@ func (dl DurabilityLevel) toManagementAPI() (string, error) {
 		return "", invalidArgumentsError{
 			message: fmt.Sprintf("unknown durability level: %d", dl),
 		}
+	}
+}
+
+func (dl DurabilityLevel) toMemd() (memd.DurabilityLevel, error) {
+	switch dl {
+	case DurabilityLevelNone:
+		return memd.DurabilityLevel(0), nil
+	case DurabilityLevelMajority:
+		return memd.DurabilityLevelMajority, nil
+	case DurabilityLevelMajorityAndPersistOnMaster:
+		return memd.DurabilityLevelMajorityAndPersistOnMaster, nil
+	case DurabilityLevelPersistToMajority:
+		return memd.DurabilityLevelPersistToMajority, nil
+	case DurabilityLevelUnknown:
+		return 0, makeInvalidArgumentsError("unexpected unset durability level")
+	default:
+		return 0, makeInvalidArgumentsError("unexpected durability level")
 	}
 }
 

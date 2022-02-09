@@ -712,7 +712,7 @@ func (bm *BucketManager) settingsToPostData(settings *BucketSettings) (url.Value
 		posts.Add("compressionMode", string(settings.CompressionMode))
 	}
 
-	if settings.MinimumDurabilityLevel != DurabilityLevelNone {
+	if settings.MinimumDurabilityLevel > DurabilityLevelNone {
 		level, err := settings.MinimumDurabilityLevel.toManagementAPI()
 		if err != nil {
 			return nil, err

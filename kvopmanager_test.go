@@ -22,6 +22,13 @@ func (suite *IntegrationTestSuite) TestKvOpManagerTimeouts() {
 			expectedDeadline:          3000 * time.Millisecond,
 		},
 		{
+			name:                      "timeout, with durability level none",
+			timeout:                   3000 * time.Millisecond,
+			durabilityLevel:           DurabilityLevelNone,
+			expectedDurabilityTimeout: 0,
+			expectedDeadline:          3000 * time.Millisecond,
+		},
+		{
 			name:                      "timeout, with durability level majority",
 			timeout:                   3000 * time.Millisecond,
 			durabilityLevel:           DurabilityLevelMajority,
@@ -78,6 +85,13 @@ func (suite *IntegrationTestSuite) TestKvOpManagerTimeouts() {
 			expectedDeadline:          1600 * time.Millisecond,
 		},
 		{
+			name:                      "edge timeout, with durability level none",
+			timeout:                   1600 * time.Millisecond,
+			durabilityLevel:           DurabilityLevelNone,
+			expectedDurabilityTimeout: 0,
+			expectedDeadline:          1600 * time.Millisecond,
+		},
+		{
 			name:                      "edge timeout, with durability level majority",
 			timeout:                   1600 * time.Millisecond,
 			durabilityLevel:           DurabilityLevelMajority,
@@ -101,6 +115,13 @@ func (suite *IntegrationTestSuite) TestKvOpManagerTimeouts() {
 		{
 			name:                      "no timeout",
 			timeout:                   globalCollection.timeoutsConfig.KVTimeout,
+			expectedDurabilityTimeout: 0,
+			expectedDeadline:          globalCollection.timeoutsConfig.KVTimeout,
+		},
+		{
+			name:                      "no timeout, with durability level none",
+			timeout:                   globalCollection.timeoutsConfig.KVTimeout,
+			durabilityLevel:           DurabilityLevelNone,
 			expectedDurabilityTimeout: 0,
 			expectedDeadline:          globalCollection.timeoutsConfig.KVTimeout,
 		},
