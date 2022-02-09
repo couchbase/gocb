@@ -191,6 +191,7 @@ func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptio
 	opm.SetImpersonate(opts.Internal.User)
 	opm.SetContext(opts.Context)
 	opm.SetPreserveExpiry(opts.PreserveExpiry)
+	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
