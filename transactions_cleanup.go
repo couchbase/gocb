@@ -238,7 +238,7 @@ func (clcw *coreLostTransactionsCleanerWrapper) ProcessClient(bucket *Bucket, co
 }
 
 func (clcw *coreLostTransactionsCleanerWrapper) RemoveClient(uuid string) error {
-	return clcw.wrapped.RemoveClientFromAllBuckets(uuid)
+	return clcw.wrapped.RemoveClientFromAllLocations(uuid)
 }
 
 func (clcw *coreLostTransactionsCleanerWrapper) Close() {
