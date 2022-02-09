@@ -9,9 +9,9 @@ type TransactionsConfig struct {
 	// MetadataCollection specifies a specific location to place meta-data.
 	MetadataCollection *TransactionKeyspace
 
-	// ExpirationTime sets the maximum time that transactions created
+	// Timeout sets the maximum time that transactions created
 	// by this Transactions object can run for, before expiring.
-	ExpirationTime time.Duration
+	Timeout time.Duration
 
 	// DurabilityLevel specifies the durability level that should be used
 	// for all write operations performed by this Transactions object.
@@ -55,7 +55,7 @@ type TransactionOptions struct {
 	// DurabilityLevel specifies the durability level that should be used
 	// for all write operations performed by this transaction.
 	DurabilityLevel DurabilityLevel
-	ExpirationTime  time.Duration
+	Timeout         time.Duration
 }
 
 // TransactionsQueryConfig specifies various tunable query options related to transactions.
@@ -67,7 +67,7 @@ type TransactionsQueryConfig struct {
 // type SingleQueryTransactionConfig struct {
 // 	QueryOptions    QueryOptions
 // 	DurabilityLevel TransactionDurabilityLevel
-// 	ExpirationTime  time.Duration
+// 	Timeout  time.Duration
 // }
 
 // TransactionKeyspace specifies a specific location where ATR entries should be

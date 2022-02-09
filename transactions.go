@@ -109,7 +109,7 @@ func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, er
 	corecfg.LostCleanupATRLocationProvider = t.atrLocationsProvider
 	corecfg.CleanupClientAttempts = !config.DisableCleanupClientAttempts
 	corecfg.CleanupQueueSize = config.CleanupQueueSize
-	corecfg.ExpirationTime = config.ExpirationTime
+	corecfg.ExpirationTime = config.Timeout
 	corecfg.CleanupWindow = config.CleanupWindow
 	corecfg.CleanupLostAttempts = !config.DisableCleanupLostAttempts
 	corecfg.CleanupWatchATRs = !config.DisableCleanupLostAttempts
@@ -135,7 +135,7 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 	if perConfig == nil {
 		perConfig = &TransactionOptions{
 			DurabilityLevel: t.config.DurabilityLevel,
-			ExpirationTime:  t.config.ExpirationTime,
+			Timeout:         t.config.Timeout,
 		}
 	}
 
@@ -144,7 +144,7 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 	// TODO: fill in the rest of this config
 	txn, err := t.txns.BeginTransaction(&gocbcore.TransactionOptions{
 		DurabilityLevel: gocbcore.TransactionDurabilityLevel(perConfig.DurabilityLevel),
-		ExpirationTime:  perConfig.ExpirationTime,
+		ExpirationTime:  perConfig.Timeout,
 	})
 	if err != nil {
 		return nil, err
@@ -295,7 +295,7 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 // 		return nil
 // 	}, &TransactionOptions{
 // 		DurabilityLevel: options.DurabilityLevel,
-// 		ExpirationTime:  options.ExpirationTime,
+// 		Timeout:  options.Timeout,
 // 	})
 // 	if err != nil {
 // 		return nil, err
