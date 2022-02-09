@@ -111,6 +111,7 @@ func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, er
 	corecfg.ExpirationTime = config.ExpirationTime
 	corecfg.CleanupWindow = config.CleanupWindow
 	corecfg.CleanupLostAttempts = config.CleanupLostAttempts
+	corecfg.CleanupWatchATRs = config.CleanupLostAttempts
 	corecfg.CustomATRLocation = atrLocation
 	corecfg.Internal.Hooks = hooksWrapper
 	corecfg.Internal.CleanUpHooks = cleanupHooksWrapper
