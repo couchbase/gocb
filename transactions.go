@@ -141,10 +141,24 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 
 	scanConsistency := t.config.QueryConfig.ScanConsistency
 
+	// Gocbcore looks at whether the location agent is nil to verify whether CustomATRLocation has been set.
+	atrLocation := gocbcore.TransactionATRLocation{}
+	if perConfig.MetadataCollection != nil {
+		customATRAgent, err := perConfig.MetadataCollection.bucket.Internal().IORouter()
+		if err != nil {
+			return nil, err
+		}
+
+		atrLocation.Agent = customATRAgent
+		atrLocation.CollectionName = perConfig.MetadataCollection.Name()
+		atrLocation.ScopeName = perConfig.MetadataCollection.ScopeName()
+	}
+
 	// TODO: fill in the rest of this config
 	txn, err := t.txns.BeginTransaction(&gocbcore.TransactionOptions{
-		DurabilityLevel: gocbcore.TransactionDurabilityLevel(perConfig.DurabilityLevel),
-		ExpirationTime:  perConfig.Timeout,
+		DurabilityLevel:   gocbcore.TransactionDurabilityLevel(perConfig.DurabilityLevel),
+		ExpirationTime:    perConfig.Timeout,
+		CustomATRLocation: atrLocation,
 	})
 	if err != nil {
 		return nil, err

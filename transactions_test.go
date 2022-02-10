@@ -182,6 +182,79 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadata() {
 	suite.verifyDocument(docID, docValue)
 }
 
+func (suite *IntegrationTestSuite) TestTransactionsCustomMetadataTransactionOption() {
+	suite.skipIfUnsupported(TransactionsFeature)
+
+	metaCollectionName := "txnsCustomMetadataTxnOption"
+	collections := globalBucket.Collections()
+	err := collections.CreateCollection(CollectionSpec{
+		Name:      metaCollectionName,
+		ScopeName: globalScope.Name(),
+	}, nil)
+	suite.Require().Nil(err, err)
+	defer collections.DropCollection(CollectionSpec{
+		Name:      metaCollectionName,
+		ScopeName: globalScope.Name(),
+	}, nil)
+	suite.mustWaitForCollections(globalScope.Name(), []string{metaCollectionName})
+
+	perConfig := &TransactionOptions{
+		MetadataCollection: globalBucket.Collection(metaCollectionName),
+	}
+
+	docID := "txnsCustomMetadata"
+	docValue := map[string]interface{}{
+		"test": "test",
+	}
+
+	txns, err := globalCluster.Transactions()
+	suite.Require().Nil(err)
+
+	var atr string
+	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
+		_, err := ctx.Insert(globalCollection, docID, docValue)
+		if err != nil {
+			return err
+		}
+
+		getRes, err := ctx.Get(globalCollection, docID)
+		if err != nil {
+			return err
+		}
+
+		var actualDocValue map[string]interface{}
+		err = getRes.Content(&actualDocValue)
+		if err != nil {
+			return err
+		}
+
+		suite.Assert().Equal(docValue, actualDocValue)
+
+		atr = string(ctx.txn.Attempt().AtrID)
+
+		return nil
+	}, perConfig)
+	suite.Require().Nil(err, err)
+
+	suite.Assert().True(txnRes.UnstagingComplete)
+	suite.Assert().NotEmpty(txnRes.TransactionID)
+
+	res, err := globalScope.Collection(metaCollectionName).LookupIn(atr,
+		[]LookupInSpec{
+			GetSpec("", nil),
+		}, &LookupInOptions{
+			Internal: struct {
+				DocFlags SubdocDocFlag
+				User     string
+			}{DocFlags: SubdocDocFlagAccessDeleted},
+		})
+	suite.Require().Nil(err, err)
+
+	suite.Assert().True(res.Exists(0))
+
+	suite.verifyDocument(docID, docValue)
+}
+
 func (suite *IntegrationTestSuite) TestTransactionsRollback() {
 	suite.skipIfUnsupported(TransactionsFeature)
 

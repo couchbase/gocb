@@ -61,7 +61,12 @@ type TransactionOptions struct {
 	// DurabilityLevel specifies the durability level that should be used
 	// for all write operations performed by this transaction.
 	DurabilityLevel DurabilityLevel
-	Timeout         time.Duration
+
+	// Timeout sets the maximum time that this transaction can run for, before expiring.
+	Timeout time.Duration
+
+	// MetadataCollection specifies a specific Collection to place meta-data.
+	MetadataCollection *Collection
 }
 
 // TransactionsQueryConfig specifies various tunable query options related to transactions.
