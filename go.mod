@@ -1,7 +1,7 @@
 module github.com/couchbase/gocb/v2
 
 require (
-	github.com/couchbase/gocbcore/v10 v10.0.8-0.20220209192732-918cc0d992e6
+	github.com/couchbase/gocbcore/v10 v10.0.8-0.20220210192954-817bee2df2c5
 	github.com/couchbaselabs/gocaves/client v0.0.0-20211209113245-27e13f721acf
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/google/uuid v1.1.1
