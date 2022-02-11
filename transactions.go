@@ -238,10 +238,6 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 
 		a := attempt.attempt()
 
-		if lambdaErr == nil {
-			a.PreExpiryAutoRollback = false
-		}
-
 		if !a.Expired && attempt.shouldRetry() && !wasUserError {
 			logDebugf("retrying lambda after backoff")
 			time.Sleep(backoffCalc())
