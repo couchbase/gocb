@@ -206,11 +206,13 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 
 		lambdaErr := logicFn(&attempt)
 
+		var autoRollback bool
 		var finalErr error
 		if lambdaErr == nil {
 			if attempt.canCommit() {
 				finalErr = attempt.commit()
 			} else if attempt.shouldRollback() {
+				autoRollback = true
 				finalErr = attempt.rollback()
 			}
 		} else {
@@ -252,7 +254,9 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 		case TransactionAttemptStateAborted:
 			fallthrough
 		case TransactionAttemptStateRolledBack:
-			if finalErr == nil {
+			// If we rolled back then an error must have happened and not been propagated so we can't return
+			// success.
+			if finalErr == nil && !autoRollback {
 				return &TransactionResult{
 					TransactionID: txn.ID(),
 				}, nil
