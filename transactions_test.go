@@ -202,7 +202,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadataTransactionOpti
 		MetadataCollection: globalBucket.Collection(metaCollectionName),
 	}
 
-	docID := "txnsCustomMetadata"
+	docID := "txnsCustomMetadataTxnOption"
 	docValue := map[string]interface{}{
 		"test": "test",
 	}
