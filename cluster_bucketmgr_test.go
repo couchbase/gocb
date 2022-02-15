@@ -4,8 +4,6 @@ import (
 	"errors"
 	"testing"
 	"time"
-
-	"github.com/couchbase/gocbcore/v10"
 )
 
 func (suite *IntegrationTestSuite) TestBucketMgrOps() {
@@ -148,40 +146,19 @@ func (suite *IntegrationTestSuite) TestBucketMgrFlushDisabled() {
 	}
 	defer mgr.DropBucket("testFlush", nil)
 
-	// Buckets don't become available immediately so we need to do a bit of polling to see if it comes online.
-	bucketSignal := make(chan struct{})
-	go func() {
-		for {
-			// Check that we can get and re-upsert a bucket.
-			_, err := mgr.GetBucket("testFlush", nil)
-			if err != nil {
-				suite.T().Logf("Failed to get bucket %v", err)
-				time.Sleep(100 * time.Millisecond)
-				continue
-			}
-
-			bucketSignal <- struct{}{}
-			break
+	suite.Assert().True(suite.tryUntil(time.Now().Add(10*time.Second), 500*time.Millisecond, func() bool {
+		err := mgr.FlushBucket("testFlush", nil)
+		if err == nil {
+			suite.T().Fatalf("Expected to fail to flush bucket")
 		}
-	}()
 
-	maxWaitTime := 2 * time.Second
-	timer := gocbcore.AcquireTimer(maxWaitTime)
-	select {
-	case <-timer.C:
-		gocbcore.ReleaseTimer(timer, true)
-		suite.T().Fatalf("Wait timeout expired for bucket to become available")
-	case <-bucketSignal:
-	}
+		if errors.Is(err, ErrBucketNotFlushable) {
+			return true
+		}
 
-	err := mgr.FlushBucket("testFlush", nil)
-	if err == nil {
-		suite.T().Fatalf("Expected to fail to flush bucket")
-	}
-
-	if !errors.Is(err, ErrBucketNotFlushable) {
-		suite.T().Fatalf("Expected error to be bucket not flushable but was %v", err)
-	}
+		suite.T().Logf("Expected error to be bucket not flushable but was %v", err)
+		return false
+	}))
 }
 
 func (suite *IntegrationTestSuite) TestBucketMgrBucketNotExist() {

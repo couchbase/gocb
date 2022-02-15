@@ -27,18 +27,14 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 				Reduce: "_count",
 			},
 		},
-	}, DesignDocumentNamespaceDevelopment, &UpsertDesignDocumentOptions{
-		Timeout: 1 * time.Second,
-	})
+	}, DesignDocumentNamespaceDevelopment, &UpsertDesignDocumentOptions{})
 	suite.Require().Nil(err, err)
 
 	var designdoc *DesignDocument
 	numGetsStart := 0
 	success := suite.tryUntil(time.Now().Add(5*time.Second), 500*time.Millisecond, func() bool {
 		numGetsStart++
-		designdoc, err = mgr.GetDesignDocument("test", DesignDocumentNamespaceDevelopment, &GetDesignDocumentOptions{
-			Timeout: 1 * time.Second,
-		})
+		designdoc, err = mgr.GetDesignDocument("test", DesignDocumentNamespaceDevelopment, &GetDesignDocumentOptions{})
 		if err != nil {
 			return false
 		}
@@ -57,25 +53,19 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 	suite.Assert().NotEmpty(view.Map)
 	suite.Assert().NotEmpty(view.Reduce)
 
-	designdocs, err := mgr.GetAllDesignDocuments(DesignDocumentNamespaceDevelopment, &GetAllDesignDocumentsOptions{
-		Timeout: 1 * time.Second,
-	})
+	designdocs, err := mgr.GetAllDesignDocuments(DesignDocumentNamespaceDevelopment, &GetAllDesignDocumentsOptions{})
 	suite.Require().Nil(err, err)
 
 	suite.Require().GreaterOrEqual(len(designdocs), 1)
 
-	err = mgr.PublishDesignDocument("test", &PublishDesignDocumentOptions{
-		Timeout: 1 * time.Second,
-	})
+	err = mgr.PublishDesignDocument("test", &PublishDesignDocumentOptions{})
 	suite.Require().Nil(err, err)
 
 	// It can take time for the published doc to come online
 	numGetsPublished := 0
 	success = suite.tryUntil(time.Now().Add(5*time.Second), 500*time.Millisecond, func() bool {
 		numGetsPublished++
-		designdoc, err = mgr.GetDesignDocument("test", DesignDocumentNamespaceProduction, &GetDesignDocumentOptions{
-			Timeout: 1 * time.Second,
-		})
+		designdoc, err = mgr.GetDesignDocument("test", DesignDocumentNamespaceProduction, &GetDesignDocumentOptions{})
 		if err != nil {
 			return false
 		}
@@ -89,9 +79,7 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 	suite.Assert().Equal("test", designdoc.Name)
 	suite.Require().Equal(1, len(designdoc.Views))
 
-	err = mgr.DropDesignDocument("test", DesignDocumentNamespaceProduction, &DropDesignDocumentOptions{
-		Timeout: 1 * time.Second,
-	})
+	err = mgr.DropDesignDocument("test", DesignDocumentNamespaceProduction, &DropDesignDocumentOptions{})
 	suite.Require().Nil(err, err)
 
 	suite.Require().Contains(globalTracer.Spans, nil)
