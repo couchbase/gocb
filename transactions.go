@@ -96,7 +96,9 @@ func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, er
 	if config.MetadataCollection != nil {
 		customATRAgent, err := c.Bucket(config.MetadataCollection.BucketName).Internal().IORouter()
 		if err != nil {
-			return nil, err
+			// This is quite unlikely, it implies that our internal has changed between cluster Connect and
+			// the Bucket call.
+			return nil, wrapError(err, "failed to create custom metadata collection")
 		}
 		atrLocation.Agent = customATRAgent
 		atrLocation.CollectionName = config.MetadataCollection.CollectionName

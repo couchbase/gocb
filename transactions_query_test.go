@@ -15,8 +15,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryModeInsert() {
 		"test": "test",
 	}
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		_, err := ctx.Query("SELECT 1=1", nil)
@@ -54,8 +53,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryModeReplace() {
 	_, err := globalCollection.Upsert(docID, docValue, nil)
 	suite.Require().Nil(err, err)
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		_, err := ctx.Query("SELECT 1=1", nil)
@@ -95,8 +93,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryModeRemove() {
 	_, err := globalCollection.Upsert(docID, docValue, nil)
 	suite.Require().Nil(err, err)
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		_, err := ctx.Query("SELECT 1=1", nil)
@@ -130,8 +127,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryModeDocNotFound() {
 
 	docID := "querydocnotfound"
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		_, err := ctx.Query("SELECT 1=1", nil)
@@ -162,8 +158,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryModeDocFound() {
 	_, err := globalCollection.Upsert(docID, docValue, nil)
 	suite.Require().Nil(err, err)
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		_, err := ctx.Query("SELECT 1=1", nil)
@@ -215,8 +210,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatement() {
 	_, err = globalCollection.Upsert(docID, docValue, nil)
 	suite.Require().Nil(err, err)
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		queryRes, err := ctx.Query(
@@ -286,8 +280,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatementKVReplace
 	_, err = globalCollection.Upsert(docID, docValue, nil)
 	suite.Require().Nil(err, err)
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		_, err := ctx.Query(
@@ -340,8 +333,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatementKVRemove(
 	_, err = globalCollection.Upsert(docID, docValue, nil)
 	suite.Require().Nil(err, err)
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		_, err := ctx.Query(
@@ -388,8 +380,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryDoubleInsertStatement() 
 	})
 	suite.Require().NoError(err)
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		_, err := ctx.Query(
@@ -430,8 +421,7 @@ func (suite *IntegrationTestSuite) TestTransactionsInsertReadByQuery() {
 	})
 	suite.Require().NoError(err)
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		_, err = ctx.Insert(globalCollection, docID, docValue)
@@ -498,8 +488,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryInsertDocExists() {
 	_, err := globalCollection.Upsert(docID, "{}", nil)
 	suite.Require().Nil(err, err)
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		_, err := ctx.Query("SELECT 1=1", nil)
@@ -587,9 +576,14 @@ func (suite *UnitTestSuite) TestTransactionsQueryGocbcoreCauseError() {
 	cli.On("close").Return(nil)
 
 	cluster := suite.newCluster(cli)
-
-	txns, err := cluster.Transactions()
+	cluster.transactions, err = cluster.initTransactions(TransactionsConfig{
+		CleanupConfig: TransactionsCleanupConfig{
+			DisableLostAttemptCleanup: true,
+		},
+	})
 	suite.Require().Nil(err, err)
+
+	txns := cluster.Transactions()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		_, err := ctx.Query("SELECT 1=1", nil)
@@ -599,7 +593,7 @@ func (suite *UnitTestSuite) TestTransactionsQueryGocbcoreCauseError() {
 
 		return nil
 	}, nil)
-	suite.Assert().ErrorIs(err, ErrAttemptExpired)
+	suite.Require().ErrorIs(err, ErrAttemptExpired)
 	var finalErr *TransactionExpiredError
 	suite.Assert().True(errors.As(err, &finalErr))
 	suite.Assert().Nil(txnRes)

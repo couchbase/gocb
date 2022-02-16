@@ -31,8 +31,7 @@ func (suite *IntegrationTestSuite) TestTransactionsDoubleInsert() {
 		"test": "test",
 	}
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		_, err := ctx.Insert(globalCollection, docID, docValue)
@@ -64,8 +63,7 @@ func (suite *IntegrationTestSuite) TestTransactionsInsert() {
 		"test": "test",
 	}
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		_, err := ctx.Insert(globalCollection, docID, docValue)
@@ -134,8 +132,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadata() {
 		"test": "test",
 	}
 
-	txns, err := c.Transactions()
-	suite.Require().Nil(err)
+	txns := c.Transactions()
 
 	var atr string
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
@@ -207,8 +204,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadataTransactionOpti
 		"test": "test",
 	}
 
-	txns, err := globalCluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Transactions()
 
 	var atr string
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
@@ -269,8 +265,7 @@ func (suite *IntegrationTestSuite) TestTransactionsRollback() {
 	_, err := globalCollection.Upsert(docID, docValue, nil)
 	suite.Require().Nil(err, err)
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		_, err := ctx.Insert(globalCollection, docID, docValue2)
@@ -313,8 +308,7 @@ func (suite *IntegrationTestSuite) TestTransactionsReadExternalToTxn() {
 	_, err := globalCollection.Upsert(docID, docValue, nil)
 	suite.Require().Nil(err, err)
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
 	interceptCh := make(chan struct{})
 	go func() {
@@ -382,8 +376,7 @@ func (suite *IntegrationTestSuite) TestTransactionsReplace() {
 	_, err := globalCollection.Upsert(docID, docValue, nil)
 	suite.Require().Nil(err, err)
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		getRes, err := ctx.Get(globalCollection, docID)
@@ -438,8 +431,7 @@ func (suite *IntegrationTestSuite) TestTransactionsRemove() {
 	_, err := globalCollection.Upsert(docID, docValue, nil)
 	suite.Require().Nil(err, err)
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		getRes, err := ctx.Get(globalCollection, docID)
@@ -484,8 +476,7 @@ func (suite *IntegrationTestSuite) TestTransactionsInsertReplace() {
 		"test": "test2",
 	}
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		res, err := ctx.Insert(globalCollection, docID, docValue)
@@ -529,8 +520,7 @@ func (suite *IntegrationTestSuite) TestTransactionsInsertRemove() {
 		"test": "test",
 	}
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		res, err := ctx.Insert(globalCollection, docID, docValue)
@@ -563,10 +553,9 @@ func (suite *IntegrationTestSuite) TestTransactionsUserError() {
 
 	var ErrOopsieDoodle = errors.New("im an error")
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
-	_, err = txns.Run(func(ctx *TransactionAttemptContext) error {
+	_, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		return ErrOopsieDoodle
 	}, nil)
 	suite.Require().ErrorIs(err, ErrOopsieDoodle)
@@ -580,8 +569,7 @@ func (suite *IntegrationTestSuite) TestTransactionsGetDocNotFoundAllowsContinue(
 		"test": "test",
 	}
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		getRes, err := ctx.Get(globalCollection, docID)
@@ -618,11 +606,9 @@ func (suite *IntegrationTestSuite) TestTransactionsGetDocNotFoundAllowsContinue(
 }
 
 func (suite *IntegrationTestSuite) TestMultipleTransactionObjects() {
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
-	txns2, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns2 := globalCluster.Cluster.Transactions()
 
 	suite.Assert().Equal(&txns, &txns2)
 }
@@ -636,8 +622,7 @@ func (suite *IntegrationTestSuite) TestTransactionsGetOnly() {
 	_, err := globalCollection.Upsert(docID, docValue, nil)
 	suite.Require().Nil(err, err)
 
-	txns, err := globalCluster.Cluster.Transactions()
-	suite.Require().Nil(err)
+	txns := globalCluster.Cluster.Transactions()
 
 	_, err = txns.Run(func(ctx *TransactionAttemptContext) error {
 		res, err := ctx.Get(globalCollection, docID)
@@ -860,8 +845,7 @@ type tranactionTestResult struct {
 
 func (suite *IntegrationTestSuite) doTransactionOps(name string, keys []string, numIters int, useOptim bool) *tranactionTestResult {
 
-	transactions, err := globalCluster.Transactions()
-	suite.Require().Nil(err, err)
+	transactions := globalCluster.Transactions()
 
 	//log.Printf("  %s testing (%+v)", name, keys)
 
@@ -878,7 +862,7 @@ func (suite *IntegrationTestSuite) doTransactionOps(name string, keys []string, 
 
 		tstime := time.Now()
 
-		_, err = transactions.Run(func(ctx *TransactionAttemptContext) error {
+		_, err := transactions.Run(func(ctx *TransactionAttemptContext) error {
 			if useOptim {
 				resObjs := make([]*TransactionGetResult, len(keys))
 				valDatas := make([]map[string]int, len(keys))
