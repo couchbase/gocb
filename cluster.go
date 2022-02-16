@@ -542,7 +542,6 @@ func (c *Cluster) EventingFunctions() *EventingFunctionManager {
 }
 
 // Transactions returns a Transactions instance for performing transactions.
-// UNCOMMITTED: This API may change in the future.
 func (c *Cluster) Transactions() (*Transactions, error) {
 	c.transactionsLock.Lock()
 	if c.transactions == nil {
