@@ -3,6 +3,7 @@ package gocb
 import (
 	"errors"
 	"fmt"
+	"github.com/couchbase/gocbcore/v10"
 	"log"
 	"time"
 )
@@ -605,15 +606,9 @@ func (suite *IntegrationTestSuite) TestTransactionsGetDocNotFoundAllowsContinue(
 	suite.verifyDocument(docID, docValue)
 }
 
-func (suite *IntegrationTestSuite) TestMultipleTransactionObjects() {
-	txns := globalCluster.Cluster.Transactions()
-
-	txns2 := globalCluster.Cluster.Transactions()
-
-	suite.Assert().Equal(&txns, &txns2)
-}
-
 func (suite *IntegrationTestSuite) TestTransactionsGetOnly() {
+	suite.skipIfUnsupported(TransactionsFeature)
+
 	docID := "getOnly"
 	docValue := map[string]interface{}{
 		"test": "test",
@@ -641,6 +636,112 @@ func (suite *IntegrationTestSuite) TestTransactionsGetOnly() {
 		return nil
 	}, nil)
 	suite.Require().Nil(err, err)
+}
+
+func (suite *IntegrationTestSuite) TestMultipleTransactionObjects() {
+	cli := new(mockConnectionManager)
+	cli.On("close").Return(nil)
+
+	tConfig := TransactionsConfig{}
+	tConfig.CleanupConfig.DisableLostAttemptCleanup = true
+
+	c := clusterFromOptions(ClusterOptions{
+		Tracer:             &NoopTracer{},
+		Meter:              &NoopMeter{},
+		TransactionsConfig: tConfig,
+	})
+	defer c.Close(nil)
+	c.connectionManager = cli
+
+	txns := c.Transactions()
+
+	txns2 := c.Transactions()
+
+	suite.Assert().Equal(&txns, &txns2)
+}
+
+func (suite *UnitTestSuite) TestTransactionsCustomMetadataAddedToCleanupLocs() {
+	metaCollectionName := "TestTransactionsCustomMetadataAddedToCleanupLocs"
+
+	cli := new(mockConnectionManager)
+	cli.On("openBucket", "default").Return(nil)
+	cli.On("openBucket", "connect").Return(nil)
+	cli.On("connection", "default").Return(&gocbcore.Agent{}, nil)
+	cli.On("close").Return(nil)
+
+	tConfig := TransactionsConfig{}
+	tConfig.MetadataCollection = &TransactionKeyspace{
+		BucketName:     "default",
+		ScopeName:      "_default",
+		CollectionName: metaCollectionName,
+	}
+	tConfig.CleanupConfig.DisableLostAttemptCleanup = true
+	tConfig.CleanupConfig.DisableClientAttemptCleanup = true
+	c := clusterFromOptions(ClusterOptions{
+		Tracer:             &NoopTracer{},
+		Meter:              &NoopMeter{},
+		TransactionsConfig: tConfig,
+	})
+	defer c.Close(nil)
+	c.connectionManager = cli
+
+	txns, err := c.initTransactions(tConfig)
+	suite.Require().Nil(err, err)
+
+	locs, err := txns.atrLocationsProvider()
+	suite.Require().Nil(err)
+
+	suite.Require().Len(locs, 1)
+	suite.Require().Contains(locs, gocbcore.TransactionLostATRLocation{
+		BucketName:     "default",
+		ScopeName:      "_default",
+		CollectionName: metaCollectionName,
+	})
+}
+
+func (suite *UnitTestSuite) TestTransactionsCustomMetadataAlreadyInCleanupCollections() {
+	metaCollectionName := "TestTransactionsCustomMetadataAlreadyInCleanupCollections"
+
+	cli := new(mockConnectionManager)
+	cli.On("openBucket", "default").Return(nil)
+	cli.On("connection", "default").Return(&gocbcore.Agent{}, nil)
+	cli.On("close").Return(nil)
+
+	tConfig := TransactionsConfig{}
+	tConfig.MetadataCollection = &TransactionKeyspace{
+		BucketName:     "default",
+		ScopeName:      "_default",
+		CollectionName: metaCollectionName,
+	}
+	tConfig.CleanupConfig.CleanupCollections = []TransactionKeyspace{
+		{
+			BucketName:     "default",
+			ScopeName:      "_default",
+			CollectionName: metaCollectionName,
+		},
+	}
+	tConfig.CleanupConfig.DisableLostAttemptCleanup = true
+	tConfig.CleanupConfig.DisableClientAttemptCleanup = true
+	c := clusterFromOptions(ClusterOptions{
+		Tracer:             &NoopTracer{},
+		Meter:              &NoopMeter{},
+		TransactionsConfig: tConfig,
+	})
+	defer c.Close(nil)
+	c.connectionManager = cli
+
+	txns, err := c.initTransactions(tConfig)
+	suite.Require().Nil(err, err)
+
+	locs, err := txns.atrLocationsProvider()
+	suite.Require().Nil(err)
+
+	suite.Require().Len(locs, 1)
+	suite.Require().Contains(locs, gocbcore.TransactionLostATRLocation{
+		BucketName:     "default",
+		ScopeName:      "_default",
+		CollectionName: metaCollectionName,
+	})
 }
 
 func (suite *IntegrationTestSuite) TestTransactionsNoContentionSingleThreadPessimistic() {

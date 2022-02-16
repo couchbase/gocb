@@ -74,6 +74,32 @@ func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, er
 		}
 	}
 
+	atrLocation := gocbcore.TransactionATRLocation{}
+	if config.MetadataCollection != nil {
+		customATRAgent, err := c.Bucket(config.MetadataCollection.BucketName).Internal().IORouter()
+		if err != nil {
+			return nil, err
+		}
+		atrLocation.Agent = customATRAgent
+		atrLocation.CollectionName = config.MetadataCollection.CollectionName
+		atrLocation.ScopeName = config.MetadataCollection.ScopeName
+
+		// We add the custom metadata collection to the cleanup collections so that lost cleanup starts watching it
+		// immediately. Note that we don't do the same for the custom metadata on TransactionOptions, this is because
+		// we know that that collection will be used in a transaction.
+		var alreadyInCleanup bool
+		for _, keySpace := range config.CleanupConfig.CleanupCollections {
+			if keySpace == *config.MetadataCollection {
+				alreadyInCleanup = true
+				break
+			}
+		}
+
+		if !alreadyInCleanup {
+			config.CleanupConfig.CleanupCollections = append(config.CleanupConfig.CleanupCollections, *config.MetadataCollection)
+		}
+	}
+
 	var cleanupLocs []gocbcore.TransactionLostATRLocation
 	for _, keyspace := range config.CleanupConfig.CleanupCollections {
 		cleanupLocs = append(cleanupLocs, gocbcore.TransactionLostATRLocation{
@@ -90,19 +116,6 @@ func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, er
 		hooksWrapper:        hooksWrapper,
 		cleanupHooksWrapper: cleanupHooksWrapper,
 		cleanupCollections:  cleanupLocs,
-	}
-
-	atrLocation := gocbcore.TransactionATRLocation{}
-	if config.MetadataCollection != nil {
-		customATRAgent, err := c.Bucket(config.MetadataCollection.BucketName).Internal().IORouter()
-		if err != nil {
-			// This is quite unlikely, it implies that our internal has changed between cluster Connect and
-			// the Bucket call.
-			return nil, wrapError(err, "failed to create custom metadata collection")
-		}
-		atrLocation.Agent = customATRAgent
-		atrLocation.CollectionName = config.MetadataCollection.CollectionName
-		atrLocation.ScopeName = config.MetadataCollection.ScopeName
 	}
 
 	corecfg := &gocbcore.TransactionsConfig{}
