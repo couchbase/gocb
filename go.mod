@@ -1,7 +1,7 @@
 module github.com/couchbase/gocb/v2
 
 require (
-	github.com/couchbase/gocbcore/v10 v10.1.0
+	github.com/couchbase/gocbcore/v10 v10.1.1-0.20220221125514-72ee6aaebe8d
 	github.com/couchbaselabs/gocaves/client v0.0.0-20211209113245-27e13f721acf
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.3.0

@@ -9,6 +9,23 @@ import (
 type QueryErrorDesc struct {
 	Code    uint32
 	Message string
+	Retry   bool
+	Reason  map[string]interface{}
+}
+
+// MarshalJSON implements the Marshaler interface.
+func (e QueryErrorDesc) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Code    uint32                 `json:"code"`
+		Message string                 `json:"message"`
+		Retry   bool                   `json:"retry,omitempty"`
+		Reason  map[string]interface{} `json:"reason,omitempty"`
+	}{
+		Code:    e.Code,
+		Message: e.Message,
+		Retry:   e.Retry,
+		Reason:  e.Reason,
+	})
 }
 
 func translateCoreQueryErrorDesc(descs []gocbcore.N1QLErrorDesc) []QueryErrorDesc {
@@ -17,6 +34,8 @@ func translateCoreQueryErrorDesc(descs []gocbcore.N1QLErrorDesc) []QueryErrorDes
 		descsOut[descIdx] = QueryErrorDesc{
 			Code:    desc.Code,
 			Message: desc.Message,
+			Retry:   desc.Retry,
+			Reason:  desc.Reason,
 		}
 	}
 	return descsOut

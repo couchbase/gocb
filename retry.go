@@ -114,6 +114,10 @@ var (
 
 	// SearchTooManyRequestsRetryReason indicates that a search operation failed due to too many requests
 	SearchTooManyRequestsRetryReason = RetryReason(gocbcore.SearchTooManyRequestsRetryReason)
+
+	// QueryErrorRetryable indicates that the operation is retryable as indicated by the query engine.
+	// Uncommitted: This API may change in the future.
+	QueryErrorRetryable = RetryReason(gocbcore.QueryErrorRetryable)
 )
 
 // RetryAction is used by a RetryStrategy to calculate the duration to wait before retrying an operation.

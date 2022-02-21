@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"time"
 
 	"github.com/couchbase/gocbcore/v10"
@@ -122,6 +123,46 @@ func (suite *IntegrationTestSuite) runClusterPreparedQueryPositionalTest(n int) 
 func (suite *IntegrationTestSuite) runClusterPreparedQueryNamedTest(n int) {
 	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=$service LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
 	suite.runPreparedQueryTest(n, query, "", "", globalCluster, map[string]interface{}{"service": "query"})
+}
+
+func (suite *IntegrationTestSuite) TestClusterQueryImprovedErrorsDocNotFound() {
+	suite.skipIfUnsupported(QueryImprovedErrorsFeature)
+
+	suite.setupClusterQuery()
+	query := fmt.Sprintf("INSERT INTO `%s` (KEY, VALUE) VALUES (\"%s\", \"test\")", uuid.New().String(), globalBucket.Name())
+
+	success := suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
+		res, err := globalCluster.Query(query, nil)
+		if err != nil && !errors.Is(err, ErrIndexNotFound) {
+			return false
+		}
+
+		for res.Next() {
+		}
+
+		err = res.Err()
+		if err != nil && !errors.Is(err, ErrIndexNotFound) {
+			return false
+		}
+
+		return true
+	})
+	suite.Require().True(success, "Timed out waiting for query to succeed")
+
+	res, err := globalCluster.Query(query, nil)
+	suite.Require().Nil(err, err)
+
+	for res.Next() {
+	}
+
+	err = res.Err()
+	suite.Require().ErrorIs(err, ErrDocumentExists)
+
+	var qErr *QueryError
+	suite.Require().ErrorAs(err, &qErr)
+	suite.Require().Len(qErr.Errors, 1)
+	suite.Assert().Equal(uint32(12009), qErr.Errors[0].Code)
+	suite.Assert().Equal(float64(17012), qErr.Errors[0].Reason["code"])
 }
 
 func (suite *IntegrationTestSuite) runQueryTest(n int, query, bucket, scope string, queryFn queryIface, withMetrics bool, params interface{}) {

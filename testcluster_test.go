@@ -76,6 +76,7 @@ var (
 	TransactionsFeature                     = FeatureCode("transactions")
 	TransactionsBulkFeature                 = FeatureCode("transactionsbulk")
 	CustomConflictResolutionFeature         = FeatureCode("customconflictresolution")
+	QueryImprovedErrorsFeature              = FeatureCode("queryimprovederrors")
 )
 
 type TestFeatureFlag struct {
@@ -183,6 +184,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case CustomConflictResolutionFeature:
 			supported = false
+		case QueryImprovedErrorsFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -272,6 +275,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer700)
 		case CustomConflictResolutionFeature:
 			supported = c.Version.Equal(srvVer710DP)
+		case QueryImprovedErrorsFeature:
+			supported = !c.Version.Lower(srvVer710)
 		}
 	}
 
