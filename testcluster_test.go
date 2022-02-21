@@ -75,7 +75,6 @@ var (
 	HLCFeature                              = FeatureCode("hlc")
 	TransactionsFeature                     = FeatureCode("transactions")
 	TransactionsBulkFeature                 = FeatureCode("transactionsbulk")
-	RateLimitingIndexBugFeature             = FeatureCode("ratelimitsindexbug") // MB50725
 	CustomConflictResolutionFeature         = FeatureCode("customconflictresolution")
 )
 
@@ -182,8 +181,6 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case TransactionsBulkFeature:
 			// Caves doesn't advertise that it supports sync replication.
 			supported = false
-		case RateLimitingIndexBugFeature:
-			supported = false
 		case CustomConflictResolutionFeature:
 			supported = false
 		}
@@ -273,8 +270,6 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer700)
 		case TransactionsBulkFeature:
 			supported = !c.Version.Lower(srvVer700)
-		case RateLimitingIndexBugFeature:
-			supported = false
 		case CustomConflictResolutionFeature:
 			supported = c.Version.Equal(srvVer710DP)
 		}
