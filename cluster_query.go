@@ -128,19 +128,29 @@ func (meta *QueryMetaData) fromData(data jsonQueryResponse) error {
 // QueryResultRaw provides raw access to query data.
 // VOLATILE: This API is subject to change at any time.
 type QueryResultRaw struct {
-	reader queryRowReader
+	reader        queryRowReader
+	transactionID string
+	nextRowBytes  []byte
 }
 
 // NextBytes returns the next row as bytes.
 func (qrr *QueryResultRaw) NextBytes() []byte {
-	return qrr.reader.NextRow()
+	rowBytes := qrr.nextRowBytes
+	qrr.nextRowBytes = qrr.reader.NextRow()
+
+	return rowBytes
 }
 
 // Err returns any errors that have occurred on the stream
 func (qrr *QueryResultRaw) Err() error {
 	err := qrr.reader.Err()
 	if err != nil {
-		return maybeEnhanceQueryError(err)
+		err = maybeEnhanceQueryError(err)
+		if qrr.transactionID != "" {
+			return singleQueryErrToTransactionError(err, qrr.transactionID)
+		}
+
+		return err
 	}
 
 	return nil
@@ -150,7 +160,12 @@ func (qrr *QueryResultRaw) Err() error {
 func (qrr *QueryResultRaw) Close() error {
 	err := qrr.reader.Close()
 	if err != nil {
-		return maybeEnhanceQueryError(err)
+		err = maybeEnhanceQueryError(err)
+		if qrr.transactionID != "" {
+			return singleQueryErrToTransactionError(err, qrr.transactionID)
+		}
+
+		return err
 	}
 
 	return nil
@@ -165,14 +180,17 @@ func (qrr *QueryResultRaw) MetaData() ([]byte, error) {
 type QueryResult struct {
 	reader queryRowReader
 
-	rowBytes []byte
-	endpoint string
+	transactionID string
+	nextRowBytes  []byte
+	rowBytes      []byte
+	endpoint      string
 }
 
 func newQueryResult(reader queryRowReader) *QueryResult {
 	return &QueryResult{
-		reader:   reader,
-		endpoint: reader.Endpoint(),
+		reader:       reader,
+		endpoint:     reader.Endpoint(),
+		nextRowBytes: reader.NextRow(),
 	}
 }
 
@@ -181,11 +199,19 @@ func newQueryResult(reader queryRowReader) *QueryResult {
 // VOLATILE: This API is subject to change at any time.
 func (r *QueryResult) Raw() *QueryResultRaw {
 	vr := &QueryResultRaw{
-		reader: r.reader,
+		reader:        r.reader,
+		transactionID: r.transactionID,
+		nextRowBytes:  r.nextRowBytes,
 	}
 
 	r.reader = nil
+	r.transactionID = ""
+	r.nextRowBytes = nil
 	return vr
+}
+
+func (r *QueryResult) peekNext() []byte {
+	return r.nextRowBytes
 }
 
 // Next assigns the next result from the results into the value pointer, returning whether the read was successful.
@@ -194,12 +220,13 @@ func (r *QueryResult) Next() bool {
 		return false
 	}
 
-	rowBytes := r.reader.NextRow()
-	if rowBytes == nil {
+	if len(r.nextRowBytes) == 0 {
 		return false
 	}
 
-	r.rowBytes = rowBytes
+	r.rowBytes = r.nextRowBytes
+	r.nextRowBytes = r.reader.NextRow()
+
 	return true
 }
 
@@ -229,7 +256,12 @@ func (r *QueryResult) Err() error {
 
 	err := r.reader.Err()
 	if err != nil {
-		return maybeEnhanceQueryError(err)
+		err = maybeEnhanceQueryError(err)
+		if r.transactionID != "" {
+			return singleQueryErrToTransactionError(err, r.transactionID)
+		}
+
+		return err
 	}
 
 	return nil
@@ -243,7 +275,12 @@ func (r *QueryResult) Close() error {
 
 	err := r.reader.Close()
 	if err != nil {
-		return maybeEnhanceQueryError(err)
+		err = maybeEnhanceQueryError(err)
+		if r.transactionID != "" {
+			return singleQueryErrToTransactionError(err, r.transactionID)
+		}
+
+		return err
 	}
 
 	return nil
@@ -259,7 +296,7 @@ func (r *QueryResult) One(valuePtr interface{}) error {
 	}
 
 	// Read the bytes from the first row
-	valueBytes := r.reader.NextRow()
+	valueBytes := r.nextRowBytes
 	if valueBytes == nil {
 		return ErrNoResult
 	}
@@ -268,6 +305,7 @@ func (r *QueryResult) One(valuePtr interface{}) error {
 	for r.reader.NextRow() != nil {
 		// do nothing with the row
 	}
+	r.nextRowBytes = nil
 
 	return json.Unmarshal(valueBytes, valuePtr)
 }
@@ -332,6 +370,10 @@ type queryRowReader interface {
 func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResult, error) {
 	if opts == nil {
 		opts = &QueryOptions{}
+	}
+
+	if opts.AsTransaction != nil {
+		return c.Transactions().singleQuery(statement, nil, *opts)
 	}
 
 	start := time.Now()

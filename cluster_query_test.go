@@ -295,6 +295,136 @@ func (suite *IntegrationTestSuite) TestClusterQueryContext() {
 	suite.Require().Nil(res)
 }
 
+func (suite *IntegrationTestSuite) TestClusterQueryTransaction() {
+	suite.skipIfUnsupported(QueryFeature)
+	suite.skipIfUnsupported(TransactionsFeature)
+
+	mgr := globalCluster.QueryIndexes()
+	err := mgr.CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
+		IgnoreIfExists: true,
+	})
+	suite.Require().Nil(err, err)
+
+	suite.Eventually(func() bool {
+		_, err := globalCluster.Query(fmt.Sprintf("SELECT 1 FROM %s", globalBucket.Name()), &QueryOptions{
+			Adhoc: true,
+		})
+		return err == nil
+	}, 30*time.Second, 500*time.Millisecond)
+
+	res, err := globalCluster.Query(fmt.Sprintf("INSERT INTO `%s` VALUES (\"%s\", {})", globalBucket.Name(), uuid.New().String()), &QueryOptions{
+		AsTransaction: &SingleQueryTransactionOptions{
+			DurabilityLevel: DurabilityLevelMajority,
+		},
+		Adhoc: true,
+	})
+	suite.Require().Nil(err, err)
+
+	for res.Next() {
+	}
+
+	err = res.Err()
+	suite.Require().Nil(err, err)
+
+	meta, err := res.MetaData()
+	suite.Require().Nil(err, err)
+
+	suite.Assert().Equal(uint64(1), meta.Metrics.MutationCount)
+}
+
+func (suite *IntegrationTestSuite) TestClusterQueryTransactionDoubleInsert() {
+	suite.skipIfUnsupported(QueryFeature)
+	suite.skipIfUnsupported(TransactionsFeature)
+
+	mgr := globalCluster.QueryIndexes()
+	err := mgr.CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
+		IgnoreIfExists: true,
+	})
+	suite.Require().Nil(err, err)
+
+	suite.Eventually(func() bool {
+		_, err := globalCluster.Query(fmt.Sprintf("SELECT 1 FROM %s", globalBucket.Name()), &QueryOptions{
+			Adhoc: true,
+		})
+		return err == nil
+	}, 30*time.Second, 500*time.Millisecond)
+
+	docID := uuid.New().String()
+	res, err := globalCluster.Query(fmt.Sprintf("INSERT INTO `%s` VALUES (\"%s\", {})", globalBucket.Name(), docID), &QueryOptions{
+		AsTransaction: &SingleQueryTransactionOptions{
+			DurabilityLevel: DurabilityLevelMajority,
+		},
+		Adhoc: true,
+	})
+	suite.Require().Nil(err, err)
+
+	for res.Next() {
+	}
+
+	err = res.Err()
+	suite.Require().Nil(err, err)
+
+	meta, err := res.MetaData()
+	suite.Require().Nil(err, err)
+
+	suite.Assert().Equal(uint64(1), meta.Metrics.MutationCount)
+
+	_, err = globalCluster.Query(fmt.Sprintf("INSERT INTO `%s` VALUES (\"%s\", {})", globalBucket.Name(), docID), &QueryOptions{
+		AsTransaction: &SingleQueryTransactionOptions{
+			DurabilityLevel: DurabilityLevelMajority,
+		},
+		Adhoc: true,
+	})
+	suite.Require().Error(err, err)
+
+	var tErr *TransactionFailedError
+	suite.Require().ErrorAs(err, &tErr)
+
+	var qErr *QueryError
+	suite.Require().ErrorAs(err, &qErr)
+}
+
+func (suite *IntegrationTestSuite) TestClusterQueryTransactionOne() {
+	suite.skipIfUnsupported(QueryFeature)
+	suite.skipIfUnsupported(TransactionsFeature)
+
+	mgr := globalCluster.QueryIndexes()
+	err := mgr.CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
+		IgnoreIfExists: true,
+	})
+	suite.Require().Nil(err, err)
+
+	suite.Eventually(func() bool {
+		_, err := globalCluster.Query(fmt.Sprintf("SELECT 1 FROM %s", globalBucket.Name()), &QueryOptions{
+			Adhoc: true,
+		})
+		return err == nil
+	}, 30*time.Second, 500*time.Millisecond)
+
+	docID := uuid.New().String()
+	res, err := globalCluster.Query(fmt.Sprintf("INSERT INTO `%s` VALUES (\"%s\", {}) RETURNING meta().id", globalBucket.Name(), docID), &QueryOptions{
+		AsTransaction: &SingleQueryTransactionOptions{
+			DurabilityLevel: DurabilityLevelMajority,
+		},
+		Adhoc: true,
+	})
+	suite.Require().Nil(err, err)
+
+	var something interface{}
+	err = res.One(&something)
+	suite.Require().NoError(err, err)
+
+	suite.Assert().Equal(map[string]interface{}{"id": docID}, something)
+
+	err = res.Err()
+	suite.Require().Nil(err, err)
+
+	meta, err := res.MetaData()
+	suite.Require().Nil(err, err)
+
+	suite.Assert().Equal(uint64(1), meta.Metrics.MutationCount)
+}
+
 // We have to manually mock this because testify won't let return something which can iterate.
 type mockQueryRowReader struct {
 	Dataset []testBreweryDocument
@@ -488,9 +618,7 @@ func (suite *UnitTestSuite) TestQueryResultsOne() {
 			Suite: suite,
 		},
 	}
-	result := &QueryResult{
-		reader: reader,
-	}
+	result := newQueryResult(reader)
 
 	var doc testBreweryDocument
 	err = result.One(&doc)
@@ -504,6 +632,8 @@ func (suite *UnitTestSuite) TestQueryResultsOne() {
 		count++
 	}
 	suite.Assert().Zero(count)
+
+	suite.Assert().Nil(result.reader.NextRow())
 
 	err = result.Err()
 	suite.Require().Nil(err, err)
@@ -524,27 +654,47 @@ func (suite *UnitTestSuite) TestQueryResultsErr() {
 			Suite:   suite,
 		},
 	}
-	result := &QueryResult{
-		reader: reader,
-	}
+	result := newQueryResult(reader)
 
 	err := result.Err()
 	suite.Require().NotNil(err, err)
 }
 
 func (suite *UnitTestSuite) TestQueryResultsCloseErr() {
+	retErr := errors.New("some error")
 	reader := &mockQueryRowReader{
 		mockQueryRowReaderBase: mockQueryRowReaderBase{
-			CloseErr: errors.New("some error"),
+			CloseErr: retErr,
 			Suite:    suite,
 		},
 	}
-	result := &QueryResult{
-		reader: reader,
-	}
+	result := newQueryResult(reader)
 
 	err := result.Close()
-	suite.Require().NotNil(err, err)
+	suite.Require().Equal(retErr, err)
+}
+
+func (suite *UnitTestSuite) TestQueryResultsOneErr() {
+	retErr := errors.New("some error")
+	var dataset testQueryDataset
+	err := loadJSONTestDataset("beer_sample_query_dataset", &dataset)
+	suite.Require().Nil(err, err)
+
+	reader := &mockQueryRowReader{
+		Dataset: dataset.Results,
+		mockQueryRowReaderBase: mockQueryRowReaderBase{
+			RowsErr: retErr,
+			Suite:   suite,
+		},
+	}
+	result := newQueryResult(reader)
+
+	var doc testBreweryDocument
+	err = result.One(&doc)
+	suite.Require().NoError(err, err)
+
+	err = result.Err()
+	suite.Require().Equal(retErr, err)
 }
 
 func (suite *UnitTestSuite) TestQueryUntypedError() {

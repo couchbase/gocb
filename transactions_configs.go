@@ -80,12 +80,16 @@ type TransactionsQueryConfig struct {
 	ScanConsistency QueryScanConsistency
 }
 
-// SingleQueryTransactionConfig specifies various tunable query options related to single query transactions.
-// type SingleQueryTransactionConfig struct {
-// 	QueryOptions    QueryOptions
-// 	DurabilityLevel TransactionDurabilityLevel
-// 	Timeout  time.Duration
-// }
+// SingleQueryTransactionOptions specifies various tunable query options related to single query transactions.
+type SingleQueryTransactionOptions struct {
+	DurabilityLevel DurabilityLevel
+
+	// Internal specifies a set of options for internal use.
+	// Internal: This should never be used and is not supported.
+	Internal struct {
+		Hooks TransactionHooks
+	}
+}
 
 // TransactionKeyspace specifies a specific location where ATR entries should be
 // placed when performing transactions.

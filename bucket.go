@@ -22,6 +22,7 @@ type Bucket struct {
 
 	bootstrapError    error
 	connectionManager connectionManager
+	getTransactions   func() *Transactions
 }
 
 func newBucket(c *Cluster, bucketName string) *Bucket {
@@ -41,6 +42,7 @@ func newBucket(c *Cluster, bucketName string) *Bucket {
 		useMutationTokens:  c.useMutationTokens,
 
 		connectionManager: c.connectionManager,
+		getTransactions:   c.Transactions,
 	}
 }
 

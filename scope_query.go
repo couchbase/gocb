@@ -11,6 +11,10 @@ func (s *Scope) Query(statement string, opts *QueryOptions) (*QueryResult, error
 		opts = &QueryOptions{}
 	}
 
+	if opts.AsTransaction != nil {
+		return s.getTransactions().singleQuery(statement, s, *opts)
+	}
+
 	start := time.Now()
 	defer s.meter.ValueRecord(meterValueServiceQuery, "query", start)
 

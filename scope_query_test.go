@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"time"
 
 	"github.com/couchbase/gocbcore/v10"
@@ -118,4 +119,110 @@ func (suite *UnitTestSuite) TestScopeQueryPrepared() {
 	suite.Require().NotNil(result)
 
 	suite.assertQueryBeerResult(dataset, result)
+}
+
+func (suite *IntegrationTestSuite) TestScopeQueryTransaction() {
+	suite.skipIfUnsupported(QueryFeature)
+	suite.skipIfUnsupported(TransactionsFeature)
+
+	mgr := globalCluster.QueryIndexes()
+	err := mgr.CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
+		ScopeName:      globalScope.Name(),
+		CollectionName: globalCollection.Name(),
+		IgnoreIfExists: true,
+	})
+	suite.Require().Nil(err, err)
+
+	// Ensure the index is online
+	suite.Eventually(func() bool {
+		_, err := globalScope.Query(fmt.Sprintf("SELECT 1 FROM %s", globalCollection.Name()), &QueryOptions{
+			Adhoc: true,
+		})
+		return err == nil
+	}, 30*time.Second, 500*time.Millisecond)
+
+	docID := uuid.New().String()
+	res, err := globalScope.Query(fmt.Sprintf("INSERT INTO `%s` VALUES (\"%s\", {})", globalCollection.Name(), docID), &QueryOptions{
+		AsTransaction: &SingleQueryTransactionOptions{
+			DurabilityLevel: DurabilityLevelMajority,
+		},
+		Adhoc: true,
+	})
+	suite.Require().Nil(err, err)
+
+	for res.Next() {
+	}
+
+	err = res.Err()
+	suite.Require().Nil(err, err)
+
+	meta, err := res.MetaData()
+	suite.Require().Nil(err, err)
+
+	suite.Assert().Equal(uint64(1), meta.Metrics.MutationCount)
+
+	// Verify that we've inserted into the correct place.
+	getRes, err := globalCollection.Get(docID, &GetOptions{
+		Transcoder: NewRawJSONTranscoder(),
+	})
+	suite.Require().Nil(err, err)
+
+	var getResBytes []byte
+	err = getRes.Content(&getResBytes)
+	suite.Require().Nil(err, err)
+
+	suite.Assert().Equal([]byte("{}"), getResBytes)
+}
+
+func (suite *IntegrationTestSuite) TestScopeQueryTransactionDoubleInsert() {
+	suite.skipIfUnsupported(QueryFeature)
+	suite.skipIfUnsupported(TransactionsFeature)
+
+	mgr := globalCluster.QueryIndexes()
+	err := mgr.CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
+		ScopeName:      globalScope.Name(),
+		CollectionName: globalCollection.Name(),
+		IgnoreIfExists: true,
+	})
+	suite.Require().Nil(err, err)
+
+	suite.Eventually(func() bool {
+		_, err := globalScope.Query(fmt.Sprintf("SELECT 1 FROM %s", globalCollection.Name()), &QueryOptions{
+			Adhoc: true,
+		})
+		return err == nil
+	}, 30*time.Second, 500*time.Millisecond)
+
+	docID := uuid.New().String()
+	res, err := globalScope.Query(fmt.Sprintf("INSERT INTO `%s` VALUES (\"%s\", {})", globalCollection.Name(), docID), &QueryOptions{
+		AsTransaction: &SingleQueryTransactionOptions{
+			DurabilityLevel: DurabilityLevelMajority,
+		},
+		Adhoc: true,
+	})
+	suite.Require().Nil(err, err)
+
+	for res.Next() {
+	}
+
+	err = res.Err()
+	suite.Require().Nil(err, err)
+
+	meta, err := res.MetaData()
+	suite.Require().Nil(err, err)
+
+	suite.Assert().Equal(uint64(1), meta.Metrics.MutationCount)
+
+	_, err = globalScope.Query(fmt.Sprintf("INSERT INTO `%s` VALUES (\"%s\", {})", globalCollection.Name(), docID), &QueryOptions{
+		AsTransaction: &SingleQueryTransactionOptions{
+			DurabilityLevel: DurabilityLevelMajority,
+		},
+		Adhoc: true,
+	})
+
+	var tErr *TransactionFailedError
+	suite.Require().ErrorAs(err, &tErr)
+
+	var qErr *QueryError
+	suite.Require().ErrorAs(err, &qErr)
 }

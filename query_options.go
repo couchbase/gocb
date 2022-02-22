@@ -68,6 +68,11 @@ type QueryOptions struct {
 	// UNCOMMITTED: This API may change in the future.
 	Context context.Context
 
+	// AsTransaction indicates to run this query as a transaction, providing any additional transaction specific
+	// configuration.
+	// UNCOMMITTED: This API may change in the future.
+	AsTransaction *SingleQueryTransactionOptions
+
 	// Internal: This should never be used and is not supported.
 	Internal struct {
 		User     string

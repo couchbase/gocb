@@ -46,15 +46,16 @@ func (c *TransactionAttemptContext) getQueryMode(collection *Collection, id stri
 		if errors.As(err, &terr) {
 			return err
 		}
+
 		if errors.Is(err, ErrDocumentNotFound) {
 			return err
 		}
 
-		return c.operationFailed(transactionQueryOperationFailedDef{
+		return operationFailed(transactionQueryOperationFailedDef{
 			ShouldNotRetry: true,
 			ErrorCause:     err,
 			Reason:         gocbcore.TransactionErrorReasonTransactionFailed,
-		})
+		}, c)
 	}
 
 	res, err := c.queryWrapperWrapper(nil, "EXECUTE __get", QueryOptions{
@@ -120,27 +121,27 @@ func (c *TransactionAttemptContext) replaceQueryMode(doc *TransactionGetResult, 
 		}
 
 		if errors.Is(err, ErrDocumentNotFound) {
-			return c.operationFailed(transactionQueryOperationFailedDef{
+			return operationFailed(transactionQueryOperationFailedDef{
 				ErrorCause:      err,
 				Reason:          gocbcore.TransactionErrorReasonTransactionFailed,
 				ShouldNotCommit: true,
 				ErrorClass:      gocbcore.TransactionErrorClassFailDocNotFound,
-			})
+			}, c)
 		} else if errors.Is(err, ErrCasMismatch) {
-			return c.operationFailed(transactionQueryOperationFailedDef{
+			return operationFailed(transactionQueryOperationFailedDef{
 				ErrorCause:      err,
 				Reason:          gocbcore.TransactionErrorReasonTransactionFailed,
 				ShouldNotCommit: true,
 				ErrorClass:      gocbcore.TransactionErrorClassFailCasMismatch,
-			})
+			}, c)
 		}
 
-		return c.operationFailed(transactionQueryOperationFailedDef{
+		return operationFailed(transactionQueryOperationFailedDef{
 			ShouldNotRetry:  true,
 			ErrorCause:      err,
 			Reason:          gocbcore.TransactionErrorReasonTransactionFailed,
 			ShouldNotCommit: true,
-		})
+		}, c)
 	}
 
 	params := []interface{}{c.keyspace(doc.collection), doc.docID, valueBytes, json.RawMessage("{}")}
@@ -161,7 +162,7 @@ func (c *TransactionAttemptContext) replaceQueryMode(doc *TransactionGetResult, 
 	var row replaceQueryResult
 	err = res.One(&row)
 	if err != nil {
-		return nil, handleErr(c.queryMaybeTranslateToTransactionsError(err))
+		return nil, handleErr(queryMaybeTranslateToTransactionsError(err, c))
 	}
 
 	cas, err := fromScas(row.Scas)
@@ -204,12 +205,12 @@ func (c *TransactionAttemptContext) insertQueryMode(collection *Collection, id s
 			return err
 		}
 
-		return c.operationFailed(transactionQueryOperationFailedDef{
+		return operationFailed(transactionQueryOperationFailedDef{
 			ShouldNotRetry:  true,
 			ErrorCause:      err,
 			Reason:          gocbcore.TransactionErrorReasonTransactionFailed,
 			ShouldNotCommit: true,
-		})
+		}, c)
 	}
 
 	params := []interface{}{c.keyspace(collection), id, valueBytes, json.RawMessage("{}")}
@@ -229,7 +230,7 @@ func (c *TransactionAttemptContext) insertQueryMode(collection *Collection, id s
 	var row insertQueryResult
 	err = res.One(&row)
 	if err != nil {
-		return nil, handleErr(c.queryMaybeTranslateToTransactionsError(err))
+		return nil, handleErr(queryMaybeTranslateToTransactionsError(err, c))
 	}
 
 	cas, err := fromScas(row.Scas)
@@ -273,27 +274,27 @@ func (c *TransactionAttemptContext) removeQueryMode(doc *TransactionGetResult) e
 		}
 
 		if errors.Is(err, ErrDocumentNotFound) {
-			return c.operationFailed(transactionQueryOperationFailedDef{
+			return operationFailed(transactionQueryOperationFailedDef{
 				ErrorCause:      err,
 				Reason:          gocbcore.TransactionErrorReasonTransactionFailed,
 				ShouldNotCommit: true,
 				ErrorClass:      gocbcore.TransactionErrorClassFailDocNotFound,
-			})
+			}, c)
 		} else if errors.Is(err, ErrCasMismatch) {
-			return c.operationFailed(transactionQueryOperationFailedDef{
+			return operationFailed(transactionQueryOperationFailedDef{
 				ErrorCause:      err,
 				Reason:          gocbcore.TransactionErrorReasonTransactionFailed,
 				ShouldNotCommit: true,
 				ErrorClass:      gocbcore.TransactionErrorClassFailCasMismatch,
-			})
+			}, c)
 		}
 
-		return c.operationFailed(transactionQueryOperationFailedDef{
+		return operationFailed(transactionQueryOperationFailedDef{
 			ShouldNotRetry:  true,
 			ErrorCause:      err,
 			Reason:          gocbcore.TransactionErrorReasonTransactionFailed,
 			ShouldNotCommit: true,
-		})
+		}, c)
 	}
 
 	params := []interface{}{c.keyspace(doc.collection), doc.docID, json.RawMessage("{}")}
@@ -317,21 +318,21 @@ func (c *TransactionAttemptContext) commitQueryMode() error {
 		}
 
 		if errors.Is(err, ErrAttemptExpired) {
-			return c.operationFailed(transactionQueryOperationFailedDef{
+			return operationFailed(transactionQueryOperationFailedDef{
 				ErrorCause:        err,
 				Reason:            gocbcore.TransactionErrorReasonTransactionCommitAmbiguous,
 				ShouldNotRollback: true,
 				ShouldNotRetry:    true,
 				ErrorClass:        gocbcore.TransactionErrorClassFailExpiry,
-			})
+			}, c)
 		}
 
-		return c.operationFailed(transactionQueryOperationFailedDef{
+		return operationFailed(transactionQueryOperationFailedDef{
 			ShouldNotRetry:    true,
 			ShouldNotRollback: true,
 			ErrorCause:        err,
 			Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
-		})
+		}, c)
 	}
 
 	_, err := c.queryWrapperWrapper(nil, "COMMIT", QueryOptions{
@@ -364,13 +365,13 @@ func (c *TransactionAttemptContext) rollbackQueryMode() error {
 			return nil
 		}
 
-		return c.operationFailed(transactionQueryOperationFailedDef{
+		return operationFailed(transactionQueryOperationFailedDef{
 			ShouldNotRetry:    true,
 			ShouldNotRollback: true,
 			ErrorCause:        err,
 			Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
 			ShouldNotCommit:   true,
-		})
+		}, c)
 	}
 
 	_, err := c.queryWrapperWrapper(nil, "ROLLBACK", QueryOptions{
@@ -435,27 +436,27 @@ func (c *TransactionAttemptContext) queryWrapperWrapper(scope *Scope, statement 
 		var r json.RawMessage
 		err = result.Row(&r)
 		if err != nil {
-			return nil, c.queryMaybeTranslateToTransactionsError(err)
+			return nil, queryMaybeTranslateToTransactionsError(err, c)
 		}
 
 		results = append(results, r)
 	}
 
 	if err := result.Err(); err != nil {
-		return nil, c.queryMaybeTranslateToTransactionsError(err)
+		return nil, queryMaybeTranslateToTransactionsError(err, c)
 	}
 
 	meta, err := result.MetaData()
 	if err != nil {
-		return nil, c.queryMaybeTranslateToTransactionsError(err)
+		return nil, queryMaybeTranslateToTransactionsError(err, c)
 	}
 
 	if meta.Status == QueryStatusFatal {
-		return nil, c.operationFailed(transactionQueryOperationFailedDef{
+		return nil, operationFailed(transactionQueryOperationFailedDef{
 			ShouldNotRetry:  true,
 			Reason:          gocbcore.TransactionErrorReasonTransactionFailed,
 			ShouldNotCommit: true,
-		})
+		}, c)
 	}
 
 	return newTransactionQueryResult(results, meta, result.endpoint), nil
@@ -468,7 +469,7 @@ func (c *TransactionAttemptContext) queryWrapper(scope *Scope, statement string,
 	isBeginWork bool, existingErrorCheck bool, txData []byte, txImplicit bool) (*QueryResult, error) {
 
 	var target string
-	if !isBeginWork {
+	if !isBeginWork && !txImplicit {
 		if !c.queryModeLocked() {
 			// This is quite a big lock but we can't put the context into "query mode" until we know that begin work was
 			// successful. We also can't allow any further ops to happen until we know if we're in "query mode" or not.
@@ -484,24 +485,24 @@ func (c *TransactionAttemptContext) queryWrapper(scope *Scope, statement string,
 		target = c.queryState.queryTarget
 
 		if !c.txn.CanCommit() && !c.txn.ShouldRollback() {
-			return nil, c.operationFailed(transactionQueryOperationFailedDef{
+			return nil, operationFailed(transactionQueryOperationFailedDef{
 				ShouldNotRetry:    true,
 				Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
 				ErrorCause:        ErrOther,
 				ErrorClass:        gocbcore.TransactionErrorClassFailOther,
 				ShouldNotRollback: true,
-			})
+			}, c)
 		}
 	}
 
 	if existingErrorCheck {
 		if !c.txn.CanCommit() {
-			return nil, c.operationFailed(transactionQueryOperationFailedDef{
+			return nil, operationFailed(transactionQueryOperationFailedDef{
 				ShouldNotRetry: true,
 				Reason:         gocbcore.TransactionErrorReasonTransactionFailed,
 				ErrorCause:     ErrPreviousOperationFailed,
 				ErrorClass:     gocbcore.TransactionErrorClassFailOther,
-			})
+			}, c)
 		}
 	}
 
@@ -514,13 +515,13 @@ func (c *TransactionAttemptContext) queryWrapper(scope *Scope, statement string,
 	}
 	cfg := c.txn.Config()
 	if cfg.ExpirationTime < 10*time.Millisecond || expired {
-		return nil, c.operationFailed(transactionQueryOperationFailedDef{
+		return nil, operationFailed(transactionQueryOperationFailedDef{
 			ShouldNotRetry:    true,
 			ShouldNotRollback: true,
 			Reason:            gocbcore.TransactionErrorReasonTransactionExpired,
 			ErrorCause:        ErrAttemptExpired,
 			ErrorClass:        gocbcore.TransactionErrorClassFailExpiry,
-		})
+		}, c)
 	}
 
 	options.Metrics = true
@@ -537,12 +538,30 @@ func (c *TransactionAttemptContext) queryWrapper(scope *Scope, statement string,
 	}
 	if txImplicit {
 		options.Raw["tximplicit"] = true
+
+		if options.ScanConsistency == 0 {
+			options.ScanConsistency = QueryScanConsistencyRequestPlus
+		}
+		options.Raw["durability_level"] = durabilityLevelToQueryString(cfg.DurabilityLevel)
+		options.Raw["txtimeout"] = fmt.Sprintf("%dms", cfg.ExpirationTime.Milliseconds())
+		if cfg.CustomATRLocation.Agent != nil {
+			// Agent being non nil signifies that this was set.
+			options.Raw["atrcollection"] = fmt.Sprintf(
+				"%s.%s.%s",
+				cfg.CustomATRLocation.Agent.BucketName(),
+				cfg.CustomATRLocation.ScopeName,
+				cfg.CustomATRLocation.CollectionName,
+			)
+		}
+
+		// Need to make sure we don't end up straight back here...
+		options.AsTransaction = nil
 	}
-	options.Timeout = cfg.ExpirationTime + cfg.KeyValueTimeout + (1 * time.Second) // TODO: add timeout value here
+	options.Timeout = cfg.ExpirationTime + cfg.KeyValueTimeout + (1 * time.Second)
 
 	err = c.hooks.BeforeQuery(*c, statement)
 	if err != nil {
-		return nil, c.queryMaybeTranslateToTransactionsError(err)
+		return nil, queryMaybeTranslateToTransactionsError(err, c)
 	}
 
 	var result *QueryResult
@@ -553,12 +572,12 @@ func (c *TransactionAttemptContext) queryWrapper(scope *Scope, statement string,
 		result, queryErr = scope.Query(statement, &options)
 	}
 	if queryErr != nil {
-		return nil, c.queryMaybeTranslateToTransactionsError(queryErr)
+		return nil, queryMaybeTranslateToTransactionsError(queryErr, c)
 	}
 
 	err = c.hooks.AfterQuery(*c, statement)
 	if err != nil {
-		return nil, c.queryMaybeTranslateToTransactionsError(err)
+		return nil, queryMaybeTranslateToTransactionsError(err, c)
 	}
 
 	return result, nil

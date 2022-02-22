@@ -28,7 +28,6 @@ type Transactions struct {
 // object which can be used to perform transactions.
 func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, error) {
 	// Note that gocbcore will handle a lot of default values for us.
-
 	if config.QueryConfig.ScanConsistency == 0 {
 		config.QueryConfig.ScanConsistency = QueryScanConsistencyRequestPlus
 	}
@@ -147,6 +146,10 @@ func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, er
 // Run runs a lambda to perform a number of operations as part of a
 // singular transaction.
 func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (*TransactionResult, error) {
+	return t.run(logicFn, perConfig, false)
+}
+
+func (t *Transactions) run(logicFn AttemptFunc, perConfig *TransactionOptions, singleQueryMode bool) (*TransactionResult, error) {
 	if perConfig == nil {
 		perConfig = &TransactionOptions{
 			DurabilityLevel: t.config.DurabilityLevel,
@@ -231,28 +234,30 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 
 		lambdaErr := logicFn(&attempt)
 
-		if lambdaErr != nil {
+		if !singleQueryMode && lambdaErr != nil {
 			var txnErr *TransactionOperationFailedError
 			if !errors.As(lambdaErr, &txnErr) {
 				// We wrap non-TOF errors in a TOF.
-				lambdaErr = attempt.operationFailed(transactionQueryOperationFailedDef{
+				lambdaErr = operationFailed(transactionQueryOperationFailedDef{
 					ShouldNotRetry:    true,
 					ShouldNotRollback: false,
 					Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
 					ErrorCause:        lambdaErr,
 					ShouldNotCommit:   true,
-				})
+				}, &attempt)
 			}
 		}
 
 		finalErr := lambdaErr
-		if attempt.canCommit() {
-			finalErr = attempt.commit()
-		}
-		if attempt.shouldRollback() {
-			rollbackErr := attempt.rollback()
-			if rollbackErr != nil {
-				logWarnf("rollback after error failed: %s", rollbackErr)
+		if !singleQueryMode {
+			if attempt.canCommit() {
+				finalErr = attempt.commit()
+			}
+			if attempt.shouldRollback() {
+				rollbackErr := attempt.rollback()
+				if rollbackErr != nil {
+					logWarnf("rollback after error failed: %s", rollbackErr)
+				}
 			}
 		}
 		toRaise := attempt.finalErrorToRaise()
@@ -278,6 +283,10 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 
 		switch toRaise {
 		case gocbcore.TransactionErrorReasonSuccess:
+			if singleQueryMode && finalErr != nil {
+				return nil, finalErr
+			}
+
 			unstagingComplete := attempt.attempt().State == TransactionAttemptStateCompleted
 
 			return &TransactionResult{
@@ -329,33 +338,6 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 	}
 }
 
-//
-// func (t *Transactions) Query(statement string, options *SingleQueryTransactionConfig) (*SingleQueryTransactionResult, error) {
-// 	if options == nil {
-// 		options = &SingleQueryTransactionConfig{}
-// 	}
-// 	var qResult SingleQueryTransactionResult
-// 	tResult, err := t.Run(func(context *TransactionAttemptContext) error {
-// 		res, err := context.query(statement, options.QueryOptions, true)
-// 		if err != nil {
-// 			return err
-// 		}
-//
-// 		qResult.wrapped = res
-// 		return nil
-// 	}, &TransactionOptions{
-// 		DurabilityLevel: options.DurabilityLevel,
-// 		Timeout:  options.Timeout,
-// 	})
-// 	if err != nil {
-// 		return nil, err
-// 	}
-//
-// 	qResult.unstagingComplete = tResult.UnstagingComplete
-//
-// 	return &qResult, nil
-// }
-
 // Close will shut down this Transactions object, shutting down all
 // background tasks associated with it.
 func (t *Transactions) close() error {
@@ -374,6 +356,79 @@ func (t *Transactions) agentProvider(bucketName string) (*gocbcore.Agent, string
 
 func (t *Transactions) atrLocationsProvider() ([]gocbcore.TransactionLostATRLocation, error) {
 	return t.cleanupCollections, nil
+}
+
+func (t *Transactions) singleQuery(statement string, scope *Scope, opts QueryOptions) (*QueryResult, error) {
+	if opts.Context != nil {
+		return nil, makeInvalidArgumentsError("cannot use context and transactions together")
+	}
+
+	config := &TransactionOptions{
+		DurabilityLevel: opts.AsTransaction.DurabilityLevel,
+		Timeout:         opts.Timeout,
+	}
+	config.Internal.Hooks = opts.AsTransaction.Internal.Hooks
+
+	var queryRes *QueryResult
+	res, err := t.run(func(context *TransactionAttemptContext) error {
+		// We need to tell the core loop that autocommit and autorollback are disabled.
+		// context.txn.UpdateState(gocbcore.TransactionUpdateStateOptions{
+		// 	ShouldNotCommit:   true,
+		// 	ShouldNotRollback: true,
+		// })
+		qRes, err := context.queryWrapper(scope, statement, opts, "query", false, false,
+			nil, true)
+		if err != nil {
+			return err
+		}
+
+		queryRes = qRes
+		// If the result contains rows then we can't immediately check for errors, so we need to return here.
+		if len(queryRes.peekNext()) > 0 {
+			// We consider this success so tell the core to not retry - any errors on stream will happen outside the
+			// context of the core loop.
+			// context.txn.UpdateState(gocbcore.TransactionUpdateStateOptions{
+			// 	ShouldNotRetry: true,
+			// })
+
+			return nil
+		}
+
+		if err := qRes.Err(); err != nil {
+			return queryMaybeTranslateToTransactionsError(err, context)
+		}
+
+		meta, err := qRes.MetaData()
+		if err != nil {
+			return queryMaybeTranslateToTransactionsError(err, context)
+		}
+
+		if meta.Status == QueryStatusFatal {
+			return operationFailed(transactionQueryOperationFailedDef{
+				ShouldNotRetry:  true,
+				Reason:          gocbcore.TransactionErrorReasonTransactionFailed,
+				ShouldNotCommit: true,
+			}, context)
+		}
+
+		// We won't do autocommit or autorollback so tell the core loop to not retry.
+		// context.txn.UpdateState(gocbcore.TransactionUpdateStateOptions{
+		// 	ShouldNotRetry: true,
+		// })
+
+		return nil
+	}, config, true)
+	if err != nil {
+		var expiredErr *TransactionExpiredError
+		if errors.As(err, &expiredErr) {
+			return nil, ErrUnambiguousTimeout
+		}
+		return nil, err
+	}
+
+	queryRes.transactionID = res.TransactionID
+
+	return queryRes, nil
 }
 
 // TransactionsInternal exposes internal methods that are useful for testing and/or

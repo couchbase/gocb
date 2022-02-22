@@ -17,6 +17,7 @@ type Scope struct {
 	getKvProvider        func() (kvProvider, error)
 	getQueryProvider     func() (queryProvider, error)
 	getAnalyticsProvider func() (analyticsProvider, error)
+	getTransactions      func() *Transactions
 }
 
 func newScope(bucket *Bucket, scopeName string) *Scope {
@@ -36,6 +37,7 @@ func newScope(bucket *Bucket, scopeName string) *Scope {
 		getKvProvider:        bucket.getKvProvider,
 		getQueryProvider:     bucket.getQueryProvider,
 		getAnalyticsProvider: bucket.getAnalyticsProvider,
+		getTransactions:      bucket.getTransactions,
 	}
 }
 
