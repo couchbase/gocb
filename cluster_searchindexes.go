@@ -3,12 +3,11 @@ package gocb
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"strings"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 type jsonSearchIndexResp struct {

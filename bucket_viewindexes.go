@@ -3,13 +3,12 @@ package gocb
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"io/ioutil"
 	"strings"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 // DesignDocumentNamespace represents which namespace a design document resides in.

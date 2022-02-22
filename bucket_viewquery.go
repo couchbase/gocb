@@ -3,12 +3,12 @@ package gocb
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/url"
 	"strings"
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v10"
-	"github.com/pkg/errors"
 )
 
 type jsonViewResponse struct {
@@ -243,7 +243,7 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 
 	urlValues, err := opts.toURLValues()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not parse query options")
+		return nil, wrapError(err, "could not parse query options")
 	}
 
 	return b.execViewQuery(opts.Context, span.Context(), "_view", designDoc, viewName, *urlValues, deadline,

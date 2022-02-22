@@ -3,13 +3,13 @@ package gocb
 import (
 	"context"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v10"
 	gocbconnstr "github.com/couchbase/gocbcore/v10/connstr"
-	"github.com/pkg/errors"
 )
 
 // Cluster represents a connection to a specific Couchbase cluster.

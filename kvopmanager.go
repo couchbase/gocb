@@ -2,12 +2,11 @@ package gocb
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
-
-	"github.com/pkg/errors"
 )
 
 type kvOpManager struct {

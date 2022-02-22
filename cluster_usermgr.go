@@ -3,6 +3,7 @@ package gocb
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -10,7 +11,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 )
 
 // AuthDomain specifies the user domain of a specific user

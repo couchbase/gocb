@@ -2,8 +2,8 @@ package gocb
 
 import (
 	"crypto/x509"
+	"errors"
 	"github.com/couchbase/gocbcore/v10"
-	"github.com/pkg/errors"
 	"sync"
 )
 

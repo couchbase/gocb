@@ -2,9 +2,9 @@ package gocb
 
 import (
 	"encoding/json"
+	"errors"
 
 	gocbcore "github.com/couchbase/gocbcore/v10"
-	"github.com/pkg/errors"
 )
 
 // Transcoder provides an interface for transforming Go values to and

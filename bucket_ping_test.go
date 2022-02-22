@@ -1,12 +1,12 @@
 package gocb
 
 import (
+	"errors"
 	"time"
 
 	"github.com/stretchr/testify/mock"
 
 	gocbcore "github.com/couchbase/gocbcore/v10"
-	"github.com/pkg/errors"
 )
 
 func (suite *UnitTestSuite) TestPingAll() {

@@ -3,8 +3,6 @@ package gocb
 import (
 	"encoding/json"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 // Result is the base type for the return types of operations
@@ -85,7 +83,7 @@ func (d *GetResult) fromFullProjection(ops []LookupInSpec, result *LookupInResul
 
 	bytes, err := json.Marshal(newContent)
 	if err != nil {
-		return errors.Wrap(err, "could not marshal result contents")
+		return wrapError(err, "could not marshal result contents")
 	}
 	d.contents = bytes
 
@@ -109,7 +107,7 @@ func (d *GetResult) fromSubDoc(ops []LookupInSpec, result *LookupInResult) error
 
 	bytes, err := json.Marshal(content)
 	if err != nil {
-		return errors.Wrap(err, "could not marshal result contents")
+		return wrapError(err, "could not marshal result contents")
 	}
 	d.contents = bytes
 
