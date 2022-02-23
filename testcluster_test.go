@@ -77,6 +77,7 @@ var (
 	TransactionsBulkFeature                 = FeatureCode("transactionsbulk")
 	CustomConflictResolutionFeature         = FeatureCode("customconflictresolution")
 	QueryImprovedErrorsFeature              = FeatureCode("queryimprovederrors")
+	TransactionsQueryFeature                = FeatureCode("transactionsquery")
 )
 
 type TestFeatureFlag struct {
@@ -140,10 +141,6 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case SearchFeature:
 			supported = false
-		case CollectionsFeature:
-			supported = false
-		case DurabilityFeature:
-			supported = false
 		case UserGroupFeature:
 			supported = false
 		case AnalyticsIndexFeature:
@@ -176,15 +173,13 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case StorageBackendFeature:
 			supported = false
-		case TransactionsFeature:
-			// Caves doesn't advertise that it supports sync replication.
-			supported = false
 		case TransactionsBulkFeature:
-			// Caves doesn't advertise that it supports sync replication.
 			supported = false
 		case CustomConflictResolutionFeature:
 			supported = false
 		case QueryImprovedErrorsFeature:
+			supported = false
+		case TransactionsQueryFeature:
 			supported = false
 		}
 	} else {
@@ -270,6 +265,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case HLCFeature:
 			supported = !c.Version.Lower(srvVer660)
 		case TransactionsFeature:
+			supported = !c.Version.Lower(srvVer700)
+		case TransactionsQueryFeature:
 			supported = !c.Version.Lower(srvVer700)
 		case TransactionsBulkFeature:
 			supported = !c.Version.Lower(srvVer700)
