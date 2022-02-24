@@ -38,8 +38,8 @@ func (suite *IntegrationTestSuite) runSearchTest(n int) {
 			IncludeLocations: true,
 		})
 
-		suite.Require().Contains(globalTracer.Spans, nil)
-		nilParents := globalTracer.Spans[nil]
+		suite.Require().Contains(globalTracer.GetSpans(), nil)
+		nilParents := globalTracer.GetSpans()[nil]
 		suite.Require().Equal(1, len(nilParents))
 		suite.AssertHTTPOpSpan(nilParents[0], "search",
 			HTTPOpSpanExpectations{

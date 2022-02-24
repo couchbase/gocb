@@ -41,8 +41,8 @@ func (suite *IntegrationTestSuite) runAnalyticsTest(n int, query, bucket, scope 
 		})
 		suite.Require().Nil(err, "Failed to execute query %v", err)
 
-		suite.Require().Contains(globalTracer.Spans, nil)
-		nilParents := globalTracer.Spans[nil]
+		suite.Require().Contains(globalTracer.GetSpans(), nil)
+		nilParents := globalTracer.GetSpans()[nil]
 		suite.Require().Equal(1, len(nilParents))
 		suite.AssertHTTPOpSpan(nilParents[0], "analytics",
 			HTTPOpSpanExpectations{

@@ -59,8 +59,8 @@ func (suite *IntegrationTestSuite) runPreparedQueryTest(n int, query, bucket, sc
 		result, err := queryFn.Query(query, opts)
 		suite.Require().Nil(err, "Failed to execute query %v", err)
 
-		suite.Require().Contains(globalTracer.Spans, nil)
-		nilParents := globalTracer.Spans[nil]
+		suite.Require().Contains(globalTracer.GetSpans(), nil)
+		nilParents := globalTracer.GetSpans()[nil]
 		suite.Require().Equal(1, len(nilParents))
 
 		numDispatchSpans := 1
@@ -186,8 +186,8 @@ func (suite *IntegrationTestSuite) runQueryTest(n int, query, bucket, scope stri
 		result, err := queryFn.Query(query, opts)
 		suite.Require().Nil(err, "Failed to execute query %v", err)
 
-		suite.Require().Contains(globalTracer.Spans, nil)
-		nilParents := globalTracer.Spans[nil]
+		suite.Require().Contains(globalTracer.GetSpans(), nil)
+		nilParents := globalTracer.GetSpans()[nil]
 		suite.Require().Equal(1, len(nilParents))
 		suite.AssertHTTPOpSpan(nilParents[0], "query",
 			HTTPOpSpanExpectations{

@@ -45,8 +45,8 @@ func (suite *IntegrationTestSuite) TestBinaryAppend() {
 		suite.T().Fatalf("Expected append result to be foobar but was %s", appendContent)
 	}
 
-	suite.Require().Contains(globalTracer.Spans, nil)
-	nilParents := globalTracer.Spans[nil]
+	suite.Require().Contains(globalTracer.GetSpans(), nil)
+	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 3)
 	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
 	suite.AssertKvOpSpan(nilParents[1], "append", memd.CmdAppend.Name(), 1, false, false, DurabilityLevelNone)
@@ -101,8 +101,8 @@ func (suite *IntegrationTestSuite) TestBinaryPrepend() {
 		suite.T().Fatalf("Expected prepend result to be boofar but was %s", appendContent)
 	}
 
-	suite.Require().Contains(globalTracer.Spans, nil)
-	nilParents := globalTracer.Spans[nil]
+	suite.Require().Contains(globalTracer.GetSpans(), nil)
+	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 3)
 	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
 	suite.AssertKvOpSpan(nilParents[1], "prepend", memd.CmdPrepend.Name(), 1, false, false, DurabilityLevelNone)
@@ -178,8 +178,8 @@ func (suite *IntegrationTestSuite) TestBinaryIncrement() {
 		suite.T().Fatalf("Expected counter value to be 20 but was %d", res.Content())
 	}
 
-	suite.Require().Contains(globalTracer.Spans, nil)
-	nilParents := globalTracer.Spans[nil]
+	suite.Require().Contains(globalTracer.GetSpans(), nil)
+	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 4)
 	suite.AssertKvOpSpan(nilParents[0], "increment", memd.CmdIncrement.Name(), 1, false, false, DurabilityLevelNone)
 	suite.AssertKvOpSpan(nilParents[1], "increment", memd.CmdIncrement.Name(), 1, false, false, DurabilityLevelNone)
@@ -256,8 +256,8 @@ func (suite *IntegrationTestSuite) TestBinaryDecrement() {
 		suite.T().Fatalf("Expected counter value to be 80 but was %d", res.Content())
 	}
 
-	suite.Require().Contains(globalTracer.Spans, nil)
-	nilParents := globalTracer.Spans[nil]
+	suite.Require().Contains(globalTracer.GetSpans(), nil)
+	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 4)
 	suite.AssertKvOpSpan(nilParents[0], "decrement", memd.CmdDecrement.Name(), 1, false, false, DurabilityLevelNone)
 	suite.AssertKvOpSpan(nilParents[1], "decrement", memd.CmdDecrement.Name(), 1, false, false, DurabilityLevelNone)

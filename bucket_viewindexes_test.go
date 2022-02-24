@@ -82,8 +82,8 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 	err = mgr.DropDesignDocument("test", DesignDocumentNamespaceProduction, &DropDesignDocumentOptions{})
 	suite.Require().Nil(err, err)
 
-	suite.Require().Contains(globalTracer.Spans, nil)
-	nilParents := globalTracer.Spans[nil]
+	suite.Require().Contains(globalTracer.GetSpans(), nil)
+	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(4+numGetsPublished+numGetsStart, len(nilParents))
 	suite.AssertHTTPOpSpan(nilParents[0], "manager_views_upsert_design_document",
 		HTTPOpSpanExpectations{

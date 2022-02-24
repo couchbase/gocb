@@ -67,7 +67,17 @@ func (tt *testTracer) RequestSpan(parentContext RequestSpanContext, operationNam
 }
 
 func (tt *testTracer) Reset() {
+	tt.lock.Lock()
 	tt.Spans = make(map[RequestSpanContext][]*testSpan)
+	tt.lock.Unlock()
+}
+
+func (tt *testTracer) GetSpans() map[RequestSpanContext][]*testSpan {
+	tt.lock.Lock()
+	spans := tt.Spans
+	tt.lock.Unlock()
+
+	return spans
 }
 
 func (suite *IntegrationTestSuite) AssertKvOpSpan(span *testSpan, opName, cmdName string, numCmdSpans int,
