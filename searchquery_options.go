@@ -76,7 +76,7 @@ type SearchOptions struct {
 	}
 }
 
-func (opts *SearchOptions) toMap() (map[string]interface{}, error) {
+func (opts *SearchOptions) toMap(indexName string) (map[string]interface{}, error) {
 	data := make(map[string]interface{})
 
 	if opts.Limit > 0 {
@@ -136,7 +136,7 @@ func (opts *SearchOptions) toMap() (map[string]interface{}, error) {
 		consistency := make(map[string]interface{})
 
 		consistency["level"] = "at_plus"
-		consistency["vectors"] = opts.ConsistentWith.toSearchMutationState()
+		consistency["vectors"] = opts.ConsistentWith.toSearchMutationState(indexName)
 
 		if ctl == nil {
 			ctl = make(map[string]interface{})

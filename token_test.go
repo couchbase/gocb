@@ -88,7 +88,7 @@ func (suite *UnitTestSuite) TestMutationState_toSeachMutationState() {
 
 	state := NewMutationState(fakeToken1, fakeToken2)
 
-	searchToken := state.toSearchMutationState()
+	searchToken := state.toSearchMutationState("frankindex")
 
 	// What we actually care about is the format once marshaled.
 	bytes, err := json.Marshal(&searchToken)
@@ -96,7 +96,7 @@ func (suite *UnitTestSuite) TestMutationState_toSeachMutationState() {
 		suite.T().Fatalf("Failed to marshal %v", err)
 	}
 
-	if strings.Compare(string(bytes), "{\"frank\":{\"1/9\":12,\"2/1\":22}}") != 0 {
+	if strings.Compare(string(bytes), "{\"frankindex\":{\"1/9\":12,\"2/1\":22}}") != 0 {
 		suite.T().Fatalf("Failed to generate correct JSON output %s", bytes)
 	}
 }

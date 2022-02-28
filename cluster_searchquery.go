@@ -433,7 +433,7 @@ func (c *Cluster) SearchQuery(indexName string, query cbsearch.Query, opts *Sear
 		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	searchOpts, err := opts.toMap()
+	searchOpts, err := opts.toMap(indexName)
 	if err != nil {
 		return nil, SearchError{
 			InnerError: wrapError(err, "failed to generate query options"),

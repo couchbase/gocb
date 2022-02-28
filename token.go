@@ -168,15 +168,15 @@ func (mt *MutationState) UnmarshalJSON(data []byte) error {
 }
 
 // toSearchMutationState is specific to search, search doesn't accept tokens in the same format as other services.
-func (mt *MutationState) toSearchMutationState() searchMutationState {
+func (mt *MutationState) toSearchMutationState(indexName string) searchMutationState {
 	data := make(searchMutationState)
 	for _, token := range mt.tokens {
-		_, ok := data[token.bucketName]
+		_, ok := data[indexName]
 		if !ok {
-			data[token.bucketName] = make(map[string]uint64)
+			data[indexName] = make(map[string]uint64)
 		}
 
-		data[token.bucketName][fmt.Sprintf("%d/%d", token.token.VbID, token.token.VbUUID)] = uint64(token.token.SeqNo)
+		data[indexName][fmt.Sprintf("%d/%d", token.token.VbID, token.token.VbUUID)] = uint64(token.token.SeqNo)
 	}
 
 	return data
