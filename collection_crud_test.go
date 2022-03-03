@@ -2228,7 +2228,7 @@ func (suite *IntegrationTestSuite) TestBasicCrudContext() {
 	defer cancel()
 
 	// This is ugly but caves on windows seems to be able to run ops instantaneously (time accuracy).
-	time.Sleep(1 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	res, err = globalCollection.Upsert("context", "test", &UpsertOptions{
 		Context: ctx,
@@ -2253,7 +2253,7 @@ func (suite *IntegrationTestSuite) TestBasicCrudContext() {
 	defer cancel()
 
 	// This is ugly but caves on windows seems to be able to run ops instantaneously (time accuracy).
-	time.Sleep(1 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	getRes, err = globalCollection.Get("context", &GetOptions{
 		Context: ctx,
