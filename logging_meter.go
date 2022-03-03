@@ -40,20 +40,39 @@ type LoggingMeter struct {
 	stopCh              chan struct{}
 }
 
-type AggregatingMeterOptions struct {
+// LoggingMeterOptions is the set of options available when creating a LoggingMeter.
+type LoggingMeterOptions struct {
 	EmitInterval time.Duration
 }
 
-func NewAggregatingMeter(opts *AggregatingMeterOptions) *LoggingMeter {
+// NewLoggingMeter creates a new LoggingMeter.
+func NewLoggingMeter(opts *LoggingMeterOptions) *LoggingMeter {
 	am := newAggregatingMeter(opts)
 	am.startLoggerRoutine()
 
 	return am
 }
 
-func newAggregatingMeter(opts *AggregatingMeterOptions) *LoggingMeter {
+// AggregatingMeterOptions is the set of options available when creating a LoggingMeter.
+// Note that this function will soon be deprecated.
+type AggregatingMeterOptions struct {
+	EmitInterval time.Duration
+}
+
+// NewAggregatingMeter creates a new LoggingMeter.
+// Note that this function will soon be deprecated.
+func NewAggregatingMeter(opts *AggregatingMeterOptions) *LoggingMeter {
+	am := newAggregatingMeter(&LoggingMeterOptions{
+		EmitInterval: opts.EmitInterval,
+	})
+	am.startLoggerRoutine()
+
+	return am
+}
+
+func newAggregatingMeter(opts *LoggingMeterOptions) *LoggingMeter {
 	if opts == nil {
-		opts = &AggregatingMeterOptions{}
+		opts = &LoggingMeterOptions{}
 	}
 	interval := opts.EmitInterval
 	if interval == 0 {

@@ -37,7 +37,7 @@ func (suite *UnitTestSuite) TestLatencyHistogramGreaterThanMax() {
 }
 
 func (suite *UnitTestSuite) TestAggregatingMeter() {
-	meter := newAggregatingMeter(&AggregatingMeterOptions{
+	meter := newAggregatingMeter(&LoggingMeterOptions{
 		EmitInterval: 10 * time.Second,
 	})
 	r1, err := meter.ValueRecorder(meterNameCBOperations, map[string]string{

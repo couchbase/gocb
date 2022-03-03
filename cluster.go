@@ -205,7 +205,7 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 
 	meter := opts.Meter
 	if meter == nil {
-		agMeter := NewAggregatingMeter(nil)
+		agMeter := NewLoggingMeter(nil)
 		meter = agMeter
 	}
 
