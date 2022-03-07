@@ -129,11 +129,12 @@ func (suite *IntegrationTestSuite) TestClusterQueryImprovedErrorsDocNotFound() {
 	suite.skipIfUnsupported(QueryImprovedErrorsFeature)
 
 	suite.setupClusterQuery()
-	query := fmt.Sprintf("INSERT INTO `%s` (KEY, VALUE) VALUES (\"%s\", \"test\")", uuid.New().String(), globalBucket.Name())
+	query := fmt.Sprintf("INSERT INTO `%s` (KEY, VALUE) VALUES (\"%s\", \"test\")", globalBucket.Name(), uuid.New().String())
 
 	success := suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
 		res, err := globalCluster.Query(query, nil)
 		if err != nil && !errors.Is(err, ErrIndexNotFound) {
+			suite.T().Logf("Error performing query: %v", err)
 			return false
 		}
 
@@ -142,6 +143,7 @@ func (suite *IntegrationTestSuite) TestClusterQueryImprovedErrorsDocNotFound() {
 
 		err = res.Err()
 		if err != nil && !errors.Is(err, ErrIndexNotFound) {
+			suite.T().Logf("Error performing query: %v", err)
 			return false
 		}
 
