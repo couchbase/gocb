@@ -568,7 +568,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrStorageBackendMagma() {
 	bName := "magma"
 	settings := BucketSettings{
 		Name:           bName,
-		RAMQuotaMB:     256,
+		RAMQuotaMB:     1024,
 		NumReplicas:    1,
 		BucketType:     CouchbaseBucketType,
 		StorageBackend: StorageBackendMagma,
@@ -593,9 +593,9 @@ func (suite *IntegrationTestSuite) TestBucketMgrStorageBackendMagma() {
 	suite.Assert().True(success, "GetBucket failed to execute within the required time")
 
 	suite.Assert().Equal(StorageBackendMagma, bucket.StorageBackend)
-	suite.Assert().Equal(256, int(bucket.RAMQuotaMB))
+	suite.Assert().Equal(1024, int(bucket.RAMQuotaMB))
 
-	bucket.RAMQuotaMB = 300
+	bucket.RAMQuotaMB = 1124
 	err = mgr.UpdateBucket(*bucket, nil)
 	suite.Require().Nil(err, err)
 
@@ -603,7 +603,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrStorageBackendMagma() {
 	suite.Require().Nil(err, err)
 
 	suite.Assert().Equal(StorageBackendMagma, bucket.StorageBackend)
-	suite.Assert().Equal(300, int(bucket.RAMQuotaMB))
+	suite.Assert().Equal(1124, int(bucket.RAMQuotaMB))
 }
 
 func (suite *IntegrationTestSuite) TestBucketMgrCustomConflictResolution() {
