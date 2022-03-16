@@ -55,12 +55,14 @@ func NewLoggingMeter(opts *LoggingMeterOptions) *LoggingMeter {
 
 // AggregatingMeterOptions is the set of options available when creating a LoggingMeter.
 // Note that this function will soon be deprecated.
+// Deprecated: See LoggingMeterOptions.
 type AggregatingMeterOptions struct {
 	EmitInterval time.Duration
 }
 
 // NewAggregatingMeter creates a new LoggingMeter.
 // Note that this function will soon be deprecated.
+// Deprecated: See NewLoggingMeter.
 func NewAggregatingMeter(opts *AggregatingMeterOptions) *LoggingMeter {
 	am := newAggregatingMeter(&LoggingMeterOptions{
 		EmitInterval: opts.EmitInterval,
