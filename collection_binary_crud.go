@@ -186,9 +186,11 @@ type IncrementOptions struct {
 	DurabilityLevel DurabilityLevel
 	PersistTo       uint
 	ReplicateTo     uint
-	Cas             Cas
 	RetryStrategy   RetryStrategy
 	ParentSpan      RequestSpan
+
+	// Deprecated: Cas is not supported by the server for Increment, and is no longer used.
+	Cas Cas
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
 	// also applies to global level timeouts.
@@ -204,6 +206,9 @@ type IncrementOptions struct {
 func (c *Collection) binaryIncrement(id string, opts *IncrementOptions) (countOut *CounterResult, errOut error) {
 	if opts == nil {
 		opts = &IncrementOptions{}
+	}
+	if opts.Cas > 0 {
+		return nil, makeInvalidArgumentsError("cas is not supported by the server for the Increment operation")
 	}
 
 	opm := c.newKvOpManager("increment", opts.ParentSpan)
@@ -238,7 +243,6 @@ func (c *Collection) binaryIncrement(id string, opts *IncrementOptions) (countOu
 		ScopeName:              opm.ScopeName(),
 		DurabilityLevel:        opm.DurabilityLevel(),
 		DurabilityLevelTimeout: opm.DurabilityTimeout(),
-		Cas:                    gocbcore.Cas(opts.Cas),
 		RetryStrategy:          opm.RetryStrategy(),
 		TraceContext:           opm.TraceSpanContext(),
 		Deadline:               opm.Deadline(),
@@ -284,9 +288,11 @@ type DecrementOptions struct {
 	DurabilityLevel DurabilityLevel
 	PersistTo       uint
 	ReplicateTo     uint
-	Cas             Cas
 	RetryStrategy   RetryStrategy
 	ParentSpan      RequestSpan
+
+	// Deprecated: Cas is not supported by the server for Decrement, and is no longer used.
+	Cas Cas
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
 	// also applies to global level timeouts.
@@ -302,6 +308,9 @@ type DecrementOptions struct {
 func (c *Collection) binaryDecrement(id string, opts *DecrementOptions) (countOut *CounterResult, errOut error) {
 	if opts == nil {
 		opts = &DecrementOptions{}
+	}
+	if opts.Cas > 0 {
+		return nil, makeInvalidArgumentsError("cas is not supported by the server for the Decrement operation")
 	}
 
 	opm := c.newKvOpManager("decrement", opts.ParentSpan)
@@ -336,7 +345,6 @@ func (c *Collection) binaryDecrement(id string, opts *DecrementOptions) (countOu
 		ScopeName:              opm.ScopeName(),
 		DurabilityLevel:        opm.DurabilityLevel(),
 		DurabilityLevelTimeout: opm.DurabilityTimeout(),
-		Cas:                    gocbcore.Cas(opts.Cas),
 		RetryStrategy:          opm.RetryStrategy(),
 		TraceContext:           opm.TraceSpanContext(),
 		Deadline:               opm.Deadline(),
