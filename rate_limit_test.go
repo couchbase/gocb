@@ -340,12 +340,20 @@ func (suite *IntegrationTestSuite) TestRateLimitsKVScopesDataSize() {
 	collection := globalBucket.Scope(scopename).Collection(scopename)
 
 	doc := randomDoc(512)
-	_, err = collection.Upsert("ratelimitkvscope", doc, &UpsertOptions{})
-	suite.Require().Nil(err, err)
-	doc = randomDoc(2048)
-	_, err = collection.Upsert("ratelimitkvscope2", doc, &UpsertOptions{})
-	if !errors.Is(err, ErrQuotaLimitedFailure) {
-		suite.T().Fatalf("Expected rate limiting error but was %s", err)
+	if suite.Eventually(func() bool {
+		_, err = collection.Upsert("ratelimitkvscope", doc, &UpsertOptions{})
+		if err != nil {
+			suite.T().Logf("Upsert returned error: %v", err)
+			return false
+		}
+
+		return true
+	}, 5*time.Second, 50*time.Millisecond) {
+		doc = randomDoc(2048)
+		_, err = collection.Upsert("ratelimitkvscope2", doc, &UpsertOptions{})
+		if !errors.Is(err, ErrQuotaLimitedFailure) {
+			suite.T().Fatalf("Expected rate limiting error but was %s", err)
+		}
 	}
 }
 
