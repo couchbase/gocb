@@ -93,15 +93,14 @@ type thresholdLogService map[string]thresholdLogEntry
 
 // ThresholdLoggingOptions is the set of options available for configuring threshold logging.
 type ThresholdLoggingOptions struct {
-	ServerDurationDisabled bool
-	Interval               time.Duration
-	SampleSize             uint32
-	KVThreshold            time.Duration
-	ViewsThreshold         time.Duration
-	QueryThreshold         time.Duration
-	SearchThreshold        time.Duration
-	AnalyticsThreshold     time.Duration
-	ManagementThreshold    time.Duration
+	Interval            time.Duration
+	SampleSize          uint32
+	KVThreshold         time.Duration
+	ViewsThreshold      time.Duration
+	QueryThreshold      time.Duration
+	SearchThreshold     time.Duration
+	AnalyticsThreshold  time.Duration
+	ManagementThreshold time.Duration
 }
 
 // ThresholdLoggingTracer is a specialized Tracer implementation which will automatically
