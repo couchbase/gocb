@@ -1,47 +1,59 @@
-[![GoDoc](https://godoc.org/github.com/couchbase/gocb?status.png)](https://godoc.org/github.com/couchbase/gocb)
+[![GoDoc](https://godoc.org/github.com/couchbase/gocb?status.png)](https://pkg.go.dev/github.com/couchbase/gocb)
 
 # Couchbase Go Client
 
-This is the official Couchbase Go SDK.  If you are looking for our
-previous unofficial prototype Go client library, please see:
-[http://www.github.com/couchbase/go-couchbase](http://www.github.com/couchbase/go-couchbase).
-
-The Go SDK library allows you to connect to a Couchbase cluster from
-Go. It is written in pure Go, and uses the included gocbcore library to
-handle communicating to the cluster over the Couchbase binary
-protocol.
+The Go SDK library allows you to connect to a Couchbase cluster from Go. 
+It is written in pure Go, and uses the included gocbcore library to handle communicating to the cluster over the Couchbase binary protocol.
 
 
 ## Useful Links
 
 ### Source
-The project source is hosted at [http://github.com/couchbase/gocb](http://github.com/couchbase/gocb).
+The project source is hosted at [https://github.com/couchbase/gocb](https://github.com/couchbase/gocb).
 
 ### Documentation
-You can explore our API reference through godoc at [https://godoc.org/github.com/couchbase/gocb](https://godoc.org/github.com/couchbase/gocb).
+You can explore our API reference through godoc at [https://pkg.go.dev/github.com/couchbase/gocb](https://pkg.go.dev/github.com/couchbase/gocb).
 
-You can also find documentation for the Go SDK at the Couchbase [Developer Portal](https://developer.couchbase.com/documentation/server/current/sdk/go/start-using-sdk.html).
+You can also find documentation for the Go SDK on the [official Couchbase docs](https://docs.couchbase.com/go-sdk/current/hello-world/overview.html).
 
 ### Bug Tracker
 Issues are tracked on Couchbase's public [issues.couchbase.com](http://www.couchbase.com/issues/browse/GOCBC).
-Contact [the site admins](https://issues.couchbase.com/secure/ContactAdministrators!default.jspa)
-regarding login or other problems at issues.couchbase.com (officially) or ask
-around in [couchbase/discuss on gitter.im](https://gitter.im/couchbase/discuss)
-(unofficially).
+Contact [the site admins](https://issues.couchbase.com/secure/ContactAdministrators!default.jspa) regarding login or other problems at issues.couchbase.com (officially) or ask around [on the forum](https://forums.couchbase.com/) (unofficially).
 
 
 ## Installing
 
 To install the latest stable version, run:
 ```bash
-go get github.com/couchbase/gocb/v2
+go get github.com/couchbase/gocb/v2@latezt
 ```
 
 To install the latest developer version, run:
 ```bash
-go get github.com/couchbase/gocb
+go get github.com/couchbase/gocb/v2@master
 ```
 
+## Testing
+
+You can run tests in the usual Go way:
+
+`go test -race ./...`
+
+Which will execute both the unit test suite and the integration test suite.
+By default, the integration test suite is run against a mock Couchbase Server.
+See the `testmain_test.go` file for information on command line arguments for running tests against a real server instance.
+
+## Release train
+
+Releases are targeted for every third Tuesday of the month.
+This is subject to change based on priorities.
+
+## Linting
+
+Linting is performed used `golangci-lint`.
+To run:
+
+`make lint`
 
 ## License
 Copyright 2016 Couchbase Inc.
