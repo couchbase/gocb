@@ -110,6 +110,11 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 				// At the moment we only support our own operations metric so there's no point in setting a meter for gocbcore.
 				Meter: nil,
 			},
+			CompressionConfig: gocbcore.CompressionConfig{
+				Enabled:  !cluster.compressionConfig.Disabled,
+				MinSize:  int(cluster.compressionConfig.MinSize),
+				MinRatio: cluster.compressionConfig.MinRatio,
+			},
 		},
 	}
 

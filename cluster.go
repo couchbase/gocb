@@ -38,6 +38,7 @@ type Cluster struct {
 	securityConfig       SecurityConfig
 	internalConfig       InternalConfig
 	transactionsConfig   TransactionsConfig
+	compressionConfig    CompressionConfig
 
 	transactions *Transactions
 }
@@ -81,6 +82,17 @@ type SecurityConfig struct {
 	// since PLAIN sends the credentials in cleartext. It is disabled by default to prevent downgrade attacks. We
 	// recommend using a TLS connection if using PLAIN.
 	AllowedSaslMechanisms []SaslMechanism
+}
+
+// CompressionConfig specifies options for controlling compression applied to documents before sending to Couchbase
+// Server.
+type CompressionConfig struct {
+	Disabled bool
+
+	// MinSize specifies the minimum size of the document to consider compression.
+	MinSize uint32
+	// MinRatio specifies the minimal compress ratio (compressed / original) for the document to be sent compressed.
+	MinRatio float64
 }
 
 // InternalConfig specifies options for controlling various internal
@@ -129,6 +141,9 @@ type ClusterOptions struct {
 
 	// TransactionsConfig specifies transactions related configuration options.
 	TransactionsConfig TransactionsConfig
+
+	// CompressionConfig specifies compression related configuration options.
+	CompressionConfig CompressionConfig
 
 	// Internal: This should never be used and is not supported.
 	InternalConfig InternalConfig
@@ -234,6 +249,7 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 		securityConfig:         opts.SecurityConfig,
 		internalConfig:         opts.InternalConfig,
 		transactionsConfig:     opts.TransactionsConfig,
+		compressionConfig:      opts.CompressionConfig,
 	}
 }
 

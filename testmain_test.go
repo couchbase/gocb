@@ -269,6 +269,10 @@ func setupCluster() {
 	options.Tracer = globalTracer
 	options.Meter = globalMeter
 
+	if mock != nil {
+		options.CompressionConfig.Disabled = true
+	}
+
 	cluster, err := Connect(connStr, options)
 	if err != nil {
 		panic(err.Error())
