@@ -49,23 +49,6 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 		}
 	}
 
-	var tlsRootCAProvider func() *x509.CertPool
-	if cluster.internalConfig.TLSRootCAProvider == nil {
-		tlsRootCAProvider = func() *x509.CertPool {
-			if cluster.securityConfig.TLSSkipVerify {
-				return nil
-			}
-
-			if cluster.securityConfig.TLSRootCAs == nil {
-				return &x509.CertPool{}
-			}
-
-			return cluster.securityConfig.TLSRootCAs
-		}
-	} else {
-		tlsRootCAProvider = cluster.internalConfig.TLSRootCAProvider
-	}
-
 	var authMechanisms []gocbcore.AuthMechanism
 	for _, mech := range cluster.securityConfig.AllowedSaslMechanisms {
 		authMechanisms = append(authMechanisms, gocbcore.AuthMechanism(mech))
@@ -75,8 +58,7 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 		AgentConfig: gocbcore.AgentConfig{
 			UserAgent: Identifier(),
 			SecurityConfig: gocbcore.SecurityConfig{
-				TLSRootCAProvider: tlsRootCAProvider,
-				AuthMechanisms:    authMechanisms,
+				AuthMechanisms: authMechanisms,
 			},
 			IoConfig: gocbcore.IoConfig{
 				UseCollections:         true,
@@ -125,6 +107,21 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 
 	config.SecurityConfig.Auth = &coreAuthWrapper{
 		auth: cluster.authenticator(),
+	}
+
+	if config.SecurityConfig.UseTLS {
+		config.SecurityConfig.TLSRootCAProvider = cluster.internalConfig.TLSRootCAProvider
+
+		if config.SecurityConfig.TLSRootCAProvider == nil && (cluster.securityConfig.TLSRootCAs != nil ||
+			cluster.securityConfig.TLSSkipVerify) {
+			config.SecurityConfig.TLSRootCAProvider = func() *x509.CertPool {
+				if cluster.securityConfig.TLSSkipVerify {
+					return nil
+				}
+
+				return cluster.securityConfig.TLSRootCAs
+			}
+		}
 	}
 
 	c.config = config
