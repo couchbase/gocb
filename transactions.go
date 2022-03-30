@@ -402,3 +402,8 @@ func (t *TransactionsInternal) CleanupQueueLength() int32 {
 func (t *TransactionsInternal) ClientCleanupEnabled() bool {
 	return t.parent.txns.Config().CleanupClientAttempts
 }
+
+// CleanupLocations returns the set of locations currently being watched by the lost transactions process.
+func (t *TransactionsInternal) CleanupLocations() []gocbcore.TransactionLostATRLocation {
+	return t.parent.txns.Internal().CleanupLocations()
+}
