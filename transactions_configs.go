@@ -67,6 +67,12 @@ type TransactionOptions struct {
 
 	// MetadataCollection specifies a specific Collection to place meta-data.
 	MetadataCollection *Collection
+
+	// Internal specifies a set of options for internal use.
+	// Internal: This should never be used and is not supported.
+	Internal struct {
+		Hooks TransactionHooks
+	}
 }
 
 // TransactionsQueryConfig specifies various tunable query options related to transactions.

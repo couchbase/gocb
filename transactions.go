@@ -170,11 +170,21 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 	}
 
 	// TODO: fill in the rest of this config
-	txn, err := t.txns.BeginTransaction(&gocbcore.TransactionOptions{
+	config := &gocbcore.TransactionOptions{
 		DurabilityLevel:   gocbcore.TransactionDurabilityLevel(perConfig.DurabilityLevel),
 		ExpirationTime:    perConfig.Timeout,
 		CustomATRLocation: atrLocation,
-	})
+	}
+
+	hooksWrapper := t.hooksWrapper
+	if perConfig.Internal.Hooks != nil {
+		hooksWrapper = &coreTxnsHooksWrapper{
+			hooks: perConfig.Internal.Hooks,
+		}
+		config.Internal.Hooks = hooksWrapper
+	}
+
+	txn, err := t.txns.BeginTransaction(config)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +217,7 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 		attempt := TransactionAttemptContext{
 			txn:            txn,
 			transcoder:     t.transcoder,
-			hooks:          t.hooksWrapper.Hooks(),
+			hooks:          hooksWrapper.Hooks(),
 			cluster:        t.cluster,
 			queryStateLock: new(sync.Mutex),
 			queryConfig: TransactionQueryOptions{
@@ -215,8 +225,8 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 			},
 		}
 
-		if t.hooksWrapper != nil {
-			t.hooksWrapper.SetAttemptContext(attempt)
+		if hooksWrapper != nil {
+			hooksWrapper.SetAttemptContext(attempt)
 		}
 
 		lambdaErr := logicFn(&attempt)
