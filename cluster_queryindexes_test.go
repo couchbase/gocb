@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"errors"
+	"github.com/google/uuid"
 	"time"
 )
 
@@ -474,6 +475,77 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 
 		return true
 	}, 5*time.Second, 100*time.Millisecond)
+}
+
+func (suite *IntegrationTestSuite) TestQueryIndexesIncludesDefaultCollection() {
+	suite.skipIfUnsupported(QueryIndexFeature)
+
+	bucketMgr := globalCluster.Buckets()
+	bucketName := "testIndexes" + uuid.NewString()
+
+	err := bucketMgr.CreateBucket(CreateBucketSettings{
+		BucketSettings: BucketSettings{
+			Name:        bucketName,
+			RAMQuotaMB:  100,
+			NumReplicas: 0,
+			BucketType:  CouchbaseBucketType,
+		},
+	}, nil)
+	suite.Require().Nil(err, err)
+	defer bucketMgr.DropBucket(bucketName, nil)
+
+	mgr := globalCluster.QueryIndexes()
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		err = mgr.CreateIndex(bucketName, "myindex", []string{"field"}, &CreateQueryIndexOptions{
+			IgnoreIfExists: true,
+		})
+		if err == nil {
+			break
+		}
+
+		suite.T().Logf("Failed to create index: %s", err)
+
+		sleepDeadline := time.Now().Add(500 * time.Millisecond)
+		if sleepDeadline.After(deadline) {
+			sleepDeadline = deadline
+		}
+		time.Sleep(sleepDeadline.Sub(time.Now()))
+
+		if sleepDeadline == deadline {
+			suite.T().Errorf("timed out waiting for create index to succeed")
+			return
+		}
+	}
+
+	indexes, err := mgr.GetAllIndexes(bucketName, &GetAllQueryIndexesOptions{
+		ScopeName: "_default",
+	})
+	suite.Require().Nil(err, err)
+
+	suite.Require().Len(indexes, 1)
+	var index QueryIndex
+	for _, idx := range indexes {
+		if idx.Name == "myindex" {
+			index = idx
+			break
+		}
+	}
+	suite.Assert().Equal("myindex", index.Name)
+	suite.Assert().False(index.IsPrimary)
+	suite.Assert().Equal(QueryIndexTypeGsi, index.Type)
+	suite.Assert().Equal("online", index.State)
+	suite.Assert().Equal(bucketName, index.Keyspace)
+	suite.Assert().Equal(bucketName, index.BucketName)
+	suite.Assert().Equal("", index.ScopeName)
+	suite.Assert().Equal("", index.CollectionName)
+	suite.Assert().Equal("default", index.Namespace)
+	if suite.Assert().Len(index.IndexKey, 1) {
+		suite.Assert().Equal("`field`", index.IndexKey[0])
+	}
+	suite.Assert().Empty(index.Condition)
+	suite.Assert().Empty(index.Partition)
 }
 
 type testQueryIndexDataset struct {

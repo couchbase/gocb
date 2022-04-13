@@ -523,32 +523,40 @@ func (qm *QueryIndexManager) getAllIndexes(
 	span := createSpan(qm.tracer, parent, "manager_query_get_all_indexes", "management")
 	defer span.End()
 
-	var q string
-	var params []interface{}
-	if opts.ScopeName == "" && opts.CollectionName == "" {
-		q = "SELECT `indexes`.* FROM system:indexes WHERE " +
-			"((bucket_id IS MISSING AND keyspace_id = ?) " +
-			"OR bucket_id = ?) AND `using`=\"gsi\" " +
-			"ORDER BY is_primary DESC, name ASC"
-		params = append(params, bucketName, bucketName)
-	} else if opts.CollectionName == "" {
-		q = "SELECT `indexes`.* FROM system:indexes WHERE bucket_id=? AND scope_id = ? AND `using`=\"gsi\" " +
-			"ORDER BY is_primary DESC, name ASC"
-		params = append(params, bucketName, opts.ScopeName)
-	} else {
-		q = "SELECT `indexes`.* FROM system:indexes WHERE bucket_id=? AND scope_id = ? AND keyspace_id = ? AND `using`=\"gsi\" " +
-			"ORDER BY is_primary DESC, name ASC"
-		params = append(params, bucketName, opts.ScopeName, opts.CollectionName)
+	bucketCond := "bucket_id = $bucketName"
+	scopeCond := "(" + bucketCond + " AND scope_id = $scopeName)"
+	collectionCond := "(" + scopeCond + " AND keyspace_id = $collectionName)"
+	params := map[string]interface{}{
+		"bucketName":     bucketName,
+		"scopeName":      opts.ScopeName,
+		"collectionName": opts.CollectionName,
 	}
 
+	var where string
+	if opts.CollectionName != "" {
+		where = collectionCond
+	} else if opts.ScopeName != "" {
+		where = scopeCond
+	} else {
+		where = bucketCond
+	}
+
+	if opts.CollectionName == "_default" || opts.CollectionName == "" {
+		defaultColCond := "(bucket_id IS MISSING AND keyspace_id = $bucketName)"
+		where = "(" + where + " OR " + defaultColCond + ")"
+	}
+
+	q := "SELECT `idx`.* FROM system:indexes AS idx WHERE " + where + " AND `using` = \"gsi\" " +
+		"ORDER BY is_primary DESC, name ASC"
+
 	rows, err := qm.doQuery(q, &QueryOptions{
-		PositionalParameters: params,
-		Readonly:             true,
-		Timeout:              opts.Timeout,
-		RetryStrategy:        opts.RetryStrategy,
-		Adhoc:                true,
-		ParentSpan:           span,
-		Context:              ctx,
+		NamedParameters: params,
+		Readonly:        true,
+		Timeout:         opts.Timeout,
+		RetryStrategy:   opts.RetryStrategy,
+		Adhoc:           true,
+		ParentSpan:      span,
+		Context:         ctx,
 	})
 	if err != nil {
 		return nil, err
