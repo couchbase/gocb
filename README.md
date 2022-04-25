@@ -20,6 +20,8 @@ You can also find documentation for the Go SDK on the [official Couchbase docs](
 Issues are tracked on Couchbase's public [issues.couchbase.com](http://www.couchbase.com/issues/browse/GOCBC).
 Contact [the site admins](https://issues.couchbase.com/secure/ContactAdministrators!default.jspa) regarding login or other problems at issues.couchbase.com (officially) or ask around [on the forum](https://forums.couchbase.com/) (unofficially).
 
+### Discussion
+You can chat with us on [Discord](https://discord.com/invite/sQ5qbPZuTh) or the [official Couchbase forums](https://forums.couchbase.com/c/go-sdk/23).
 
 ## Installing
 
