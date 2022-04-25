@@ -73,8 +73,16 @@ func (tt *testTracer) Reset() {
 }
 
 func (tt *testTracer) GetSpans() map[RequestSpanContext][]*testSpan {
+	spans := make(map[RequestSpanContext][]*testSpan)
 	tt.lock.Lock()
-	spans := tt.Spans
+	for ctx, ttSpans := range tt.Spans {
+		// The underlying spans won't change but the list at the top level itself could do.
+		thisSpans := make([]*testSpan, len(ttSpans))
+		for i, span := range ttSpans {
+			thisSpans[i] = span
+		}
+		spans[ctx] = thisSpans
+	}
 	tt.lock.Unlock()
 
 	return spans
