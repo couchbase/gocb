@@ -59,7 +59,6 @@ type QueryOptions struct {
 	FlexIndex bool
 
 	// PreserveExpiry tells the query engine to preserve expiration values set on any documents modified by this query.
-	// UNCOMMITTED: This API may change in the future.
 	PreserveExpiry bool
 
 	ParentSpan RequestSpan

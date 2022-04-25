@@ -109,21 +109,18 @@ type jsonQueryIndex struct {
 
 // QueryIndex represents a Couchbase GSI index.
 type QueryIndex struct {
-	Name      string
-	IsPrimary bool
-	Type      QueryIndexType
-	State     string
-	Keyspace  string
-	Namespace string
-	IndexKey  []string
-	Condition string
-	Partition string
-	// UNCOMMITTED: This API may change in the future.
+	Name           string
+	IsPrimary      bool
+	Type           QueryIndexType
+	State          string
+	Keyspace       string
+	Namespace      string
+	IndexKey       []string
+	Condition      string
+	Partition      string
 	CollectionName string
-	// UNCOMMITTED: This API may change in the future.
-	ScopeName string
-	// UNCOMMITTED: This API may change in the future.
-	BucketName string
+	ScopeName      string
+	BucketName     string
 }
 
 func (index *QueryIndex) fromData(data jsonQueryIndex) error {
@@ -252,9 +249,7 @@ type CreateQueryIndexOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
-	// UNCOMMITTED: This API may change in the future.
-	ScopeName string
-	// UNCOMMITTED: This API may change in the future.
+	ScopeName      string
 	CollectionName string
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
@@ -303,9 +298,7 @@ type CreatePrimaryQueryIndexOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
-	// UNCOMMITTED: This API may change in the future.
-	ScopeName string
-	// UNCOMMITTED: This API may change in the future.
+	ScopeName      string
 	CollectionName string
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
@@ -402,9 +395,7 @@ type DropQueryIndexOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
-	// UNCOMMITTED: This API may change in the future.
-	ScopeName string
-	// UNCOMMITTED: This API may change in the future.
+	ScopeName      string
 	CollectionName string
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
@@ -451,9 +442,7 @@ type DropPrimaryQueryIndexOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
-	// UNCOMMITTED: This API may change in the future.
-	ScopeName string
-	// UNCOMMITTED: This API may change in the future.
+	ScopeName      string
 	CollectionName string
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
@@ -491,9 +480,7 @@ type GetAllQueryIndexesOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
-	// UNCOMMITTED: This API may change in the future.
-	ScopeName string
-	// UNCOMMITTED: This API may change in the future.
+	ScopeName      string
 	CollectionName string
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
@@ -588,9 +575,7 @@ type BuildDeferredQueryIndexOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
-	// UNCOMMITTED: This API may change in the future.
-	ScopeName string
-	// UNCOMMITTED: This API may change in the future.
+	ScopeName      string
 	CollectionName string
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
@@ -712,9 +697,7 @@ type WatchQueryIndexOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
-	// UNCOMMITTED: This API may change in the future.
-	ScopeName string
-	// UNCOMMITTED: This API may change in the future.
+	ScopeName      string
 	CollectionName string
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this

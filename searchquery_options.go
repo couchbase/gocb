@@ -67,7 +67,6 @@ type SearchOptions struct {
 	Context context.Context
 
 	// If set to true, will include the SearchRowLocations.
-	// UNCOMMITTED: This API may change in the future.
 	IncludeLocations bool
 
 	// Internal: This should never be used and is not supported.

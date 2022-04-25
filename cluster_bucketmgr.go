@@ -76,7 +76,6 @@ const (
 )
 
 // StorageBackend specifies the storage type to use for the bucket.
-// UNCOMMITTED: This API may change in the future.
 type StorageBackend string
 
 const (
@@ -121,8 +120,7 @@ type BucketSettings struct {
 	MaxExpiry              time.Duration
 	CompressionMode        CompressionMode
 	MinimumDurabilityLevel DurabilityLevel
-	// UNCOMMITTED: This API may change in the future.
-	StorageBackend StorageBackend
+	StorageBackend         StorageBackend
 }
 
 func (bs *BucketSettings) fromData(data jsonBucketSettings) error {

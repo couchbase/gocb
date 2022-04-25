@@ -13,7 +13,7 @@ import (
 // EventingFunctionManager provides methods for performing eventing function management operations.
 // This manager is designed to work only against Couchbase Server 7.0+, it might work against earlier server
 // versions but that is not tested and is not supported.
-// Volatile: This API is subject to change at any time.
+// UNCOMMITTED: This API may change in the future.
 type EventingFunctionManager struct {
 	mgmtProvider mgmtProvider
 	tracer       RequestTracer

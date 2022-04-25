@@ -76,7 +76,6 @@ func (q *MatchQuery) Boost(boost float32) *MatchQuery {
 }
 
 // Operator defines how the individual match terms should be logically concatenated.
-// UNCOMMITTED: This API may change in the future.
 func (q *MatchQuery) Operator(operator MatchOperator) *MatchQuery {
 	q.options["operator"] = string(operator)
 	return q
