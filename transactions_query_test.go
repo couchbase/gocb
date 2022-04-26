@@ -75,7 +75,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryModeReplace() {
 
 		return nil
 	}, nil)
-	suite.Assert().NoError(err, err)
+	suite.Require().NoError(err, err)
 
 	suite.Assert().True(txnRes.UnstagingComplete)
 	suite.Assert().NotEmpty(txnRes.TransactionID)
@@ -116,7 +116,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryModeRemove() {
 
 		return nil
 	}, nil)
-	suite.Assert().NoError(err, err)
+	suite.Require().NoError(err, err)
 
 	suite.Assert().True(txnRes.UnstagingComplete)
 	suite.Assert().NotEmpty(txnRes.TransactionID)
@@ -186,7 +186,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryModeDocFound() {
 
 		return nil
 	}, nil)
-	suite.Assert().NoError(err, err)
+	suite.Require().NoError(err, err)
 
 	suite.Assert().True(txnRes.UnstagingComplete)
 	suite.Assert().NotEmpty(txnRes.TransactionID)
@@ -253,7 +253,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatement() {
 
 		return nil
 	}, nil)
-	suite.Assert().NoError(err, err)
+	suite.Require().NoError(err, err)
 
 	suite.Assert().True(txnRes.UnstagingComplete)
 	suite.Assert().NotEmpty(txnRes.TransactionID)
@@ -315,7 +315,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatementKVReplace
 
 		return nil
 	}, nil)
-	suite.Assert().NoError(err, err)
+	suite.Require().NoError(err, err)
 
 	suite.Assert().True(txnRes.UnstagingComplete)
 	suite.Assert().NotEmpty(txnRes.TransactionID)
