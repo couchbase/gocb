@@ -209,6 +209,8 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatement() {
 	}
 
 	err := globalCluster.QueryIndexes().CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
+		CollectionName: globalCollection.Name(),
+		ScopeName:      globalScope.Name(),
 		IgnoreIfExists: true,
 	})
 	suite.Require().NoError(err)
@@ -280,6 +282,8 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatementKVReplace
 	}
 
 	err := globalCluster.QueryIndexes().CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
+		CollectionName: globalCollection.Name(),
+		ScopeName:      globalScope.Name(),
 		IgnoreIfExists: true,
 	})
 	suite.Require().NoError(err)
@@ -334,6 +338,8 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatementKVRemove(
 	}
 
 	err := globalCluster.QueryIndexes().CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
+		CollectionName: globalCollection.Name(),
+		ScopeName:      globalScope.Name(),
 		IgnoreIfExists: true,
 	})
 	suite.Require().NoError(err)
@@ -385,6 +391,8 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryDoubleInsertStatement() 
 	docID := "querydoubleinsert"
 
 	err := globalCluster.QueryIndexes().CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
+		CollectionName: globalCollection.Name(),
+		ScopeName:      globalScope.Name(),
 		IgnoreIfExists: true,
 	})
 	suite.Require().NoError(err)
@@ -427,6 +435,8 @@ func (suite *IntegrationTestSuite) TestTransactionsInsertReadByQuery() {
 	}
 
 	err := globalCluster.QueryIndexes().CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
+		CollectionName: globalCollection.Name(),
+		ScopeName:      globalScope.Name(),
 		IgnoreIfExists: true,
 	})
 	suite.Require().NoError(err)
@@ -439,8 +449,9 @@ func (suite *IntegrationTestSuite) TestTransactionsInsertReadByQuery() {
 			return err
 		}
 
-		queryRes, err := ctx.Query(fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE META().id = 'insertreadbyquery'", globalCollection.Name(), globalCollection.Name()), &TransactionQueryOptions{
-			Scope: globalScope,
+		queryRes, err := ctx.Query(fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE META().id = '%s'", globalCollection.Name(), globalCollection.Name(), docID), &TransactionQueryOptions{
+			ScanConsistency: QueryScanConsistencyRequestPlus,
+			Scope:           globalScope,
 		})
 		if err != nil {
 			return err
