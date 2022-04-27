@@ -1,5 +1,5 @@
-github.com/couchbase/gocbcore/v10 v10.1.2-0.20220408065350-70b8eea96f3c h1:rkxkcZtn3/9xLZjs3lbRoqecWJ58LRlGYSSfhfRwhyQ=
-github.com/couchbase/gocbcore/v10 v10.1.2-0.20220408065350-70b8eea96f3c/go.mod h1:qkPnOBziCs0guMEEvd0cRFo+AjOW0yEL99cU3I4n3Ao=
+github.com/couchbase/gocbcore/v10 v10.1.2 h1:u4OmKmub4soyf/cXMXaQohTXruJAxBL9wN6ke3DLe78=
+github.com/couchbase/gocbcore/v10 v10.1.2/go.mod h1:qkPnOBziCs0guMEEvd0cRFo+AjOW0yEL99cU3I4n3Ao=
 github.com/couchbaselabs/gocaves/client v0.0.0-20220223122017-22859b310bd2 h1:UlwJ2GWpZQAQCLHyO3xHKcqAjUUcX2w7FKpbxCIUQks=
 github.com/couchbaselabs/gocaves/client v0.0.0-20220223122017-22859b310bd2/go.mod h1:AVekAZwIY2stsJOMWLAS/0uA/+qdp7pjO8EHnl61QkY=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
