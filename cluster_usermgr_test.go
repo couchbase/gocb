@@ -33,10 +33,16 @@ func (suite *IntegrationTestSuite) TestUserManagerGroupCrud() {
 		suite.T().Fatalf("Expected Upsert to not error: %v", err)
 	}
 
-	group, err := mgr.GetGroup("test", nil)
-	if err != nil {
-		suite.T().Fatalf("Expected Get to not error: %v", err)
-	}
+	var group *Group
+	suite.Require().Eventually(func() bool {
+		group, err = mgr.GetGroup("test", nil)
+		if err != nil {
+			suite.T().Logf("Get errored: %v", err)
+			return false
+		}
+
+		return true
+	}, 5*time.Second, 100*time.Millisecond)
 	group.Description = "this is still a test"
 	group.Roles = append(group.Roles, Role{Name: "query_system_catalog"})
 
