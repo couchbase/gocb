@@ -22,7 +22,6 @@ func (q searchQueryBase) MarshalJSON() ([]byte, error) {
 }
 
 // MatchOperator defines how the individual match terms should be logically concatenated.
-// UNCOMMITTED: This API may change in the future.
 type MatchOperator string
 
 const (

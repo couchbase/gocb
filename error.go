@@ -110,11 +110,9 @@ var (
 	ErrIndexExists = gocbcore.ErrIndexExists
 
 	// ErrRateLimitedFailure occurs when a request is rate limited by the server.
-	// Uncommitted: This API may change in the future.
 	ErrRateLimitedFailure = gocbcore.ErrRateLimitedFailure
 
 	// ErrQuotaLimitedFailure occurs when a request triggers a resource to exceed the allowed quota.
-	// Uncommitted: This API may change in the future.
 	ErrQuotaLimitedFailure = gocbcore.ErrQuotaLimitedFailure
 )
 
