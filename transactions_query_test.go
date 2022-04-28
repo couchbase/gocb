@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/stretchr/testify/mock"
+	"time"
 )
 
 func (suite *IntegrationTestSuite) TestTransactionsQueryModeInsert() {
@@ -215,7 +216,9 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatement() {
 	})
 	suite.Require().NoError(err)
 
-	_, err = globalCollection.Upsert(docID, docValue, nil)
+	_, err = globalCollection.Upsert(docID, docValue, &UpsertOptions{
+		DurabilityLevel: DurabilityLevelMajority,
+	})
 	suite.Require().Nil(err, err)
 
 	txns := globalCluster.Cluster.Transactions()
@@ -288,7 +291,9 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatementKVReplace
 	})
 	suite.Require().NoError(err)
 
-	_, err = globalCollection.Upsert(docID, docValue, nil)
+	_, err = globalCollection.Upsert(docID, docValue, &UpsertOptions{
+		DurabilityLevel: DurabilityLevelMajority,
+	})
 	suite.Require().Nil(err, err)
 
 	txns := globalCluster.Cluster.Transactions()
@@ -344,7 +349,9 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatementKVRemove(
 	})
 	suite.Require().NoError(err)
 
-	_, err = globalCollection.Upsert(docID, docValue, nil)
+	_, err = globalCollection.Upsert(docID, docValue, &UpsertOptions{
+		DurabilityLevel: DurabilityLevelMajority,
+	})
 	suite.Require().Nil(err, err)
 
 	txns := globalCluster.Cluster.Transactions()
@@ -488,7 +495,9 @@ func (suite *IntegrationTestSuite) TestTransactionsInsertReadByQuery() {
 		}
 
 		return nil
-	}, nil)
+	}, &TransactionOptions{
+		Timeout: 30 * time.Second,
+	})
 	suite.Require().Nil(err, err)
 
 	suite.Assert().True(txnRes.UnstagingComplete)
