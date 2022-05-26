@@ -244,6 +244,32 @@ func (suite *IntegrationTestSuite) skipIfUnsupported(code FeatureCode) {
 	}
 }
 
+func (suite *IntegrationTestSuite) dropAllIndexes() {
+	mgr := globalCluster.QueryIndexes()
+
+	indexes, err := mgr.GetAllIndexes(globalBucket.Name(), nil)
+	suite.Require().Nil(err, err)
+
+	for _, index := range indexes {
+		if index.IsPrimary {
+			err := mgr.DropPrimaryIndex(globalBucket.Name(), &DropPrimaryQueryIndexOptions{
+				CollectionName: index.CollectionName,
+				ScopeName:      index.ScopeName,
+			})
+			suite.Require().Nil(err, err)
+		} else {
+			err = mgr.DropIndex(globalBucket.Name(), index.Name, &DropQueryIndexOptions{
+				CollectionName: index.CollectionName,
+				ScopeName:      index.ScopeName,
+			})
+			suite.Require().Nil(err, err)
+		}
+	}
+
+	globalMeter.Reset()
+	globalTracer.Reset()
+}
+
 type UnitTestSuite struct {
 	suite.Suite
 }

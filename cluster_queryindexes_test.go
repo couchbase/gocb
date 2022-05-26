@@ -142,26 +142,14 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 	suite.skipIfUnsupported(QueryIndexFeature)
 	suite.skipIfUnsupported(CollectionsFeature)
 
-	bucketMgr := globalCluster.Buckets()
-	bucketName := "testCollectionIndexes"
-
-	err := bucketMgr.CreateBucket(CreateBucketSettings{
-		BucketSettings: BucketSettings{
-			Name:        bucketName,
-			RAMQuotaMB:  100,
-			NumReplicas: 0,
-			BucketType:  CouchbaseBucketType,
-		},
-	}, nil)
-	suite.Require().Nil(err, err)
-	defer bucketMgr.DropBucket(bucketName, nil)
+	suite.dropAllIndexes()
+	bucketName := globalBucket.Name()
 
 	scopeName := "testQueryIndexesScope"
 	colName := "testQueryIndexesCollection"
 
-	bucket := globalCluster.Bucket(bucketName)
-	colmgr := bucket.Collections()
-	err = colmgr.CreateScope(scopeName, nil)
+	colmgr := globalBucket.Collections()
+	err := colmgr.CreateScope(scopeName, nil)
 	suite.Require().Nil(err, err)
 	defer colmgr.DropScope(scopeName, nil)
 
@@ -175,7 +163,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 
 	deadline := time.Now().Add(60 * time.Second)
 	for {
-		err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
+		err = mgr.CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
 			IgnoreIfExists: true,
 			ScopeName:      scopeName,
 			CollectionName: colName,
@@ -322,22 +310,11 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 	suite.skipIfUnsupported(QueryIndexFeature)
 	suite.skipIfUnsupported(CollectionsFeature)
 
-	bucketMgr := globalCluster.Buckets()
-	bucketName := "testIndexesBuildDeferredBucketOnly"
+	suite.dropAllIndexes()
+	bucketName := globalBucket.Name()
 
-	err := bucketMgr.CreateBucket(CreateBucketSettings{
-		BucketSettings: BucketSettings{
-			Name:        bucketName,
-			RAMQuotaMB:  100,
-			NumReplicas: 0,
-			BucketType:  CouchbaseBucketType,
-		},
-	}, nil)
-	suite.Require().Nil(err, err)
-	defer bucketMgr.DropBucket(bucketName, nil)
-
-	collections := globalCluster.Bucket(bucketName).Collections()
-	err = collections.CreateCollection(CollectionSpec{
+	collections := globalBucket.Collections()
+	err := collections.CreateCollection(CollectionSpec{
 		ScopeName: "_default",
 		Name:      bucketName,
 	}, nil)
@@ -400,22 +377,11 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 	suite.skipIfUnsupported(QueryIndexFeature)
 	suite.skipIfUnsupported(CollectionsFeature)
 
-	bucketMgr := globalCluster.Buckets()
-	bucketName := "testIndexesBuildDeferredCollectionOnly"
+	suite.dropAllIndexes()
+	bucketName := globalBucket.Name()
 
-	err := bucketMgr.CreateBucket(CreateBucketSettings{
-		BucketSettings: BucketSettings{
-			Name:        bucketName,
-			RAMQuotaMB:  100,
-			NumReplicas: 0,
-			BucketType:  CouchbaseBucketType,
-		},
-	}, nil)
-	suite.Require().Nil(err, err)
-	defer bucketMgr.DropBucket(bucketName, nil)
-
-	collections := globalCluster.Bucket(bucketName).Collections()
-	err = collections.CreateCollection(CollectionSpec{
+	collections := globalBucket.Collections()
+	err := collections.CreateCollection(CollectionSpec{
 		ScopeName: "_default",
 		Name:      bucketName,
 	}, nil)
