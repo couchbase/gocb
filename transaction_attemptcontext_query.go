@@ -46,8 +46,10 @@ func (c *TransactionAttemptContext) getQueryMode(collection *Collection, id stri
 		if errors.As(err, &terr) {
 			return err
 		}
-		// Note: We don't return nil here if the error is doc not found (which is what the spec says to do) instead we
-		// pick up that error in GetOptional if required.
+		if errors.Is(err, ErrDocumentNotFound) {
+			return err
+		}
+
 		return c.operationFailed(transactionQueryOperationFailedDef{
 			ShouldNotRetry: true,
 			ErrorCause:     err,
@@ -573,7 +575,7 @@ func (c *TransactionAttemptContext) queryBeginWork() (errOut error) {
 				errOut = &TransactionOperationFailedError{
 					shouldRetry:       coreErr.Retry(),
 					shouldNotRollback: !coreErr.Rollback(),
-					errorCause:        coreErr,
+					errorCause:        coreErr.InternalUnwrap(),
 					shouldRaise:       coreErr.ToRaise(),
 					errorClass:        coreErr.ErrorClass(),
 				}

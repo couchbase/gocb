@@ -231,71 +231,60 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 
 		lambdaErr := logicFn(&attempt)
 
-		var autoRollback bool
-		var finalErr error
-		if lambdaErr == nil {
-			if attempt.canCommit() {
-				finalErr = attempt.commit()
-			} else if attempt.shouldRollback() {
-				autoRollback = true
-				finalErr = attempt.rollback()
-			}
-		} else {
-			finalErr = lambdaErr
-
-			if attempt.shouldRollback() {
-				rollbackErr := attempt.rollback()
-				if rollbackErr != nil {
-					logWarnf("rollback after error failed: %s", rollbackErr)
-				}
-			}
-		}
-
-		var finalErrCause error
-		var wasUserError bool
-		if finalErr != nil {
+		if lambdaErr != nil {
 			var txnErr *TransactionOperationFailedError
-			if errors.As(finalErr, &txnErr) {
-				finalErrCause = txnErr.Unwrap()
-			} else {
-				wasUserError = true
-				finalErrCause = finalErr
+			if !errors.As(lambdaErr, &txnErr) {
+				// We wrap non-TOF errors in a TOF.
+				lambdaErr = attempt.operationFailed(transactionQueryOperationFailedDef{
+					ShouldNotRetry:    true,
+					ShouldNotRollback: false,
+					Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
+					ErrorCause:        lambdaErr,
+					ShouldNotCommit:   true,
+				})
 			}
 		}
 
-		a := attempt.attempt()
+		finalErr := lambdaErr
+		if attempt.canCommit() {
+			finalErr = attempt.commit()
+		}
+		if attempt.shouldRollback() {
+			rollbackErr := attempt.rollback()
+			if rollbackErr != nil {
+				logWarnf("rollback after error failed: %s", rollbackErr)
+			}
+		}
+		toRaise := attempt.finalErrorToRaise()
 
-		if !a.Expired && attempt.shouldRetry() && !wasUserError {
+		if attempt.shouldRetry() && toRaise != gocbcore.TransactionErrorReasonSuccess {
 			logDebugf("retrying lambda after backoff")
 			time.Sleep(backoffCalc())
 			continue
 		}
 
-		switch a.State {
-		case TransactionAttemptStateNothingWritten:
-			fallthrough
-		case TransactionAttemptStatePending:
-			fallthrough
-		case TransactionAttemptStateAborted:
-			fallthrough
-		case TransactionAttemptStateRolledBack:
-			// If we rolled back then an error must have happened and not been propagated so we can't return
-			// success.
-			if finalErr == nil && !autoRollback {
-				return &TransactionResult{
-					TransactionID: txn.ID(),
-				}, nil
+		// We don't want the TOF to be the cause in the final error we return so we unwrap it. Right now it's not
+		// actually possible for this error to not be a TOF but a) best to handle the case where it somehow isn't and
+		// b) this logic will be required for single query transactions (where a non TOF can be surfaced) anyway.
+		var finalErrCause error
+		if finalErr != nil {
+			var txnErr *TransactionOperationFailedError
+			if errors.As(finalErr, &txnErr) {
+				finalErrCause = txnErr.InternalUnwrap()
+			} else {
+				finalErrCause = finalErr
 			}
+		}
 
-			if a.Expired && !a.PreExpiryAutoRollback && !wasUserError {
-				return nil, &TransactionExpiredError{
-					result: &TransactionResult{
-						TransactionID:     txn.ID(),
-						UnstagingComplete: false,
-					},
-				}
-			}
+		switch toRaise {
+		case gocbcore.TransactionErrorReasonSuccess:
+			unstagingComplete := attempt.attempt().State == TransactionAttemptStateCompleted
 
+			return &TransactionResult{
+				TransactionID:     txn.ID(),
+				UnstagingComplete: unstagingComplete,
+			}, nil
+		case gocbcore.TransactionErrorReasonTransactionFailed:
 			return nil, &TransactionFailedError{
 				cause: finalErrCause,
 				result: &TransactionResult{
@@ -303,7 +292,25 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 					UnstagingComplete: false,
 				},
 			}
-		case TransactionAttemptStateCommitting:
+		case gocbcore.TransactionErrorReasonTransactionExpired:
+			// If we expired during gocbcore auto-rollback then we return failed with the error cause rather
+			// than expired. This occurs when we commit itself errors and gocbcore auto rolls back the transaction.
+			if attempt.attempt().PreExpiryAutoRollback {
+				return nil, &TransactionFailedError{
+					cause: finalErrCause,
+					result: &TransactionResult{
+						TransactionID:     txn.ID(),
+						UnstagingComplete: false,
+					},
+				}
+			}
+			return nil, &TransactionExpiredError{
+				result: &TransactionResult{
+					TransactionID:     txn.ID(),
+					UnstagingComplete: false,
+				},
+			}
+		case gocbcore.TransactionErrorReasonTransactionCommitAmbiguous:
 			return nil, &TransactionCommitAmbiguousError{
 				cause: finalErrCause,
 				result: &TransactionResult{
@@ -311,14 +318,10 @@ func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (
 					UnstagingComplete: false,
 				},
 			}
-		case TransactionAttemptStateCommitted:
-			fallthrough
-		case TransactionAttemptStateCompleted:
-			unstagingComplete := a.State == TransactionAttemptStateCompleted
-
+		case gocbcore.TransactionErrorReasonTransactionFailedPostCommit:
 			return &TransactionResult{
 				TransactionID:     txn.ID(),
-				UnstagingComplete: unstagingComplete,
+				UnstagingComplete: false,
 			}, nil
 		default:
 			return nil, errors.New("invalid final transaction state")

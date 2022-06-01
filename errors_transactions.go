@@ -50,6 +50,8 @@ var (
 	ErrIllegalState = gocbcore.ErrIllegalState
 
 	ErrAttemptNotFoundOnQuery = errors.New("transactionAttempt not found on query")
+
+	errTransactionOperationFailed = errors.New("transaction operation failed")
 )
 
 type TransactionFailedError struct {
@@ -150,6 +152,11 @@ func (tfe TransactionOperationFailedError) Error() string {
 }
 
 func (tfe TransactionOperationFailedError) Unwrap() error {
+	return errTransactionOperationFailed
+}
+
+// InternalUnwrap returns the underlying error for this error.
+func (tfe TransactionOperationFailedError) InternalUnwrap() error {
 	return tfe.errorCause
 }
 
@@ -183,7 +190,7 @@ func createTransactionOperationFailedError(err error) error {
 		return &TransactionOperationFailedError{
 			shouldRetry:       txnErr.Retry(),
 			shouldNotRollback: !txnErr.Rollback(),
-			errorCause:        txnErr.Unwrap(),
+			errorCause:        txnErr.InternalUnwrap(),
 			shouldRaise:       txnErr.ToRaise(),
 			errorClass:        txnErr.ErrorClass(),
 		}

@@ -43,6 +43,10 @@ func (c *TransactionAttemptContext) shouldRetry() bool {
 	return c.txn.ShouldRetry()
 }
 
+func (c *TransactionAttemptContext) finalErrorToRaise() gocbcore.TransactionErrorReason {
+	return c.txn.FinalErrorToRaise()
+}
+
 func (c *TransactionAttemptContext) attempt() transactionAttempt {
 	a := c.txn.Attempt()
 	return transactionAttempt{
@@ -113,6 +117,11 @@ func (c *TransactionAttemptContext) get(collection *Collection, id string) (resO
 
 				coreRes: res,
 			}
+		}
+		if errors.Is(err, ErrDocumentNotFound) {
+			errOut = err
+			waitCh <- struct{}{}
+			return
 		}
 		errOut = createTransactionOperationFailedError(err)
 		waitCh <- struct{}{}

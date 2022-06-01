@@ -126,6 +126,11 @@ func (c *TransactionAttemptContext) operationFailed(def transactionQueryOperatio
 		errorClass:        def.ErrorClass,
 	}
 
+	c.updateState(def)
+	return err
+}
+
+func (c *TransactionAttemptContext) updateState(def transactionQueryOperationFailedDef) {
 	opts := gocbcore.TransactionUpdateStateOptions{}
 	if def.ShouldNotRollback {
 		opts.ShouldNotRollback = true
@@ -133,13 +138,9 @@ func (c *TransactionAttemptContext) operationFailed(def transactionQueryOperatio
 	if def.ShouldNotRetry {
 		opts.ShouldNotRetry = true
 	}
-	if def.Reason == gocbcore.TransactionErrorReasonTransactionExpired {
-		opts.HasExpired = true
-	}
 	if def.ShouldNotCommit {
 		opts.ShouldNotCommit = true
 	}
+	opts.Reason = def.Reason
 	c.txn.UpdateState(opts)
-
-	return err
 }
