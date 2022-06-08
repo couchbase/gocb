@@ -379,11 +379,12 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 
 	suite.dropAllIndexes()
 	bucketName := globalBucket.Name()
+	collectionName := uuid.NewString()
 
 	collections := globalBucket.Collections()
 	err := collections.CreateCollection(CollectionSpec{
 		ScopeName: "_default",
-		Name:      bucketName,
+		Name:      collectionName,
 	}, nil)
 	suite.Require().Nil(err, err)
 
@@ -405,7 +406,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 		err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
 			Deferred:       true,
 			ScopeName:      "_default",
-			CollectionName: bucketName,
+			CollectionName: collectionName,
 		})
 		if err == nil || errors.Is(err, ErrIndexExists) {
 			return true
@@ -417,7 +418,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 
 	names, err := mgr.BuildDeferredIndexes(bucketName, &BuildDeferredQueryIndexOptions{
 		ScopeName:      "_default",
-		CollectionName: bucketName,
+		CollectionName: collectionName,
 	})
 	suite.Require().Nil(err, err)
 
