@@ -343,9 +343,17 @@ func (suite *IntegrationTestSuite) TestClusterQueryTransactionDoubleInsert() {
 	suite.Require().Nil(err, err)
 
 	suite.Eventually(func() bool {
-		_, err := globalCluster.Query(fmt.Sprintf("SELECT 1 FROM %s", globalBucket.Name()), &QueryOptions{
+		res, err := globalCluster.Query(fmt.Sprintf("SELECT 1 FROM %s", globalBucket.Name()), &QueryOptions{
 			Adhoc: true,
 		})
+		if err != nil {
+			return false
+		}
+
+		for res.Next() {
+		}
+
+		err = res.Err()
 		return err == nil
 	}, 30*time.Second, 500*time.Millisecond)
 
@@ -378,10 +386,11 @@ func (suite *IntegrationTestSuite) TestClusterQueryTransactionDoubleInsert() {
 	suite.Require().Error(err, err)
 
 	var tErr *TransactionFailedError
-	suite.Require().ErrorAs(err, &tErr)
+	if errors.As(err, &tErr) {
+		suite.Fail("Error should have not have been TransactionFailed but was: %v", err)
+	}
 
-	var qErr *QueryError
-	suite.Require().ErrorAs(err, &qErr)
+	suite.Require().ErrorIs(err, ErrDocumentExists)
 }
 
 func (suite *IntegrationTestSuite) TestClusterQueryTransactionOne() {

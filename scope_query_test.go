@@ -187,9 +187,18 @@ func (suite *IntegrationTestSuite) TestScopeQueryTransactionDoubleInsert() {
 	suite.Require().Nil(err, err)
 
 	suite.Eventually(func() bool {
-		_, err := globalScope.Query(fmt.Sprintf("SELECT 1 FROM %s", globalCollection.Name()), &QueryOptions{
+		res, err := globalScope.Query(fmt.Sprintf("SELECT 1 FROM %s", globalCollection.Name()), &QueryOptions{
 			Adhoc: true,
 		})
+		if err != nil {
+			return false
+		}
+
+		for res.Next() {
+		}
+
+		err = res.Err()
+		suite.Require().Nil(err, err)
 		return err == nil
 	}, 30*time.Second, 500*time.Millisecond)
 
@@ -221,8 +230,9 @@ func (suite *IntegrationTestSuite) TestScopeQueryTransactionDoubleInsert() {
 	})
 
 	var tErr *TransactionFailedError
-	suite.Require().ErrorAs(err, &tErr)
+	if errors.As(err, &tErr) {
+		suite.Fail("Error should have not have been TransactionFailed but was: %v", err)
+	}
 
-	var qErr *QueryError
-	suite.Require().ErrorAs(err, &qErr)
+	suite.Require().ErrorIs(err, ErrDocumentExists)
 }
