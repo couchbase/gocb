@@ -79,6 +79,7 @@ var (
 	CustomConflictResolutionFeature         = FeatureCode("customconflictresolution")
 	QueryImprovedErrorsFeature              = FeatureCode("queryimprovederrors")
 	TransactionsQueryFeature                = FeatureCode("transactionsquery")
+	UserManagerChangePasswordFeature        = FeatureCode("usermanagerchangepassword")
 )
 
 type TestFeatureFlag struct {
@@ -182,6 +183,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case TransactionsQueryFeature:
 			supported = false
+		case UserManagerChangePasswordFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -275,6 +278,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = c.Version.Equal(srvVer710DP)
 		case QueryImprovedErrorsFeature:
 			supported = !c.Version.Lower(srvVer710)
+		case UserManagerChangePasswordFeature:
+			supported = !c.Version.Lower(srvVer600)
 		}
 	}
 

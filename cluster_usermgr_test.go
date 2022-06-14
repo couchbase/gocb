@@ -3,6 +3,7 @@ package gocb
 import (
 	"bytes"
 	"errors"
+	"github.com/google/uuid"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -436,6 +437,70 @@ func (suite *IntegrationTestSuite) TestUserManagerCollectionsRoles() {
 			}
 		})
 	}
+}
+
+func (suite *IntegrationTestSuite) TestUserManagerChangePassword() {
+	suite.skipIfUnsupported(UserManagerFeature)
+	suite.skipIfUnsupported(UserManagerChangePasswordFeature)
+
+	username := uuid.NewString()
+	password := "password"
+	mgr := globalCluster.Users()
+	err := mgr.UpsertUser(User{
+		Username: username,
+		Password: password,
+		Roles: []Role{
+			{
+				Name:   "data_reader",
+				Bucket: globalBucket.Name(),
+			},
+		},
+	}, nil)
+	suite.Require().Nil(err, err)
+
+	c, err := Connect(globalConfig.Server, ClusterOptions{Authenticator: PasswordAuthenticator{
+		Username: username,
+		Password: password,
+	}})
+	suite.Require().Nil(err, err)
+	closed := false
+	defer func() {
+		if !closed {
+			c.Close(nil)
+		}
+	}()
+
+	err = c.WaitUntilReady(20*time.Second, nil)
+	suite.Require().Nil(err, err)
+
+	mgr = c.Users()
+	newPassword := "newpassword"
+	err = mgr.ChangePassword(newPassword, nil)
+	suite.Require().Nil(err, err)
+
+	err = c.Close(nil)
+	closed = true
+	suite.Require().Nil(err, err)
+
+	c, err = Connect(globalConfig.Server, ClusterOptions{Authenticator: PasswordAuthenticator{
+		Username: username,
+		Password: newPassword,
+	}})
+	suite.Require().Nil(err, err)
+	defer c.Close(nil)
+
+	err = c.WaitUntilReady(20*time.Second, nil)
+	suite.Require().Nil(err, err)
+
+	c, err = Connect(globalConfig.Server, ClusterOptions{Authenticator: PasswordAuthenticator{
+		Username: username,
+		Password: password,
+	}})
+	suite.Require().Nil(err, err)
+	defer c.Close(nil)
+
+	err = c.WaitUntilReady(10*time.Second, nil)
+	suite.Require().NotNil(err, err)
 }
 
 func assertUser(t *testing.T, user *User, expected *User) {

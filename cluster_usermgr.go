@@ -934,3 +934,69 @@ func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error
 
 	return nil
 }
+
+// ChangePasswordOptions is the set of options available to the user manager ChangePassword operation.
+// UNCOMMITTED: This API may change in the future.
+type ChangePasswordOptions struct {
+	Timeout       time.Duration
+	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+}
+
+// ChangePassword changes the password for the currently authenticated user.
+// *Note*: Usage of this function will effectively invalidate the SDK instance and further requests will fail
+// due to authentication errors. After using this function the SDK must be reinitialized.
+// UNCOMMITTED: This API may change in the future.
+func (um *UserManager) ChangePassword(newPassword string, opts *ChangePasswordOptions) error {
+	if newPassword == "" {
+		return makeInvalidArgumentsError("new password cannot be empty")
+	}
+
+	if opts == nil {
+		opts = &ChangePasswordOptions{}
+	}
+
+	start := time.Now()
+	defer um.meter.ValueRecord(meterValueServiceManagement, "manager_users_change_password", start)
+
+	path := "/controller/changePassword"
+	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_change_password", "management")
+	span.SetAttribute("db.operation", "POST "+path)
+	defer span.End()
+
+	reqForm := make(url.Values)
+	reqForm.Add("password", newPassword)
+
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
+		Method:        "POST",
+		Path:          path,
+		Body:          []byte(reqForm.Encode()),
+		ContentType:   "application/x-www-form-urlencoded",
+		RetryStrategy: opts.RetryStrategy,
+		UniqueID:      uuid.New().String(),
+		Timeout:       opts.Timeout,
+		parentSpanCtx: span.Context(),
+	}
+
+	resp, err := um.provider.executeMgmtRequest(opts.Context, req)
+	if err != nil {
+		return makeGenericMgmtError(err, &req, resp, "")
+	}
+	defer ensureBodyClosed(resp.Body)
+
+	if resp.StatusCode != 200 {
+		usrErr := um.tryParseErrorMessage(&req, resp)
+		if usrErr != nil {
+			return usrErr
+		}
+		return makeMgmtBadStatusError("failed to change password", &req, resp)
+	}
+
+	return nil
+}
