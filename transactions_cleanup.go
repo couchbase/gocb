@@ -183,7 +183,7 @@ func (clcw *coreLostTransactionsCleanerWrapper) ProcessATR(bucket *Bucket, colle
 	var ourAttempts []TransactionCleanupAttempt
 	var ourStats TransactionsProcessATRStats
 	waitCh := make(chan struct{}, 1)
-	clcw.wrapped.ProcessATR(a, "", collection, scope, atrID, func(attempts []gocbcore.TransactionsCleanupAttempt, stats gocbcore.TransactionProcessATRStats) {
+	clcw.wrapped.ProcessATR(a, "", collection, scope, atrID, func(attempts []gocbcore.TransactionsCleanupAttempt, stats gocbcore.TransactionProcessATRStats, _ error) {
 		for _, a := range attempts {
 			ourAttempts = append(ourAttempts, cleanupAttemptFromCore(a))
 		}

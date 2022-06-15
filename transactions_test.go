@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/couchbase/gocbcore/v10"
+	"github.com/google/uuid"
 	"log"
 	"time"
 )
@@ -250,6 +251,68 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadataTransactionOpti
 	suite.Assert().True(res.Exists(0))
 
 	suite.verifyDocument(docID, docValue)
+}
+
+func (suite *IntegrationTestSuite) TestTransactionsCustomMetadataLocationRemoved() {
+	suite.skipIfUnsupported(TransactionsFeature)
+	suite.skipIfUnsupported(TransactionsRemoveLocationFeature)
+
+	metaCollectionName := uuid.NewString()
+	collections := globalBucket.Collections()
+	err := collections.CreateCollection(CollectionSpec{
+		Name:      metaCollectionName,
+		ScopeName: globalScope.Name(),
+	}, nil)
+	suite.Require().Nil(err, err)
+	suite.mustWaitForCollections(globalScope.Name(), []string{metaCollectionName})
+
+	perConfig := &TransactionOptions{
+		MetadataCollection: globalBucket.Collection(metaCollectionName),
+	}
+
+	docID := uuid.NewString()
+	docValue := map[string]interface{}{
+		"test": "test",
+	}
+
+	txns := globalCluster.Transactions()
+
+	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
+		_, err := ctx.Insert(globalCollection, docID, docValue)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}, perConfig)
+	suite.Require().Nil(err, err)
+
+	suite.Assert().True(txnRes.UnstagingComplete)
+	suite.Assert().NotEmpty(txnRes.TransactionID)
+
+	location := gocbcore.TransactionLostATRLocation{
+		BucketName:     globalBucket.Name(),
+		ScopeName:      globalScope.Name(),
+		CollectionName: metaCollectionName,
+	}
+
+	suite.Require().Contains(txns.Internal().CleanupLocations(), location)
+
+	err = collections.DropCollection(CollectionSpec{
+		Name:      metaCollectionName,
+		ScopeName: globalScope.Name(),
+	}, nil)
+	suite.Require().Nil(err, err)
+
+	suite.Eventually(func() bool {
+		locations := txns.Internal().CleanupLocations()
+		for _, loc := range locations {
+			if loc == location {
+				return false
+			}
+		}
+		return true
+	}, 10*time.Second, 100*time.Millisecond)
 }
 
 func (suite *IntegrationTestSuite) TestTransactionsRollback() {
