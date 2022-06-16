@@ -470,8 +470,13 @@ func (suite *IntegrationTestSuite) TestUserManagerChangePassword() {
 		}
 	}()
 
-	err = c.WaitUntilReady(20*time.Second, nil)
-	suite.Require().Nil(err, err)
+	if globalCluster.SupportsFeature(WaitUntilReadyClusterFeature) {
+		err = c.WaitUntilReady(20*time.Second, nil)
+		suite.Require().Nil(err, err)
+	} else {
+		err = c.Bucket(globalConfig.Bucket).WaitUntilReady(20*time.Second, nil)
+		suite.Require().Nil(err, err)
+	}
 
 	mgr = c.Users()
 	newPassword := "newpassword"
@@ -489,8 +494,13 @@ func (suite *IntegrationTestSuite) TestUserManagerChangePassword() {
 	suite.Require().Nil(err, err)
 	defer c.Close(nil)
 
-	err = c.WaitUntilReady(20*time.Second, nil)
-	suite.Require().Nil(err, err)
+	if globalCluster.SupportsFeature(WaitUntilReadyClusterFeature) {
+		err = c.WaitUntilReady(20*time.Second, nil)
+		suite.Require().Nil(err, err)
+	} else {
+		err = c.Bucket(globalConfig.Bucket).WaitUntilReady(20*time.Second, nil)
+		suite.Require().Nil(err, err)
+	}
 
 	c, err = Connect(globalConfig.Server, ClusterOptions{Authenticator: PasswordAuthenticator{
 		Username: username,
@@ -499,8 +509,13 @@ func (suite *IntegrationTestSuite) TestUserManagerChangePassword() {
 	suite.Require().Nil(err, err)
 	defer c.Close(nil)
 
-	err = c.WaitUntilReady(10*time.Second, nil)
-	suite.Require().NotNil(err, err)
+	if globalCluster.SupportsFeature(WaitUntilReadyClusterFeature) {
+		err = c.WaitUntilReady(10*time.Second, nil)
+		suite.Require().NotNil(err, err)
+	} else {
+		err = c.Bucket(globalConfig.Bucket).WaitUntilReady(10*time.Second, nil)
+		suite.Require().NotNil(err, err)
+	}
 }
 
 func assertUser(t *testing.T, user *User, expected *User) {
