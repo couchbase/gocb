@@ -224,11 +224,13 @@ func (suite *IntegrationTestSuite) runQueryTest(n int, query, bucket, scope stri
 		if withMetrics {
 			suite.Assert().NotZero(metadata.Metrics.ElapsedTime)
 			suite.Assert().NotZero(metadata.Metrics.ExecutionTime)
-			suite.Assert().NotZero(metadata.Metrics.ResultCount)
-			suite.Assert().NotZero(metadata.Metrics.ResultSize)
 		}
 
 		if n == len(samples) {
+			if withMetrics {
+				suite.Assert().NotZero(metadata.Metrics.ResultCount)
+				suite.Assert().NotZero(metadata.Metrics.ResultSize)
+			}
 			return
 		}
 
