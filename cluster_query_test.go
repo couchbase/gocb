@@ -387,12 +387,18 @@ func (suite *IntegrationTestSuite) TestClusterQueryTransactionDoubleInsert() {
 	})
 	suite.Require().Error(err, err)
 
-	var tErr *TransactionFailedError
-	if errors.As(err, &tErr) {
-		suite.Fail("Error should have not have been TransactionFailed but was: %v", err)
-	}
+	if globalCluster.SupportsFeature(TransactionsSingleQueryExistsErrorFeature) {
+		var tErr *TransactionFailedError
+		if errors.As(err, &tErr) {
+			suite.T().Logf("Error should have not have been TransactionFailed but was: %v", err)
+			suite.T().Fail()
+		}
 
-	suite.Require().ErrorIs(err, ErrDocumentExists)
+		suite.Require().ErrorIs(err, ErrDocumentExists)
+	} else {
+		var tErr *TransactionFailedError
+		suite.Assert().ErrorAs(err, &tErr)
+	}
 }
 
 func (suite *IntegrationTestSuite) TestClusterQueryTransactionOne() {
