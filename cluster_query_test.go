@@ -308,9 +308,17 @@ func (suite *IntegrationTestSuite) TestClusterQueryTransaction() {
 	suite.Require().Nil(err, err)
 
 	suite.Eventually(func() bool {
-		_, err := globalCluster.Query(fmt.Sprintf("SELECT 1 FROM %s", globalBucket.Name()), &QueryOptions{
+		res, err := globalCluster.Query(fmt.Sprintf("SELECT 1 FROM %s", globalBucket.Name()), &QueryOptions{
 			Adhoc: true,
 		})
+		if err != nil {
+			return false
+		}
+
+		for res.Next() {
+		}
+
+		err = res.Err()
 		return err == nil
 	}, 30*time.Second, 500*time.Millisecond)
 
@@ -412,9 +420,17 @@ func (suite *IntegrationTestSuite) TestClusterQueryTransactionOne() {
 	suite.Require().Nil(err, err)
 
 	suite.Eventually(func() bool {
-		_, err := globalCluster.Query(fmt.Sprintf("SELECT 1 FROM %s", globalBucket.Name()), &QueryOptions{
+		res, err := globalCluster.Query(fmt.Sprintf("SELECT 1 FROM %s", globalBucket.Name()), &QueryOptions{
 			Adhoc: true,
 		})
+		if err != nil {
+			return false
+		}
+
+		for res.Next() {
+		}
+
+		err = res.Err()
 		return err == nil
 	}, 30*time.Second, 500*time.Millisecond)
 

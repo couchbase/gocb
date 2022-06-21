@@ -135,9 +135,17 @@ func (suite *IntegrationTestSuite) TestScopeQueryTransaction() {
 
 	// Ensure the index is online
 	suite.Eventually(func() bool {
-		_, err := globalScope.Query(fmt.Sprintf("SELECT 1 FROM %s", globalCollection.Name()), &QueryOptions{
+		res, err := globalScope.Query(fmt.Sprintf("SELECT 1 FROM %s", globalCollection.Name()), &QueryOptions{
 			Adhoc: true,
 		})
+		if err != nil {
+			return false
+		}
+
+		for res.Next() {
+		}
+
+		err = res.Err()
 		return err == nil
 	}, 30*time.Second, 500*time.Millisecond)
 
