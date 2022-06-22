@@ -259,7 +259,9 @@ type CreateQueryIndexOptions struct {
 }
 
 // CreateIndex creates an index over the specified fields.
-func (qm *QueryIndexManager) CreateIndex(bucketName, indexName string, fields []string, opts *CreateQueryIndexOptions) error {
+// The SDK will automatically escape the provided index keys. For more advanced use cases like index keys using keywords
+// cluster.Query or scope.Query should be used with the query directly.
+func (qm *QueryIndexManager) CreateIndex(bucketName, indexName string, keys []string, opts *CreateQueryIndexOptions) error {
 	if opts == nil {
 		opts = &CreateQueryIndexOptions{}
 	}
@@ -269,16 +271,16 @@ func (qm *QueryIndexManager) CreateIndex(bucketName, indexName string, fields []
 			message: "an invalid index name was specified",
 		}
 	}
-	if len(fields) <= 0 {
+	if len(keys) <= 0 {
 		return invalidArgumentsError{
-			message: "you must specify at least one field to index",
+			message: "you must specify at least one index-key to index",
 		}
 	}
 	if err := qm.validateScopeCollection(opts.ScopeName, opts.CollectionName); err != nil {
 		return err
 	}
 
-	return qm.createIndex(opts.Context, opts.ParentSpan, bucketName, indexName, fields, createQueryIndexOptions{
+	return qm.createIndex(opts.Context, opts.ParentSpan, bucketName, indexName, keys, createQueryIndexOptions{
 		IgnoreIfExists: opts.IgnoreIfExists,
 		Deferred:       opts.Deferred,
 		Timeout:        opts.Timeout,
