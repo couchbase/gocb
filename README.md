@@ -27,7 +27,7 @@ You can chat with us on [Discord](https://discord.com/invite/sQ5qbPZuTh) or the 
 
 To install the latest stable version, run:
 ```bash
-go get github.com/couchbase/gocb/v2@latezt
+go get github.com/couchbase/gocb/v2@latest
 ```
 
 To install the latest developer version, run:
