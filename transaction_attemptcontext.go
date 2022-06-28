@@ -29,6 +29,8 @@ type TransactionAttemptContext struct {
 	// Pointer to satisfy go vet complaining about the hooks.
 	queryStateLock *sync.Mutex
 	queryConfig    TransactionQueryOptions
+	logger         *transactionLogger
+	attemptID      string
 }
 
 func (c *TransactionAttemptContext) canCommit() bool {
@@ -80,6 +82,7 @@ func (c *TransactionAttemptContext) Get(collection *Collection, id string) (*Tra
 	if c.queryModeLocked() {
 		res, err := c.getQueryMode(collection, id)
 		if err != nil {
+			c.logger.logInfof(c.attemptID, "Query mode get failed")
 			c.txn.UpdateState(gocbcore.TransactionUpdateStateOptions{
 				ShouldNotCommit: !errors.Is(err, ErrDocumentNotFound),
 			})
@@ -149,6 +152,7 @@ func (c *TransactionAttemptContext) Replace(doc *TransactionGetResult, value int
 		res, err := c.replaceQueryMode(doc, valueBytes)
 		c.queryStateLock.Unlock()
 		if err != nil {
+			c.logger.logInfof(c.attemptID, "Query mode replace failed")
 			return nil, err
 		}
 
@@ -205,6 +209,7 @@ func (c *TransactionAttemptContext) Insert(collection *Collection, id string, va
 		res, err := c.insertQueryMode(collection, id, valueBytes)
 		c.queryStateLock.Unlock()
 		if err != nil {
+			c.logger.logInfof(c.attemptID, "Query mode insert failed")
 			return nil, err
 		}
 
@@ -259,7 +264,12 @@ func (c *TransactionAttemptContext) Remove(doc *TransactionGetResult) error {
 	if c.queryModeLocked() {
 		err := c.removeQueryMode(doc)
 		c.queryStateLock.Unlock()
-		return err
+		if err != nil {
+			c.logger.logInfof(c.attemptID, "Query mode remove failed")
+			return err
+		}
+
+		return nil
 	}
 	c.queryStateLock.Unlock()
 
@@ -288,7 +298,12 @@ func (c *TransactionAttemptContext) commit() (errOut error) {
 	if c.queryModeLocked() {
 		err := c.commitQueryMode()
 		c.queryStateLock.Unlock()
-		return err
+		if err != nil {
+			c.logger.logInfof(c.attemptID, "Query mode commit failed")
+			return err
+		}
+
+		return nil
 	}
 	c.queryStateLock.Unlock()
 
@@ -310,7 +325,12 @@ func (c *TransactionAttemptContext) rollback() (errOut error) {
 	if c.queryModeLocked() {
 		err := c.rollbackQueryMode()
 		c.queryStateLock.Unlock()
-		return err
+		if err != nil {
+			c.logger.logInfof(c.attemptID, "Query mode rollback failed")
+			return err
+		}
+
+		return nil
 	}
 	c.queryStateLock.Unlock()
 

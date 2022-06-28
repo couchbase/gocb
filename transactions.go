@@ -172,11 +172,14 @@ func (t *Transactions) run(logicFn AttemptFunc, perConfig *TransactionOptions, s
 		atrLocation.ScopeName = perConfig.MetadataCollection.ScopeName()
 	}
 
+	logger := newTransactionLogger()
+
 	// TODO: fill in the rest of this config
 	config := &gocbcore.TransactionOptions{
 		DurabilityLevel:   gocbcore.TransactionDurabilityLevel(perConfig.DurabilityLevel),
 		ExpirationTime:    perConfig.Timeout,
 		CustomATRLocation: atrLocation,
+		TransactionLogger: logger,
 	}
 
 	hooksWrapper := t.hooksWrapper
@@ -191,6 +194,8 @@ func (t *Transactions) run(logicFn AttemptFunc, perConfig *TransactionOptions, s
 	if err != nil {
 		return nil, err
 	}
+
+	logger.setTxnID(txn.ID())
 
 	retries := 0
 	backoffCalc := func() time.Duration {
@@ -215,7 +220,9 @@ func (t *Transactions) run(logicFn AttemptFunc, perConfig *TransactionOptions, s
 			return nil, err
 		}
 
-		logDebugf("New transaction attempt starting for %s, %s", txn.ID(), txn.Attempt().ID)
+		attemptID := txn.Attempt().ID
+		logDebugf("New transaction attempt starting for %s, %s", txn.ID(), attemptID)
+		logger.logInfof(attemptID, "New transaction attempt starting")
 
 		attempt := TransactionAttemptContext{
 			txn:            txn,
@@ -226,6 +233,8 @@ func (t *Transactions) run(logicFn AttemptFunc, perConfig *TransactionOptions, s
 			queryConfig: TransactionQueryOptions{
 				ScanConsistency: scanConsistency,
 			},
+			logger:    logger,
+			attemptID: attemptID,
 		}
 
 		if hooksWrapper != nil {
@@ -235,6 +244,7 @@ func (t *Transactions) run(logicFn AttemptFunc, perConfig *TransactionOptions, s
 		lambdaErr := logicFn(&attempt)
 
 		if !singleQueryMode && lambdaErr != nil {
+			logger.logInfof(attemptID, "Lambda returned error and not single query mode")
 			var txnErr *TransactionOperationFailedError
 			if !errors.As(lambdaErr, &txnErr) {
 				// We wrap non-TOF errors in a TOF.
@@ -264,7 +274,9 @@ func (t *Transactions) run(logicFn AttemptFunc, perConfig *TransactionOptions, s
 
 		if attempt.shouldRetry() && toRaise != gocbcore.TransactionErrorReasonSuccess {
 			logDebugf("retrying lambda after backoff")
-			time.Sleep(backoffCalc())
+			sleep := backoffCalc()
+			logger.logInfof(attemptID, "Will retry lambda after %s", sleep)
+			time.Sleep(sleep)
 			continue
 		}
 
@@ -292,6 +304,7 @@ func (t *Transactions) run(logicFn AttemptFunc, perConfig *TransactionOptions, s
 			return &TransactionResult{
 				TransactionID:     txn.ID(),
 				UnstagingComplete: unstagingComplete,
+				Logs:              logger.Logs(),
 			}, nil
 		case gocbcore.TransactionErrorReasonTransactionFailed:
 			return nil, &TransactionFailedError{
@@ -299,6 +312,7 @@ func (t *Transactions) run(logicFn AttemptFunc, perConfig *TransactionOptions, s
 				result: &TransactionResult{
 					TransactionID:     txn.ID(),
 					UnstagingComplete: false,
+					Logs:              logger.Logs(),
 				},
 			}
 		case gocbcore.TransactionErrorReasonTransactionExpired:
@@ -310,6 +324,7 @@ func (t *Transactions) run(logicFn AttemptFunc, perConfig *TransactionOptions, s
 					result: &TransactionResult{
 						TransactionID:     txn.ID(),
 						UnstagingComplete: false,
+						Logs:              logger.Logs(),
 					},
 				}
 			}
@@ -317,6 +332,7 @@ func (t *Transactions) run(logicFn AttemptFunc, perConfig *TransactionOptions, s
 				result: &TransactionResult{
 					TransactionID:     txn.ID(),
 					UnstagingComplete: false,
+					Logs:              logger.Logs(),
 				},
 			}
 		case gocbcore.TransactionErrorReasonTransactionCommitAmbiguous:
@@ -325,12 +341,14 @@ func (t *Transactions) run(logicFn AttemptFunc, perConfig *TransactionOptions, s
 				result: &TransactionResult{
 					TransactionID:     txn.ID(),
 					UnstagingComplete: false,
+					Logs:              logger.Logs(),
 				},
 			}
 		case gocbcore.TransactionErrorReasonTransactionFailedPostCommit:
 			return &TransactionResult{
 				TransactionID:     txn.ID(),
 				UnstagingComplete: false,
+				Logs:              logger.Logs(),
 			}, nil
 		default:
 			return nil, errors.New("invalid final transaction state")

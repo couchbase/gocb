@@ -127,6 +127,8 @@ func operationFailed(def transactionQueryOperationFailedDef, c *TransactionAttem
 	}
 
 	if c != nil {
+		c.logger.logInfof(c.attemptID, "Operation failed: can still commit: %t, should not rollback: %t, should not retry: %t, "+
+			"reason: %s", !def.ShouldNotCommit, def.ShouldNotRollback, def.ShouldNotRetry, def.Reason)
 		c.updateState(def)
 	}
 	return err

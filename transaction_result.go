@@ -46,4 +46,8 @@ type TransactionResult struct {
 	// UnstagingComplete indicates whether the transaction was succesfully
 	// unstaged, or if a later cleanup job will be responsible.
 	UnstagingComplete bool
+
+	// Logs returns the set of logs that were created during this transaction.
+	// UNCOMMITTED: This API may change in the future.
+	Logs []TransactionLogItem
 }

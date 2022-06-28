@@ -43,6 +43,14 @@ func SetLogRedactionLevel(level LogRedactLevel) {
 	gocbcore.SetLogRedactionLevel(gocbcore.LogRedactLevel(level))
 }
 
+func redactUserDataString(v string) string {
+	return "<ud>" + v + "</ud>"
+}
+
+func redactSystemDataString(v string) string {
+	return "<sd>" + v + "</sd>"
+}
+
 // Logger defines a logging interface. You can either use one of the default loggers
 // (DefaultStdioLogger(), VerboseStdioLogger()) or implement your own.
 type Logger interface {

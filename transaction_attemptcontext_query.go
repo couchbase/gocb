@@ -11,6 +11,7 @@ import (
 
 // Query executes the query statement on the server.
 func (c *TransactionAttemptContext) Query(statement string, options *TransactionQueryOptions) (*TransactionQueryResult, error) {
+	c.logger.logInfof(c.attemptID, "Performing query: %s", redactUserDataString(statement))
 	var opts TransactionQueryOptions
 	if options != nil {
 		opts = *options
@@ -31,6 +32,12 @@ func (c *TransactionAttemptContext) queryModeLocked() bool {
 }
 
 func (c *TransactionAttemptContext) getQueryMode(collection *Collection, id string) (*TransactionGetResult, error) {
+	c.logger.logInfof(c.attemptID, "Performing query mode get: %s", newLoggableDocKey(
+		collection.bucketName(),
+		collection.ScopeName(),
+		collection.Name(),
+		id,
+	))
 	txdata := map[string]interface{}{
 		"kv": true,
 	}
@@ -100,6 +107,12 @@ func (c *TransactionAttemptContext) getQueryMode(collection *Collection, id stri
 }
 
 func (c *TransactionAttemptContext) replaceQueryMode(doc *TransactionGetResult, valueBytes json.RawMessage) (*TransactionGetResult, error) {
+	c.logger.logInfof(c.attemptID, "Performing query mode replace: %s", newLoggableDocKey(
+		doc.collection.bucketName(),
+		doc.collection.ScopeName(),
+		doc.collection.Name(),
+		doc.docID,
+	))
 	txdata := map[string]interface{}{
 		"kv":   true,
 		"scas": toScas(doc.coreRes.Cas),
@@ -185,6 +198,12 @@ func (c *TransactionAttemptContext) replaceQueryMode(doc *TransactionGetResult, 
 }
 
 func (c *TransactionAttemptContext) insertQueryMode(collection *Collection, id string, valueBytes json.RawMessage) (*TransactionGetResult, error) {
+	c.logger.logInfof(c.attemptID, "Performing query mode insert: %s", newLoggableDocKey(
+		collection.bucketName(),
+		collection.ScopeName(),
+		collection.Name(),
+		id,
+	))
 	txdata := map[string]interface{}{
 		"kv": true,
 	}
@@ -253,6 +272,12 @@ func (c *TransactionAttemptContext) insertQueryMode(collection *Collection, id s
 }
 
 func (c *TransactionAttemptContext) removeQueryMode(doc *TransactionGetResult) error {
+	c.logger.logInfof(c.attemptID, "Performing query mode remove: %s", newLoggableDocKey(
+		doc.collection.bucketName(),
+		doc.collection.ScopeName(),
+		doc.collection.Name(),
+		doc.docID,
+	))
 	txdata := map[string]interface{}{
 		"kv":   true,
 		"scas": toScas(doc.coreRes.Cas),
@@ -311,6 +336,7 @@ func (c *TransactionAttemptContext) removeQueryMode(doc *TransactionGetResult) e
 }
 
 func (c *TransactionAttemptContext) commitQueryMode() error {
+	c.logger.logInfof(c.attemptID, "Performing query mode commit")
 	handleErr := func(err error) error {
 		var terr *TransactionOperationFailedError
 		if errors.As(err, &terr) {
@@ -355,6 +381,7 @@ func (c *TransactionAttemptContext) commitQueryMode() error {
 }
 
 func (c *TransactionAttemptContext) rollbackQueryMode() error {
+	c.logger.logInfof(c.attemptID, "Performing query mode rollback")
 	handleErr := func(err error) error {
 		var terr *TransactionOperationFailedError
 		if errors.As(err, &terr) {
@@ -467,6 +494,8 @@ func (c *TransactionAttemptContext) queryWrapperWrapper(scope *Scope, statement 
 // errors that occur at query call time.
 func (c *TransactionAttemptContext) queryWrapper(scope *Scope, statement string, options QueryOptions, hookPoint string,
 	isBeginWork bool, existingErrorCheck bool, txData []byte, txImplicit bool) (*QueryResult, error) {
+	c.logger.logInfof(c.attemptID, "Query wrapped running %s, scope level = %t, begin work = %t, txImplicit = %t",
+		redactUserDataString(statement), scope != nil, isBeginWork, txImplicit)
 
 	var target string
 	if !isBeginWork && !txImplicit {
@@ -484,7 +513,10 @@ func (c *TransactionAttemptContext) queryWrapper(scope *Scope, statement string,
 		// If we've got here then transactionQueryState cannot be nil.
 		target = c.queryState.queryTarget
 
+		c.logger.logInfof(c.attemptID, "Using query target %s", redactSystemDataString(target))
+
 		if !c.txn.CanCommit() && !c.txn.ShouldRollback() {
+			c.logger.logInfof(c.attemptID, "Transaction marked cannot commit and should not rollback, failing")
 			return nil, operationFailed(transactionQueryOperationFailedDef{
 				ShouldNotRetry:    true,
 				Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
@@ -497,6 +529,7 @@ func (c *TransactionAttemptContext) queryWrapper(scope *Scope, statement string,
 
 	if existingErrorCheck {
 		if !c.txn.CanCommit() {
+			c.logger.logInfof(c.attemptID, "Transaction marked cannot commit during existing error check, failing")
 			return nil, operationFailed(transactionQueryOperationFailedDef{
 				ShouldNotRetry: true,
 				Reason:         gocbcore.TransactionErrorReasonTransactionFailed,
@@ -515,6 +548,7 @@ func (c *TransactionAttemptContext) queryWrapper(scope *Scope, statement string,
 	}
 	cfg := c.txn.Config()
 	if cfg.ExpirationTime < 10*time.Millisecond || expired {
+		c.logger.logInfof(c.attemptID, "Transaction expired, failing")
 		return nil, operationFailed(transactionQueryOperationFailedDef{
 			ShouldNotRetry:    true,
 			ShouldNotRollback: true,
@@ -584,9 +618,11 @@ func (c *TransactionAttemptContext) queryWrapper(scope *Scope, statement string,
 }
 
 func (c *TransactionAttemptContext) queryBeginWork() (errOut error) {
+	c.logger.logInfof(c.attemptID, "Performing query begin work")
 	waitCh := make(chan struct{}, 1)
 	err := c.txn.SerializeAttempt(func(txdata []byte, err error) {
 		if err != nil {
+			c.logger.logInfof(c.attemptID, "SerializeAttempt failed, not moving into query mode")
 			var coreErr *gocbcore.TransactionOperationFailedError
 			if errors.As(err, &coreErr) {
 				// Note that we purposely do not use operationFailed here, we haven't moved into query mode yet.
@@ -632,6 +668,7 @@ func (c *TransactionAttemptContext) queryBeginWork() (errOut error) {
 			return
 		}
 
+		c.logger.logInfof(c.attemptID, "Begin work setting query target to %s", res.endpoint)
 		c.queryState.queryTarget = res.endpoint
 
 		waitCh <- struct{}{}
