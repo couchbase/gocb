@@ -269,7 +269,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case EventingFunctionManagerFeature:
 			supported = !c.Version.Lower(srvVer700)
 		case RateLimitingFeature:
-			supported = !c.Version.Lower(srvVer710)
+			supported = !c.Version.Lower(srvVer710) && c.Version.Lower(srvVer720)
 		case StorageBackendFeature:
 			supported = !c.Version.Lower(srvVer710) && (c.Version.Edition != CommunityNodeEdition)
 		case HLCFeature:
