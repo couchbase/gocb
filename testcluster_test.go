@@ -24,6 +24,7 @@ var (
 	srvVer660   = NodeVersion{6, 6, 0, 0, 0, "", false}
 	srvVer700   = NodeVersion{7, 0, 0, 0, 0, "", false}
 	srvVer710   = NodeVersion{7, 1, 0, 0, 0, "", false}
+	srvVer711   = NodeVersion{7, 1, 1, 0, 0, "", false}
 	srvVer710DP = NodeVersion{7, 1, 0, 0, 0, "dp", false}
 	srvVer720   = NodeVersion{7, 2, 0, 0, 0, "", false}
 	mockVer156  = NodeVersion{1, 5, 6, 0, 0, "", true}
@@ -82,6 +83,8 @@ var (
 	UserManagerChangePasswordFeature          = FeatureCode("usermanagerchangepassword")
 	TransactionsRemoveLocationFeature         = FeatureCode("transactionsremovelocation")
 	TransactionsSingleQueryExistsErrorFeature = FeatureCode("transactionssinglequeryexists")
+	EventingFunctionManagerMB52649Feature     = FeatureCode("eventingmanagementmb52649")
+	EventingFunctionManagerMB52572Feature     = FeatureCode("eventingmanagementmb52572")
 )
 
 type TestFeatureFlag struct {
@@ -290,6 +293,10 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer700)
 		case TransactionsSingleQueryExistsErrorFeature:
 			supported = !c.Version.Lower(srvVer710)
+		case EventingFunctionManagerMB52649Feature:
+			supported = !c.Version.Equal(srvVer711)
+		case EventingFunctionManagerMB52572Feature:
+			supported = !c.Version.Equal(srvVer711)
 		}
 	}
 

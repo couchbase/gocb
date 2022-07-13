@@ -111,6 +111,7 @@ func (suite *IntegrationTestSuite) TestEventingManagerUpsertGetDrop() {
 func (suite *IntegrationTestSuite) TestEventingManagerUnknownBucket() {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(EventingFunctionManagerFeature)
+	suite.skipIfUnsupported(EventingFunctionManagerMB52572Feature)
 
 	mgr := globalCluster.Cluster.EventingFunctions()
 	fnName := uuid.New().String()
@@ -301,6 +302,7 @@ func (suite *IntegrationTestSuite) TestEventingManagerSameSourceAndMetaKeyspace(
 func (suite *IntegrationTestSuite) TestEventingManagerDeploysAndUndeploys() {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(EventingFunctionManagerFeature)
+	suite.skipIfUnsupported(EventingFunctionManagerMB52649Feature)
 
 	mgr := globalCluster.Cluster.EventingFunctions()
 	suite.mustCreateScope("eventing")
@@ -405,6 +407,7 @@ func (suite *IntegrationTestSuite) TestEventingManagerDeploysAndUndeploys() {
 func (suite *IntegrationTestSuite) TestEventingManagerPausesAndResumes() {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(EventingFunctionManagerFeature)
+	suite.skipIfUnsupported(EventingFunctionManagerMB52649Feature)
 
 	mgr := globalCluster.Cluster.EventingFunctions()
 	suite.mustCreateScope("eventing")
