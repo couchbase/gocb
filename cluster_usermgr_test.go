@@ -333,10 +333,15 @@ func (suite *IntegrationTestSuite) TestUserManagerCrud() {
 		suite.T().Fatalf("Expected DropUser to not error: %v", err)
 	}
 
-	_, err = mgr.GetUser("barry", nil)
-	if !errors.Is(err, ErrUserNotFound) {
-		suite.T().Fatalf("Expected error to be user not found but was %v", err)
-	}
+	suite.Require().Eventually(func() bool {
+		_, err = mgr.GetUser("barry", nil)
+		if !errors.Is(err, ErrUserNotFound) {
+			suite.T().Logf("Expected error to be user not found but was %v", err)
+			return false
+		}
+
+		return true
+	}, 5*time.Second, 50*time.Millisecond)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_upsert_user"), 2, true)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_get_user"), 3, true)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_get_all_users"), 1, false)
