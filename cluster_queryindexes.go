@@ -686,6 +686,7 @@ func checkIndexesActive(indexes []QueryIndex, checkList []string) (bool, error) 
 
 	for i := 0; i < len(checkIndexes); i++ {
 		if checkIndexes[i].State != "online" {
+			logDebugf("Index not online: %s is in state %s", checkIndexes[i].Name, checkIndexes[i].State)
 			return false, nil
 		}
 	}
