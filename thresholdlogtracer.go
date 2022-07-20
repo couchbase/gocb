@@ -96,6 +96,7 @@ type ThresholdLoggingOptions struct {
 	Interval            time.Duration
 	SampleSize          uint32
 	KVThreshold         time.Duration
+	KVScanThreshold     time.Duration
 	ViewsThreshold      time.Duration
 	QueryThreshold      time.Duration
 	SearchThreshold     time.Duration
@@ -111,6 +112,7 @@ type ThresholdLoggingTracer struct {
 	Interval            time.Duration
 	SampleSize          uint32
 	KVThreshold         time.Duration
+	KVScanThreshold     time.Duration
 	ViewsThreshold      time.Duration
 	QueryThreshold      time.Duration
 	SearchThreshold     time.Duration
@@ -136,6 +138,9 @@ func NewThresholdLoggingTracer(opts *ThresholdLoggingOptions) *ThresholdLoggingT
 	if opts.KVThreshold == 0 {
 		opts.KVThreshold = 500 * time.Millisecond
 	}
+	if opts.KVScanThreshold == 0 {
+		opts.KVScanThreshold = 1 * time.Second
+	}
 	if opts.ViewsThreshold == 0 {
 		opts.ViewsThreshold = 1 * time.Second
 	}
@@ -156,6 +161,7 @@ func NewThresholdLoggingTracer(opts *ThresholdLoggingOptions) *ThresholdLoggingT
 		Interval:            opts.Interval,
 		SampleSize:          opts.SampleSize,
 		KVThreshold:         opts.KVThreshold,
+		KVScanThreshold:     opts.KVScanThreshold,
 		ViewsThreshold:      opts.ViewsThreshold,
 		QueryThreshold:      opts.QueryThreshold,
 		SearchThreshold:     opts.SearchThreshold,
@@ -165,6 +171,7 @@ func NewThresholdLoggingTracer(opts *ThresholdLoggingOptions) *ThresholdLoggingT
 
 	t.groups = map[string]*thresholdLogGroup{
 		"kv":         initThresholdLogGroup("kv", t.KVThreshold, t.SampleSize),
+		"kv_scan":    initThresholdLogGroup("kv_scan", t.KVScanThreshold, t.SampleSize),
 		"views":      initThresholdLogGroup("views", t.ViewsThreshold, t.SampleSize),
 		"query":      initThresholdLogGroup("query", t.QueryThreshold, t.SampleSize),
 		"search":     initThresholdLogGroup("search", t.SearchThreshold, t.SampleSize),
@@ -303,6 +310,8 @@ func (t *ThresholdLoggingTracer) recordOp(span *thresholdLogSpan) {
 		t.groups["management"].recordOp(span)
 	case "kv":
 		t.groups["kv"].recordOp(span)
+	case "kv_scan":
+		t.groups["kv_scan"].recordOp(span)
 	case "views":
 		t.groups["views"].recordOp(span)
 	case "query":

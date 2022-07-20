@@ -7,6 +7,7 @@ import (
 type kvTimeoutsConfig struct {
 	KVTimeout        time.Duration
 	KVDurableTimeout time.Duration
+	KVScanTimeout    time.Duration
 }
 
 // Collection represents a single collection.
@@ -36,6 +37,7 @@ func newCollection(scope *Scope, collectionName string) *Collection {
 		timeoutsConfig: kvTimeoutsConfig{
 			KVTimeout:        scope.timeoutsConfig.KVTimeout,
 			KVDurableTimeout: scope.timeoutsConfig.KVDurableTimeout,
+			KVScanTimeout:    scope.timeoutsConfig.KVScanTimeout,
 		},
 
 		transcoder:           scope.transcoder,

@@ -1938,7 +1938,7 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAllReplicas() {
 		suite.T().Fatalf("Failed to get kv provider, was %v", err)
 	}
 
-	snapshot, err := agent.ConfigSnapshot()
+	snapshot, err := globalCollection.waitForConfigSnapshot(context.Background(), time.Now().Add(5*time.Second), agent)
 	if err != nil {
 		suite.T().Fatalf("Failed to get config snapshot, was %v", err)
 	}

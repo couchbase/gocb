@@ -29,7 +29,11 @@ type kvProvider interface {
 	Decrement(opts gocbcore.CounterOptions, cb gocbcore.CounterCallback) (gocbcore.PendingOp, error)
 	Append(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinCallback) (gocbcore.PendingOp, error)
 	Prepend(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinCallback) (gocbcore.PendingOp, error)
-	ConfigSnapshot() (*gocbcore.ConfigSnapshot, error)
+	WaitForConfigSnapshot(deadline time.Time, opts gocbcore.WaitForConfigSnapshotOptions, cb gocbcore.WaitForConfigSnapshotCallback) (gocbcore.PendingOp, error)
+	RangeScanCreate(vbID uint16, opts gocbcore.RangeScanCreateOptions, cb gocbcore.RangeScanCreateCallback) (gocbcore.PendingOp, error)
+	RangeScanContinue(scanUUID []byte, vbID uint16, opts gocbcore.RangeScanContinueOptions, dataCb gocbcore.RangeScanContinueDataCallback,
+		actionCb gocbcore.RangeScanContinueActionCallback) (gocbcore.PendingOp, error)
+	RangeScanCancel(scanUUID []byte, vbID uint16, opts gocbcore.RangeScanCancelOptions, cb gocbcore.RangeScanCancelCallback) (gocbcore.PendingOp, error)
 }
 
 // Cas represents the specific state of a document on the cluster.
@@ -811,7 +815,7 @@ func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docO
 		return nil, err
 	}
 
-	snapshot, err := agent.ConfigSnapshot()
+	snapshot, err := c.waitForConfigSnapshot(ctx, deadline, agent)
 	if err != nil {
 		return nil, err
 	}

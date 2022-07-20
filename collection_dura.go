@@ -134,7 +134,7 @@ func (c *Collection) waitForDurability(
 		return err
 	}
 
-	snapshot, err := agent.ConfigSnapshot()
+	snapshot, err := c.waitForConfigSnapshot(ctx, deadline, agent)
 	if err != nil {
 		return err
 	}

@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"encoding/json"
+	"sync"
 	"time"
 )
 
@@ -362,4 +363,89 @@ type GetReplicaResult struct {
 // IsReplica returns whether or not this result came from a replica server.
 func (r *GetReplicaResult) IsReplica() bool {
 	return r.isReplica
+}
+
+// ScanResult is the return type of Scan operations.
+// VOLATILE: This API is subject to change at any time.
+type ScanResult struct {
+	resultChan chan *ScanResultItem
+	cancelFn   func()
+	err        error
+	errLock    sync.Mutex
+}
+
+func (sr *ScanResult) setErr(err error) {
+	sr.errLock.Lock()
+	sr.err = err
+	sr.errLock.Unlock()
+}
+
+// Next returns the next item on the stream, if there are no items remaining then nil is returned.
+func (sr *ScanResult) Next() *ScanResultItem {
+	item, more := <-sr.resultChan
+	if more {
+		return item
+	}
+	return nil
+}
+
+// Err returns any errors that have occurred on the stream.
+func (sr *ScanResult) Err() error {
+	sr.errLock.Lock()
+	err := sr.err
+	sr.errLock.Unlock()
+
+	return err
+}
+
+// Close cancels the stream, returning any errors that occurred during reading the results.
+func (sr *ScanResult) Close() error {
+	sr.errLock.Lock()
+	err := sr.err
+	sr.errLock.Unlock()
+
+	if err != nil {
+		return err
+	}
+
+	sr.cancelFn()
+
+	return nil
+}
+
+// ScanResultItem represents an item that is returning on the stream from a Scan operation.
+type ScanResultItem struct {
+	Result
+	transcoder Transcoder
+	id         string
+	flags      uint32
+	contents   []byte
+	expiryTime time.Time
+	keysOnly   bool
+}
+
+// ID returns the id of the item.
+func (sri *ScanResultItem) ID() string {
+	return sri.id
+}
+
+// Cas returns the Cas of the item.
+func (sri *ScanResultItem) Cas() Cas {
+	return sri.cas
+}
+
+// Content assigns the value of the result into the valuePtr using default decoding.
+// If WithoutContent was set on the ScanOptions then this will return an error.
+func (sri *ScanResultItem) Content(valuePtr interface{}) error {
+	if sri.keysOnly {
+		return makeInvalidArgumentsError("scan was called with WithoutContent set to true, content can never be set")
+	}
+	return sri.transcoder.Decode(sri.contents, sri.flags, valuePtr)
+}
+
+// ExpiryTime returns the expiry time for the result if available.
+// This function will return a zero time if the value either was not fetched or the
+// document does not have an expiry time.
+func (sri *ScanResultItem) ExpiryTime() time.Time {
+	return sri.expiryTime
 }

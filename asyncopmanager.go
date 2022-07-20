@@ -8,8 +8,13 @@ import (
 type asyncOpManager struct {
 	signal chan struct{}
 
+	cancelCh    chan struct{}
 	wasResolved bool
 	ctx         context.Context
+}
+
+func (m *asyncOpManager) SetCancelCh(cancelCh chan struct{}) {
+	m.cancelCh = cancelCh
 }
 
 func (m *asyncOpManager) Reject() {
@@ -30,6 +35,9 @@ func (m *asyncOpManager) Wait(op gocbcore.PendingOp, err error) error {
 	case <-m.signal:
 		// Good to go
 	case <-m.ctx.Done():
+		op.Cancel()
+		<-m.signal
+	case <-m.cancelCh:
 		op.Cancel()
 		<-m.signal
 	}
