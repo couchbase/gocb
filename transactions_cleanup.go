@@ -89,7 +89,7 @@ type TransactionsCleaner interface {
 
 // NewTransactionsCleaner returns a TransactionsCleaner implementation.
 // Internal: This should never be used and is not supported.
-func NewTransactionsCleaner(agentProvider gocbcore.TransactionsBucketAgentProviderFn, config *TransactionsConfig) TransactionsCleaner {
+func NewTransactionsCleaner(bucketProvider TransactionsBucketProviderFn, config *TransactionsConfig) TransactionsCleaner {
 	cleanupHooksWrapper := &coreTxnsCleanupHooksWrapper{
 		CleanupHooks: config.Internal.CleanupHooks,
 	}
@@ -98,7 +98,19 @@ func NewTransactionsCleaner(agentProvider gocbcore.TransactionsBucketAgentProvid
 	corecfg.DurabilityLevel = gocbcore.TransactionDurabilityLevel(config.DurabilityLevel)
 	corecfg.Internal.Hooks = nil
 	corecfg.CleanupQueueSize = config.CleanupConfig.CleanupQueueSize
-	corecfg.BucketAgentProvider = agentProvider
+	corecfg.BucketAgentProvider = func(bucketName string) (*gocbcore.Agent, string, error) {
+		bucket, user, err := bucketProvider(bucketName)
+		if err != nil {
+			return nil, "", err
+		}
+
+		agent, err := bucket.Internal().IORouter()
+		if err != nil {
+			return nil, "", err
+		}
+
+		return agent, user, nil
+	}
 	corecfg.Internal.CleanUpHooks = cleanupHooksWrapper
 	corecfg.Internal.NumATRs = config.Internal.NumATRs
 	corecfg.KeyValueTimeout = 2500 * time.Millisecond
@@ -245,9 +257,16 @@ func (clcw *coreLostTransactionsCleanerWrapper) Close() {
 	clcw.wrapped.Close()
 }
 
+// TransactionsBucketProviderFn is a function used to provide a bucket for
+// a particular bucket by name.
+// Internal: This should never be used and is not supported.
+type TransactionsBucketProviderFn func(bucket string) (*Bucket, string, error)
+
+type TransactionsLostCleanupKeyspaceProviderFn func() ([]TransactionKeyspace, error)
+
 // NewLostTransactionsCleanup returns a LostTransactionsCleaner implementation.
 // Internal: This should never be used and is not supported.
-func NewLostTransactionsCleanup(agentProvider gocbcore.TransactionsBucketAgentProviderFn, locationProvider gocbcore.TransactionsLostCleanupATRLocationProviderFn,
+func NewLostTransactionsCleanup(bucketProvider TransactionsBucketProviderFn, locationProvider TransactionsLostCleanupKeyspaceProviderFn,
 	config *TransactionsConfig) LostTransactionsCleaner {
 	cleanupHooksWrapper := &coreTxnsClientRecordHooksWrapper{
 		coreTxnsCleanupHooksWrapper: coreTxnsCleanupHooksWrapper{
@@ -260,8 +279,36 @@ func NewLostTransactionsCleanup(agentProvider gocbcore.TransactionsBucketAgentPr
 	corecfg.DurabilityLevel = gocbcore.TransactionDurabilityLevel(config.DurabilityLevel)
 	corecfg.Internal.Hooks = nil
 	corecfg.CleanupQueueSize = config.CleanupConfig.CleanupQueueSize
-	corecfg.BucketAgentProvider = agentProvider
-	corecfg.LostCleanupATRLocationProvider = locationProvider
+	corecfg.BucketAgentProvider = func(bucketName string) (*gocbcore.Agent, string, error) {
+		bucket, user, err := bucketProvider(bucketName)
+		if err != nil {
+			return nil, "", err
+		}
+
+		agent, err := bucket.Internal().IORouter()
+		if err != nil {
+			return nil, "", err
+		}
+
+		return agent, user, nil
+	}
+	corecfg.LostCleanupATRLocationProvider = func() ([]gocbcore.TransactionLostATRLocation, error) {
+		locations, err := locationProvider()
+		if err != nil {
+			return nil, err
+		}
+
+		atrLocs := make([]gocbcore.TransactionLostATRLocation, len(locations))
+		for i, loc := range locations {
+			atrLocs[i] = gocbcore.TransactionLostATRLocation{
+				BucketName:     loc.BucketName,
+				CollectionName: loc.CollectionName,
+				ScopeName:      loc.ScopeName,
+			}
+		}
+
+		return atrLocs, nil
+	}
 	corecfg.Internal.CleanUpHooks = cleanupHooksWrapper
 	corecfg.Internal.ClientRecordHooks = cleanupHooksWrapper
 	corecfg.Internal.NumATRs = config.Internal.NumATRs

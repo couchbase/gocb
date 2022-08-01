@@ -165,13 +165,8 @@ func (tfe TransactionOperationFailedError) Rollback() bool {
 }
 
 // ToRaise signals which error type should be raised to the application.
-func (tfe TransactionOperationFailedError) ToRaise() gocbcore.TransactionErrorReason {
-	return tfe.shouldRaise
-}
-
-// ErrorClass is the class of error which caused this error.
-func (tfe *TransactionOperationFailedError) ErrorClass() gocbcore.TransactionErrorClass {
-	return tfe.errorClass
+func (tfe TransactionOperationFailedError) ToRaise() TransactionErrorReason {
+	return TransactionErrorReason(tfe.shouldRaise)
 }
 
 func createTransactionOperationFailedError(err error) error {
