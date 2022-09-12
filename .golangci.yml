@@ -5,13 +5,16 @@ run:
 linters:
   enable:
     - bodyclose
-    - golint
+    - revive
     - gosec
     - unconvert
 linters-settings:
-  golint:
+  revive:
     set-exit-status: true
     min-confidence: 0.81
+    rules:
+      - name: var-naming
+        arguments: [["URL"]]
   errcheck:
     check-type-assertions: true
     check-blank: true
