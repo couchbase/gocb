@@ -245,7 +245,12 @@ func (c *TransactionAttemptContext) insert(collection *Collection, id string, va
 				coreRes: res,
 			}
 		}
-		errOut = createTransactionOperationFailedError(err)
+		// Handling for ExtInsertExisting
+		if errors.Is(err, gocbcore.ErrDocumentExists) {
+			errOut = err
+		} else {
+			errOut = createTransactionOperationFailedError(err)
+		}
 		waitCh <- struct{}{}
 	})
 	if err != nil {

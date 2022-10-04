@@ -279,9 +279,7 @@ func (t *Transactions) run(logicFn AttemptFunc, perConfig *TransactionOptions, s
 			continue
 		}
 
-		// We don't want the TOF to be the cause in the final error we return so we unwrap it. Right now it's not
-		// actually possible for this error to not be a TOF but a) best to handle the case where it somehow isn't and
-		// b) this logic will be required for single query transactions (where a non TOF can be surfaced) anyway.
+		// We don't want the TOF to be the cause in the final error we return so we unwrap it.
 		var finalErrCause error
 		if finalErr != nil {
 			var txnErr *TransactionOperationFailedError
