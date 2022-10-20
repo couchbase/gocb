@@ -51,9 +51,8 @@ type IoConfig struct {
 
 // TimeoutsConfig specifies options for various operation timeouts.
 type TimeoutsConfig struct {
-	ConnectTimeout time.Duration
-	KVTimeout      time.Duration
-	// Volatile: This option is subject to change at any time.
+	ConnectTimeout    time.Duration
+	KVTimeout         time.Duration
 	KVDurableTimeout  time.Duration
 	ViewTimeout       time.Duration
 	QueryTimeout      time.Duration
