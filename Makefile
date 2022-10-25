@@ -24,17 +24,17 @@ updatetestcases:
 	git submodule update --remote --init --recursive
 
 updatemocks:
-	mockery -name connectionManager -output . -testonly -inpkg
-	mockery -name kvProvider -output . -testonly -inpkg
-	mockery -name httpProvider -output . -testonly -inpkg
-	mockery -name diagnosticsProvider -output . -testonly -inpkg
-	mockery -name mgmtProvider -output . -testonly -inpkg
-	mockery -name analyticsProvider -output . -testonly -inpkg
-	mockery -name queryProvider -output . -testonly -inpkg
-	mockery -name searchProvider -output . -testonly -inpkg
-	mockery -name viewProvider -output . -testonly -inpkg
-	mockery -name waitUntilReadyProvider -output . -testonly -inpkg
-	mockery -name kvCapabilityVerifier -output . -testonly -inpkg
+	mockery --name=connectionManager --output=. --testonly --inpackage
+	mockery --name=kvProvider --output=. --testonly --inpackage
+	mockery --name=httpProvider --output=. --testonly --inpackage
+	mockery --name=diagnosticsProvider --output=. --testonly --inpackage
+	mockery --name=mgmtProvider --output=. --testonly --inpackage
+	mockery --name=analyticsProvider --output=. --testonly --inpackage
+	mockery --name=queryProvider --output=. --testonly --inpackage
+	mockery --name=searchProvider --output=. --testonly --inpackage
+	mockery --name=viewProvider --output=. --testonly --inpackage
+	mockery --name=waitUntilReadyProvider --output=. --testonly --inpackage
+	mockery --name=kvCapabilityVerifier --output=. --testonly --inpackage
 	# pendingOp is manually mocked
 
 .PHONY: all test devsetup fasttest lint cover check bench updatetestcases updatemocks
