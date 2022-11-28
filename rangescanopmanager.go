@@ -304,7 +304,7 @@ func (m *rangeScanOpManager) Scan() (*ScanResult, error) {
 			// If we're doing a sampling scan then we need to only write data into the channel
 			// if we haven't seen the number of items that the user requested. Otherwise
 			// we need to cancel the streams and iterate over them until they close.
-			if item != nil && (limit == 0 || numItems <= limit) {
+			if item != nil && (limit == 0 || numItems < limit) {
 				numItems++
 				m.dataCh <- item
 			}
