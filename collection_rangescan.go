@@ -2,8 +2,10 @@ package gocb
 
 import (
 	"context"
-	"github.com/couchbase/gocbcore/v10"
+	"math/rand"
 	"time"
+
+	"github.com/couchbase/gocbcore/v10"
 )
 
 // ScanOptions are the set of options available to the Scan operation.
@@ -19,7 +21,7 @@ type ScanOptions struct {
 	// UNCOMMITTED: This API may change in the future.
 	Context context.Context
 
-	WithoutContent bool
+	IDsOnly        bool
 	ConsistentWith *MutationState
 	Sort           ScanSort
 
@@ -52,15 +54,15 @@ type ScanTerm struct {
 }
 
 // ScanTermMinimum represents the minimum value that a ScanTerm can represent.
-func ScanTermMinimum() ScanTerm {
-	return ScanTerm{
+func ScanTermMinimum() *ScanTerm {
+	return &ScanTerm{
 		Term: "\x00",
 	}
 }
 
 // ScanTermMaximum represents the maximum value that a ScanTerm can represent.
-func ScanTermMaximum() ScanTerm {
-	return ScanTerm{
+func ScanTermMaximum() *ScanTerm {
+	return &ScanTerm{
 		Term: "\xFF",
 	}
 }
@@ -70,29 +72,48 @@ type ScanType interface {
 	isScanType()
 }
 
+// NewRangeScanForPrefix creates a new range scan for the given prefix, starting at the prefix and ending at the prefix
+// plus maximum.
+// VOLATILE: This API is subject to change at any time.
+func NewRangeScanForPrefix(prefix string) RangeScan {
+	return RangeScan{
+		From: &ScanTerm{
+			Term: prefix,
+		},
+		To: &ScanTerm{
+			Term: prefix + "\xFF",
+		},
+	}
+}
+
 // RangeScan indicates that the Scan operation should scan a range of keys.
 type RangeScan struct {
-	From ScanTerm
-	To   ScanTerm
+	From *ScanTerm
+	To   *ScanTerm
 }
 
 func (rs RangeScan) isScanType() {}
 
 func (rs RangeScan) toCore() (*gocbcore.RangeScanCreateRangeScanConfig, error) {
-	if rs.To.Term == "" || rs.From.Term == "" {
-		return nil, makeInvalidArgumentsError("range scan term to and from must both be set")
+	to := rs.To
+	if to == nil {
+		to = ScanTermMaximum()
+	}
+	from := rs.From
+	if from == nil {
+		from = ScanTermMinimum()
 	}
 
 	rangeOptions := &gocbcore.RangeScanCreateRangeScanConfig{}
-	if rs.To.Exclusive {
-		rangeOptions.ExclusiveStart = []byte(rs.From.Term)
+	if from.Exclusive {
+		rangeOptions.ExclusiveStart = []byte(from.Term)
 	} else {
-		rangeOptions.Start = []byte(rs.From.Term)
+		rangeOptions.Start = []byte(from.Term)
 	}
-	if rs.From.Exclusive {
-		rangeOptions.ExclusiveEnd = []byte(rs.To.Term)
+	if to.Exclusive {
+		rangeOptions.ExclusiveEnd = []byte(to.Term)
 	} else {
-		rangeOptions.End = []byte(rs.To.Term)
+		rangeOptions.End = []byte(to.Term)
 	}
 
 	return rangeOptions, nil
@@ -111,9 +132,14 @@ func (rs SamplingScan) toCore() (*gocbcore.RangeScanCreateRandomSamplingConfig, 
 		return nil, makeInvalidArgumentsError("sampling scan limit must be greater than 0")
 	}
 
+	seed := rs.Seed
+	if rs.Seed == 0 {
+		seed = rand.Uint64() // #nosec G404
+	}
+
 	return &gocbcore.RangeScanCreateRandomSamplingConfig{
 		Samples: rs.Limit,
-		Seed:    rs.Seed,
+		Seed:    seed,
 	}, nil
 }
 
@@ -149,7 +175,7 @@ func (c *Collection) Scan(scanType ScanType, opts *ScanOptions) (*ScanResult, er
 	}
 
 	opm, err := c.newRangeScanOpManager(scanType, numVbuckets, agent, opts.ParentSpan, opts.ConsistentWith,
-		opts.WithoutContent, opts.Sort)
+		opts.IDsOnly, opts.Sort)
 	if err != nil {
 		return nil, err
 	}

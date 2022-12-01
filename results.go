@@ -424,6 +424,11 @@ type ScanResultItem struct {
 	keysOnly   bool
 }
 
+// IDOnly returns whether the scan generating this item was made with IDsOnly set.
+func (sri *ScanResultItem) IDOnly() bool {
+	return sri.keysOnly
+}
+
 // ID returns the id of the item.
 func (sri *ScanResultItem) ID() string {
 	return sri.id
@@ -435,10 +440,10 @@ func (sri *ScanResultItem) Cas() Cas {
 }
 
 // Content assigns the value of the result into the valuePtr using default decoding.
-// If WithoutContent was set on the ScanOptions then this will return an error.
+// If IDsOnly was set on the ScanOptions then this will return an error.
 func (sri *ScanResultItem) Content(valuePtr interface{}) error {
 	if sri.keysOnly {
-		return makeInvalidArgumentsError("scan was called with WithoutContent set to true, content can never be set")
+		return makeInvalidArgumentsError("scan was called with IDsOnly set to true, content can never be set")
 	}
 	return sri.transcoder.Decode(sri.contents, sri.flags, valuePtr)
 }

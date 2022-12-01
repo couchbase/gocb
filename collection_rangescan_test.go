@@ -82,7 +82,7 @@ func (suite *IntegrationTestSuite) verifyRangeScanTracing(topSpan *testSpan, num
 	suite.Assert().Equal("kv_scan", topSpan.Tags[spanAttribServiceKey])
 	suite.Assert().Equal("range_scan", topSpan.Tags[spanAttribOperationKey])
 	suite.Assert().Equal(numPartitions, topSpan.Tags["num_partitions"])
-	suite.Assert().Equal(opts.WithoutContent, topSpan.Tags["without_content"])
+	suite.Assert().Equal(opts.IDsOnly, topSpan.Tags["without_content"])
 	suite.Assert().True(topSpan.Finished)
 	suite.Assert().Nil(topSpan.ParentContext)
 	switch st := scanType.(type) {
@@ -124,7 +124,7 @@ func (suite *IntegrationTestSuite) verifyRangeScanTracing(topSpan *testSpan, num
 						suite.Assert().True(s.Finished)
 						suite.Assert().Equal(partitionSpan.Context(), s.ParentContext)
 						numTags := 2
-						suite.Assert().Equal(opts.WithoutContent, s.Tags["without_content"])
+						suite.Assert().Equal(opts.IDsOnly, s.Tags["without_content"])
 						switch st := scanType.(type) {
 						case RangeScan:
 							suite.Assert().Equal("range", s.Tags["scan_type"])
@@ -175,10 +175,10 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithContent() {
 		Expiry: 30 * time.Second,
 	})
 	scan := RangeScan{
-		From: ScanTerm{
+		From: &ScanTerm{
 			Term: "rangescanwithcontent",
 		},
-		To: ScanTerm{
+		To: &ScanTerm{
 			Term: "rangescanwithcontent\xFF",
 		},
 	}
@@ -236,15 +236,15 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithoutContent() {
 	})
 
 	scan := RangeScan{
-		From: ScanTerm{
+		From: &ScanTerm{
 			Term: "rangescanwithoutcontent",
 		},
-		To: ScanTerm{
+		To: &ScanTerm{
 			Term: "rangescanwithoutcontent\xFF",
 		},
 	}
 	opts := &ScanOptions{
-		WithoutContent: true,
+		IDsOnly: true,
 	}
 
 	res, err := globalCollection.Scan(scan, opts)
@@ -298,10 +298,10 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithContentBinaryTranscoder
 		Transcoder: tcoder,
 	})
 	scan := RangeScan{
-		From: ScanTerm{
+		From: &ScanTerm{
 			Term: "rangescanwithbinarycoder",
 		},
-		To: ScanTerm{
+		To: &ScanTerm{
 			Term: "rangescanwithbinarycoder\xFF",
 		},
 	}
@@ -365,15 +365,15 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeCancellation() {
 	})
 
 	scan := RangeScan{
-		From: ScanTerm{
+		From: &ScanTerm{
 			Term: "rangekeysonly",
 		},
-		To: ScanTerm{
+		To: &ScanTerm{
 			Term: "rangekeysonly\xFF",
 		},
 	}
 	opts := &ScanOptions{
-		WithoutContent: true,
+		IDsOnly:        true,
 		BatchItemLimit: 1,
 	}
 
@@ -556,15 +556,15 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeMutationState() {
 	})
 
 	scan := RangeScan{
-		From: ScanTerm{
+		From: &ScanTerm{
 			Term: "rangescanmutationstate",
 		},
-		To: ScanTerm{
+		To: &ScanTerm{
 			Term: "rangescanmutationstate\xFF",
 		},
 	}
 	opts := &ScanOptions{
-		WithoutContent: true,
+		IDsOnly:        true,
 		ConsistentWith: mutationState,
 	}
 
@@ -616,8 +616,8 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeCtxCancelBeforeResults() {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	opts := &ScanOptions{
-		WithoutContent: true,
-		Context:        ctx,
+		IDsOnly: true,
+		Context: ctx,
 	}
 
 	_, err := globalCollection.Scan(scan, opts)
@@ -633,12 +633,67 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeTimeoutBeforeResults() {
 		To:   ScanTermMaximum(),
 	}
 	opts := &ScanOptions{
-		WithoutContent: true,
-		Timeout:        1 * time.Nanosecond,
+		IDsOnly: true,
+		Timeout: 1 * time.Nanosecond,
 	}
 
 	_, err := globalCollection.Scan(scan, opts)
 	suite.Require().NotNil(err, err)
 
 	suite.Require().ErrorIs(err, ErrTimeout)
+}
+
+func (suite *IntegrationTestSuite) TestRangeScanRangeEmoji() {
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(RangeScanFeature)
+
+	docIDs := map[string]struct{}{"\U0001F600": {}}
+
+	value := makeBinaryValue(1)
+
+	mutationState := upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
+		Expiry: 30 * time.Second,
+	})
+
+	scan := NewRangeScanForPrefix("\U0001F600")
+	opts := &ScanOptions{
+		IDsOnly:        true,
+		ConsistentWith: mutationState,
+	}
+
+	res, err := globalCollection.Scan(scan, opts)
+	suite.Require().Nil(err, err)
+
+	ids := make(map[string]struct{})
+	for {
+		d := res.Next()
+		if d == nil {
+			break
+		}
+
+		suite.Assert().Zero(d.Cas())
+		var v interface{}
+		err := d.Content(&v)
+		suite.Assert().ErrorIs(err, ErrInvalidArgument)
+		suite.Assert().Zero(d.ExpiryTime())
+
+		ids[d.ID()] = struct{}{}
+	}
+
+	suite.Assert().Len(ids, len(docIDs))
+	for id := range docIDs {
+		suite.Assert().Contains(ids, id)
+	}
+
+	err = res.Err()
+	suite.Require().Nil(err, err)
+
+	numVbuckets := suite.numVbuckets()
+
+	suite.Require().Contains(globalTracer.GetSpans(), nil)
+	nilParents := globalTracer.GetSpans()[nil]
+	suite.Require().Equal(len(nilParents), 1)
+	suite.verifyRangeScanTracing(nilParents[0], numVbuckets, scan, globalScope.Name(), globalCollection.Name(), opts)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "range_scan", 1, false)
 }
