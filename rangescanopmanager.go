@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"math/rand"
 	"sync/atomic"
 	"time"
 
@@ -343,38 +344,58 @@ func (c *Collection) newRangeScanOpManager(scanType ScanType, numVbuckets int, a
 	var rangeOptions *gocbcore.RangeScanCreateRangeScanConfig
 	var samplingOptions *gocbcore.RangeScanCreateRandomSamplingConfig
 
+	setRangeScanOpts := func(st RangeScan) error {
+		if st.To == nil {
+			st.To = ScanTermMaximum()
+		}
+		if st.From == nil {
+			st.From = ScanTermMinimum()
+		}
+
+		span.SetAttribute("scan_type", "range")
+		span.SetAttribute("from_term", st.From.Term)
+		span.SetAttribute("to_term", st.To.Term)
+		var err error
+		rangeOptions, err = st.toCore()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	setSamplingScanOpts := func(st SamplingScan) error {
+		if st.Seed == 0 {
+			st.Seed = rand.Uint64() // #nosec G404
+		}
+		span.SetAttribute("scan_type", "sampling")
+		span.SetAttribute("limit", st.Limit)
+		span.SetAttribute("seed", st.Seed)
+		var err error
+		samplingOptions, err = st.toCore()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
 	var err error
 	switch st := scanType.(type) {
 	case RangeScan:
-		span.SetAttribute("scan_type", "range")
-		span.SetAttribute("from_term", st.From.Term)
-		span.SetAttribute("to_term", st.To.Term)
-		rangeOptions, err = st.toCore()
-		if err != nil {
+		if err := setRangeScanOpts(st); err != nil {
 			return nil, err
 		}
 	case *RangeScan:
-		span.SetAttribute("scan_type", "range")
-		span.SetAttribute("from_term", st.From.Term)
-		span.SetAttribute("to_term", st.To.Term)
-		rangeOptions, err = st.toCore()
-		if err != nil {
+		if err := setRangeScanOpts(*st); err != nil {
 			return nil, err
 		}
 	case SamplingScan:
-		span.SetAttribute("scan_type", "sampling")
-		span.SetAttribute("limit", st.Limit)
-		span.SetAttribute("seed", st.Seed)
-		samplingOptions, err = st.toCore()
-		if err != nil {
+		if err := setSamplingScanOpts(st); err != nil {
 			return nil, err
 		}
 	case *SamplingScan:
-		span.SetAttribute("scan_type", "sampling")
-		span.SetAttribute("limit", st.Limit)
-		span.SetAttribute("seed", st.Seed)
-		samplingOptions, err = st.toCore()
-		if err != nil {
+		if err := setSamplingScanOpts(*st); err != nil {
 			return nil, err
 		}
 	default:

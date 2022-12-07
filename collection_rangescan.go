@@ -2,7 +2,6 @@ package gocb
 
 import (
 	"context"
-	"math/rand"
 	"time"
 
 	"github.com/couchbase/gocbcore/v10"
@@ -96,13 +95,7 @@ func (rs RangeScan) isScanType() {}
 
 func (rs RangeScan) toCore() (*gocbcore.RangeScanCreateRangeScanConfig, error) {
 	to := rs.To
-	if to == nil {
-		to = ScanTermMaximum()
-	}
 	from := rs.From
-	if from == nil {
-		from = ScanTermMinimum()
-	}
 
 	rangeOptions := &gocbcore.RangeScanCreateRangeScanConfig{}
 	if from.Exclusive {
@@ -132,14 +125,9 @@ func (rs SamplingScan) toCore() (*gocbcore.RangeScanCreateRandomSamplingConfig, 
 		return nil, makeInvalidArgumentsError("sampling scan limit must be greater than 0")
 	}
 
-	seed := rs.Seed
-	if rs.Seed == 0 {
-		seed = rand.Uint64() // #nosec G404
-	}
-
 	return &gocbcore.RangeScanCreateRandomSamplingConfig{
 		Samples: rs.Limit,
-		Seed:    seed,
+		Seed:    rs.Seed,
 	}, nil
 }
 
