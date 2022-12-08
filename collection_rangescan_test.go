@@ -25,7 +25,7 @@ func makeDocIDs(numIDs int, prefix string) map[string]struct{} {
 	return docIDs
 }
 
-func upsertAndCreateMutationState(collection *Collection, docIDs map[string]struct{}, value interface{}, opts *UpsertOptions) *MutationState {
+func (suite *IntegrationTestSuite) upsertAndCreateMutationState(collection *Collection, docIDs map[string]struct{}, value interface{}, opts *UpsertOptions) *MutationState {
 	mutationState := NewMutationState()
 	var wg sync.WaitGroup
 	wg.Add(len(docIDs))
@@ -33,9 +33,7 @@ func upsertAndCreateMutationState(collection *Collection, docIDs map[string]stru
 	for id := range docIDs {
 		go func(id string) {
 			res, err := collection.Upsert(id, value, opts)
-			if err != nil {
-				panic(err)
-			}
+			suite.Require().Nil(err, err)
 
 			ch <- res.MutationToken()
 			wg.Done()
@@ -171,7 +169,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithContent() {
 
 	value := "test"
 
-	upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
+	suite.upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
 		Expiry: 30 * time.Second,
 	})
 	scan := RangeScan{
@@ -231,7 +229,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithoutContent() {
 
 	value := makeBinaryValue(1)
 
-	upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
+	suite.upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
 		Expiry: 30 * time.Second,
 	})
 
@@ -293,7 +291,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithContentBinaryTranscoder
 	value := makeBinaryValue(1)
 	tcoder := NewRawBinaryTranscoder()
 
-	upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
+	suite.upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
 		Expiry:     30 * time.Second,
 		Transcoder: tcoder,
 	})
@@ -360,7 +358,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeCancellation() {
 
 	value := makeBinaryValue(1)
 
-	upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
+	suite.upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
 		Expiry: 30 * time.Second,
 	})
 
@@ -423,7 +421,7 @@ func (suite *IntegrationTestSuite) TestRangeScanSampling() {
 	value := "test"
 
 	col := globalBucket.Scope(scopeName).Collection(scopeName)
-	upsertAndCreateMutationState(col, docIDs, value, &UpsertOptions{
+	suite.upsertAndCreateMutationState(col, docIDs, value, &UpsertOptions{
 		Expiry: 30 * time.Second,
 	})
 	scan := SamplingScan{
@@ -492,7 +490,7 @@ func (suite *IntegrationTestSuite) TestRangeScanSamplingMutationState() {
 	value := "test"
 
 	col := globalBucket.Scope(scopeName).Collection(scopeName)
-	mutationState := upsertAndCreateMutationState(col, docIDs, value, &UpsertOptions{
+	mutationState := suite.upsertAndCreateMutationState(col, docIDs, value, &UpsertOptions{
 		Expiry: 30 * time.Second,
 	})
 	scan := SamplingScan{
@@ -551,7 +549,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeMutationState() {
 
 	value := makeBinaryValue(1)
 
-	mutationState := upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
+	mutationState := suite.upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
 		Expiry: 30 * time.Second,
 	})
 
@@ -651,7 +649,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeEmoji() {
 
 	value := makeBinaryValue(1)
 
-	mutationState := upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
+	mutationState := suite.upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
 		Expiry: 30 * time.Second,
 	})
 
