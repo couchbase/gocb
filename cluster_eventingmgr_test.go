@@ -12,14 +12,13 @@ func (suite *IntegrationTestSuite) TestEventingManagerUpsertGetDrop() {
 	suite.skipIfUnsupported(EventingFunctionManagerFeature)
 
 	mgr := globalCluster.Cluster.EventingFunctions()
-	suite.mustCreateScope("eventing")
-	defer suite.dropScope("eventing")
-	suite.mustCreateCollection("eventing", "source")
-	defer suite.dropCollection("eventing", "source")
-	suite.mustCreateCollection("eventing", "meta")
-	defer suite.dropCollection("eventing", "meta")
+	scopeName := uuid.NewString()
+	suite.mustCreateScope(scopeName)
+	defer suite.dropScope(scopeName)
+	suite.mustCreateCollection(scopeName, "source")
+	suite.mustCreateCollection(scopeName, "meta")
 
-	suite.mustWaitForEventingCollections([]string{"source", "meta"})
+	suite.mustWaitForEventingCollections(scopeName, []string{"source", "meta"})
 
 	fnName := uuid.New().String()
 	expectedFn := EventingFunction{
@@ -57,12 +56,12 @@ func (suite *IntegrationTestSuite) TestEventingManagerUpsertGetDrop() {
 		},
 		MetadataKeyspace: EventingFunctionKeyspace{
 			Bucket:     globalBucket.Name(),
-			Scope:      "eventing",
+			Scope:      scopeName,
 			Collection: "meta",
 		},
 		SourceKeyspace: EventingFunctionKeyspace{
 			Bucket:     globalBucket.Name(),
-			Scope:      "eventing",
+			Scope:      scopeName,
 			Collection: "source",
 		},
 	}
@@ -141,14 +140,13 @@ func (suite *IntegrationTestSuite) TestEventingManagerUnknownFunction() {
 	suite.skipIfUnsupported(EventingFunctionManagerFeature)
 
 	mgr := globalCluster.Cluster.EventingFunctions()
-	suite.mustCreateScope("eventing")
-	defer suite.dropScope("eventing")
-	suite.mustCreateCollection("eventing", "source")
-	defer suite.dropCollection("eventing", "source")
-	suite.mustCreateCollection("eventing", "meta")
-	defer suite.dropCollection("eventing", "meta")
+	scopeName := uuid.NewString()
+	suite.mustCreateScope(scopeName)
+	defer suite.dropScope(scopeName)
+	suite.mustCreateCollection(scopeName, "source")
+	suite.mustCreateCollection(scopeName, "meta")
 
-	suite.mustWaitForEventingCollections([]string{"source", "meta"})
+	suite.mustWaitForEventingCollections(scopeName, []string{"source", "meta"})
 
 	fnName := uuid.New().String()
 	fn, err := mgr.GetFunction(fnName, nil)
@@ -190,14 +188,13 @@ func (suite *IntegrationTestSuite) TestEventingManagerInvalidCode() {
 	suite.skipIfUnsupported(EventingFunctionManagerFeature)
 
 	mgr := globalCluster.Cluster.EventingFunctions()
-	suite.mustCreateScope("eventing")
-	defer suite.dropScope("eventing")
-	suite.mustCreateCollection("eventing", "source")
-	defer suite.dropCollection("eventing", "source")
-	suite.mustCreateCollection("eventing", "meta")
-	defer suite.dropCollection("eventing", "meta")
+	scopeName := uuid.NewString()
+	suite.mustCreateScope(scopeName)
+	defer suite.dropScope(scopeName)
+	suite.mustCreateCollection(scopeName, "source")
+	suite.mustCreateCollection(scopeName, "meta")
 
-	suite.mustWaitForEventingCollections([]string{"source", "meta"})
+	suite.mustWaitForEventingCollections(scopeName, []string{"source", "meta"})
 
 	fnName := uuid.New().String()
 	expectedFn := EventingFunction{
@@ -205,12 +202,12 @@ func (suite *IntegrationTestSuite) TestEventingManagerInvalidCode() {
 		Code: `feefifofum`,
 		MetadataKeyspace: EventingFunctionKeyspace{
 			Bucket:     globalBucket.Name(),
-			Scope:      "eventing",
+			Scope:      scopeName,
 			Collection: "meta",
 		},
 		SourceKeyspace: EventingFunctionKeyspace{
 			Bucket:     globalBucket.Name(),
-			Scope:      "eventing",
+			Scope:      scopeName,
 			Collection: "source",
 		},
 	}
@@ -231,12 +228,12 @@ func (suite *IntegrationTestSuite) TestEventingManagerCollectionNotFound() {
 	suite.skipIfUnsupported(EventingFunctionManagerFeature)
 
 	mgr := globalCluster.Cluster.EventingFunctions()
-	suite.mustCreateScope("eventing")
-	defer suite.dropScope("eventing")
-	suite.mustCreateCollection("eventing", "source")
-	defer suite.dropCollection("eventing", "source")
+	scopeName := uuid.NewString()
+	suite.mustCreateScope(scopeName)
+	defer suite.dropScope(scopeName)
+	suite.mustCreateCollection(scopeName, "source")
 
-	suite.mustWaitForEventingCollections([]string{"source"})
+	suite.mustWaitForEventingCollections(scopeName, []string{"source"})
 
 	fnName := uuid.New().String()
 	expectedFn := EventingFunction{
@@ -244,12 +241,12 @@ func (suite *IntegrationTestSuite) TestEventingManagerCollectionNotFound() {
 		Code: `feefifofum`,
 		MetadataKeyspace: EventingFunctionKeyspace{
 			Bucket:     globalBucket.Name(),
-			Scope:      "eventing",
+			Scope:      scopeName,
 			Collection: "idefinitelydontexist",
 		},
 		SourceKeyspace: EventingFunctionKeyspace{
 			Bucket:     globalBucket.Name(),
-			Scope:      "eventing",
+			Scope:      scopeName,
 			Collection: "source",
 		},
 	}
@@ -265,12 +262,12 @@ func (suite *IntegrationTestSuite) TestEventingManagerSameSourceAndMetaKeyspace(
 	suite.skipIfUnsupported(EventingFunctionManagerFeature)
 
 	mgr := globalCluster.Cluster.EventingFunctions()
-	suite.mustCreateScope("eventing")
-	defer suite.dropScope("eventing")
-	suite.mustCreateCollection("eventing", "source")
-	defer suite.dropCollection("eventing", "source")
+	scopeName := uuid.NewString()
+	suite.mustCreateScope(scopeName)
+	defer suite.dropScope(scopeName)
+	suite.mustCreateCollection(scopeName, "source")
 
-	suite.mustWaitForEventingCollections([]string{"source"})
+	suite.mustWaitForEventingCollections(scopeName, []string{"source"})
 
 	fnName := uuid.New().String()
 	expectedFn := EventingFunction{
@@ -278,12 +275,12 @@ func (suite *IntegrationTestSuite) TestEventingManagerSameSourceAndMetaKeyspace(
 		Code: `feefifofum`,
 		MetadataKeyspace: EventingFunctionKeyspace{
 			Bucket:     globalBucket.Name(),
-			Scope:      "eventing",
+			Scope:      scopeName,
 			Collection: "source",
 		},
 		SourceKeyspace: EventingFunctionKeyspace{
 			Bucket:     globalBucket.Name(),
-			Scope:      "eventing",
+			Scope:      scopeName,
 			Collection: "source",
 		},
 	}
@@ -305,14 +302,13 @@ func (suite *IntegrationTestSuite) TestEventingManagerDeploysAndUndeploys() {
 	suite.skipIfUnsupported(EventingFunctionManagerMB52649Feature)
 
 	mgr := globalCluster.Cluster.EventingFunctions()
-	suite.mustCreateScope("eventing")
-	defer suite.dropScope("eventing")
-	suite.mustCreateCollection("eventing", "source")
-	defer suite.dropCollection("eventing", "source")
-	suite.mustCreateCollection("eventing", "meta")
-	defer suite.dropCollection("eventing", "meta")
+	scopeName := uuid.NewString()
+	suite.mustCreateScope(scopeName)
+	defer suite.dropScope(scopeName)
+	suite.mustCreateCollection(scopeName, "source")
+	suite.mustCreateCollection(scopeName, "meta")
 
-	suite.mustWaitForEventingCollections([]string{"source", "meta"})
+	suite.mustWaitForEventingCollections(scopeName, []string{"source", "meta"})
 
 	fnName := uuid.New().String()
 	expectedFn := EventingFunction{
@@ -321,12 +317,12 @@ func (suite *IntegrationTestSuite) TestEventingManagerDeploysAndUndeploys() {
 }`,
 		MetadataKeyspace: EventingFunctionKeyspace{
 			Bucket:     globalBucket.Name(),
-			Scope:      "eventing",
+			Scope:      scopeName,
 			Collection: "meta",
 		},
 		SourceKeyspace: EventingFunctionKeyspace{
 			Bucket:     globalBucket.Name(),
-			Scope:      "eventing",
+			Scope:      scopeName,
 			Collection: "source",
 		},
 	}
@@ -410,14 +406,13 @@ func (suite *IntegrationTestSuite) TestEventingManagerPausesAndResumes() {
 	suite.skipIfUnsupported(EventingFunctionManagerMB52649Feature)
 
 	mgr := globalCluster.Cluster.EventingFunctions()
-	suite.mustCreateScope("eventing")
-	defer suite.dropScope("eventing")
-	suite.mustCreateCollection("eventing", "source")
-	defer suite.dropCollection("eventing", "source")
-	suite.mustCreateCollection("eventing", "meta")
-	defer suite.dropCollection("eventing", "meta")
+	scopeName := uuid.NewString()
+	suite.mustCreateScope(scopeName)
+	defer suite.dropScope(scopeName)
+	suite.mustCreateCollection(scopeName, "source")
+	suite.mustCreateCollection(scopeName, "meta")
 
-	suite.mustWaitForEventingCollections([]string{"source", "meta"})
+	suite.mustWaitForEventingCollections(scopeName, []string{"source", "meta"})
 
 	fnName := uuid.New().String()
 	expectedFn := EventingFunction{
@@ -426,12 +421,12 @@ func (suite *IntegrationTestSuite) TestEventingManagerPausesAndResumes() {
 }`,
 		MetadataKeyspace: EventingFunctionKeyspace{
 			Bucket:     globalBucket.Name(),
-			Scope:      "eventing",
+			Scope:      scopeName,
 			Collection: "meta",
 		},
 		SourceKeyspace: EventingFunctionKeyspace{
 			Bucket:     globalBucket.Name(),
-			Scope:      "eventing",
+			Scope:      scopeName,
 			Collection: "source",
 		},
 	}
@@ -565,8 +560,8 @@ func (suite *IntegrationTestSuite) dropCollection(scope, collection string) {
 	suite.Require().Nil(err, err)
 }
 
-func (suite *IntegrationTestSuite) mustWaitForEventingCollections(collections []string) {
-	suite.mustWaitForCollections("eventing", collections)
+func (suite *IntegrationTestSuite) mustWaitForEventingCollections(scopeName string, collections []string) {
+	suite.mustWaitForCollections(scopeName, collections)
 }
 
 func (suite *IntegrationTestSuite) mustWaitForCollections(scopeName string, collections []string) {
