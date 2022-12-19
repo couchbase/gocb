@@ -81,7 +81,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 
 	suite.Assert().Len(indexNames, 1)
 
-	err = mgr.WatchIndexes(bucketName, []string{"testIndexDeferred"}, 10*time.Second, nil)
+	err = mgr.WatchIndexes(bucketName, []string{"testIndexDeferred"}, 60*time.Second, nil)
 	suite.Require().Nil(err, err)
 
 	indexes, err := mgr.GetAllIndexes(bucketName, nil)
@@ -230,7 +230,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 
 	suite.Assert().Len(indexNames, 1)
 
-	err = mgr.WatchIndexes(bucketName, []string{"testIndexDeferred"}, 30*time.Second, &WatchQueryIndexOptions{
+	err = mgr.WatchIndexes(bucketName, []string{"testIndexDeferred"}, 60*time.Second, &WatchQueryIndexOptions{
 		ScopeName:      scopeName,
 		CollectionName: colName,
 	})
