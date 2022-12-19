@@ -29,13 +29,27 @@ func (suite *IntegrationTestSuite) upsertAndCreateMutationState(collection *Coll
 	mutationState := NewMutationState()
 	var wg sync.WaitGroup
 	wg.Add(len(docIDs))
-	ch := make(chan *MutationToken, len(docIDs))
+
+	type tokenAndError struct {
+		token *MutationToken
+		err   error
+	}
+
+	ch := make(chan *tokenAndError, len(docIDs))
 	for id := range docIDs {
 		go func(id string) {
 			res, err := collection.Upsert(id, value, opts)
-			suite.Require().Nil(err, err)
+			if err != nil {
+				ch <- &tokenAndError{
+					err: err,
+				}
+				wg.Done()
+				return
+			}
 
-			ch <- res.MutationToken()
+			ch <- &tokenAndError{
+				token: res.MutationToken(),
+			}
 			wg.Done()
 		}(id)
 	}
@@ -47,7 +61,9 @@ func (suite *IntegrationTestSuite) upsertAndCreateMutationState(collection *Coll
 			break
 		}
 
-		mutationState.Add(*tok)
+		suite.Require().Nil(tok.err, tok.err)
+
+		mutationState.Add(*tok.token)
 	}
 
 	globalTracer.Reset()
