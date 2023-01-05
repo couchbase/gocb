@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"encoding/json"
+	"errors"
 
 	gocbcore "github.com/couchbase/gocbcore/v10"
 )
@@ -50,8 +51,22 @@ func maybeEnhanceCoreErr(err error) error {
 		}
 	}
 	if queryErr, ok := err.(*gocbcore.N1QLError); ok {
+		inner := queryErr.InnerError
+
+		if errors.Is(inner, ErrFeatureNotAvailable) {
+			if len(queryErr.Errors) > 0 {
+				desc := queryErr.Errors[0]
+				// We replace the gocbcore wrapped inner feature not available error with our own to provide gocb
+				// specific context for the user.
+				if desc.Code == 1197 {
+					inner = wrapError(ErrFeatureNotAvailable, "this server requires that scope.Query() is used rather than "+
+						"cluster.Query(), if this is a transaction then pass a Scope within TransactionQueryOptions")
+				}
+			}
+		}
+
 		return &QueryError{
-			InnerError:      queryErr.InnerError,
+			InnerError:      inner,
 			Statement:       queryErr.Statement,
 			ClientContextID: queryErr.ClientContextID,
 			Errors:          translateCoreQueryErrorDesc(queryErr.Errors),

@@ -15,6 +15,7 @@ type transactionAttempt struct {
 
 type transactionQueryState struct {
 	queryTarget string
+	scope       *Scope
 }
 
 // TransactionAttemptContext represents a single attempt to execute a transaction.

@@ -65,7 +65,7 @@ func (c *TransactionAttemptContext) getQueryMode(collection *Collection, id stri
 		}, c)
 	}
 
-	res, err := c.queryWrapperWrapper(nil, "EXECUTE __get", QueryOptions{
+	res, err := c.queryWrapperWrapper(c.queryState.scope, "EXECUTE __get", QueryOptions{
 		PositionalParameters: []interface{}{c.keyspace(collection), id},
 		Adhoc:                true,
 	}, "queryKvGet", false, true, b)
@@ -159,7 +159,7 @@ func (c *TransactionAttemptContext) replaceQueryMode(doc *TransactionGetResult, 
 
 	params := []interface{}{c.keyspace(doc.collection), doc.docID, valueBytes, json.RawMessage("{}")}
 
-	res, err := c.queryWrapperWrapper(nil, "EXECUTE __update", QueryOptions{
+	res, err := c.queryWrapperWrapper(c.queryState.scope, "EXECUTE __update", QueryOptions{
 		PositionalParameters: params,
 		Adhoc:                true,
 	}, "queryKvReplace", false, true, b)
@@ -234,7 +234,7 @@ func (c *TransactionAttemptContext) insertQueryMode(collection *Collection, id s
 
 	params := []interface{}{c.keyspace(collection), id, valueBytes, json.RawMessage("{}")}
 
-	res, err := c.queryWrapperWrapper(nil, "EXECUTE __insert", QueryOptions{
+	res, err := c.queryWrapperWrapper(c.queryState.scope, "EXECUTE __insert", QueryOptions{
 		PositionalParameters: params,
 		Adhoc:                true,
 	}, "queryKvInsert", false, true, b)
@@ -324,7 +324,7 @@ func (c *TransactionAttemptContext) removeQueryMode(doc *TransactionGetResult) e
 
 	params := []interface{}{c.keyspace(doc.collection), doc.docID, json.RawMessage("{}")}
 
-	_, err = c.queryWrapperWrapper(nil, "EXECUTE __delete", QueryOptions{
+	_, err = c.queryWrapperWrapper(c.queryState.scope, "EXECUTE __delete", QueryOptions{
 		PositionalParameters: params,
 		Adhoc:                true,
 	}, "queryKvRemove", false, true, b)
@@ -361,7 +361,7 @@ func (c *TransactionAttemptContext) commitQueryMode() error {
 		}, c)
 	}
 
-	_, err := c.queryWrapperWrapper(nil, "COMMIT", QueryOptions{
+	_, err := c.queryWrapperWrapper(c.queryState.scope, "COMMIT", QueryOptions{
 		Adhoc: true,
 	}, "queryCommit", false, true, nil)
 	c.txn.UpdateState(gocbcore.TransactionUpdateStateOptions{
@@ -401,7 +401,7 @@ func (c *TransactionAttemptContext) rollbackQueryMode() error {
 		}, c)
 	}
 
-	_, err := c.queryWrapperWrapper(nil, "ROLLBACK", QueryOptions{
+	_, err := c.queryWrapperWrapper(c.queryState.scope, "ROLLBACK", QueryOptions{
 		Adhoc: true,
 	}, "queryRollback", false, false, nil)
 	c.txn.UpdateState(gocbcore.TransactionUpdateStateOptions{
@@ -505,7 +505,7 @@ func (c *TransactionAttemptContext) queryWrapper(scope *Scope, statement string,
 
 			// queryBeginWork implicitly performs an existingErrorCheck and the call into Serialize on the gocbcore side
 			// will return an error if there have been any previously failed operations.
-			if err := c.queryBeginWork(); err != nil {
+			if err := c.queryBeginWork(scope); err != nil {
 				return nil, err
 			}
 		}
@@ -598,6 +598,11 @@ func (c *TransactionAttemptContext) queryWrapper(scope *Scope, statement string,
 		return nil, queryMaybeTranslateToTransactionsError(err, c)
 	}
 
+	// Store any scope for later operations.
+	if scope != nil && c.queryState.scope == nil {
+		c.queryState.scope = scope
+	}
+
 	var result *QueryResult
 	var queryErr error
 	if scope == nil {
@@ -617,7 +622,7 @@ func (c *TransactionAttemptContext) queryWrapper(scope *Scope, statement string,
 	return result, nil
 }
 
-func (c *TransactionAttemptContext) queryBeginWork() (errOut error) {
+func (c *TransactionAttemptContext) queryBeginWork(scope *Scope) (errOut error) {
 	c.logger.logInfof(c.attemptID, "Performing query begin work")
 	waitCh := make(chan struct{}, 1)
 	err := c.txn.SerializeAttempt(func(txdata []byte, err error) {
@@ -657,7 +662,7 @@ func (c *TransactionAttemptContext) queryBeginWork() (errOut error) {
 			)
 		}
 
-		res, err := c.queryWrapperWrapper(nil, "BEGIN WORK", QueryOptions{
+		res, err := c.queryWrapperWrapper(scope, "BEGIN WORK", QueryOptions{
 			ScanConsistency: c.queryConfig.ScanConsistency,
 			Raw:             raw,
 			Adhoc:           true,
