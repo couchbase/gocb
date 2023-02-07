@@ -364,7 +364,7 @@ func (suite *UnitTestSuite) collection(bucket, scope, collection string, provide
 		scope:          scope,
 
 		getKvProvider: suite.kvProvider(provider, nil),
-		timeoutsConfig: kvTimeoutsConfig{
+		timeoutsConfig: TimeoutsConfig{
 			KVTimeout: 2500 * time.Millisecond,
 		},
 		transcoder:           NewJSONTranscoder(),

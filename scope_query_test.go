@@ -38,7 +38,7 @@ func (suite *IntegrationTestSuite) setupScopeQuery() int {
 	_, err = globalScope.Query(fmt.Sprintf("CREATE PRIMARY INDEX ON `%s`", globalCollection.Name()), nil)
 	if err != nil {
 		mgr := globalCluster.QueryIndexes()
-		err = mgr.tryParseErrorMessage(err)
+		err = mgr.base.tryParseErrorMessage(err)
 		if !errors.Is(err, ErrIndexExists) {
 			suite.T().Fatalf("Failed to create index %v", err)
 		}

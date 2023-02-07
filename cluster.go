@@ -540,10 +540,12 @@ func (c *Cluster) AnalyticsIndexes() *AnalyticsIndexManager {
 // QueryIndexes returns a QueryIndexManager for managing query indexes.
 func (c *Cluster) QueryIndexes() *QueryIndexManager {
 	return &QueryIndexManager{
-		provider:      c,
-		globalTimeout: c.timeoutsConfig.ManagementTimeout,
-		tracer:        c.tracer,
-		meter:         c.meter,
+		base: &baseQueryIndexManager{
+			provider:      c,
+			globalTimeout: c.timeoutsConfig.ManagementTimeout,
+			tracer:        c.tracer,
+			meter:         c.meter,
+		},
 	}
 }
 
