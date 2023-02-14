@@ -131,10 +131,16 @@ func (suite *IntegrationTestSuite) TestUserManagerWithGroupsCrud() {
 		suite.T().Fatalf("Expected UpsertUser to not error: %v", err)
 	}
 
-	user, err := mgr.GetUser("barry", nil)
-	if err != nil {
-		suite.T().Fatalf("Expected GetUser to not error: %v", err)
-	}
+	var user *UserAndMetadata
+	suite.Eventuallyf(func() bool {
+		user, err = mgr.GetUser("barry", nil)
+		if err != nil {
+			suite.T().Logf("GetUser failed: %v", err)
+			return false
+		}
+
+		return true
+	}, 30*time.Second, 100*time.Millisecond, "GetUser failed to successfully return user")
 
 	expectedUserAndMeta := &UserAndMetadata{
 		Domain: "local",
