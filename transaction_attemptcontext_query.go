@@ -598,11 +598,6 @@ func (c *TransactionAttemptContext) queryWrapper(scope *Scope, statement string,
 		return nil, queryMaybeTranslateToTransactionsError(err, c)
 	}
 
-	// Store any scope for later operations.
-	if scope != nil && c.queryState.scope == nil {
-		c.queryState.scope = scope
-	}
-
 	var result *QueryResult
 	var queryErr error
 	if scope == nil {
@@ -646,7 +641,10 @@ func (c *TransactionAttemptContext) queryBeginWork(scope *Scope) (errOut error) 
 			return
 		}
 
-		c.queryState = &transactionQueryState{}
+		// Store any scope for later operations.
+		c.queryState = &transactionQueryState{
+			scope: scope,
+		}
 
 		cfg := c.txn.Config()
 		raw := make(map[string]interface{})
