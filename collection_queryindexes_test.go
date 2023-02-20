@@ -10,7 +10,6 @@ func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrud() {
 	suite.skipIfUnsupported(QueryIndexFeature)
 	suite.skipIfUnsupported(CollectionsFeature)
 
-	suite.dropAllIndexes()
 	bucketName := globalBucket.Name()
 
 	scopeName := uuid.NewString()[:6]
@@ -177,7 +176,6 @@ func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrudDefaultSco
 	err := mgr.CreatePrimaryIndex(&CreatePrimaryQueryIndexOptions{
 		IgnoreIfExists: false,
 	})
-	suite.Require().NotNil(err, err)
 	if !errors.Is(err, ErrIndexExists) {
 		suite.T().Fatalf("Expected index exists error but was %s", err)
 	}

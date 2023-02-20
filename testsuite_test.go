@@ -247,22 +247,32 @@ func (suite *IntegrationTestSuite) skipIfUnsupported(code FeatureCode) {
 func (suite *IntegrationTestSuite) dropAllIndexes() {
 	mgr := globalCluster.QueryIndexes()
 
-	indexes, err := mgr.GetAllIndexes(globalBucket.Name(), nil)
-	suite.Require().Nil(err, err)
+	var indexes []QueryIndex
+	// Due to various eventual consistencies issues around dropping scopes query can sometimes
+	// return us errors here.
+	success := suite.tryUntil(time.Now().Add(30*time.Second), 100*time.Millisecond, func() bool {
+		var err error
+		indexes, err = mgr.GetAllIndexes(globalBucket.Name(), nil)
+		if err != nil {
+			suite.T().Logf("Failed to get all indexes: %v", err)
+			return false
+		}
+
+		return true
+	})
+	suite.Require().True(success, "Failed to get all indexes in time")
 
 	for _, index := range indexes {
 		if index.IsPrimary {
-			err := mgr.DropPrimaryIndex(globalBucket.Name(), &DropPrimaryQueryIndexOptions{
+			mgr.DropPrimaryIndex(globalBucket.Name(), &DropPrimaryQueryIndexOptions{
 				CollectionName: index.CollectionName,
 				ScopeName:      index.ScopeName,
 			})
-			suite.Require().Nil(err, err)
 		} else {
-			err = mgr.DropIndex(globalBucket.Name(), index.Name, &DropQueryIndexOptions{
+			mgr.DropIndex(globalBucket.Name(), index.Name, &DropQueryIndexOptions{
 				CollectionName: index.CollectionName,
 				ScopeName:      index.ScopeName,
 			})
-			suite.Require().Nil(err, err)
 		}
 	}
 
