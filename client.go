@@ -3,8 +3,9 @@ package gocb
 import (
 	"crypto/x509"
 	"errors"
-	"github.com/couchbase/gocbcore/v10"
 	"sync"
+
+	"github.com/couchbase/gocbcore/v10"
 )
 
 type connectionManager interface {
@@ -67,7 +68,8 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 				UseOutOfOrderResponses: true,
 			},
 			KVConfig: gocbcore.KVConfig{
-				ConnectTimeout: cluster.timeoutsConfig.ConnectTimeout,
+				ConnectTimeout:       cluster.timeoutsConfig.ConnectTimeout,
+				ConnectionBufferSize: cluster.internalConfig.ConnectionBufferSize,
 			},
 			DefaultRetryStrategy: cluster.retryStrategyWrapper,
 			CircuitBreakerConfig: gocbcore.CircuitBreakerConfig{

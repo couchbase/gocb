@@ -100,7 +100,8 @@ type CompressionConfig struct {
 // items.
 // Internal: This should never be used and is not supported.
 type InternalConfig struct {
-	TLSRootCAProvider func() *x509.CertPool
+	TLSRootCAProvider    func() *x509.CertPool
+	ConnectionBufferSize uint
 }
 
 // ClusterOptions is the set of options available for creating a Cluster.
