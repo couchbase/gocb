@@ -39,6 +39,7 @@ var (
 	KeyValueFeature                           = FeatureCode("keyvalue")
 	ViewFeature                               = FeatureCode("view")
 	QueryFeature                              = FeatureCode("query")
+	ClusterLevelQueryFeature                  = FeatureCode("clusterQuery")
 	SubdocFeature                             = FeatureCode("subdoc")
 	RbacFeature                               = FeatureCode("rbac")
 	SearchFeature                             = FeatureCode("search")
@@ -148,6 +149,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case QueryFeature:
 			supported = false
+		case ClusterLevelQueryFeature:
+			supported = false
 		case SearchFeature:
 			supported = false
 		case UserGroupFeature:
@@ -207,6 +210,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer200) && !c.Version.Equal(srvVer650DP)
 		case QueryFeature:
 			supported = !c.Version.Lower(srvVer400) && !c.Version.Equal(srvVer650DP)
+		case ClusterLevelQueryFeature:
+			supported = !c.Version.Lower(srvVer400) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(srvVer750)
 		case SubdocFeature:
 			supported = !c.Version.Lower(srvVer450)
 		case XattrFeature:
@@ -228,13 +233,13 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case DurabilityFeature:
 			supported = !c.Version.Lower(srvVer650)
 		case UserGroupFeature:
-			supported = !c.Version.Lower(srvVer650)
+			supported = !c.Version.Lower(srvVer650) && !c.Version.Equal(srvVer750)
 		case UserManagerFeature:
 			supported = !c.Version.Lower(srvVer500)
 		case AnalyticsIndexFeature:
 			supported = !c.Version.Lower(srvVer600) && !c.Version.Equal(srvVer650DP)
 		case BucketMgrFeature:
-			supported = true
+			supported = !c.Version.Equal(srvVer750)
 		case SearchAnalyzeFeature:
 			supported = !c.Version.Lower(srvVer650) && !c.Version.Equal(srvVer650DP)
 		case AnalyticsIndexPendingMutationsFeature:
