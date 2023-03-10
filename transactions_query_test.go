@@ -11,6 +11,7 @@ import (
 func (suite *IntegrationTestSuite) TestTransactionsQueryModeInsert() {
 	suite.skipIfUnsupported(TransactionsFeature)
 	suite.skipIfUnsupported(TransactionsQueryFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	docID := "queryinsert"
 	docValue := map[string]interface{}{
@@ -44,6 +45,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryModeInsert() {
 func (suite *IntegrationTestSuite) TestTransactionsQueryModeReplace() {
 	suite.skipIfUnsupported(TransactionsFeature)
 	suite.skipIfUnsupported(TransactionsQueryFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	docID := "queryreplace"
 	docValue := map[string]interface{}{
@@ -88,6 +90,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryModeReplace() {
 func (suite *IntegrationTestSuite) TestTransactionsQueryModeRemove() {
 	suite.skipIfUnsupported(TransactionsFeature)
 	suite.skipIfUnsupported(TransactionsQueryFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	docID := "queryremove"
 	docValue := map[string]interface{}{
@@ -129,6 +132,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryModeRemove() {
 func (suite *IntegrationTestSuite) TestTransactionsQueryModeDocNotFound() {
 	suite.skipIfUnsupported(TransactionsFeature)
 	suite.skipIfUnsupported(TransactionsQueryFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	docID := "querydocnotfound"
 
@@ -155,6 +159,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryModeDocNotFound() {
 func (suite *IntegrationTestSuite) TestTransactionsQueryModeDocFound() {
 	suite.skipIfUnsupported(TransactionsFeature)
 	suite.skipIfUnsupported(TransactionsQueryFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	docID := "querydocfound"
 	docValue := map[string]interface{}{
@@ -199,6 +204,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryModeDocFound() {
 func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatement() {
 	suite.skipIfUnsupported(TransactionsFeature)
 	suite.skipIfUnsupported(TransactionsQueryFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	docID := "queryupdatestatement"
 	docValue := map[string]interface{}{
@@ -270,6 +276,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatement() {
 func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatementKVReplace() {
 	suite.skipIfUnsupported(TransactionsFeature)
 	suite.skipIfUnsupported(TransactionsQueryFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	docID := "queryupdatestatementkvreplace"
 	docValue := map[string]interface{}{
@@ -336,6 +343,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatementKVReplace
 func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatementKVRemove() {
 	suite.skipIfUnsupported(TransactionsFeature)
 	suite.skipIfUnsupported(TransactionsQueryFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	docID := "queryupdatestatementkvremove"
 	docValue := map[string]interface{}{
@@ -394,6 +402,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatementKVRemove(
 func (suite *IntegrationTestSuite) TestTransactionsQueryDoubleInsertStatement() {
 	suite.skipIfUnsupported(TransactionsFeature)
 	suite.skipIfUnsupported(TransactionsQueryFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	docID := "querydoubleinsert"
 
@@ -435,6 +444,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryDoubleInsertStatement() 
 func (suite *IntegrationTestSuite) TestTransactionsInsertReadByQuery() {
 	suite.skipIfUnsupported(TransactionsFeature)
 	suite.skipIfUnsupported(TransactionsQueryFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	docID := "insertreadbyquery"
 	docValue := map[string]interface{}{
@@ -510,6 +520,7 @@ func (suite *IntegrationTestSuite) TestTransactionsInsertReadByQuery() {
 func (suite *IntegrationTestSuite) TestTransactionsQueryInsertDocExists() {
 	suite.skipIfUnsupported(TransactionsFeature)
 	suite.skipIfUnsupported(TransactionsQueryFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	docID := "queryinsertdocexists"
 	docValue := map[string]interface{}{

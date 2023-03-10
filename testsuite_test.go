@@ -244,6 +244,12 @@ func (suite *IntegrationTestSuite) skipIfUnsupported(code FeatureCode) {
 	}
 }
 
+func (suite *IntegrationTestSuite) skipIfServerVersionEquals(version NodeVersion) {
+	if globalCluster.Version.Equal(version) {
+		suite.T().Skipf("Skipping test because it is not compatible with server version")
+	}
+}
+
 func (suite *IntegrationTestSuite) dropAllIndexes() {
 	mgr := globalCluster.QueryIndexes()
 

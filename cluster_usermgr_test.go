@@ -3,10 +3,11 @@ package gocb
 import (
 	"bytes"
 	"errors"
-	"github.com/google/uuid"
 	"io/ioutil"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/stretchr/testify/mock"
 )
@@ -463,7 +464,7 @@ func (suite *IntegrationTestSuite) TestUserManagerChangePassword() {
 	}, nil)
 	suite.Require().Nil(err, err)
 
-	c, err := Connect(globalConfig.Server, ClusterOptions{Authenticator: PasswordAuthenticator{
+	c, err := Connect(globalConfig.connstr, ClusterOptions{Authenticator: PasswordAuthenticator{
 		Username: username,
 		Password: password,
 	}})
@@ -492,7 +493,7 @@ func (suite *IntegrationTestSuite) TestUserManagerChangePassword() {
 	closed = true
 	suite.Require().Nil(err, err)
 
-	c, err = Connect(globalConfig.Server, ClusterOptions{Authenticator: PasswordAuthenticator{
+	c, err = Connect(globalConfig.connstr, ClusterOptions{Authenticator: PasswordAuthenticator{
 		Username: username,
 		Password: newPassword,
 	}})
@@ -507,7 +508,7 @@ func (suite *IntegrationTestSuite) TestUserManagerChangePassword() {
 		suite.Require().Nil(err, err)
 	}
 
-	c, err = Connect(globalConfig.Server, ClusterOptions{Authenticator: PasswordAuthenticator{
+	c, err = Connect(globalConfig.connstr, ClusterOptions{Authenticator: PasswordAuthenticator{
 		Username: username,
 		Password: password,
 	}})

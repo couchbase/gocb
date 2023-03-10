@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"encoding/json"
+	"github.com/google/uuid"
 	"io"
 	"io/ioutil"
 	"testing"
@@ -71,6 +72,11 @@ func marshal(t *testing.T, value interface{}) []byte {
 	}
 
 	return b
+}
+
+// If using with an empty prefix ensure you prepend at least a single letter so the doc ID does not begin with a number
+func generateDocId(prefix string) string {
+	return prefix + uuid.NewString()[:6]
 }
 
 type testReadCloser struct {

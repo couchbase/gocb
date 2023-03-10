@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/couchbase/gocbcore/v10"
-
 	"github.com/stretchr/testify/mock"
 )
 
@@ -24,6 +23,7 @@ type queryIface interface {
 
 func (suite *IntegrationTestSuite) TestQuery() {
 	suite.skipIfUnsupported(QueryFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	n := suite.setupClusterQuery()
 	suite.Run("TestClusterQuery", func() {
@@ -41,6 +41,8 @@ func (suite *IntegrationTestSuite) TestQuery() {
 }
 
 func (suite *IntegrationTestSuite) runPreparedQueryTest(n int, query, bucket, scope string, queryFn queryIface, params interface{}) {
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
+
 	deadline := time.Now().Add(60 * time.Second)
 	for {
 		globalTracer.Reset()
@@ -116,17 +118,22 @@ func (suite *IntegrationTestSuite) runPreparedQueryTest(n int, query, bucket, sc
 }
 
 func (suite *IntegrationTestSuite) runClusterPreparedQueryPositionalTest(n int) {
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
+
 	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=? LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
 	suite.runPreparedQueryTest(n, query, "", "", globalCluster, []interface{}{"query"})
 }
 
 func (suite *IntegrationTestSuite) runClusterPreparedQueryNamedTest(n int) {
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
+
 	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=$service LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
 	suite.runPreparedQueryTest(n, query, "", "", globalCluster, map[string]interface{}{"service": "query"})
 }
 
 func (suite *IntegrationTestSuite) TestClusterQueryImprovedErrorsDocNotFound() {
 	suite.skipIfUnsupported(QueryImprovedErrorsFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	suite.setupClusterQuery()
 	query := fmt.Sprintf("INSERT INTO `%s` (KEY, VALUE) VALUES (\"%s\", \"test\")", globalBucket.Name(), uuid.New().String())
@@ -168,6 +175,8 @@ func (suite *IntegrationTestSuite) TestClusterQueryImprovedErrorsDocNotFound() {
 }
 
 func (suite *IntegrationTestSuite) runQueryTest(n int, query, bucket, scope string, queryFn queryIface, withMetrics bool, params interface{}) {
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
+
 	deadline := time.Now().Add(60 * time.Second)
 	for {
 		globalTracer.Reset()
@@ -248,16 +257,22 @@ func (suite *IntegrationTestSuite) runQueryTest(n int, query, bucket, scope stri
 }
 
 func (suite *IntegrationTestSuite) runClusterQueryPositionalTest(n int, withMetrics bool) {
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
+
 	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=? LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
 	suite.runQueryTest(n, query, "", "", globalCluster, withMetrics, []interface{}{"query"})
 }
 
 func (suite *IntegrationTestSuite) runClusterQueryNamedTest(n int, withMetrics bool) {
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
+
 	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=$service LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
 	suite.runQueryTest(n, query, "", "", globalCluster, withMetrics, map[string]interface{}{"service": "query"})
 }
 
 func (suite *IntegrationTestSuite) setupClusterQuery() int {
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
+
 	n, err := suite.createBreweryDataset("beer_sample_brewery_five", "query", "", "")
 	suite.Require().Nil(err, "Failed to create dataset %v", err)
 
@@ -273,6 +288,7 @@ func (suite *IntegrationTestSuite) setupClusterQuery() int {
 
 func (suite *IntegrationTestSuite) TestClusterQueryContext() {
 	suite.skipIfUnsupported(QueryFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -300,6 +316,7 @@ func (suite *IntegrationTestSuite) TestClusterQueryContext() {
 func (suite *IntegrationTestSuite) TestClusterQueryTransaction() {
 	suite.skipIfUnsupported(QueryFeature)
 	suite.skipIfUnsupported(TransactionsFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	mgr := globalCluster.QueryIndexes()
 	err := mgr.CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
@@ -345,6 +362,7 @@ func (suite *IntegrationTestSuite) TestClusterQueryTransaction() {
 func (suite *IntegrationTestSuite) TestClusterQueryTransactionDoubleInsert() {
 	suite.skipIfUnsupported(QueryFeature)
 	suite.skipIfUnsupported(TransactionsFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	mgr := globalCluster.QueryIndexes()
 	err := mgr.CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
@@ -412,6 +430,7 @@ func (suite *IntegrationTestSuite) TestClusterQueryTransactionDoubleInsert() {
 func (suite *IntegrationTestSuite) TestClusterQueryTransactionOne() {
 	suite.skipIfUnsupported(QueryFeature)
 	suite.skipIfUnsupported(TransactionsFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	mgr := globalCluster.QueryIndexes()
 	err := mgr.CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{

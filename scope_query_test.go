@@ -124,6 +124,7 @@ func (suite *UnitTestSuite) TestScopeQueryPrepared() {
 func (suite *IntegrationTestSuite) TestScopeQueryTransaction() {
 	suite.skipIfUnsupported(QueryFeature)
 	suite.skipIfUnsupported(TransactionsFeature)
+	suite.skipIfServerVersionEquals(srvVer750)
 
 	mgr := globalCluster.QueryIndexes()
 	err := mgr.CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
@@ -185,6 +186,7 @@ func (suite *IntegrationTestSuite) TestScopeQueryTransaction() {
 func (suite *IntegrationTestSuite) TestScopeQueryTransactionDoubleInsert() {
 	suite.skipIfUnsupported(QueryFeature)
 	suite.skipIfUnsupported(TransactionsFeature)
+	suite.skipIfServerVersionEquals(srvVer750)
 
 	mgr := globalCluster.QueryIndexes()
 	err := mgr.CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{

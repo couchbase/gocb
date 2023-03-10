@@ -98,7 +98,7 @@ func (suite *IntegrationTestSuite) TestInsertDocsBulk() {
 	var ops []BulkOp
 	for i := 0; i < 20; i++ {
 		ops = append(ops, &InsertOp{
-			ID:     fmt.Sprintf("insert-docs-bulk-%d", i),
+			ID:     fmt.Sprintf("insert-docs-bulk-%d-%s", i, generateDocId("")),
 			Value:  "test",
 			Expiry: 20 * time.Second,
 		})

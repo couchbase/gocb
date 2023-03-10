@@ -8,6 +8,7 @@ import (
 
 func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 	suite.skipIfUnsupported(QueryIndexFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	bucketMgr := globalCluster.Buckets()
 	bucketName := "testIndexes"
@@ -141,6 +142,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 	suite.skipIfUnsupported(QueryIndexFeature)
 	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	suite.dropAllIndexes()
 	bucketName := globalBucket.Name()
@@ -309,6 +311,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNamesBucketOnly() {
 	suite.skipIfUnsupported(QueryIndexFeature)
 	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	suite.dropAllIndexes()
 	bucketName := globalBucket.Name()
@@ -376,6 +379,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNamesCollectionOnly() {
 	suite.skipIfUnsupported(QueryIndexFeature)
 	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	suite.dropAllIndexes()
 	bucketName := globalBucket.Name()
@@ -446,6 +450,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 
 func (suite *IntegrationTestSuite) TestQueryIndexesIncludesDefaultCollection() {
 	suite.skipIfUnsupported(QueryIndexFeature)
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	bucketMgr := globalCluster.Buckets()
 	bucketName := "testIndexes" + uuid.NewString()

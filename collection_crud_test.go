@@ -36,11 +36,13 @@ func (suite *IntegrationTestSuite) TestErrorNonExistant() {
 func (suite *IntegrationTestSuite) TestErrorDoubleInsert() {
 	suite.skipIfUnsupported(KeyValueFeature)
 
-	_, err := globalCollection.Insert("doubleInsert", "test", nil)
+	docId := generateDocId("doubleInsert")
+
+	_, err := globalCollection.Insert(docId, "test", nil)
 	if err != nil {
 		suite.T().Fatalf("Expected error to be nil but was %v", err)
 	}
-	_, err = globalCollection.Insert("doubleInsert", "test", nil)
+	_, err = globalCollection.Insert(docId, "test", nil)
 	if err == nil {
 		suite.T().Fatalf("Expected error to be non-nil")
 	}
@@ -204,6 +206,8 @@ func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(XattrFeature)
 
+	docId := generateDocId("expiryDoc")
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
@@ -211,7 +215,7 @@ func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {
 	}
 
 	start := time.Now()
-	mutRes, err := globalCollection.Insert("expiryDoc", doc, &InsertOptions{Expiry: 10 * time.Second})
+	mutRes, err := globalCollection.Insert(docId, doc, &InsertOptions{Expiry: 10 * time.Second})
 	if err != nil {
 		suite.T().Fatalf("Insert failed, error was %v", err)
 	}
@@ -220,7 +224,7 @@ func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {
 		suite.T().Fatalf("Insert CAS was 0")
 	}
 
-	insertedDoc, err := globalCollection.Get("expiryDoc", &GetOptions{WithExpiry: true})
+	insertedDoc, err := globalCollection.Get(docId, &GetOptions{WithExpiry: true})
 	if err != nil {
 		suite.T().Fatalf("Get failed, error was %v", err)
 	}
@@ -644,6 +648,8 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 func (suite *IntegrationTestSuite) TestInsertGetProjection18Fields() {
 	suite.skipIfUnsupported(KeyValueFeature)
 
+	docId := generateDocId("insertDoc18Fields")
+
 	type docType struct {
 		Field1  int `json:"field1"`
 		Field2  int `json:"field2"`
@@ -668,7 +674,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection18Fields() {
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
 	}
 
-	mutRes, err := globalCollection.Insert("projectDocTooManyFields", doc, nil)
+	mutRes, err := globalCollection.Insert(docId, doc, nil)
 	if err != nil {
 		suite.T().Fatalf("Insert failed, error was %v", err)
 	}
@@ -677,7 +683,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection18Fields() {
 		suite.T().Fatalf("Insert CAS was 0")
 	}
 
-	getDoc, err := globalCollection.Get("projectDocTooManyFields", &GetOptions{
+	getDoc, err := globalCollection.Get(docId, &GetOptions{
 		Project: []string{"field1", "field2", "field3", "field4", "field5", "field6", "field7", "field8", "field9",
 			"field10", "field11", "field12", "field13", "field14", "field15", "field16", "field17"},
 	})
@@ -829,13 +835,15 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection16FieldsExpiry() {
 func (suite *IntegrationTestSuite) TestInsertGetProjectionPathMissing() {
 	suite.skipIfUnsupported(KeyValueFeature)
 
+	docId := generateDocId("projectMissingDoc")
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
 		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
-	mutRes, err := globalCollection.Insert("projectMissingDoc", doc, nil)
+	mutRes, err := globalCollection.Insert(docId, doc, nil)
 	if err != nil {
 		suite.T().Fatalf("Insert failed, error was %v", err)
 	}
@@ -844,7 +852,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjectionPathMissing() {
 		suite.T().Fatalf("Insert CAS was 0")
 	}
 
-	_, err = globalCollection.Get("projectMissingDoc", &GetOptions{
+	_, err = globalCollection.Get(docId, &GetOptions{
 		Project: []string{"name", "thisfielddoesntexist"},
 	})
 	if err == nil {
@@ -952,13 +960,15 @@ func (suite *IntegrationTestSuite) TestInsertGetProjectionTranscoders() {
 func (suite *IntegrationTestSuite) TestInsertGet() {
 	suite.skipIfUnsupported(KeyValueFeature)
 
+	docId := generateDocId("insertDoc")
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
 		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
-	mutRes, err := globalCollection.Insert("insertDoc", doc, nil)
+	mutRes, err := globalCollection.Insert(docId, doc, nil)
 	if err != nil {
 		suite.T().Fatalf("Insert failed, error was %v", err)
 	}
@@ -967,7 +977,7 @@ func (suite *IntegrationTestSuite) TestInsertGet() {
 		suite.T().Fatalf("Insert CAS was 0")
 	}
 
-	insertedDoc, err := globalCollection.Get("insertDoc", nil)
+	insertedDoc, err := globalCollection.Get(docId, nil)
 	if err != nil {
 		suite.T().Fatalf("Get failed, error was %v", err)
 	}
@@ -1049,7 +1059,7 @@ func (suite *IntegrationTestSuite) TestCollectionRetry() {
 		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
-	collectionName := "insertRetry"
+	collectionName := generateDocId("insertRetry")
 
 	// cli := globalBucket.sb.getCachedClient()
 	mgr := globalBucket.Collections()
@@ -1745,6 +1755,7 @@ func (suite *IntegrationTestSuite) TestDoubleLockFail() {
 
 func (suite *IntegrationTestSuite) TestUnlockMissingDocFail() {
 	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfServerVersionEquals(srvVer750)
 
 	err := globalCollection.Unlock("unlockMissing", 123, nil)
 	if err == nil {
@@ -1861,13 +1872,15 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAnyReplica() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(ReplicasFeature)
 
+	docId := generateDocId("insertReplicaDoc")
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
 		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
-	mutRes, err := globalCollection.Insert("insertReplicaDoc", doc, &InsertOptions{
+	mutRes, err := globalCollection.Insert(docId, doc, &InsertOptions{
 		PersistTo: 1,
 		Timeout:   5 * time.Second,
 	})
@@ -1879,7 +1892,7 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAnyReplica() {
 		suite.T().Fatalf("Insert CAS was 0")
 	}
 
-	insertedDoc, err := globalCollection.GetAnyReplica("insertReplicaDoc", nil)
+	insertedDoc, err := globalCollection.GetAnyReplica(docId, nil)
 	if err != nil {
 		suite.T().Fatalf("GetFromReplica failed, error was %v", err)
 	}
@@ -2040,7 +2053,7 @@ func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 		{
 			name:   "upsertDurabilityMajorityDoc",
 			method: "Upsert",
-			args: []interface{}{"upsertDurabilityMajorityDoc", doc, &UpsertOptions{
+			args: []interface{}{generateDocId("upsertDurabilityMajorityDoc"), doc, &UpsertOptions{
 				DurabilityLevel: DurabilityLevelMajority,
 				// MB-41616: For some reason the first durable request after a lot of collections activity takes longer.
 				Timeout: 10 * time.Second,
@@ -2053,7 +2066,7 @@ func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 		{
 			name:   "insertDurabilityLevelPersistToMajority",
 			method: "Insert",
-			args: []interface{}{"insertDurabilityLevelPersistToMajority", doc, &InsertOptions{
+			args: []interface{}{generateDocId("insertDurabilityLevelPersistToMajority"), doc, &InsertOptions{
 				DurabilityLevel: DurabilityLevelPersistToMajority,
 			}},
 			expectCas:          true,
@@ -2064,7 +2077,7 @@ func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 		{
 			name:   "insertDurabilityMajorityDoc",
 			method: "Insert",
-			args: []interface{}{"insertDurabilityMajorityDoc", doc, &InsertOptions{
+			args: []interface{}{generateDocId("insertDurabilityMajorityDoc"), doc, &InsertOptions{
 				DurabilityLevel: DurabilityLevelMajority,
 			}},
 			expectCas:          true,
@@ -2075,7 +2088,7 @@ func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 		{
 			name:   "insertDurabilityMajorityAndPersistOnMasterDoc",
 			method: "Insert",
-			args: []interface{}{"insertDurabilityMajorityAndPersistOnMasterDoc", doc, &InsertOptions{
+			args: []interface{}{generateDocId("insertDurabilityMajorityAndPersistOnMasterDoc"), doc, &InsertOptions{
 				DurabilityLevel: DurabilityLevelMajorityAndPersistOnMaster,
 			}},
 			expectCas:          true,
@@ -2086,7 +2099,7 @@ func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 		{
 			name:   "upsertDurabilityLevelPersistToMajority",
 			method: "Upsert",
-			args: []interface{}{"upsertDurabilityLevelPersistToMajority", doc, &UpsertOptions{
+			args: []interface{}{generateDocId("upsertDurabilityLevelPersistToMajority"), doc, &UpsertOptions{
 				DurabilityLevel: DurabilityLevelPersistToMajority,
 			}},
 			expectCas:          true,
@@ -2097,7 +2110,7 @@ func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 		{
 			name:   "upsertDurabilityMajorityAndPersistOnMasterDoc",
 			method: "Upsert",
-			args: []interface{}{"upsertDurabilityMajorityAndPersistOnMasterDoc", doc, &UpsertOptions{
+			args: []interface{}{generateDocId("upsertDurabilityMajorityAndPersistOnMasterDoc"), doc, &UpsertOptions{
 				DurabilityLevel: DurabilityLevelMajorityAndPersistOnMaster,
 			}},
 			expectCas:          true,
@@ -2147,7 +2160,7 @@ func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 				}
 			}
 
-			_, err := globalCollection.GetAnyReplica(tCase.name, nil)
+			_, err := globalCollection.GetAnyReplica(tCase.args[0].(string), nil)
 			if tCase.expectKeyNotFound {
 				if !errors.Is(err, ErrDocumentNotFound) {
 					suite.T().Fatalf("Expected GetFromReplica to not find a key but got error %v", err)

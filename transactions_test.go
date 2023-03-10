@@ -3,10 +3,11 @@ package gocb
 import (
 	"errors"
 	"fmt"
-	"github.com/couchbase/gocbcore/v10"
-	"github.com/google/uuid"
 	"log"
 	"time"
+
+	"github.com/couchbase/gocbcore/v10"
+	"github.com/google/uuid"
 )
 
 func (suite *IntegrationTestSuite) verifyDocument(key string, val interface{}) {
@@ -60,7 +61,7 @@ func (suite *IntegrationTestSuite) TestTransactionsDoubleInsert() {
 func (suite *IntegrationTestSuite) TestTransactionsInsert() {
 	suite.skipIfUnsupported(TransactionsFeature)
 
-	docID := "txninsert"
+	docID := generateDocId("txninsert")
 	docValue := map[string]interface{}{
 		"test": "test",
 	}
@@ -98,6 +99,7 @@ func (suite *IntegrationTestSuite) TestTransactionsInsert() {
 
 func (suite *IntegrationTestSuite) TestTransactionsCustomMetadata() {
 	suite.skipIfUnsupported(TransactionsFeature)
+	suite.skipIfServerVersionEquals(srvVer750)
 
 	metaCollectionName := "txnsCustomMetadata"
 	collections := globalBucket.Collections()
@@ -119,7 +121,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadata() {
 		CollectionName: metaCollectionName,
 	}
 
-	c, err := Connect(globalConfig.Server, ClusterOptions{
+	c, err := Connect(globalConfig.connstr, ClusterOptions{
 		Authenticator: PasswordAuthenticator{
 			Username: globalConfig.User,
 			Password: globalConfig.Password,
@@ -184,7 +186,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadata() {
 func (suite *IntegrationTestSuite) TestTransactionsCustomMetadataTransactionOption() {
 	suite.skipIfUnsupported(TransactionsFeature)
 
-	metaCollectionName := "txnsCustomMetadataTxnOption"
+	metaCollectionName := generateDocId("txnsCustomMetadataTxnOption")
 	collections := globalBucket.Collections()
 	err := collections.CreateCollection(CollectionSpec{
 		Name:      metaCollectionName,
@@ -201,7 +203,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadataTransactionOpti
 		MetadataCollection: globalBucket.Collection(metaCollectionName),
 	}
 
-	docID := "txnsCustomMetadataTxnOption"
+	docID := generateDocId("txnsCustomMetadataTxnOption")
 	docValue := map[string]interface{}{
 		"test": "test",
 	}
@@ -532,7 +534,7 @@ func (suite *IntegrationTestSuite) TestTransactionsRemove() {
 func (suite *IntegrationTestSuite) TestTransactionsInsertReplace() {
 	suite.skipIfUnsupported(TransactionsFeature)
 
-	docID := "txninsertreplace"
+	docID := generateDocId("txninsertreplace")
 	docValue := map[string]interface{}{
 		"test": "test",
 	}
@@ -628,7 +630,7 @@ func (suite *IntegrationTestSuite) TestTransactionsUserError() {
 func (suite *IntegrationTestSuite) TestTransactionsGetDocNotFoundAllowsContinue() {
 	suite.skipIfUnsupported(TransactionsFeature)
 
-	docID := "txndocnotfoundallowscontinue"
+	docID := generateDocId("txndocnotfoundallowscontinue")
 	docValue := map[string]interface{}{
 		"test": "test",
 	}
@@ -1011,7 +1013,7 @@ func (suite *IntegrationTestSuite) doTransactionOps(name string, keys []string, 
 
 	transactions := globalCluster.Transactions()
 
-	//log.Printf("  %s testing (%+v)", name, keys)
+	// log.Printf("  %s testing (%+v)", name, keys)
 
 	var minTime time.Duration
 	var maxTime time.Duration

@@ -9,7 +9,7 @@ func (suite *IntegrationTestSuite) TestClusterWaitUntilReady() {
 	suite.skipIfUnsupported(WaitUntilReadyFeature)
 	suite.skipIfUnsupported(WaitUntilReadyClusterFeature)
 
-	c, err := Connect(globalConfig.Server, ClusterOptions{Authenticator: PasswordAuthenticator{
+	c, err := Connect(globalConfig.connstr, ClusterOptions{Authenticator: PasswordAuthenticator{
 		Username: globalConfig.User,
 		Password: globalConfig.Password,
 	}})
@@ -30,7 +30,7 @@ func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyInvalidAuth() {
 	suite.skipIfUnsupported(WaitUntilReadyFeature)
 	suite.skipIfUnsupported(WaitUntilReadyClusterFeature)
 
-	c, err := Connect(globalConfig.Server, ClusterOptions{Authenticator: PasswordAuthenticator{
+	c, err := Connect(globalConfig.connstr, ClusterOptions{Authenticator: PasswordAuthenticator{
 		Username: globalConfig.User,
 		Password: globalConfig.Password + "nopethisshouldntwork",
 	}})
@@ -52,7 +52,7 @@ func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyFastFailAuth() {
 	suite.skipIfUnsupported(WaitUntilReadyFeature)
 	suite.skipIfUnsupported(WaitUntilReadyClusterFeature)
 
-	c, err := Connect(globalConfig.Server, ClusterOptions{Authenticator: PasswordAuthenticator{
+	c, err := Connect(globalConfig.connstr, ClusterOptions{Authenticator: PasswordAuthenticator{
 		Username: globalConfig.User,
 		Password: "thisisaprettyunlikelypasswordtobeused",
 	}})
@@ -90,7 +90,7 @@ func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyKeyValueService() {
 	suite.skipIfUnsupported(WaitUntilReadyFeature)
 	suite.skipIfUnsupported(WaitUntilReadyClusterFeature)
 
-	c, err := Connect(globalConfig.Server, ClusterOptions{Authenticator: PasswordAuthenticator{
+	c, err := Connect(globalConfig.connstr, ClusterOptions{Authenticator: PasswordAuthenticator{
 		Username: globalConfig.User,
 		Password: globalConfig.Password,
 	}})
