@@ -59,6 +59,7 @@ func (qm *CollectionQueryIndexManager) CreateIndex(indexName string, keys []stri
 			Deferred:       opts.Deferred,
 			Timeout:        opts.Timeout,
 			RetryStrategy:  opts.RetryStrategy,
+			NumReplicas:    opts.NumReplicas,
 		},
 	)
 }
@@ -83,6 +84,7 @@ func (qm *CollectionQueryIndexManager) CreatePrimaryIndex(opts *CreatePrimaryQue
 			Deferred:       opts.Deferred,
 			Timeout:        opts.Timeout,
 			RetryStrategy:  opts.RetryStrategy,
+			NumReplicas:    opts.NumReplicas,
 		})
 }
 

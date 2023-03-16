@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -147,6 +148,7 @@ func (index *QueryIndex) fromData(data jsonQueryIndex) error {
 type createQueryIndexOptions struct {
 	IgnoreIfExists bool
 	Deferred       bool
+	NumReplicas    int
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
@@ -183,8 +185,18 @@ func (qm *baseQueryIndexManager) CreateIndex(
 		}
 		qs += ")"
 	}
+
+	var with []string
 	if opts.Deferred {
-		qs += " WITH {\"defer_build\": true}"
+		with = append(with, `"defer_build":true`)
+	}
+	if opts.NumReplicas > 0 {
+		with = append(with, `"num_replica":`+strconv.Itoa(opts.NumReplicas))
+	}
+
+	if len(with) > 0 {
+		withStr := strings.Join(with, ",")
+		qs += " WITH {" + withStr + "}"
 	}
 
 	start := time.Now()

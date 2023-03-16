@@ -39,6 +39,7 @@ func (qm *QueryIndexManager) validateScopeCollection(scope, collection string) e
 type CreateQueryIndexOptions struct {
 	IgnoreIfExists bool
 	Deferred       bool
+	NumReplicas    int
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
@@ -86,6 +87,7 @@ func (qm *QueryIndexManager) CreateIndex(bucketName, indexName string, keys []st
 			Deferred:       opts.Deferred,
 			Timeout:        opts.Timeout,
 			RetryStrategy:  opts.RetryStrategy,
+			NumReplicas:    opts.NumReplicas,
 		},
 	)
 }
@@ -95,6 +97,7 @@ type CreatePrimaryQueryIndexOptions struct {
 	IgnoreIfExists bool
 	Deferred       bool
 	CustomName     string
+	NumReplicas    int
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
@@ -129,6 +132,7 @@ func (qm *QueryIndexManager) CreatePrimaryIndex(bucketName string, opts *CreateP
 			Deferred:       opts.Deferred,
 			Timeout:        opts.Timeout,
 			RetryStrategy:  opts.RetryStrategy,
+			NumReplicas:    opts.NumReplicas,
 		})
 }
 
