@@ -1745,6 +1745,7 @@ func (suite *IntegrationTestSuite) TestDoubleLockFail() {
 
 func (suite *IntegrationTestSuite) TestUnlockMissingDocFail() {
 	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfServerVersionEquals(srvVer750)
 
 	err := globalCollection.Unlock("unlockMissing", 123, nil)
 	if err == nil {

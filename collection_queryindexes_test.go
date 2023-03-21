@@ -146,7 +146,7 @@ func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrudDefaultSco
 	suite.skipIfUnsupported(QueryIndexFeature)
 	suite.skipIfUnsupported(CollectionsFeature)
 
-	suite.dropAllIndexes()
+	suite.dropAllIndexesAtCollectionLevel()
 
 	mgr := globalBucket.DefaultCollection().QueryIndexes()
 

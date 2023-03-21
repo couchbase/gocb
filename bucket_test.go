@@ -17,7 +17,7 @@ func (suite *IntegrationTestSuite) TestBucketWaitUntilReady() {
 
 	b := c.Bucket(globalConfig.Bucket)
 
-	err = b.WaitUntilReady(7*time.Second, nil)
+	err = b.WaitUntilReady(globalCluster.waitUntilReadyTimeout(), nil)
 	suite.Require().Nil(err, err)
 
 	// Just test that we can use the bucket.
@@ -38,7 +38,7 @@ func (suite *IntegrationTestSuite) TestBucketWaitUntilReadyInvalidAuth() {
 	b := c.Bucket(globalConfig.Bucket)
 
 	start := time.Now()
-	err = b.WaitUntilReady(7*time.Second, nil)
+	err = b.WaitUntilReady(globalCluster.waitUntilReadyTimeout(), nil)
 	if !errors.Is(err, ErrUnambiguousTimeout) {
 		suite.T().Fatalf("Expected unambiguous timeout error but was %v", err)
 	}
@@ -60,7 +60,7 @@ func (suite *IntegrationTestSuite) TestBucketWaitUntilReadyFastFailAuth() {
 
 	b := c.Bucket(globalConfig.Bucket)
 
-	err = b.WaitUntilReady(7*time.Second, &WaitUntilReadyOptions{
+	err = b.WaitUntilReady(globalCluster.waitUntilReadyTimeout(), &WaitUntilReadyOptions{
 		RetryStrategy: newFailFastRetryStrategy(),
 	})
 	if !errors.Is(err, ErrAuthenticationFailure) {
@@ -81,7 +81,7 @@ func (suite *IntegrationTestSuite) TestBucketWaitUntilReadyFastFailConnStr() {
 
 	b := c.Bucket(globalConfig.Bucket)
 
-	err = b.WaitUntilReady(7*time.Second, &WaitUntilReadyOptions{
+	err = b.WaitUntilReady(globalCluster.waitUntilReadyTimeout(), &WaitUntilReadyOptions{
 		RetryStrategy: newFailFastRetryStrategy(),
 	})
 	if !errors.Is(err, ErrTimeout) {

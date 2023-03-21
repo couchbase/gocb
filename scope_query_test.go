@@ -125,10 +125,8 @@ func (suite *IntegrationTestSuite) TestScopeQueryTransaction() {
 	suite.skipIfUnsupported(QueryFeature)
 	suite.skipIfUnsupported(TransactionsFeature)
 
-	mgr := globalCluster.QueryIndexes()
-	err := mgr.CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
-		ScopeName:      globalScope.Name(),
-		CollectionName: globalCollection.Name(),
+	mgr := globalCollection.QueryIndexes()
+	err := mgr.CreatePrimaryIndex(&CreatePrimaryQueryIndexOptions{
 		IgnoreIfExists: true,
 	})
 	suite.Require().Nil(err, err)
@@ -186,10 +184,8 @@ func (suite *IntegrationTestSuite) TestScopeQueryTransactionDoubleInsert() {
 	suite.skipIfUnsupported(QueryFeature)
 	suite.skipIfUnsupported(TransactionsFeature)
 
-	mgr := globalCluster.QueryIndexes()
-	err := mgr.CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
-		ScopeName:      globalScope.Name(),
-		CollectionName: globalCollection.Name(),
+	mgr := globalCollection.QueryIndexes()
+	err := mgr.CreatePrimaryIndex(&CreatePrimaryQueryIndexOptions{
 		IgnoreIfExists: true,
 	})
 	suite.Require().Nil(err, err)

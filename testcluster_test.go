@@ -121,6 +121,14 @@ func (c *testCluster) isMock() bool {
 	return c.Mock != nil
 }
 
+func (c *testCluster) waitUntilReadyTimeout() time.Duration {
+	if c.Version.Equal(srvVer750) {
+		return 30 * time.Second
+	} else {
+		return 7 * time.Second
+	}
+}
+
 func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 	featureFlagValue := 0
 	for _, featureFlag := range c.FeatureFlags {
@@ -207,7 +215,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case KeyValueFeature:
 			supported = !c.Version.Lower(srvVer180)
 		case ViewFeature:
-			supported = !c.Version.Lower(srvVer200) && !c.Version.Equal(srvVer650DP)
+			supported = !c.Version.Lower(srvVer200) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(srvVer750)
 		case QueryFeature:
 			supported = !c.Version.Lower(srvVer400) && !c.Version.Equal(srvVer650DP)
 		case ClusterLevelQueryFeature:
@@ -223,7 +231,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case SearchIndexFeature:
 			supported = !c.Version.Lower(srvVer500) && !c.Version.Equal(srvVer650DP)
 		case AnalyticsFeature:
-			supported = !c.Version.Lower(srvVer600) && !c.Version.Equal(srvVer650DP)
+			supported = !c.Version.Lower(srvVer600) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(srvVer750)
 		case CollectionsFeature:
 			supported = c.Version.Equal(srvVer650DP) || !c.Version.Lower(srvVer700)
 		case ExpandMacrosFeature:
@@ -235,9 +243,9 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case UserGroupFeature:
 			supported = !c.Version.Lower(srvVer650) && !c.Version.Equal(srvVer750)
 		case UserManagerFeature:
-			supported = !c.Version.Lower(srvVer500)
+			supported = !c.Version.Lower(srvVer500) && !c.Version.Equal(srvVer750)
 		case AnalyticsIndexFeature:
-			supported = !c.Version.Lower(srvVer600) && !c.Version.Equal(srvVer650DP)
+			supported = !c.Version.Lower(srvVer600) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(srvVer750)
 		case BucketMgrFeature:
 			supported = !c.Version.Equal(srvVer750)
 		case SearchAnalyzeFeature:
@@ -247,7 +255,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case GetMetaFeature:
 			supported = true
 		case PingFeature:
-			supported = true
+			supported = !c.Version.Equal(srvVer750)
 		case ViewIndexUpsertBugFeature:
 			supported = !c.Version.Equal(srvVer650)
 		case PingAnalyticsFeature:
@@ -255,7 +263,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case WaitUntilReadyFeature:
 			supported = true
 		case WaitUntilReadyClusterFeature:
-			supported = !c.Version.Lower(srvVer650)
+			supported = !c.Version.Lower(srvVer650) && !c.Version.Equal(srvVer750)
 		case ReplicasFeature:
 			supported = true
 		case QueryIndexFeature:
@@ -263,7 +271,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case CollectionsQueryFeature:
 			supported = !c.Version.Lower(srvVer700)
 		case CollectionsAnalyticsFeature:
-			supported = !c.Version.Lower(srvVer700)
+			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(srvVer750)
 		case CollectionsManagerFeature:
 			supported = !c.Version.Lower(srvVer700)
 		case CollectionsManagerMaxCollectionsFeature:
@@ -279,7 +287,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case PreserveExpiryFeature:
 			supported = !c.Version.Lower(srvVer700)
 		case EventingFunctionManagerFeature:
-			supported = !c.Version.Lower(srvVer700)
+			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(srvVer750)
 		case RateLimitingFeature:
 			supported = !c.Version.Lower(srvVer710) && c.Version.Lower(srvVer720)
 		case StorageBackendFeature:

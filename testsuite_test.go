@@ -244,6 +244,12 @@ func (suite *IntegrationTestSuite) skipIfUnsupported(code FeatureCode) {
 	}
 }
 
+func (suite *IntegrationTestSuite) skipIfServerVersionEquals(version NodeVersion) {
+	if globalCluster.Version.Equal(version) {
+		suite.T().Skipf("Skipping test because it is not compatible with server version")
+	}
+}
+
 func (suite *IntegrationTestSuite) dropAllIndexes() {
 	mgr := globalCluster.QueryIndexes()
 
@@ -273,6 +279,36 @@ func (suite *IntegrationTestSuite) dropAllIndexes() {
 				CollectionName: index.CollectionName,
 				ScopeName:      index.ScopeName,
 			})
+		}
+	}
+
+	globalMeter.Reset()
+	globalTracer.Reset()
+}
+
+func (suite *IntegrationTestSuite) dropAllIndexesAtCollectionLevel() {
+	mgr := globalCollection.QueryIndexes()
+
+	var indexes []QueryIndex
+	// Due to various eventual consistencies issues around dropping scopes query can sometimes
+	// return us errors here.
+	success := suite.tryUntil(time.Now().Add(30*time.Second), 100*time.Millisecond, func() bool {
+		var err error
+		indexes, err = mgr.GetAllIndexes(nil)
+		if err != nil {
+			suite.T().Logf("Failed to get all indexes: %v", err)
+			return false
+		}
+
+		return true
+	})
+	suite.Require().True(success, "Failed to get all indexes in time")
+
+	for _, index := range indexes {
+		if index.IsPrimary {
+			mgr.DropPrimaryIndex(nil)
+		} else {
+			mgr.DropIndex(index.Name, nil)
 		}
 	}
 
