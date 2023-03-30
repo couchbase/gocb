@@ -12,7 +12,7 @@ It is written in pure Go, and uses the included gocbcore library to handle commu
 The project source is hosted at [https://github.com/couchbase/gocb](https://github.com/couchbase/gocb).
 
 ### Documentation
-You can explore our API reference through godoc at [https://pkg.go.dev/github.com/couchbase/gocb](https://pkg.go.dev/github.com/couchbase/gocb).
+You can explore our API reference through godoc at [https://pkg.go.dev/github.com/couchbase/gocb/v2](https://pkg.go.dev/github.com/couchbase/gocb/v2).
 
 You can also find documentation for the Go SDK on the [official Couchbase docs](https://docs.couchbase.com/go-sdk/current/hello-world/overview.html).
 
