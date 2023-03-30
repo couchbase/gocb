@@ -309,6 +309,31 @@ func (c *Cluster) parseExtraConnStrOptions(spec gocbconnstr.ConnSpec) error {
 		return optValue[len(optValue)-1], true
 	}
 
+	if valStr, ok := fetchOption("kv_timeout"); ok {
+		val, err := strconv.ParseInt(valStr, 10, 64)
+		if err != nil {
+			return fmt.Errorf("query_timeout option must be a number")
+		}
+		c.timeoutsConfig.KVTimeout = time.Duration(val) * time.Millisecond
+	}
+
+	if valStr, ok := fetchOption("kv_durable_timeout"); ok {
+		val, err := strconv.ParseInt(valStr, 10, 64)
+		if err != nil {
+			return fmt.Errorf("query_timeout option must be a number")
+		}
+		c.timeoutsConfig.KVDurableTimeout = time.Duration(val) * time.Millisecond
+	}
+
+	// Volatile: This option is subject to change at any time.
+	if valStr, ok := fetchOption("kv_scan_timeout"); ok {
+		val, err := strconv.ParseInt(valStr, 10, 64)
+		if err != nil {
+			return fmt.Errorf("query_timeout option must be a number")
+		}
+		c.timeoutsConfig.KVScanTimeout = time.Duration(val) * time.Millisecond
+	}
+
 	if valStr, ok := fetchOption("query_timeout"); ok {
 		val, err := strconv.ParseInt(valStr, 10, 64)
 		if err != nil {
@@ -339,6 +364,14 @@ func (c *Cluster) parseExtraConnStrOptions(spec gocbconnstr.ConnSpec) error {
 			return fmt.Errorf("view_timeout option must be a number")
 		}
 		c.timeoutsConfig.ViewTimeout = time.Duration(val) * time.Millisecond
+	}
+
+	if valStr, ok := fetchOption("management_timeout"); ok {
+		val, err := strconv.ParseInt(valStr, 10, 64)
+		if err != nil {
+			return fmt.Errorf("view_timeout option must be a number")
+		}
+		c.timeoutsConfig.ManagementTimeout = time.Duration(val) * time.Millisecond
 	}
 
 	return nil
