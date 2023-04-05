@@ -27,6 +27,12 @@ type Transactions struct {
 // initTransactions will initialize the transactions library and return a Transactions
 // object which can be used to perform transactions.
 func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, error) {
+	// TODO: protostellar doesn't support transactions.
+	// so we'll just bail early.
+	if c.cSpec.Scheme == "protostellar" || c.cSpec.Scheme == "protostellars" {
+		return nil, nil
+	}
+
 	// Note that gocbcore will handle a lot of default values for us.
 	if config.QueryConfig.ScanConsistency == 0 {
 		config.QueryConfig.ScanConsistency = QueryScanConsistencyRequestPlus

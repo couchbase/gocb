@@ -31,9 +31,15 @@ type stdConnectionMgr struct {
 	config     *gocbcore.AgentGroupConfig
 }
 
-func newConnectionMgr() *stdConnectionMgr {
-	client := &stdConnectionMgr{}
-	return client
+// TODO: change how managers are selected.
+func newConnectionMgr(protocol string) connectionManager {
+	switch protocol {
+	case "protostellar", "protostellars":
+		return &protoStellarConnectionMgr{}
+	default:
+		client := &stdConnectionMgr{}
+		return client
+	}
 }
 
 func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
