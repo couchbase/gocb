@@ -14,6 +14,8 @@ type AttemptFunc func(*TransactionAttemptContext) error
 
 // Transactions can be used to perform transactions.
 type Transactions struct {
+	unsupported bool
+
 	config     TransactionsConfig
 	cluster    *Cluster
 	transcoder Transcoder
@@ -27,6 +29,14 @@ type Transactions struct {
 // initTransactions will initialize the transactions library and return a Transactions
 // object which can be used to perform transactions.
 func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, error) {
+	// TODO: protostellar doesn't support transactions.
+	// so we'll just bail early.
+	if c.cSpec.Scheme == "protostellar" || c.cSpec.Scheme == "protostellars" {
+		return &Transactions{
+			unsupported: true,
+		}, nil
+	}
+
 	// Note that gocbcore will handle a lot of default values for us.
 	if config.QueryConfig.ScanConsistency == 0 {
 		config.QueryConfig.ScanConsistency = QueryScanConsistencyRequestPlus
@@ -145,6 +155,9 @@ func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, er
 // Run runs a lambda to perform a number of operations as part of a
 // singular transaction.
 func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (*TransactionResult, error) {
+	if t.unsupported {
+		return nil, wrapError(ErrFeatureNotAvailable, "transactions are not currently supported against protostellar")
+	}
 	return t.run(logicFn, perConfig, false)
 }
 

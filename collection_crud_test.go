@@ -253,12 +253,14 @@ func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {
 	span := nilParents[1]
 	suite.AssertKvSpan(span, "get", DurabilityLevelNone)
 
-	suite.Require().Equal(len(span.Spans), 1)
-	suite.Require().Contains(span.Spans, "lookup_in")
-	lookupSpans := span.Spans["lookup_in"]
+	if globalCluster.SupportsFeature(GetExpiryUsingLookupInFeature) {
+		suite.Require().Equal(len(span.Spans), 1)
+		suite.Require().Contains(span.Spans, "lookup_in")
+		lookupSpans := span.Spans["lookup_in"]
 
-	suite.Require().Equal(len(lookupSpans), 1)
-	suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), false, DurabilityLevelNone)
+		suite.Require().Equal(len(lookupSpans), 1)
+		suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), false, DurabilityLevelNone)
+	}
 
 	suite.AssertKVMetrics(meterNameCBOperations, "insert", 1, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
@@ -310,12 +312,14 @@ func (suite *IntegrationTestSuite) TestUpsertGetWithExpiryTranscoder() {
 	span := nilParents[1]
 	suite.AssertKvSpan(span, "get", DurabilityLevelNone)
 
-	suite.Require().Equal(len(span.Spans), 1)
-	suite.Require().Contains(span.Spans, "lookup_in")
-	lookupSpans := span.Spans["lookup_in"]
+	if globalCluster.SupportsFeature(GetExpiryUsingLookupInFeature) {
+		suite.Require().Equal(len(span.Spans), 1)
+		suite.Require().Contains(span.Spans, "lookup_in")
+		lookupSpans := span.Spans["lookup_in"]
 
-	suite.Require().Equal(len(lookupSpans), 1)
-	suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), false, DurabilityLevelNone)
+		suite.Require().Equal(len(lookupSpans), 1)
+		suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), false, DurabilityLevelNone)
+	}
 
 	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
@@ -323,6 +327,7 @@ func (suite *IntegrationTestSuite) TestUpsertGetWithExpiryTranscoder() {
 
 func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(KeyValueProjectionsFeature)
 
 	type PersonDimensions struct {
 		Height int `json:"height"`
@@ -648,6 +653,8 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 
 func (suite *IntegrationTestSuite) TestInsertGetProjection18Fields() {
 	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(KeyValueProjectionsFeature)
+	suite.skipIfUnsupported(KeyValueProjectionsFeature)
 
 	docId := generateDocId("insertDoc18Fields")
 
@@ -736,6 +743,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection18Fields() {
 func (suite *IntegrationTestSuite) TestInsertGetProjection16FieldsExpiry() {
 	suite.skipIfUnsupported(XattrFeature)
 	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(KeyValueProjectionsFeature)
 
 	type docType struct {
 		Field1  int `json:"field1"`
@@ -835,6 +843,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection16FieldsExpiry() {
 
 func (suite *IntegrationTestSuite) TestInsertGetProjectionPathMissing() {
 	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(KeyValueProjectionsFeature)
 
 	docId := generateDocId("projectMissingDoc")
 
@@ -872,6 +881,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjectionPathMissing() {
 
 func (suite *IntegrationTestSuite) TestInsertGetProjectionTranscoders() {
 	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(KeyValueProjectionsFeature)
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
@@ -1051,7 +1061,7 @@ func (suite *IntegrationTestSuite) TestExists() {
 // Following test tests that if a collection is deleted and recreated midway through a set of operations
 // then the operations will still succeed due to the cid being refreshed under the hood.
 func (suite *IntegrationTestSuite) TestCollectionRetry() {
-	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(CollectionsManagerFeature)
 	suite.skipIfUnsupported(KeyValueFeature)
 
 	var doc testBeerDocument
@@ -1472,12 +1482,14 @@ func (suite *IntegrationTestSuite) TestGetAndTouch() {
 	span := nilParents[2]
 	suite.AssertKvSpan(span, "get", DurabilityLevelNone)
 
-	suite.Require().Equal(len(span.Spans), 1)
-	suite.Require().Contains(span.Spans, "lookup_in")
-	lookupSpans := span.Spans["lookup_in"]
+	if globalCluster.SupportsFeature(GetExpiryUsingLookupInFeature) {
+		suite.Require().Equal(len(span.Spans), 1)
+		suite.Require().Contains(span.Spans, "lookup_in")
+		lookupSpans := span.Spans["lookup_in"]
 
-	suite.Require().Equal(len(lookupSpans), 1)
-	suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), false, DurabilityLevelNone)
+		suite.Require().Equal(len(lookupSpans), 1)
+		suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), false, DurabilityLevelNone)
+	}
 
 	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "get_and_touch", 1, false)
@@ -1831,12 +1843,14 @@ func (suite *IntegrationTestSuite) TestTouch() {
 	span := nilParents[2]
 	suite.AssertKvSpan(span, "get", DurabilityLevelNone)
 
-	suite.Require().Equal(len(span.Spans), 1)
-	suite.Require().Contains(span.Spans, "lookup_in")
-	lookupSpans := span.Spans["lookup_in"]
+	if globalCluster.SupportsFeature(GetExpiryUsingLookupInFeature) {
+		suite.Require().Equal(len(span.Spans), 1)
+		suite.Require().Contains(span.Spans, "lookup_in")
+		lookupSpans := span.Spans["lookup_in"]
 
-	suite.Require().Equal(len(lookupSpans), 1)
-	suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), false, DurabilityLevelNone)
+		suite.Require().Equal(len(lookupSpans), 1)
+		suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), false, DurabilityLevelNone)
+	}
 
 	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "touch", 1, false)
@@ -1947,12 +1961,15 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAllReplicas() {
 		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
-	agent, err := globalCollection.getKvProvider()
+	prov, err := globalCollection.getKvProvider()
 	if err != nil {
 		suite.T().Fatalf("Failed to get kv provider, was %v", err)
 	}
 
-	snapshot, err := globalCollection.waitForConfigSnapshot(context.Background(), time.Now().Add(5*time.Second), agent)
+	agent, ok := prov.(*kvProviderCore)
+	suite.Require().True(ok)
+
+	snapshot, err := agent.waitForConfigSnapshot(context.Background(), time.Now().Add(5*time.Second))
 	if err != nil {
 		suite.T().Fatalf("Failed to get config snapshot, was %v", err)
 	}
@@ -2198,7 +2215,7 @@ func (suite *UnitTestSuite) TestGetErrorCollectionUnknown() {
 	pendingOp := new(mockPendingOp)
 	pendingOp.AssertNotCalled(suite.T(), "Cancel", mock.AnythingOfType("error"))
 
-	provider := new(mockKvProvider)
+	provider := new(mockKvProviderCoreProvider)
 	provider.
 		On("Get", mock.AnythingOfType("gocbcore.GetOptions"), mock.AnythingOfType("gocbcore.GetCallback")).
 		Run(func(args mock.Arguments) {
@@ -2207,7 +2224,9 @@ func (suite *UnitTestSuite) TestGetErrorCollectionUnknown() {
 		}).
 		Return(pendingOp, nil)
 
-	col := suite.collection("mock", "", "", provider)
+	agent := &kvProviderCore{agent: provider}
+
+	col := suite.collection("mock", "", "", agent)
 
 	res, err := col.Get("getDocErrCollectionUnknown", nil)
 	if err == nil {
@@ -2301,7 +2320,7 @@ func (suite *UnitTestSuite) TestGetErrorProperties() {
 		LastConnectionID:   "d80aa17aa2577d3d/87aa643382554811",
 	}
 
-	provider := new(mockKvProvider)
+	provider := new(mockKvProviderCoreProvider)
 	provider.
 		On("Get", mock.AnythingOfType("gocbcore.GetOptions"), mock.AnythingOfType("gocbcore.GetCallback")).
 		Run(func(args mock.Arguments) {
@@ -2310,7 +2329,9 @@ func (suite *UnitTestSuite) TestGetErrorProperties() {
 		}).
 		Return(pendingOp, nil)
 
-	col := suite.collection("mock", "", "", provider)
+	agent := &kvProviderCore{agent: provider}
+
+	col := suite.collection("mock", "", "", agent)
 
 	res, err := col.Get("someid", nil)
 	if !errors.Is(err, ErrDocumentNotFound) {
@@ -2345,7 +2366,7 @@ func (suite *UnitTestSuite) TestExpiryConversion5Seconds() {
 	pendingOp := new(mockPendingOp)
 	pendingOp.AssertNotCalled(suite.T(), "Cancel", mock.AnythingOfType("error"))
 
-	provider := new(mockKvProvider)
+	provider := new(mockKvProviderCoreProvider)
 	provider.
 		On("Set", mock.AnythingOfType("gocbcore.SetOptions"), mock.AnythingOfType("gocbcore.StoreCallback")).
 		Run(func(args mock.Arguments) {
@@ -2359,7 +2380,9 @@ func (suite *UnitTestSuite) TestExpiryConversion5Seconds() {
 		}).
 		Return(pendingOp, nil)
 
-	col := suite.collection("mock", "", "", provider)
+	agent := &kvProviderCore{agent: provider}
+
+	col := suite.collection("mock", "", "", agent)
 
 	res, err := col.Upsert("someid", "someval", &UpsertOptions{
 		Expiry: 5 * time.Second,
@@ -2373,7 +2396,7 @@ func (suite *UnitTestSuite) TestExpiryConversion500Milliseconds() {
 	pendingOp := new(mockPendingOp)
 	pendingOp.AssertNotCalled(suite.T(), "Cancel", mock.AnythingOfType("error"))
 
-	provider := new(mockKvProvider)
+	provider := new(mockKvProviderCoreProvider)
 	provider.
 		On("Set", mock.AnythingOfType("gocbcore.SetOptions"), mock.AnythingOfType("gocbcore.StoreCallback")).
 		Run(func(args mock.Arguments) {
@@ -2387,7 +2410,9 @@ func (suite *UnitTestSuite) TestExpiryConversion500Milliseconds() {
 		}).
 		Return(pendingOp, nil)
 
-	col := suite.collection("mock", "", "", provider)
+	agent := &kvProviderCore{agent: provider}
+
+	col := suite.collection("mock", "", "", agent)
 
 	res, err := col.Upsert("someid", "someval", &UpsertOptions{
 		Expiry: 500 * time.Millisecond,
@@ -2402,7 +2427,7 @@ func (suite *UnitTestSuite) TestExpiryConversion30Days() {
 	pendingOp.AssertNotCalled(suite.T(), "Cancel", mock.AnythingOfType("error"))
 
 	expectedTime := time.Now().Add(30 * 24 * time.Hour)
-	provider := new(mockKvProvider)
+	provider := new(mockKvProviderCoreProvider)
 	provider.
 		On("Set", mock.AnythingOfType("gocbcore.SetOptions"), mock.AnythingOfType("gocbcore.StoreCallback")).
 		Run(func(args mock.Arguments) {
@@ -2423,7 +2448,9 @@ func (suite *UnitTestSuite) TestExpiryConversion30Days() {
 		}).
 		Return(pendingOp, nil)
 
-	col := suite.collection("mock", "", "", provider)
+	agent := &kvProviderCore{agent: provider}
+
+	col := suite.collection("mock", "", "", agent)
 
 	res, err := col.Upsert("someid", "someval", &UpsertOptions{
 		Expiry: 30 * 24 * time.Hour,
@@ -2438,7 +2465,7 @@ func (suite *UnitTestSuite) TestExpiryConversion31Days() {
 	pendingOp.AssertNotCalled(suite.T(), "Cancel", mock.AnythingOfType("error"))
 
 	expectedTime := time.Now().Add(31 * 24 * time.Hour)
-	provider := new(mockKvProvider)
+	provider := new(mockKvProviderCoreProvider)
 	provider.
 		On("Set", mock.AnythingOfType("gocbcore.SetOptions"), mock.AnythingOfType("gocbcore.StoreCallback")).
 		Run(func(args mock.Arguments) {
@@ -2459,7 +2486,9 @@ func (suite *UnitTestSuite) TestExpiryConversion31Days() {
 		}).
 		Return(pendingOp, nil)
 
-	col := suite.collection("mock", "", "", provider)
+	agent := &kvProviderCore{agent: provider}
+
+	col := suite.collection("mock", "", "", agent)
 
 	res, err := col.Upsert("someid", "someval", &UpsertOptions{
 		Expiry: 31 * 24 * time.Hour,

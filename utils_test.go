@@ -2,10 +2,11 @@ package gocb
 
 import (
 	"encoding/json"
-	"github.com/google/uuid"
 	"io"
 	"io/ioutil"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 type testBeerDocument struct {

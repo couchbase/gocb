@@ -2,8 +2,6 @@ package gocb
 
 import (
 	"time"
-
-	"github.com/couchbase/gocbcore/v10"
 )
 
 // Bucket represents a single bucket within a cluster.
@@ -169,33 +167,13 @@ func (b *Bucket) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOptio
 		return err
 	}
 
-	desiredState := opts.DesiredState
-	if desiredState == 0 {
-		desiredState = ClusterStateOnline
-	}
-
-	services := opts.ServiceTypes
-	gocbcoreServices := make([]gocbcore.ServiceType, len(services))
-	for i, svc := range services {
-		gocbcoreServices[i] = gocbcore.ServiceType(svc)
-	}
-
-	wrapper := b.retryStrategyWrapper
-	if opts.RetryStrategy != nil {
-		wrapper = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
 	err = provider.WaitUntilReady(
 		opts.Context,
 		time.Now().Add(timeout),
-		gocbcore.WaitUntilReadyOptions{
-			DesiredState:  gocbcore.ClusterState(desiredState),
-			ServiceTypes:  gocbcoreServices,
-			RetryStrategy: wrapper,
-		},
+		opts,
 	)
 	if err != nil {
-		return maybeEnhanceCoreErr(err)
+		return err
 	}
 
 	return nil

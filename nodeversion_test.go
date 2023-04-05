@@ -20,8 +20,9 @@ type NodeVersion struct {
 type NodeEdition int
 
 const (
-	CommunityNodeEdition  = NodeEdition(1)
-	EnterpriseNodeEdition = NodeEdition(2)
+	CommunityNodeEdition    = NodeEdition(1)
+	EnterpriseNodeEdition   = NodeEdition(2)
+	ProtostellarNodeEdition = NodeEdition(3)
 )
 
 func (v NodeVersion) Equal(ov NodeVersion) bool {
@@ -149,6 +150,8 @@ func editionModifierFromString(editionModifier string) (NodeEdition, string, err
 		edition = CommunityNodeEdition
 	} else if editionStr == "dp" {
 		modifier = editionStr
+	} else if editionStr == "protostellar" {
+		edition = ProtostellarNodeEdition
 	} else {
 		return 0, "", errors.New("Unrecognised edition or modifier: " + editionStr)
 	}

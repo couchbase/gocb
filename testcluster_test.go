@@ -7,30 +7,31 @@ import (
 )
 
 var (
-	srvVer180   = NodeVersion{1, 8, 0, 0, 0, "", false}
-	srvVer200   = NodeVersion{2, 0, 0, 0, 0, "", false}
-	srvVer250   = NodeVersion{2, 5, 0, 0, 0, "", false}
-	srvVer300   = NodeVersion{3, 0, 0, 0, 0, "", false}
-	srvVer400   = NodeVersion{4, 0, 0, 0, 0, "", false}
-	srvVer450   = NodeVersion{4, 5, 0, 0, 0, "", false}
-	srvVer500   = NodeVersion{5, 0, 0, 0, 0, "", false}
-	srvVer550   = NodeVersion{5, 5, 0, 0, 0, "", false}
-	srvVer551   = NodeVersion{5, 5, 1, 0, 0, "", false}
-	srvVer552   = NodeVersion{5, 5, 2, 0, 0, "", false}
-	srvVer553   = NodeVersion{5, 5, 3, 0, 0, "", false}
-	srvVer600   = NodeVersion{6, 0, 0, 0, 0, "", false}
-	srvVer650   = NodeVersion{6, 5, 0, 0, 0, "", false}
-	srvVer650DP = NodeVersion{6, 5, 0, 0, 0, "dp", false}
-	srvVer660   = NodeVersion{6, 6, 0, 0, 0, "", false}
-	srvVer700   = NodeVersion{7, 0, 0, 0, 0, "", false}
-	srvVer710   = NodeVersion{7, 1, 0, 0, 0, "", false}
-	srvVer711   = NodeVersion{7, 1, 1, 0, 0, "", false}
-	srvVer710DP = NodeVersion{7, 1, 0, 0, 0, "dp", false}
-	srvVer720   = NodeVersion{7, 2, 0, 0, 0, "", false}
-	srvVer750   = NodeVersion{7, 5, 0, 0, 0, "", false}
-	mockVer156  = NodeVersion{1, 5, 6, 0, 0, "", true}
-	mockVer1513 = NodeVersion{1, 5, 13, 0, 0, "", true}
-	mockVer1515 = NodeVersion{1, 5, 15, 0, 0, "", true}
+	srvVer180       = NodeVersion{1, 8, 0, 0, 0, "", false}
+	srvVer200       = NodeVersion{2, 0, 0, 0, 0, "", false}
+	srvVer250       = NodeVersion{2, 5, 0, 0, 0, "", false}
+	srvVer300       = NodeVersion{3, 0, 0, 0, 0, "", false}
+	srvVer400       = NodeVersion{4, 0, 0, 0, 0, "", false}
+	srvVer450       = NodeVersion{4, 5, 0, 0, 0, "", false}
+	srvVer500       = NodeVersion{5, 0, 0, 0, 0, "", false}
+	srvVer550       = NodeVersion{5, 5, 0, 0, 0, "", false}
+	srvVer551       = NodeVersion{5, 5, 1, 0, 0, "", false}
+	srvVer552       = NodeVersion{5, 5, 2, 0, 0, "", false}
+	srvVer553       = NodeVersion{5, 5, 3, 0, 0, "", false}
+	srvVer600       = NodeVersion{6, 0, 0, 0, 0, "", false}
+	srvVer650       = NodeVersion{6, 5, 0, 0, 0, "", false}
+	srvVer650DP     = NodeVersion{6, 5, 0, 0, 0, "dp", false}
+	srvVer660       = NodeVersion{6, 6, 0, 0, 0, "", false}
+	srvVer700       = NodeVersion{7, 0, 0, 0, 0, "", false}
+	srvVer710       = NodeVersion{7, 1, 0, 0, 0, "", false}
+	srvVer711       = NodeVersion{7, 1, 1, 0, 0, "", false}
+	srvVer710DP     = NodeVersion{7, 1, 0, 0, 0, "dp", false}
+	srvVer720       = NodeVersion{7, 2, 0, 0, 0, "", false}
+	protostellarVer = NodeVersion{7, 5, 0, 0, ProtostellarNodeEdition, "", false}
+	srvVer750       = NodeVersion{7, 5, 0, 0, 0, "", false}
+	mockVer156      = NodeVersion{1, 5, 6, 0, 0, "", true}
+	mockVer1513     = NodeVersion{1, 5, 13, 0, 0, "", true}
+	mockVer1515     = NodeVersion{1, 5, 15, 0, 0, "", true}
 )
 
 type FeatureCode string
@@ -41,7 +42,6 @@ var (
 	QueryFeature                              = FeatureCode("query")
 	ClusterLevelQueryFeature                  = FeatureCode("clusterQuery")
 	SubdocFeature                             = FeatureCode("subdoc")
-	RbacFeature                               = FeatureCode("rbac")
 	SearchFeature                             = FeatureCode("search")
 	SearchIndexFeature                        = FeatureCode("searchindex")
 	AnalyticsFeature                          = FeatureCode("analytics")
@@ -88,6 +88,10 @@ var (
 	EventingFunctionManagerMB52649Feature     = FeatureCode("eventingmanagementmb52649")
 	EventingFunctionManagerMB52572Feature     = FeatureCode("eventingmanagementmb52572")
 	RangeScanFeature                          = FeatureCode("rangescan")
+	GetExpiryUsingLookupInFeature             = FeatureCode("getexpiryusinglookupin")
+	KeyValueBulkFeature                       = FeatureCode("keyvaluebulk")
+	KeyValueProjectionsFeature                = FeatureCode("keyvalueprojections")
+	NodesMetadataFeature                      = FeatureCode("nodesmetadata")
 )
 
 type TestFeatureFlag struct {
@@ -223,23 +227,21 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case KeyValueFeature:
 			supported = !c.Version.Lower(srvVer180)
 		case ViewFeature:
-			supported = !c.Version.Lower(srvVer200) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(srvVer750)
+			supported = !c.Version.Lower(srvVer200) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(srvVer750) && !c.Version.Equal(protostellarVer)
 		case QueryFeature:
-			supported = !c.Version.Lower(srvVer400) && !c.Version.Equal(srvVer650DP)
+			supported = !c.Version.Lower(srvVer400) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(protostellarVer)
 		case ClusterLevelQueryFeature:
-			supported = !c.Version.Lower(srvVer400) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(srvVer750)
+			supported = !c.Version.Lower(srvVer400) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(srvVer750) && !c.Version.Equal(protostellarVer)
 		case SubdocFeature:
 			supported = !c.Version.Lower(srvVer450)
 		case XattrFeature:
 			supported = !c.Version.Lower(srvVer450)
-		case RbacFeature:
-			supported = !c.Version.Lower(srvVer500)
 		case SearchFeature:
-			supported = !c.Version.Lower(srvVer500) && !c.Version.Equal(srvVer650DP)
+			supported = !c.Version.Lower(srvVer500) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(protostellarVer)
 		case SearchIndexFeature:
-			supported = !c.Version.Lower(srvVer500) && !c.Version.Equal(srvVer650DP)
+			supported = !c.Version.Lower(srvVer500) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(protostellarVer)
 		case AnalyticsFeature:
-			supported = !c.Version.Lower(srvVer600) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(srvVer750)
+			supported = !c.Version.Lower(srvVer600) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(srvVer750) && !c.Version.Equal(protostellarVer)
 		case CollectionsFeature:
 			supported = c.Version.Equal(srvVer650DP) || !c.Version.Lower(srvVer700)
 		case ExpandMacrosFeature:
@@ -249,81 +251,87 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case DurabilityFeature:
 			supported = !c.Version.Lower(srvVer650)
 		case UserGroupFeature:
-			supported = !c.Version.Lower(srvVer650) && !c.Version.Equal(srvVer750)
+			supported = !c.Version.Lower(srvVer650) && !c.Version.Equal(srvVer750) && !c.Version.Equal(protostellarVer)
 		case UserManagerFeature:
-			supported = !c.Version.Lower(srvVer500) && !c.Version.Equal(srvVer750)
+			supported = !c.Version.Lower(srvVer500) && !c.Version.Equal(srvVer750) && !c.Version.Equal(protostellarVer)
 		case AnalyticsIndexFeature:
-			supported = !c.Version.Lower(srvVer600) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(srvVer750)
+			supported = !c.Version.Lower(srvVer600) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(srvVer750) && !c.Version.Equal(protostellarVer)
 		case BucketMgrFeature:
-			supported = !c.Version.Equal(srvVer750)
+			supported = !c.Version.Equal(srvVer750) && !c.Version.Equal(protostellarVer)
 		case SearchAnalyzeFeature:
 			supported = !c.Version.Lower(srvVer650) && !c.Version.Equal(srvVer650DP)
 		case AnalyticsIndexPendingMutationsFeature:
-			supported = !c.Version.Lower(srvVer650) && !c.Version.Equal(srvVer650DP)
+			supported = !c.Version.Lower(srvVer650) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(protostellarVer)
 		case GetMetaFeature:
 			supported = true
 		case PingFeature:
-			supported = !c.Version.Equal(srvVer750)
+			supported = !c.Version.Equal(srvVer750) && !c.Version.Equal(protostellarVer)
 		case ViewIndexUpsertBugFeature:
 			supported = !c.Version.Equal(srvVer650)
 		case PingAnalyticsFeature:
-			supported = !c.Version.Lower(srvVer600)
+			supported = !c.Version.Lower(srvVer600) && !c.Version.Equal(protostellarVer)
 		case WaitUntilReadyFeature:
-			supported = true
+			supported = !c.Version.Equal(protostellarVer)
 		case WaitUntilReadyClusterFeature:
 			supported = !c.Version.Lower(srvVer650) && !c.Version.Equal(srvVer750)
 		case ReplicasFeature:
-			supported = true
+			supported = !c.Version.Equal(protostellarVer)
 		case QueryIndexFeature:
-			supported = !c.Version.Equal(srvVer650DP)
+			supported = !c.Version.Equal(srvVer650DP) && !c.Version.Equal(protostellarVer)
 		case CollectionsQueryFeature:
-			supported = !c.Version.Lower(srvVer700)
+			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(protostellarVer)
 		case CollectionsAnalyticsFeature:
-			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(srvVer750)
+			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(srvVer750) && !c.Version.Equal(protostellarVer)
 		case CollectionsManagerFeature:
-			supported = !c.Version.Lower(srvVer700)
+			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(protostellarVer)
 		case CollectionsManagerMaxCollectionsFeature:
-			supported = !c.Version.Lower(srvVer700)
+			supported = false
 		case BucketMgrDurabilityFeature:
-			supported = !c.Version.Lower(srvVer660)
+			supported = !c.Version.Lower(srvVer660) && !c.Version.Equal(protostellarVer)
 		case AnalyticsIndexLinksFeature:
-			supported = !c.Version.Lower(srvVer660)
+			supported = !c.Version.Lower(srvVer660) && !c.Version.Equal(protostellarVer)
 		case AnalyticsIndexLinksScopesFeature:
-			supported = !c.Version.Lower(srvVer700)
+			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(protostellarVer)
 		case EnhancedPreparedStatementsFeature:
 			supported = !c.Version.Lower(srvVer650)
 		case PreserveExpiryFeature:
-			supported = !c.Version.Lower(srvVer700)
+			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(protostellarVer)
 		case EventingFunctionManagerFeature:
-			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(srvVer750)
-		case RateLimitingFeature:
-			supported = !c.Version.Lower(srvVer710) && c.Version.Lower(srvVer720)
+			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(srvVer750) && !c.Version.Equal(protostellarVer)
 		case StorageBackendFeature:
-			supported = !c.Version.Lower(srvVer710) && (c.Version.Edition != CommunityNodeEdition)
+			supported = !c.Version.Lower(srvVer710) && (c.Version.Edition != CommunityNodeEdition) && !c.Version.Equal(protostellarVer)
 		case HLCFeature:
 			supported = !c.Version.Lower(srvVer660)
 		case TransactionsFeature:
-			supported = !c.Version.Lower(srvVer700)
+			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(protostellarVer)
 		case TransactionsQueryFeature:
-			supported = !c.Version.Lower(srvVer700)
+			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(protostellarVer)
 		case TransactionsBulkFeature:
-			supported = !c.Version.Lower(srvVer700)
+			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(protostellarVer)
 		case CustomConflictResolutionFeature:
-			supported = c.Version.Equal(srvVer710DP)
+			supported = c.Version.Equal(srvVer710DP) && !c.Version.Equal(protostellarVer)
 		case QueryImprovedErrorsFeature:
 			supported = !c.Version.Lower(srvVer710)
 		case UserManagerChangePasswordFeature:
-			supported = !c.Version.Lower(srvVer600)
+			supported = !c.Version.Lower(srvVer600) && !c.Version.Equal(protostellarVer)
 		case TransactionsRemoveLocationFeature:
-			supported = !c.Version.Lower(srvVer700)
+			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(protostellarVer)
 		case TransactionsSingleQueryExistsErrorFeature:
-			supported = !c.Version.Lower(srvVer710)
+			supported = !c.Version.Lower(srvVer710) && !c.Version.Equal(protostellarVer)
 		case EventingFunctionManagerMB52649Feature:
-			supported = !c.Version.Equal(srvVer711)
+			supported = !c.Version.Equal(srvVer711) && !c.Version.Equal(protostellarVer)
 		case EventingFunctionManagerMB52572Feature:
-			supported = !c.Version.Equal(srvVer711)
+			supported = !c.Version.Equal(srvVer711) && !c.Version.Equal(protostellarVer)
 		case RangeScanFeature:
-			supported = !c.Version.Lower(srvVer750)
+			supported = !c.Version.Lower(srvVer750) && !c.Version.Equal(protostellarVer)
+		case GetExpiryUsingLookupInFeature:
+			supported = !c.Version.Equal(protostellarVer)
+		case KeyValueBulkFeature:
+			supported = !c.Version.Equal(protostellarVer)
+		case KeyValueProjectionsFeature:
+			supported = !c.Version.Equal(protostellarVer)
+		case NodesMetadataFeature:
+			supported = !c.Version.Equal(protostellarVer)
 		}
 	}
 

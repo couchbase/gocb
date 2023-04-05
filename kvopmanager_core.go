@@ -9,8 +9,10 @@ import (
 	"github.com/couchbase/gocbcore/v10/memd"
 )
 
-type kvOpManager struct {
+// Contains information only useful to gocbcore
+type kvOpManagerCore struct {
 	parent *Collection
+	kv     *kvProviderCore
 	signal chan struct{}
 
 	err           error
@@ -39,7 +41,7 @@ type kvOpManager struct {
 	ctx context.Context
 }
 
-func (m *kvOpManager) getTimeout() time.Duration {
+func (m *kvOpManagerCore) getTimeout() time.Duration {
 	if m.timeout > 0 {
 		if m.durabilityLevel > 0 && m.timeout < durabilityTimeoutFloor {
 			m.timeout = durabilityTimeoutFloor
@@ -61,31 +63,31 @@ func (m *kvOpManager) getTimeout() time.Duration {
 	return defaultTimeout
 }
 
-func (m *kvOpManager) SetDocumentID(id string) {
+func (m *kvOpManagerCore) SetDocumentID(id string) {
 	m.documentID = id
 }
 
-func (m *kvOpManager) SetCancelCh(cancelCh chan struct{}) {
+func (m *kvOpManagerCore) SetCancelCh(cancelCh chan struct{}) {
 	m.cancelCh = cancelCh
 }
 
-func (m *kvOpManager) SetTimeout(timeout time.Duration) {
+func (m *kvOpManagerCore) SetTimeout(timeout time.Duration) {
 	m.timeout = timeout
 }
 
-func (m *kvOpManager) SetTranscoder(transcoder Transcoder) {
+func (m *kvOpManagerCore) SetTranscoder(transcoder Transcoder) {
 	if transcoder == nil {
 		transcoder = m.parent.transcoder
 	}
 	m.transcoder = transcoder
 }
 
-func (m *kvOpManager) SetValue(val interface{}) {
+func (m *kvOpManagerCore) SetValue(val interface{}) {
 	if m.err != nil {
 		return
 	}
 	if m.transcoder == nil {
-		m.err = errors.New("Expected a transcoder to be specified first")
+		m.err = errors.New("expected a transcoder to be specified first")
 		return
 	}
 
@@ -102,7 +104,7 @@ func (m *kvOpManager) SetValue(val interface{}) {
 	m.flags = flags
 }
 
-func (m *kvOpManager) SetDuraOptions(persistTo, replicateTo uint, level DurabilityLevel) {
+func (m *kvOpManagerCore) SetDuraOptions(persistTo, replicateTo uint, level DurabilityLevel) {
 	if persistTo != 0 || replicateTo != 0 {
 		if !m.parent.useMutationTokens {
 			m.err = makeInvalidArgumentsError("cannot use observe based durability without mutation tokens")
@@ -133,7 +135,7 @@ func (m *kvOpManager) SetDuraOptions(persistTo, replicateTo uint, level Durabili
 	}
 }
 
-func (m *kvOpManager) SetRetryStrategy(retryStrategy RetryStrategy) {
+func (m *kvOpManagerCore) SetRetryStrategy(retryStrategy RetryStrategy) {
 	wrapper := m.parent.retryStrategyWrapper
 	if retryStrategy != nil {
 		wrapper = newRetryStrategyWrapper(retryStrategy)
@@ -141,22 +143,22 @@ func (m *kvOpManager) SetRetryStrategy(retryStrategy RetryStrategy) {
 	m.retryStrategy = wrapper
 }
 
-func (m *kvOpManager) SetImpersonate(user string) {
+func (m *kvOpManagerCore) SetImpersonate(user string) {
 	m.impersonate = user
 }
 
-func (m *kvOpManager) SetContext(ctx context.Context) {
+func (m *kvOpManagerCore) SetContext(ctx context.Context) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	m.ctx = ctx
 }
 
-func (m *kvOpManager) SetPreserveExpiry(preserveTTL bool) {
+func (m *kvOpManagerCore) SetPreserveExpiry(preserveTTL bool) {
 	m.preserveTTL = preserveTTL
 }
 
-func (m *kvOpManager) Finish(noMetrics bool) {
+func (m *kvOpManagerCore) Finish(noMetrics bool) {
 	m.span.End()
 
 	if !noMetrics {
@@ -164,47 +166,47 @@ func (m *kvOpManager) Finish(noMetrics bool) {
 	}
 }
 
-func (m *kvOpManager) TraceSpanContext() RequestSpanContext {
+func (m *kvOpManagerCore) TraceSpanContext() RequestSpanContext {
 	return m.span.Context()
 }
 
-func (m *kvOpManager) TraceSpan() RequestSpan {
+func (m *kvOpManagerCore) TraceSpan() RequestSpan {
 	return m.span
 }
 
-func (m *kvOpManager) DocumentID() []byte {
+func (m *kvOpManagerCore) DocumentID() []byte {
 	return []byte(m.documentID)
 }
 
-func (m *kvOpManager) CollectionName() string {
+func (m *kvOpManagerCore) CollectionName() string {
 	return m.parent.name()
 }
 
-func (m *kvOpManager) ScopeName() string {
+func (m *kvOpManagerCore) ScopeName() string {
 	return m.parent.ScopeName()
 }
 
-func (m *kvOpManager) BucketName() string {
+func (m *kvOpManagerCore) BucketName() string {
 	return m.parent.bucketName()
 }
 
-func (m *kvOpManager) ValueBytes() []byte {
+func (m *kvOpManagerCore) ValueBytes() []byte {
 	return m.bytes
 }
 
-func (m *kvOpManager) ValueFlags() uint32 {
+func (m *kvOpManagerCore) ValueFlags() uint32 {
 	return m.flags
 }
 
-func (m *kvOpManager) Transcoder() Transcoder {
+func (m *kvOpManagerCore) Transcoder() Transcoder {
 	return m.transcoder
 }
 
-func (m *kvOpManager) DurabilityLevel() memd.DurabilityLevel {
+func (m *kvOpManagerCore) DurabilityLevel() memd.DurabilityLevel {
 	return m.durabilityLevel
 }
 
-func (m *kvOpManager) DurabilityTimeout() time.Duration {
+func (m *kvOpManagerCore) DurabilityTimeout() time.Duration {
 	if m.durabilityLevel == 0 {
 		return 0
 	}
@@ -220,7 +222,7 @@ func (m *kvOpManager) DurabilityTimeout() time.Duration {
 	return duraTimeout
 }
 
-func (m *kvOpManager) Deadline() time.Time {
+func (m *kvOpManagerCore) Deadline() time.Time {
 	if m.deadline.IsZero() {
 		timeout := m.getTimeout()
 		m.deadline = time.Now().Add(timeout)
@@ -229,19 +231,19 @@ func (m *kvOpManager) Deadline() time.Time {
 	return m.deadline
 }
 
-func (m *kvOpManager) RetryStrategy() *retryStrategyWrapper {
+func (m *kvOpManagerCore) RetryStrategy() *retryStrategyWrapper {
 	return m.retryStrategy
 }
 
-func (m *kvOpManager) Impersonate() string {
+func (m *kvOpManagerCore) Impersonate() string {
 	return m.impersonate
 }
 
-func (m *kvOpManager) PreserveExpiry() bool {
+func (m *kvOpManagerCore) PreserveExpiry() bool {
 	return m.preserveTTL
 }
 
-func (m *kvOpManager) CheckReadyForOp() error {
+func (m *kvOpManagerCore) CheckReadyForOp() error {
 	if m.err != nil {
 		return m.err
 	}
@@ -253,15 +255,15 @@ func (m *kvOpManager) CheckReadyForOp() error {
 	return nil
 }
 
-func (m *kvOpManager) NeedsObserve() bool {
+func (m *kvOpManagerCore) NeedsObserve() bool {
 	return m.persistTo > 0 || m.replicateTo > 0
 }
 
-func (m *kvOpManager) EnhanceErr(err error) error {
+func (m *kvOpManagerCore) EnhanceErr(err error) error {
 	return maybeEnhanceCollKVErr(err, nil, m.parent, m.documentID)
 }
 
-func (m *kvOpManager) EnhanceMt(token gocbcore.MutationToken) *MutationToken {
+func (m *kvOpManagerCore) EnhanceMt(token gocbcore.MutationToken) *MutationToken {
 	if token.VbUUID != 0 {
 		return &MutationToken{
 			token:      token,
@@ -272,17 +274,17 @@ func (m *kvOpManager) EnhanceMt(token gocbcore.MutationToken) *MutationToken {
 	return nil
 }
 
-func (m *kvOpManager) Reject() {
+func (m *kvOpManagerCore) Reject() {
 	m.signal <- struct{}{}
 }
 
-func (m *kvOpManager) Resolve(token *MutationToken) {
+func (m *kvOpManagerCore) Resolve(token *MutationToken) {
 	m.wasResolved = true
 	m.mutationToken = token
 	m.signal <- struct{}{}
 }
 
-func (m *kvOpManager) Wait(op gocbcore.PendingOp, err error) error {
+func (m *kvOpManagerCore) Wait(op gocbcore.PendingOp, err error) error {
 	if err != nil {
 		return err
 	}
@@ -306,8 +308,9 @@ func (m *kvOpManager) Wait(op gocbcore.PendingOp, err error) error {
 			return errors.New("expected a mutation token")
 		}
 
-		return m.parent.waitForDurability(
+		return m.kv.waitForDurability(
 			m.ctx,
+			m.parent,
 			m.span,
 			m.documentID,
 			m.mutationToken.token,
@@ -322,7 +325,7 @@ func (m *kvOpManager) Wait(op gocbcore.PendingOp, err error) error {
 	return nil
 }
 
-func (c *Collection) newKvOpManager(opName string, parentSpan RequestSpan) *kvOpManager {
+func newKvOpManagerCore(c *Collection, opName string, parentSpan RequestSpan, kv *kvProviderCore) *kvOpManagerCore {
 	var tracectx RequestSpanContext
 	if parentSpan != nil {
 		tracectx = parentSpan.Context()
@@ -330,13 +333,14 @@ func (c *Collection) newKvOpManager(opName string, parentSpan RequestSpan) *kvOp
 
 	span := c.startKvOpTrace(opName, tracectx, false)
 
-	return &kvOpManager{
+	return &kvOpManagerCore{
 		parent:        c,
 		signal:        make(chan struct{}, 1),
 		span:          span,
 		operationName: opName,
 		createdTime:   time.Now(),
 		meter:         c.meter,
+		kv:            kv,
 	}
 }
 

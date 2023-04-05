@@ -9,6 +9,7 @@ import (
 
 func (suite *IntegrationTestSuite) TestUpsertGetBulk() {
 	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(KeyValueBulkFeature)
 
 	var ops []BulkOp
 	for i := 0; i < 20; i++ {
@@ -95,6 +96,7 @@ func (suite *IntegrationTestSuite) TestUpsertGetBulk() {
 }
 func (suite *IntegrationTestSuite) TestInsertDocsBulk() {
 	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(KeyValueBulkFeature)
 
 	var ops []BulkOp
 	for i := 0; i < 20; i++ {
@@ -134,6 +136,7 @@ func (suite *IntegrationTestSuite) TestInsertDocsBulk() {
 
 func (suite *IntegrationTestSuite) TestReplaceOperationBulk() {
 	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(KeyValueBulkFeature)
 
 	var ops []BulkOp
 	for i := 0; i < 20; i++ {
@@ -204,6 +207,7 @@ func (suite *IntegrationTestSuite) TestReplaceOperationBulk() {
 
 func (suite *IntegrationTestSuite) TestRemoveOperationBulk() {
 	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(KeyValueBulkFeature)
 
 	var ops []BulkOp
 	for i := 0; i < 20; i++ {

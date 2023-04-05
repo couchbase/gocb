@@ -703,7 +703,7 @@ func (suite *IntegrationTestSuite) TestTransactionsGetOnly() {
 	suite.Require().Nil(err, err)
 }
 
-func (suite *IntegrationTestSuite) TestMultipleTransactionObjects() {
+func (suite *UnitTestSuite) TestMultipleTransactionObjects() {
 	cli := new(mockConnectionManager)
 	cli.On("close").Return(nil)
 

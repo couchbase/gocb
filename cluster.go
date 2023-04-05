@@ -8,8 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v10"
-	gocbconnstr "github.com/couchbase/gocbcore/v10/connstr"
+	gocbconnstr "github.com/couchbaselabs/gocbconnstr/v2"
 )
 
 // Cluster represents a connection to a specific Couchbase cluster.
@@ -280,7 +279,7 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 		return nil, err
 	}
 
-	cli := newConnectionMgr()
+	cli := cluster.newConnectionMgr(connSpec.Scheme)
 	err = cli.buildConfig(cluster)
 	if err != nil {
 		return nil, err
@@ -431,29 +430,10 @@ func (c *Cluster) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOpti
 		return err
 	}
 
-	desiredState := opts.DesiredState
-	if desiredState == 0 {
-		desiredState = ClusterStateOnline
-	}
-
-	gocbcoreServices := make([]gocbcore.ServiceType, len(opts.ServiceTypes))
-	for i, svc := range opts.ServiceTypes {
-		gocbcoreServices[i] = gocbcore.ServiceType(svc)
-	}
-
-	wrapper := c.retryStrategyWrapper
-	if opts.RetryStrategy != nil {
-		wrapper = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
 	err = provider.WaitUntilReady(
 		opts.Context,
 		time.Now().Add(timeout),
-		gocbcore.WaitUntilReadyOptions{
-			DesiredState:  gocbcore.ClusterState(desiredState),
-			ServiceTypes:  gocbcoreServices,
-			RetryStrategy: wrapper,
-		},
+		opts,
 	)
 	if err != nil {
 		return maybeEnhanceCoreErr(err)
@@ -467,7 +447,7 @@ func (c *Cluster) Close(opts *ClusterCloseOptions) error {
 	var overallErr error
 
 	// This needs to be closed first.
-	if c.transactions != nil {
+	if c.transactions != nil && !c.transactions.unsupported {
 		err := c.transactions.close()
 		if err != nil {
 			logWarnf("Failed to close transactions in cluster close: %s", err)

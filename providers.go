@@ -2,7 +2,6 @@ package gocb
 
 import (
 	"context"
-	"time"
 
 	gocbcore "github.com/couchbase/gocbcore/v10"
 )
@@ -31,15 +30,6 @@ type searchProvider interface {
 	SearchQuery(ctx context.Context, opts gocbcore.SearchQueryOptions) (searchRowReader, error)
 }
 
-type waitUntilReadyProvider interface {
-	WaitUntilReady(ctx context.Context, deadline time.Time, opts gocbcore.WaitUntilReadyOptions) error
-}
-
-type gocbcoreWaitUntilReadyProvider interface {
-	WaitUntilReady(deadline time.Time, opts gocbcore.WaitUntilReadyOptions,
-		cb gocbcore.WaitUntilReadyCallback) (gocbcore.PendingOp, error)
-}
-
 type diagnosticsProvider interface {
 	Diagnostics(opts gocbcore.DiagnosticsOptions) (*gocbcore.DiagnosticInfo, error)
 	Ping(ctx context.Context, opts gocbcore.PingOptions) (*gocbcore.PingResult, error)
@@ -52,30 +42,6 @@ type gocbcoreDiagnosticsProvider interface {
 
 type gocbcoreHTTPProvider interface {
 	DoHTTPRequest(req *gocbcore.HTTPRequest, cb gocbcore.DoHTTPRequestCallback) (gocbcore.PendingOp, error)
-}
-
-type waitUntilReadyProviderWrapper struct {
-	provider gocbcoreWaitUntilReadyProvider
-}
-
-func (wpw *waitUntilReadyProviderWrapper) WaitUntilReady(ctx context.Context, deadline time.Time,
-	opts gocbcore.WaitUntilReadyOptions) (errOut error) {
-	opm := newAsyncOpManager(ctx)
-	err := opm.Wait(wpw.provider.WaitUntilReady(deadline, opts, func(res *gocbcore.WaitUntilReadyResult, err error) {
-		if err != nil {
-			errOut = err
-			opm.Reject()
-			return
-		}
-
-		opm.Resolve()
-	}))
-	if err != nil {
-		errOut = err
-		return
-	}
-
-	return
 }
 
 type diagnosticsProviderWrapper struct {

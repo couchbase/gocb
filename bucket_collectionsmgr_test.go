@@ -3,9 +3,10 @@ package gocb
 import (
 	"errors"
 	"fmt"
-	"github.com/stretchr/testify/mock"
 	"strconv"
 	"time"
+
+	"github.com/stretchr/testify/mock"
 )
 
 func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
@@ -337,7 +338,7 @@ func (suite *IntegrationTestSuite) TestDropScopesAreNotExist() {
 	}
 }
 func (suite *IntegrationTestSuite) TestGetAllScopes() {
-	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(CollectionsManagerFeature)
 
 	bucket1 := globalBucket.Collections()
 
@@ -548,6 +549,7 @@ func (suite *IntegrationTestSuite) TestNumberOfCollectionInScope() {
 }
 
 func (suite *IntegrationTestSuite) TestMaxNumberOfCollectionInScope() {
+	suite.T().Skip()
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 	suite.skipIfUnsupported(CollectionsManagerMaxCollectionsFeature)

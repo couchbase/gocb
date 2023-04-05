@@ -243,6 +243,11 @@ func setupCluster() {
 
 	options := ClusterOptions{Authenticator: auth}
 
+	nodeVersion, err := newNodeVersion(globalConfig.Version, mock != nil)
+	if err != nil {
+		panic(err.Error())
+	}
+
 	if globalConfig.certsPath != "" {
 		rootCAs := x509.NewCertPool()
 		files, err := ioutil.ReadDir(globalConfig.certsPath)
@@ -261,7 +266,12 @@ func setupCluster() {
 			}
 		}
 		options.SecurityConfig.TLSRootCAs = rootCAs
-		connStr = "couchbases://" + connStr
+
+		if nodeVersion.Edition != ProtostellarNodeEdition {
+			connStr = "couchbases://" + connStr
+		}
+	} else if nodeVersion.Edition == ProtostellarNodeEdition {
+		options.SecurityConfig.TLSSkipVerify = true
 	}
 
 	globalTracer = newTestTracer()
@@ -280,11 +290,6 @@ func setupCluster() {
 
 	globalConfig.connstr = connStr
 	globalConfig.auth = auth
-
-	nodeVersion, err := newNodeVersion(globalConfig.Version, mock != nil)
-	if err != nil {
-		panic(err.Error())
-	}
 
 	globalCluster = &testCluster{
 		Cluster:      cluster,

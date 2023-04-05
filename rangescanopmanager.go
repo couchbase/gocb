@@ -32,7 +32,7 @@ type rangeScanOpManager struct {
 	dataCh   chan *ScanResultItem
 	streams  map[uint16]*rangeScanStream
 
-	agent       kvProvider
+	agent       kvProviderCoreProvider
 	createdTime time.Time
 	meter       *meterWrapper
 	tracer      RequestTracer
@@ -324,7 +324,7 @@ func (m *rangeScanOpManager) Scan() (*ScanResult, error) {
 	return r, nil
 }
 
-func (c *Collection) newRangeScanOpManager(scanType ScanType, numVbuckets int, agent kvProvider,
+func (p *kvProviderCore) newRangeScanOpManager(c *Collection, scanType ScanType, numVbuckets int, agent kvProviderCoreProvider,
 	parentSpan RequestSpan, consistentWith *MutationState, keysOnly bool, sort ScanSort) (*rangeScanOpManager, error) {
 	var tracectx RequestSpanContext
 	if parentSpan != nil {

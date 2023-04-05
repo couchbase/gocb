@@ -3,8 +3,6 @@ package gocb
 import (
 	"context"
 	"time"
-
-	gocbcore "github.com/couchbase/gocbcore/v10"
 )
 
 // BinaryCollection is a set of binary operations.
@@ -38,53 +36,12 @@ func (c *Collection) binaryAppend(id string, val []byte, opts *AppendOptions) (m
 		opts = &AppendOptions{}
 	}
 
-	opm := c.newKvOpManager("append", opts.ParentSpan)
-	defer opm.Finish(false)
-
-	opm.SetDocumentID(id)
-	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
-	opm.SetRetryStrategy(opts.RetryStrategy)
-	opm.SetTimeout(opts.Timeout)
-	opm.SetImpersonate(opts.Internal.User)
-	opm.SetContext(opts.Context)
-
-	if err := opm.CheckReadyForOp(); err != nil {
-		return nil, err
-	}
-
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.Append(gocbcore.AdjoinOptions{
-		Key:                    opm.DocumentID(),
-		Value:                  val,
-		CollectionName:         opm.CollectionName(),
-		ScopeName:              opm.ScopeName(),
-		DurabilityLevel:        opm.DurabilityLevel(),
-		DurabilityLevelTimeout: opm.DurabilityTimeout(),
-		Cas:                    gocbcore.Cas(opts.Cas),
-		RetryStrategy:          opm.RetryStrategy(),
-		TraceContext:           opm.TraceSpanContext(),
-		Deadline:               opm.Deadline(),
-		User:                   opm.Impersonate(),
-	}, func(res *gocbcore.AdjoinResult, err error) {
-		if err != nil {
-			errOut = opm.EnhanceErr(err)
-			opm.Reject()
-			return
-		}
 
-		mutOut = &MutationResult{}
-		mutOut.cas = Cas(res.Cas)
-		mutOut.mt = opm.EnhanceMt(res.MutationToken)
-
-		opm.Resolve(mutOut.mt)
-	}))
-	if err != nil {
-		errOut = err
-	}
-	return
+	return agent.Append(c, id, val, opts)
 }
 
 // Append appends a byte value to a document.
@@ -118,53 +75,12 @@ func (c *Collection) binaryPrepend(id string, val []byte, opts *PrependOptions) 
 		opts = &PrependOptions{}
 	}
 
-	opm := c.newKvOpManager("prepend", opts.ParentSpan)
-	defer opm.Finish(false)
-
-	opm.SetDocumentID(id)
-	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
-	opm.SetRetryStrategy(opts.RetryStrategy)
-	opm.SetTimeout(opts.Timeout)
-	opm.SetImpersonate(opts.Internal.User)
-	opm.SetContext(opts.Context)
-
-	if err := opm.CheckReadyForOp(); err != nil {
-		return nil, err
-	}
-
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.Prepend(gocbcore.AdjoinOptions{
-		Key:                    opm.DocumentID(),
-		Value:                  val,
-		CollectionName:         opm.CollectionName(),
-		ScopeName:              opm.ScopeName(),
-		DurabilityLevel:        opm.DurabilityLevel(),
-		DurabilityLevelTimeout: opm.DurabilityTimeout(),
-		Cas:                    gocbcore.Cas(opts.Cas),
-		RetryStrategy:          opm.RetryStrategy(),
-		TraceContext:           opm.TraceSpanContext(),
-		Deadline:               opm.Deadline(),
-		User:                   opm.Impersonate(),
-	}, func(res *gocbcore.AdjoinResult, err error) {
-		if err != nil {
-			errOut = opm.EnhanceErr(err)
-			opm.Reject()
-			return
-		}
 
-		mutOut = &MutationResult{}
-		mutOut.cas = Cas(res.Cas)
-		mutOut.mt = opm.EnhanceMt(res.MutationToken)
-
-		opm.Resolve(mutOut.mt)
-	}))
-	if err != nil {
-		errOut = err
-	}
-	return
+	return agent.Prepend(c, id, val, opts)
 }
 
 // Prepend prepends a byte value to a document.
@@ -208,63 +124,15 @@ func (c *Collection) binaryIncrement(id string, opts *IncrementOptions) (countOu
 		opts = &IncrementOptions{}
 	}
 	if opts.Cas > 0 {
-		return nil, makeInvalidArgumentsError("cas is not supported by the server for the Increment operation")
-	}
-
-	opm := c.newKvOpManager("increment", opts.ParentSpan)
-	defer opm.Finish(false)
-
-	opm.SetDocumentID(id)
-	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
-	opm.SetRetryStrategy(opts.RetryStrategy)
-	opm.SetTimeout(opts.Timeout)
-	opm.SetImpersonate(opts.Internal.User)
-	opm.SetContext(opts.Context)
-
-	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
-	if opts.Initial >= 0 {
-		realInitial = uint64(opts.Initial)
-	}
-
-	if err := opm.CheckReadyForOp(); err != nil {
-		return nil, err
+		return nil, makeInvalidArgumentsError("cas is not supported for the Increment operation")
 	}
 
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.Increment(gocbcore.CounterOptions{
-		Key:                    opm.DocumentID(),
-		Delta:                  opts.Delta,
-		Initial:                realInitial,
-		Expiry:                 durationToExpiry(opts.Expiry),
-		CollectionName:         opm.CollectionName(),
-		ScopeName:              opm.ScopeName(),
-		DurabilityLevel:        opm.DurabilityLevel(),
-		DurabilityLevelTimeout: opm.DurabilityTimeout(),
-		RetryStrategy:          opm.RetryStrategy(),
-		TraceContext:           opm.TraceSpanContext(),
-		Deadline:               opm.Deadline(),
-		User:                   opm.Impersonate(),
-	}, func(res *gocbcore.CounterResult, err error) {
-		if err != nil {
-			errOut = opm.EnhanceErr(err)
-			opm.Reject()
-			return
-		}
 
-		countOut = &CounterResult{}
-		countOut.cas = Cas(res.Cas)
-		countOut.mt = opm.EnhanceMt(res.MutationToken)
-		countOut.content = res.Value
-
-		opm.Resolve(countOut.mt)
-	}))
-	if err != nil {
-		errOut = err
-	}
-	return
+	return agent.Increment(c, id, opts)
 }
 
 // Increment performs an atomic addition for an integer document. Passing a
@@ -310,63 +178,15 @@ func (c *Collection) binaryDecrement(id string, opts *DecrementOptions) (countOu
 		opts = &DecrementOptions{}
 	}
 	if opts.Cas > 0 {
-		return nil, makeInvalidArgumentsError("cas is not supported by the server for the Decrement operation")
-	}
-
-	opm := c.newKvOpManager("decrement", opts.ParentSpan)
-	defer opm.Finish(false)
-
-	opm.SetDocumentID(id)
-	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
-	opm.SetRetryStrategy(opts.RetryStrategy)
-	opm.SetTimeout(opts.Timeout)
-	opm.SetImpersonate(opts.Internal.User)
-	opm.SetContext(opts.Context)
-
-	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
-	if opts.Initial >= 0 {
-		realInitial = uint64(opts.Initial)
-	}
-
-	if err := opm.CheckReadyForOp(); err != nil {
-		return nil, err
+		return nil, makeInvalidArgumentsError("cas is not supported for the Decrement operation")
 	}
 
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.Decrement(gocbcore.CounterOptions{
-		Key:                    opm.DocumentID(),
-		Delta:                  opts.Delta,
-		Initial:                realInitial,
-		Expiry:                 durationToExpiry(opts.Expiry),
-		CollectionName:         opm.CollectionName(),
-		ScopeName:              opm.ScopeName(),
-		DurabilityLevel:        opm.DurabilityLevel(),
-		DurabilityLevelTimeout: opm.DurabilityTimeout(),
-		RetryStrategy:          opm.RetryStrategy(),
-		TraceContext:           opm.TraceSpanContext(),
-		Deadline:               opm.Deadline(),
-		User:                   opm.Impersonate(),
-	}, func(res *gocbcore.CounterResult, err error) {
-		if err != nil {
-			errOut = opm.EnhanceErr(err)
-			opm.Reject()
-			return
-		}
 
-		countOut = &CounterResult{}
-		countOut.cas = Cas(res.Cas)
-		countOut.mt = opm.EnhanceMt(res.MutationToken)
-		countOut.content = res.Value
-
-		opm.Resolve(countOut.mt)
-	}))
-	if err != nil {
-		errOut = err
-	}
-	return
+	return agent.Decrement(c, id, opts)
 }
 
 // Decrement performs an atomic subtraction for an integer document. Passing a

@@ -143,53 +143,20 @@ func (c *Collection) Scan(scanType ScanType, opts *ScanOptions) (*ScanResult, er
 		return nil, err
 	}
 
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = c.timeoutsConfig.KVScanTimeout
+	if opts.Timeout == 0 {
+		opts.Timeout = c.timeoutsConfig.KVScanTimeout
 	}
 
-	config, err := c.waitForConfigSnapshot(opts.Context, time.Now().Add(timeout), agent)
-	if err != nil {
-		return nil, err
-	}
-
-	numVbuckets, err := config.NumVbuckets()
-	if err != nil {
-		return nil, err
-	}
-
-	if numVbuckets == 0 {
-		return nil, makeInvalidArgumentsError("can only use RangeScan with couchbase buckets")
-	}
-
-	opm, err := c.newRangeScanOpManager(scanType, numVbuckets, agent, opts.ParentSpan, opts.ConsistentWith,
-		opts.IDsOnly, opts.Sort)
-	if err != nil {
-		return nil, err
-	}
-
-	opm.SetTranscoder(opts.Transcoder)
-	opm.SetContext(opts.Context)
-	opm.SetImpersonate(opts.Internal.User)
-	opm.SetTimeout(opts.Timeout)
-	opm.SetRetryStrategy(opts.RetryStrategy)
-	opm.SetItemLimit(opts.BatchItemLimit)
-	opm.SetByteLimit(opts.BatchByteLimit)
-
-	if err := opm.CheckReadyForOp(); err != nil {
-		return nil, err
-	}
-
-	return opm.Scan()
+	return agent.Scan(c, scanType, opts)
 }
 
-func (c *Collection) waitForConfigSnapshot(ctx context.Context, deadline time.Time, agent kvProvider) (snapOut *gocbcore.ConfigSnapshot, errOut error) {
+func (p *kvProviderCore) waitForConfigSnapshot(ctx context.Context, deadline time.Time) (snapOut *gocbcore.ConfigSnapshot, errOut error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
 	opm := newAsyncOpManager(ctx)
-	err := opm.Wait(agent.WaitForConfigSnapshot(deadline, gocbcore.WaitForConfigSnapshotOptions{}, func(result *gocbcore.WaitForConfigSnapshotResult, err error) {
+	err := opm.Wait(p.agent.WaitForConfigSnapshot(deadline, gocbcore.WaitForConfigSnapshotOptions{}, func(result *gocbcore.WaitForConfigSnapshotResult, err error) {
 		if err != nil {
 			errOut = err
 			opm.Reject()

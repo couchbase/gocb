@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/couchbase/goprotostellar/genproto/kv_v1"
+
 	gocbcore "github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
 )
@@ -194,6 +196,26 @@ func (dl DurabilityLevel) toMemd() (memd.DurabilityLevel, error) {
 	default:
 		return 0, makeInvalidArgumentsError("unexpected durability level")
 	}
+}
+
+func (dl DurabilityLevel) toProtostellar() (*kv_v1.DurabilityLevel, error) {
+	var level kv_v1.DurabilityLevel
+	switch dl {
+	case DurabilityLevelNone:
+		return nil, nil
+	case DurabilityLevelMajority:
+		level = kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY
+	case DurabilityLevelMajorityAndPersistOnMaster:
+		level = kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY_AND_PERSIST_TO_ACTIVE
+	case DurabilityLevelPersistToMajority:
+		level = kv_v1.DurabilityLevel_DURABILITY_LEVEL_PERSIST_TO_MAJORITY
+	case DurabilityLevelUnknown:
+		return nil, makeInvalidArgumentsError("unexpected unset durability level")
+	default:
+		return nil, makeInvalidArgumentsError("unexpected durability level")
+	}
+
+	return &level, nil
 }
 
 func durabilityLevelFromManagementAPI(level string) DurabilityLevel {

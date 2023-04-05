@@ -1,7 +1,6 @@
 devsetup:
-	go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.39.0
-	go get github.com/vektra/mockery/.../
-	git submodule update --remote --init --recursive
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.52.2
+	go install github.com/vektra/mockery/v2@v2.26.1
 
 test:
 	go test ./
@@ -35,6 +34,7 @@ updatemocks:
 	mockery --name=viewProvider --output=. --testonly --inpackage
 	mockery --name=waitUntilReadyProvider --output=. --testonly --inpackage
 	mockery --name=kvCapabilityVerifier --output=. --testonly --inpackage
+	mockery --name=kvProviderCoreProvider --output=. --testonly --inpackage
 	# pendingOp is manually mocked
 
 .PHONY: all test devsetup fasttest lint cover check bench updatetestcases updatemocks
