@@ -9,12 +9,20 @@ import (
 	"github.com/couchbase/gocbcore/v10/memd"
 )
 
+// wrapper around kvOpManager to make the async gocbcore operations
+// sync.
+type syncKvOpManager struct {
+	kvOpManager
+	cancelCh    chan struct{}
+	signal      chan struct{}
+	wasResolved bool
+}
+
+// Contains information only useful to both gocbcore and protostellar
 type kvOpManager struct {
 	parent *Collection
-	signal chan struct{}
 
 	err           error
-	wasResolved   bool
 	mutationToken *MutationToken
 
 	span            RequestSpan
@@ -28,7 +36,6 @@ type kvOpManager struct {
 	replicateTo     uint
 	durabilityLevel memd.DurabilityLevel
 	retryStrategy   *retryStrategyWrapper
-	cancelCh        chan struct{}
 	impersonate     string
 
 	operationName string
@@ -37,6 +44,8 @@ type kvOpManager struct {
 	preserveTTL   bool
 
 	ctx context.Context
+
+	cas Cas
 }
 
 func (m *kvOpManager) getTimeout() time.Duration {
@@ -63,10 +72,6 @@ func (m *kvOpManager) getTimeout() time.Duration {
 
 func (m *kvOpManager) SetDocumentID(id string) {
 	m.documentID = id
-}
-
-func (m *kvOpManager) SetCancelCh(cancelCh chan struct{}) {
-	m.cancelCh = cancelCh
 }
 
 func (m *kvOpManager) SetTimeout(timeout time.Duration) {
@@ -154,6 +159,14 @@ func (m *kvOpManager) SetContext(ctx context.Context) {
 
 func (m *kvOpManager) SetPreserveExpiry(preserveTTL bool) {
 	m.preserveTTL = preserveTTL
+}
+
+func (m *kvOpManager) SetCas(cas Cas) {
+	m.cas = cas
+}
+
+func (m *kvOpManager) Cas() Cas {
+	return m.cas
 }
 
 func (m *kvOpManager) Finish(noMetrics bool) {
@@ -272,17 +285,17 @@ func (m *kvOpManager) EnhanceMt(token gocbcore.MutationToken) *MutationToken {
 	return nil
 }
 
-func (m *kvOpManager) Reject() {
+func (m *syncKvOpManager) Reject() {
 	m.signal <- struct{}{}
 }
 
-func (m *kvOpManager) Resolve(token *MutationToken) {
+func (m *syncKvOpManager) Resolve(token *MutationToken) {
 	m.wasResolved = true
 	m.mutationToken = token
 	m.signal <- struct{}{}
 }
 
-func (m *kvOpManager) Wait(op gocbcore.PendingOp, err error) error {
+func (m *syncKvOpManager) Wait(op gocbcore.PendingOp, err error) error {
 	if err != nil {
 		return err
 	}
@@ -322,6 +335,10 @@ func (m *kvOpManager) Wait(op gocbcore.PendingOp, err error) error {
 	return nil
 }
 
+func (m *syncKvOpManager) SetCancelCh(cancelCh chan struct{}) {
+	m.cancelCh = cancelCh
+}
+
 func (c *Collection) newKvOpManager(opName string, parentSpan RequestSpan) *kvOpManager {
 	var tracectx RequestSpanContext
 	if parentSpan != nil {
@@ -332,11 +349,17 @@ func (c *Collection) newKvOpManager(opName string, parentSpan RequestSpan) *kvOp
 
 	return &kvOpManager{
 		parent:        c,
-		signal:        make(chan struct{}, 1),
 		span:          span,
 		operationName: opName,
 		createdTime:   time.Now(),
 		meter:         c.meter,
+	}
+}
+
+func newSyncKvOpManager(opManager *kvOpManager) *syncKvOpManager {
+	return &syncKvOpManager{
+		kvOpManager: *opManager,
+		signal:      make(chan struct{}, 1),
 	}
 }
 

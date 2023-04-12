@@ -9,33 +9,6 @@ import (
 	gocbcore "github.com/couchbase/gocbcore/v10"
 )
 
-type kvProvider interface {
-	Add(opts gocbcore.AddOptions, cb gocbcore.StoreCallback) (gocbcore.PendingOp, error)
-	Set(opts gocbcore.SetOptions, cb gocbcore.StoreCallback) (gocbcore.PendingOp, error)
-	Replace(opts gocbcore.ReplaceOptions, cb gocbcore.StoreCallback) (gocbcore.PendingOp, error)
-	Get(opts gocbcore.GetOptions, cb gocbcore.GetCallback) (gocbcore.PendingOp, error)
-	GetOneReplica(opts gocbcore.GetOneReplicaOptions, cb gocbcore.GetReplicaCallback) (gocbcore.PendingOp, error)
-	Observe(opts gocbcore.ObserveOptions, cb gocbcore.ObserveCallback) (gocbcore.PendingOp, error)
-	ObserveVb(opts gocbcore.ObserveVbOptions, cb gocbcore.ObserveVbCallback) (gocbcore.PendingOp, error)
-	GetMeta(opts gocbcore.GetMetaOptions, cb gocbcore.GetMetaCallback) (gocbcore.PendingOp, error)
-	Delete(opts gocbcore.DeleteOptions, cb gocbcore.DeleteCallback) (gocbcore.PendingOp, error)
-	LookupIn(opts gocbcore.LookupInOptions, cb gocbcore.LookupInCallback) (gocbcore.PendingOp, error)
-	MutateIn(opts gocbcore.MutateInOptions, cb gocbcore.MutateInCallback) (gocbcore.PendingOp, error)
-	GetAndTouch(opts gocbcore.GetAndTouchOptions, cb gocbcore.GetAndTouchCallback) (gocbcore.PendingOp, error)
-	GetAndLock(opts gocbcore.GetAndLockOptions, cb gocbcore.GetAndLockCallback) (gocbcore.PendingOp, error)
-	Unlock(opts gocbcore.UnlockOptions, cb gocbcore.UnlockCallback) (gocbcore.PendingOp, error)
-	Touch(opts gocbcore.TouchOptions, cb gocbcore.TouchCallback) (gocbcore.PendingOp, error)
-	Increment(opts gocbcore.CounterOptions, cb gocbcore.CounterCallback) (gocbcore.PendingOp, error)
-	Decrement(opts gocbcore.CounterOptions, cb gocbcore.CounterCallback) (gocbcore.PendingOp, error)
-	Append(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinCallback) (gocbcore.PendingOp, error)
-	Prepend(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinCallback) (gocbcore.PendingOp, error)
-	WaitForConfigSnapshot(deadline time.Time, opts gocbcore.WaitForConfigSnapshotOptions, cb gocbcore.WaitForConfigSnapshotCallback) (gocbcore.PendingOp, error)
-	RangeScanCreate(vbID uint16, opts gocbcore.RangeScanCreateOptions, cb gocbcore.RangeScanCreateCallback) (gocbcore.PendingOp, error)
-	RangeScanContinue(scanUUID []byte, vbID uint16, opts gocbcore.RangeScanContinueOptions, dataCb gocbcore.RangeScanContinueDataCallback,
-		actionCb gocbcore.RangeScanContinueActionCallback) (gocbcore.PendingOp, error)
-	RangeScanCancel(scanUUID []byte, vbID uint16, opts gocbcore.RangeScanCancelOptions, cb gocbcore.RangeScanCancelCallback) (gocbcore.PendingOp, error)
-}
-
 // Cas represents the specific state of a document on the cluster.
 type Cas gocbcore.Cas
 
@@ -87,36 +60,8 @@ func (c *Collection) Insert(id string, val interface{}, opts *InsertOptions) (mu
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.Add(gocbcore.AddOptions{
-		Key:                    opm.DocumentID(),
-		Value:                  opm.ValueBytes(),
-		Flags:                  opm.ValueFlags(),
-		Expiry:                 durationToExpiry(opts.Expiry),
-		CollectionName:         opm.CollectionName(),
-		ScopeName:              opm.ScopeName(),
-		DurabilityLevel:        opm.DurabilityLevel(),
-		DurabilityLevelTimeout: opm.DurabilityTimeout(),
-		RetryStrategy:          opm.RetryStrategy(),
-		TraceContext:           opm.TraceSpanContext(),
-		Deadline:               opm.Deadline(),
-		User:                   opm.Impersonate(),
-	}, func(res *gocbcore.StoreResult, err error) {
-		if err != nil {
-			errOut = opm.EnhanceErr(err)
-			opm.Reject()
-			return
-		}
 
-		mutOut = &MutationResult{}
-		mutOut.cas = Cas(res.Cas)
-		mutOut.mt = opm.EnhanceMt(res.MutationToken)
-
-		opm.Resolve(mutOut.mt)
-	}))
-	if err != nil {
-		errOut = err
-	}
-	return
+	return agent.Add(opm)
 }
 
 // UpsertOptions are options that can be applied to an Upsert operation.
@@ -169,37 +114,7 @@ func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mu
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.Set(gocbcore.SetOptions{
-		Key:                    opm.DocumentID(),
-		Value:                  opm.ValueBytes(),
-		Flags:                  opm.ValueFlags(),
-		Expiry:                 durationToExpiry(opts.Expiry),
-		CollectionName:         opm.CollectionName(),
-		ScopeName:              opm.ScopeName(),
-		DurabilityLevel:        opm.DurabilityLevel(),
-		DurabilityLevelTimeout: opm.DurabilityTimeout(),
-		RetryStrategy:          opm.RetryStrategy(),
-		TraceContext:           opm.TraceSpanContext(),
-		Deadline:               opm.Deadline(),
-		User:                   opm.Impersonate(),
-		PreserveExpiry:         opm.PreserveExpiry(),
-	}, func(res *gocbcore.StoreResult, err error) {
-		if err != nil {
-			errOut = opm.EnhanceErr(err)
-			opm.Reject()
-			return
-		}
-
-		mutOut = &MutationResult{}
-		mutOut.cas = Cas(res.Cas)
-		mutOut.mt = opm.EnhanceMt(res.MutationToken)
-
-		opm.Resolve(mutOut.mt)
-	}))
-	if err != nil {
-		errOut = err
-	}
-	return
+	return agent.Set(opm)
 }
 
 // ReplaceOptions are the options available to a Replace operation.
@@ -248,6 +163,7 @@ func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (
 	opm.SetImpersonate(opts.Internal.User)
 	opm.SetContext(opts.Context)
 	opm.SetPreserveExpiry(opts.PreserveExpiry)
+	opm.SetCas(opts.Cas)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -257,38 +173,7 @@ func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.Replace(gocbcore.ReplaceOptions{
-		Key:                    opm.DocumentID(),
-		Value:                  opm.ValueBytes(),
-		Flags:                  opm.ValueFlags(),
-		Expiry:                 durationToExpiry(opts.Expiry),
-		Cas:                    gocbcore.Cas(opts.Cas),
-		CollectionName:         opm.CollectionName(),
-		ScopeName:              opm.ScopeName(),
-		DurabilityLevel:        opm.DurabilityLevel(),
-		DurabilityLevelTimeout: opm.DurabilityTimeout(),
-		RetryStrategy:          opm.RetryStrategy(),
-		TraceContext:           opm.TraceSpanContext(),
-		Deadline:               opm.Deadline(),
-		User:                   opm.Impersonate(),
-		PreserveExpiry:         opm.PreserveExpiry(),
-	}, func(res *gocbcore.StoreResult, err error) {
-		if err != nil {
-			errOut = opm.EnhanceErr(err)
-			opm.Reject()
-			return
-		}
-
-		mutOut = &MutationResult{}
-		mutOut.cas = Cas(res.Cas)
-		mutOut.mt = opm.EnhanceMt(res.MutationToken)
-
-		opm.Resolve(mutOut.mt)
-	}))
-	if err != nil {
-		errOut = err
-	}
-	return
+	return agent.Replace(opm)
 }
 
 // GetOptions are the options available to a Get operation.
@@ -335,7 +220,6 @@ func (c *Collection) getDirect(id string, opts *GetOptions) (docOut *GetResult, 
 	}
 
 	opm := c.newKvOpManager("get", opts.ParentSpan)
-	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -352,38 +236,8 @@ func (c *Collection) getDirect(id string, opts *GetOptions) (docOut *GetResult, 
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.Get(gocbcore.GetOptions{
-		Key:            opm.DocumentID(),
-		CollectionName: opm.CollectionName(),
-		ScopeName:      opm.ScopeName(),
-		RetryStrategy:  opm.RetryStrategy(),
-		TraceContext:   opm.TraceSpanContext(),
-		Deadline:       opm.Deadline(),
-		User:           opm.Impersonate(),
-	}, func(res *gocbcore.GetResult, err error) {
-		if err != nil {
-			errOut = opm.EnhanceErr(err)
-			opm.Reject()
-			return
-		}
 
-		doc := &GetResult{
-			Result: Result{
-				cas: Cas(res.Cas),
-			},
-			transcoder: opm.Transcoder(),
-			contents:   res.Value,
-			flags:      res.Flags,
-		}
-
-		docOut = doc
-
-		opm.Resolve(nil)
-	}))
-	if err != nil {
-		errOut = err
-	}
-	return
+	return agent.Get(opm)
 }
 
 func (c *Collection) getProjected(id string, opts *GetOptions) (docOut *GetResult, errOut error) {

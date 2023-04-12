@@ -280,7 +280,7 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 		return nil, err
 	}
 
-	cli := newConnectionMgr()
+	cli := newConnectionMgr(connSpec.Scheme)
 	err = cli.buildConfig(cluster)
 	if err != nil {
 		return nil, err

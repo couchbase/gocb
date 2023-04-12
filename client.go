@@ -34,8 +34,8 @@ type stdConnectionMgr struct {
 // TODO: change how managers are selected.
 func newConnectionMgr(protocol string) connectionManager {
 	switch protocol {
-	case "protostellar", "protostellars":
-		return &protoStellarConnectionMgr{}
+	// case "protostellar", "protostellars":
+	// 	return &protoStellarConnectionMgr{}
 	default:
 		client := &stdConnectionMgr{}
 		return client
