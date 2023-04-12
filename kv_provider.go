@@ -1,12 +1,15 @@
 package gocb
 
+import gocbcore "github.com/couchbase/gocbcore/v10"
+
 type kvProvider interface {
 	Add(*kvOpManager) (*MutationResult, error)
 	Set(*kvOpManager) (*MutationResult, error)
 	Replace(*kvOpManager) (*MutationResult, error)
 	Get(*kvOpManager) (*GetResult, error)
-	GetOneReplica(opts GetOptions) (*GetResult, error)
-	Exists(opts *ExistsOptions) (*ExistsResult, error)
+	//GetOneReplica(opts GetOptions) (*GetResult, error)
+	Exists(*kvOpManager) (*ExistsResult, error)
+
 	Delete(opts RemoveOptions) (*MutationResult, error)
 	LookupIn(opts LookupInResult) (*LookupInResult, error)
 	MutateIn(opts MutateInOptions) (*MutateInResult, error)

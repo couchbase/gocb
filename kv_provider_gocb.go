@@ -1,6 +1,10 @@
 package gocb
 
-import "github.com/couchbase/gocbcore/v10"
+import (
+	"errors"
+
+	"github.com/couchbase/gocbcore/v10"
+)
 
 type kvProviderGocb struct {
 	agent *gocbcore.Agent
@@ -180,4 +184,54 @@ func (p *kvProviderGocb) Get(opm *kvOpManager) (*GetResult, error) {
 
 	return getOut, errOut
 
+}
+
+func (p *kvProviderGocb) Exists(opm *kvOpManager) (*ExistsResult, error) {
+	synced := newSyncKvOpManager(opm)
+	defer synced.Finish(false)
+
+	var docExists *ExistsResult
+	var errOut error
+	err := synced.Wait(p.agent.GetMeta(gocbcore.GetMetaOptions{
+		Key:            synced.DocumentID(),
+		CollectionName: synced.CollectionName(),
+		ScopeName:      synced.ScopeName(),
+		RetryStrategy:  synced.RetryStrategy(),
+		TraceContext:   synced.TraceSpanContext(),
+		Deadline:       synced.Deadline(),
+		User:           synced.Impersonate(),
+	}, func(res *gocbcore.GetMetaResult, err error) {
+		if errors.Is(err, ErrDocumentNotFound) {
+			docExists = &ExistsResult{
+				Result: Result{
+					cas: Cas(0),
+				},
+				docExists: false,
+			}
+			synced.Resolve(nil)
+			return
+		}
+
+		if err != nil {
+			errOut = synced.EnhanceErr(err)
+			synced.Reject()
+			return
+		}
+
+		if res != nil {
+			docExists = &ExistsResult{
+				Result: Result{
+					cas: Cas(res.Cas),
+				},
+				docExists: res.Deleted == 0,
+			}
+		}
+
+		synced.Resolve(nil)
+	}))
+	if err != nil {
+		errOut = err
+	}
+
+	return docExists, errOut
 }

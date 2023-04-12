@@ -132,6 +132,30 @@ func (p *kvProviderProtoStellar) Get(opm *kvOpManager) (*GetResult, error) {
 
 }
 
+func (p *kvProviderProtoStellar) Exists(opm *kvOpManager) (*ExistsResult, error) {
+	request := &kv_v1.ExistsRequest{
+		Key: string(opm.DocumentID()),
+
+		CollectionName: opm.CollectionName(),
+		ScopeName:      opm.ScopeName(),
+		BucketName:     opm.BucketName(),
+	}
+
+	res, err := p.client.Exists(opm.ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	resOut := ExistsResult{
+		Result: Result{
+			Cas(res.Cas),
+		},
+		docExists: res.Result,
+	}
+
+	return &resOut, nil
+}
+
 // converts memdDurability level to protostellar durability level
 func memdDurToPs(dur memd.DurabilityLevel) *kv_v1.DurabilityLevel {
 	// memd.Durability starts at 1.

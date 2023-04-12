@@ -2,7 +2,6 @@ package gocb
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"time"
 
@@ -389,47 +388,8 @@ func (c *Collection) Exists(id string, opts *ExistsOptions) (docOut *ExistsResul
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.GetMeta(gocbcore.GetMetaOptions{
-		Key:            opm.DocumentID(),
-		CollectionName: opm.CollectionName(),
-		ScopeName:      opm.ScopeName(),
-		RetryStrategy:  opm.RetryStrategy(),
-		TraceContext:   opm.TraceSpanContext(),
-		Deadline:       opm.Deadline(),
-		User:           opm.Impersonate(),
-	}, func(res *gocbcore.GetMetaResult, err error) {
-		if errors.Is(err, ErrDocumentNotFound) {
-			docOut = &ExistsResult{
-				Result: Result{
-					cas: Cas(0),
-				},
-				docExists: false,
-			}
-			opm.Resolve(nil)
-			return
-		}
 
-		if err != nil {
-			errOut = opm.EnhanceErr(err)
-			opm.Reject()
-			return
-		}
-
-		if res != nil {
-			docOut = &ExistsResult{
-				Result: Result{
-					cas: Cas(res.Cas),
-				},
-				docExists: res.Deleted == 0,
-			}
-		}
-
-		opm.Resolve(nil)
-	}))
-	if err != nil {
-		errOut = err
-	}
-	return
+	return agent.Exists(opm)
 }
 
 func (c *Collection) getOneReplica(
