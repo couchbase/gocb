@@ -204,6 +204,8 @@ func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(XattrFeature)
 
+	docId := generateDocId("expiryDoc")
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
@@ -211,7 +213,7 @@ func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {
 	}
 
 	start := time.Now()
-	mutRes, err := globalCollection.Insert("expiryDoc", doc, &InsertOptions{Expiry: 10 * time.Second})
+	mutRes, err := globalCollection.Insert(docId, doc, &InsertOptions{Expiry: 10 * time.Second})
 	if err != nil {
 		suite.T().Fatalf("Insert failed, error was %v", err)
 	}
@@ -220,7 +222,7 @@ func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {
 		suite.T().Fatalf("Insert CAS was 0")
 	}
 
-	insertedDoc, err := globalCollection.Get("expiryDoc", &GetOptions{WithExpiry: true})
+	insertedDoc, err := globalCollection.Get(docId, &GetOptions{WithExpiry: true})
 	if err != nil {
 		suite.T().Fatalf("Get failed, error was %v", err)
 	}
@@ -644,6 +646,8 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 func (suite *IntegrationTestSuite) TestInsertGetProjection18Fields() {
 	suite.skipIfUnsupported(KeyValueFeature)
 
+	docId := generateDocId("insertDoc18Fields")
+
 	type docType struct {
 		Field1  int `json:"field1"`
 		Field2  int `json:"field2"`
@@ -668,7 +672,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection18Fields() {
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
 	}
 
-	mutRes, err := globalCollection.Insert("projectDocTooManyFields", doc, nil)
+	mutRes, err := globalCollection.Insert(docId, doc, nil)
 	if err != nil {
 		suite.T().Fatalf("Insert failed, error was %v", err)
 	}
@@ -677,7 +681,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection18Fields() {
 		suite.T().Fatalf("Insert CAS was 0")
 	}
 
-	getDoc, err := globalCollection.Get("projectDocTooManyFields", &GetOptions{
+	getDoc, err := globalCollection.Get(docId, &GetOptions{
 		Project: []string{"field1", "field2", "field3", "field4", "field5", "field6", "field7", "field8", "field9",
 			"field10", "field11", "field12", "field13", "field14", "field15", "field16", "field17"},
 	})
@@ -829,13 +833,15 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection16FieldsExpiry() {
 func (suite *IntegrationTestSuite) TestInsertGetProjectionPathMissing() {
 	suite.skipIfUnsupported(KeyValueFeature)
 
+	docId := generateDocId("projectMissingDoc")
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
 		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
-	mutRes, err := globalCollection.Insert("projectMissingDoc", doc, nil)
+	mutRes, err := globalCollection.Insert(docId, doc, nil)
 	if err != nil {
 		suite.T().Fatalf("Insert failed, error was %v", err)
 	}
@@ -844,7 +850,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjectionPathMissing() {
 		suite.T().Fatalf("Insert CAS was 0")
 	}
 
-	_, err = globalCollection.Get("projectMissingDoc", &GetOptions{
+	_, err = globalCollection.Get(docId, &GetOptions{
 		Project: []string{"name", "thisfielddoesntexist"},
 	})
 	if err == nil {
@@ -952,13 +958,15 @@ func (suite *IntegrationTestSuite) TestInsertGetProjectionTranscoders() {
 func (suite *IntegrationTestSuite) TestInsertGet() {
 	suite.skipIfUnsupported(KeyValueFeature)
 
+	docId := generateDocId("insertDoc")
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
 		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
-	mutRes, err := globalCollection.Insert("insertDoc", doc, nil)
+	mutRes, err := globalCollection.Insert(docId, doc, nil)
 	if err != nil {
 		suite.T().Fatalf("Insert failed, error was %v", err)
 	}
@@ -967,7 +975,7 @@ func (suite *IntegrationTestSuite) TestInsertGet() {
 		suite.T().Fatalf("Insert CAS was 0")
 	}
 
-	insertedDoc, err := globalCollection.Get("insertDoc", nil)
+	insertedDoc, err := globalCollection.Get(docId, nil)
 	if err != nil {
 		suite.T().Fatalf("Get failed, error was %v", err)
 	}
@@ -1862,13 +1870,15 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAnyReplica() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(ReplicasFeature)
 
+	docId := generateDocId("insertReplicaDoc")
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
 		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
-	mutRes, err := globalCollection.Insert("insertReplicaDoc", doc, &InsertOptions{
+	mutRes, err := globalCollection.Insert(docId, doc, &InsertOptions{
 		PersistTo: 1,
 		Timeout:   5 * time.Second,
 	})
@@ -1880,7 +1890,7 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAnyReplica() {
 		suite.T().Fatalf("Insert CAS was 0")
 	}
 
-	insertedDoc, err := globalCollection.GetAnyReplica("insertReplicaDoc", nil)
+	insertedDoc, err := globalCollection.GetAnyReplica(docId, nil)
 	if err != nil {
 		suite.T().Fatalf("GetFromReplica failed, error was %v", err)
 	}

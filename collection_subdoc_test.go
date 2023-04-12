@@ -11,6 +11,8 @@ func (suite *IntegrationTestSuite) TestInsertLookupIn() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(SubdocFeature)
 
+	docId := generateDocId("lookupDoc")
+
 	type beerWithCountable struct {
 		testBeerDocument
 		Countable []string `json:"countable"`
@@ -23,7 +25,7 @@ func (suite *IntegrationTestSuite) TestInsertLookupIn() {
 
 	doc.Countable = []string{"one", "two"}
 
-	mutRes, err := globalCollection.Insert("lookupDoc", doc, nil)
+	mutRes, err := globalCollection.Insert(docId, doc, nil)
 	if err != nil {
 		suite.T().Fatalf("Insert failed, error was %v", err)
 	}
@@ -32,7 +34,7 @@ func (suite *IntegrationTestSuite) TestInsertLookupIn() {
 		suite.T().Fatalf("Insert CAS was 0")
 	}
 
-	result, err := globalCollection.LookupIn("lookupDoc", []LookupInSpec{
+	result, err := globalCollection.LookupIn(docId, []LookupInSpec{
 		GetSpec("name", nil),
 		GetSpec("description", nil),
 		ExistsSpec("doesnt", nil),
@@ -265,13 +267,15 @@ func (suite *IntegrationTestSuite) TestInsertLookupInInsertGetFull() {
 	suite.skipIfUnsupported(SubdocFeature)
 	suite.skipIfUnsupported(XattrFeature)
 
+	docId := generateDocId("lookupDocGetFull")
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
 		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
-	subRes, err := globalCollection.MutateIn("lookupDocGetFull", []MutateInSpec{
+	subRes, err := globalCollection.MutateIn(docId, []MutateInSpec{
 		InsertSpec("xattrpath", "xattrvalue", &InsertSpecOptions{IsXattr: true}),
 		ReplaceSpec("", doc, nil),
 	}, &MutateInOptions{StoreSemantic: StoreSemanticsUpsert, Expiry: 20 * time.Second})
@@ -283,7 +287,7 @@ func (suite *IntegrationTestSuite) TestInsertLookupInInsertGetFull() {
 		suite.T().Fatalf("MutateIn CAS was 0")
 	}
 
-	result, err := globalCollection.LookupIn("lookupDocGetFull", []LookupInSpec{
+	result, err := globalCollection.LookupIn(docId, []LookupInSpec{
 		GetSpec("$document.exptime", &GetSpecOptions{IsXattr: true}),
 		GetSpec("", nil),
 	}, nil)
