@@ -7,10 +7,12 @@ var developmentProfile = ClusterOptions{
 		KVTimeout:         20 * time.Second,
 		ConnectTimeout:    20 * time.Second,
 		KVDurableTimeout:  20 * time.Second,
+		KVScanTimeout:     20 * time.Second,
 		ViewTimeout:       120 * time.Second,
 		AnalyticsTimeout:  120 * time.Second,
 		SearchTimeout:     120 * time.Second,
 		ManagementTimeout: 120 * time.Second,
+		QueryTimeout:      120 * time.Second,
 	},
 }
 
