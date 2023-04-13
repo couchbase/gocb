@@ -37,11 +37,13 @@ func (suite *IntegrationTestSuite) TestErrorNonExistant() {
 func (suite *IntegrationTestSuite) TestErrorDoubleInsert() {
 	suite.skipIfUnsupported(KeyValueFeature)
 
-	_, err := globalCollection.Insert("doubleInsert", "test", nil)
+	docId := generateDocId("doubleInsert")
+
+	_, err := globalCollection.Insert(docId, "test", nil)
 	if err != nil {
 		suite.T().Fatalf("Expected error to be nil but was %v", err)
 	}
-	_, err = globalCollection.Insert("doubleInsert", "test", nil)
+	_, err = globalCollection.Insert(docId, "test", nil)
 	if err == nil {
 		suite.T().Fatalf("Expected error to be non-nil")
 	}
@@ -1058,7 +1060,7 @@ func (suite *IntegrationTestSuite) TestCollectionRetry() {
 		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
-	collectionName := "insertRetry"
+	collectionName := generateDocId("insertRetry")
 
 	// cli := globalBucket.sb.getCachedClient()
 	mgr := globalBucket.Collections()
@@ -2052,7 +2054,7 @@ func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 		{
 			name:   "upsertDurabilityMajorityDoc",
 			method: "Upsert",
-			args: []interface{}{"upsertDurabilityMajorityDoc", doc, &UpsertOptions{
+			args: []interface{}{generateDocId("upsertDurabilityMajorityDoc"), doc, &UpsertOptions{
 				DurabilityLevel: DurabilityLevelMajority,
 				// MB-41616: For some reason the first durable request after a lot of collections activity takes longer.
 				Timeout: 10 * time.Second,
@@ -2065,7 +2067,7 @@ func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 		{
 			name:   "insertDurabilityLevelPersistToMajority",
 			method: "Insert",
-			args: []interface{}{"insertDurabilityLevelPersistToMajority", doc, &InsertOptions{
+			args: []interface{}{generateDocId("insertDurabilityLevelPersistToMajority"), doc, &InsertOptions{
 				DurabilityLevel: DurabilityLevelPersistToMajority,
 			}},
 			expectCas:          true,
@@ -2076,7 +2078,7 @@ func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 		{
 			name:   "insertDurabilityMajorityDoc",
 			method: "Insert",
-			args: []interface{}{"insertDurabilityMajorityDoc", doc, &InsertOptions{
+			args: []interface{}{generateDocId("insertDurabilityMajorityDoc"), doc, &InsertOptions{
 				DurabilityLevel: DurabilityLevelMajority,
 			}},
 			expectCas:          true,
@@ -2087,7 +2089,7 @@ func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 		{
 			name:   "insertDurabilityMajorityAndPersistOnMasterDoc",
 			method: "Insert",
-			args: []interface{}{"insertDurabilityMajorityAndPersistOnMasterDoc", doc, &InsertOptions{
+			args: []interface{}{generateDocId("insertDurabilityMajorityAndPersistOnMasterDoc"), doc, &InsertOptions{
 				DurabilityLevel: DurabilityLevelMajorityAndPersistOnMaster,
 			}},
 			expectCas:          true,
@@ -2098,7 +2100,7 @@ func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 		{
 			name:   "upsertDurabilityLevelPersistToMajority",
 			method: "Upsert",
-			args: []interface{}{"upsertDurabilityLevelPersistToMajority", doc, &UpsertOptions{
+			args: []interface{}{generateDocId("upsertDurabilityLevelPersistToMajority"), doc, &UpsertOptions{
 				DurabilityLevel: DurabilityLevelPersistToMajority,
 			}},
 			expectCas:          true,
@@ -2109,7 +2111,7 @@ func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 		{
 			name:   "upsertDurabilityMajorityAndPersistOnMasterDoc",
 			method: "Upsert",
-			args: []interface{}{"upsertDurabilityMajorityAndPersistOnMasterDoc", doc, &UpsertOptions{
+			args: []interface{}{generateDocId("upsertDurabilityMajorityAndPersistOnMasterDoc"), doc, &UpsertOptions{
 				DurabilityLevel: DurabilityLevelMajorityAndPersistOnMaster,
 			}},
 			expectCas:          true,
@@ -2159,7 +2161,7 @@ func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 				}
 			}
 
-			_, err := globalCollection.GetAnyReplica(tCase.name, nil)
+			_, err := globalCollection.GetAnyReplica(tCase.args[0].(string), nil)
 			if tCase.expectKeyNotFound {
 				if !errors.Is(err, ErrDocumentNotFound) {
 					suite.T().Fatalf("Expected GetFromReplica to not find a key but got error %v", err)

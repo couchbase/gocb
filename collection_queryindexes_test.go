@@ -2,7 +2,6 @@ package gocb
 
 import (
 	"errors"
-	"github.com/google/uuid"
 	"time"
 )
 
@@ -12,8 +11,8 @@ func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrud() {
 
 	bucketName := globalBucket.Name()
 
-	scopeName := uuid.NewString()[:6]
-	colName := uuid.NewString()[:6]
+	scopeName := generateDocId("scope")
+	colName := generateDocId("collection")
 
 	colmgr := globalBucket.Collections()
 	err := colmgr.CreateScope(scopeName, nil)
@@ -223,7 +222,7 @@ func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrudDefaultSco
 	suite.Assert().False(index.IsPrimary)
 	suite.Assert().Equal(QueryIndexTypeGsi, index.Type)
 	suite.Assert().Equal("online", index.State)
-	suite.Assert().Equal("default", index.Keyspace)
+	suite.Assert().Equal(globalBucket.bucketName, index.Keyspace)
 	suite.Assert().Equal("default", index.Namespace)
 	suite.Assert().Equal("", index.ScopeName)
 	suite.Assert().Equal("", index.CollectionName)

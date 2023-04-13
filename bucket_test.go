@@ -21,7 +21,7 @@ func (suite *IntegrationTestSuite) TestBucketWaitUntilReady() {
 	suite.Require().Nil(err, err)
 
 	// Just test that we can use the bucket.
-	_, err = b.DefaultCollection().Upsert("TestBucketWaitUntilReady", "test", nil)
+	_, err = b.DefaultCollection().Upsert(generateDocId("TestBucketWaitUntilReady"), "test", nil)
 	suite.Require().Nil(err, err)
 }
 

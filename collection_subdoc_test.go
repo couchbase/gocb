@@ -205,9 +205,11 @@ func (suite *IntegrationTestSuite) TestMutateInBasicArray() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(SubdocFeature)
 
+	docId := generateDocId("mutateInArray")
+
 	doc := struct {
 	}{}
-	mutRes, err := globalCollection.Insert("mutateInArray", doc, nil)
+	mutRes, err := globalCollection.Insert(docId, doc, nil)
 	if err != nil {
 		suite.T().Fatalf("Insert failed, error: %v", err)
 	}
@@ -216,7 +218,7 @@ func (suite *IntegrationTestSuite) TestMutateInBasicArray() {
 		suite.T().Fatalf("Insert CAS was 0")
 	}
 
-	subRes, err := globalCollection.MutateIn("mutateInArray", []MutateInSpec{
+	subRes, err := globalCollection.MutateIn(docId, []MutateInSpec{
 		ArrayAppendSpec("array", "clownfish", &ArrayAppendSpecOptions{
 			CreatePath: true,
 		}),
@@ -234,7 +236,7 @@ func (suite *IntegrationTestSuite) TestMutateInBasicArray() {
 		suite.T().Fatalf("Insert CAS was 0")
 	}
 
-	getRes, err := globalCollection.Get("mutateInArray", nil)
+	getRes, err := globalCollection.Get(docId, nil)
 	if err != nil {
 		suite.T().Fatalf("Getting document errored: %v", err)
 	}
@@ -321,13 +323,15 @@ func (suite *IntegrationTestSuite) TestMutateInLookupInCounters() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(SubdocFeature)
 
+	docId := generateDocId("mutateInLookupInCounters")
+
 	doc := struct {
 		Counter int `json:"counter"`
 	}{
 		Counter: 20,
 	}
 
-	mutRes, err := globalCollection.Insert("mutateInLookupInCounters", doc, nil)
+	mutRes, err := globalCollection.Insert(docId, doc, nil)
 	if err != nil {
 		suite.T().Fatalf("Insert failed, error: %v", err)
 	}
@@ -336,7 +340,7 @@ func (suite *IntegrationTestSuite) TestMutateInLookupInCounters() {
 		suite.T().Fatalf("Insert CAS was 0")
 	}
 
-	subRes, err := globalCollection.MutateIn("mutateInLookupInCounters", []MutateInSpec{
+	subRes, err := globalCollection.MutateIn(docId, []MutateInSpec{
 		IncrementSpec("counter", 10, nil),
 		DecrementSpec("counter", 5, nil),
 	}, nil)
@@ -348,7 +352,7 @@ func (suite *IntegrationTestSuite) TestMutateInLookupInCounters() {
 		suite.T().Fatalf("Insert CAS was 0")
 	}
 
-	result, err := globalCollection.LookupIn("mutateInLookupInCounters", []LookupInSpec{
+	result, err := globalCollection.LookupIn(docId, []LookupInSpec{
 		GetSpec("counter", nil),
 	}, nil)
 	if err != nil {
@@ -371,13 +375,15 @@ func (suite *IntegrationTestSuite) TestMutateInLookupInMacro() {
 	suite.skipIfUnsupported(SubdocFeature)
 	suite.skipIfUnsupported(ExpandMacrosFeature)
 
+	docId := generateDocId("mutateInInsertMacro")
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
 		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
-	mutRes, err := globalCollection.Insert("mutateInInsertMacro", doc, nil)
+	mutRes, err := globalCollection.Insert(docId, doc, nil)
 	if err != nil {
 		suite.T().Fatalf("Insert failed, error: %v", err)
 	}
@@ -386,7 +392,7 @@ func (suite *IntegrationTestSuite) TestMutateInLookupInMacro() {
 		suite.T().Fatalf("Insert CAS was 0")
 	}
 
-	subRes, err := globalCollection.MutateIn("mutateInInsertMacro", []MutateInSpec{
+	subRes, err := globalCollection.MutateIn(docId, []MutateInSpec{
 		InsertSpec("caspath", MutationMacroCAS, nil),
 	}, nil)
 	if err != nil {
@@ -397,7 +403,7 @@ func (suite *IntegrationTestSuite) TestMutateInLookupInMacro() {
 		suite.T().Fatalf("MutateIn CAS was 0")
 	}
 
-	result, err := globalCollection.LookupIn("mutateInInsertMacro", []LookupInSpec{
+	result, err := globalCollection.LookupIn(docId, []LookupInSpec{
 		GetSpec("caspath", &GetSpecOptions{IsXattr: true}),
 	}, nil)
 	if err != nil {
@@ -601,12 +607,14 @@ func (suite *IntegrationTestSuite) TestMutateInLookupInXattrs() {
 		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
-	_, err = globalCollection.Upsert("lookupXattrDoc", doc, nil)
+	docId := generateDocId("lookupXattrDoc")
+
+	_, err = globalCollection.Upsert(docId, doc, nil)
 	suite.Require().Nil(err, err)
 
 	doc.Countable = []string{"one", "two"}
 
-	mutRes, err := globalCollection.MutateIn("lookupXattrDoc", []MutateInSpec{
+	mutRes, err := globalCollection.MutateIn(docId, []MutateInSpec{
 		InsertSpec("x.name", doc.Name, &InsertSpecOptions{IsXattr: true, CreatePath: true}),
 		InsertSpec("x.description", "ddd", &InsertSpecOptions{IsXattr: true}),
 		UpsertSpec("x.style", doc.Style, &UpsertSpecOptions{IsXattr: true}),
@@ -624,7 +632,7 @@ func (suite *IntegrationTestSuite) TestMutateInLookupInXattrs() {
 		suite.T().Fatalf("MutateIn CAS was 0")
 	}
 
-	result, err := globalCollection.LookupIn("lookupXattrDoc", []LookupInSpec{
+	result, err := globalCollection.LookupIn(docId, []LookupInSpec{
 		GetSpec("x.name", &GetSpecOptions{IsXattr: true}),
 		GetSpec("x.description", &GetSpecOptions{IsXattr: true}),
 		ExistsSpec("x.doesnt", &ExistsSpecOptions{IsXattr: true}),
@@ -711,10 +719,12 @@ func (suite *IntegrationTestSuite) TestMutateInBasicArrayXattrs() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(SubdocFeature)
 
-	_, err := globalCollection.Upsert("mutateInArrayXattr", "{}", nil)
+	docId := generateDocId("mutateInArrayXattr")
+
+	_, err := globalCollection.Upsert(docId, "{}", nil)
 	suite.Require().Nil(err, err)
 
-	subRes, err := globalCollection.MutateIn("mutateInArrayXattr", []MutateInSpec{
+	subRes, err := globalCollection.MutateIn(docId, []MutateInSpec{
 		ArrayAppendSpec("array", "clownfish", &ArrayAppendSpecOptions{IsXattr: true, CreatePath: true}),
 		ArrayPrependSpec("array", "whaleshark", &ArrayPrependSpecOptions{IsXattr: true}),
 		ArrayInsertSpec("array[1]", "catfish", &ArrayInsertSpecOptions{IsXattr: true}),
@@ -730,7 +740,7 @@ func (suite *IntegrationTestSuite) TestMutateInBasicArrayXattrs() {
 		suite.T().Fatalf("Insert CAS was 0")
 	}
 
-	result, err := globalCollection.LookupIn("mutateInArrayXattr", []LookupInSpec{
+	result, err := globalCollection.LookupIn(docId, []LookupInSpec{
 		GetSpec("array", &GetSpecOptions{IsXattr: true}),
 	}, nil)
 	if err != nil {
@@ -759,10 +769,12 @@ func (suite *IntegrationTestSuite) TestMutateInLookupInCountersXattrs() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(SubdocFeature)
 
-	_, err := globalCollection.Upsert("mutateInLookupInCountersXattrs", "{}", nil)
+	docId := generateDocId("mutateInLookupInCountersXattrs")
+
+	_, err := globalCollection.Upsert(docId, "{}", nil)
 	suite.Require().Nil(err, err)
 
-	subRes, err := globalCollection.MutateIn("mutateInLookupInCountersXattrs", []MutateInSpec{
+	subRes, err := globalCollection.MutateIn(docId, []MutateInSpec{
 		InsertSpec("count", 10, &InsertSpecOptions{IsXattr: true}),
 	}, nil)
 	if err != nil {
@@ -773,7 +785,7 @@ func (suite *IntegrationTestSuite) TestMutateInLookupInCountersXattrs() {
 		suite.T().Fatalf("Insert CAS was 0")
 	}
 
-	subRes, err = globalCollection.MutateIn("mutateInLookupInCountersXattrs", []MutateInSpec{
+	subRes, err = globalCollection.MutateIn(docId, []MutateInSpec{
 		DecrementSpec("count", 3, &CounterSpecOptions{IsXattr: true}),
 	}, nil)
 	if err != nil {
@@ -784,7 +796,7 @@ func (suite *IntegrationTestSuite) TestMutateInLookupInCountersXattrs() {
 		suite.T().Fatalf("Insert CAS was 0")
 	}
 
-	result, err := globalCollection.LookupIn("mutateInLookupInCountersXattrs", []LookupInSpec{
+	result, err := globalCollection.LookupIn(docId, []LookupInSpec{
 		GetSpec("count", &GetSpecOptions{
 			IsXattr: true,
 		}),

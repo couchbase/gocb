@@ -164,21 +164,23 @@ func (suite *IntegrationTestSuite) TestDropNonExistentScope() {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 
+	scopeName := generateDocId("testDropScopeX")
+
 	mgr := globalBucket.Collections()
 
-	err := mgr.CreateScope("testDropScopeX", nil)
+	err := mgr.CreateScope(scopeName, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 	err = mgr.CreateCollection(CollectionSpec{
-		Name:      "testDropCollection",
-		ScopeName: "testDropScopeX",
+		Name:      generateDocId("testDropCollection"),
+		ScopeName: scopeName,
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
-	err = mgr.DropScope("testScopeX", nil)
+	err = mgr.DropScope(generateDocId("testScopeX"), nil)
 	if err == nil {
 		suite.T().Fatalf("Expected error to be non-nil")
 	}
@@ -188,23 +190,25 @@ func (suite *IntegrationTestSuite) TestDropNonExistentCollection() {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 
+	scopeName := generateDocId("testDropScopeY")
+
 	mgr := globalBucket.Collections()
-	err := mgr.CreateScope("testDropScopeY", nil)
+	err := mgr.CreateScope(scopeName, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
 	err = mgr.CreateCollection(CollectionSpec{
-		Name:      "testDropCollectionY",
-		ScopeName: "testDropScopeY",
+		Name:      generateDocId("testDropCollectionY"),
+		ScopeName: scopeName,
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
 	err = mgr.DropCollection(CollectionSpec{
-		Name:      "testCollectionZ",
-		ScopeName: "testDropScopeY",
+		Name:      generateDocId("testCollectionZ"),
+		ScopeName: scopeName,
 	}, nil)
 	if err == nil {
 		suite.T().Fatalf("Expected error to be non-nil")
@@ -215,53 +219,58 @@ func (suite *IntegrationTestSuite) TestCollectionsAreNotPresent() {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 
+	scopeName1 := generateDocId("scope-1-")
+	scopeName2 := generateDocId("scope-2-")
+	collectionName1 := generateDocId("collection-1-")
+	collectionName2 := generateDocId("collection-2-")
+
 	mgr := globalBucket.Collections()
 
-	err := mgr.CreateScope("testScope1", nil)
+	err := mgr.CreateScope(scopeName1, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = mgr.CreateScope("testScope2", nil)
+	err = mgr.CreateScope(scopeName2, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
 	err = mgr.CreateCollection(CollectionSpec{
-		Name:      "testCollection1",
-		ScopeName: "testScope1",
+		Name:      collectionName1,
+		ScopeName: scopeName1,
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
 	err = mgr.CreateCollection(CollectionSpec{
-		Name:      "testCollection2",
-		ScopeName: "testScope2",
+		Name:      collectionName2,
+		ScopeName: scopeName2,
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
 	err = mgr.DropCollection(CollectionSpec{
-		Name:      "testCollection1",
-		ScopeName: "testScope1",
+		Name:      collectionName1,
+		ScopeName: scopeName1,
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Expected DropCollection to not error but was %v", err)
 	}
 
 	err = mgr.DropCollection(CollectionSpec{
-		Name:      "testCollection2",
-		ScopeName: "testScope2",
+		Name:      collectionName2,
+		ScopeName: scopeName2,
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Expected DropCollection to not error but was %v", err)
 	}
 
 	err = mgr.DropCollection(CollectionSpec{
-		Name:      "testCollection2",
-		ScopeName: "testScope2",
+		Name:      collectionName2,
+		ScopeName: scopeName2,
 	}, nil)
 	if err == nil {
 		suite.T().Fatalf("Expected error to be non-nil")
@@ -329,27 +338,27 @@ func (suite *IntegrationTestSuite) TestGetAllScopes() {
 
 	bucket1 := globalBucket.Collections()
 
-	err := bucket1.CreateScope("testScopeX1", nil)
+	err := bucket1.CreateScope(generateDocId("testScopeX1"), nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = bucket1.CreateScope("testScopeX2", nil)
+	err = bucket1.CreateScope(generateDocId("testScopeX2"), nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = bucket1.CreateScope("testScopeX3", nil)
+	err = bucket1.CreateScope(generateDocId("testScopeX3"), nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = bucket1.CreateScope("testScopeX4", nil)
+	err = bucket1.CreateScope(generateDocId("testScopeX4"), nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = bucket1.CreateScope("testScopeX5", nil)
+	err = bucket1.CreateScope(generateDocId("testScopeX5"), nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
@@ -368,48 +377,50 @@ func (suite *IntegrationTestSuite) TestCollectionsInBucket() {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 
+	scopeName := generateDocId("collectionsInBucketScope")
+
 	bucket1 := globalBucket.Collections()
 
-	err := bucket1.CreateScope("collectionsInBucketScope", nil)
+	err := bucket1.CreateScope(scopeName, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
 	err = bucket1.CreateCollection(CollectionSpec{
-		Name:      "testCollection1",
-		ScopeName: "collectionsInBucketScope",
+		Name:      generateDocId("testCollection1-"),
+		ScopeName: scopeName,
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
 	err = bucket1.CreateCollection(CollectionSpec{
-		Name:      "testCollection2",
-		ScopeName: "collectionsInBucketScope",
+		Name:      generateDocId("testCollection2-"),
+		ScopeName: scopeName,
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
 	err = bucket1.CreateCollection(CollectionSpec{
-		Name:      "testCollection3",
-		ScopeName: "collectionsInBucketScope",
+		Name:      generateDocId("testCollection3-"),
+		ScopeName: scopeName,
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
 	err = bucket1.CreateCollection(CollectionSpec{
-		Name:      "testCollection4",
-		ScopeName: "collectionsInBucketScope",
+		Name:      generateDocId("testCollection4-"),
+		ScopeName: scopeName,
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
 	err = bucket1.CreateCollection(CollectionSpec{
-		Name:      "testCollection5",
-		ScopeName: "collectionsInBucketScope",
+		Name:      generateDocId("testCollection5-"),
+		ScopeName: scopeName,
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
@@ -423,7 +434,7 @@ func (suite *IntegrationTestSuite) TestCollectionsInBucket() {
 
 		var scope *ScopeSpec
 		for i, s := range scopes {
-			if s.Name == "collectionsInBucketScope" {
+			if s.Name == scopeName {
 				scope = &scopes[i]
 			}
 		}
@@ -443,69 +454,72 @@ func (suite *IntegrationTestSuite) TestNumberOfCollectionInScope() {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 
+	scopeName1 := generateDocId("numCollectionsScope1-")
+	scopeName2 := generateDocId("numCollectionsScope2-")
+
 	bucketX := globalBucket.Collections()
 
-	err := bucketX.CreateScope("numCollectionsScope1", nil)
+	err := bucketX.CreateScope(scopeName1, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = bucketX.CreateScope("numCollectionsScope2", nil)
+	err = bucketX.CreateScope(scopeName2, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
 	err = bucketX.CreateCollection(CollectionSpec{
-		Name:      "testCollection1",
-		ScopeName: "numCollectionsScope1",
+		Name:      generateDocId("testCollection1-"),
+		ScopeName: scopeName1,
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
 	err = bucketX.CreateCollection(CollectionSpec{
-		Name:      "testCollection2",
-		ScopeName: "numCollectionsScope1",
+		Name:      generateDocId("testCollection2-"),
+		ScopeName: scopeName1,
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
 	err = bucketX.CreateCollection(CollectionSpec{
-		Name:      "testCollection3",
-		ScopeName: "numCollectionsScope1",
+		Name:      generateDocId("testCollection3-"),
+		ScopeName: scopeName1,
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
 	err = bucketX.CreateCollection(CollectionSpec{
-		Name:      "testCollection4",
-		ScopeName: "numCollectionsScope1",
+		Name:      generateDocId("testCollection4-"),
+		ScopeName: scopeName1,
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
 	err = bucketX.CreateCollection(CollectionSpec{
-		Name:      "testCollection5",
-		ScopeName: "numCollectionsScope1",
+		Name:      generateDocId("testCollection5-"),
+		ScopeName: scopeName1,
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
 	err = bucketX.CreateCollection(CollectionSpec{
-		Name:      "testCollection6",
-		ScopeName: "numCollectionsScope2",
+		Name:      generateDocId("testCollection6-"),
+		ScopeName: scopeName2,
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
 	err = bucketX.CreateCollection(CollectionSpec{
-		Name:      "testCollection7",
-		ScopeName: "numCollectionsScope2",
+		Name:      generateDocId("testCollection6-"),
+		ScopeName: scopeName2,
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
@@ -518,7 +532,7 @@ func (suite *IntegrationTestSuite) TestNumberOfCollectionInScope() {
 
 	var scope *ScopeSpec
 	for i, s := range scopes {
-		if s.Name == "numCollectionsScope1" {
+		if s.Name == scopeName1 {
 			scope = &scopes[i]
 		}
 	}

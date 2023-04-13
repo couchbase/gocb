@@ -19,7 +19,7 @@ func makeBinaryValue(numBytes int) []byte {
 func makeDocIDs(numIDs int, prefix string) map[string]struct{} {
 	docIDs := make(map[string]struct{})
 	for i := 0; i < numIDs; i++ {
-		docIDs[fmt.Sprintf("%s%d", prefix, i)] = struct{}{}
+		docIDs[fmt.Sprintf("%s-%d", prefix, i)] = struct{}{}
 	}
 
 	return docIDs
@@ -421,7 +421,7 @@ func (suite *IntegrationTestSuite) TestRangeScanSampling() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(RangeScanFeature)
 
-	scopeName := "samplingrangescan"
+	scopeName := generateDocId("samplingrangescan")
 	colMgr := globalBucket.Collections()
 	err := colMgr.CreateScope(scopeName, nil)
 	suite.Require().Nil(err, err)
@@ -432,7 +432,7 @@ func (suite *IntegrationTestSuite) TestRangeScanSampling() {
 	}, nil)
 	suite.Require().Nil(err, err)
 
-	docIDs := makeDocIDs(10, "samplingscan-")
+	docIDs := makeDocIDs(10, generateDocId("samplingscan"))
 
 	value := "test"
 
@@ -490,7 +490,7 @@ func (suite *IntegrationTestSuite) TestRangeScanSamplingMutationState() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(RangeScanFeature)
 
-	scopeName := "samplingrangescanmutationstate"
+	scopeName := generateDocId("samplingrangescanmutationstate")
 	colMgr := globalBucket.Collections()
 	err := colMgr.CreateScope(scopeName, nil)
 	suite.Require().Nil(err, err)
@@ -501,7 +501,7 @@ func (suite *IntegrationTestSuite) TestRangeScanSamplingMutationState() {
 	}, nil)
 	suite.Require().Nil(err, err)
 
-	docIDs := makeDocIDs(10, "samplingrangescanmutationstate-")
+	docIDs := makeDocIDs(10, generateDocId("samplingrangescanmutationstate"))
 
 	value := "test"
 
