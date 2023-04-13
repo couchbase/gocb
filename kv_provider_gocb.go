@@ -235,3 +235,41 @@ func (p *kvProviderGocb) Exists(opm *kvOpManager) (*ExistsResult, error) {
 
 	return docExists, errOut
 }
+
+func (p *kvProviderGocb) Delete(opm *kvOpManager) (*MutationResult, error) {
+	synced := newSyncKvOpManager(opm)
+
+	defer synced.Finish(false)
+
+	var errOut error
+	var mutOut *MutationResult
+	err := synced.Wait(p.agent.Delete(gocbcore.DeleteOptions{
+		Key:                    synced.DocumentID(),
+		Cas:                    gocbcore.Cas(opm.Cas()),
+		CollectionName:         synced.CollectionName(),
+		ScopeName:              synced.ScopeName(),
+		DurabilityLevel:        synced.DurabilityLevel(),
+		DurabilityLevelTimeout: synced.DurabilityTimeout(),
+		RetryStrategy:          synced.RetryStrategy(),
+		TraceContext:           synced.TraceSpanContext(),
+		Deadline:               synced.Deadline(),
+		User:                   synced.Impersonate(),
+	}, func(res *gocbcore.DeleteResult, err error) {
+		if err != nil {
+			errOut = synced.EnhanceErr(err)
+			synced.Reject()
+			return
+		}
+
+		mutOut = &MutationResult{}
+		mutOut.cas = Cas(res.Cas)
+		mutOut.mt = synced.EnhanceMt(res.MutationToken)
+
+		synced.Resolve(mutOut.mt)
+	}))
+	if err != nil {
+		errOut = err
+	}
+
+	return mutOut, errOut
+}

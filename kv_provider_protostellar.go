@@ -156,6 +156,37 @@ func (p *kvProviderProtoStellar) Exists(opm *kvOpManager) (*ExistsResult, error)
 	return &resOut, nil
 }
 
+func (p *kvProviderProtoStellar) Delete(opm *kvOpManager) (*MutationResult, error) {
+
+	cas := opm.Cas()
+
+	request := &kv_v1.RemoveRequest{
+		BucketName:      opm.BucketName(),
+		ScopeName:       opm.ScopeName(),
+		CollectionName:  opm.CollectionName(),
+		Key:             string(opm.DocumentID()),
+		Cas:             (*uint64)(&cas),
+		DurabilityLevel: memdDurToPs(opm.DurabilityLevel()),
+	}
+
+	res, err := p.client.Remove(opm.ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	mt := psMutToGoCbMut(*res.MutationToken)
+	outCas := res.Cas
+
+	mutOut := MutationResult{
+		mt: &mt,
+		Result: Result{
+			cas: Cas(outCas),
+		},
+	}
+
+	return &mutOut, nil
+}
+
 // converts memdDurability level to protostellar durability level
 func memdDurToPs(dur memd.DurabilityLevel) *kv_v1.DurabilityLevel {
 	// memd.Durability starts at 1.

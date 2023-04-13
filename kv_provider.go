@@ -10,7 +10,7 @@ type kvProvider interface {
 	//GetOneReplica(opts GetOptions) (*GetResult, error)
 	Exists(*kvOpManager) (*ExistsResult, error)
 
-	Delete(opts RemoveOptions) (*MutationResult, error)
+	Delete(*kvOpManager) (*MutationResult, error)
 	LookupIn(opts LookupInResult) (*LookupInResult, error)
 	MutateIn(opts MutateInOptions) (*MutateInResult, error)
 

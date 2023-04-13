@@ -805,6 +805,7 @@ func (c *Collection) Remove(id string, opts *RemoveOptions) (mutOut *MutationRes
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
 	opm.SetContext(opts.Context)
+	opm.SetCas(opts.Cas)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -814,34 +815,8 @@ func (c *Collection) Remove(id string, opts *RemoveOptions) (mutOut *MutationRes
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.Delete(gocbcore.DeleteOptions{
-		Key:                    opm.DocumentID(),
-		Cas:                    gocbcore.Cas(opts.Cas),
-		CollectionName:         opm.CollectionName(),
-		ScopeName:              opm.ScopeName(),
-		DurabilityLevel:        opm.DurabilityLevel(),
-		DurabilityLevelTimeout: opm.DurabilityTimeout(),
-		RetryStrategy:          opm.RetryStrategy(),
-		TraceContext:           opm.TraceSpanContext(),
-		Deadline:               opm.Deadline(),
-		User:                   opm.Impersonate(),
-	}, func(res *gocbcore.DeleteResult, err error) {
-		if err != nil {
-			errOut = opm.EnhanceErr(err)
-			opm.Reject()
-			return
-		}
 
-		mutOut = &MutationResult{}
-		mutOut.cas = Cas(res.Cas)
-		mutOut.mt = opm.EnhanceMt(res.MutationToken)
-
-		opm.Resolve(mutOut.mt)
-	}))
-	if err != nil {
-		errOut = err
-	}
-	return
+	return agent.Delete(opm)
 }
 
 // GetAndTouchOptions are the options available to the GetAndTouch operation.
