@@ -2,8 +2,9 @@ package gocb
 
 import (
 	"fmt"
-	"github.com/couchbase/gocbcore/v10/memd"
 	"time"
+
+	"github.com/couchbase/gocbcore/v10/memd"
 )
 
 func (suite *IntegrationTestSuite) TestUpsertGetBulk() {
@@ -83,10 +84,10 @@ func (suite *IntegrationTestSuite) TestUpsertGetBulk() {
 	suite.Require().Len(nilParents[0].Spans["upsert"], 20)
 	suite.Require().Len(nilParents[1].Spans["get"], 20)
 	for _, span := range nilParents[0].Spans["upsert"] {
-		suite.AssertKvOpSpan(span, "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
+		suite.AssertKvOpSpan(span, "upsert", memd.CmdSet.Name(), true, DurabilityLevelNone)
 	}
 	for _, span := range nilParents[1].Spans["get"] {
-		suite.AssertKvOpSpan(span, "get", memd.CmdGet.Name(), 1, false, false, DurabilityLevelNone)
+		suite.AssertKvOpSpan(span, "get", memd.CmdGet.Name(), false, DurabilityLevelNone)
 	}
 
 	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 20, false)
@@ -125,7 +126,7 @@ func (suite *IntegrationTestSuite) TestInsertDocsBulk() {
 	suite.AssertKvSpan(nilParents[0], "bulk", DurabilityLevelNone)
 	suite.Require().Len(nilParents[0].Spans["insert"], 20)
 	for _, span := range nilParents[0].Spans["insert"] {
-		suite.AssertKvOpSpan(span, "insert", memd.CmdAdd.Name(), 1, false, true, DurabilityLevelNone)
+		suite.AssertKvOpSpan(span, "insert", memd.CmdAdd.Name(), true, DurabilityLevelNone)
 	}
 
 	suite.AssertKVMetrics(meterNameCBOperations, "insert", 20, false)
@@ -191,10 +192,10 @@ func (suite *IntegrationTestSuite) TestReplaceOperationBulk() {
 	suite.Require().Len(nilParents[0].Spans["upsert"], 20)
 	suite.Require().Len(nilParents[1].Spans["replace"], 20)
 	for _, span := range nilParents[0].Spans["upsert"] {
-		suite.AssertKvOpSpan(span, "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
+		suite.AssertKvOpSpan(span, "upsert", memd.CmdSet.Name(), true, DurabilityLevelNone)
 	}
 	for _, span := range nilParents[1].Spans["replace"] {
-		suite.AssertKvOpSpan(span, "replace", memd.CmdReplace.Name(), 1, false, true, DurabilityLevelNone)
+		suite.AssertKvOpSpan(span, "replace", memd.CmdReplace.Name(), true, DurabilityLevelNone)
 	}
 
 	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 20, false)
@@ -268,10 +269,10 @@ func (suite *IntegrationTestSuite) TestRemoveOperationBulk() {
 	suite.Require().Len(nilParents[0].Spans["upsert"], 20)
 	suite.Require().Len(nilParents[1].Spans["remove"], 20)
 	for _, span := range nilParents[0].Spans["upsert"] {
-		suite.AssertKvOpSpan(span, "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
+		suite.AssertKvOpSpan(span, "upsert", memd.CmdSet.Name(), true, DurabilityLevelNone)
 	}
 	for _, span := range nilParents[1].Spans["remove"] {
-		suite.AssertKvOpSpan(span, "remove", memd.CmdDelete.Name(), 1, false, false, DurabilityLevelNone)
+		suite.AssertKvOpSpan(span, "remove", memd.CmdDelete.Name(), false, DurabilityLevelNone)
 	}
 
 	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 20, false)

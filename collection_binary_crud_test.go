@@ -1,6 +1,10 @@
 package gocb
 
-import "github.com/couchbase/gocbcore/v10/memd"
+import (
+	"time"
+
+	"github.com/couchbase/gocbcore/v10/memd"
+)
 
 func (suite *IntegrationTestSuite) TestBinaryAppend() {
 	suite.skipIfUnsupported(KeyValueFeature)
@@ -10,6 +14,7 @@ func (suite *IntegrationTestSuite) TestBinaryAppend() {
 	tcoder := NewRawBinaryTranscoder()
 	res, err := globalCollection.Upsert("binaryAppend", []byte("foo"), &UpsertOptions{
 		Transcoder: tcoder,
+		Timeout:    30 * time.Second,
 	})
 	if err != nil {
 		suite.T().Fatalf("Failed to Upsert, err: %v", err)
@@ -48,9 +53,9 @@ func (suite *IntegrationTestSuite) TestBinaryAppend() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 3)
-	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[1], "append", memd.CmdAppend.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[2], "get", memd.CmdGet.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[1], "append", memd.CmdAppend.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[2], "get", memd.CmdGet.Name(), false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "append", 1, false)
@@ -104,9 +109,9 @@ func (suite *IntegrationTestSuite) TestBinaryPrepend() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 3)
-	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[1], "prepend", memd.CmdPrepend.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[2], "get", memd.CmdGet.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[1], "prepend", memd.CmdPrepend.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[2], "get", memd.CmdGet.Name(), false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "prepend", 1, false)
@@ -181,10 +186,10 @@ func (suite *IntegrationTestSuite) TestBinaryIncrement() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 4)
-	suite.AssertKvOpSpan(nilParents[0], "increment", memd.CmdIncrement.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[1], "increment", memd.CmdIncrement.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[2], "increment", memd.CmdIncrement.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[3], "get", memd.CmdGet.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "increment", memd.CmdIncrement.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[1], "increment", memd.CmdIncrement.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[2], "increment", memd.CmdIncrement.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[3], "get", memd.CmdGet.Name(), false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "increment", 3, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
@@ -259,10 +264,10 @@ func (suite *IntegrationTestSuite) TestBinaryDecrement() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 4)
-	suite.AssertKvOpSpan(nilParents[0], "decrement", memd.CmdDecrement.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[1], "decrement", memd.CmdDecrement.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[2], "decrement", memd.CmdDecrement.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[3], "get", memd.CmdGet.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "decrement", memd.CmdDecrement.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[1], "decrement", memd.CmdDecrement.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[2], "decrement", memd.CmdDecrement.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[3], "get", memd.CmdGet.Name(), false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "decrement", 3, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)

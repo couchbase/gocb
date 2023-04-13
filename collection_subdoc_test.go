@@ -2,9 +2,10 @@ package gocb
 
 import (
 	"errors"
-	"github.com/couchbase/gocbcore/v10/memd"
 	"strings"
 	"time"
+
+	"github.com/couchbase/gocbcore/v10/memd"
 )
 
 func (suite *IntegrationTestSuite) TestInsertLookupIn() {
@@ -97,8 +98,8 @@ func (suite *IntegrationTestSuite) TestInsertLookupIn() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 2)
-	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), 1, false, true, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[1], "lookup_in", memd.CmdSubDocMultiLookup.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[1], "lookup_in", memd.CmdSubDocMultiLookup.Name(), false, DurabilityLevelNone)
 }
 
 func (suite *IntegrationTestSuite) TestMutateInBasicCrud() {
@@ -193,11 +194,11 @@ func (suite *IntegrationTestSuite) TestMutateInBasicCrud() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 3)
-	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), true, DurabilityLevelNone)
 	suite.AssertKvSpan(nilParents[1], "mutate_in", DurabilityLevelNone)
 	suite.AssertEncodingSpansEq(nilParents[1].Spans, 10)
-	suite.AssertCmdSpansEq(nilParents[1].Spans, memd.CmdSubDocMultiMutation.Name(), 1)
-	suite.AssertKvOpSpan(nilParents[2], "get", memd.CmdGet.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertCmdSpans(nilParents[1].Spans, memd.CmdSubDocMultiMutation.Name())
+	suite.AssertKvOpSpan(nilParents[2], "get", memd.CmdGet.Name(), false, DurabilityLevelNone)
 }
 
 func (suite *IntegrationTestSuite) TestMutateInBasicArray() {

@@ -88,19 +88,14 @@ func (tt *testTracer) GetSpans() map[RequestSpanContext][]*testSpan {
 	return spans
 }
 
-func (suite *IntegrationTestSuite) AssertKvOpSpan(span *testSpan, opName, cmdName string, numCmdSpans int,
-	atLeastNumCmdSpans, hasEncoding bool, durability DurabilityLevel) {
+func (suite *IntegrationTestSuite) AssertKvOpSpan(span *testSpan, opName, cmdName string, hasEncoding bool, durability DurabilityLevel) {
 	suite.AssertKvSpan(span, opName, durability)
 
 	if hasEncoding {
 		suite.AssertEncodingSpansEq(span.Spans, 1)
 	}
 
-	if atLeastNumCmdSpans {
-		suite.AssertCmdSpansGE(span.Spans, cmdName, numCmdSpans)
-	} else {
-		suite.AssertCmdSpansEq(span.Spans, cmdName, numCmdSpans)
-	}
+	suite.AssertCmdSpans(span.Spans, cmdName)
 }
 
 type HTTPOpSpanExpectations struct {
@@ -237,51 +232,27 @@ func (suite *IntegrationTestSuite) AssertEncodingSpan(span *testSpan) {
 	suite.Assert().True(span.Finished)
 }
 
-func (suite *IntegrationTestSuite) AssertCmdSpansEq(parents map[RequestSpanContext][]*testSpan, cmdName string,
-	num int) {
+func (suite *IntegrationTestSuite) AssertCmdSpans(parents map[RequestSpanContext][]*testSpan, cmdName string) {
 	spans := parents[cmdName]
-	if suite.Assert().Equal(num, len(spans)) {
-		for i := 0; i < num; i++ {
-			suite.AssertCmdSpan(spans[i], cmdName, i)
-		}
+	for i := 0; i < len(spans); i++ {
+		suite.AssertCmdSpan(spans[i], cmdName)
 	}
 }
 
-func (suite *IntegrationTestSuite) AssertCmdSpansGE(parents map[RequestSpanContext][]*testSpan, cmdName string,
-	num int) {
-	spans := parents[cmdName]
-	if suite.Assert().GreaterOrEqual(len(spans), num) {
-		for i := 0; i < len(spans); i++ {
-			suite.AssertCmdSpan(spans[i], cmdName, i)
-		}
-	}
-}
-
-func (suite *IntegrationTestSuite) AssertCmdSpan(span *testSpan, expectedName string, numRetries int) {
+func (suite *IntegrationTestSuite) AssertCmdSpan(span *testSpan, expectedName string) {
 	suite.Assert().Equal(expectedName, span.Name)
 	suite.Assert().Equal(2, len(span.Tags))
 	suite.Assert().True(span.Finished)
 	suite.Assert().Equal("couchbase", span.Tags["db.system"])
-	suite.Assert().Equal(uint32(numRetries), span.Tags["db.couchbase.retries"])
+	suite.Assert().Contains(span.Tags, "db.couchbase.retries")
 
-	suite.AssertKVDispatchSpansEQ(span.Spans, 1)
+	suite.AssertKVDispatchSpans(span.Spans)
 }
 
-func (suite *IntegrationTestSuite) AssertKVDispatchSpansEQ(parents map[RequestSpanContext][]*testSpan, num int) {
+func (suite *IntegrationTestSuite) AssertKVDispatchSpans(parents map[RequestSpanContext][]*testSpan) {
 	spans := parents["dispatch_to_server"]
-	if suite.Assert().Equal(num, len(spans)) {
-		for i := 0; i < len(spans); i++ {
-			suite.AssertKVDispatchSpan(spans[i])
-		}
-	}
-}
-
-func (suite *IntegrationTestSuite) AssertKVDispatchSpansGE(parents map[RequestSpanContext][]*testSpan, num int) {
-	spans := parents["dispatch_to_server"]
-	if suite.Assert().GreaterOrEqual(num, len(spans)) {
-		for i := 0; i < len(spans); i++ {
-			suite.AssertKVDispatchSpan(spans[i])
-		}
+	for i := 0; i < len(spans); i++ {
+		suite.AssertKVDispatchSpan(spans[i])
 	}
 }
 

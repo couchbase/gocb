@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/couchbase/gocbcore/v10/memd"
 	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/couchbase/gocbcore/v10/memd"
 
 	"github.com/stretchr/testify/mock"
 
@@ -29,7 +30,7 @@ func (suite *IntegrationTestSuite) TestErrorNonExistant() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 1)
-	suite.AssertKvOpSpan(nilParents[0], "get", memd.CmdGet.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "get", memd.CmdGet.Name(), false, DurabilityLevelNone)
 	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
 }
 
@@ -52,8 +53,8 @@ func (suite *IntegrationTestSuite) TestErrorDoubleInsert() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 2)
-	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), 1, false, true, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), 1, false, true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), true, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "insert", 2, false)
 }
@@ -246,7 +247,7 @@ func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 2)
-	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), 1, false, true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), true, DurabilityLevelNone)
 	span := nilParents[1]
 	suite.AssertKvSpan(span, "get", DurabilityLevelNone)
 
@@ -255,7 +256,7 @@ func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {
 	lookupSpans := span.Spans["lookup_in"]
 
 	suite.Require().Equal(len(lookupSpans), 1)
-	suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "insert", 1, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
@@ -303,7 +304,7 @@ func (suite *IntegrationTestSuite) TestUpsertGetWithExpiryTranscoder() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 2)
-	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), true, DurabilityLevelNone)
 	span := nilParents[1]
 	suite.AssertKvSpan(span, "get", DurabilityLevelNone)
 
@@ -312,7 +313,7 @@ func (suite *IntegrationTestSuite) TestUpsertGetWithExpiryTranscoder() {
 	lookupSpans := span.Spans["lookup_in"]
 
 	suite.Require().Equal(len(lookupSpans), 1)
-	suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
@@ -636,7 +637,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 			lookupSpans := span.Spans["lookup_in"]
 
 			suite.Require().Equal(len(lookupSpans), 1)
-			suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), 1, false, false, DurabilityLevelNone)
+			suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), false, DurabilityLevelNone)
 
 			suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
 		})
@@ -723,8 +724,8 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection18Fields() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 2)
-	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), 1, false, true, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[1], "get", "", 0, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[1], "get", "", false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "insert", 1, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
@@ -815,7 +816,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection16FieldsExpiry() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 2)
-	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), true, DurabilityLevelNone)
 	span := nilParents[1]
 	suite.AssertKvSpan(span, "get", DurabilityLevelNone)
 
@@ -824,7 +825,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection16FieldsExpiry() {
 	lookupSpans := span.Spans["lookup_in"]
 
 	suite.Require().Equal(len(lookupSpans), 1)
-	suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
@@ -860,8 +861,8 @@ func (suite *IntegrationTestSuite) TestInsertGetProjectionPathMissing() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 2)
-	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), 1, false, true, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[1], "get", "", 0, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[1], "get", "", false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "insert", 1, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
@@ -993,8 +994,8 @@ func (suite *IntegrationTestSuite) TestInsertGet() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 2)
-	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), 1, false, true, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[1], "get", memd.CmdGet.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[1], "get", memd.CmdGet.Name(), false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "insert", 1, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
@@ -1035,10 +1036,10 @@ func (suite *IntegrationTestSuite) TestExists() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 4)
-	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), 1, false, true, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[1], "exists", memd.CmdGetMeta.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[2], "remove", memd.CmdDelete.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[3], "exists", memd.CmdGetMeta.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[1], "exists", memd.CmdGetMeta.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[2], "remove", memd.CmdDelete.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[3], "exists", memd.CmdGetMeta.Name(), false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "insert", 1, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "remove", 1, false)
@@ -1187,11 +1188,11 @@ func (suite *IntegrationTestSuite) TestUpsertGetRemove() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 5)
-	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[1], "get", memd.CmdGet.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[2], "exists", memd.CmdGetMeta.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[3], "remove", memd.CmdDelete.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[4], "exists", memd.CmdGetMeta.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[1], "get", memd.CmdGet.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[2], "exists", memd.CmdGetMeta.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[3], "remove", memd.CmdDelete.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[4], "exists", memd.CmdGetMeta.Name(), false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
@@ -1251,9 +1252,9 @@ func (suite *IntegrationTestSuite) TestUpsertRetries() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 3)
-	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[1], "get_and_lock", memd.CmdGetLocked.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[2], "upsert", memd.CmdSet.Name(), retryStrategy.retries+1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[1], "get_and_lock", memd.CmdGetLocked.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[2], "upsert", memd.CmdSet.Name(), false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 2, true)
 	suite.AssertKVMetrics(meterNameCBOperations, "get_and_lock", 1, false)
@@ -1322,12 +1323,12 @@ func (suite *IntegrationTestSuite) TestRemoveWithCas() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 6)
-	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[1], "exists", memd.CmdGetMeta.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[2], "remove", memd.CmdDelete.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[3], "exists", memd.CmdGetMeta.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[4], "remove", memd.CmdDelete.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[5], "exists", memd.CmdGetMeta.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[1], "exists", memd.CmdGetMeta.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[2], "remove", memd.CmdDelete.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[3], "exists", memd.CmdGetMeta.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[4], "remove", memd.CmdDelete.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[5], "exists", memd.CmdGetMeta.Name(), false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "exists", 3, false)
@@ -1395,10 +1396,10 @@ func (suite *IntegrationTestSuite) TestUpsertAndReplace() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 4)
-	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[1], "get", memd.CmdGet.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[2], "replace", memd.CmdReplace.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[3], "get", memd.CmdGet.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[1], "get", memd.CmdGet.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[2], "replace", memd.CmdReplace.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[3], "get", memd.CmdGet.Name(), false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "get", 2, false)
@@ -1464,8 +1465,8 @@ func (suite *IntegrationTestSuite) TestGetAndTouch() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 3)
-	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[1], "get_and_touch", memd.CmdGAT.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[1], "get_and_touch", memd.CmdGAT.Name(), false, DurabilityLevelNone)
 	span := nilParents[2]
 	suite.AssertKvSpan(span, "get", DurabilityLevelNone)
 
@@ -1474,7 +1475,7 @@ func (suite *IntegrationTestSuite) TestGetAndTouch() {
 	lookupSpans := span.Spans["lookup_in"]
 
 	suite.Require().Equal(len(lookupSpans), 1)
-	suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "get_and_touch", 1, false)
@@ -1569,10 +1570,10 @@ func (suite *IntegrationTestSuite) TestGetAndLock() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 4)
-	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[1], "get_and_lock", memd.CmdGetLocked.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[2], "upsert", memd.CmdSet.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[3], "upsert", memd.CmdSet.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[1], "get_and_lock", memd.CmdGetLocked.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[2], "upsert", memd.CmdSet.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[3], "upsert", memd.CmdSet.Name(), false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 3, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "get_and_lock", 1, false)
@@ -1628,10 +1629,10 @@ func (suite *IntegrationTestSuite) TestUnlock() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 4)
-	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[1], "get_and_lock", memd.CmdGetLocked.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[2], "unlock", memd.CmdUnlockKey.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[3], "upsert", memd.CmdSet.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[1], "get_and_lock", memd.CmdGetLocked.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[2], "unlock", memd.CmdUnlockKey.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[3], "upsert", memd.CmdSet.Name(), false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 2, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "get_and_lock", 1, false)
@@ -1686,9 +1687,9 @@ func (suite *IntegrationTestSuite) TestUnlockInvalidCas() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 3)
-	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[1], "get_and_lock", memd.CmdGetLocked.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[2], "unlock", memd.CmdUnlockKey.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[1], "get_and_lock", memd.CmdGetLocked.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[2], "unlock", memd.CmdUnlockKey.Name(), false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "get_and_lock", 1, false)
@@ -1743,9 +1744,9 @@ func (suite *IntegrationTestSuite) TestDoubleLockFail() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 3)
-	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[1], "get_and_lock", memd.CmdGetLocked.Name(), 1, false, false, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[2], "get_and_lock", memd.CmdGetLocked.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[1], "get_and_lock", memd.CmdGetLocked.Name(), false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[2], "get_and_lock", memd.CmdGetLocked.Name(), false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "get_and_lock", 2, false)
@@ -1767,7 +1768,7 @@ func (suite *IntegrationTestSuite) TestUnlockMissingDocFail() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 1)
-	suite.AssertKvOpSpan(nilParents[0], "unlock", memd.CmdUnlockKey.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "unlock", memd.CmdUnlockKey.Name(), false, DurabilityLevelNone)
 }
 
 func (suite *IntegrationTestSuite) TestTouch() {
@@ -1823,8 +1824,8 @@ func (suite *IntegrationTestSuite) TestTouch() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 3)
-	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), 1, false, true, DurabilityLevelNone)
-	suite.AssertKvOpSpan(nilParents[1], "touch", memd.CmdTouch.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[1], "touch", memd.CmdTouch.Name(), false, DurabilityLevelNone)
 	span := nilParents[2]
 	suite.AssertKvSpan(span, "get", DurabilityLevelNone)
 
@@ -1833,7 +1834,7 @@ func (suite *IntegrationTestSuite) TestTouch() {
 	lookupSpans := span.Spans["lookup_in"]
 
 	suite.Require().Equal(len(lookupSpans), 1)
-	suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "touch", 1, false)
@@ -1855,7 +1856,7 @@ func (suite *IntegrationTestSuite) TestTouchMissingDocFail() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 1)
-	suite.AssertKvOpSpan(nilParents[0], "touch", memd.CmdTouch.Name(), 1, false, false, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "touch", memd.CmdTouch.Name(), false, DurabilityLevelNone)
 
 	suite.AssertKVMetrics(meterNameCBOperations, "touch", 1, false)
 }
@@ -1908,7 +1909,7 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAnyReplica() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(len(nilParents), 2)
-	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), 1, false, true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), true, DurabilityLevelNone)
 
 	span := nilParents[1]
 	suite.AssertKvSpan(span, "get_any_replica", DurabilityLevelNone)
@@ -2179,8 +2180,7 @@ func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 			suite.Require().Contains(globalTracer.GetSpans(), nil)
 			nilParents := globalTracer.GetSpans()[nil]
 			suite.Require().Equal(len(nilParents), 2)
-			suite.AssertKvOpSpan(nilParents[0], strings.ToLower(tCase.method), cmdName, 1, false,
-				true, tCase.expectedDurability)
+			suite.AssertKvOpSpan(nilParents[0], strings.ToLower(tCase.method), cmdName, true, tCase.expectedDurability)
 			// GetAnyReplica tracing is a pain to test and we do it elsewhere so we don't bother here.
 		})
 	}
