@@ -8,7 +8,7 @@ import (
 func (suite *IntegrationTestSuite) TestBucketWaitUntilReady() {
 	suite.skipIfUnsupported(WaitUntilReadyFeature)
 
-	c, err := Connect(globalConfig.Server, ClusterOptions{Authenticator: PasswordAuthenticator{
+	c, err := Connect(globalConfig.connstr, ClusterOptions{Authenticator: PasswordAuthenticator{
 		Username: globalConfig.User,
 		Password: globalConfig.Password,
 	}})
@@ -28,7 +28,7 @@ func (suite *IntegrationTestSuite) TestBucketWaitUntilReady() {
 func (suite *IntegrationTestSuite) TestBucketWaitUntilReadyInvalidAuth() {
 	suite.skipIfUnsupported(WaitUntilReadyFeature)
 
-	c, err := Connect(globalConfig.Server, ClusterOptions{Authenticator: PasswordAuthenticator{
+	c, err := Connect(globalConfig.connstr, ClusterOptions{Authenticator: PasswordAuthenticator{
 		Username: globalConfig.User,
 		Password: globalConfig.Password + "nopethisshouldntwork",
 	}})
@@ -51,7 +51,7 @@ func (suite *IntegrationTestSuite) TestBucketWaitUntilReadyInvalidAuth() {
 func (suite *IntegrationTestSuite) TestBucketWaitUntilReadyFastFailAuth() {
 	suite.skipIfUnsupported(WaitUntilReadyFeature)
 
-	c, err := Connect(globalConfig.Server, ClusterOptions{Authenticator: PasswordAuthenticator{
+	c, err := Connect(globalConfig.connstr, ClusterOptions{Authenticator: PasswordAuthenticator{
 		Username: globalConfig.User,
 		Password: "thisisaprettyunlikelypasswordtobeused",
 	}})

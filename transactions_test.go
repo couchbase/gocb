@@ -3,10 +3,11 @@ package gocb
 import (
 	"errors"
 	"fmt"
-	"github.com/couchbase/gocbcore/v10"
-	"github.com/google/uuid"
 	"log"
 	"time"
+
+	"github.com/couchbase/gocbcore/v10"
+	"github.com/google/uuid"
 )
 
 func (suite *IntegrationTestSuite) verifyDocument(key string, val interface{}) {
@@ -120,7 +121,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadata() {
 		CollectionName: metaCollectionName,
 	}
 
-	c, err := Connect(globalConfig.Server, ClusterOptions{
+	c, err := Connect(globalConfig.connstr, ClusterOptions{
 		Authenticator: PasswordAuthenticator{
 			Username: globalConfig.User,
 			Password: globalConfig.Password,
@@ -1012,7 +1013,7 @@ func (suite *IntegrationTestSuite) doTransactionOps(name string, keys []string, 
 
 	transactions := globalCluster.Transactions()
 
-	//log.Printf("  %s testing (%+v)", name, keys)
+	// log.Printf("  %s testing (%+v)", name, keys)
 
 	var minTime time.Duration
 	var maxTime time.Duration
