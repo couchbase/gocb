@@ -861,41 +861,7 @@ func (c *Collection) GetAndTouch(id string, expiry time.Duration, opts *GetAndTo
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.GetAndTouch(gocbcore.GetAndTouchOptions{
-		Key:            opm.DocumentID(),
-		Expiry:         durationToExpiry(expiry),
-		CollectionName: opm.CollectionName(),
-		ScopeName:      opm.ScopeName(),
-		RetryStrategy:  opm.RetryStrategy(),
-		TraceContext:   opm.TraceSpanContext(),
-		Deadline:       opm.Deadline(),
-		User:           opm.Impersonate(),
-	}, func(res *gocbcore.GetAndTouchResult, err error) {
-		if err != nil {
-			errOut = opm.EnhanceErr(err)
-			opm.Reject()
-			return
-		}
-
-		if res != nil {
-			doc := &GetResult{
-				Result: Result{
-					cas: Cas(res.Cas),
-				},
-				transcoder: opm.Transcoder(),
-				contents:   res.Value,
-				flags:      res.Flags,
-			}
-
-			docOut = doc
-		}
-
-		opm.Resolve(nil)
-	}))
-	if err != nil {
-		errOut = err
-	}
-	return
+	return agent.GetAndTouch(opm)
 }
 
 // GetAndLockOptions are the options available to the GetAndLock operation.
@@ -933,6 +899,7 @@ func (c *Collection) GetAndLock(id string, lockTime time.Duration, opts *GetAndL
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
 	opm.SetContext(opts.Context)
+	opm.SetLockTime(lockTime)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -941,40 +908,6 @@ func (c *Collection) GetAndLock(id string, lockTime time.Duration, opts *GetAndL
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
-	}
-	err = opm.Wait(agent.GetAndLock(gocbcore.GetAndLockOptions{
-		Key:            opm.DocumentID(),
-		LockTime:       uint32(lockTime / time.Second),
-		CollectionName: opm.CollectionName(),
-		ScopeName:      opm.ScopeName(),
-		RetryStrategy:  opm.RetryStrategy(),
-		TraceContext:   opm.TraceSpanContext(),
-		Deadline:       opm.Deadline(),
-		User:           opm.Impersonate(),
-	}, func(res *gocbcore.GetAndLockResult, err error) {
-		if err != nil {
-			errOut = opm.EnhanceErr(err)
-			opm.Reject()
-			return
-		}
-
-		if res != nil {
-			doc := &GetResult{
-				Result: Result{
-					cas: Cas(res.Cas),
-				},
-				transcoder: opm.Transcoder(),
-				contents:   res.Value,
-				flags:      res.Flags,
-			}
-
-			docOut = doc
-		}
-
-		opm.Resolve(nil)
-	}))
-	if err != nil {
-		errOut = err
 	}
 	return
 }
@@ -1019,29 +952,8 @@ func (c *Collection) Unlock(id string, cas Cas, opts *UnlockOptions) (errOut err
 	if err != nil {
 		return err
 	}
-	err = opm.Wait(agent.Unlock(gocbcore.UnlockOptions{
-		Key:            opm.DocumentID(),
-		Cas:            gocbcore.Cas(cas),
-		CollectionName: opm.CollectionName(),
-		ScopeName:      opm.ScopeName(),
-		RetryStrategy:  opm.RetryStrategy(),
-		TraceContext:   opm.TraceSpanContext(),
-		Deadline:       opm.Deadline(),
-		User:           opm.Impersonate(),
-	}, func(res *gocbcore.UnlockResult, err error) {
-		if err != nil {
-			errOut = opm.EnhanceErr(err)
-			opm.Reject()
-			return
-		}
 
-		mt := opm.EnhanceMt(res.MutationToken)
-		opm.Resolve(mt)
-	}))
-	if err != nil {
-		errOut = err
-	}
-	return
+	return agent.Unlock(opm)
 }
 
 // TouchOptions are the options available to the Touch operation.

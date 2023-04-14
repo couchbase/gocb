@@ -3,20 +3,20 @@ package gocb
 import gocbcore "github.com/couchbase/gocbcore/v10"
 
 type kvProvider interface {
-	Add(*kvOpManager) (*MutationResult, error)
-	Set(*kvOpManager) (*MutationResult, error)
-	Replace(*kvOpManager) (*MutationResult, error)
-	Get(*kvOpManager) (*GetResult, error)
+	Add(*kvOpManager) (*MutationResult, error)     // Done
+	Set(*kvOpManager) (*MutationResult, error)     // Done
+	Replace(*kvOpManager) (*MutationResult, error) // Done
+	Get(*kvOpManager) (*GetResult, error)          // Done
 	//GetOneReplica(opts GetOptions) (*GetResult, error)
-	Exists(*kvOpManager) (*ExistsResult, error)
+	Exists(*kvOpManager) (*ExistsResult, error)   // Done
+	Delete(*kvOpManager) (*MutationResult, error) //Done
 
-	Delete(*kvOpManager) (*MutationResult, error)
 	LookupIn(opts LookupInResult) (*LookupInResult, error)
 	MutateIn(opts MutateInOptions) (*MutateInResult, error)
 
-	GetAndTouch(opts GetAndTouchOptions) (*GetResult, error)
-	GetAndLock(opts GetAndLockOptions) (*GetResult, error)
-	Unlock(opts gocbcore.UnlockOptions) error
+	GetAndTouch(*kvOpManager) (*GetResult, error) // Done
+	GetAndLock(*kvOpManager) (*GetResult, error)  // Done
+	Unlock(*kvOpManager) error
 	Touch(opts gocbcore.TouchOptions) (*MutationResult, error)
 	Increment(opts IncrementOptions) (*CounterResult, error)
 	Decrement(opts DecrementOptions) (*CounterResult, error)

@@ -132,6 +132,56 @@ func (p *kvProviderProtoStellar) Get(opm *kvOpManager) (*GetResult, error) {
 
 }
 
+func (p *kvProviderProtoStellar) GetAndTouch(opm *kvOpManager) (*GetResult, error) {
+	request := &kv_v1.GetAndTouchRequest{
+		Key: string(opm.DocumentID()),
+
+		CollectionName: opm.CollectionName(),
+		ScopeName:      opm.ScopeName(),
+		BucketName:     opm.ScopeName(),
+
+		//Expiry: ,
+	}
+
+	res, err := p.client.GetAndTouch(opm.ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	resOut := GetResult{
+		Result:     Result{Cas(res.Cas)},
+		transcoder: opm.Transcoder(),
+		// TODO: check if this is valid
+		contents: res.Content,
+		flags:    uint32(res.ContentType),
+	}
+	return &resOut, nil
+}
+
+func (p *kvProviderProtoStellar) GetAndLock(opm *kvOpManager) (*GetResult, error) {
+	request := &kv_v1.GetAndLockRequest{
+		BucketName:     opm.ScopeName(),
+		ScopeName:      opm.ScopeName(),
+		CollectionName: opm.CollectionName(),
+		Key:            string(opm.DocumentID()),
+		LockTime:       uint32(opm.LockTime()), // TODO: check the units on this.
+	}
+
+	res, err := p.client.GetAndLock(opm.ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	resOut := GetResult{
+		Result:     Result{Cas(res.Cas)},
+		transcoder: opm.Transcoder(),
+		// TODO: check if this is valid
+		contents: res.Content,
+		flags:    uint32(res.ContentType),
+	}
+	return &resOut, nil
+}
+
 func (p *kvProviderProtoStellar) Exists(opm *kvOpManager) (*ExistsResult, error) {
 	request := &kv_v1.ExistsRequest{
 		Key: string(opm.DocumentID()),
@@ -185,6 +235,24 @@ func (p *kvProviderProtoStellar) Delete(opm *kvOpManager) (*MutationResult, erro
 	}
 
 	return &mutOut, nil
+}
+
+func (p *kvProviderProtoStellar) Unlock(opm *kvOpManager) error {
+
+	cas := opm.Cas()
+
+	request := &kv_v1.UnlockRequest{
+		BucketName:     opm.BucketName(),
+		ScopeName:      opm.ScopeName(),
+		CollectionName: opm.CollectionName(),
+		Key:            string(opm.DocumentID()),
+		Cas:            (uint64)(cas),
+	}
+
+	_, err := p.client.Unlock(opm.ctx, request)
+
+	return err
+
 }
 
 // converts memdDurability level to protostellar durability level

@@ -46,6 +46,16 @@ type kvOpManager struct {
 	ctx context.Context
 
 	cas Cas
+
+	lockTime time.Duration
+}
+
+func (m *kvOpManager) SetLockTime(lockTime time.Duration) {
+	m.lockTime = lockTime
+}
+
+func (m *kvOpManager) LockTime() time.Duration {
+	return m.lockTime
 }
 
 func (m *kvOpManager) getTimeout() time.Duration {
