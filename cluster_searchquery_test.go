@@ -16,6 +16,8 @@ func (suite *IntegrationTestSuite) TestSearch() {
 	suite.skipIfUnsupported(SearchFeature)
 
 	n := suite.setupSearch()
+	defer globalCluster.SearchIndexes().DropIndex("search_test_index", nil)
+
 	suite.runSearchTest(n)
 }
 

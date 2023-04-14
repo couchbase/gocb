@@ -129,6 +129,14 @@ func (c *testCluster) waitUntilReadyTimeout() time.Duration {
 	}
 }
 
+func (c *testCluster) txnCleanupTimeout() time.Duration {
+	if c.Version.Equal(srvVer750) {
+		return 60 * time.Second
+	} else {
+		return 10 * time.Second
+	}
+}
+
 func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 	featureFlagValue := 0
 	for _, featureFlag := range c.FeatureFlags {

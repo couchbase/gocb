@@ -44,8 +44,8 @@ func (suite *IntegrationTestSuite) TestBucketWaitUntilReadyInvalidAuth() {
 	}
 
 	elapsed := time.Since(start)
-	suite.Assert().GreaterOrEqual(int64(elapsed), int64(7*time.Second))
-	suite.Assert().LessOrEqual(int64(elapsed), int64(8*time.Second))
+	suite.Assert().GreaterOrEqual(int64(elapsed), int64(globalCluster.waitUntilReadyTimeout()))
+	suite.Assert().LessOrEqual(int64(elapsed), int64(globalCluster.waitUntilReadyTimeout()+time.Second))
 }
 
 func (suite *IntegrationTestSuite) TestBucketWaitUntilReadyFastFailAuth() {

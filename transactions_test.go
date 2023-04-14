@@ -61,7 +61,7 @@ func (suite *IntegrationTestSuite) TestTransactionsDoubleInsert() {
 func (suite *IntegrationTestSuite) TestTransactionsInsert() {
 	suite.skipIfUnsupported(TransactionsFeature)
 
-	docID := "txninsert"
+	docID := generateDocId("txninsert")
 	docValue := map[string]interface{}{
 		"test": "test",
 	}
@@ -186,7 +186,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadata() {
 func (suite *IntegrationTestSuite) TestTransactionsCustomMetadataTransactionOption() {
 	suite.skipIfUnsupported(TransactionsFeature)
 
-	metaCollectionName := "txnsCustomMetadataTxnOption"
+	metaCollectionName := generateDocId("txnsCustomMetadataTxnOption")
 	collections := globalBucket.Collections()
 	err := collections.CreateCollection(CollectionSpec{
 		Name:      metaCollectionName,
@@ -203,7 +203,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadataTransactionOpti
 		MetadataCollection: globalBucket.Collection(metaCollectionName),
 	}
 
-	docID := "txnsCustomMetadataTxnOption"
+	docID := generateDocId("txnsCustomMetadataTxnOption")
 	docValue := map[string]interface{}{
 		"test": "test",
 	}
@@ -314,7 +314,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadataLocationRemoved
 			}
 		}
 		return true
-	}, 10*time.Second, 100*time.Millisecond)
+	}, globalCluster.txnCleanupTimeout(), 100*time.Millisecond)
 }
 
 func (suite *IntegrationTestSuite) TestTransactionsRollback() {
@@ -534,7 +534,7 @@ func (suite *IntegrationTestSuite) TestTransactionsRemove() {
 func (suite *IntegrationTestSuite) TestTransactionsInsertReplace() {
 	suite.skipIfUnsupported(TransactionsFeature)
 
-	docID := "txninsertreplace"
+	docID := generateDocId("txninsertreplace")
 	docValue := map[string]interface{}{
 		"test": "test",
 	}
@@ -630,7 +630,7 @@ func (suite *IntegrationTestSuite) TestTransactionsUserError() {
 func (suite *IntegrationTestSuite) TestTransactionsGetDocNotFoundAllowsContinue() {
 	suite.skipIfUnsupported(TransactionsFeature)
 
-	docID := "txndocnotfoundallowscontinue"
+	docID := generateDocId("txndocnotfoundallowscontinue")
 	docValue := map[string]interface{}{
 		"test": "test",
 	}

@@ -121,9 +121,11 @@ func (suite *IntegrationTestSuite) TestBinaryPrepend() {
 func (suite *IntegrationTestSuite) TestBinaryIncrement() {
 	suite.skipIfUnsupported(KeyValueFeature)
 
+	docId := generateDocId("binaryIncrement")
+
 	colBinary := globalCollection.Binary()
 
-	res, err := colBinary.Increment("binaryIncrement", &IncrementOptions{
+	res, err := colBinary.Increment(docId, &IncrementOptions{
 		Delta: 10,
 	})
 	if err != nil {
@@ -138,7 +140,7 @@ func (suite *IntegrationTestSuite) TestBinaryIncrement() {
 		suite.T().Fatalf("Expected counter value to be 0 but was %d", res.Content())
 	}
 
-	res, err = colBinary.Increment("binaryIncrement", &IncrementOptions{
+	res, err = colBinary.Increment(docId, &IncrementOptions{
 		Delta: 10,
 	})
 	if err != nil {
@@ -153,7 +155,7 @@ func (suite *IntegrationTestSuite) TestBinaryIncrement() {
 		suite.T().Fatalf("Expected counter value to be 10 but was %d", res.Content())
 	}
 
-	res, err = colBinary.Increment("binaryIncrement", &IncrementOptions{
+	res, err = colBinary.Increment(docId, &IncrementOptions{
 		Delta: 10,
 	})
 	if err != nil {
@@ -168,7 +170,7 @@ func (suite *IntegrationTestSuite) TestBinaryIncrement() {
 		suite.T().Fatalf("Expected counter value to be 20 but was %d", res.Content())
 	}
 
-	incrementDoc, err := globalCollection.Get("binaryIncrement", nil)
+	incrementDoc, err := globalCollection.Get(docId, nil)
 	if err != nil {
 		suite.T().Fatalf("Get failed, error was %v", err)
 	}
@@ -198,9 +200,11 @@ func (suite *IntegrationTestSuite) TestBinaryIncrement() {
 func (suite *IntegrationTestSuite) TestBinaryDecrement() {
 	suite.skipIfUnsupported(KeyValueFeature)
 
+	docId := generateDocId("binaryDecrement")
+
 	colBinary := globalCollection.Binary()
 
-	res, err := colBinary.Decrement("binaryDecrement", &DecrementOptions{
+	res, err := colBinary.Decrement(docId, &DecrementOptions{
 		Delta:   10,
 		Initial: 100,
 	})
@@ -216,7 +220,7 @@ func (suite *IntegrationTestSuite) TestBinaryDecrement() {
 		suite.T().Fatalf("Expected counter value to be 100 but was %d", res.Content())
 	}
 
-	res, err = colBinary.Decrement("binaryDecrement", &DecrementOptions{
+	res, err = colBinary.Decrement(docId, &DecrementOptions{
 		Delta: 10,
 	})
 	if err != nil {
@@ -231,7 +235,7 @@ func (suite *IntegrationTestSuite) TestBinaryDecrement() {
 		suite.T().Fatalf("Expected counter value to be 90 but was %d", res.Content())
 	}
 
-	res, err = colBinary.Decrement("binaryDecrement", &DecrementOptions{
+	res, err = colBinary.Decrement(docId, &DecrementOptions{
 		Delta: 10,
 	})
 	if err != nil {
@@ -246,7 +250,7 @@ func (suite *IntegrationTestSuite) TestBinaryDecrement() {
 		suite.T().Fatalf("Expected counter value to be 80 but was %d", res.Content())
 	}
 
-	incrementDoc, err := globalCollection.Get("binaryDecrement", nil)
+	incrementDoc, err := globalCollection.Get(docId, nil)
 	if err != nil {
 		suite.T().Fatalf("Get failed, error was %v", err)
 	}
