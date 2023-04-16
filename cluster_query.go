@@ -248,6 +248,19 @@ func (r *QueryResult) Row(valuePtr interface{}) error {
 	return json.Unmarshal(r.rowBytes, valuePtr)
 }
 
+// Row returns the raw contents of the current row
+func (r *QueryResult) RowContents() ([]byte, error) {
+	if r.reader == nil {
+		return nil, r.Err()
+	}
+
+	if r.rowBytes == nil {
+		return nil, ErrNoResult
+	}
+
+	return r.rowBytes, nil
+}
+
 // Err returns any errors that have occurred on the stream
 func (r *QueryResult) Err() error {
 	if r.reader == nil {
@@ -308,6 +321,30 @@ func (r *QueryResult) One(valuePtr interface{}) error {
 	r.nextRowBytes = nil
 
 	return json.Unmarshal(valueBytes, valuePtr)
+}
+
+// OneContents returns the first raw value from the results.
+// It will close the results but not before iterating through all remaining
+// results, as such this should only be used for very small resultsets - ideally
+// of, at most, length 1.
+func (r *QueryResult) OneContents() ([]byte, error) {
+	if r.reader == nil {
+		return nil, r.Err()
+	}
+
+	// Read the bytes from the first row
+	valueBytes := r.nextRowBytes
+	if valueBytes == nil {
+		return nil, ErrNoResult
+	}
+
+	// Skip through the remaining rows
+	for r.reader.NextRow() != nil {
+		// do nothing with the row
+	}
+	r.nextRowBytes = nil
+
+	return valueBytes, nil
 }
 
 // MetaData returns any meta-data that was available from this query.  Note that
