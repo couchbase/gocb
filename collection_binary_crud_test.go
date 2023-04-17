@@ -11,8 +11,10 @@ func (suite *IntegrationTestSuite) TestBinaryAppend() {
 	suite.skipIfUnsupported(AdjoinFeature)
 	colBinary := globalCollection.Binary()
 
+	docId := generateDocId("binaryAppend")
+
 	tcoder := NewRawBinaryTranscoder()
-	res, err := globalCollection.Upsert("binaryAppend", []byte("foo"), &UpsertOptions{
+	res, err := globalCollection.Upsert(docId, []byte("foo"), &UpsertOptions{
 		Transcoder: tcoder,
 		Timeout:    30 * time.Second,
 	})
@@ -24,7 +26,7 @@ func (suite *IntegrationTestSuite) TestBinaryAppend() {
 		suite.T().Fatalf("Expected Cas to be non-zero")
 	}
 
-	appendRes, err := colBinary.Append("binaryAppend", []byte("bar"), nil)
+	appendRes, err := colBinary.Append(docId, []byte("bar"), nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to Append, err: %v", err)
 	}
@@ -33,7 +35,7 @@ func (suite *IntegrationTestSuite) TestBinaryAppend() {
 		suite.T().Fatalf("Expected Cas to be non-zero")
 	}
 
-	appendDoc, err := globalCollection.Get("binaryAppend", &GetOptions{
+	appendDoc, err := globalCollection.Get(docId, &GetOptions{
 		Transcoder: tcoder,
 	})
 	if err != nil {
@@ -68,8 +70,10 @@ func (suite *IntegrationTestSuite) TestBinaryPrepend() {
 
 	colBinary := globalCollection.Binary()
 
+	docId := generateDocId("binaryPrepend")
+
 	tcoder := NewRawBinaryTranscoder()
-	res, err := globalCollection.Upsert("binaryPrepend", []byte("foo"), &UpsertOptions{
+	res, err := globalCollection.Upsert(docId, []byte("foo"), &UpsertOptions{
 		Transcoder: tcoder,
 	})
 	if err != nil {
@@ -80,7 +84,7 @@ func (suite *IntegrationTestSuite) TestBinaryPrepend() {
 		suite.T().Fatalf("Expected Cas to be non-zero")
 	}
 
-	appendRes, err := colBinary.Prepend("binaryPrepend", []byte("bar"), nil)
+	appendRes, err := colBinary.Prepend(docId, []byte("bar"), nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to Append, err: %v", err)
 	}
@@ -89,7 +93,7 @@ func (suite *IntegrationTestSuite) TestBinaryPrepend() {
 		suite.T().Fatalf("Expected Cas to be non-zero")
 	}
 
-	appendDoc, err := globalCollection.Get("binaryPrepend", &GetOptions{
+	appendDoc, err := globalCollection.Get(docId, &GetOptions{
 		Transcoder: tcoder,
 	})
 	if err != nil {
@@ -103,7 +107,7 @@ func (suite *IntegrationTestSuite) TestBinaryPrepend() {
 	}
 
 	if string(appendContent) != "barfoo" {
-		suite.T().Fatalf("Expected prepend result to be boofar but was %s", appendContent)
+		suite.T().Fatalf("Expected prepend result to be barfoo but was %s", appendContent)
 	}
 
 	suite.Require().Contains(globalTracer.GetSpans(), nil)

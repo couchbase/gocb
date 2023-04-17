@@ -573,20 +573,22 @@ func (suite *IntegrationTestSuite) TestCasMismatchConvertedToExists() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(SubdocFeature)
 
+	docId := generateDocId("subdocCasMismatchDoc")
+
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
 		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
-	mutRes, err := globalCollection.Insert("subdocCasMismatchDoc", doc, &InsertOptions{Expiry: 10 * time.Second})
+	mutRes, err := globalCollection.Insert(docId, doc, &InsertOptions{Expiry: 10 * time.Second})
 	suite.Require().Nil(err, err)
 
 	if mutRes.Cas() == 0 {
 		suite.T().Fatalf("Insert CAS was 0")
 	}
 
-	_, err = globalCollection.MutateIn("subdocCasMismatchDoc", []MutateInSpec{
+	_, err = globalCollection.MutateIn(docId, []MutateInSpec{
 		ReplaceSpec("brewery_id", "test", nil),
 	}, &MutateInOptions{
 		Cas: Cas(123),

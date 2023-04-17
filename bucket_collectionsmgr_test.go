@@ -12,21 +12,24 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 
+	scopeName := generateDocId("testScope")
+	collectionName := generateDocId("testCollection")
+
 	mgr := globalBucket.Collections()
 
-	err := mgr.CreateScope("testScope", nil)
+	err := mgr.CreateScope(scopeName, nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = mgr.CreateScope("testScope", nil)
+	err = mgr.CreateScope(scopeName, nil)
 	if !errors.Is(err, ErrScopeExists) {
 		suite.T().Fatalf("Expected create scope to error with ScopeExists but was %v", err)
 	}
 
 	err = mgr.CreateCollection(CollectionSpec{
-		Name:      "testCollection",
-		ScopeName: "testScope",
+		Name:      collectionName,
+		ScopeName: scopeName,
 		MaxExpiry: 5 * time.Second,
 	}, nil)
 	if err != nil {
@@ -34,8 +37,8 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 	}
 
 	err = mgr.CreateCollection(CollectionSpec{
-		Name:      "testCollection",
-		ScopeName: "testScope",
+		Name:      collectionName,
+		ScopeName: scopeName,
 	}, nil)
 	if !errors.Is(err, ErrCollectionExists) {
 		suite.T().Fatalf("Expected create collection to error with CollectionExists but was %v", err)
@@ -52,15 +55,15 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 
 	var found bool
 	for _, scope := range scopes {
-		if scope.Name != "testScope" {
+		if scope.Name != scopeName {
 			continue
 		}
 
 		found = true
 		if suite.Assert().Len(scope.Collections, 1) {
 			col := scope.Collections[0]
-			suite.Assert().Equal("testCollection", col.Name)
-			suite.Assert().Equal("testScope", col.ScopeName)
+			suite.Assert().Equal(collectionName, col.Name)
+			suite.Assert().Equal(scopeName, col.ScopeName)
 			suite.Assert().Equal(5*time.Second, col.MaxExpiry)
 		}
 		break
@@ -68,27 +71,27 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 	suite.Assert().True(found)
 
 	err = mgr.DropCollection(CollectionSpec{
-		Name:      "testCollection",
-		ScopeName: "testScope",
+		Name:      collectionName,
+		ScopeName: scopeName,
 	}, nil)
 	if err != nil {
 		suite.T().Fatalf("Expected DropCollection to not error but was %v", err)
 	}
 
 	err = mgr.DropCollection(CollectionSpec{
-		Name:      "testCollection",
-		ScopeName: "testScope",
+		Name:      collectionName,
+		ScopeName: scopeName,
 	}, nil)
 	if !errors.Is(err, ErrCollectionNotFound) {
 		suite.T().Fatalf("Expected drop collection to error with ErrCollectionNotFound but was %v", err)
 	}
 
-	err = mgr.DropScope("testScope", nil)
+	err = mgr.DropScope(scopeName, nil)
 	if err != nil {
 		suite.T().Fatalf("Expected DropScope to not error but was %v", err)
 	}
 
-	err = mgr.DropScope("testScope", nil)
+	err = mgr.DropScope(scopeName, nil)
 	if !errors.Is(err, ErrScopeNotFound) {
 		suite.T().Fatalf("Expected drop scope to error with ErrScopeNotFound but was %v", err)
 	}
@@ -99,7 +102,7 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 	suite.AssertHTTPOpSpan(nilParents[0], "manager_collections_create_scope",
 		HTTPOpSpanExpectations{
 			bucket:                  globalConfig.Bucket,
-			scope:                   "testScope",
+			scope:                   scopeName,
 			service:                 "management",
 			operationID:             "POST " + fmt.Sprintf("/pools/default/buckets/%s/scopes", globalConfig.Bucket),
 			numDispatchSpans:        1,
@@ -110,10 +113,10 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 	suite.AssertHTTPOpSpan(nilParents[2], "manager_collections_create_collection",
 		HTTPOpSpanExpectations{
 			bucket:                  globalConfig.Bucket,
-			scope:                   "testScope",
-			collection:              "testCollection",
+			scope:                   scopeName,
+			collection:              collectionName,
 			service:                 "management",
-			operationID:             "POST " + fmt.Sprintf("/pools/default/buckets/%s/scopes/testScope/collections", globalConfig.Bucket),
+			operationID:             "POST " + fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections", globalConfig.Bucket, scopeName),
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             true,
@@ -132,10 +135,10 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 	suite.AssertHTTPOpSpan(nilParents[5], "manager_collections_drop_collection",
 		HTTPOpSpanExpectations{
 			bucket:                  globalConfig.Bucket,
-			scope:                   "testScope",
-			collection:              "testCollection",
+			scope:                   scopeName,
+			collection:              collectionName,
 			service:                 "management",
-			operationID:             "DELETE " + fmt.Sprintf("/pools/default/buckets/%s/scopes/testScope/collections/testCollection", globalConfig.Bucket),
+			operationID:             "DELETE " + fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections/%s", globalConfig.Bucket, scopeName, collectionName),
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
@@ -144,9 +147,9 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 	suite.AssertHTTPOpSpan(nilParents[7], "manager_collections_drop_scope",
 		HTTPOpSpanExpectations{
 			bucket:                  globalConfig.Bucket,
-			scope:                   "testScope",
+			scope:                   scopeName,
 			service:                 "management",
-			operationID:             "DELETE " + fmt.Sprintf("/pools/default/buckets/%s/scopes/testScope", globalConfig.Bucket),
+			operationID:             "DELETE " + fmt.Sprintf("/pools/default/buckets/%s/scopes/%s", globalConfig.Bucket, scopeName),
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
