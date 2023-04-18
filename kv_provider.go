@@ -11,8 +11,8 @@ type kvProvider interface {
 	Exists(*kvOpManager) (*ExistsResult, error)   // Done
 	Delete(*kvOpManager) (*MutationResult, error) //Done
 
-	LookupIn(opts LookupInResult) (*LookupInResult, error)
-	MutateIn(opts MutateInOptions) (*MutateInResult, error)
+	LookupIn(*kvOpManager) (*LookupInResult, error)
+	MutateIn(*kvOpManager) (*MutateInResult, error)
 
 	GetAndTouch(*kvOpManager) (*GetResult, error) // Done
 	GetAndLock(*kvOpManager) (*GetResult, error)  // Done
@@ -25,5 +25,5 @@ type kvProvider interface {
 	// Subdoc actions
 	Append(*kvOpManager) (*MutationResult, error)  // Done
 	Prepend(*kvOpManager) (*MutationResult, error) // Done
-	Scan(scanType ScanType, opts ScanOptions) (*ScanResult, error)
+	Scan(ScanType, *kvOpManager) (*ScanResult, error)
 }

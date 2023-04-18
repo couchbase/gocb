@@ -6,9 +6,24 @@ import (
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 )
 
+var _ kvProvider = &kvProviderProtoStellar{}
+
 // // wraps kv and makes it compliant for gocb
 type kvProviderProtoStellar struct {
 	client kv_v1.KvServiceClient
+}
+
+func (p *kvProviderProtoStellar) LookupIn(opm *kvOpManager) (*LookupInResult, error) {
+	return nil, nil
+}
+
+func (p *kvProviderProtoStellar) MutateIn(opm *kvOpManager) (*MutateInResult, error) {
+	return nil, nil
+}
+
+func (p *kvProviderProtoStellar) Scan(ScanType, *kvOpManager) (*ScanResult, error) {
+
+	return nil, nil
 }
 
 func (p *kvProviderProtoStellar) Add(opm *kvOpManager) (*MutationResult, error) {

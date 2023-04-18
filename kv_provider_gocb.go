@@ -13,6 +13,19 @@ type kvProviderGocb struct {
 
 var _ kvProvider = &kvProviderGocb{}
 
+func (p *kvProviderGocb) LookupIn(opm *kvOpManager) (*LookupInResult, error) {
+	return nil, nil
+}
+
+func (p *kvProviderGocb) MutateIn(opm *kvOpManager) (*MutateInResult, error) {
+	return nil, nil
+}
+
+func (p *kvProviderGocb) Scan(ScanType, *kvOpManager) (*ScanResult, error) {
+
+	return nil, nil
+}
+
 func (p *kvProviderGocb) Add(opm *kvOpManager) (*MutationResult, error) {
 	synced := newSyncKvOpManager(opm)
 
@@ -604,6 +617,7 @@ func (p *kvProviderGocb) Decrement(opm *kvOpManager) (*CounterResult, error) {
 	defer synced.Finish(false)
 	var errOut error
 	var countOut *CounterResult
+
 	err := synced.Wait(p.agent.Decrement(gocbcore.CounterOptions{
 		Key:                    synced.DocumentID(),
 		Delta:                  synced.Delta(),
