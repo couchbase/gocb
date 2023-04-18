@@ -52,6 +52,16 @@ type kvOpManager struct {
 	expiry time.Duration
 
 	replicaIndex int
+
+	adjoinBytes []byte // bytes for prepending/appending
+}
+
+func (m *kvOpManager) SetAdjoinBytes(val []byte) {
+	m.adjoinBytes = val
+}
+
+func (m *kvOpManager) AdjoinBytes() []byte {
+	return m.adjoinBytes
 }
 
 func (m *kvOpManager) SetReplicaIndex(index int) {

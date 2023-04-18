@@ -471,3 +471,85 @@ func (p *kvProviderGocb) GetReplica(opm *kvOpManager) (*GetReplicaResult, error)
 	return docOut, errOut
 
 }
+
+func (p *kvProviderGocb) Prepend(opm *kvOpManager) (*MutationResult, error) {
+	synced := newSyncKvOpManager(opm)
+
+	defer synced.Finish(false)
+
+	var errOut error
+	var mutOut *MutationResult
+
+	err := synced.Wait(p.agent.Prepend(gocbcore.AdjoinOptions{
+		Key:                    synced.DocumentID(),
+		Value:                  synced.AdjoinBytes(),
+		CollectionName:         synced.CollectionName(),
+		ScopeName:              synced.ScopeName(),
+		DurabilityLevel:        synced.DurabilityLevel(),
+		DurabilityLevelTimeout: synced.DurabilityTimeout(),
+		Cas:                    gocbcore.Cas(synced.Cas()),
+		RetryStrategy:          synced.RetryStrategy(),
+		TraceContext:           synced.TraceSpanContext(),
+		Deadline:               synced.Deadline(),
+		User:                   synced.Impersonate(),
+	}, func(res *gocbcore.AdjoinResult, err error) {
+		if err != nil {
+			errOut = synced.EnhanceErr(err)
+			synced.Reject()
+			return
+		}
+
+		mutOut = &MutationResult{}
+		mutOut.cas = Cas(res.Cas)
+		mutOut.mt = opm.EnhanceMt(res.MutationToken)
+
+		synced.Resolve(mutOut.mt)
+	}))
+
+	if err != nil {
+		errOut = err
+	}
+
+	return mutOut, errOut
+}
+
+func (p *kvProviderGocb) Append(opm *kvOpManager) (*MutationResult, error) {
+	synced := newSyncKvOpManager(opm)
+
+	defer synced.Finish(false)
+
+	var errOut error
+	var mutOut *MutationResult
+
+	err := synced.Wait(p.agent.Append(gocbcore.AdjoinOptions{
+		Key:                    synced.DocumentID(),
+		Value:                  synced.AdjoinBytes(),
+		CollectionName:         synced.CollectionName(),
+		ScopeName:              synced.ScopeName(),
+		DurabilityLevel:        synced.DurabilityLevel(),
+		DurabilityLevelTimeout: synced.DurabilityTimeout(),
+		Cas:                    gocbcore.Cas(synced.Cas()),
+		RetryStrategy:          synced.RetryStrategy(),
+		TraceContext:           synced.TraceSpanContext(),
+		Deadline:               synced.Deadline(),
+		User:                   synced.Impersonate(),
+	}, func(res *gocbcore.AdjoinResult, err error) {
+		if err != nil {
+			errOut = synced.EnhanceErr(err)
+			synced.Reject()
+			return
+		}
+
+		mutOut = &MutationResult{}
+		mutOut.cas = Cas(res.Cas)
+		mutOut.mt = opm.EnhanceMt(res.MutationToken)
+
+		synced.Resolve(mutOut.mt)
+	}))
+
+	if err != nil {
+		errOut = err
+	}
+
+	return mutOut, errOut
+}

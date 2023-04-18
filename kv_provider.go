@@ -6,7 +6,7 @@ type kvProvider interface {
 	Replace(*kvOpManager) (*MutationResult, error) // Done
 	Get(*kvOpManager) (*GetResult, error)          // Done
 
-	GetReplica(*kvOpManager) (*GetReplicaResult, error)
+	GetReplica(*kvOpManager) (*GetReplicaResult, error) // Done
 	//GetOneReplica(opts GetOptions) (*GetResult, error)
 	Exists(*kvOpManager) (*ExistsResult, error)   // Done
 	Delete(*kvOpManager) (*MutationResult, error) //Done
@@ -19,11 +19,11 @@ type kvProvider interface {
 	Unlock(*kvOpManager) error                    // Done
 	Touch(*kvOpManager) (*MutationResult, error)  // Done
 
-	// Subdoc actions
 	Increment(opts IncrementOptions) (*CounterResult, error)
 	Decrement(opts DecrementOptions) (*CounterResult, error)
 
-	Append(opts AppendOptions) (*MutationResult, error)
-	Prepend(opts PrependOptions) (*MutationResult, error)
+	// Subdoc actions
+	Append(*kvOpManager) (*MutationResult, error)  // Done
+	Prepend(*kvOpManager) (*MutationResult, error) // Done
 	Scan(scanType ScanType, opts ScanOptions) (*ScanResult, error)
 }

@@ -47,7 +47,7 @@ func (c *Collection) binaryAppend(id string, val []byte, opts *AppendOptions) (m
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
 	opm.SetContext(opts.Context)
-
+	opm.SetAdjoinBytes(val)
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
 	}
@@ -56,35 +56,8 @@ func (c *Collection) binaryAppend(id string, val []byte, opts *AppendOptions) (m
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.Append(gocbcore.AdjoinOptions{
-		Key:                    opm.DocumentID(),
-		Value:                  val,
-		CollectionName:         opm.CollectionName(),
-		ScopeName:              opm.ScopeName(),
-		DurabilityLevel:        opm.DurabilityLevel(),
-		DurabilityLevelTimeout: opm.DurabilityTimeout(),
-		Cas:                    gocbcore.Cas(opts.Cas),
-		RetryStrategy:          opm.RetryStrategy(),
-		TraceContext:           opm.TraceSpanContext(),
-		Deadline:               opm.Deadline(),
-		User:                   opm.Impersonate(),
-	}, func(res *gocbcore.AdjoinResult, err error) {
-		if err != nil {
-			errOut = opm.EnhanceErr(err)
-			opm.Reject()
-			return
-		}
 
-		mutOut = &MutationResult{}
-		mutOut.cas = Cas(res.Cas)
-		mutOut.mt = opm.EnhanceMt(res.MutationToken)
-
-		opm.Resolve(mutOut.mt)
-	}))
-	if err != nil {
-		errOut = err
-	}
-	return
+	return agent.Append(opm)
 }
 
 // Append appends a byte value to a document.
@@ -127,6 +100,7 @@ func (c *Collection) binaryPrepend(id string, val []byte, opts *PrependOptions) 
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
 	opm.SetContext(opts.Context)
+	opm.SetAdjoinBytes(val)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -136,35 +110,7 @@ func (c *Collection) binaryPrepend(id string, val []byte, opts *PrependOptions) 
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.Prepend(gocbcore.AdjoinOptions{
-		Key:                    opm.DocumentID(),
-		Value:                  val,
-		CollectionName:         opm.CollectionName(),
-		ScopeName:              opm.ScopeName(),
-		DurabilityLevel:        opm.DurabilityLevel(),
-		DurabilityLevelTimeout: opm.DurabilityTimeout(),
-		Cas:                    gocbcore.Cas(opts.Cas),
-		RetryStrategy:          opm.RetryStrategy(),
-		TraceContext:           opm.TraceSpanContext(),
-		Deadline:               opm.Deadline(),
-		User:                   opm.Impersonate(),
-	}, func(res *gocbcore.AdjoinResult, err error) {
-		if err != nil {
-			errOut = opm.EnhanceErr(err)
-			opm.Reject()
-			return
-		}
-
-		mutOut = &MutationResult{}
-		mutOut.cas = Cas(res.Cas)
-		mutOut.mt = opm.EnhanceMt(res.MutationToken)
-
-		opm.Resolve(mutOut.mt)
-	}))
-	if err != nil {
-		errOut = err
-	}
-	return
+	return agent.Prepend(opm)
 }
 
 // Prepend prepends a byte value to a document.

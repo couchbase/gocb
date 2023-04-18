@@ -311,6 +311,65 @@ func (p *kvProviderProtoStellar) GetReplica(opm *kvOpManager) (*GetReplicaResult
 
 }
 
+func (p *kvProviderProtoStellar) Prepend(opm *kvOpManager) (*MutationResult, error) {
+	cas := opm.Cas()
+	request := &kv_v1.PrependRequest{
+		BucketName:      opm.BucketName(),
+		ScopeName:       opm.ScopeName(),
+		CollectionName:  opm.CollectionName(),
+		Key:             string(opm.DocumentID()),
+		Content:         opm.AdjoinBytes(),
+		Cas:             (*uint64)(&cas),
+		DurabilityLevel: memdDurToPs(opm.DurabilityLevel()),
+	}
+
+	res, err := p.client.Prepend(opm.ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	mt := psMutToGoCbMut(*res.MutationToken)
+	outCas := res.Cas
+	mutOut := &MutationResult{
+		mt: &mt,
+		Result: Result{
+			cas: Cas(outCas),
+		},
+	}
+
+	return mutOut, nil
+}
+
+func (p *kvProviderProtoStellar) Append(opm *kvOpManager) (*MutationResult, error) {
+	cas := opm.Cas()
+
+	request := &kv_v1.AppendRequest{
+		BucketName:      opm.BucketName(),
+		ScopeName:       opm.ScopeName(),
+		CollectionName:  opm.CollectionName(),
+		Key:             string(opm.DocumentID()),
+		Content:         opm.AdjoinBytes(),
+		Cas:             (*uint64)(&cas),
+		DurabilityLevel: memdDurToPs(opm.DurabilityLevel()),
+	}
+
+	res, err := p.client.Append(opm.ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	mt := psMutToGoCbMut(*res.MutationToken)
+	outCas := res.Cas
+	mutOut := &MutationResult{
+		mt: &mt,
+		Result: Result{
+			cas: Cas(outCas),
+		},
+	}
+
+	return mutOut, nil
+}
+
 // converts memdDurability level to protostellar durability level
 func memdDurToPs(dur memd.DurabilityLevel) *kv_v1.DurabilityLevel {
 	// memd.Durability starts at 1.
