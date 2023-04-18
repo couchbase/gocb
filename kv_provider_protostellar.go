@@ -255,7 +255,7 @@ func (p *kvProviderProtoStellar) Unlock(opm *kvOpManager) error {
 
 }
 
-func (p *kvProviderProtoStellar) Touch(opm kvOpManager) (*MutationResult, error) {
+func (p *kvProviderProtoStellar) Touch(opm *kvOpManager) (*MutationResult, error) {
 
 	request := &kv_v1.TouchRequest{
 		BucketName:     opm.BucketName(),
@@ -368,6 +368,63 @@ func (p *kvProviderProtoStellar) Append(opm *kvOpManager) (*MutationResult, erro
 	}
 
 	return mutOut, nil
+}
+
+func (p *kvProviderProtoStellar) Increment(opm *kvOpManager) (*CounterResult, error) {
+	initial := int64(opm.Initial())
+
+	request := &kv_v1.IncrementRequest{
+		BucketName:     opm.BucketName(),
+		ScopeName:      opm.ScopeName(),
+		CollectionName: opm.CollectionName(),
+		Key:            string(opm.DocumentID()),
+		Delta:          opm.Delta(),
+		// Expiry:          opm.Expiry(), // TODO: expiry
+		Initial:         &initial,
+		DurabilityLevel: memdDurToPs(opm.DurabilityLevel()),
+	}
+
+	res, err := p.client.Increment(opm.ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	mt := psMutToGoCbMut(*res.MutationToken)
+	countOut := &CounterResult{}
+	countOut.cas = Cas(res.Cas)
+	countOut.mt = &mt
+	countOut.content = uint64(res.Content)
+
+	return countOut, nil
+
+}
+func (p *kvProviderProtoStellar) Decrement(opm *kvOpManager) (*CounterResult, error) {
+	initial := int64(opm.Initial())
+
+	request := &kv_v1.DecrementRequest{
+		BucketName:     opm.BucketName(),
+		ScopeName:      opm.ScopeName(),
+		CollectionName: opm.CollectionName(),
+		Key:            string(opm.DocumentID()),
+		Delta:          opm.Delta(),
+		// Expiry:          opm.Expiry(), // TODO: expiry
+		Initial:         &initial,
+		DurabilityLevel: memdDurToPs(opm.DurabilityLevel()),
+	}
+
+	res, err := p.client.Decrement(opm.ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	mt := psMutToGoCbMut(*res.MutationToken)
+	countOut := &CounterResult{}
+	countOut.cas = Cas(res.Cas)
+	countOut.mt = &mt
+	countOut.content = uint64(res.Content)
+
+	return countOut, nil
+
 }
 
 // converts memdDurability level to protostellar durability level

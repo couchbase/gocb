@@ -54,6 +54,25 @@ type kvOpManager struct {
 	replicaIndex int
 
 	adjoinBytes []byte // bytes for prepending/appending
+
+	delta uint64
+
+	initial uint64
+}
+
+func (m *kvOpManager) SetInitial(initial uint64) {
+	m.initial = initial
+}
+
+func (m *kvOpManager) Initial() uint64 {
+	return m.initial
+}
+func (m *kvOpManager) SetDelta(delta uint64) {
+	m.delta = delta
+}
+
+func (m *kvOpManager) Delta() uint64 {
+	return m.delta
 }
 
 func (m *kvOpManager) SetAdjoinBytes(val []byte) {

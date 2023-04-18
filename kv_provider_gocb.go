@@ -553,3 +553,87 @@ func (p *kvProviderGocb) Append(opm *kvOpManager) (*MutationResult, error) {
 
 	return mutOut, errOut
 }
+
+func (p *kvProviderGocb) Increment(opm *kvOpManager) (*CounterResult, error) {
+	synced := newSyncKvOpManager(opm)
+
+	defer synced.Finish(false)
+
+	var errOut error
+	var countOut *CounterResult
+
+	err := synced.Wait(p.agent.Increment(gocbcore.CounterOptions{
+		Key:                    synced.DocumentID(),
+		Delta:                  synced.Delta(),
+		Initial:                synced.Initial(),
+		Expiry:                 durationToExpiry(synced.Expiry()),
+		CollectionName:         synced.CollectionName(),
+		ScopeName:              synced.ScopeName(),
+		DurabilityLevel:        synced.DurabilityLevel(),
+		DurabilityLevelTimeout: synced.DurabilityTimeout(),
+		RetryStrategy:          synced.RetryStrategy(),
+		TraceContext:           synced.TraceSpanContext(),
+		Deadline:               synced.Deadline(),
+		User:                   synced.Impersonate(),
+	}, func(res *gocbcore.CounterResult, err error) {
+		if err != nil {
+			errOut = synced.EnhanceErr(err)
+			synced.Reject()
+			return
+		}
+
+		countOut = &CounterResult{}
+		countOut.cas = Cas(res.Cas)
+		countOut.mt = synced.EnhanceMt(res.MutationToken)
+		countOut.content = res.Value
+
+		synced.Resolve(countOut.mt)
+	}))
+
+	if err != nil {
+		errOut = err
+	}
+
+	return countOut, errOut
+
+}
+
+func (p *kvProviderGocb) Decrement(opm *kvOpManager) (*CounterResult, error) {
+	synced := newSyncKvOpManager(opm)
+
+	defer synced.Finish(false)
+	var errOut error
+	var countOut *CounterResult
+	err := synced.Wait(p.agent.Decrement(gocbcore.CounterOptions{
+		Key:                    synced.DocumentID(),
+		Delta:                  synced.Delta(),
+		Initial:                synced.Initial(),
+		Expiry:                 durationToExpiry(synced.Expiry()),
+		CollectionName:         synced.CollectionName(),
+		ScopeName:              synced.ScopeName(),
+		DurabilityLevel:        synced.DurabilityLevel(),
+		DurabilityLevelTimeout: synced.DurabilityTimeout(),
+		RetryStrategy:          synced.RetryStrategy(),
+		TraceContext:           synced.TraceSpanContext(),
+		Deadline:               synced.Deadline(),
+		User:                   synced.Impersonate(),
+	}, func(res *gocbcore.CounterResult, err error) {
+		if err != nil {
+			errOut = synced.EnhanceErr(err)
+			synced.Reject()
+			return
+		}
+
+		countOut = &CounterResult{}
+		countOut.cas = Cas(res.Cas)
+		countOut.mt = synced.EnhanceMt(res.MutationToken)
+		countOut.content = res.Value
+
+		synced.Resolve(countOut.mt)
+	}))
+	if err != nil {
+		errOut = err
+	}
+	return countOut, errOut
+
+}

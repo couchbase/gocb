@@ -19,8 +19,8 @@ type kvProvider interface {
 	Unlock(*kvOpManager) error                    // Done
 	Touch(*kvOpManager) (*MutationResult, error)  // Done
 
-	Increment(opts IncrementOptions) (*CounterResult, error)
-	Decrement(opts DecrementOptions) (*CounterResult, error)
+	Increment(*kvOpManager) (*CounterResult, error) //Done
+	Decrement(*kvOpManager) (*CounterResult, error) //Done
 
 	// Subdoc actions
 	Append(*kvOpManager) (*MutationResult, error)  // Done
