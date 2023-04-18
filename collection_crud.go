@@ -402,15 +402,14 @@ func (c *Collection) getOneReplica(
 	cancelCh chan struct{},
 	timeout time.Duration,
 	user string,
-) (docOut *GetReplicaResult, errOut error) {
+) (*GetReplicaResult, error) {
 	opm := c.newKvOpManager("get_replica", span)
-	defer opm.Finish(true)
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(transcoder)
 	opm.SetRetryStrategy(retryStrategy)
 	opm.SetTimeout(timeout)
-	opm.SetCancelCh(cancelCh)
+	// opm.SetCancelCh(cancelCh) TODO: add cancel ch support (is this just context?)
 	opm.SetImpersonate(user)
 	opm.SetContext(ctx)
 
@@ -419,65 +418,22 @@ func (c *Collection) getOneReplica(
 		return nil, err
 	}
 	if replicaIdx == 0 {
-		err = opm.Wait(agent.Get(gocbcore.GetOptions{
-			Key:            opm.DocumentID(),
-			CollectionName: opm.CollectionName(),
-			ScopeName:      opm.ScopeName(),
-			RetryStrategy:  opm.RetryStrategy(),
-			TraceContext:   opm.TraceSpanContext(),
-			Deadline:       opm.Deadline(),
-			User:           opm.Impersonate(),
-		}, func(res *gocbcore.GetResult, err error) {
-			if err != nil {
-				errOut = opm.EnhanceErr(err)
-				opm.Reject()
-				return
-			}
-
-			docOut = &GetReplicaResult{}
-			docOut.cas = Cas(res.Cas)
-			docOut.transcoder = opm.Transcoder()
-			docOut.contents = res.Value
-			docOut.flags = res.Flags
-			docOut.isReplica = false
-
-			opm.Resolve(nil)
-		}))
+		res, err := agent.Get(opm)
 		if err != nil {
-			errOut = err
+			return nil, err
 		}
-		return
-	}
-
-	err = opm.Wait(agent.GetOneReplica(gocbcore.GetOneReplicaOptions{
-		Key:            opm.DocumentID(),
-		ReplicaIdx:     replicaIdx,
-		CollectionName: opm.CollectionName(),
-		ScopeName:      opm.ScopeName(),
-		RetryStrategy:  opm.RetryStrategy(),
-		TraceContext:   opm.TraceSpanContext(),
-		Deadline:       opm.Deadline(),
-		User:           opm.Impersonate(),
-	}, func(res *gocbcore.GetReplicaResult, err error) {
-		if err != nil {
-			errOut = opm.EnhanceErr(err)
-			opm.Reject()
-			return
-		}
-
-		docOut = &GetReplicaResult{}
-		docOut.cas = Cas(res.Cas)
+		docOut := &GetReplicaResult{}
+		docOut.cas = Cas(res.cas)
 		docOut.transcoder = opm.Transcoder()
-		docOut.contents = res.Value
-		docOut.flags = res.Flags
-		docOut.isReplica = true
+		docOut.contents = res.contents
+		docOut.flags = res.flags
+		docOut.isReplica = false
+		return docOut, nil
 
-		opm.Resolve(nil)
-	}))
-	if err != nil {
-		errOut = err
 	}
-	return
+
+	return agent.GetReplica(opm)
+
 }
 
 // GetAllReplicaOptions are the options available to the GetAllReplicas command.
@@ -797,7 +753,6 @@ func (c *Collection) Remove(id string, opts *RemoveOptions) (mutOut *MutationRes
 	}
 
 	opm := c.newKvOpManager("remove", opts.ParentSpan)
-	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
@@ -844,7 +799,6 @@ func (c *Collection) GetAndTouch(id string, expiry time.Duration, opts *GetAndTo
 	}
 
 	opm := c.newKvOpManager("get_and_touch", opts.ParentSpan)
-	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -891,7 +845,6 @@ func (c *Collection) GetAndLock(id string, lockTime time.Duration, opts *GetAndL
 	}
 
 	opm := c.newKvOpManager("get_and_lock", opts.ParentSpan)
-	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -909,7 +862,7 @@ func (c *Collection) GetAndLock(id string, lockTime time.Duration, opts *GetAndL
 	if err != nil {
 		return nil, err
 	}
-	return
+	return agent.GetAndLock(opm)
 }
 
 // UnlockOptions are the options available to the GetAndLock operation.
@@ -936,7 +889,6 @@ func (c *Collection) Unlock(id string, cas Cas, opts *UnlockOptions) (errOut err
 	}
 
 	opm := c.newKvOpManager("unlock", nil)
-	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
 	opm.SetRetryStrategy(opts.RetryStrategy)
@@ -987,6 +939,7 @@ func (c *Collection) Touch(id string, expiry time.Duration, opts *TouchOptions) 
 	opm.SetTimeout(opts.Timeout)
 	opm.SetImpersonate(opts.Internal.User)
 	opm.SetContext(opts.Context)
+	opm.SetExpiry(expiry)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -996,32 +949,8 @@ func (c *Collection) Touch(id string, expiry time.Duration, opts *TouchOptions) 
 	if err != nil {
 		return nil, err
 	}
-	err = opm.Wait(agent.Touch(gocbcore.TouchOptions{
-		Key:            opm.DocumentID(),
-		Expiry:         durationToExpiry(expiry),
-		CollectionName: opm.CollectionName(),
-		ScopeName:      opm.ScopeName(),
-		RetryStrategy:  opm.RetryStrategy(),
-		TraceContext:   opm.TraceSpanContext(),
-		Deadline:       opm.Deadline(),
-		User:           opm.Impersonate(),
-	}, func(res *gocbcore.TouchResult, err error) {
-		if err != nil {
-			errOut = opm.EnhanceErr(err)
-			opm.Reject()
-			return
-		}
 
-		mutOut = &MutationResult{}
-		mutOut.cas = Cas(res.Cas)
-		mutOut.mt = opm.EnhanceMt(res.MutationToken)
-
-		opm.Resolve(mutOut.mt)
-	}))
-	if err != nil {
-		errOut = err
-	}
-	return
+	return agent.Touch(opm)
 }
 
 // Binary creates and returns a BinaryCollection object.

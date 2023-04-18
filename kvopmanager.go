@@ -48,6 +48,26 @@ type kvOpManager struct {
 	cas Cas
 
 	lockTime time.Duration
+
+	expiry time.Duration
+
+	replicaIndex int
+}
+
+func (m *kvOpManager) SetReplicaIndex(index int) {
+	m.replicaIndex = index
+}
+
+func (m *kvOpManager) ReplicaIndex() int {
+	return m.replicaIndex
+}
+
+func (m *kvOpManager) SetExpiry(expiry time.Duration) {
+	m.expiry = expiry
+}
+
+func (m *kvOpManager) Expiry() time.Duration {
+	return m.expiry
 }
 
 func (m *kvOpManager) SetLockTime(lockTime time.Duration) {

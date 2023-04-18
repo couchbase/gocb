@@ -255,6 +255,62 @@ func (p *kvProviderProtoStellar) Unlock(opm *kvOpManager) error {
 
 }
 
+func (p *kvProviderProtoStellar) Touch(opm kvOpManager) (*MutationResult, error) {
+
+	request := &kv_v1.TouchRequest{
+		BucketName:     opm.BucketName(),
+		ScopeName:      opm.ScopeName(),
+		CollectionName: opm.CollectionName(),
+		Key:            string(opm.DocumentID()),
+		//Expiry:         opm.Expiry(), // TODO: expiry
+	}
+
+	res, err := p.client.Touch(opm.ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	mt := psMutToGoCbMut(*res.MutationToken)
+	outCas := res.Cas
+
+	mutOut := MutationResult{
+		mt: &mt,
+		Result: Result{
+			cas: Cas(outCas),
+		},
+	}
+
+	return &mutOut, nil
+
+}
+
+func (p *kvProviderProtoStellar) GetReplica(opm *kvOpManager) (*GetReplicaResult, error) {
+	request := &kv_v1.GetReplicaRequest{
+		BucketName:     opm.BucketName(),
+		ScopeName:      opm.ScopeName(),
+		CollectionName: opm.CollectionName(),
+		Key:            string(opm.DocumentID()),
+		ReplicaIndex:   uint32(opm.ReplicaIndex()),
+	}
+
+	res, err := p.client.GetReplica(opm.ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	outCas := res.Cas
+
+	docOut := &GetReplicaResult{}
+	docOut.cas = Cas(outCas)
+	docOut.transcoder = opm.Transcoder()
+	docOut.contents = res.Content
+	docOut.flags = uint32(res.ContentType)
+	docOut.isReplica = true
+
+	return docOut, nil
+
+}
+
 // converts memdDurability level to protostellar durability level
 func memdDurToPs(dur memd.DurabilityLevel) *kv_v1.DurabilityLevel {
 	// memd.Durability starts at 1.

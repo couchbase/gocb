@@ -110,7 +110,7 @@ func (p *kvProviderGocb) Replace(opm *kvOpManager) (*MutationResult, error) {
 		Value: synced.ValueBytes(),
 		Flags: synced.ValueFlags(),
 		//Expiry:                 durationToExpiry(opts.Expiry),
-		Cas:                    gocbcore.Cas(opm.Cas()),
+		Cas:                    gocbcore.Cas(synced.Cas()),
 		CollectionName:         synced.CollectionName(),
 		ScopeName:              synced.ScopeName(),
 		DurabilityLevel:        synced.DurabilityLevel(),
@@ -392,4 +392,82 @@ func (p *kvProviderGocb) Unlock(opm *kvOpManager) error {
 		errOut = err
 	}
 	return errOut
+}
+
+func (p *kvProviderGocb) Touch(opm *kvOpManager) (*MutationResult, error) {
+	synced := newSyncKvOpManager(opm)
+
+	defer synced.Finish(false)
+
+	var errOut error
+	var mutOut *MutationResult
+	err := synced.Wait(p.agent.Touch(gocbcore.TouchOptions{
+		Key:            synced.DocumentID(),
+		Expiry:         durationToExpiry(synced.Expiry()),
+		CollectionName: synced.CollectionName(),
+		ScopeName:      synced.ScopeName(),
+		RetryStrategy:  synced.RetryStrategy(),
+		TraceContext:   synced.TraceSpanContext(),
+		Deadline:       synced.Deadline(),
+		User:           synced.Impersonate(),
+	}, func(res *gocbcore.TouchResult, err error) {
+		if err != nil {
+			errOut = synced.EnhanceErr(err)
+			synced.Reject()
+			return
+		}
+
+		mutOut = &MutationResult{}
+		mutOut.cas = Cas(res.Cas)
+		mutOut.mt = synced.EnhanceMt(res.MutationToken)
+
+		synced.Resolve(mutOut.mt)
+	}))
+
+	if err != nil {
+		errOut = err
+	}
+
+	return mutOut, errOut
+
+}
+
+func (p *kvProviderGocb) GetReplica(opm *kvOpManager) (*GetReplicaResult, error) {
+	synced := newSyncKvOpManager(opm)
+
+	defer synced.Finish(true)
+	var errOut error
+	var docOut *GetReplicaResult
+
+	err := synced.Wait(p.agent.GetOneReplica(gocbcore.GetOneReplicaOptions{
+		Key:            synced.DocumentID(),
+		ReplicaIdx:     synced.ReplicaIndex(),
+		CollectionName: synced.CollectionName(),
+		ScopeName:      synced.ScopeName(),
+		RetryStrategy:  synced.RetryStrategy(),
+		TraceContext:   synced.TraceSpanContext(),
+		Deadline:       synced.Deadline(),
+		User:           synced.Impersonate(),
+	}, func(res *gocbcore.GetReplicaResult, err error) {
+		if err != nil {
+			errOut = synced.EnhanceErr(err)
+			synced.Reject()
+			return
+		}
+
+		docOut = &GetReplicaResult{}
+		docOut.cas = Cas(res.Cas)
+		docOut.transcoder = synced.Transcoder()
+		docOut.contents = res.Value
+		docOut.flags = res.Flags
+		docOut.isReplica = true
+
+		synced.Resolve(nil)
+	}))
+	if err != nil {
+		errOut = err
+	}
+
+	return docOut, errOut
+
 }
