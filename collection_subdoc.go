@@ -50,90 +50,12 @@ func (c *Collection) LookupIn(id string, ops []LookupInSpec, opts *LookupInOptio
 		return nil, err
 	}
 
-	return c.internalLookupIn(opm, ops, memd.SubdocDocFlag(opts.Internal.DocFlags))
-}
-
-func (c *Collection) internalLookupIn(
-	opm *kvOpManager,
-	ops []LookupInSpec,
-	flags memd.SubdocDocFlag,
-) (docOut *LookupInResult, errOut error) {
-	var subdocs []gocbcore.SubDocOp
-	for _, op := range ops {
-		if op.op == memd.SubDocOpGet && op.path == "" {
-			if op.isXattr {
-				return nil, errors.New("invalid xattr fetch with no path")
-			}
-
-			subdocs = append(subdocs, gocbcore.SubDocOp{
-				Op:    memd.SubDocOpGetDoc,
-				Flags: memd.SubdocFlag(SubdocFlagNone),
-			})
-			continue
-		} else if op.op == memd.SubDocOpDictSet && op.path == "" {
-			if op.isXattr {
-				return nil, errors.New("invalid xattr set with no path")
-			}
-
-			subdocs = append(subdocs, gocbcore.SubDocOp{
-				Op:    memd.SubDocOpSetDoc,
-				Flags: memd.SubdocFlag(SubdocFlagNone),
-			})
-			continue
-		}
-
-		flags := memd.SubdocFlagNone
-		if op.isXattr {
-			flags |= memd.SubdocFlagXattrPath
-		}
-
-		subdocs = append(subdocs, gocbcore.SubDocOp{
-			Op:    op.op,
-			Path:  op.path,
-			Flags: flags,
-		})
-	}
-
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
 
-	err = opm.Wait(agent.LookupIn(gocbcore.LookupInOptions{
-		Key:            opm.DocumentID(),
-		Ops:            subdocs,
-		CollectionName: opm.CollectionName(),
-		ScopeName:      opm.ScopeName(),
-		RetryStrategy:  opm.RetryStrategy(),
-		TraceContext:   opm.TraceSpanContext(),
-		Deadline:       opm.Deadline(),
-		Flags:          flags,
-		User:           opm.Impersonate(),
-	}, func(res *gocbcore.LookupInResult, err error) {
-		if err != nil && res == nil {
-			errOut = opm.EnhanceErr(err)
-		}
-
-		if res != nil {
-			docOut = &LookupInResult{}
-			docOut.cas = Cas(res.Cas)
-			docOut.contents = make([]lookupInPartial, len(subdocs))
-			for i, opRes := range res.Ops {
-				docOut.contents[i].err = opm.EnhanceErr(opRes.Err)
-				docOut.contents[i].data = json.RawMessage(opRes.Value)
-			}
-		}
-
-		if err == nil {
-			opm.Resolve(nil)
-		} else {
-			opm.Reject()
-		}
-	}))
-	if err != nil {
-		errOut = err
-	}
-	return
+	return agent.LookupIn(opm, ops, opts.Internal.DocFlags)
 }
 
 // StoreSemantics is used to define the document level action to take during a MutateIn operation.

@@ -11,7 +11,7 @@ type kvProvider interface {
 	Exists(*kvOpManager) (*ExistsResult, error)   // Done
 	Delete(*kvOpManager) (*MutationResult, error) //Done
 
-	LookupIn(*kvOpManager) (*LookupInResult, error)
+	LookupIn(*kvOpManager, []LookupInSpec, SubdocDocFlag) (*LookupInResult, error)
 	MutateIn(*kvOpManager) (*MutateInResult, error)
 
 	GetAndTouch(*kvOpManager) (*GetResult, error) // Done

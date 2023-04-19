@@ -1,10 +1,12 @@
 package gocb
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
 	"github.com/couchbase/gocbcore/v10"
+	"github.com/couchbase/gocbcore/v10/memd"
 )
 
 type kvProviderGocb struct {
@@ -13,8 +15,83 @@ type kvProviderGocb struct {
 
 var _ kvProvider = &kvProviderGocb{}
 
-func (p *kvProviderGocb) LookupIn(opm *kvOpManager) (*LookupInResult, error) {
-	return nil, nil
+func (p *kvProviderGocb) LookupIn(opm *kvOpManager, ops []LookupInSpec, flags SubdocDocFlag) (*LookupInResult, error) {
+
+	var subdocs []gocbcore.SubDocOp
+	for _, op := range ops {
+		if op.op == memd.SubDocOpGet && op.path == "" {
+			if op.isXattr {
+				return nil, errors.New("invalid xattr fetch with no path")
+			}
+
+			subdocs = append(subdocs, gocbcore.SubDocOp{
+				Op:    memd.SubDocOpGetDoc,
+				Flags: memd.SubdocFlag(SubdocFlagNone),
+			})
+			continue
+		} else if op.op == memd.SubDocOpDictSet && op.path == "" {
+			if op.isXattr {
+				return nil, errors.New("invalid xattr set with no path")
+			}
+
+			subdocs = append(subdocs, gocbcore.SubDocOp{
+				Op:    memd.SubDocOpSetDoc,
+				Flags: memd.SubdocFlag(SubdocFlagNone),
+			})
+			continue
+		}
+
+		flags := memd.SubdocFlagNone
+		if op.isXattr {
+			flags |= memd.SubdocFlagXattrPath
+		}
+
+		subdocs = append(subdocs, gocbcore.SubDocOp{
+			Op:    op.op,
+			Path:  op.path,
+			Flags: flags,
+		})
+	}
+	synced := newSyncKvOpManager(opm)
+
+	var errOut error
+	var docOut *LookupInResult
+	err := synced.Wait(p.agent.LookupIn(gocbcore.LookupInOptions{
+		Key:            synced.DocumentID(),
+		Ops:            subdocs,
+		CollectionName: synced.CollectionName(),
+		ScopeName:      synced.ScopeName(),
+		RetryStrategy:  synced.RetryStrategy(),
+		TraceContext:   synced.TraceSpanContext(),
+		Deadline:       synced.Deadline(),
+		Flags:          memd.SubdocDocFlag(flags),
+		User:           synced.Impersonate(),
+	}, func(res *gocbcore.LookupInResult, err error) {
+		if err != nil && res == nil {
+			errOut = synced.EnhanceErr(err)
+		}
+
+		if res != nil {
+			docOut = &LookupInResult{}
+			docOut.cas = Cas(res.Cas)
+			docOut.contents = make([]lookupInPartial, len(subdocs))
+			for i, opRes := range res.Ops {
+				docOut.contents[i].err = synced.EnhanceErr(opRes.Err)
+				docOut.contents[i].data = json.RawMessage(opRes.Value)
+			}
+		}
+
+		if err == nil {
+			synced.Resolve(nil)
+		} else {
+			synced.Reject()
+		}
+	}))
+	if err != nil {
+		errOut = err
+	}
+
+	return docOut, errOut
 }
 
 func (p *kvProviderGocb) MutateIn(opm *kvOpManager) (*MutateInResult, error) {
