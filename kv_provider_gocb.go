@@ -30,6 +30,7 @@ func (p *kvProviderGocb) LookupIn(opm *kvOpManager, ops []LookupInSpec, flags Su
 			})
 			continue
 		} else if op.op == memd.SubDocOpDictSet && op.path == "" {
+			//TODO: this might be a bug.
 			if op.isXattr {
 				return nil, errors.New("invalid xattr set with no path")
 			}

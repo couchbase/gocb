@@ -1,6 +1,8 @@
 package gocb
 
 import (
+	"errors"
+
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
@@ -13,7 +15,62 @@ type kvProviderProtoStellar struct {
 	client kv_v1.KvServiceClient
 }
 
-func (p *kvProviderProtoStellar) LookupIn(opm *kvOpManager) (*LookupInResult, error) {
+func (p *kvProviderProtoStellar) LookupIn(opm *kvOpManager, ops []LookupInSpec, flag SubdocDocFlag) (*LookupInResult, error) {
+	lookUpInPSSpecs := make([]*kv_v1.LookupInRequest_Spec, len(ops))
+
+	for i, op := range ops {
+		// this is uint8 to int32, need to check overflows etc
+		translate := map[memd.SubDocOpType]kv_v1.LookupInRequest_Spec_Operation{
+			memd.SubDocOpGet:     kv_v1.LookupInRequest_Spec_OPERATION_GET,
+			memd.SubDocOpExists:  kv_v1.LookupInRequest_Spec_OPERATION_EXISTS,
+			memd.SubDocOpCounter: kv_v1.LookupInRequest_Spec_OPERATION_COUNT,
+		}
+
+		if op.op == memd.SubDocOpGet && op.path == "" {
+			if op.isXattr {
+				return nil, errors.New("invalid xattr fetch with no path")
+			}
+
+			lookUpInPSSpecs[i] = &kv_v1.LookupInRequest_Spec{
+				Operation: translate[op.op],
+				Path:      op.path,
+			}
+
+			continue
+		}
+
+		newOp, ok := translate[op.op]
+		if !ok {
+			continue // TODO:// raise error unsupported op?
+		}
+
+		specFlag := &kv_v1.LookupInRequest_Spec_Flags{
+			Xattr: &op.isXattr,
+		}
+
+		lookUpInPSSpecs[i] = &kv_v1.LookupInRequest_Spec{
+			Operation: newOp,
+			Path:      op.path,
+			Flags:     specFlag,
+		}
+	}
+
+	requestFlags := &kv_v1.LookupInRequest_Flags{}
+	if flag == SubdocDocFlagAccessDeleted {
+		truth := true
+		requestFlags.AccessDeleted = &truth
+	}
+
+	req := &kv_v1.LookupInRequest{
+		BucketName:     opm.BucketName(),
+		ScopeName:      opm.ScopeName(),
+		CollectionName: opm.CollectionName(),
+		Key:            string(opm.DocumentID()),
+		Specs:          lookUpInPSSpecs,
+		Flags:          requestFlags,
+	}
+
+	p.client.LookupIn(opm.ctx, req)
 	return nil, nil
 }
 
