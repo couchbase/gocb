@@ -3,12 +3,9 @@ package gocb
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"time"
 
 	"github.com/couchbase/gocbcore/v10/memd"
-
-	"github.com/couchbase/gocbcore/v10"
 )
 
 // LookupInOptions are the set of options available to LookupIn.
@@ -115,11 +112,20 @@ func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptio
 	opm.SetPreserveExpiry(opts.PreserveExpiry)
 	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
 
+	opm.SetCas(opts.Cas)
+	opm.SetExpiry(opts.Expiry)
+
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
 	}
 
-	return c.internalMutateIn(opm, opts.StoreSemantic, opts.Expiry, opts.Cas, ops, memd.SubdocDocFlag(opts.Internal.DocFlags))
+	agent, err := c.getKvProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return agent.MutateIn(opm, opts.StoreSemantic, ops, opts.Internal.DocFlags)
+	// return c.internalMutateIn(opm, opts.StoreSemantic, opts.Expiry, opts.Cas, ops, memd.SubdocDocFlag(opts.Internal.DocFlags))
 }
 
 func jsonMarshalMultiArray(in interface{}) ([]byte, error) {
@@ -167,116 +173,4 @@ func jsonMarshalMutateSpec(op MutateInSpec) ([]byte, memd.SubdocFlag, error) {
 
 	bytes, err := json.Marshal(op.value)
 	return bytes, memd.SubdocFlagNone, err
-}
-
-func (c *Collection) internalMutateIn(
-	opm *kvOpManager,
-	action StoreSemantics,
-	expiry time.Duration,
-	cas Cas,
-	ops []MutateInSpec,
-	docFlags memd.SubdocDocFlag,
-) (mutOut *MutateInResult, errOut error) {
-	preserveTTL := opm.PreserveExpiry()
-	if action == StoreSemanticsReplace {
-		// this is the default behaviour
-		if expiry > 0 && preserveTTL {
-			return nil, makeInvalidArgumentsError("cannot use preserve ttl with expiry for replace store semantics")
-		}
-	} else if action == StoreSemanticsUpsert {
-		docFlags |= memd.SubdocDocFlagMkDoc
-	} else if action == StoreSemanticsInsert {
-		if preserveTTL {
-			return nil, makeInvalidArgumentsError("cannot use preserve ttl with insert store semantics")
-		}
-		docFlags |= memd.SubdocDocFlagAddDoc
-	} else {
-		return nil, makeInvalidArgumentsError("invalid StoreSemantics value provided")
-	}
-
-	var subdocs []gocbcore.SubDocOp
-	for _, op := range ops {
-		if op.path == "" {
-			switch op.op {
-			case memd.SubDocOpDictAdd:
-				return nil, makeInvalidArgumentsError("cannot specify a blank path with InsertSpec")
-			case memd.SubDocOpDictSet:
-				return nil, makeInvalidArgumentsError("cannot specify a blank path with UpsertSpec")
-			case memd.SubDocOpDelete:
-				op.op = memd.SubDocOpDeleteDoc
-			case memd.SubDocOpReplace:
-				op.op = memd.SubDocOpSetDoc
-			default:
-			}
-		}
-
-		etrace := c.startKvOpTrace("request_encoding", opm.TraceSpanContext(), true)
-		bytes, flags, err := jsonMarshalMutateSpec(op)
-		etrace.End()
-		if err != nil {
-			return nil, err
-		}
-
-		if op.createPath {
-			flags |= memd.SubdocFlagMkDirP
-		}
-
-		if op.isXattr {
-			flags |= memd.SubdocFlagXattrPath
-		}
-
-		subdocs = append(subdocs, gocbcore.SubDocOp{
-			Op:    op.op,
-			Flags: flags,
-			Path:  op.path,
-			Value: bytes,
-		})
-	}
-
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return nil, err
-	}
-	err = opm.Wait(agent.MutateIn(gocbcore.MutateInOptions{
-		Key:                    opm.DocumentID(),
-		Flags:                  docFlags,
-		Cas:                    gocbcore.Cas(cas),
-		Ops:                    subdocs,
-		Expiry:                 durationToExpiry(expiry),
-		CollectionName:         opm.CollectionName(),
-		ScopeName:              opm.ScopeName(),
-		DurabilityLevel:        opm.DurabilityLevel(),
-		DurabilityLevelTimeout: opm.DurabilityTimeout(),
-		RetryStrategy:          opm.RetryStrategy(),
-		TraceContext:           opm.TraceSpanContext(),
-		Deadline:               opm.Deadline(),
-		User:                   opm.Impersonate(),
-		PreserveExpiry:         preserveTTL,
-	}, func(res *gocbcore.MutateInResult, err error) {
-		if err != nil {
-			// GOCBC-1019: Due to a previous bug in gocbcore we need to convert cas mismatch back to exists.
-			if kvErr, ok := err.(*gocbcore.KeyValueError); ok {
-				if errors.Is(kvErr.InnerError, ErrCasMismatch) {
-					kvErr.InnerError = ErrDocumentExists
-				}
-			}
-			errOut = opm.EnhanceErr(err)
-			opm.Reject()
-			return
-		}
-
-		mutOut = &MutateInResult{}
-		mutOut.cas = Cas(res.Cas)
-		mutOut.mt = opm.EnhanceMt(res.MutationToken)
-		mutOut.contents = make([]mutateInPartial, len(res.Ops))
-		for i, op := range res.Ops {
-			mutOut.contents[i] = mutateInPartial{data: op.Value}
-		}
-
-		opm.Resolve(mutOut.mt)
-	}))
-	if err != nil {
-		errOut = err
-	}
-	return
 }

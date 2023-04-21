@@ -12,7 +12,7 @@ type kvProvider interface {
 	Delete(*kvOpManager) (*MutationResult, error) //Done
 
 	LookupIn(*kvOpManager, []LookupInSpec, SubdocDocFlag) (*LookupInResult, error)
-	MutateIn(*kvOpManager) (*MutateInResult, error)
+	MutateIn(*kvOpManager, StoreSemantics, []MutateInSpec, SubdocDocFlag) (*MutateInResult, error)
 
 	GetAndTouch(*kvOpManager) (*GetResult, error) // Done
 	GetAndLock(*kvOpManager) (*GetResult, error)  // Done

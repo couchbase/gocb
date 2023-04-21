@@ -15,6 +15,117 @@ type kvProviderGocb struct {
 
 var _ kvProvider = &kvProviderGocb{}
 
+func (p *kvProviderGocb) MutateIn(opm *kvOpManager, action StoreSemantics, ops []MutateInSpec, flags SubdocDocFlag) (*MutateInResult, error) {
+	synced := newSyncKvOpManager(opm)
+
+	expiry := opm.Expiry()
+	preserveTTL := synced.PreserveExpiry()
+
+	docFlags := memd.SubdocDocFlag(flags)
+	switch action {
+	case StoreSemanticsReplace:
+		// this is default behavior
+		if expiry > 0 && preserveTTL {
+			return nil, makeInvalidArgumentsError("cannot use preserve ttl with expiry for replace store semantics")
+		}
+	case StoreSemanticsUpsert:
+		docFlags |= memd.SubdocDocFlagMkDoc
+	case StoreSemanticsInsert:
+		if preserveTTL {
+			return nil, makeInvalidArgumentsError("cannot use preserve ttl with insert store semantics")
+		}
+
+		docFlags |= memd.SubdocDocFlagAddDoc
+	default:
+		return nil, makeInvalidArgumentsError("invalid StoreSemantics value provided")
+	}
+
+	var subdocs []gocbcore.SubDocOp
+	for _, op := range ops {
+		if op.path == "" {
+			switch op.op {
+			case memd.SubDocOpDictAdd:
+				return nil, makeInvalidArgumentsError("cannot specify a blank path with InsertSpec")
+			case memd.SubDocOpDictSet:
+				return nil, makeInvalidArgumentsError("cannot specify a blank path with UpsertSpec")
+			case memd.SubDocOpDelete:
+				op.op = memd.SubDocOpDeleteDoc
+			case memd.SubDocOpReplace:
+				op.op = memd.SubDocOpSetDoc
+			default:
+			}
+		}
+
+		etrace := synced.parent.startKvOpTrace("request_encoding", opm.TraceSpanContext(), true)
+		bytes, flags, err := jsonMarshalMutateSpec(op)
+		etrace.End()
+		if err != nil {
+			return nil, err
+		}
+
+		if op.createPath {
+			flags |= memd.SubdocFlagMkDirP
+		}
+
+		if op.isXattr {
+			flags |= memd.SubdocFlagXattrPath
+		}
+
+		subdocs = append(subdocs, gocbcore.SubDocOp{
+			Op:    op.op,
+			Flags: flags,
+			Path:  op.path,
+			Value: bytes,
+		})
+	}
+
+	var errOut error
+	var mutOut *MutateInResult
+	err := synced.Wait(p.agent.MutateIn(gocbcore.MutateInOptions{
+		Key:                    synced.DocumentID(),
+		Flags:                  docFlags,
+		Cas:                    gocbcore.Cas(synced.Cas()),
+		Ops:                    subdocs,
+		Expiry:                 durationToExpiry(expiry),
+		CollectionName:         synced.CollectionName(),
+		ScopeName:              synced.ScopeName(),
+		DurabilityLevel:        synced.DurabilityLevel(),
+		DurabilityLevelTimeout: synced.DurabilityTimeout(),
+		RetryStrategy:          synced.RetryStrategy(),
+		TraceContext:           synced.TraceSpanContext(),
+		Deadline:               synced.Deadline(),
+		User:                   synced.Impersonate(),
+		PreserveExpiry:         preserveTTL,
+	}, func(res *gocbcore.MutateInResult, err error) {
+		if err != nil {
+			// GOCBC-1019: Due to a previous bug in gocbcore we need to convert cas mismatch back to exists.
+			if kvErr, ok := err.(*gocbcore.KeyValueError); ok {
+				if errors.Is(kvErr.InnerError, ErrCasMismatch) {
+					kvErr.InnerError = ErrDocumentExists
+				}
+			}
+			errOut = synced.EnhanceErr(err)
+			synced.Reject()
+			return
+		}
+
+		mutOut = &MutateInResult{}
+		mutOut.cas = Cas(res.Cas)
+		mutOut.mt = opm.EnhanceMt(res.MutationToken)
+		mutOut.contents = make([]mutateInPartial, len(res.Ops))
+		for i, op := range res.Ops {
+			mutOut.contents[i] = mutateInPartial{data: op.Value}
+		}
+
+		synced.Resolve(mutOut.mt)
+	}))
+
+	if err != nil {
+		errOut = err
+	}
+	return mutOut, errOut
+}
+
 func (p *kvProviderGocb) LookupIn(opm *kvOpManager, ops []LookupInSpec, flags SubdocDocFlag) (*LookupInResult, error) {
 
 	var subdocs []gocbcore.SubDocOp
@@ -93,10 +204,6 @@ func (p *kvProviderGocb) LookupIn(opm *kvOpManager, ops []LookupInSpec, flags Su
 	}
 
 	return docOut, errOut
-}
-
-func (p *kvProviderGocb) MutateIn(opm *kvOpManager) (*MutateInResult, error) {
-	return nil, nil
 }
 
 func (p *kvProviderGocb) Scan(ScanType, *kvOpManager) (*ScanResult, error) {
