@@ -18,7 +18,7 @@ var _ kvProvider = &kvProviderGocb{}
 func (p *kvProviderGocb) MutateIn(opm *kvOpManager, action StoreSemantics, ops []MutateInSpec, flags SubdocDocFlag) (*MutateInResult, error) {
 	synced := newSyncKvOpManager(opm)
 
-	expiry := opm.Expiry()
+	expiry := synced.Expiry()
 	preserveTTL := synced.PreserveExpiry()
 
 	docFlags := memd.SubdocDocFlag(flags)

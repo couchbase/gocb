@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
@@ -74,8 +75,119 @@ func (p *kvProviderProtoStellar) LookupIn(opm *kvOpManager, ops []LookupInSpec, 
 	return nil, nil
 }
 
-func (p *kvProviderProtoStellar) MutateIn(opm *kvOpManager) (*MutateInResult, error) {
-	return nil, nil
+func (p *kvProviderProtoStellar) MutateIn(opm *kvOpManager, action StoreSemantics, ops []MutateInSpec, docFlags SubdocDocFlag) (*MutateInResult, error) {
+
+	storeSemanticMap := map[StoreSemantics]kv_v1.MutateInRequest_StoreSemantic{
+		StoreSemanticsReplace: kv_v1.MutateInRequest_STORE_SEMANTIC_REPLACE,
+		StoreSemanticsUpsert:  kv_v1.MutateInRequest_STORE_SEMANTIC_UPSERT,
+		StoreSemanticsInsert:  kv_v1.MutateInRequest_STORE_SEMANTIC_INSERT,
+	}
+
+	opMap := map[memd.SubDocOpType]kv_v1.MutateInRequest_Spec_Operation{
+		memd.SubDocOpDictAdd:        kv_v1.MutateInRequest_Spec_OPERATION_INSERT,
+		memd.SubDocOpDictSet:        kv_v1.MutateInRequest_Spec_OPERATION_UPSERT,
+		memd.SubDocOpReplace:        kv_v1.MutateInRequest_Spec_OPERATION_REPLACE,
+		memd.SubDocOpDelete:         kv_v1.MutateInRequest_Spec_OPERATION_REMOVE,
+		memd.SubDocOpArrayPushFirst: kv_v1.MutateInRequest_Spec_OPERATION_ARRAY_PREPEND,
+		memd.SubDocOpArrayPushLast:  kv_v1.MutateInRequest_Spec_OPERATION_ARRAY_APPEND,
+		memd.SubDocOpArrayInsert:    kv_v1.MutateInRequest_Spec_OPERATION_ARRAY_INSERT,
+		memd.SubDocOpArrayAddUnique: kv_v1.MutateInRequest_Spec_OPERATION_ARRAY_ADD_UNIQUE,
+		memd.SubDocOpCounter:        kv_v1.MutateInRequest_Spec_OPERATION_COUNTER,
+	}
+
+	psAction := storeSemanticMap[action]
+	durability := memdDurToPs(opm.DurabilityLevel())
+
+	cas := opm.Cas()
+	psSpecs := make([]*kv_v1.MutateInRequest_Spec, len(ops))
+	memdDocFlags := memd.SubdocDocFlag(docFlags)
+	expiry := opm.Expiry()
+	preserveTTL := opm.PreserveExpiry()
+
+	switch action {
+	case StoreSemanticsReplace:
+		// this is default behavior
+		if expiry > 0 && preserveTTL {
+			return nil, makeInvalidArgumentsError("cannot use preserve ttl with expiry for replace store semantics")
+		}
+	case StoreSemanticsUpsert:
+		memdDocFlags |= memd.SubdocDocFlagMkDoc
+	case StoreSemanticsInsert:
+		if preserveTTL {
+			return nil, makeInvalidArgumentsError("cannot use preserve ttl with insert store semantics")
+		}
+
+		memdDocFlags |= memd.SubdocDocFlagAddDoc
+	default:
+		return nil, makeInvalidArgumentsError("invalid StoreSemantics value provided")
+	}
+
+	for i, op := range ops {
+		// does PS take care of this?
+		if op.path == "" {
+			switch op.op {
+			case memd.SubDocOpDictAdd:
+				return nil, makeInvalidArgumentsError("cannot specify a blank path with InsertSpec")
+			case memd.SubDocOpDictSet:
+				return nil, makeInvalidArgumentsError("cannot specify a blank path with UpsertSpec")
+			case memd.SubDocOpDelete:
+				op.op = memd.SubDocOpDeleteDoc
+			case memd.SubDocOpReplace:
+				op.op = memd.SubDocOpSetDoc
+			default:
+			}
+		}
+		bytes, flags, err := jsonMarshalMutateSpec(op)
+		if err != nil {
+			return nil, err
+		}
+
+		if flags&memd.SubdocFlagExpandMacros == memd.SubdocFlagExpandMacros {
+			return nil, fmt.Errorf("unsupported flag: macro expansion")
+		}
+		psmutateFlag := kv_v1.MutateInRequest_Spec_Flags{
+			CreatePath: &op.createPath,
+			Xattr:      &op.isXattr,
+		}
+
+		psSpecs[i] = &kv_v1.MutateInRequest_Spec{
+			Operation: opMap[op.op],
+			Path:      op.path,
+			Content:   bytes,
+			Flags:     &psmutateFlag,
+		}
+	}
+
+	accessDeleted := memdDocFlags&memd.SubdocDocFlagAccessDeleted == memd.SubdocDocFlagAccessDeleted
+	mutateInRequestFlags := kv_v1.MutateInRequest_Flags{
+		AccessDeleted: &accessDeleted,
+	}
+	request := &kv_v1.MutateInRequest{
+		BucketName:      opm.BucketName(),
+		ScopeName:       opm.ScopeName(),
+		CollectionName:  opm.CollectionName(),
+		Key:             string(opm.DocumentID()),
+		Specs:           nil,
+		StoreSemantic:   &psAction,
+		DurabilityLevel: durability,
+		Cas:             (*uint64)(&cas),
+		Flags:           &mutateInRequestFlags,
+	}
+
+	res, err := p.client.MutateIn(opm.ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	mt := psMutToGoCbMut(*res.MutationToken)
+	return &MutateInResult{
+		MutationResult: MutationResult{
+			Result: Result{
+				cas: Cas(res.Cas),
+			},
+			mt: &mt,
+		},
+	}, nil
 }
 
 func (p *kvProviderProtoStellar) Scan(ScanType, *kvOpManager) (*ScanResult, error) {
