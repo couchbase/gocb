@@ -9,7 +9,7 @@ import (
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 )
 
-var _ kvProvider = &kvProviderProtoStellar{}
+// var _ kvProvider = &kvProviderProtoStellar{}
 
 // // wraps kv and makes it compliant for gocb
 type kvProviderProtoStellar struct {
@@ -42,7 +42,7 @@ func (p *kvProviderProtoStellar) LookupIn(opm *kvOpManager, ops []LookupInSpec, 
 
 		newOp, ok := translate[op.op]
 		if !ok {
-			continue // TODO:// raise error unsupported op?
+			continue // TODO: raise error unsupported op?
 		}
 
 		specFlag := &kv_v1.LookupInRequest_Spec_Flags{
@@ -196,6 +196,11 @@ func (p *kvProviderProtoStellar) Scan(ScanType, *kvOpManager) (*ScanResult, erro
 }
 
 func (p *kvProviderProtoStellar) Add(opm *kvOpManager) (*MutationResult, error) {
+	contentType, _, err := contentFlagsCoreToPs(opm.ValueFlags())
+	//TODO: check if compression type needs handling
+	if err != nil {
+		return nil, err
+	}
 
 	request := &kv_v1.InsertRequest{
 		BucketName:     opm.BucketName(),
@@ -204,7 +209,7 @@ func (p *kvProviderProtoStellar) Add(opm *kvOpManager) (*MutationResult, error) 
 
 		Key:         string(opm.DocumentID()),
 		Content:     opm.ValueBytes(),
-		ContentType: kv_v1.DocumentContentType(opm.ValueFlags()),
+		ContentType: contentType,
 
 		//TODO expiry support
 		DurabilityLevel: memdDurToPs(opm.DurabilityLevel()),
@@ -227,13 +232,14 @@ func (p *kvProviderProtoStellar) Add(opm *kvOpManager) (*MutationResult, error) 
 }
 
 func (p *kvProviderProtoStellar) Set(opm *kvOpManager) (*MutationResult, error) {
+	contentType, _, err := contentFlagsCoreToPs(opm.ValueFlags())
 	request := &kv_v1.UpsertRequest{
 		Key:            string(opm.DocumentID()),
 		BucketName:     opm.BucketName(),
 		ScopeName:      opm.ScopeName(),
 		CollectionName: opm.CollectionName(),
 		Content:        opm.ValueBytes(),
-		ContentType:    kv_v1.DocumentContentType(opm.ValueFlags()),
+		ContentType:    contentType,
 
 		//TODO: expiry
 		DurabilityLevel: memdDurToPs(opm.DurabilityLevel()),
@@ -257,12 +263,12 @@ func (p *kvProviderProtoStellar) Set(opm *kvOpManager) (*MutationResult, error) 
 }
 
 func (p *kvProviderProtoStellar) Replace(opm *kvOpManager) (*MutationResult, error) {
-
+	contentType, _, err := contentFlagsCoreToPs(opm.ValueFlags())
 	cas := opm.Cas()
 	request := &kv_v1.ReplaceRequest{
 		Key:         string(opm.DocumentID()),
 		Content:     opm.ValueBytes(),
-		ContentType: kv_v1.DocumentContentType(opm.ValueFlags()),
+		ContentType: contentType,
 
 		Cas:            (*uint64)(&cas),
 		CollectionName: opm.CollectionName(),
@@ -304,12 +310,18 @@ func (p *kvProviderProtoStellar) Get(opm *kvOpManager) (*GetResult, error) {
 		return nil, err
 	}
 
+	flags, err := contentFlagsPsToCore(res.ContentType, res.CompressionType)
+	if err != nil {
+		return nil, err
+	}
+
 	resOut := GetResult{
 		Result:     Result{Cas(res.Cas)},
 		transcoder: opm.Transcoder(),
-		// TODO: check if this is valid
+
 		contents: res.Content,
-		flags:    uint32(res.ContentType),
+		flags:    flags,
+		// expiryTime: ,
 	}
 
 	return &resOut, nil
@@ -332,12 +344,17 @@ func (p *kvProviderProtoStellar) GetAndTouch(opm *kvOpManager) (*GetResult, erro
 		return nil, err
 	}
 
+	flags, err := contentFlagsPsToCore(res.ContentType, res.CompressionType)
+	if err != nil {
+		return nil, err
+	}
+
 	resOut := GetResult{
 		Result:     Result{Cas(res.Cas)},
 		transcoder: opm.Transcoder(),
 		// TODO: check if this is valid
 		contents: res.Content,
-		flags:    uint32(res.ContentType),
+		flags:    flags,
 	}
 	return &resOut, nil
 }
@@ -356,12 +373,17 @@ func (p *kvProviderProtoStellar) GetAndLock(opm *kvOpManager) (*GetResult, error
 		return nil, err
 	}
 
+	flags, err := contentFlagsPsToCore(res.ContentType, res.CompressionType)
+	if err != nil {
+		return nil, err
+	}
+
 	resOut := GetResult{
 		Result:     Result{Cas(res.Cas)},
 		transcoder: opm.Transcoder(),
 		// TODO: check if this is valid
 		contents: res.Content,
-		flags:    uint32(res.ContentType),
+		flags:    flags,
 	}
 	return &resOut, nil
 }
@@ -482,13 +504,14 @@ func (p *kvProviderProtoStellar) GetReplica(opm *kvOpManager) (*GetReplicaResult
 		return nil, err
 	}
 
+	flags, err := contentFlagsPsToCore(res.ContentType, res.CompressionType)
 	outCas := res.Cas
 
 	docOut := &GetReplicaResult{}
 	docOut.cas = Cas(outCas)
 	docOut.transcoder = opm.Transcoder()
 	docOut.contents = res.Content
-	docOut.flags = uint32(res.ContentType)
+	docOut.flags = flags
 	docOut.isReplica = true
 
 	return docOut, nil
@@ -634,4 +657,63 @@ func psMutToGoCbMut(in kv_v1.MutationToken) MutationToken {
 			SeqNo:  gocbcore.SeqNo(in.SeqNo),
 		},
 	}
+}
+
+func contentFlagsCoreToPs(flags uint32) (kv_v1.DocumentContentType, kv_v1.DocumentCompressionType, error) {
+	contentType, compressionType := gocbcore.DecodeCommonFlags(flags)
+
+	typeMap := map[gocbcore.DataType]kv_v1.DocumentContentType{
+		gocbcore.UnknownType: kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_UNKNOWN,
+		gocbcore.JSONType:    kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON,
+		gocbcore.BinaryType:  kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_BINARY,
+	}
+
+	psContentType, ok := typeMap[contentType]
+	if !ok {
+		return kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_UNKNOWN,
+			kv_v1.DocumentCompressionType_DOCUMENT_COMPRESSION_TYPE_NONE,
+			errors.New(fmt.Sprintf("unsupported encoding type for protostellar: %s", contentType))
+	}
+
+	compressionMap := map[gocbcore.CompressionType]kv_v1.DocumentCompressionType{
+		gocbcore.NoCompression:                                kv_v1.DocumentCompressionType_DOCUMENT_COMPRESSION_TYPE_NONE,
+		gocbcore.CompressionType(memd.DatatypeFlagCompressed): kv_v1.DocumentCompressionType_DOCUMENT_COMPRESSION_TYPE_SNAPPY,
+	}
+
+	psCompressionType, ok := compressionMap[compressionType]
+	if !ok {
+		return kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_UNKNOWN,
+			kv_v1.DocumentCompressionType_DOCUMENT_COMPRESSION_TYPE_NONE,
+			errors.New(fmt.Sprintf("unsupported compression type for protostellar: %s", compressionType))
+	}
+
+	return psContentType, psCompressionType, nil
+
+}
+
+func contentFlagsPsToCore(contentType kv_v1.DocumentContentType, compressionType kv_v1.DocumentCompressionType) (uint32, error) {
+
+	typeMap := map[kv_v1.DocumentContentType]gocbcore.DataType{
+		kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_UNKNOWN: gocbcore.UnknownType,
+		kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON:    gocbcore.JSONType,
+		kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_BINARY:  gocbcore.BinaryType,
+	}
+
+	coreContentType, ok := typeMap[contentType]
+	if !ok {
+		return 0, errors.New(fmt.Sprintf("unsupported document type for gocbcore: %s", kv_v1.DocumentContentType_name[int32(contentType)]))
+	}
+
+	compressionMap := map[kv_v1.DocumentCompressionType]gocbcore.CompressionType{
+		kv_v1.DocumentCompressionType_DOCUMENT_COMPRESSION_TYPE_NONE:   gocbcore.NoCompression,
+		kv_v1.DocumentCompressionType_DOCUMENT_COMPRESSION_TYPE_SNAPPY: gocbcore.CompressionType(memd.DatatypeFlagCompressed),
+	}
+
+	coreCompressionType, ok := compressionMap[compressionType]
+	if !ok {
+		return 0, errors.New(fmt.Sprintf("unsupported compression type for gocbcore: %s", kv_v1.DocumentCompressionType_name[int32(compressionType)]))
+	}
+
+	return gocbcore.EncodeCommonFlags(coreContentType, coreCompressionType), nil
+
 }
