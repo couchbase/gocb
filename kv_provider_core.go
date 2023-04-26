@@ -9,13 +9,13 @@ import (
 	"github.com/couchbase/gocbcore/v10/memd"
 )
 
-type kvProviderGocb struct {
+type kvProviderCore struct {
 	agent *gocbcore.Agent
 }
 
-var _ kvProvider = &kvProviderGocb{}
+var _ kvProvider = &kvProviderCore{}
 
-func (p *kvProviderGocb) MutateIn(opm *kvOpManager, action StoreSemantics, ops []MutateInSpec, flags SubdocDocFlag) (*MutateInResult, error) {
+func (p *kvProviderCore) MutateIn(opm *kvOpManager, action StoreSemantics, ops []MutateInSpec, flags SubdocDocFlag) (*MutateInResult, error) {
 	synced := newSyncKvOpManager(opm)
 
 	expiry := synced.Expiry()
@@ -126,7 +126,7 @@ func (p *kvProviderGocb) MutateIn(opm *kvOpManager, action StoreSemantics, ops [
 	return mutOut, errOut
 }
 
-func (p *kvProviderGocb) LookupIn(opm *kvOpManager, ops []LookupInSpec, flags SubdocDocFlag) (*LookupInResult, error) {
+func (p *kvProviderCore) LookupIn(opm *kvOpManager, ops []LookupInSpec, flags SubdocDocFlag) (*LookupInResult, error) {
 
 	var subdocs []gocbcore.SubDocOp
 	for _, op := range ops {
@@ -206,12 +206,12 @@ func (p *kvProviderGocb) LookupIn(opm *kvOpManager, ops []LookupInSpec, flags Su
 	return docOut, errOut
 }
 
-func (p *kvProviderGocb) Scan(ScanType, *kvOpManager) (*ScanResult, error) {
+func (p *kvProviderCore) Scan(ScanType, *kvOpManager) (*ScanResult, error) {
 
 	return nil, nil
 }
 
-func (p *kvProviderGocb) Add(opm *kvOpManager) (*MutationResult, error) {
+func (p *kvProviderCore) Add(opm *kvOpManager) (*MutationResult, error) {
 	synced := newSyncKvOpManager(opm)
 
 	defer synced.Finish(false)
@@ -252,7 +252,7 @@ func (p *kvProviderGocb) Add(opm *kvOpManager) (*MutationResult, error) {
 	return mutOut, errOut
 }
 
-func (p *kvProviderGocb) Set(opm *kvOpManager) (*MutationResult, error) {
+func (p *kvProviderCore) Set(opm *kvOpManager) (*MutationResult, error) {
 	synced := newSyncKvOpManager(opm)
 
 	defer synced.Finish(false)
@@ -294,7 +294,7 @@ func (p *kvProviderGocb) Set(opm *kvOpManager) (*MutationResult, error) {
 	return mutOut, errOut
 }
 
-func (p *kvProviderGocb) Replace(opm *kvOpManager) (*MutationResult, error) {
+func (p *kvProviderCore) Replace(opm *kvOpManager) (*MutationResult, error) {
 
 	synced := newSyncKvOpManager(opm)
 
@@ -340,7 +340,7 @@ func (p *kvProviderGocb) Replace(opm *kvOpManager) (*MutationResult, error) {
 	return mutOut, errOut
 }
 
-func (p *kvProviderGocb) Get(opm *kvOpManager) (*GetResult, error) {
+func (p *kvProviderCore) Get(opm *kvOpManager) (*GetResult, error) {
 	synced := newSyncKvOpManager(opm)
 
 	defer synced.Finish(false)
@@ -385,7 +385,7 @@ func (p *kvProviderGocb) Get(opm *kvOpManager) (*GetResult, error) {
 
 }
 
-func (p *kvProviderGocb) GetAndTouch(opm *kvOpManager) (*GetResult, error) {
+func (p *kvProviderCore) GetAndTouch(opm *kvOpManager) (*GetResult, error) {
 	synced := newSyncKvOpManager(opm)
 
 	var getOut *GetResult
@@ -429,7 +429,7 @@ func (p *kvProviderGocb) GetAndTouch(opm *kvOpManager) (*GetResult, error) {
 
 }
 
-func (p *kvProviderGocb) GetAndLock(opm *kvOpManager) (*GetResult, error) {
+func (p *kvProviderCore) GetAndLock(opm *kvOpManager) (*GetResult, error) {
 	synced := newSyncKvOpManager(opm)
 
 	var errOut error
@@ -473,7 +473,7 @@ func (p *kvProviderGocb) GetAndLock(opm *kvOpManager) (*GetResult, error) {
 	return getResult, errOut
 }
 
-func (p *kvProviderGocb) Exists(opm *kvOpManager) (*ExistsResult, error) {
+func (p *kvProviderCore) Exists(opm *kvOpManager) (*ExistsResult, error) {
 	synced := newSyncKvOpManager(opm)
 	defer synced.Finish(false)
 
@@ -523,7 +523,7 @@ func (p *kvProviderGocb) Exists(opm *kvOpManager) (*ExistsResult, error) {
 	return docExists, errOut
 }
 
-func (p *kvProviderGocb) Delete(opm *kvOpManager) (*MutationResult, error) {
+func (p *kvProviderCore) Delete(opm *kvOpManager) (*MutationResult, error) {
 	synced := newSyncKvOpManager(opm)
 
 	defer synced.Finish(false)
@@ -561,7 +561,7 @@ func (p *kvProviderGocb) Delete(opm *kvOpManager) (*MutationResult, error) {
 	return mutOut, errOut
 }
 
-func (p *kvProviderGocb) Unlock(opm *kvOpManager) error {
+func (p *kvProviderCore) Unlock(opm *kvOpManager) error {
 	synced := newSyncKvOpManager(opm)
 
 	defer synced.Finish(false)
@@ -592,7 +592,7 @@ func (p *kvProviderGocb) Unlock(opm *kvOpManager) error {
 	return errOut
 }
 
-func (p *kvProviderGocb) Touch(opm *kvOpManager) (*MutationResult, error) {
+func (p *kvProviderCore) Touch(opm *kvOpManager) (*MutationResult, error) {
 	synced := newSyncKvOpManager(opm)
 
 	defer synced.Finish(false)
@@ -630,7 +630,7 @@ func (p *kvProviderGocb) Touch(opm *kvOpManager) (*MutationResult, error) {
 
 }
 
-func (p *kvProviderGocb) GetReplica(opm *kvOpManager) (*GetReplicaResult, error) {
+func (p *kvProviderCore) GetReplica(opm *kvOpManager) (*GetReplicaResult, error) {
 	synced := newSyncKvOpManager(opm)
 
 	defer synced.Finish(true)
@@ -670,7 +670,7 @@ func (p *kvProviderGocb) GetReplica(opm *kvOpManager) (*GetReplicaResult, error)
 
 }
 
-func (p *kvProviderGocb) Prepend(opm *kvOpManager) (*MutationResult, error) {
+func (p *kvProviderCore) Prepend(opm *kvOpManager) (*MutationResult, error) {
 	synced := newSyncKvOpManager(opm)
 
 	defer synced.Finish(false)
@@ -711,7 +711,7 @@ func (p *kvProviderGocb) Prepend(opm *kvOpManager) (*MutationResult, error) {
 	return mutOut, errOut
 }
 
-func (p *kvProviderGocb) Append(opm *kvOpManager) (*MutationResult, error) {
+func (p *kvProviderCore) Append(opm *kvOpManager) (*MutationResult, error) {
 	synced := newSyncKvOpManager(opm)
 
 	defer synced.Finish(false)
@@ -752,7 +752,7 @@ func (p *kvProviderGocb) Append(opm *kvOpManager) (*MutationResult, error) {
 	return mutOut, errOut
 }
 
-func (p *kvProviderGocb) Increment(opm *kvOpManager) (*CounterResult, error) {
+func (p *kvProviderCore) Increment(opm *kvOpManager) (*CounterResult, error) {
 	synced := newSyncKvOpManager(opm)
 
 	defer synced.Finish(false)
@@ -796,7 +796,7 @@ func (p *kvProviderGocb) Increment(opm *kvOpManager) (*CounterResult, error) {
 
 }
 
-func (p *kvProviderGocb) Decrement(opm *kvOpManager) (*CounterResult, error) {
+func (p *kvProviderCore) Decrement(opm *kvOpManager) (*CounterResult, error) {
 	synced := newSyncKvOpManager(opm)
 
 	defer synced.Finish(false)
