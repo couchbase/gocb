@@ -11,7 +11,7 @@ import (
 
 // wrapper around kvOpManager to make the async gocbcore operations
 // sync.
-type syncKvOpManager struct {
+type coreKvOpManager struct {
 	kvOpManager
 	cancelCh    chan struct{}
 	signal      chan struct{}
@@ -344,17 +344,17 @@ func (m *kvOpManager) EnhanceMt(token gocbcore.MutationToken) *MutationToken {
 	return nil
 }
 
-func (m *syncKvOpManager) Reject() {
+func (m *coreKvOpManager) Reject() {
 	m.signal <- struct{}{}
 }
 
-func (m *syncKvOpManager) Resolve(token *MutationToken) {
+func (m *coreKvOpManager) Resolve(token *MutationToken) {
 	m.wasResolved = true
 	m.mutationToken = token
 	m.signal <- struct{}{}
 }
 
-func (m *syncKvOpManager) Wait(op gocbcore.PendingOp, err error) error {
+func (m *coreKvOpManager) Wait(op gocbcore.PendingOp, err error) error {
 	if err != nil {
 		return err
 	}
@@ -394,7 +394,7 @@ func (m *syncKvOpManager) Wait(op gocbcore.PendingOp, err error) error {
 	return nil
 }
 
-func (m *syncKvOpManager) SetCancelCh(cancelCh chan struct{}) {
+func (m *coreKvOpManager) SetCancelCh(cancelCh chan struct{}) {
 	m.cancelCh = cancelCh
 }
 
@@ -415,8 +415,8 @@ func (c *Collection) newKvOpManager(opName string, parentSpan RequestSpan) *kvOp
 	}
 }
 
-func newSyncKvOpManager(opManager *kvOpManager) *syncKvOpManager {
-	return &syncKvOpManager{
+func newCoreKvOpManager(opManager *kvOpManager) *coreKvOpManager {
+	return &coreKvOpManager{
 		kvOpManager: *opManager,
 		signal:      make(chan struct{}, 1),
 	}

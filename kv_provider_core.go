@@ -16,7 +16,7 @@ type kvProviderCore struct {
 var _ kvProvider = &kvProviderCore{}
 
 func (p *kvProviderCore) MutateIn(opm *kvOpManager, action StoreSemantics, ops []MutateInSpec, flags SubdocDocFlag) (*MutateInResult, error) {
-	synced := newSyncKvOpManager(opm)
+	synced := newCoreKvOpManager(opm)
 
 	expiry := synced.Expiry()
 	preserveTTL := synced.PreserveExpiry()
@@ -164,7 +164,7 @@ func (p *kvProviderCore) LookupIn(opm *kvOpManager, ops []LookupInSpec, flags Su
 			Flags: flags,
 		})
 	}
-	synced := newSyncKvOpManager(opm)
+	synced := newCoreKvOpManager(opm)
 
 	var errOut error
 	var docOut *LookupInResult
@@ -212,7 +212,7 @@ func (p *kvProviderCore) Scan(ScanType, *kvOpManager) (*ScanResult, error) {
 }
 
 func (p *kvProviderCore) Add(opm *kvOpManager) (*MutationResult, error) {
-	synced := newSyncKvOpManager(opm)
+	synced := newCoreKvOpManager(opm)
 
 	defer synced.Finish(false)
 
@@ -253,7 +253,7 @@ func (p *kvProviderCore) Add(opm *kvOpManager) (*MutationResult, error) {
 }
 
 func (p *kvProviderCore) Set(opm *kvOpManager) (*MutationResult, error) {
-	synced := newSyncKvOpManager(opm)
+	synced := newCoreKvOpManager(opm)
 
 	defer synced.Finish(false)
 
@@ -296,7 +296,7 @@ func (p *kvProviderCore) Set(opm *kvOpManager) (*MutationResult, error) {
 
 func (p *kvProviderCore) Replace(opm *kvOpManager) (*MutationResult, error) {
 
-	synced := newSyncKvOpManager(opm)
+	synced := newCoreKvOpManager(opm)
 
 	defer synced.Finish(false)
 
@@ -341,7 +341,7 @@ func (p *kvProviderCore) Replace(opm *kvOpManager) (*MutationResult, error) {
 }
 
 func (p *kvProviderCore) Get(opm *kvOpManager) (*GetResult, error) {
-	synced := newSyncKvOpManager(opm)
+	synced := newCoreKvOpManager(opm)
 
 	defer synced.Finish(false)
 
@@ -386,7 +386,7 @@ func (p *kvProviderCore) Get(opm *kvOpManager) (*GetResult, error) {
 }
 
 func (p *kvProviderCore) GetAndTouch(opm *kvOpManager) (*GetResult, error) {
-	synced := newSyncKvOpManager(opm)
+	synced := newCoreKvOpManager(opm)
 
 	var getOut *GetResult
 	var errOut error
@@ -430,7 +430,7 @@ func (p *kvProviderCore) GetAndTouch(opm *kvOpManager) (*GetResult, error) {
 }
 
 func (p *kvProviderCore) GetAndLock(opm *kvOpManager) (*GetResult, error) {
-	synced := newSyncKvOpManager(opm)
+	synced := newCoreKvOpManager(opm)
 
 	var errOut error
 	var getResult *GetResult
@@ -474,7 +474,7 @@ func (p *kvProviderCore) GetAndLock(opm *kvOpManager) (*GetResult, error) {
 }
 
 func (p *kvProviderCore) Exists(opm *kvOpManager) (*ExistsResult, error) {
-	synced := newSyncKvOpManager(opm)
+	synced := newCoreKvOpManager(opm)
 	defer synced.Finish(false)
 
 	var docExists *ExistsResult
@@ -524,7 +524,7 @@ func (p *kvProviderCore) Exists(opm *kvOpManager) (*ExistsResult, error) {
 }
 
 func (p *kvProviderCore) Delete(opm *kvOpManager) (*MutationResult, error) {
-	synced := newSyncKvOpManager(opm)
+	synced := newCoreKvOpManager(opm)
 
 	defer synced.Finish(false)
 
@@ -562,7 +562,7 @@ func (p *kvProviderCore) Delete(opm *kvOpManager) (*MutationResult, error) {
 }
 
 func (p *kvProviderCore) Unlock(opm *kvOpManager) error {
-	synced := newSyncKvOpManager(opm)
+	synced := newCoreKvOpManager(opm)
 
 	defer synced.Finish(false)
 	var errOut error
@@ -593,7 +593,7 @@ func (p *kvProviderCore) Unlock(opm *kvOpManager) error {
 }
 
 func (p *kvProviderCore) Touch(opm *kvOpManager) (*MutationResult, error) {
-	synced := newSyncKvOpManager(opm)
+	synced := newCoreKvOpManager(opm)
 
 	defer synced.Finish(false)
 
@@ -631,7 +631,7 @@ func (p *kvProviderCore) Touch(opm *kvOpManager) (*MutationResult, error) {
 }
 
 func (p *kvProviderCore) GetReplica(opm *kvOpManager) (*GetReplicaResult, error) {
-	synced := newSyncKvOpManager(opm)
+	synced := newCoreKvOpManager(opm)
 
 	defer synced.Finish(true)
 	var errOut error
@@ -671,7 +671,7 @@ func (p *kvProviderCore) GetReplica(opm *kvOpManager) (*GetReplicaResult, error)
 }
 
 func (p *kvProviderCore) Prepend(opm *kvOpManager) (*MutationResult, error) {
-	synced := newSyncKvOpManager(opm)
+	synced := newCoreKvOpManager(opm)
 
 	defer synced.Finish(false)
 
@@ -712,7 +712,7 @@ func (p *kvProviderCore) Prepend(opm *kvOpManager) (*MutationResult, error) {
 }
 
 func (p *kvProviderCore) Append(opm *kvOpManager) (*MutationResult, error) {
-	synced := newSyncKvOpManager(opm)
+	synced := newCoreKvOpManager(opm)
 
 	defer synced.Finish(false)
 
@@ -753,7 +753,7 @@ func (p *kvProviderCore) Append(opm *kvOpManager) (*MutationResult, error) {
 }
 
 func (p *kvProviderCore) Increment(opm *kvOpManager) (*CounterResult, error) {
-	synced := newSyncKvOpManager(opm)
+	synced := newCoreKvOpManager(opm)
 
 	defer synced.Finish(false)
 
@@ -797,7 +797,7 @@ func (p *kvProviderCore) Increment(opm *kvOpManager) (*CounterResult, error) {
 }
 
 func (p *kvProviderCore) Decrement(opm *kvOpManager) (*CounterResult, error) {
-	synced := newSyncKvOpManager(opm)
+	synced := newCoreKvOpManager(opm)
 
 	defer synced.Finish(false)
 	var errOut error
