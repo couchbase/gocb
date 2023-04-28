@@ -120,7 +120,7 @@ func (item *GetOp) execute(tracectx RequestSpanContext, c *Collection, provider 
 		c.meter.ValueRecord(meterValueServiceKV, "get", start)
 	}
 
-	op, err := provider.Get(gocbcore.GetOptions{
+	op, err := provider.BulkGet(gocbcore.GetOptions{
 		Key:            []byte(item.ID),
 		CollectionName: c.name(),
 		ScopeName:      c.ScopeName(),
@@ -173,7 +173,7 @@ func (item *GetAndTouchOp) execute(tracectx RequestSpanContext, c *Collection, p
 		c.meter.ValueRecord(meterValueServiceKV, "get_and_touch", start)
 	}
 
-	op, err := provider.GetAndTouch(gocbcore.GetAndTouchOptions{
+	op, err := provider.BulkGetAndTouch(gocbcore.GetAndTouchOptions{
 		Key:            []byte(item.ID),
 		Expiry:         durationToExpiry(item.Expiry),
 		CollectionName: c.name(),
@@ -227,7 +227,7 @@ func (item *TouchOp) execute(tracectx RequestSpanContext, c *Collection, provide
 		c.meter.ValueRecord(meterValueServiceKV, "touch", start)
 	}
 
-	op, err := provider.Touch(gocbcore.TouchOptions{
+	op, err := provider.BulkTouch(gocbcore.TouchOptions{
 		Key:            []byte(item.ID),
 		Expiry:         durationToExpiry(item.Expiry),
 		CollectionName: c.name(),
@@ -286,7 +286,7 @@ func (item *RemoveOp) execute(tracectx RequestSpanContext, c *Collection, provid
 		c.meter.ValueRecord(meterValueServiceKV, "remove", start)
 	}
 
-	op, err := provider.Delete(gocbcore.DeleteOptions{
+	op, err := provider.BulkDelete(gocbcore.DeleteOptions{
 		Key:            []byte(item.ID),
 		Cas:            gocbcore.Cas(item.Cas),
 		CollectionName: c.name(),
@@ -356,7 +356,7 @@ func (item *UpsertOp) execute(tracectx RequestSpanContext, c *Collection, provid
 		return
 	}
 
-	op, err := provider.Set(gocbcore.SetOptions{
+	op, err := provider.BulkSet(gocbcore.SetOptions{
 		Key:            []byte(item.ID),
 		Value:          bytes,
 		Flags:          flags,
@@ -429,7 +429,7 @@ func (item *InsertOp) execute(tracectx RequestSpanContext, c *Collection, provid
 	}
 	etrace.End()
 
-	op, err := provider.Add(gocbcore.AddOptions{
+	op, err := provider.BulkAdd(gocbcore.AddOptions{
 		Key:            []byte(item.ID),
 		Value:          bytes,
 		Flags:          flags,
@@ -502,7 +502,7 @@ func (item *ReplaceOp) execute(tracectx RequestSpanContext, c *Collection, provi
 	}
 	etrace.End()
 
-	op, err := provider.Replace(gocbcore.ReplaceOptions{
+	op, err := provider.BulkReplace(gocbcore.ReplaceOptions{
 		Key:            []byte(item.ID),
 		Value:          bytes,
 		Flags:          flags,
@@ -564,7 +564,7 @@ func (item *AppendOp) execute(tracectx RequestSpanContext, c *Collection, provid
 		c.meter.ValueRecord(meterValueServiceKV, "append", start)
 	}
 
-	op, err := provider.Append(gocbcore.AdjoinOptions{
+	op, err := provider.BulkAppend(gocbcore.AdjoinOptions{
 		Key:            []byte(item.ID),
 		Value:          []byte(item.Value),
 		CollectionName: c.name(),
@@ -623,7 +623,7 @@ func (item *PrependOp) execute(tracectx RequestSpanContext, c *Collection, provi
 		c.meter.ValueRecord(meterValueServiceKV, "prepend", start)
 	}
 
-	op, err := provider.Prepend(gocbcore.AdjoinOptions{
+	op, err := provider.BulkPrepend(gocbcore.AdjoinOptions{
 		Key:            []byte(item.ID),
 		Value:          []byte(item.Value),
 		CollectionName: c.name(),
@@ -690,7 +690,7 @@ func (item *IncrementOp) execute(tracectx RequestSpanContext, c *Collection, pro
 		realInitial = uint64(item.Initial)
 	}
 
-	op, err := provider.Increment(gocbcore.CounterOptions{
+	op, err := provider.BulkIncrement(gocbcore.CounterOptions{
 		Key:            []byte(item.ID),
 		Delta:          uint64(item.Delta),
 		Initial:        realInitial,
@@ -762,7 +762,7 @@ func (item *DecrementOp) execute(tracectx RequestSpanContext, c *Collection, pro
 		realInitial = uint64(item.Initial)
 	}
 
-	op, err := provider.Decrement(gocbcore.CounterOptions{
+	op, err := provider.BulkDecrement(gocbcore.CounterOptions{
 		Key:            []byte(item.ID),
 		Delta:          uint64(item.Delta),
 		Initial:        realInitial,

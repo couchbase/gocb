@@ -36,7 +36,7 @@ func (c *Collection) binaryAppend(id string, val []byte, opts *AppendOptions) (m
 		opts = &AppendOptions{}
 	}
 
-	opm := c.newKvOpManager("append", opts.ParentSpan)
+	opm := newKvOpManager(c, "append", opts.ParentSpan)
 	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
@@ -89,7 +89,7 @@ func (c *Collection) binaryPrepend(id string, val []byte, opts *PrependOptions) 
 		opts = &PrependOptions{}
 	}
 
-	opm := c.newKvOpManager("prepend", opts.ParentSpan)
+	opm := newKvOpManager(c, "prepend", opts.ParentSpan)
 	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
@@ -155,7 +155,7 @@ func (c *Collection) binaryIncrement(id string, opts *IncrementOptions) (countOu
 		return nil, makeInvalidArgumentsError("cas is not supported by the server for the Increment operation")
 	}
 
-	opm := c.newKvOpManager("increment", opts.ParentSpan)
+	opm := newKvOpManager(c, "increment", opts.ParentSpan)
 
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
@@ -231,7 +231,7 @@ func (c *Collection) binaryDecrement(id string, opts *DecrementOptions) (countOu
 		return nil, makeInvalidArgumentsError("cas is not supported by the server for the Decrement operation")
 	}
 
-	opm := c.newKvOpManager("decrement", opts.ParentSpan)
+	opm := newKvOpManager(c, "decrement", opts.ParentSpan)
 	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)

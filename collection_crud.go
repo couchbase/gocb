@@ -39,7 +39,7 @@ func (c *Collection) Insert(id string, val interface{}, opts *InsertOptions) (mu
 		opts = &InsertOptions{}
 	}
 
-	opm := c.newKvOpManager("insert", opts.ParentSpan)
+	opm := newKvOpManager(c, "insert", opts.ParentSpan)
 	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
@@ -92,7 +92,7 @@ func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mu
 		opts = &UpsertOptions{}
 	}
 
-	opm := c.newKvOpManager("upsert", opts.ParentSpan)
+	opm := newKvOpManager(c, "upsert", opts.ParentSpan)
 	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
@@ -150,7 +150,7 @@ func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (
 		return nil, makeInvalidArgumentsError("cannot use expiry and preserve ttl together for replace")
 	}
 
-	opm := c.newKvOpManager("replace", opts.ParentSpan)
+	opm := newKvOpManager(c, "replace", opts.ParentSpan)
 	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
@@ -218,7 +218,7 @@ func (c *Collection) getDirect(id string, opts *GetOptions) (docOut *GetResult, 
 		opts = &GetOptions{}
 	}
 
-	opm := c.newKvOpManager("get", opts.ParentSpan)
+	opm := newKvOpManager(c, "get", opts.ParentSpan)
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -244,7 +244,7 @@ func (c *Collection) getProjected(id string, opts *GetOptions) (docOut *GetResul
 		opts = &GetOptions{}
 	}
 
-	opm := c.newKvOpManager("get", opts.ParentSpan)
+	opm := newKvOpManager(c, "get", opts.ParentSpan)
 	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
@@ -371,7 +371,7 @@ func (c *Collection) Exists(id string, opts *ExistsOptions) (docOut *ExistsResul
 		opts = &ExistsOptions{}
 	}
 
-	opm := c.newKvOpManager("exists", opts.ParentSpan)
+	opm := newKvOpManager(c, "exists", opts.ParentSpan)
 	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
@@ -403,7 +403,7 @@ func (c *Collection) getOneReplica(
 	timeout time.Duration,
 	user string,
 ) (*GetReplicaResult, error) {
-	opm := c.newKvOpManager("get_replica", span)
+	opm := newKvOpManager(c, "get_replica", span)
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(transcoder)
@@ -551,109 +551,13 @@ func (r *GetAllReplicasResult) Close() error {
 
 // GetAllReplicas returns the value of a particular document from all replica servers. This will return an iterable
 // which streams results one at a time.
-func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (docOut *GetAllReplicasResult, errOut error) {
-	if opts == nil {
-		opts = &GetAllReplicaOptions{}
-	}
-
-	var tracectx RequestSpanContext
-	if opts.ParentSpan != nil {
-		tracectx = opts.ParentSpan.Context()
-	}
-
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	span := c.startKvOpTrace("get_all_replicas", tracectx, false)
-
-	// Timeout needs to be adjusted here, since we use it at the bottom of this
-	// function, but the remaining options are all passed downwards and get handled
-	// by those functions rather than us.
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = c.timeoutsConfig.KVTimeout
-	}
-
-	deadline := time.Now().Add(timeout)
-	transcoder := opts.Transcoder
-	retryStrategy := opts.RetryStrategy
-
+func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (*GetAllReplicasResult, error) {
 	agent, err := c.getKvProvider()
 	if err != nil {
 		return nil, err
 	}
 
-	snapshot, err := c.waitForConfigSnapshot(ctx, deadline, agent)
-	if err != nil {
-		return nil, err
-	}
-
-	numReplicas, err := snapshot.NumReplicas()
-	if err != nil {
-		return nil, err
-	}
-
-	numServers := numReplicas + 1
-	outCh := make(chan *GetReplicaResult, numServers)
-	cancelCh := make(chan struct{})
-
-	var recorder ValueRecorder
-	if !opts.noMetrics {
-		recorder, err = c.meter.ValueRecorder(meterValueServiceKV, "get_all_replicas")
-		if err != nil {
-			logDebugf("Failed to create value recorder: %v", err)
-		}
-	}
-
-	repRes := &GetAllReplicasResult{
-		totalRequests:       uint32(numServers),
-		resCh:               outCh,
-		cancelCh:            cancelCh,
-		span:                span,
-		childReqsCompleteCh: make(chan struct{}),
-		valueRecorder:       recorder,
-		startedTime:         time.Now(),
-	}
-
-	// Loop all the servers and populate the result object
-	for replicaIdx := 0; replicaIdx < numServers; replicaIdx++ {
-		go func(replicaIdx int) {
-			// This timeout value will cause the getOneReplica operation to timeout after our deadline has expired,
-			// as the deadline has already begun. getOneReplica timing out before our deadline would cause inconsistent
-			// behaviour.
-			res, err := c.getOneReplica(context.Background(), span, id, replicaIdx, transcoder, retryStrategy, cancelCh,
-				timeout, opts.Internal.User)
-			if err != nil {
-				repRes.addFailed()
-				logDebugf("Failed to fetch replica from replica %d: %s", replicaIdx, err)
-			} else {
-				repRes.addResult(res)
-			}
-		}(replicaIdx)
-	}
-
-	// Start a timer to close it after the deadline
-	go func() {
-		select {
-		case <-time.After(time.Until(deadline)):
-			// If we timeout, we should close the result
-			err := repRes.Close()
-			if err != nil {
-				logDebugf("failed to close GetAllReplicas response: %s", err)
-			}
-		case <-cancelCh:
-		// If the cancel channel closes, we are done
-		case <-ctx.Done():
-			err := repRes.Close()
-			if err != nil {
-				logDebugf("failed to close GetAllReplicas response: %s", err)
-			}
-		}
-	}()
-
-	return repRes, nil
+	return agent.GetAllReplicas(c, id, opts)
 }
 
 // GetAnyReplicaOptions are the options available to the GetAnyReplica command.
@@ -752,7 +656,7 @@ func (c *Collection) Remove(id string, opts *RemoveOptions) (mutOut *MutationRes
 		opts = &RemoveOptions{}
 	}
 
-	opm := c.newKvOpManager("remove", opts.ParentSpan)
+	opm := newKvOpManager(c, "remove", opts.ParentSpan)
 
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
@@ -798,7 +702,7 @@ func (c *Collection) GetAndTouch(id string, expiry time.Duration, opts *GetAndTo
 		opts = &GetAndTouchOptions{}
 	}
 
-	opm := c.newKvOpManager("get_and_touch", opts.ParentSpan)
+	opm := newKvOpManager(c, "get_and_touch", opts.ParentSpan)
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -844,7 +748,7 @@ func (c *Collection) GetAndLock(id string, lockTime time.Duration, opts *GetAndL
 		opts = &GetAndLockOptions{}
 	}
 
-	opm := c.newKvOpManager("get_and_lock", opts.ParentSpan)
+	opm := newKvOpManager(c, "get_and_lock", opts.ParentSpan)
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -888,7 +792,7 @@ func (c *Collection) Unlock(id string, cas Cas, opts *UnlockOptions) (errOut err
 		opts = &UnlockOptions{}
 	}
 
-	opm := c.newKvOpManager("unlock", nil)
+	opm := newKvOpManager(c, "unlock", nil)
 
 	opm.SetDocumentID(id)
 	opm.SetRetryStrategy(opts.RetryStrategy)
@@ -931,7 +835,7 @@ func (c *Collection) Touch(id string, expiry time.Duration, opts *TouchOptions) 
 		opts = &TouchOptions{}
 	}
 
-	opm := c.newKvOpManager("touch", nil)
+	opm := newKvOpManager(c, "touch", nil)
 	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)

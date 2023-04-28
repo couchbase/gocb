@@ -34,7 +34,7 @@ func (c *Collection) LookupIn(id string, ops []LookupInSpec, opts *LookupInOptio
 		opts = &LookupInOptions{}
 	}
 
-	opm := c.newKvOpManager("lookup_in", opts.ParentSpan)
+	opm := newKvOpManager(c, "lookup_in", opts.ParentSpan)
 	defer opm.Finish(opts.noMetrics)
 
 	opm.SetDocumentID(id)
@@ -101,7 +101,7 @@ func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptio
 		opts = &MutateInOptions{}
 	}
 
-	opm := c.newKvOpManager("mutate_in", opts.ParentSpan)
+	opm := newKvOpManager(c, "mutate_in", opts.ParentSpan)
 	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)

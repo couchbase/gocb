@@ -12,11 +12,13 @@ import (
 // var _ kvProvider = &kvProviderProtoStellar{}
 
 // // wraps kv and makes it compliant for gocb
-type kvProviderProtoStellar struct {
+type kvProviderPs struct {
 	client kv_v1.KvServiceClient
 }
 
-func (p *kvProviderProtoStellar) LookupIn(opm *kvOpManager, ops []LookupInSpec, flag SubdocDocFlag) (*LookupInResult, error) {
+var ErrUnsupportedPsOperation = errors.New("Operation is unsupported by PS")
+
+func (p *kvProviderPs) LookupIn(opm *kvOpManager, ops []LookupInSpec, flag SubdocDocFlag) (*LookupInResult, error) {
 	lookUpInPSSpecs := make([]*kv_v1.LookupInRequest_Spec, len(ops))
 
 	for i, op := range ops {
@@ -75,7 +77,7 @@ func (p *kvProviderProtoStellar) LookupIn(opm *kvOpManager, ops []LookupInSpec, 
 	return nil, nil
 }
 
-func (p *kvProviderProtoStellar) MutateIn(opm *kvOpManager, action StoreSemantics, ops []MutateInSpec, docFlags SubdocDocFlag) (*MutateInResult, error) {
+func (p *kvProviderPs) MutateIn(opm *kvOpManager, action StoreSemantics, ops []MutateInSpec, docFlags SubdocDocFlag) (*MutateInResult, error) {
 
 	storeSemanticMap := map[StoreSemantics]kv_v1.MutateInRequest_StoreSemantic{
 		StoreSemanticsReplace: kv_v1.MutateInRequest_STORE_SEMANTIC_REPLACE,
@@ -190,12 +192,12 @@ func (p *kvProviderProtoStellar) MutateIn(opm *kvOpManager, action StoreSemantic
 	}, nil
 }
 
-func (p *kvProviderProtoStellar) Scan(ScanType, *kvOpManager) (*ScanResult, error) {
+func (p *kvProviderPs) Scan(ScanType, *kvOpManager) (*ScanResult, error) {
 
 	return nil, nil
 }
 
-func (p *kvProviderProtoStellar) Add(opm *kvOpManager) (*MutationResult, error) {
+func (p *kvProviderPs) Add(opm *kvOpManager) (*MutationResult, error) {
 	contentType, _, err := contentFlagsCoreToPs(opm.ValueFlags())
 	//TODO: check if compression type needs handling
 	if err != nil {
@@ -231,7 +233,7 @@ func (p *kvProviderProtoStellar) Add(opm *kvOpManager) (*MutationResult, error) 
 	return &mutOut, nil
 }
 
-func (p *kvProviderProtoStellar) Set(opm *kvOpManager) (*MutationResult, error) {
+func (p *kvProviderPs) Set(opm *kvOpManager) (*MutationResult, error) {
 	contentType, _, err := contentFlagsCoreToPs(opm.ValueFlags())
 	request := &kv_v1.UpsertRequest{
 		Key:            string(opm.DocumentID()),
@@ -262,7 +264,7 @@ func (p *kvProviderProtoStellar) Set(opm *kvOpManager) (*MutationResult, error) 
 	return &mutOut, nil
 }
 
-func (p *kvProviderProtoStellar) Replace(opm *kvOpManager) (*MutationResult, error) {
+func (p *kvProviderPs) Replace(opm *kvOpManager) (*MutationResult, error) {
 	contentType, _, err := contentFlagsCoreToPs(opm.ValueFlags())
 	cas := opm.Cas()
 	request := &kv_v1.ReplaceRequest{
@@ -296,7 +298,7 @@ func (p *kvProviderProtoStellar) Replace(opm *kvOpManager) (*MutationResult, err
 	return &mutOut, nil
 }
 
-func (p *kvProviderProtoStellar) Get(opm *kvOpManager) (*GetResult, error) {
+func (p *kvProviderPs) Get(opm *kvOpManager) (*GetResult, error) {
 	request := &kv_v1.GetRequest{
 		Key: string(opm.DocumentID()),
 
@@ -328,7 +330,7 @@ func (p *kvProviderProtoStellar) Get(opm *kvOpManager) (*GetResult, error) {
 
 }
 
-func (p *kvProviderProtoStellar) GetAndTouch(opm *kvOpManager) (*GetResult, error) {
+func (p *kvProviderPs) GetAndTouch(opm *kvOpManager) (*GetResult, error) {
 	request := &kv_v1.GetAndTouchRequest{
 		Key: string(opm.DocumentID()),
 
@@ -359,7 +361,7 @@ func (p *kvProviderProtoStellar) GetAndTouch(opm *kvOpManager) (*GetResult, erro
 	return &resOut, nil
 }
 
-func (p *kvProviderProtoStellar) GetAndLock(opm *kvOpManager) (*GetResult, error) {
+func (p *kvProviderPs) GetAndLock(opm *kvOpManager) (*GetResult, error) {
 	request := &kv_v1.GetAndLockRequest{
 		BucketName:     opm.ScopeName(),
 		ScopeName:      opm.ScopeName(),
@@ -388,7 +390,7 @@ func (p *kvProviderProtoStellar) GetAndLock(opm *kvOpManager) (*GetResult, error
 	return &resOut, nil
 }
 
-func (p *kvProviderProtoStellar) Exists(opm *kvOpManager) (*ExistsResult, error) {
+func (p *kvProviderPs) Exists(opm *kvOpManager) (*ExistsResult, error) {
 	request := &kv_v1.ExistsRequest{
 		Key: string(opm.DocumentID()),
 
@@ -412,7 +414,7 @@ func (p *kvProviderProtoStellar) Exists(opm *kvOpManager) (*ExistsResult, error)
 	return &resOut, nil
 }
 
-func (p *kvProviderProtoStellar) Delete(opm *kvOpManager) (*MutationResult, error) {
+func (p *kvProviderPs) Delete(opm *kvOpManager) (*MutationResult, error) {
 
 	cas := opm.Cas()
 
@@ -443,7 +445,7 @@ func (p *kvProviderProtoStellar) Delete(opm *kvOpManager) (*MutationResult, erro
 	return &mutOut, nil
 }
 
-func (p *kvProviderProtoStellar) Unlock(opm *kvOpManager) error {
+func (p *kvProviderPs) Unlock(opm *kvOpManager) error {
 
 	cas := opm.Cas()
 
@@ -461,7 +463,7 @@ func (p *kvProviderProtoStellar) Unlock(opm *kvOpManager) error {
 
 }
 
-func (p *kvProviderProtoStellar) Touch(opm *kvOpManager) (*MutationResult, error) {
+func (p *kvProviderPs) Touch(opm *kvOpManager) (*MutationResult, error) {
 
 	request := &kv_v1.TouchRequest{
 		BucketName:     opm.BucketName(),
@@ -490,7 +492,7 @@ func (p *kvProviderProtoStellar) Touch(opm *kvOpManager) (*MutationResult, error
 
 }
 
-func (p *kvProviderProtoStellar) GetReplica(opm *kvOpManager) (*GetReplicaResult, error) {
+func (p *kvProviderPs) GetReplica(opm *kvOpManager) (*GetReplicaResult, error) {
 	request := &kv_v1.GetReplicaRequest{
 		BucketName:     opm.BucketName(),
 		ScopeName:      opm.ScopeName(),
@@ -518,7 +520,7 @@ func (p *kvProviderProtoStellar) GetReplica(opm *kvOpManager) (*GetReplicaResult
 
 }
 
-func (p *kvProviderProtoStellar) Prepend(opm *kvOpManager) (*MutationResult, error) {
+func (p *kvProviderPs) Prepend(opm *kvOpManager) (*MutationResult, error) {
 	cas := opm.Cas()
 	request := &kv_v1.PrependRequest{
 		BucketName:      opm.BucketName(),
@@ -547,7 +549,7 @@ func (p *kvProviderProtoStellar) Prepend(opm *kvOpManager) (*MutationResult, err
 	return mutOut, nil
 }
 
-func (p *kvProviderProtoStellar) Append(opm *kvOpManager) (*MutationResult, error) {
+func (p *kvProviderPs) Append(opm *kvOpManager) (*MutationResult, error) {
 	cas := opm.Cas()
 
 	request := &kv_v1.AppendRequest{
@@ -577,7 +579,7 @@ func (p *kvProviderProtoStellar) Append(opm *kvOpManager) (*MutationResult, erro
 	return mutOut, nil
 }
 
-func (p *kvProviderProtoStellar) Increment(opm *kvOpManager) (*CounterResult, error) {
+func (p *kvProviderPs) Increment(opm *kvOpManager) (*CounterResult, error) {
 	initial := int64(opm.Initial())
 
 	request := &kv_v1.IncrementRequest{
@@ -605,7 +607,7 @@ func (p *kvProviderProtoStellar) Increment(opm *kvOpManager) (*CounterResult, er
 	return countOut, nil
 
 }
-func (p *kvProviderProtoStellar) Decrement(opm *kvOpManager) (*CounterResult, error) {
+func (p *kvProviderPs) Decrement(opm *kvOpManager) (*CounterResult, error) {
 	initial := int64(opm.Initial())
 
 	request := &kv_v1.DecrementRequest{
@@ -716,4 +718,41 @@ func contentFlagsPsToCore(contentType kv_v1.DocumentContentType, compressionType
 
 	return gocbcore.EncodeCommonFlags(coreContentType, coreCompressionType), nil
 
+}
+
+func (p *kvProviderPs) BulkGet(gocbcore.GetOptions, gocbcore.GetCallback) (gocbcore.PendingOp, error) {
+	return nil, ErrUnsupportedPsOperation
+}
+func (p *kvProviderPs) BulkGetAndTouch(gocbcore.GetAndTouchOptions, gocbcore.GetAndTouchCallback) (gocbcore.PendingOp, error) {
+	return nil, ErrUnsupportedPsOperation
+}
+func (p *kvProviderPs) BulkTouch(gocbcore.TouchOptions, gocbcore.TouchCallback) (gocbcore.PendingOp, error) {
+	return nil, ErrUnsupportedPsOperation
+}
+func (p *kvProviderPs) BulkDelete(gocbcore.DeleteOptions, gocbcore.DeleteCallback) (gocbcore.PendingOp, error) {
+	return nil, ErrUnsupportedPsOperation
+}
+func (p *kvProviderPs) BulkSet(gocbcore.SetOptions, gocbcore.StoreCallback) (gocbcore.PendingOp, error) {
+	return nil, ErrUnsupportedPsOperation
+}
+func (p *kvProviderPs) BulkAdd(gocbcore.AddOptions, gocbcore.StoreCallback) (gocbcore.PendingOp, error) {
+	return nil, ErrUnsupportedPsOperation
+}
+func (p *kvProviderPs) BulkReplace(gocbcore.ReplaceOptions, gocbcore.StoreCallback) (gocbcore.PendingOp, error) {
+	return nil, ErrUnsupportedPsOperation
+}
+func (p *kvProviderPs) BulkAppend(gocbcore.AdjoinOptions, gocbcore.AdjoinCallback) (gocbcore.PendingOp, error) {
+	return nil, ErrUnsupportedPsOperation
+}
+func (p *kvProviderPs) BulkPrepend(gocbcore.AdjoinOptions, gocbcore.AdjoinCallback) (gocbcore.PendingOp, error) {
+	return nil, ErrUnsupportedPsOperation
+}
+func (p *kvProviderPs) BulkIncrement(gocbcore.CounterOptions, gocbcore.CounterCallback) (gocbcore.PendingOp, error) {
+	return nil, ErrUnsupportedPsOperation
+}
+func (p *kvProviderPs) BulkDecrement(gocbcore.CounterOptions, gocbcore.CounterCallback) (gocbcore.PendingOp, error) {
+	return nil, ErrUnsupportedPsOperation
+}
+func (p *kvProviderPs) GetAllReplicas(*Collection, string, *GetAllReplicaOptions) (*GetAllReplicasResult, error) {
+	return nil, ErrUnsupportedPsOperation
 }

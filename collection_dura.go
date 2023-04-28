@@ -8,8 +8,9 @@ import (
 	gocbcore "github.com/couchbase/gocbcore/v10"
 )
 
-func (c *Collection) observeOnceSeqNo(
+func (kv *kvProviderCore) observeOnceSeqNo(
 	ctx context.Context,
+	c *Collection,
 	trace RequestSpan,
 	docID string,
 	mt gocbcore.MutationToken,
@@ -18,37 +19,33 @@ func (c *Collection) observeOnceSeqNo(
 	timeout time.Duration,
 	user string,
 ) (didReplicate, didPersist bool, errOut error) {
-	opm := c.newKvOpManager("observe_once", trace)
-	defer opm.Finish(true)
+	observedOpm := newCoreKvOpManager(newKvOpManager(c, "observe_once", trace), kv)
+	defer observedOpm.Finish(true)
 
-	opm.SetDocumentID(docID)
-	opm.SetCancelCh(cancelCh)
-	opm.SetTimeout(timeout)
-	opm.SetImpersonate(user)
-	opm.SetContext(ctx)
+	observedOpm.SetDocumentID(docID)
+	observedOpm.SetCancelCh(cancelCh)
+	observedOpm.SetTimeout(timeout)
+	observedOpm.SetImpersonate(user)
+	observedOpm.SetContext(ctx)
 
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return false, false, err
-	}
-	err = opm.Wait(agent.ObserveVb(gocbcore.ObserveVbOptions{
+	err := observedOpm.Wait(kv.agent.ObserveVb(gocbcore.ObserveVbOptions{
 		VbID:         mt.VbID,
 		VbUUID:       mt.VbUUID,
 		ReplicaIdx:   replicaIdx,
-		TraceContext: opm.TraceSpanContext(),
-		Deadline:     opm.Deadline(),
-		User:         opm.Impersonate(),
+		TraceContext: observedOpm.TraceSpanContext(),
+		Deadline:     observedOpm.Deadline(),
+		User:         observedOpm.Impersonate(),
 	}, func(res *gocbcore.ObserveVbResult, err error) {
 		if err != nil || res == nil {
-			errOut = opm.EnhanceErr(err)
-			opm.Reject()
+			errOut = observedOpm.EnhanceErr(err)
+			observedOpm.Reject()
 			return
 		}
 
 		didReplicate = res.CurrentSeqNo >= mt.SeqNo
 		didPersist = res.PersistSeqNo >= mt.SeqNo
 
-		opm.Resolve(nil)
+		observedOpm.Resolve(nil)
 	}))
 	if err == nil {
 		errOut = err
@@ -56,8 +53,9 @@ func (c *Collection) observeOnceSeqNo(
 	return
 }
 
-func (c *Collection) observeOne(
+func (kv *kvProviderCore) observeOne(
 	ctx context.Context,
+	c *Collection,
 	trace RequestSpan,
 	docID string,
 	mt gocbcore.MutationToken,
@@ -81,7 +79,7 @@ ObserveLoop:
 			// not cancelled yet
 		}
 
-		didReplicate, didPersist, err := c.observeOnceSeqNo(ctx, trace, docID, mt, replicaIdx, cancelCh, timeout, user)
+		didReplicate, didPersist, err := kv.observeOnceSeqNo(ctx, c, trace, docID, mt, replicaIdx, cancelCh, timeout, user)
 		if err != nil {
 			logDebugf("ObserveOnce failed unexpected: %s", err)
 			return
@@ -113,8 +111,9 @@ ObserveLoop:
 	}
 }
 
-func (c *Collection) waitForDurability(
+func (kv *kvProviderCore) waitForDurability(
 	ctx context.Context,
+	c *Collection,
 	trace RequestSpan,
 	docID string,
 	mt gocbcore.MutationToken,
@@ -124,17 +123,12 @@ func (c *Collection) waitForDurability(
 	cancelCh chan struct{},
 	user string,
 ) error {
-	opm := c.newKvOpManager("observe", trace)
-	defer opm.Finish(true)
+	observeOpm := newKvOpManager(c, "observe", trace)
+	defer observeOpm.Finish(true)
 
-	opm.SetDocumentID(docID)
+	observeOpm.SetDocumentID(docID)
 
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return err
-	}
-
-	snapshot, err := c.waitForConfigSnapshot(ctx, deadline, agent)
+	snapshot, err := kv.waitForConfigSnapshot(ctx, deadline)
 	if err != nil {
 		return err
 	}
@@ -146,7 +140,7 @@ func (c *Collection) waitForDurability(
 
 	numServers := numReplicas + 1
 	if replicateTo > uint(numServers-1) || persistTo > uint(numServers) {
-		return opm.EnhanceErr(ErrDurabilityImpossible)
+		return observeOpm.EnhanceErr(ErrDurabilityImpossible)
 	}
 
 	subOpCancelCh := make(chan struct{}, 1)
@@ -159,7 +153,7 @@ func (c *Collection) waitForDurability(
 	for replicaIdx := 0; replicaIdx < numServers; replicaIdx++ {
 		wg.Add(1)
 		go func(ridx int) {
-			c.observeOne(ctx, opm.TraceSpan(), docID, mt, ridx, replicaCh, persistCh, subOpCancelCh,
+			kv.observeOne(ctx, c, observeOpm.TraceSpan(), docID, mt, ridx, replicaCh, persistCh, subOpCancelCh,
 				time.Until(deadline), user)
 			wg.Done()
 		}(replicaIdx)
@@ -178,12 +172,12 @@ func (c *Collection) waitForDurability(
 			// deadline exceeded
 			close(subOpCancelCh)
 			wg.Wait()
-			return opm.EnhanceErr(ErrAmbiguousTimeout)
+			return observeOpm.EnhanceErr(ErrAmbiguousTimeout)
 		case <-cancelCh:
 			// parent asked for cancellation
 			close(subOpCancelCh)
 			wg.Wait()
-			return opm.EnhanceErr(ErrRequestCanceled)
+			return observeOpm.EnhanceErr(ErrRequestCanceled)
 		}
 
 		if numReplicated >= replicateTo && numPersisted >= persistTo {

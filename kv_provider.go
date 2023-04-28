@@ -1,5 +1,7 @@
 package gocb
 
+import gocbcore "github.com/couchbase/gocbcore/v10"
+
 type kvProvider interface {
 	Add(*kvOpManager) (*MutationResult, error)     // Done
 	Set(*kvOpManager) (*MutationResult, error)     // Done
@@ -7,7 +9,7 @@ type kvProvider interface {
 	Get(*kvOpManager) (*GetResult, error)          // Done
 
 	GetReplica(*kvOpManager) (*GetReplicaResult, error) // Done
-	//GetOneReplica(opts GetOptions) (*GetResult, error)
+	GetAllReplicas(*Collection, string, *GetAllReplicaOptions) (*GetAllReplicasResult, error)
 	Exists(*kvOpManager) (*ExistsResult, error)   // Done
 	Delete(*kvOpManager) (*MutationResult, error) //Done
 
@@ -25,5 +27,18 @@ type kvProvider interface {
 	// Subdoc actions
 	Append(*kvOpManager) (*MutationResult, error)  // Done
 	Prepend(*kvOpManager) (*MutationResult, error) // Done
-	Scan(ScanType, *kvOpManager) (*ScanResult, error)
+	Scan(c *Collection, scanType ScanType, opts *ScanOptions) (*ScanResult, error)
+
+	//Bulk Actions
+	BulkGet(gocbcore.GetOptions, gocbcore.GetCallback) (gocbcore.PendingOp, error)
+	BulkGetAndTouch(gocbcore.GetAndTouchOptions, gocbcore.GetAndTouchCallback) (gocbcore.PendingOp, error)
+	BulkTouch(gocbcore.TouchOptions, gocbcore.TouchCallback) (gocbcore.PendingOp, error)
+	BulkDelete(gocbcore.DeleteOptions, gocbcore.DeleteCallback) (gocbcore.PendingOp, error)
+	BulkSet(gocbcore.SetOptions, gocbcore.StoreCallback) (gocbcore.PendingOp, error)
+	BulkAdd(gocbcore.AddOptions, gocbcore.StoreCallback) (gocbcore.PendingOp, error)
+	BulkReplace(gocbcore.ReplaceOptions, gocbcore.StoreCallback) (gocbcore.PendingOp, error)
+	BulkAppend(gocbcore.AdjoinOptions, gocbcore.AdjoinCallback) (gocbcore.PendingOp, error)
+	BulkPrepend(gocbcore.AdjoinOptions, gocbcore.AdjoinCallback) (gocbcore.PendingOp, error)
+	BulkIncrement(gocbcore.CounterOptions, gocbcore.CounterCallback) (gocbcore.PendingOp, error)
+	BulkDecrement(gocbcore.CounterOptions, gocbcore.CounterCallback) (gocbcore.PendingOp, error)
 }

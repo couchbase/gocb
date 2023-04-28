@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"time"
@@ -16,7 +17,7 @@ type kvProviderCore struct {
 var _ kvProvider = &kvProviderCore{}
 
 func (p *kvProviderCore) MutateIn(opm *kvOpManager, action StoreSemantics, ops []MutateInSpec, flags SubdocDocFlag) (*MutateInResult, error) {
-	synced := newCoreKvOpManager(opm)
+	synced := newCoreKvOpManager(opm, p)
 
 	expiry := synced.Expiry()
 	preserveTTL := synced.PreserveExpiry()
@@ -164,7 +165,7 @@ func (p *kvProviderCore) LookupIn(opm *kvOpManager, ops []LookupInSpec, flags Su
 			Flags: flags,
 		})
 	}
-	synced := newCoreKvOpManager(opm)
+	synced := newCoreKvOpManager(opm, p)
 
 	var errOut error
 	var docOut *LookupInResult
@@ -206,13 +207,47 @@ func (p *kvProviderCore) LookupIn(opm *kvOpManager, ops []LookupInSpec, flags Su
 	return docOut, errOut
 }
 
-func (p *kvProviderCore) Scan(ScanType, *kvOpManager) (*ScanResult, error) {
+func (p *kvProviderCore) Scan(c *Collection, scanType ScanType, opts *ScanOptions) (*ScanResult, error) {
+
+	config, err := p.waitForConfigSnapshot(opts.Context, time.Now().Add(opts.Timeout))
+	if err != nil {
+		return nil, err
+	}
+
+	numVbuckets, err := config.NumVbuckets()
+	if err != nil {
+		return nil, err
+	}
+
+	if numVbuckets == 0 {
+		return nil, makeInvalidArgumentsError("can only use RangeScan with couchbase buckets")
+	}
+
+	opm, err := p.newRangeScanOpManager(c, scanType, numVbuckets, p.agent, opts.ParentSpan, opts.ConsistentWith,
+		opts.IDsOnly, opts.Sort)
+	if err != nil {
+		return nil, err
+	}
+
+	opm.SetTranscoder(opts.Transcoder)
+	opm.SetContext(opts.Context)
+	opm.SetImpersonate(opts.Internal.User)
+	opm.SetTimeout(opts.Timeout)
+	opm.SetRetryStrategy(opts.RetryStrategy)
+	opm.SetItemLimit(opts.BatchItemLimit)
+	opm.SetByteLimit(opts.BatchByteLimit)
+
+	if err := opm.CheckReadyForOp(); err != nil {
+		return nil, err
+	}
+
+	return opm.Scan()
 
 	return nil, nil
 }
 
 func (p *kvProviderCore) Add(opm *kvOpManager) (*MutationResult, error) {
-	synced := newCoreKvOpManager(opm)
+	synced := newCoreKvOpManager(opm, p)
 
 	defer synced.Finish(false)
 
@@ -253,7 +288,7 @@ func (p *kvProviderCore) Add(opm *kvOpManager) (*MutationResult, error) {
 }
 
 func (p *kvProviderCore) Set(opm *kvOpManager) (*MutationResult, error) {
-	synced := newCoreKvOpManager(opm)
+	synced := newCoreKvOpManager(opm, p)
 
 	defer synced.Finish(false)
 
@@ -296,7 +331,7 @@ func (p *kvProviderCore) Set(opm *kvOpManager) (*MutationResult, error) {
 
 func (p *kvProviderCore) Replace(opm *kvOpManager) (*MutationResult, error) {
 
-	synced := newCoreKvOpManager(opm)
+	synced := newCoreKvOpManager(opm, p)
 
 	defer synced.Finish(false)
 
@@ -341,7 +376,7 @@ func (p *kvProviderCore) Replace(opm *kvOpManager) (*MutationResult, error) {
 }
 
 func (p *kvProviderCore) Get(opm *kvOpManager) (*GetResult, error) {
-	synced := newCoreKvOpManager(opm)
+	synced := newCoreKvOpManager(opm, p)
 
 	defer synced.Finish(false)
 
@@ -386,7 +421,7 @@ func (p *kvProviderCore) Get(opm *kvOpManager) (*GetResult, error) {
 }
 
 func (p *kvProviderCore) GetAndTouch(opm *kvOpManager) (*GetResult, error) {
-	synced := newCoreKvOpManager(opm)
+	synced := newCoreKvOpManager(opm, p)
 
 	var getOut *GetResult
 	var errOut error
@@ -430,7 +465,7 @@ func (p *kvProviderCore) GetAndTouch(opm *kvOpManager) (*GetResult, error) {
 }
 
 func (p *kvProviderCore) GetAndLock(opm *kvOpManager) (*GetResult, error) {
-	synced := newCoreKvOpManager(opm)
+	synced := newCoreKvOpManager(opm, p)
 
 	var errOut error
 	var getResult *GetResult
@@ -474,7 +509,7 @@ func (p *kvProviderCore) GetAndLock(opm *kvOpManager) (*GetResult, error) {
 }
 
 func (p *kvProviderCore) Exists(opm *kvOpManager) (*ExistsResult, error) {
-	synced := newCoreKvOpManager(opm)
+	synced := newCoreKvOpManager(opm, p)
 	defer synced.Finish(false)
 
 	var docExists *ExistsResult
@@ -524,7 +559,7 @@ func (p *kvProviderCore) Exists(opm *kvOpManager) (*ExistsResult, error) {
 }
 
 func (p *kvProviderCore) Delete(opm *kvOpManager) (*MutationResult, error) {
-	synced := newCoreKvOpManager(opm)
+	synced := newCoreKvOpManager(opm, p)
 
 	defer synced.Finish(false)
 
@@ -562,7 +597,7 @@ func (p *kvProviderCore) Delete(opm *kvOpManager) (*MutationResult, error) {
 }
 
 func (p *kvProviderCore) Unlock(opm *kvOpManager) error {
-	synced := newCoreKvOpManager(opm)
+	synced := newCoreKvOpManager(opm, p)
 
 	defer synced.Finish(false)
 	var errOut error
@@ -593,7 +628,7 @@ func (p *kvProviderCore) Unlock(opm *kvOpManager) error {
 }
 
 func (p *kvProviderCore) Touch(opm *kvOpManager) (*MutationResult, error) {
-	synced := newCoreKvOpManager(opm)
+	synced := newCoreKvOpManager(opm, p)
 
 	defer synced.Finish(false)
 
@@ -631,7 +666,7 @@ func (p *kvProviderCore) Touch(opm *kvOpManager) (*MutationResult, error) {
 }
 
 func (p *kvProviderCore) GetReplica(opm *kvOpManager) (*GetReplicaResult, error) {
-	synced := newCoreKvOpManager(opm)
+	synced := newCoreKvOpManager(opm, p)
 
 	defer synced.Finish(true)
 	var errOut error
@@ -670,8 +705,108 @@ func (p *kvProviderCore) GetReplica(opm *kvOpManager) (*GetReplicaResult, error)
 
 }
 
+func (p *kvProviderCore) GetAllReplicas(c *Collection, id string, opts *GetAllReplicaOptions) (*GetAllReplicasResult, error) {
+
+	if opts == nil {
+		opts = &GetAllReplicaOptions{}
+	}
+
+	var tracectx RequestSpanContext
+	if opts.ParentSpan != nil {
+		tracectx = opts.ParentSpan.Context()
+	}
+
+	ctx := opts.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	span := c.startKvOpTrace("get_all_replicas", tracectx, false)
+
+	// Timeout needs to be adjusted here, since we use it at the bottom of this
+	// function, but the remaining options are all passed downwards and get handled
+	// by those functions rather than us.
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = c.timeoutsConfig.KVTimeout
+	}
+
+	deadline := time.Now().Add(timeout)
+	transcoder := opts.Transcoder
+	retryStrategy := opts.RetryStrategy
+
+	snapshot, err := p.waitForConfigSnapshot(ctx, deadline)
+	if err != nil {
+		return nil, err
+	}
+
+	numReplicas, err := snapshot.NumReplicas()
+	if err != nil {
+		return nil, err
+	}
+
+	numServers := numReplicas + 1
+	outCh := make(chan *GetReplicaResult, numServers)
+	cancelCh := make(chan struct{})
+
+	var recorder ValueRecorder
+	if !opts.noMetrics {
+		recorder, err = c.meter.ValueRecorder(meterValueServiceKV, "get_all_replicas")
+		if err != nil {
+			logDebugf("Failed to create value recorder: %v", err)
+		}
+	}
+
+	repRes := &GetAllReplicasResult{
+		totalRequests:       uint32(numServers),
+		resCh:               outCh,
+		cancelCh:            cancelCh,
+		span:                span,
+		childReqsCompleteCh: make(chan struct{}),
+		valueRecorder:       recorder,
+		startedTime:         time.Now(),
+	}
+
+	// Loop all the servers and populate the result object
+	for replicaIdx := 0; replicaIdx < numServers; replicaIdx++ {
+		go func(replicaIdx int) {
+			// This timeout value will cause the getOneReplica operation to timeout after our deadline has expired,
+			// as the deadline has already begun. getOneReplica timing out before our deadline would cause inconsistent
+			// behaviour.
+			res, err := c.getOneReplica(context.Background(), span, id, replicaIdx, transcoder, retryStrategy, cancelCh,
+				timeout, opts.Internal.User)
+			if err != nil {
+				repRes.addFailed()
+				logDebugf("Failed to fetch replica from replica %d: %s", replicaIdx, err)
+			} else {
+				repRes.addResult(res)
+			}
+		}(replicaIdx)
+	}
+
+	// Start a timer to close it after the deadline
+	go func() {
+		select {
+		case <-time.After(time.Until(deadline)):
+			// If we timeout, we should close the result
+			err := repRes.Close()
+			if err != nil {
+				logDebugf("failed to close GetAllReplicas response: %s", err)
+			}
+		case <-cancelCh:
+		// If the cancel channel closes, we are done
+		case <-ctx.Done():
+			err := repRes.Close()
+			if err != nil {
+				logDebugf("failed to close GetAllReplicas response: %s", err)
+			}
+		}
+	}()
+
+	return repRes, nil
+}
 func (p *kvProviderCore) Prepend(opm *kvOpManager) (*MutationResult, error) {
-	synced := newCoreKvOpManager(opm)
+	synced := newCoreKvOpManager(opm, p)
 
 	defer synced.Finish(false)
 
@@ -712,7 +847,7 @@ func (p *kvProviderCore) Prepend(opm *kvOpManager) (*MutationResult, error) {
 }
 
 func (p *kvProviderCore) Append(opm *kvOpManager) (*MutationResult, error) {
-	synced := newCoreKvOpManager(opm)
+	synced := newCoreKvOpManager(opm, p)
 
 	defer synced.Finish(false)
 
@@ -753,7 +888,7 @@ func (p *kvProviderCore) Append(opm *kvOpManager) (*MutationResult, error) {
 }
 
 func (p *kvProviderCore) Increment(opm *kvOpManager) (*CounterResult, error) {
-	synced := newCoreKvOpManager(opm)
+	synced := newCoreKvOpManager(opm, p)
 
 	defer synced.Finish(false)
 
@@ -797,7 +932,7 @@ func (p *kvProviderCore) Increment(opm *kvOpManager) (*CounterResult, error) {
 }
 
 func (p *kvProviderCore) Decrement(opm *kvOpManager) (*CounterResult, error) {
-	synced := newCoreKvOpManager(opm)
+	synced := newCoreKvOpManager(opm, p)
 
 	defer synced.Finish(false)
 	var errOut error
@@ -835,4 +970,38 @@ func (p *kvProviderCore) Decrement(opm *kvOpManager) (*CounterResult, error) {
 	}
 	return countOut, errOut
 
+}
+
+func (p *kvProviderCore) BulkGet(gocbcore.GetOptions, gocbcore.GetCallback) (gocbcore.PendingOp, error) {
+	return nil, nil
+}
+func (p *kvProviderCore) BulkGetAndTouch(gocbcore.GetAndTouchOptions, gocbcore.GetAndTouchCallback) (gocbcore.PendingOp, error) {
+	return nil, nil
+}
+func (p *kvProviderCore) BulkTouch(gocbcore.TouchOptions, gocbcore.TouchCallback) (gocbcore.PendingOp, error) {
+	return nil, nil
+}
+func (p *kvProviderCore) BulkDelete(gocbcore.DeleteOptions, gocbcore.DeleteCallback) (gocbcore.PendingOp, error) {
+	return nil, nil
+}
+func (p *kvProviderCore) BulkSet(gocbcore.SetOptions, gocbcore.StoreCallback) (gocbcore.PendingOp, error) {
+	return nil, nil
+}
+func (p *kvProviderCore) BulkAdd(gocbcore.AddOptions, gocbcore.StoreCallback) (gocbcore.PendingOp, error) {
+	return nil, nil
+}
+func (p *kvProviderCore) BulkReplace(gocbcore.ReplaceOptions, gocbcore.StoreCallback) (gocbcore.PendingOp, error) {
+	return nil, nil
+}
+func (p *kvProviderCore) BulkAppend(gocbcore.AdjoinOptions, gocbcore.AdjoinCallback) (gocbcore.PendingOp, error) {
+	return nil, nil
+}
+func (p *kvProviderCore) BulkPrepend(gocbcore.AdjoinOptions, gocbcore.AdjoinCallback) (gocbcore.PendingOp, error) {
+	return nil, nil
+}
+func (p *kvProviderCore) BulkIncrement(gocbcore.CounterOptions, gocbcore.CounterCallback) (gocbcore.PendingOp, error) {
+	return nil, nil
+}
+func (p *kvProviderCore) BulkDecrement(gocbcore.CounterOptions, gocbcore.CounterCallback) (gocbcore.PendingOp, error) {
+	return nil, nil
 }

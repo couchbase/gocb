@@ -16,6 +16,7 @@ type coreKvOpManager struct {
 	cancelCh    chan struct{}
 	signal      chan struct{}
 	wasResolved bool
+	kv          *kvProviderCore
 }
 
 // Contains information only useful to both gocbcore and protostellar
@@ -378,8 +379,9 @@ func (m *coreKvOpManager) Wait(op gocbcore.PendingOp, err error) error {
 			return errors.New("expected a mutation token")
 		}
 
-		return m.parent.waitForDurability(
+		return m.kv.waitForDurability(
 			m.ctx,
+			m.parent,
 			m.span,
 			m.documentID,
 			m.mutationToken.token,
@@ -398,7 +400,7 @@ func (m *coreKvOpManager) SetCancelCh(cancelCh chan struct{}) {
 	m.cancelCh = cancelCh
 }
 
-func (c *Collection) newKvOpManager(opName string, parentSpan RequestSpan) *kvOpManager {
+func newKvOpManager(c *Collection, opName string, parentSpan RequestSpan) *kvOpManager {
 	var tracectx RequestSpanContext
 	if parentSpan != nil {
 		tracectx = parentSpan.Context()
@@ -415,9 +417,10 @@ func (c *Collection) newKvOpManager(opName string, parentSpan RequestSpan) *kvOp
 	}
 }
 
-func newCoreKvOpManager(opManager *kvOpManager) *coreKvOpManager {
+func newCoreKvOpManager(opManager *kvOpManager, kv *kvProviderCore) *coreKvOpManager {
 	return &coreKvOpManager{
 		kvOpManager: *opManager,
+		kv:          kv,
 		signal:      make(chan struct{}, 1),
 	}
 }

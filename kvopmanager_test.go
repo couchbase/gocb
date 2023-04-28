@@ -150,7 +150,7 @@ func (suite *IntegrationTestSuite) TestKvOpManagerTimeouts() {
 
 	for _, tc := range testCases {
 		suite.T().Run(tc.name, func(tt *testing.T) {
-			mgr := globalCollection.newKvOpManager("test", nil)
+			mgr := newKvOpManager(globalCollection, "test", nil)
 			mgr.SetTimeout(tc.timeout)
 			mgr.SetDuraOptions(0, 0, tc.durabilityLevel)
 
