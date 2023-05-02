@@ -16,7 +16,7 @@ type kvProviderPs struct {
 	client kv_v1.KvServiceClient
 }
 
-var ErrUnsupportedPsOperation = errors.New("Operation is unsupported by PS")
+var ErrUnsupportedPsOperation = errors.New("operation is unsupported by PS")
 
 func (p *kvProviderPs) LookupIn(opm *kvOpManager, ops []LookupInSpec, flag SubdocDocFlag) (*LookupInResult, error) {
 	lookUpInPSSpecs := make([]*kv_v1.LookupInRequest_Spec, len(ops))
@@ -674,7 +674,7 @@ func contentFlagsCoreToPs(flags uint32) (kv_v1.DocumentContentType, kv_v1.Docume
 	if !ok {
 		return kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_UNKNOWN,
 			kv_v1.DocumentCompressionType_DOCUMENT_COMPRESSION_TYPE_NONE,
-			errors.New(fmt.Sprintf("unsupported encoding type for protostellar: %s", contentType))
+			errors.New(fmt.Sprintf("unsupported encoding type for protostellar: %b", contentType))
 	}
 
 	compressionMap := map[gocbcore.CompressionType]kv_v1.DocumentCompressionType{
@@ -686,7 +686,7 @@ func contentFlagsCoreToPs(flags uint32) (kv_v1.DocumentContentType, kv_v1.Docume
 	if !ok {
 		return kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_UNKNOWN,
 			kv_v1.DocumentCompressionType_DOCUMENT_COMPRESSION_TYPE_NONE,
-			errors.New(fmt.Sprintf("unsupported compression type for protostellar: %s", compressionType))
+			errors.New(fmt.Sprintf("unsupported compression type for protostellar: %b", compressionType))
 	}
 
 	return psContentType, psCompressionType, nil
