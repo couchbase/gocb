@@ -98,7 +98,7 @@ func (dpw *diagnosticsProviderWrapper) Ping(ctx context.Context, opts gocbcore.P
 		pOut = res
 		opm.Resolve()
 	}))
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 
@@ -121,7 +121,7 @@ func (hpw *httpProviderWrapper) DoHTTPRequest(ctx context.Context, req *gocbcore
 		respOut = res
 		opm.Resolve()
 	}))
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 
@@ -144,7 +144,7 @@ func (apw *analyticsProviderWrapper) AnalyticsQuery(ctx context.Context, opts go
 		aOut = reader
 		opm.Resolve()
 	}))
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 
@@ -167,7 +167,7 @@ func (apw *queryProviderWrapper) N1QLQuery(ctx context.Context, opts gocbcore.N1
 		qOut = reader
 		opm.Resolve()
 	}))
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 
@@ -186,7 +186,7 @@ func (apw *queryProviderWrapper) PreparedN1QLQuery(ctx context.Context, opts goc
 		qOut = reader
 		opm.Resolve()
 	}))
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 
@@ -209,7 +209,7 @@ func (apw *searchProviderWrapper) SearchQuery(ctx context.Context, opts gocbcore
 		sOut = reader
 		opm.Resolve()
 	}))
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 
@@ -232,7 +232,7 @@ func (apw *viewProviderWrapper) ViewQuery(ctx context.Context, opts gocbcore.Vie
 		vOut = reader
 		opm.Resolve()
 	}))
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 

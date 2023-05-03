@@ -121,7 +121,7 @@ func (p *kvProviderCore) MutateIn(opm *kvOpManager, action StoreSemantics, ops [
 		synced.Resolve(mutOut.mt)
 	}))
 
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 	return mutOut, errOut
@@ -200,7 +200,7 @@ func (p *kvProviderCore) LookupIn(opm *kvOpManager, ops []LookupInSpec, flags Su
 			synced.Reject()
 		}
 	}))
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 
@@ -280,7 +280,7 @@ func (p *kvProviderCore) Add(opm *kvOpManager) (*MutationResult, error) {
 		synced.Resolve(mutOut.mt)
 	}))
 
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 
@@ -323,7 +323,7 @@ func (p *kvProviderCore) Set(opm *kvOpManager) (*MutationResult, error) {
 
 	}))
 
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 	return mutOut, errOut
@@ -368,7 +368,7 @@ func (p *kvProviderCore) Replace(opm *kvOpManager) (*MutationResult, error) {
 
 	}))
 
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 
@@ -412,7 +412,7 @@ func (p *kvProviderCore) Get(opm *kvOpManager) (*GetResult, error) {
 		synced.Resolve(nil)
 	}))
 
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 
@@ -456,7 +456,7 @@ func (p *kvProviderCore) GetAndTouch(opm *kvOpManager) (*GetResult, error) {
 		synced.Resolve(nil)
 	}))
 
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 
@@ -501,7 +501,7 @@ func (p *kvProviderCore) GetAndLock(opm *kvOpManager) (*GetResult, error) {
 
 		synced.Resolve(nil)
 	}))
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 
@@ -551,7 +551,7 @@ func (p *kvProviderCore) Exists(opm *kvOpManager) (*ExistsResult, error) {
 
 		synced.Resolve(nil)
 	}))
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 
@@ -589,7 +589,7 @@ func (p *kvProviderCore) Delete(opm *kvOpManager) (*MutationResult, error) {
 
 		synced.Resolve(mutOut.mt)
 	}))
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 
@@ -621,7 +621,7 @@ func (p *kvProviderCore) Unlock(opm *kvOpManager) error {
 		synced.Resolve(mt)
 	}))
 
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 	return errOut
@@ -657,7 +657,7 @@ func (p *kvProviderCore) Touch(opm *kvOpManager) (*MutationResult, error) {
 		synced.Resolve(mutOut.mt)
 	}))
 
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 
@@ -697,7 +697,7 @@ func (p *kvProviderCore) GetReplica(opm *kvOpManager) (*GetReplicaResult, error)
 
 		synced.Resolve(nil)
 	}))
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 
@@ -839,7 +839,7 @@ func (p *kvProviderCore) Prepend(opm *kvOpManager) (*MutationResult, error) {
 		synced.Resolve(mutOut.mt)
 	}))
 
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 
@@ -880,7 +880,7 @@ func (p *kvProviderCore) Append(opm *kvOpManager) (*MutationResult, error) {
 		synced.Resolve(mutOut.mt)
 	}))
 
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 
@@ -923,7 +923,7 @@ func (p *kvProviderCore) Increment(opm *kvOpManager) (*CounterResult, error) {
 		synced.Resolve(countOut.mt)
 	}))
 
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 
@@ -965,7 +965,7 @@ func (p *kvProviderCore) Decrement(opm *kvOpManager) (*CounterResult, error) {
 
 		synced.Resolve(countOut.mt)
 	}))
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 	return countOut, errOut

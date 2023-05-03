@@ -166,7 +166,7 @@ func (p *kvProviderCore) waitForConfigSnapshot(ctx context.Context, deadline tim
 		snapOut = result.Snapshot
 		opm.Resolve()
 	}))
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 

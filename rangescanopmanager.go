@@ -637,7 +637,7 @@ func (rss *rangeScanStream) create(ctx context.Context, rangeOpts *gocbcore.Rang
 		uuidOut = result.ScanUUUID
 		opMan.Resolve()
 	}))
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 
@@ -686,7 +686,7 @@ func (rss *rangeScanStream) scanContinue(scanUUID []byte) (itemsOut []gocbcore.R
 		logInfof("Received a range scan action that did not meet what we expected")
 		opm.Resolve()
 	}))
-	if err != nil {
+	if errOut != nil {
 		errOut = err
 	}
 
