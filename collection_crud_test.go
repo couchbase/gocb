@@ -2189,11 +2189,11 @@ func (suite *UnitTestSuite) TestGetErrorCollectionUnknown() {
 
 	provider := new(mockKvProvider)
 	provider.
-		On("Get", mock.AnythingOfType("gocbcore.GetOptions"), mock.AnythingOfType("gocbcore.GetCallback")).
-		Run(func(args mock.Arguments) {
-			cb := args.Get(1).(gocbcore.GetCallback)
-			cb(nil, gocbcore.ErrCollectionNotFound)
-		}).
+		On("Get", mock.Anything).
+		// Run(func(args mock.Arguments) {
+		// 	cb := args.Get(1).(gocbcore.GetCallback)
+		// 	cb(nil, gocbcore.ErrCollectionNotFound)
+		// }).
 		Return(pendingOp, nil)
 
 	col := suite.collection("mock", "", "", provider)
@@ -2292,12 +2292,8 @@ func (suite *UnitTestSuite) TestGetErrorProperties() {
 
 	provider := new(mockKvProvider)
 	provider.
-		On("Get", mock.AnythingOfType("gocbcore.GetOptions"), mock.AnythingOfType("gocbcore.GetCallback")).
-		Run(func(args mock.Arguments) {
-			cb := args.Get(1).(gocbcore.GetCallback)
-			cb(nil, expectedErr)
-		}).
-		Return(pendingOp, nil)
+		On("Get", mock.Anything).
+		Return(nil, expectedErr)
 
 	col := suite.collection("mock", "", "", provider)
 
