@@ -138,7 +138,7 @@ func (suite *IntegrationTestSuite) ensureReplicasUpEnhDura() {
 			DurabilityLevel: DurabilityLevelPersistToMajority,
 		})
 		if err != nil {
-			suite.T().Logf("Failed to get upsert: %s", err)
+			suite.T().Logf("Failed to upsert: %s", err)
 			time.Sleep(50 * time.Millisecond)
 			return false
 		}

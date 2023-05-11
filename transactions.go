@@ -387,6 +387,9 @@ func (t *Transactions) atrLocationsProvider() ([]gocbcore.TransactionLostATRLoca
 }
 
 func (t *Transactions) singleQuery(statement string, scope *Scope, opts QueryOptions) (*QueryResult, error) {
+	if t.unsupported {
+		return nil, wrapError(ErrFeatureNotAvailable, "transactions are not currently supported against protostellar")
+	}
 	if opts.Context != nil {
 		return nil, makeInvalidArgumentsError("cannot use context and transactions together")
 	}

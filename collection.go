@@ -15,7 +15,9 @@ type Collection struct {
 
 	useMutationTokens bool
 
-	getKvProvider func() (kvProvider, error)
+	getKvProvider         func() (kvProvider, error)
+	getQueryIndexProvider func() (queryIndexProvider, error)
+	getQueryProvider      func() (queryProvider, error)
 }
 
 func newCollection(scope *Scope, collectionName string) *Collection {
@@ -33,7 +35,9 @@ func newCollection(scope *Scope, collectionName string) *Collection {
 
 		useMutationTokens: scope.useMutationTokens,
 
-		getKvProvider: scope.getKvProvider,
+		getKvProvider:         scope.getKvProvider,
+		getQueryIndexProvider: scope.getQueryIndexProvider,
+		getQueryProvider:      scope.getQueryProvider,
 	}
 }
 
@@ -60,28 +64,10 @@ func (c *Collection) Name() string {
 // QueryIndexes returns a CollectionQueryIndexManager for managing query indexes.
 // UNCOMMITTED: This API may change in the future.
 func (c *Collection) QueryIndexes() *CollectionQueryIndexManager {
-	// Ensure scope and collection names are populated, if the DefaultX functions on bucket are
-	// used then the names will be empty by default.
-	scopeName := c.scope
-	if scopeName == "" {
-		scopeName = "_default"
-	}
-	collectionName := c.collectionName
-	if collectionName == "" {
-		collectionName = "_default"
-	}
-
 	return &CollectionQueryIndexManager{
-		base: &baseQueryIndexManager{
-			provider:      c.Bucket().Scope(scopeName),
-			globalTimeout: c.timeoutsConfig.ManagementTimeout,
-			tracer:        c.tracer,
-			meter:         c.meter,
-		},
+		getProvider: c.getQueryIndexProvider,
 
-		bucketName:     c.bucketName(),
-		scopeName:      scopeName,
-		collectionName: collectionName,
+		c: c,
 	}
 }
 

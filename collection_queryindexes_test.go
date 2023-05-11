@@ -7,7 +7,7 @@ import (
 
 func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrud() {
 	suite.skipIfUnsupported(QueryIndexFeature)
-	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(CollectionsManagerFeature)
 
 	bucketName := globalBucket.Name()
 

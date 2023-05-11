@@ -1,12 +1,9 @@
 package gocb
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"time"
-
-	gocbcore "github.com/couchbase/gocbcore/v10"
 )
 
 type jsonQueryMetrics struct {
@@ -145,7 +142,6 @@ func (qrr *QueryResultRaw) NextBytes() []byte {
 func (qrr *QueryResultRaw) Err() error {
 	err := qrr.reader.Err()
 	if err != nil {
-		err = maybeEnhanceQueryError(err)
 		if qrr.transactionID != "" {
 			return singleQueryErrToTransactionError(err, qrr.transactionID)
 		}
@@ -160,7 +156,6 @@ func (qrr *QueryResultRaw) Err() error {
 func (qrr *QueryResultRaw) Close() error {
 	err := qrr.reader.Close()
 	if err != nil {
-		err = maybeEnhanceQueryError(err)
 		if qrr.transactionID != "" {
 			return singleQueryErrToTransactionError(err, qrr.transactionID)
 		}
@@ -256,7 +251,6 @@ func (r *QueryResult) Err() error {
 
 	err := r.reader.Err()
 	if err != nil {
-		err = maybeEnhanceQueryError(err)
 		if r.transactionID != "" {
 			return singleQueryErrToTransactionError(err, r.transactionID)
 		}
@@ -275,7 +269,6 @@ func (r *QueryResult) Close() error {
 
 	err := r.reader.Close()
 	if err != nil {
-		err = maybeEnhanceQueryError(err)
 		if r.transactionID != "" {
 			return singleQueryErrToTransactionError(err, r.transactionID)
 		}
@@ -287,7 +280,7 @@ func (r *QueryResult) Close() error {
 }
 
 // One assigns the first value from the results into the value pointer.
-// It will close the results but not before iterating through all remaining
+// It will Close the results but not before iterating through all remaining
 // results, as such this should only be used for very small resultsets - ideally
 // of, at most, length 1.
 func (r *QueryResult) One(valuePtr interface{}) error {
@@ -357,15 +350,6 @@ func (r *QueryResultInternal) Endpoint() string {
 	return r.endpoint
 }
 
-type queryRowReader interface {
-	NextRow() []byte
-	Err() error
-	MetaData() ([]byte, error)
-	Close() error
-	PreparedName() (string, error)
-	Endpoint() string
-}
-
 // Query executes the query statement on the server.
 func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResult, error) {
 	if opts == nil {
@@ -376,113 +360,14 @@ func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResult, err
 		return c.Transactions().singleQuery(statement, nil, *opts)
 	}
 
-	start := time.Now()
-	defer c.meter.ValueRecord(meterValueServiceQuery, "query", start)
-
-	span := createSpan(c.tracer, opts.ParentSpan, "query", "query")
-	span.SetAttribute("db.statement", statement)
-	defer span.End()
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = c.timeoutsConfig.QueryTimeout
-	}
-	deadline := time.Now().Add(timeout)
-
-	retryStrategy := c.retryStrategyWrapper
-	if opts.RetryStrategy != nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	queryOpts, err := opts.toMap()
-	if err != nil {
-		return nil, QueryError{
-			InnerError:      wrapError(err, "failed to generate query options"),
-			Statement:       statement,
-			ClientContextID: opts.ClientContextID,
-		}
-	}
-
-	queryOpts["statement"] = statement
-
 	provider, err := c.getQueryProvider()
 	if err != nil {
 		return nil, QueryError{
 			InnerError:      wrapError(err, "failed to get query provider"),
 			Statement:       statement,
-			ClientContextID: maybeGetQueryOption(queryOpts, "client_context_id"),
+			ClientContextID: opts.ClientContextID,
 		}
 	}
 
-	return execN1qlQuery(
-		opts.Context,
-		span,
-		queryOpts,
-		deadline,
-		retryStrategy,
-		opts.Adhoc,
-		provider,
-		c.tracer,
-		opts.Internal.User,
-		opts.Internal.Endpoint,
-	)
-}
-
-func maybeGetQueryOption(options map[string]interface{}, name string) string {
-	if value, ok := options[name].(string); ok {
-		return value
-	}
-	return ""
-}
-
-func execN1qlQuery(
-	ctx context.Context,
-	span RequestSpan,
-	options map[string]interface{},
-	deadline time.Time,
-	retryStrategy *retryStrategyWrapper,
-	adHoc bool,
-	provider queryProvider,
-	tracer RequestTracer,
-	user,
-	endpoint string,
-) (*QueryResult, error) {
-	eSpan := tracer.RequestSpan(span.Context(), "request_encoding")
-	eSpan.SetAttribute("db.system", "couchbase")
-	reqBytes, err := json.Marshal(options)
-	eSpan.End()
-	if err != nil {
-		return nil, QueryError{
-			InnerError:      wrapError(err, "failed to marshall query body"),
-			Statement:       maybeGetQueryOption(options, "statement"),
-			ClientContextID: maybeGetQueryOption(options, "client_context_id"),
-		}
-	}
-
-	var res queryRowReader
-	var qErr error
-	if adHoc {
-		res, qErr = provider.N1QLQuery(ctx, gocbcore.N1QLQueryOptions{
-			Payload:       reqBytes,
-			RetryStrategy: retryStrategy,
-			Deadline:      deadline,
-			TraceContext:  span.Context(),
-			User:          user,
-			Endpoint:      endpoint,
-		})
-	} else {
-		res, qErr = provider.PreparedN1QLQuery(ctx, gocbcore.N1QLQueryOptions{
-			Payload:       reqBytes,
-			RetryStrategy: retryStrategy,
-			Deadline:      deadline,
-			TraceContext:  span.Context(),
-			User:          user,
-			Endpoint:      endpoint,
-		})
-	}
-	if qErr != nil {
-		return nil, maybeEnhanceQueryError(qErr)
-	}
-
-	return newQueryResult(res), nil
+	return provider.Query(statement, nil, opts)
 }

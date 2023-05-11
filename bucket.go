@@ -87,6 +87,15 @@ func (b *Bucket) getQueryProvider() (queryProvider, error) {
 	return agent, nil
 }
 
+func (b *Bucket) getQueryIndexProvider() (queryIndexProvider, error) {
+	provider, err := b.connectionManager.getQueryIndexProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}
+
 func (b *Bucket) getAnalyticsProvider() (analyticsProvider, error) {
 	if b.bootstrapError != nil {
 		return nil, b.bootstrapError

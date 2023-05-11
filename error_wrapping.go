@@ -140,7 +140,7 @@ func maybeEnhanceViewError(err error) error {
 	return maybeEnhanceCoreErr(err)
 }
 
-func maybeEnhanceQueryError(err error) error {
+func maybeEnhanceCoreQueryError(err error) error {
 	return maybeEnhanceCoreErr(err)
 }
 

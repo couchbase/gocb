@@ -173,7 +173,31 @@ func (c *stdConnectionMgr) getQueryProvider() (queryProvider, error) {
 		return nil, errors.New("cluster not yet connected")
 	}
 
-	return &queryProviderWrapper{provider: c.agentgroup}, nil
+	return &queryProviderCore{
+		provider: &queryProviderWrapper{provider: c.agentgroup},
+
+		retryStrategyWrapper: c.retryStrategyWrapper,
+		transcoder:           c.transcoder,
+		timeouts:             c.timeouts,
+		tracer:               c.tracer,
+		meter:                c.meter,
+	}, nil
+}
+
+func (c *stdConnectionMgr) getQueryIndexProvider() (queryIndexProvider, error) {
+	if c.agentgroup == nil {
+		return nil, errors.New("cluster not yet connected")
+	}
+
+	return &queryProviderCore{
+		provider: &queryProviderWrapper{provider: c.agentgroup},
+
+		retryStrategyWrapper: c.retryStrategyWrapper,
+		transcoder:           c.transcoder,
+		timeouts:             c.timeouts,
+		tracer:               c.tracer,
+		meter:                c.meter,
+	}, nil
 }
 
 func (c *stdConnectionMgr) getAnalyticsProvider() (analyticsProvider, error) {

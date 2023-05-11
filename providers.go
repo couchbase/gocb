@@ -17,11 +17,6 @@ type viewProvider interface {
 	ViewQuery(ctx context.Context, opts gocbcore.ViewQueryOptions) (viewRowReader, error)
 }
 
-type queryProvider interface {
-	N1QLQuery(ctx context.Context, opts gocbcore.N1QLQueryOptions) (queryRowReader, error)
-	PreparedN1QLQuery(ctx context.Context, opts gocbcore.N1QLQueryOptions) (queryRowReader, error)
-}
-
 type analyticsProvider interface {
 	AnalyticsQuery(ctx context.Context, opts gocbcore.AnalyticsQueryOptions) (analyticsRowReader, error)
 }

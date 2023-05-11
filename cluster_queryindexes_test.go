@@ -11,25 +11,52 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 	suite.skipIfUnsupported(QueryIndexFeature)
 	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
-	bucketMgr := globalCluster.Buckets()
-	bucketName := "testIndexes"
-
-	err := bucketMgr.CreateBucket(CreateBucketSettings{
-		BucketSettings: BucketSettings{
-			Name:        bucketName,
-			RAMQuotaMB:  100,
-			NumReplicas: 0,
-			BucketType:  CouchbaseBucketType,
-		},
-	}, nil)
-	suite.Require().Nil(err, err)
-	defer bucketMgr.DropBucket(bucketName, nil)
-
 	mgr := globalCluster.QueryIndexes()
+	var bucketName string
+	if globalCluster.SupportsFeature(BucketMgrFeature) {
+		bucketMgr := globalCluster.Buckets()
+		bucketName = "testIndexes" + uuid.NewString()[:6]
+
+		err := bucketMgr.CreateBucket(CreateBucketSettings{
+			BucketSettings: BucketSettings{
+				Name:        bucketName,
+				RAMQuotaMB:  100,
+				NumReplicas: 0,
+				BucketType:  CouchbaseBucketType,
+			},
+		}, nil)
+		suite.Require().Nil(err, err)
+		defer bucketMgr.DropBucket(bucketName, nil)
+	} else {
+		bucketName = globalBucket.Name()
+		indexes, err := mgr.GetAllIndexes(bucketName, &GetAllQueryIndexesOptions{
+			ScopeName: "_default",
+		})
+		suite.Require().Nil(err, err)
+
+		for _, index := range indexes {
+			if index.IsPrimary {
+				err := mgr.DropPrimaryIndex(bucketName, &DropPrimaryQueryIndexOptions{
+					ScopeName:      "_default",
+					CollectionName: "_default",
+				})
+				suite.Require().NoError(err, err)
+			} else {
+				err := mgr.DropIndex(bucketName, index.Name, &DropQueryIndexOptions{
+					ScopeName:      "_default",
+					CollectionName: "_default",
+				})
+				suite.Require().NoError(err, err)
+			}
+		}
+
+		globalTracer.Reset()
+		globalMeter.Reset()
+	}
 
 	deadline := time.Now().Add(5 * time.Second)
 	for {
-		err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
+		err := mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
 			IgnoreIfExists: true,
 		})
 		if err == nil {
@@ -50,7 +77,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 		}
 	}
 
-	err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
+	err := mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
 		IgnoreIfExists: false,
 	})
 	suite.Require().NotNil(err, err)
@@ -101,8 +128,8 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 	suite.Assert().False(index.IsPrimary)
 	suite.Assert().Equal(QueryIndexTypeGsi, index.Type)
 	suite.Assert().Equal("online", index.State)
-	suite.Assert().Equal("testIndexes", index.Keyspace)
-	suite.Assert().Equal("testIndexes", index.BucketName)
+	suite.Assert().Equal(bucketName, index.Keyspace)
+	suite.Assert().Equal(bucketName, index.BucketName)
 	suite.Assert().Equal("", index.ScopeName)
 	suite.Assert().Equal("", index.CollectionName)
 	suite.Assert().Equal("default", index.Namespace)
@@ -130,7 +157,9 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 		suite.T().Fatalf("Expected index not found error but was %s", err)
 	}
 
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_bucket_create_bucket"), 1, false)
+	if globalCluster.SupportsFeature(BucketMgrFeature) {
+		suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_bucket_create_bucket"), 1, false)
+	}
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_query_create_primary_index"), 2, true)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_query_create_index"), 3, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_query_build_deferred_indexes"), 1, false)
@@ -142,7 +171,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 
 func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 	suite.skipIfUnsupported(QueryIndexFeature)
-	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(CollectionsManagerFeature)
 	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	suite.dropAllIndexes()
@@ -311,7 +340,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 
 func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNamesBucketOnly() {
 	suite.skipIfUnsupported(QueryIndexFeature)
-	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(CollectionsManagerFeature)
 	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	suite.dropAllIndexes()
@@ -320,7 +349,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 	collections := globalBucket.Collections()
 	err := collections.CreateCollection(CollectionSpec{
 		ScopeName: "_default",
-		Name:      bucketName,
+		Name:      uuid.NewString()[:6],
 	}, nil)
 	suite.Require().Nil(err, err)
 
@@ -379,7 +408,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 
 func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNamesCollectionOnly() {
 	suite.skipIfUnsupported(QueryIndexFeature)
-	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(CollectionsManagerFeature)
 	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	suite.dropAllIndexes()
@@ -453,25 +482,49 @@ func (suite *IntegrationTestSuite) TestQueryIndexesIncludesDefaultCollection() {
 	suite.skipIfUnsupported(QueryIndexFeature)
 	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
-	bucketMgr := globalCluster.Buckets()
-	bucketName := "testIndexes" + uuid.NewString()
-
-	err := bucketMgr.CreateBucket(CreateBucketSettings{
-		BucketSettings: BucketSettings{
-			Name:        bucketName,
-			RAMQuotaMB:  100,
-			NumReplicas: 0,
-			BucketType:  CouchbaseBucketType,
-		},
-	}, nil)
-	suite.Require().Nil(err, err)
-	defer bucketMgr.DropBucket(bucketName, nil)
-
 	mgr := globalCluster.QueryIndexes()
+	var bucketName string
+	if globalCluster.SupportsFeature(BucketMgrFeature) {
+		bucketMgr := globalCluster.Buckets()
+		bucketName = "testIndexes" + uuid.NewString()
+
+		err := bucketMgr.CreateBucket(CreateBucketSettings{
+			BucketSettings: BucketSettings{
+				Name:        bucketName,
+				RAMQuotaMB:  100,
+				NumReplicas: 0,
+				BucketType:  CouchbaseBucketType,
+			},
+		}, nil)
+		suite.Require().Nil(err, err)
+		defer bucketMgr.DropBucket(bucketName, nil)
+	} else {
+		bucketName = globalBucket.Name()
+		indexes, err := mgr.GetAllIndexes(bucketName, &GetAllQueryIndexesOptions{
+			ScopeName: "_default",
+		})
+		suite.Require().Nil(err, err)
+
+		for _, index := range indexes {
+			if index.IsPrimary {
+				err := mgr.DropPrimaryIndex(bucketName, &DropPrimaryQueryIndexOptions{
+					ScopeName:      "_default",
+					CollectionName: "_default",
+				})
+				suite.Require().NoError(err, err)
+			} else {
+				err := mgr.DropIndex(bucketName, index.Name, &DropQueryIndexOptions{
+					ScopeName:      "_default",
+					CollectionName: "_default",
+				})
+				suite.Require().NoError(err, err)
+			}
+		}
+	}
 
 	deadline := time.Now().Add(5 * time.Second)
 	for {
-		err = mgr.CreateIndex(bucketName, "myindex", []string{"field"}, &CreateQueryIndexOptions{
+		err := mgr.CreateIndex(bucketName, "myindex", []string{"field"}, &CreateQueryIndexOptions{
 			IgnoreIfExists: true,
 		})
 		if err == nil {
@@ -554,15 +607,15 @@ func (suite *UnitTestSuite) TestQueryIndexesParsing() {
 			Suite: suite,
 		},
 	}
-
-	var cluster *Cluster
-	cluster = suite.queryCluster(false, reader, nil)
+	provider, _ := suite.newMockQueryProvider(false, reader)
 
 	mgr := QueryIndexManager{
-		base: &baseQueryIndexManager{
-			provider: cluster,
-			tracer:   &NoopTracer{},
-			meter:    &meterWrapper{meter: &NoopMeter{}},
+		getProvider: func() (queryIndexProvider, error) {
+			return &queryProviderCore{
+				provider: provider,
+				tracer:   &NoopTracer{},
+				meter:    &meterWrapper{meter: &NoopMeter{}},
+			}, nil
 		},
 	}
 

@@ -35,6 +35,7 @@ updatemocks:
 	mockery --name=waitUntilReadyProvider --output=. --testonly --inpackage
 	mockery --name=kvCapabilityVerifier --output=. --testonly --inpackage
 	mockery --name=kvProviderCoreProvider --output=. --testonly --inpackage
+	mockery --name=queryProviderCoreProvider --output=. --testonly --inpackage
 	# pendingOp is manually mocked
 
 .PHONY: all test devsetup fasttest lint cover check bench updatetestcases updatemocks

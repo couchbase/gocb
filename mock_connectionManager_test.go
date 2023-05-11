@@ -210,6 +210,32 @@ func (_m *mockConnectionManager) getKvProvider(bucketName string) (kvProvider, e
 	return r0, r1
 }
 
+// getQueryIndexProvider provides a mock function with given fields:
+func (_m *mockConnectionManager) getQueryIndexProvider() (queryIndexProvider, error) {
+	ret := _m.Called()
+
+	var r0 queryIndexProvider
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (queryIndexProvider, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() queryIndexProvider); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(queryIndexProvider)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // getQueryProvider provides a mock function with given fields:
 func (_m *mockConnectionManager) getQueryProvider() (queryProvider, error) {
 	ret := _m.Called()

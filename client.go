@@ -1,8 +1,6 @@
 package gocb
 
-import (
-	"github.com/couchbase/gocbcore/v10"
-)
+import gocbcore "github.com/couchbase/gocbcore/v10"
 
 type connectionManager interface {
 	connect() error
@@ -12,6 +10,7 @@ type connectionManager interface {
 	getKvCapabilitiesProvider(bucketName string) (kvCapabilityVerifier, error)
 	getViewProvider(bucketName string) (viewProvider, error)
 	getQueryProvider() (queryProvider, error)
+	getQueryIndexProvider() (queryIndexProvider, error)
 	getAnalyticsProvider() (analyticsProvider, error)
 	getSearchProvider() (searchProvider, error)
 	getHTTPProvider(bucketName string) (httpProvider, error)

@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/stretchr/testify/mock"
 	"time"
+
+	"github.com/stretchr/testify/mock"
 )
 
 func (suite *IntegrationTestSuite) TestTransactionsQueryModeInsert() {
@@ -596,28 +597,37 @@ func (suite *UnitTestSuite) TestTransactionsQueryGocbcoreCauseError() {
 		},
 	}
 
-	queryProvider := new(mockQueryProvider)
+	provider := new(mockQueryProviderCoreProvider)
 	// BEGIN WORK
-	queryProvider.
+	provider.
 		On("N1QLQuery", nil, mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
 		Return(beginWorkReader, nil).
 		Once()
 	// QUERY
-	queryProvider.
+	provider.
 		On("N1QLQuery", nil, mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
 		Return(reader, nil).
 		Once()
 	// ROLLBACK
-	queryProvider.
+	provider.
 		On("N1QLQuery", nil, mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
 		Return(beginWorkReader, nil).
 		Once()
+
+	queryProvider := &queryProviderCore{
+		provider: provider,
+	}
 
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
 	cli.On("close").Return(nil)
 
 	cluster := suite.newCluster(cli)
+	queryProvider.meter = cluster.meter
+	queryProvider.tracer = cluster.tracer
+	queryProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
+	queryProvider.timeouts = cluster.timeoutsConfig
+
 	cluster.transactions, err = cluster.initTransactions(TransactionsConfig{
 		CleanupConfig: TransactionsCleanupConfig{
 			DisableLostAttemptCleanup: true,

@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/couchbase/gocbcore/v10"
 
@@ -35,14 +36,12 @@ func (suite *IntegrationTestSuite) setupScopeQuery() int {
 		globalCollection.Name())
 	suite.Require().Nil(err, "Failed to create dataset %v", err)
 
-	_, err = globalScope.Query(fmt.Sprintf("CREATE PRIMARY INDEX ON `%s`", globalCollection.Name()), nil)
-	if err != nil {
-		mgr := globalCluster.QueryIndexes()
-		err = mgr.base.tryParseErrorMessage(err)
-		if !errors.Is(err, ErrIndexExists) {
-			suite.T().Fatalf("Failed to create index %v", err)
-		}
-	}
+	mgr := globalCluster.QueryIndexes()
+	err = mgr.CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
+		IgnoreIfExists: true,
+		Timeout:        30 * time.Second,
+	})
+	suite.Require().Nil(err, "Failed to create index %v", err)
 
 	return n
 }
@@ -68,8 +67,12 @@ func (suite *IntegrationTestSuite) runScopeQueryNamedTest(n int, withMetrics boo
 }
 
 func (suite *UnitTestSuite) queryScope(prepared bool, reader queryRowReader, runFn func(args mock.Arguments)) *Scope {
-	queryProvider, call := suite.newMockQueryProvider(prepared, reader)
+	provider, call := suite.newMockQueryProvider(prepared, reader)
 	call.Run(runFn)
+
+	queryProvider := &queryProviderCore{
+		provider: provider,
+	}
 
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
@@ -77,6 +80,11 @@ func (suite *UnitTestSuite) queryScope(prepared bool, reader queryRowReader, run
 	b := suite.bucket("queryBucket", TimeoutsConfig{QueryTimeout: 75 * time.Second}, cli)
 
 	scope := suite.newScope(b, "queryScope")
+
+	queryProvider.meter = scope.meter
+	queryProvider.tracer = scope.tracer
+	queryProvider.retryStrategyWrapper = scope.retryStrategyWrapper
+	queryProvider.timeouts = scope.timeoutsConfig
 
 	return scope
 }

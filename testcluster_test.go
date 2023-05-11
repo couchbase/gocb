@@ -142,6 +142,10 @@ func (c *testCluster) txnCleanupTimeout() time.Duration {
 	}
 }
 
+func (c *testCluster) IsProtostellar() bool {
+	return c.Version.Edition == ProtostellarNodeEdition
+}
+
 func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 	featureFlagValue := 0
 	for _, featureFlag := range c.FeatureFlags {
@@ -230,9 +234,9 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case ViewFeature:
 			supported = !c.Version.Lower(srvVer200) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(srvVer750) && !c.Version.Equal(protostellarVer)
 		case QueryFeature:
-			supported = !c.Version.Lower(srvVer400) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(protostellarVer)
+			supported = !c.Version.Lower(srvVer400) && !c.Version.Equal(srvVer650DP)
 		case ClusterLevelQueryFeature:
-			supported = !c.Version.Lower(srvVer400) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(srvVer750) && !c.Version.Equal(protostellarVer)
+			supported = !c.Version.Lower(srvVer400) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(srvVer750)
 		case SubdocFeature:
 			supported = !c.Version.Lower(srvVer450)
 		case XattrFeature:
@@ -280,7 +284,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case QueryIndexFeature:
 			supported = !c.Version.Equal(srvVer650DP) && !c.Version.Equal(protostellarVer)
 		case CollectionsQueryFeature:
-			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(protostellarVer)
+			supported = !c.Version.Lower(srvVer700)
 		case CollectionsAnalyticsFeature:
 			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(srvVer750) && !c.Version.Equal(protostellarVer)
 		case CollectionsManagerFeature:
@@ -312,7 +316,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case CustomConflictResolutionFeature:
 			supported = c.Version.Equal(srvVer710DP) && !c.Version.Equal(protostellarVer)
 		case QueryImprovedErrorsFeature:
-			supported = !c.Version.Lower(srvVer710)
+			supported = !c.Version.Lower(srvVer710) && !c.Version.Equal(protostellarVer)
 		case UserManagerChangePasswordFeature:
 			supported = !c.Version.Lower(srvVer600) && !c.Version.Equal(protostellarVer)
 		case TransactionsRemoveLocationFeature:

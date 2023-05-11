@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/stretchr/testify/mock"
@@ -65,10 +66,13 @@ func (suite *IntegrationTestSuite) runPreparedQueryTest(n int, query, bucket, sc
 		nilParents := globalTracer.GetSpans()[nil]
 		suite.Require().Equal(1, len(nilParents))
 
-		numDispatchSpans := 1
-		if !globalCluster.SupportsFeature(EnhancedPreparedStatementsFeature) {
-			// Old style prepared statements means 2 requests.
-			numDispatchSpans = 2
+		var numDispatchSpans int
+		if !globalCluster.IsProtostellar() {
+			numDispatchSpans = 1
+			if !globalCluster.SupportsFeature(EnhancedPreparedStatementsFeature) {
+				// Old style prepared statements means 2 requests.
+				numDispatchSpans = 2
+			}
 		}
 		suite.AssertHTTPOpSpan(nilParents[0], "query",
 			HTTPOpSpanExpectations{
@@ -77,7 +81,7 @@ func (suite *IntegrationTestSuite) runPreparedQueryTest(n int, query, bucket, sc
 				statement:               query,
 				numDispatchSpans:        numDispatchSpans,
 				atLeastNumDispatchSpans: false,
-				hasEncoding:             true,
+				hasEncoding:             !globalCluster.IsProtostellar(),
 				service:                 "query",
 				dispatchOperationID:     contextID,
 			})
@@ -200,14 +204,18 @@ func (suite *IntegrationTestSuite) runQueryTest(n int, query, bucket, scope stri
 		suite.Require().Contains(globalTracer.GetSpans(), nil)
 		nilParents := globalTracer.GetSpans()[nil]
 		suite.Require().Equal(1, len(nilParents))
+		var numDispatchSpans int
+		if !globalCluster.IsProtostellar() {
+			numDispatchSpans = 1
+		}
 		suite.AssertHTTPOpSpan(nilParents[0], "query",
 			HTTPOpSpanExpectations{
 				bucket:                  bucket,
 				scope:                   scope,
 				statement:               query,
-				numDispatchSpans:        1,
+				numDispatchSpans:        numDispatchSpans,
 				atLeastNumDispatchSpans: false,
-				hasEncoding:             true,
+				hasEncoding:             !globalCluster.IsProtostellar(),
 				service:                 "query",
 				dispatchOperationID:     contextID,
 			})
@@ -307,7 +315,7 @@ func (suite *IntegrationTestSuite) TestClusterQueryContext() {
 	res, err = globalCluster.Query("SELECT 1=1", &QueryOptions{
 		Context: ctx,
 	})
-	if !errors.Is(err, ErrRequestCanceled) {
+	if !errors.Is(err, ErrRequestCanceled) && !errors.Is(err, ErrTimeout) {
 		suite.T().Fatalf("Expected error to be canceled but was %v", err)
 	}
 	suite.Require().Nil(res)
@@ -526,8 +534,8 @@ func (arr *mockQueryRowReaderBase) Endpoint() string {
 	return ""
 }
 
-func (suite *UnitTestSuite) newMockQueryProvider(prepared bool, reader queryRowReader) (*mockQueryProvider, *mock.Call) {
-	queryProvider := new(mockQueryProvider)
+func (suite *UnitTestSuite) newMockQueryProvider(prepared bool, reader queryRowReader) (*mockQueryProviderCoreProvider, *mock.Call) {
+	queryProvider := new(mockQueryProviderCoreProvider)
 	methodName := "N1QLQuery"
 	if prepared {
 		methodName = "PreparedN1QLQuery"
@@ -541,15 +549,24 @@ func (suite *UnitTestSuite) newMockQueryProvider(prepared bool, reader queryRowR
 }
 
 func (suite *UnitTestSuite) queryCluster(prepared bool, reader queryRowReader, runFn func(args mock.Arguments)) *Cluster {
-	queryProvider, call := suite.newMockQueryProvider(prepared, reader)
+	provider, call := suite.newMockQueryProvider(prepared, reader)
 	if runFn != nil {
 		call.Run(runFn)
+	}
+
+	queryProvider := &queryProviderCore{
+		provider: provider,
 	}
 
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
 
 	cluster := suite.newCluster(cli)
+
+	queryProvider.meter = cluster.meter
+	queryProvider.tracer = cluster.tracer
+	queryProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
+	queryProvider.timeouts = cluster.timeoutsConfig
 
 	return cluster
 }
@@ -599,7 +616,7 @@ func (suite *UnitTestSuite) TestQueryAdhoc() {
 		suite.Assert().Equal(cluster.retryStrategyWrapper, opts.RetryStrategy)
 		now := time.Now()
 		if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {
-			suite.Fail("Deadline should have been <75s and >70s but was %s", opts.Deadline)
+			suite.Failf("Deadline should have been <75s and >70s but was %s", opts.Deadline.String())
 		}
 
 		var actualOptions map[string]interface{}
@@ -751,15 +768,23 @@ func (suite *UnitTestSuite) TestQueryResultsOneErr() {
 
 func (suite *UnitTestSuite) TestQueryUntypedError() {
 	retErr := errors.New("an error")
-	queryProvider := new(mockQueryProvider)
-	queryProvider.
+	provider := new(mockQueryProviderCoreProvider)
+	provider.
 		On("N1QLQuery", nil, mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
 		Return(nil, retErr)
 
+	queryProvider := &queryProviderCore{
+		provider: provider,
+	}
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
 
 	cluster := suite.newCluster(cli)
+
+	queryProvider.meter = cluster.meter
+	queryProvider.tracer = cluster.tracer
+	queryProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
+	queryProvider.timeouts = cluster.timeoutsConfig
 
 	result, err := cluster.Query("SELECT * FROM dataset", &QueryOptions{
 		Adhoc: true,
@@ -776,15 +801,23 @@ func (suite *UnitTestSuite) TestQueryGocbcoreError() {
 		Errors:          []gocbcore.N1QLErrorDesc{{Code: 5000, Message: "Internal Error"}},
 	}
 
-	queryProvider := new(mockQueryProvider)
-	queryProvider.
+	provider := new(mockQueryProviderCoreProvider)
+	provider.
 		On("N1QLQuery", nil, mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
 		Return(nil, retErr)
+
+	queryProvider := &queryProviderCore{
+		provider: provider,
+	}
 
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
 
 	cluster := suite.newCluster(cli)
+	queryProvider.meter = cluster.meter
+	queryProvider.tracer = cluster.tracer
+	queryProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
+	queryProvider.timeouts = cluster.timeoutsConfig
 
 	result, err := cluster.Query("SELECT * FROM dataset", &QueryOptions{
 		Adhoc: true,
@@ -805,8 +838,8 @@ func (suite *UnitTestSuite) TestQueryTimeoutOption() {
 	cluster := suite.newCluster(nil)
 	statement := "SELECT * FROM dataset"
 
-	queryProvider := new(mockQueryProvider)
-	queryProvider.
+	provider := new(mockQueryProviderCoreProvider)
+	provider.
 		On("N1QLQuery", nil, mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
 		Run(func(args mock.Arguments) {
 			opts := args.Get(1).(gocbcore.N1QLQueryOptions)
@@ -817,6 +850,14 @@ func (suite *UnitTestSuite) TestQueryTimeoutOption() {
 			}
 		}).
 		Return(reader, nil)
+
+	queryProvider := &queryProviderCore{
+		provider: provider,
+	}
+	queryProvider.meter = cluster.meter
+	queryProvider.tracer = cluster.tracer
+	queryProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
+	queryProvider.timeouts = cluster.timeoutsConfig
 
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)

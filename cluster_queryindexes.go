@@ -2,27 +2,12 @@ package gocb
 
 import (
 	"context"
-	"fmt"
 	"time"
 )
 
 // QueryIndexManager provides methods for performing Couchbase query index management.
 type QueryIndexManager struct {
-	base *baseQueryIndexManager
-}
-
-func (qm *QueryIndexManager) maybeAddScopeCollectionToBucket(bucketName, scope, collection string) string {
-	if scope != "" && collection != "" {
-		bucketName = fmt.Sprintf("`%s`.`%s`.`%s`", bucketName, scope, collection)
-	} else if collection == "" && scope != "" {
-		bucketName = fmt.Sprintf("`%s`.`%s`.`_default", bucketName, scope)
-	} else if collection != "" && scope == "" {
-		bucketName = fmt.Sprintf("`%s`.`_default`.`%s", bucketName, collection)
-	} else {
-		bucketName = "`" + bucketName + "`"
-	}
-
-	return bucketName
+	getProvider func() (queryIndexProvider, error)
 }
 
 func (qm *QueryIndexManager) validateScopeCollection(scope, collection string) error {
@@ -76,20 +61,12 @@ func (qm *QueryIndexManager) CreateIndex(bucketName, indexName string, keys []st
 		return err
 	}
 
-	return qm.base.CreateIndex(
-		opts.Context,
-		opts.ParentSpan,
-		qm.maybeAddScopeCollectionToBucket(bucketName, opts.ScopeName, opts.CollectionName),
-		indexName,
-		keys,
-		createQueryIndexOptions{
-			IgnoreIfExists: opts.IgnoreIfExists,
-			Deferred:       opts.Deferred,
-			Timeout:        opts.Timeout,
-			RetryStrategy:  opts.RetryStrategy,
-			NumReplicas:    opts.NumReplicas,
-		},
-	)
+	provider, err := qm.getProvider()
+	if err != nil {
+		return err
+	}
+
+	return provider.CreateIndex(nil, bucketName, indexName, keys, opts)
 }
 
 // CreatePrimaryQueryIndexOptions is the set of options available to the query indexes CreatePrimaryIndex operation.
@@ -121,19 +98,12 @@ func (qm *QueryIndexManager) CreatePrimaryIndex(bucketName string, opts *CreateP
 		return err
 	}
 
-	return qm.base.CreateIndex(
-		opts.Context,
-		opts.ParentSpan,
-		qm.maybeAddScopeCollectionToBucket(bucketName, opts.ScopeName, opts.CollectionName),
-		opts.CustomName,
-		nil,
-		createQueryIndexOptions{
-			IgnoreIfExists: opts.IgnoreIfExists,
-			Deferred:       opts.Deferred,
-			Timeout:        opts.Timeout,
-			RetryStrategy:  opts.RetryStrategy,
-			NumReplicas:    opts.NumReplicas,
-		})
+	provider, err := qm.getProvider()
+	if err != nil {
+		return err
+	}
+
+	return provider.CreatePrimaryIndex(nil, bucketName, opts)
 }
 
 // DropQueryIndexOptions is the set of options available to the query indexes DropIndex operation.
@@ -168,17 +138,12 @@ func (qm *QueryIndexManager) DropIndex(bucketName, indexName string, opts *DropQ
 		return err
 	}
 
-	return qm.base.DropIndex(
-		opts.Context,
-		opts.ParentSpan,
-		qm.maybeAddScopeCollectionToBucket(bucketName, opts.ScopeName, opts.CollectionName),
-		indexName,
-		dropQueryIndexOptions{
-			IgnoreIfNotExists:    opts.IgnoreIfNotExists,
-			Timeout:              opts.Timeout,
-			RetryStrategy:        opts.RetryStrategy,
-			UseCollectionsSyntax: opts.ScopeName != "" || opts.CollectionName != "",
-		})
+	provider, err := qm.getProvider()
+	if err != nil {
+		return err
+	}
+
+	return provider.DropIndex(nil, bucketName, indexName, opts)
 }
 
 // DropPrimaryQueryIndexOptions is the set of options available to the query indexes DropPrimaryIndex operation.
@@ -208,17 +173,12 @@ func (qm *QueryIndexManager) DropPrimaryIndex(bucketName string, opts *DropPrima
 		return err
 	}
 
-	return qm.base.DropIndex(
-		opts.Context,
-		opts.ParentSpan,
-		qm.maybeAddScopeCollectionToBucket(bucketName, opts.ScopeName, opts.CollectionName),
-		opts.CustomName,
-		dropQueryIndexOptions{
-			IgnoreIfNotExists:    opts.IgnoreIfNotExists,
-			Timeout:              opts.Timeout,
-			RetryStrategy:        opts.RetryStrategy,
-			UseCollectionsSyntax: opts.ScopeName != "" || opts.CollectionName != "",
-		})
+	provider, err := qm.getProvider()
+	if err != nil {
+		return err
+	}
+
+	return provider.DropPrimaryIndex(nil, bucketName, opts)
 }
 
 // GetAllQueryIndexesOptions is the set of options available to the query indexes GetAllIndexes operation.
@@ -236,57 +196,18 @@ type GetAllQueryIndexesOptions struct {
 	Context context.Context
 }
 
-func (qm *QueryIndexManager) buildGetAllIndexesWhereClause(
-	bucketName,
-	scopeName,
-	collectionName string,
-) (string, map[string]interface{}) {
-	bucketCond := "bucket_id = $bucketName"
-	scopeCond := "(" + bucketCond + " AND scope_id = $scopeName)"
-	collectionCond := "(" + scopeCond + " AND keyspace_id = $collectionName)"
-	params := map[string]interface{}{
-		"bucketName": bucketName,
-	}
-
-	var where string
-	if collectionName != "" {
-		where = collectionCond
-		params["scopeName"] = scopeName
-		params["collectionName"] = collectionName
-	} else if scopeName != "" {
-		where = scopeCond
-		params["scopeName"] = scopeName
-	} else {
-		where = bucketCond
-	}
-
-	if collectionName == "_default" || collectionName == "" {
-		defaultColCond := "(bucket_id IS MISSING AND keyspace_id = $bucketName)"
-		where = "(" + where + " OR " + defaultColCond + ")"
-	}
-
-	return where, params
-}
-
 // GetAllIndexes returns a list of all currently registered indexes.
 func (qm *QueryIndexManager) GetAllIndexes(bucketName string, opts *GetAllQueryIndexesOptions) ([]QueryIndex, error) {
 	if opts == nil {
 		opts = &GetAllQueryIndexesOptions{}
 	}
 
-	where, params := qm.buildGetAllIndexesWhereClause(bucketName, opts.ScopeName, opts.CollectionName)
+	provider, err := qm.getProvider()
+	if err != nil {
+		return nil, err
+	}
 
-	return qm.base.GetAllIndexes(
-		opts.Context,
-		opts.ParentSpan,
-		where,
-		params,
-		getAllQueryIndexesOptions{
-			Timeout:       opts.Timeout,
-			RetryStrategy: opts.RetryStrategy,
-			ParentSpan:    opts.ParentSpan,
-			Context:       opts.Context,
-		})
+	return provider.GetAllIndexes(nil, bucketName, opts)
 }
 
 // BuildDeferredQueryIndexOptions is the set of options available to the query indexes BuildDeferredIndexes operation.
@@ -315,29 +236,12 @@ func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *Build
 		return nil, err
 	}
 
-	var where string
-	params := make(map[string]interface{})
-	if opts.CollectionName == "" {
-		where = "(keyspace_id = $bucketName AND bucket_id IS MISSING)"
-		params["bucketName"] = bucketName
-	} else {
-		where = "bucket_id = $bucketName AND scope_id = $scopeName AND keyspace_id = $collectionName"
-		params["bucketName"] = bucketName
-		params["scopeName"] = opts.ScopeName
-		params["collectionName"] = opts.CollectionName
+	provider, err := qm.getProvider()
+	if err != nil {
+		return nil, err
 	}
 
-	return qm.base.BuildDeferredIndexes(
-		qm.maybeAddScopeCollectionToBucket(bucketName, opts.ScopeName, opts.CollectionName),
-		where,
-		params,
-		buildDeferredQueryIndexOptions{
-			Timeout:       opts.Timeout,
-			RetryStrategy: opts.RetryStrategy,
-			ParentSpan:    opts.ParentSpan,
-			Context:       opts.Context,
-		},
-	)
+	return provider.BuildDeferredIndexes(nil, bucketName, opts)
 }
 
 // WatchQueryIndexOptions is the set of options available to the query indexes Watch operation.
@@ -365,18 +269,10 @@ func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string,
 		return err
 	}
 
-	where, params := qm.buildGetAllIndexesWhereClause(bucketName, opts.ScopeName, opts.CollectionName)
+	provider, err := qm.getProvider()
+	if err != nil {
+		return err
+	}
 
-	return qm.base.WatchIndexes(
-		where,
-		params,
-		watchList,
-		timeout,
-		watchQueryIndexOptions{
-			WatchPrimary:  opts.WatchPrimary,
-			RetryStrategy: opts.RetryStrategy,
-			ParentSpan:    opts.ParentSpan,
-			Context:       opts.Context,
-		},
-	)
+	return provider.WatchIndexes(nil, bucketName, watchList, timeout, opts)
 }

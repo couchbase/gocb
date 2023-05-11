@@ -14,10 +14,11 @@ type Scope struct {
 
 	useMutationTokens bool
 
-	getKvProvider        func() (kvProvider, error)
-	getQueryProvider     func() (queryProvider, error)
-	getAnalyticsProvider func() (analyticsProvider, error)
-	getTransactions      func() *Transactions
+	getKvProvider         func() (kvProvider, error)
+	getQueryProvider      func() (queryProvider, error)
+	getQueryIndexProvider func() (queryIndexProvider, error)
+	getAnalyticsProvider  func() (analyticsProvider, error)
+	getTransactions       func() *Transactions
 }
 
 func newScope(bucket *Bucket, scopeName string) *Scope {
@@ -34,10 +35,11 @@ func newScope(bucket *Bucket, scopeName string) *Scope {
 
 		useMutationTokens: bucket.useMutationTokens,
 
-		getKvProvider:        bucket.getKvProvider,
-		getQueryProvider:     bucket.getQueryProvider,
-		getAnalyticsProvider: bucket.getAnalyticsProvider,
-		getTransactions:      bucket.getTransactions,
+		getKvProvider:         bucket.getKvProvider,
+		getQueryProvider:      bucket.getQueryProvider,
+		getQueryIndexProvider: bucket.getQueryIndexProvider,
+		getAnalyticsProvider:  bucket.getAnalyticsProvider,
+		getTransactions:       bucket.getTransactions,
 	}
 }
 

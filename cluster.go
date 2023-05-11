@@ -495,6 +495,15 @@ func (c *Cluster) getQueryProvider() (queryProvider, error) {
 	return provider, nil
 }
 
+func (c *Cluster) getQueryIndexProvider() (queryIndexProvider, error) {
+	provider, err := c.connectionManager.getQueryIndexProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}
+
 func (c *Cluster) getAnalyticsProvider() (analyticsProvider, error) {
 	provider, err := c.connectionManager.getAnalyticsProvider()
 	if err != nil {
@@ -554,12 +563,7 @@ func (c *Cluster) AnalyticsIndexes() *AnalyticsIndexManager {
 // QueryIndexes returns a QueryIndexManager for managing query indexes.
 func (c *Cluster) QueryIndexes() *QueryIndexManager {
 	return &QueryIndexManager{
-		base: &baseQueryIndexManager{
-			provider:      c,
-			globalTimeout: c.timeoutsConfig.ManagementTimeout,
-			tracer:        c.tracer,
-			meter:         c.meter,
-		},
+		getProvider: c.getQueryIndexProvider,
 	}
 }
 

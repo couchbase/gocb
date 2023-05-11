@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/couchbase/gocbcore/v10"
-	"github.com/couchbase/gocbcoreps"
+	gocbcoreps "github.com/couchbase/gocbcoreps"
 )
 
 type psConnectionMgr struct {
@@ -64,9 +64,27 @@ func (c *psConnectionMgr) getKvCapabilitiesProvider(bucketName string) (kvCapabi
 func (c *psConnectionMgr) getViewProvider(bucketName string) (viewProvider, error) {
 	return &viewProviderWrapper{}, ErrFeatureNotAvailable
 }
+
 func (c *psConnectionMgr) getQueryProvider() (queryProvider, error) {
-	return &queryProviderWrapper{}, ErrFeatureNotAvailable
+	provider := c.agent.QueryV1()
+	return &queryProviderPs{
+		provider: provider,
+		timeouts: c.timeouts,
+		tracer:   c.tracer,
+		meter:    c.meter,
+	}, nil
 }
+
+func (c *psConnectionMgr) getQueryIndexProvider() (queryIndexProvider, error) {
+	provider := c.agent.QueryAdminV1()
+	return &queryIndexProviderPs{
+		provider:       provider,
+		defaultTimeout: c.timeouts.ManagementTimeout,
+		tracer:         c.tracer,
+		meter:          c.meter,
+	}, nil
+}
+
 func (c *psConnectionMgr) getAnalyticsProvider() (analyticsProvider, error) {
 	return &analyticsProviderWrapper{}, ErrFeatureNotAvailable
 }
