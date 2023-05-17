@@ -599,6 +599,10 @@ func (suite *IntegrationTestSuite) TestCasMismatchConvertedToExists() {
 }
 
 func (suite *IntegrationTestSuite) TestMutateInLookupInXattrs() {
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(SubdocFeature)
+	suite.skipIfUnsupported(XattrFeature)
+
 	type beerWithCountable struct {
 		testBeerDocument
 		Countable []string `json:"countable"`

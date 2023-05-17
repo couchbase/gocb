@@ -90,7 +90,7 @@ func (p *kvProviderCore) internalLookupIn(
 			docOut.contents = make([]lookupInPartial, len(subdocs))
 			for i, opRes := range res.Ops {
 				docOut.contents[i].err = opm.EnhanceErr(opRes.Err)
-				docOut.contents[i].data = json.RawMessage(opRes.Value)
+				docOut.contents[i].data = opRes.Value
 			}
 		}
 

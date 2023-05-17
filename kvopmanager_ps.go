@@ -2,7 +2,10 @@ package gocb
 
 import (
 	"errors"
+	"fmt"
 	"time"
+
+	"google.golang.org/grpc/status"
 
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 )
@@ -160,6 +163,73 @@ func (m *kvOpManagerPs) CheckReadyForOp() error {
 	}
 
 	return nil
+}
+
+func (m *kvOpManagerPs) EnhanceErrorStatus(st *status.Status, readOnly bool) error {
+	err := tryMapPsErrorStatusToGocbError(st, readOnly)
+	if err == nil {
+		err = fmt.Errorf("an unknown error occurred: %s", st.Message())
+	}
+
+	if errors.Is(err, ErrTimeout) {
+		return &TimeoutError{
+			InnerError:    err,
+			TimeObserved:  time.Since(m.createdTime),
+			RetryReasons:  nil,
+			RetryAttempts: 0,
+		}
+	}
+
+	return &KeyValueError{
+		InnerError:       err,
+		DocumentID:       m.DocumentID(),
+		BucketName:       m.BucketName(),
+		ScopeName:        m.ScopeName(),
+		CollectionName:   m.CollectionName(),
+		ErrorName:        st.Code().String(),
+		ErrorDescription: st.Message(),
+		RetryReasons:     nil,
+		RetryAttempts:    0,
+	}
+}
+
+func (m *kvOpManagerPs) EnhanceErr(err error, readOnly bool) error {
+	st, ok := status.FromError(err)
+	if !ok {
+		return &KeyValueError{
+			InnerError:     err,
+			DocumentID:     m.DocumentID(),
+			BucketName:     m.BucketName(),
+			ScopeName:      m.ScopeName(),
+			CollectionName: m.CollectionName(),
+		}
+	}
+
+	gocbErr := tryMapPsErrorStatusToGocbError(st, readOnly)
+	if gocbErr == nil {
+		gocbErr = err
+	}
+
+	if errors.Is(gocbErr, ErrTimeout) {
+		return &TimeoutError{
+			InnerError:    gocbErr,
+			TimeObserved:  time.Since(m.createdTime),
+			RetryReasons:  nil,
+			RetryAttempts: 0,
+		}
+	}
+
+	return &KeyValueError{
+		InnerError:       gocbErr,
+		DocumentID:       m.DocumentID(),
+		BucketName:       m.BucketName(),
+		ScopeName:        m.ScopeName(),
+		CollectionName:   m.CollectionName(),
+		ErrorName:        st.Code().String(),
+		ErrorDescription: st.Message(),
+		RetryReasons:     nil,
+		RetryAttempts:    0,
+	}
 }
 
 func newKvOpManagerPs(c *Collection, opName string, parentSpan RequestSpan) *kvOpManagerPs {

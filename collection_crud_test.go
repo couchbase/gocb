@@ -1223,6 +1223,7 @@ func (rts *upsertRetriesStrategy) RetryAfter(RetryRequest, RetryReason) RetryAct
 
 func (suite *IntegrationTestSuite) TestUpsertRetries() {
 	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(RetriesFeature)
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
@@ -2265,7 +2266,7 @@ func (suite *IntegrationTestSuite) TestBasicCrudContext() {
 	res, err = globalCollection.Upsert("context", "test", &UpsertOptions{
 		Context: ctx,
 	})
-	if !errors.Is(err, ErrRequestCanceled) {
+	if !errors.Is(err, ErrRequestCanceled) && !errors.Is(err, ErrTimeout) {
 		suite.T().Fatalf("Expected error to be canceled but was %v", err)
 	}
 	suite.Require().Nil(res)
@@ -2290,7 +2291,7 @@ func (suite *IntegrationTestSuite) TestBasicCrudContext() {
 	getRes, err = globalCollection.Get("context", &GetOptions{
 		Context: ctx,
 	})
-	if !errors.Is(err, ErrRequestCanceled) {
+	if !errors.Is(err, ErrRequestCanceled) && !errors.Is(err, ErrTimeout) {
 		suite.T().Fatalf("Expected error to be canceled but was %v", err)
 	}
 	suite.Require().Nil(getRes)

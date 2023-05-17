@@ -92,6 +92,7 @@ var (
 	KeyValueBulkFeature                       = FeatureCode("keyvaluebulk")
 	KeyValueProjectionsFeature                = FeatureCode("keyvalueprojections")
 	NodesMetadataFeature                      = FeatureCode("nodesmetadata")
+	RetriesFeature                            = FeatureCode("retries")
 )
 
 type TestFeatureFlag struct {
@@ -245,7 +246,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case CollectionsFeature:
 			supported = c.Version.Equal(srvVer650DP) || !c.Version.Lower(srvVer700)
 		case ExpandMacrosFeature:
-			supported = !c.Version.Lower(srvVer450)
+			supported = !c.Version.Lower(srvVer450) && !c.Version.Equal(protostellarVer)
 		case AdjoinFeature:
 			supported = !c.Version.Equal(srvVer551) && !c.Version.Equal(srvVer552) && !c.Version.Equal(srvVer553)
 		case DurabilityFeature:
@@ -331,6 +332,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case KeyValueProjectionsFeature:
 			supported = !c.Version.Equal(protostellarVer)
 		case NodesMetadataFeature:
+			supported = !c.Version.Equal(protostellarVer)
+		case RetriesFeature:
 			supported = !c.Version.Equal(protostellarVer)
 		}
 	}

@@ -63,6 +63,7 @@ func (suite *UnitTestSuite) TestTimeoutError() {
 
 func (suite *IntegrationTestSuite) TestTimeoutError_Retries() {
 	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(RetriesFeature)
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)

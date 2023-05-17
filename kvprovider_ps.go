@@ -3,7 +3,11 @@ package gocb
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"time"
+
+	"google.golang.org/grpc/status"
 
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
@@ -100,14 +104,31 @@ func (p *kvProviderPs) LookupIn(c *Collection, id string, ops []LookupInSpec, op
 	defer cancel()
 	res, err := p.client.LookupIn(ctx, req)
 	if err != nil {
-		return nil, err
+		return nil, opm.EnhanceErr(err, true)
 	}
 
 	docOut := &LookupInResult{}
 	docOut.cas = Cas(res.Cas)
 	docOut.contents = make([]lookupInPartial, len(lookUpInPSSpecs))
 	for i, opRes := range res.Specs {
-		// TODO: docOut.contents[i].err = synced.EnhanceErr(opRes.Err)
+		if opRes.Status != nil && opRes.Status.Code != 0 {
+			docOut.contents[i].err = opm.EnhanceErrorStatus(status.FromProto(opRes.Status), true)
+		} else if ops[i].op == memd.SubDocOpExists {
+			// PS and classic do not return exists in the same way.
+			// Classic indicates exists via status code, whereas PS uses an actual bool value.
+			var exists bool
+			err = json.Unmarshal(opRes.Content, &exists)
+			if err != nil {
+				logInfof("Failed to unmarshal exists spec response: %s", err)
+				continue
+			}
+
+			if !exists {
+				// If the path doesn't exist then populate the error value. Exists cannot be done at the doc level
+				// so we know that this is path not found.
+				docOut.contents[i].err = opm.EnhanceErr(ErrPathNotFound, false)
+			}
+		}
 		docOut.contents[i].data = opRes.Content
 	}
 
@@ -219,6 +240,16 @@ func (p *kvProviderPs) MutateIn(c *Collection, id string, ops []MutateInSpec, op
 	defer cancel()
 	res, err := p.client.MutateIn(ctx, request)
 	if err != nil {
+		err = opm.EnhanceErr(err, false)
+
+		// GOCBC-1019: Due to a previous bug in gocbcore we need to convert cas mismatch back to exists to match classic
+		// behaviour.
+		if kvErr, ok := err.(*KeyValueError); ok {
+			if errors.Is(kvErr.InnerError, ErrCasMismatch) {
+				kvErr.InnerError = ErrDocumentExists
+			}
+		}
+
 		return nil, err
 	}
 
@@ -273,7 +304,7 @@ func (p *kvProviderPs) Insert(c *Collection, id string, val interface{}, opts *I
 	defer cancel()
 	res, err := p.client.Insert(ctx, request)
 	if err != nil {
-		return nil, err
+		return nil, opm.EnhanceErr(err, false)
 	}
 
 	mt := psMutToGoCbMut(res.MutationToken)
@@ -323,7 +354,7 @@ func (p *kvProviderPs) Upsert(c *Collection, id string, val interface{}, opts *U
 	defer cancel()
 	res, err := p.client.Upsert(ctx, request)
 	if err != nil {
-		return nil, err
+		return nil, opm.EnhanceErr(err, false)
 	}
 
 	mt := psMutToGoCbMut(res.MutationToken)
@@ -380,7 +411,7 @@ func (p *kvProviderPs) Replace(c *Collection, id string, val interface{}, opts *
 	defer cancel()
 	res, err := p.client.Replace(ctx, request)
 	if err != nil {
-		return nil, err
+		return nil, opm.EnhanceErr(err, false)
 	}
 
 	mt := psMutToGoCbMut(res.MutationToken)
@@ -423,7 +454,7 @@ func (p *kvProviderPs) Get(c *Collection, id string, opts *GetOptions) (*GetResu
 	defer cancel()
 	res, err := p.client.Get(ctx, request)
 	if err != nil {
-		return nil, err
+		return nil, opm.EnhanceErr(err, true)
 	}
 
 	resOut := GetResult{
@@ -471,7 +502,7 @@ func (p *kvProviderPs) GetAndTouch(c *Collection, id string, expiry time.Duratio
 	defer cancel()
 	res, err := p.client.GetAndTouch(ctx, request)
 	if err != nil {
-		return nil, err
+		return nil, opm.EnhanceErr(err, false)
 	}
 
 	resOut := GetResult{
@@ -513,7 +544,7 @@ func (p *kvProviderPs) GetAndLock(c *Collection, id string, lockTime time.Durati
 	defer cancel()
 	res, err := p.client.GetAndLock(ctx, request)
 	if err != nil {
-		return nil, err
+		return nil, opm.EnhanceErr(err, false)
 	}
 
 	resOut := GetResult{
@@ -554,7 +585,7 @@ func (p *kvProviderPs) Exists(c *Collection, id string, opts *ExistsOptions) (*E
 	defer cancel()
 	res, err := p.client.Exists(ctx, request)
 	if err != nil {
-		return nil, err
+		return nil, opm.EnhanceErr(err, true)
 	}
 
 	resOut := ExistsResult{
@@ -597,7 +628,7 @@ func (p *kvProviderPs) Remove(c *Collection, id string, opts *RemoveOptions) (*M
 	defer cancel()
 	res, err := p.client.Remove(ctx, request)
 	if err != nil {
-		return nil, err
+		return nil, opm.EnhanceErr(err, false)
 	}
 
 	mt := psMutToGoCbMut(res.MutationToken)
@@ -635,8 +666,11 @@ func (p *kvProviderPs) Unlock(c *Collection, id string, cas Cas, opts *UnlockOpt
 	ctx, cancel := p.newOpCtx(opts.Context, opm.getTimeout())
 	defer cancel()
 	_, err := p.client.Unlock(ctx, request)
+	if err != nil {
+		return opm.EnhanceErr(err, false)
+	}
 
-	return err
+	return nil
 }
 
 func (p *kvProviderPs) Touch(c *Collection, id string, expiry time.Duration, opts *TouchOptions) (*MutationResult, error) {
@@ -662,7 +696,7 @@ func (p *kvProviderPs) Touch(c *Collection, id string, expiry time.Duration, opt
 	defer cancel()
 	res, err := p.client.Touch(ctx, request)
 	if err != nil {
-		return nil, err
+		return nil, opm.EnhanceErr(err, false)
 	}
 
 	mt := psMutToGoCbMut(res.MutationToken)
@@ -746,7 +780,7 @@ func (p *kvProviderPs) Prepend(c *Collection, id string, val []byte, opts *Prepe
 	defer cancel()
 	res, err := p.client.Prepend(ctx, request)
 	if err != nil {
-		return nil, err
+		return nil, opm.EnhanceErr(err, false)
 	}
 
 	mt := psMutToGoCbMut(res.MutationToken)
@@ -792,7 +826,7 @@ func (p *kvProviderPs) Append(c *Collection, id string, val []byte, opts *Append
 	defer cancel()
 	res, err := p.client.Append(ctx, request)
 	if err != nil {
-		return nil, err
+		return nil, opm.EnhanceErr(err, false)
 	}
 
 	mt := psMutToGoCbMut(res.MutationToken)
@@ -839,7 +873,7 @@ func (p *kvProviderPs) Increment(c *Collection, id string, opts *IncrementOption
 	defer cancel()
 	res, err := p.client.Increment(ctx, request)
 	if err != nil {
-		return nil, err
+		return nil, opm.EnhanceErr(err, false)
 	}
 
 	countOut := &CounterResult{}
@@ -882,7 +916,7 @@ func (p *kvProviderPs) Decrement(c *Collection, id string, opts *DecrementOption
 	defer cancel()
 	res, err := p.client.Decrement(ctx, request)
 	if err != nil {
-		return nil, err
+		return nil, opm.EnhanceErr(err, false)
 	}
 
 	countOut := &CounterResult{}
