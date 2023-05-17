@@ -3,9 +3,7 @@
 package gocb
 
 import (
-	context "context"
-
-	gocbcore "github.com/couchbase/gocbcore/v10"
+	search "github.com/couchbase/gocb/v2/search"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -14,25 +12,25 @@ type mockSearchProvider struct {
 	mock.Mock
 }
 
-// SearchQuery provides a mock function with given fields: ctx, opts
-func (_m *mockSearchProvider) SearchQuery(ctx context.Context, opts gocbcore.SearchQueryOptions) (searchRowReader, error) {
-	ret := _m.Called(ctx, opts)
+// SearchQuery provides a mock function with given fields: indexName, query, opts
+func (_m *mockSearchProvider) SearchQuery(indexName string, query search.Query, opts *SearchOptions) (*SearchResult, error) {
+	ret := _m.Called(indexName, query, opts)
 
-	var r0 searchRowReader
+	var r0 *SearchResult
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, gocbcore.SearchQueryOptions) (searchRowReader, error)); ok {
-		return rf(ctx, opts)
+	if rf, ok := ret.Get(0).(func(string, search.Query, *SearchOptions) (*SearchResult, error)); ok {
+		return rf(indexName, query, opts)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, gocbcore.SearchQueryOptions) searchRowReader); ok {
-		r0 = rf(ctx, opts)
+	if rf, ok := ret.Get(0).(func(string, search.Query, *SearchOptions) *SearchResult); ok {
+		r0 = rf(indexName, query, opts)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(searchRowReader)
+			r0 = ret.Get(0).(*SearchResult)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, gocbcore.SearchQueryOptions) error); ok {
-		r1 = rf(ctx, opts)
+	if rf, ok := ret.Get(1).(func(string, search.Query, *SearchOptions) error); ok {
+		r1 = rf(indexName, query, opts)
 	} else {
 		r1 = ret.Error(1)
 	}

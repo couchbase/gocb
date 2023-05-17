@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/couchbase/gocbcore/v10"
-	gocbcoreps "github.com/couchbase/gocbcoreps"
+	"github.com/couchbase/gocbcoreps"
 )
 
 type psConnectionMgr struct {
@@ -89,7 +89,12 @@ func (c *psConnectionMgr) getAnalyticsProvider() (analyticsProvider, error) {
 	return &analyticsProviderWrapper{}, ErrFeatureNotAvailable
 }
 func (c *psConnectionMgr) getSearchProvider() (searchProvider, error) {
-	return &searchProviderWrapper{}, ErrFeatureNotAvailable
+	return &searchProviderPs{
+		provider: c.agent.SearchV1(),
+		timeouts: c.timeouts,
+		tracer:   c.tracer,
+		meter:    c.meter,
+	}, nil
 }
 func (c *psConnectionMgr) getHTTPProvider(bucketName string) (httpProvider, error) {
 	return &httpProviderWrapper{}, ErrFeatureNotAvailable

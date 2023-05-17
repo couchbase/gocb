@@ -55,6 +55,7 @@ func (suite *IntegrationTestSuite) runSearchTest(n int) {
 		suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "search", "search"), 1, false)
 
 		if err != nil {
+			suite.T().Logf("Query failed %s", err)
 			sleepDeadline := time.Now().Add(1000 * time.Millisecond)
 			if sleepDeadline.After(deadline) {
 				sleepDeadline = deadline
@@ -243,16 +244,23 @@ type testSearchDataset struct {
 }
 
 func (suite *UnitTestSuite) searchCluster(reader searchRowReader, runFn func(args mock.Arguments)) *Cluster {
-	provider := new(mockSearchProvider)
+	provider := new(mockSearchProviderCoreProvider)
 	provider.
 		On("SearchQuery", nil, mock.AnythingOfType("gocbcore.SearchQueryOptions")).
 		Run(runFn).
 		Return(reader, nil)
 
+	searchProvider := &searchProviderCore{
+		provider: provider,
+	}
 	cli := new(mockConnectionManager)
-	cli.On("getSearchProvider").Return(provider, nil)
+	cli.On("getSearchProvider").Return(searchProvider, nil)
 
 	cluster := suite.newCluster(cli)
+	searchProvider.meter = cluster.meter
+	searchProvider.tracer = cluster.tracer
+	searchProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
+	searchProvider.timeouts = cluster.timeoutsConfig
 
 	return cluster
 }

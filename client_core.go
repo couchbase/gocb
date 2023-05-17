@@ -213,7 +213,14 @@ func (c *stdConnectionMgr) getSearchProvider() (searchProvider, error) {
 		return nil, errors.New("cluster not yet connected")
 	}
 
-	return &searchProviderWrapper{provider: c.agentgroup}, nil
+	return &searchProviderCore{
+		provider:             &searchProviderWrapper{agent: c.agentgroup},
+		retryStrategyWrapper: c.retryStrategyWrapper,
+		transcoder:           c.transcoder,
+		timeouts:             c.timeouts,
+		tracer:               c.tracer,
+		meter:                c.meter,
+	}, nil
 }
 
 func (c *stdConnectionMgr) getHTTPProvider(bucketName string) (httpProvider, error) {

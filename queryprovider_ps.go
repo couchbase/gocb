@@ -166,6 +166,16 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 		if gocbErr == nil {
 			gocbErr = err
 		}
+
+		if errors.Is(gocbErr, ErrTimeout) {
+			return nil, &TimeoutError{
+				InnerError:    gocbErr,
+				TimeObserved:  time.Since(start),
+				RetryReasons:  nil,
+				RetryAttempts: 0,
+			}
+		}
+
 		return nil, &QueryError{
 			InnerError: gocbErr,
 			Statement:  statement,

@@ -1,24 +1,11 @@
 package search
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 // Query represents a search query.
 type Query interface {
-}
-
-type searchQueryBase struct {
-	options map[string]interface{}
-}
-
-func newSearchQueryBase() searchQueryBase {
-	return searchQueryBase{
-		options: make(map[string]interface{}),
-	}
-}
-
-// MarshalJSON marshal's this query to JSON for the search REST API.
-func (q searchQueryBase) MarshalJSON() ([]byte, error) {
-	return json.Marshal(q.options)
 }
 
 // MatchOperator defines how the individual match terms should be logically concatenated.
@@ -34,255 +21,425 @@ const (
 
 // MatchQuery represents a search match query.
 type MatchQuery struct {
-	searchQueryBase
+	match        string
+	field        *string
+	analyzer     *string
+	prefixLength *uint64
+	fuzziness    *uint64
+	boost        *float32
+	operator     *MatchOperator
+}
+
+// marshal's query to JSON for use with search REST API.
+func (q MatchQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		Match        string   `json:"match"`
+		Field        *string  `json:"field,omitempty"`
+		Analyzer     *string  `json:"analyzer,omitempty"`
+		PrefixLength *uint64  `json:"prefix_length,omitempty"`
+		Fuzziness    *uint64  `json:"fuzziness,omitempty"`
+		Boost        *float32 `json:"boost,omitempty"`
+		Operator     *string  `json:"operator,omitempty"`
+	}{
+		Match:        q.match,
+		Field:        q.field,
+		Analyzer:     q.analyzer,
+		PrefixLength: q.prefixLength,
+		Fuzziness:    q.fuzziness,
+		Boost:        q.boost,
+	}
+	if q.operator != nil {
+		operator := string(*q.operator)
+		outStruct.Operator = &operator
+	}
+
+	return json.Marshal(outStruct)
 }
 
 // NewMatchQuery creates a new MatchQuery.
 func NewMatchQuery(match string) *MatchQuery {
-	q := &MatchQuery{newSearchQueryBase()}
-	q.options["match"] = match
+	q := &MatchQuery{match: match}
 	return q
 }
 
 // Field specifies the field for this query.
 func (q *MatchQuery) Field(field string) *MatchQuery {
-	q.options["field"] = field
+	q.field = &field
 	return q
 }
 
 // Analyzer specifies the analyzer to use for this query.
 func (q *MatchQuery) Analyzer(analyzer string) *MatchQuery {
-	q.options["analyzer"] = analyzer
+	q.analyzer = &analyzer
 	return q
 }
 
 // PrefixLength specifies the prefix length from this query.
 func (q *MatchQuery) PrefixLength(length uint64) *MatchQuery {
-	q.options["prefix_length"] = length
+	q.prefixLength = &length
 	return q
 }
 
 // Fuzziness specifies the fuziness for this query.
 func (q *MatchQuery) Fuzziness(fuzziness uint64) *MatchQuery {
-	q.options["fuzziness"] = fuzziness
+	q.fuzziness = &fuzziness
 	return q
 }
 
 // Boost specifies the boost for this query.
 func (q *MatchQuery) Boost(boost float32) *MatchQuery {
-	q.options["boost"] = boost
+	q.boost = &boost
 	return q
 }
 
 // Operator defines how the individual match terms should be logically concatenated.
 func (q *MatchQuery) Operator(operator MatchOperator) *MatchQuery {
-	q.options["operator"] = string(operator)
+	// q.options["operator"] = string(operator)
+	q.operator = &operator
 	return q
 }
 
 // MatchPhraseQuery represents a search match phrase query.
 type MatchPhraseQuery struct {
-	searchQueryBase
+	matchPhrase string
+	field       *string
+	analyzer    *string
+	boost       *float32
+}
+
+// marshal's query to JSON for use with search REST API.
+func (q MatchPhraseQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		MatchPhrase string   `json:"match_phrase"`
+		Field       *string  `json:"field,omitempty"`
+		Analyzer    *string  `json:"analyzer,omitempty"`
+		Boost       *float32 `json:"boost,omitempty"`
+	}{
+		MatchPhrase: q.matchPhrase,
+		Field:       q.field,
+		Analyzer:    q.analyzer,
+		Boost:       q.boost,
+	}
+
+	return json.Marshal(outStruct)
 }
 
 // NewMatchPhraseQuery creates a new MatchPhraseQuery
 func NewMatchPhraseQuery(phrase string) *MatchPhraseQuery {
-	q := &MatchPhraseQuery{newSearchQueryBase()}
-	q.options["match_phrase"] = phrase
+	q := &MatchPhraseQuery{matchPhrase: phrase}
 	return q
 }
 
 // Field specifies the field for this query.
 func (q *MatchPhraseQuery) Field(field string) *MatchPhraseQuery {
-	q.options["field"] = field
+	q.field = &field
 	return q
 }
 
 // Analyzer specifies the analyzer to use for this query.
 func (q *MatchPhraseQuery) Analyzer(analyzer string) *MatchPhraseQuery {
-	q.options["analyzer"] = analyzer
+	q.analyzer = &analyzer
 	return q
 }
 
 // Boost specifies the boost for this query.
 func (q *MatchPhraseQuery) Boost(boost float32) *MatchPhraseQuery {
-	q.options["boost"] = boost
+	q.boost = &boost
 	return q
 }
 
 // RegexpQuery represents a search regular expression query.
 type RegexpQuery struct {
-	searchQueryBase
+	regexp string
+	field  *string
+	boost  *float32
+}
+
+// marshal's query to JSON for use with search REST API.
+func (q RegexpQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		Regexp string   `json:"regexp"`
+		Field  *string  `json:"field,omitempty"`
+		Boost  *float32 `json:"boost"`
+	}{
+		Regexp: q.regexp,
+		Field:  q.field,
+		Boost:  q.boost,
+	}
+
+	return json.Marshal(outStruct)
 }
 
 // NewRegexpQuery creates a new RegexpQuery.
 func NewRegexpQuery(regexp string) *RegexpQuery {
-	q := &RegexpQuery{newSearchQueryBase()}
-	q.options["regexp"] = regexp
+	q := &RegexpQuery{regexp: regexp}
 	return q
 }
 
 // Field specifies the field for this query.
 func (q *RegexpQuery) Field(field string) *RegexpQuery {
-	q.options["field"] = field
+	q.field = &field
 	return q
 }
 
 // Boost specifies the boost for this query.
 func (q *RegexpQuery) Boost(boost float32) *RegexpQuery {
-	q.options["boost"] = boost
+	q.boost = &boost
 	return q
 }
 
 // QueryStringQuery represents a search string query.
 type QueryStringQuery struct {
-	searchQueryBase
+	query string
+	boost *float32
+}
+
+// marshal's query to JSON for use with search REST API.
+func (q QueryStringQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		Query string   `json:"query"`
+		Boost *float32 `json:"boost"`
+	}{
+		Query: q.query,
+		Boost: q.boost,
+	}
+
+	return json.Marshal(outStruct)
+
 }
 
 // NewQueryStringQuery creates a new StringQuery.
 func NewQueryStringQuery(query string) *QueryStringQuery {
-	q := &QueryStringQuery{newSearchQueryBase()}
-	q.options["query"] = query
+	q := &QueryStringQuery{query: query}
 	return q
 }
 
 // Boost specifies the boost for this query.
 func (q *QueryStringQuery) Boost(boost float32) *QueryStringQuery {
-	q.options["boost"] = boost
+	q.boost = &boost
 	return q
 }
 
 // NumericRangeQuery represents a search numeric range query.
 type NumericRangeQuery struct {
-	searchQueryBase
+	min          *float32
+	inclusiveMin *bool
+	max          *float32
+	inclusiveMax *bool
+	field        *string
+	boost        *float32
+}
+
+// marshal's query to JSON for use with search REST API.
+func (q NumericRangeQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		Min          *float32 `json:"min,omitempty"`
+		InclusiveMin *bool    `json:"inclusive_min,omitempty"`
+		Max          *float32 `json:"max,omitempty"`
+		InclusiveMax *bool    `json:"inclusive_max,omitempty"`
+		Field        *string  `json:"field,omitempty"`
+		Boost        *float32 `json:"boost,omitempty"`
+	}{
+		Min:          q.min,
+		InclusiveMin: q.inclusiveMin,
+		Max:          q.max,
+		InclusiveMax: q.inclusiveMax,
+		Field:        q.field,
+		Boost:        q.boost,
+	}
+
+	return json.Marshal(outStruct)
 }
 
 // NewNumericRangeQuery creates a new NumericRangeQuery.
 func NewNumericRangeQuery() *NumericRangeQuery {
-	q := &NumericRangeQuery{newSearchQueryBase()}
+	q := &NumericRangeQuery{}
 	return q
 }
 
 // Min specifies the minimum value and inclusiveness for this range query.
 func (q *NumericRangeQuery) Min(min float32, inclusive bool) *NumericRangeQuery {
-	q.options["min"] = min
-	q.options["inclusive_min"] = inclusive
+	q.min = &min
+	q.inclusiveMin = &inclusive
 	return q
 }
 
 // Max specifies the maximum value and inclusiveness for this range query.
 func (q *NumericRangeQuery) Max(max float32, inclusive bool) *NumericRangeQuery {
-	q.options["max"] = max
-	q.options["inclusive_max"] = inclusive
+	q.max = &max
+	q.inclusiveMax = &inclusive
 	return q
 }
 
 // Field specifies the field for this query.
 func (q *NumericRangeQuery) Field(field string) *NumericRangeQuery {
-	q.options["field"] = field
+	q.field = &field
 	return q
 }
 
 // Boost specifies the boost for this query.
 func (q *NumericRangeQuery) Boost(boost float32) *NumericRangeQuery {
-	q.options["boost"] = boost
+	q.boost = &boost
 	return q
 }
 
 // DateRangeQuery represents a search date range query.
 type DateRangeQuery struct {
-	searchQueryBase
+	start          *string
+	inclusiveStart *bool
+	end            *string
+	inclusiveEnd   *bool
+	dateTimeParser *string
+	field          *string
+	boost          *float32
+}
+
+// marshal's query to JSON for use with search REST API.
+func (q DateRangeQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		Start          *string  `json:"start,omitempty"`
+		InclusiveStart *bool    `json:"inclusive_start,omitempty"`
+		End            *string  `json:"end,omitempty"`
+		InclusiveEnd   *bool    `json:"inclusive_end,omitempty"`
+		DateTimeParser *string  `json:"datetime_parser,omitempty"`
+		Field          *string  `json:"field,omitempty"`
+		Boost          *float32 `json:"boost,omitempty"`
+	}{
+		Start:          q.start,
+		InclusiveStart: q.inclusiveStart,
+		End:            q.end,
+		InclusiveEnd:   q.inclusiveEnd,
+		DateTimeParser: q.dateTimeParser,
+		Field:          q.field,
+		Boost:          q.boost,
+	}
+
+	return json.Marshal(outStruct)
 }
 
 // NewDateRangeQuery creates a new DateRangeQuery.
 func NewDateRangeQuery() *DateRangeQuery {
-	q := &DateRangeQuery{newSearchQueryBase()}
+	q := &DateRangeQuery{}
 	return q
 }
 
 // Start specifies the start value and inclusiveness for this range query.
 func (q *DateRangeQuery) Start(start string, inclusive bool) *DateRangeQuery {
-	q.options["start"] = start
-	q.options["inclusive_start"] = inclusive
+	q.start = &start
+	q.inclusiveStart = &inclusive
 	return q
 }
 
 // End specifies the end value and inclusiveness for this range query.
 func (q *DateRangeQuery) End(end string, inclusive bool) *DateRangeQuery {
-	q.options["end"] = end
-	q.options["inclusive_end"] = inclusive
+	q.end = &end
+	q.inclusiveEnd = &inclusive
 	return q
 }
 
 // DateTimeParser specifies which date time string parser to use.
 func (q *DateRangeQuery) DateTimeParser(parser string) *DateRangeQuery {
-	q.options["datetime_parser"] = parser
+	q.dateTimeParser = &parser
 	return q
 }
 
 // Field specifies the field for this query.
 func (q *DateRangeQuery) Field(field string) *DateRangeQuery {
-	q.options["field"] = field
+	q.field = &field
 	return q
 }
 
 // Boost specifies the boost for this query.
 func (q *DateRangeQuery) Boost(boost float32) *DateRangeQuery {
-	q.options["boost"] = boost
+	q.boost = &boost
 	return q
 }
 
 // ConjunctionQuery represents a search conjunction query.
 type ConjunctionQuery struct {
-	searchQueryBase
+	conjuncts []Query
+	boost     *float32
+}
+
+// marshal's query to JSON for use with search REST API.
+func (q ConjunctionQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		Conjuncts []Query  `json:"conjuncts"`
+		Boost     *float32 `json:"boost,omitempty"`
+	}{
+		Conjuncts: q.conjuncts,
+		Boost:     q.boost,
+	}
+
+	return json.Marshal(outStruct)
 }
 
 // NewConjunctionQuery creates a new ConjunctionQuery.
 func NewConjunctionQuery(queries ...Query) *ConjunctionQuery {
-	q := &ConjunctionQuery{newSearchQueryBase()}
-	q.options["conjuncts"] = []Query{}
+	q := &ConjunctionQuery{
+		conjuncts: make([]Query, 0),
+	}
 	return q.And(queries...)
 }
 
 // And adds new predicate queries to this conjunction query.
 func (q *ConjunctionQuery) And(queries ...Query) *ConjunctionQuery {
-	q.options["conjuncts"] = append(q.options["conjuncts"].([]Query), queries...)
+	q.conjuncts = append(q.conjuncts, queries...)
 	return q
 }
 
 // Boost specifies the boost for this query.
 func (q *ConjunctionQuery) Boost(boost float32) *ConjunctionQuery {
-	q.options["boost"] = boost
+	q.boost = &boost
 	return q
 }
 
 // DisjunctionQuery represents a search disjunction query.
 type DisjunctionQuery struct {
-	searchQueryBase
+	disjuncts []Query
+	boost     *float32
+	min       *uint32
+}
+
+// marshal's query to JSON for use with search REST API.
+func (q DisjunctionQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		Disjuncts []Query  `json:"disjuncts"`
+		Boost     *float32 `json:"boost,omitempty"`
+		Min       *uint32  `json:"min,omitempty"`
+	}{
+		Disjuncts: q.disjuncts,
+		Boost:     q.boost,
+		Min:       q.min,
+	}
+
+	return json.Marshal(outStruct)
 }
 
 // NewDisjunctionQuery creates a new DisjunctionQuery.
 func NewDisjunctionQuery(queries ...Query) *DisjunctionQuery {
-	q := &DisjunctionQuery{newSearchQueryBase()}
-	q.options["disjuncts"] = []Query{}
+	q := &DisjunctionQuery{
+		disjuncts: make([]Query, 0),
+	}
+
 	return q.Or(queries...)
 }
 
 // Or adds new predicate queries to this disjunction query.
 func (q *DisjunctionQuery) Or(queries ...Query) *DisjunctionQuery {
-	q.options["disjuncts"] = append(q.options["disjuncts"].([]Query), queries...)
+	q.disjuncts = append(q.disjuncts, queries...)
 	return q
 }
 
 // Boost specifies the boost for this query.
 func (q *DisjunctionQuery) Boost(boost float32) *DisjunctionQuery {
-	q.options["boost"] = boost
+	q.boost = &boost
 	return q
 }
 
 // Min specifies the minimum number of queries that a document must satisfy.
 func (q *DisjunctionQuery) Min(min uint32) *DisjunctionQuery {
-	q.options["min"] = min
+	q.min = &min
 	return q
 }
 
@@ -296,7 +453,7 @@ type booleanQueryData struct {
 // BooleanQuery represents a search boolean query.
 type BooleanQuery struct {
 	data      booleanQueryData
-	shouldMin uint32
+	shouldMin uint32 // minimum value before the should query will boost.
 }
 
 // NewBooleanQuery creates a new BooleanQuery.
@@ -357,288 +514,467 @@ func (q *BooleanQuery) Boost(boost float32) *BooleanQuery {
 }
 
 // MarshalJSON marshal's this query to JSON for the search REST API.
-func (q *BooleanQuery) MarshalJSON() ([]byte, error) {
+func (q BooleanQuery) MarshalJSON() ([]byte, error) {
 	if q.data.Should != nil {
-		q.data.Should.options["min"] = q.shouldMin
+		q.data.Should.min = &q.shouldMin
 	}
 	bytes, err := json.Marshal(q.data)
 	if q.data.Should != nil {
-		delete(q.data.Should.options, "min")
+		q.data.Should.min = nil
 	}
 	return bytes, err
 }
 
 // WildcardQuery represents a search wildcard query.
 type WildcardQuery struct {
-	searchQueryBase
+	wildcard string
+	field    *string
+	boost    *float32
+}
+
+// MarshalJSON marshal's this query to JSON for the search REST API.
+func (q WildcardQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		Wildcard string   `json:"wildcard"`
+		Field    *string  `json:"field,omitempty"`
+		Boost    *float32 `json:"boost,omitempty"`
+	}{
+		Wildcard: q.wildcard,
+		Field:    q.field,
+		Boost:    q.boost,
+	}
+
+	return json.Marshal(outStruct)
 }
 
 // NewWildcardQuery creates a new WildcardQuery.
 func NewWildcardQuery(wildcard string) *WildcardQuery {
-	q := &WildcardQuery{newSearchQueryBase()}
-	q.options["wildcard"] = wildcard
+	q := &WildcardQuery{wildcard: wildcard}
 	return q
 }
 
 // Field specifies the field for this query.
 func (q *WildcardQuery) Field(field string) *WildcardQuery {
-	q.options["field"] = field
+	q.field = &field
 	return q
 }
 
 // Boost specifies the boost for this query.
 func (q *WildcardQuery) Boost(boost float32) *WildcardQuery {
-	q.options["boost"] = boost
+	q.boost = &boost
 	return q
 }
 
 // DocIDQuery represents a search document id query.
 type DocIDQuery struct {
-	searchQueryBase
+	ids   []string
+	field *string
+	boost *float32
+}
+
+// MarshalJSON marshal's this query to JSON for the search REST API.
+func (q DocIDQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		Ids   []string `json:"ids"`
+		Field *string  `json:"field,omitempty"`
+		Boost *float32 `json:"boost,omitempty"`
+	}{
+		Ids:   q.ids,
+		Field: q.field,
+		Boost: q.boost,
+	}
+
+	return json.Marshal(outStruct)
 }
 
 // NewDocIDQuery creates a new DocIdQuery.
 func NewDocIDQuery(ids ...string) *DocIDQuery {
-	q := &DocIDQuery{newSearchQueryBase()}
-	q.options["ids"] = []string{}
+	q := &DocIDQuery{ids: make([]string, 0)}
+
 	return q.AddDocIds(ids...)
 }
 
 // AddDocIds adds addition document ids to this query.
 func (q *DocIDQuery) AddDocIds(ids ...string) *DocIDQuery {
-	q.options["ids"] = append(q.options["ids"].([]string), ids...)
+	q.ids = append(q.ids, ids...)
 	return q
 }
 
 // Field specifies the field for this query.
 func (q *DocIDQuery) Field(field string) *DocIDQuery {
-	q.options["field"] = field
+	q.field = &field
 	return q
 }
 
 // Boost specifies the boost for this query.
 func (q *DocIDQuery) Boost(boost float32) *DocIDQuery {
-	q.options["boost"] = boost
+	q.boost = &boost
 	return q
 }
 
 // BooleanFieldQuery represents a search boolean field query.
 type BooleanFieldQuery struct {
-	searchQueryBase
+	val   bool     // required field
+	field *string  // optional field
+	boost *float32 // optional field
+}
+
+// MarshalJSON marshal's this query to JSON for the search REST API.
+func (q BooleanFieldQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		Val   bool     `json:"bool"`
+		Field *string  `json:"field,omitempty"`
+		Boost *float32 `json:"boost,omitempty"`
+	}{
+		Val:   q.val,
+		Field: q.field,
+		Boost: q.boost,
+	}
+
+	return json.Marshal(outStruct)
 }
 
 // NewBooleanFieldQuery creates a new BooleanFieldQuery.
 func NewBooleanFieldQuery(val bool) *BooleanFieldQuery {
-	q := &BooleanFieldQuery{newSearchQueryBase()}
-	q.options["bool"] = val
+	q := &BooleanFieldQuery{val: val}
 	return q
 }
 
 // Field specifies the field for this query.
 func (q *BooleanFieldQuery) Field(field string) *BooleanFieldQuery {
-	q.options["field"] = field
+	q.field = &field
 	return q
 }
 
 // Boost specifies the boost for this query.
 func (q *BooleanFieldQuery) Boost(boost float32) *BooleanFieldQuery {
-	q.options["boost"] = boost
+	q.boost = &boost
 	return q
 }
 
 // TermQuery represents a search term query.
 type TermQuery struct {
-	searchQueryBase
+	term         string // required field
+	field        *string
+	boost        *float32
+	prefixLength *uint64
+	fuzziness    *uint64
+}
+
+// MarshalJSON marshal's this query to JSON for the search REST API.
+func (q TermQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		Term         string   `json:"term"`
+		Field        *string  `json:"field,omitempty"`
+		Boost        *float32 `json:"boost,omitempty"`
+		PrefixLength *uint64  `json:"prefix_length,omitempty"`
+		Fuzziness    *uint64  `json:"fuzziness,omitempty"`
+	}{
+		Term:         q.term,
+		Field:        q.field,
+		Boost:        q.boost,
+		PrefixLength: q.prefixLength,
+		Fuzziness:    q.fuzziness,
+	}
+
+	return json.Marshal(outStruct)
 }
 
 // NewTermQuery creates a new TermQuery.
 func NewTermQuery(term string) *TermQuery {
-	q := &TermQuery{newSearchQueryBase()}
-	q.options["term"] = term
+	q := &TermQuery{term: term}
 	return q
 }
 
 // Field specifies the field for this query.
 func (q *TermQuery) Field(field string) *TermQuery {
-	q.options["field"] = field
+	q.field = &field
 	return q
 }
 
 // PrefixLength specifies the prefix length from this query.
 func (q *TermQuery) PrefixLength(length uint64) *TermQuery {
-	q.options["prefix_length"] = length
+	q.prefixLength = &length
 	return q
 }
 
 // Fuzziness specifies the fuziness for this query.
 func (q *TermQuery) Fuzziness(fuzziness uint64) *TermQuery {
-	q.options["fuzziness"] = fuzziness
+	q.fuzziness = &fuzziness
 	return q
 }
 
 // Boost specifies the boost for this query.
 func (q *TermQuery) Boost(boost float32) *TermQuery {
-	q.options["boost"] = boost
+	q.boost = &boost
 	return q
 }
 
 // PhraseQuery represents a search phrase query.
 type PhraseQuery struct {
-	searchQueryBase
+	terms []string
+	field *string
+	boost *float32
+}
+
+// MarshalJSON marshal's this query to JSON for the search REST API.
+func (q PhraseQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		Terms []string `json:"terms"`
+		Field *string  `json:"field,omitempty"`
+		Boost *float32 `json:"boost,omitempty"`
+	}{
+		Terms: q.terms,
+		Field: q.field,
+		Boost: q.boost,
+	}
+
+	return json.Marshal(outStruct)
 }
 
 // NewPhraseQuery creates a new PhraseQuery.
 func NewPhraseQuery(terms ...string) *PhraseQuery {
-	q := &PhraseQuery{newSearchQueryBase()}
-	q.options["terms"] = terms
+	q := &PhraseQuery{terms: terms}
 	return q
 }
 
 // Field specifies the field for this query.
 func (q *PhraseQuery) Field(field string) *PhraseQuery {
-	q.options["field"] = field
+	q.field = &field
 	return q
 }
 
 // Boost specifies the boost for this query.
 func (q *PhraseQuery) Boost(boost float32) *PhraseQuery {
-	q.options["boost"] = boost
+	q.boost = &boost
 	return q
 }
 
 // PrefixQuery represents a search prefix query.
 type PrefixQuery struct {
-	searchQueryBase
+	prefix string
+	field  *string
+	boost  *float32
+}
+
+// MarshalJSON marshal's this query to JSON for the search REST API.
+func (q PrefixQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		Prefix string   `json:"prefix"`
+		Field  *string  `json:"field,omitempty"`
+		Boost  *float32 `json:"boost,omitempty"`
+	}{
+		Prefix: q.prefix,
+		Field:  q.field,
+		Boost:  q.boost,
+	}
+
+	return json.Marshal(outStruct)
 }
 
 // NewPrefixQuery creates a new PrefixQuery.
 func NewPrefixQuery(prefix string) *PrefixQuery {
-	q := &PrefixQuery{newSearchQueryBase()}
-	q.options["prefix"] = prefix
+	q := &PrefixQuery{prefix: prefix}
 	return q
 }
 
 // Field specifies the field for this query.
 func (q *PrefixQuery) Field(field string) *PrefixQuery {
-	q.options["field"] = field
+	q.field = &field
 	return q
 }
 
 // Boost specifies the boost for this query.
 func (q *PrefixQuery) Boost(boost float32) *PrefixQuery {
-	q.options["boost"] = boost
+	q.boost = &boost
 	return q
 }
 
 // MatchAllQuery represents a search match all query.
-type MatchAllQuery struct {
-	searchQueryBase
+type MatchAllQuery struct{}
+
+// MarshalJSON marshal's this query to JSON for the search REST API.
+func (q MatchAllQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		MatchAll *struct{} `json:"match_all"`
+	}{}
+
+	return json.Marshal(outStruct)
 }
 
 // NewMatchAllQuery creates a new MatchAllQuery.
 func NewMatchAllQuery() *MatchAllQuery {
-	q := &MatchAllQuery{newSearchQueryBase()}
-	q.options["match_all"] = nil
+	q := &MatchAllQuery{}
 	return q
 }
 
 // MatchNoneQuery represents a search match none query.
-type MatchNoneQuery struct {
-	searchQueryBase
+type MatchNoneQuery struct{}
+
+// MarshalJSON marshal's this query to JSON for the search REST API.
+func (q MatchNoneQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		MatchAll *struct{} `json:"match_none"`
+	}{}
+
+	return json.Marshal(outStruct)
 }
 
 // NewMatchNoneQuery creates a new MatchNoneQuery.
 func NewMatchNoneQuery() *MatchNoneQuery {
-	q := &MatchNoneQuery{newSearchQueryBase()}
-	q.options["match_none"] = nil
+	q := &MatchNoneQuery{}
 	return q
 }
 
 // TermRangeQuery represents a search term range query.
 type TermRangeQuery struct {
-	searchQueryBase
+	term         string
+	field        *string
+	min          *string
+	inclusiveMin *bool
+	max          *string
+	inclusiveMax *bool
+	boost        *float32
+}
+
+// MarshalJSON marshal's this query to JSON for the search REST API.
+func (q TermRangeQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		Term         string   `json:"term"`
+		Field        *string  `json:"field,omitempty"`
+		Min          *string  `json:"min,omitempty"`
+		InclusiveMin *bool    `json:"inclusive_min,omitempty"`
+		Max          *string  `json:"max,omitempty"`
+		InclusiveMax *bool    `json:"inclusive_max,omitempty"`
+		Boost        *float32 `json:"boost,omitempty"`
+	}{
+		Term:         q.term,
+		Field:        q.field,
+		Min:          q.min,
+		InclusiveMin: q.inclusiveMin,
+		Max:          q.max,
+		InclusiveMax: q.inclusiveMax,
+		Boost:        q.boost,
+	}
+
+	return json.Marshal(outStruct)
 }
 
 // NewTermRangeQuery creates a new TermRangeQuery.
 func NewTermRangeQuery(term string) *TermRangeQuery {
-	q := &TermRangeQuery{newSearchQueryBase()}
-	q.options["term"] = term
+	q := &TermRangeQuery{term: term}
 	return q
 }
 
 // Field specifies the field for this query.
 func (q *TermRangeQuery) Field(field string) *TermRangeQuery {
-	q.options["field"] = field
+	q.field = &field
 	return q
 }
 
 // Min specifies the minimum value and inclusiveness for this range query.
 func (q *TermRangeQuery) Min(min string, inclusive bool) *TermRangeQuery {
-	q.options["min"] = min
-	q.options["inclusive_min"] = inclusive
+	q.min = &min
+	q.inclusiveMin = &inclusive
 	return q
 }
 
 // Max specifies the maximum value and inclusiveness for this range query.
 func (q *TermRangeQuery) Max(max string, inclusive bool) *TermRangeQuery {
-	q.options["max"] = max
-	q.options["inclusive_max"] = inclusive
+	q.max = &max
+	q.inclusiveMax = &inclusive
 	return q
 }
 
 // Boost specifies the boost for this query.
 func (q *TermRangeQuery) Boost(boost float32) *TermRangeQuery {
-	q.options["boost"] = boost
+	q.boost = &boost
 	return q
 }
 
 // GeoDistanceQuery represents a search geographical distance query.
 type GeoDistanceQuery struct {
-	searchQueryBase
+	location []float64
+	distance string
+	field    *string
+	boost    *float32
+}
+
+// MarshalJSON marshal's this query to JSON for the search REST API.
+func (q GeoDistanceQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		Location []float64 `json:"location"`
+		Distance string    `json:"distance"`
+		Field    *string   `json:"field,omitempty"`
+		Boost    *float32  `json:"boost,omitempty"`
+	}{
+		Location: q.location,
+		Distance: q.distance,
+		Field:    q.field,
+		Boost:    q.boost,
+	}
+
+	return json.Marshal(outStruct)
 }
 
 // NewGeoDistanceQuery creates a new GeoDistanceQuery.
 func NewGeoDistanceQuery(lon, lat float64, distance string) *GeoDistanceQuery {
-	q := &GeoDistanceQuery{newSearchQueryBase()}
-	q.options["location"] = []float64{lon, lat}
-	q.options["distance"] = distance
+	q := &GeoDistanceQuery{location: []float64{lon, lat}, distance: distance}
 	return q
 }
 
 // Field specifies the field for this query.
 func (q *GeoDistanceQuery) Field(field string) *GeoDistanceQuery {
-	q.options["field"] = field
+	q.field = &field
 	return q
 }
 
 // Boost specifies the boost for this query.
 func (q *GeoDistanceQuery) Boost(boost float32) *GeoDistanceQuery {
-	q.options["boost"] = boost
+	q.boost = &boost
 	return q
 }
 
 // GeoBoundingBoxQuery represents a search geographical bounding box query.
 type GeoBoundingBoxQuery struct {
-	searchQueryBase
+	topLeft     []float64
+	bottomRight []float64
+	field       *string
+	boost       *float32
+}
+
+// MarshalJSON marshal's this query to JSON for the search REST API.
+func (q GeoBoundingBoxQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		TopLeft     []float64 `json:"top_left"`
+		BottomRight []float64 `json:"bottom_right"`
+		Field       *string   `json:"field,omitempty"`
+		Boost       *float32  `json:"boost,omitempty"`
+	}{
+		TopLeft:     q.topLeft,
+		BottomRight: q.bottomRight,
+		Field:       q.field,
+		Boost:       q.boost,
+	}
+
+	return json.Marshal(outStruct)
 }
 
 // NewGeoBoundingBoxQuery creates a new GeoBoundingBoxQuery.
 func NewGeoBoundingBoxQuery(tlLon, tlLat, brLon, brLat float64) *GeoBoundingBoxQuery {
-	q := &GeoBoundingBoxQuery{newSearchQueryBase()}
-	q.options["top_left"] = []float64{tlLon, tlLat}
-	q.options["bottom_right"] = []float64{brLon, brLat}
+	q := &GeoBoundingBoxQuery{topLeft: []float64{tlLon, tlLat}, bottomRight: []float64{brLon, brLat}}
 	return q
 }
 
 // Field specifies the field for this query.
 func (q *GeoBoundingBoxQuery) Field(field string) *GeoBoundingBoxQuery {
-	q.options["field"] = field
+	q.field = &field
 	return q
 }
 
 // Boost specifies the boost for this query.
 func (q *GeoBoundingBoxQuery) Boost(boost float32) *GeoBoundingBoxQuery {
-	q.options["boost"] = boost
+	q.boost = &boost
 	return q
 }
 
@@ -650,28 +986,44 @@ type Coordinate struct {
 
 // GeoPolygonQuery represents a search query which allows to match inside a geo polygon.
 type GeoPolygonQuery struct {
-	searchQueryBase
+	polyPoints [][]float64
+	field      *string
+	boost      *float32
+}
+
+// MarshalJSON marshal's this query to JSON for the search REST API.
+func (q GeoPolygonQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		PolyPoints [][]float64 `json:"polygon_points"`
+		Field      *string     `json:"field,omitempty"`
+		Boost      *float32    `json:"boost,omitempty"`
+	}{
+		PolyPoints: q.polyPoints,
+		Field:      q.field,
+		Boost:      q.boost,
+	}
+
+	return json.Marshal(outStruct)
 }
 
 // NewGeoPolygonQuery creates a new GeoPolygonQuery.
 func NewGeoPolygonQuery(coords []Coordinate) *GeoPolygonQuery {
-	q := &GeoPolygonQuery{newSearchQueryBase()}
 	var polyPoints [][]float64
 	for _, coord := range coords {
 		polyPoints = append(polyPoints, []float64{coord.Lon, coord.Lat})
 	}
-	q.options["polygon_points"] = polyPoints
+	q := &GeoPolygonQuery{polyPoints: polyPoints}
 	return q
 }
 
 // Field specifies the field for this query.
 func (q *GeoPolygonQuery) Field(field string) *GeoPolygonQuery {
-	q.options["field"] = field
+	q.field = &field
 	return q
 }
 
 // Boost specifies the boost for this query.
 func (q *GeoPolygonQuery) Boost(boost float32) *GeoPolygonQuery {
-	q.options["boost"] = boost
+	q.boost = &boost
 	return q
 }

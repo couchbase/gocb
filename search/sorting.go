@@ -8,116 +8,167 @@ import (
 type Sort interface {
 }
 
-type searchSortBase struct {
-	options map[string]interface{}
-}
-
-func newSearchSortBase() searchSortBase {
-	return searchSortBase{
-		options: make(map[string]interface{}),
-	}
+// SearchSortScore represents a search score sort.
+type SearchSortScore struct {
+	by   string
+	desc bool
 }
 
 // MarshalJSON marshal's this query to JSON for the search REST API.
-func (q searchSortBase) MarshalJSON() ([]byte, error) {
-	return json.Marshal(q.options)
-}
+func (q SearchSortScore) MarshalJSON() ([]byte, error) {
 
-// SearchSortScore represents a search score sort.
-type SearchSortScore struct {
-	searchSortBase
+	return json.Marshal(struct {
+		By   string `json:"by"`
+		Desc bool   `json:"desc,omitempty"`
+	}{
+		By:   q.by,
+		Desc: q.desc,
+	})
 }
 
 // NewSearchSortScore creates a new SearchSortScore.
 func NewSearchSortScore() *SearchSortScore {
-	q := &SearchSortScore{newSearchSortBase()}
-	q.options["by"] = "score"
+	q := &SearchSortScore{by: "score"}
 	return q
 }
 
 // Descending specifies the ordering of the results.
 func (q *SearchSortScore) Descending(descending bool) *SearchSortScore {
-	q.options["desc"] = descending
+	q.desc = descending
 	return q
 }
 
 // SearchSortID represents a search Document ID sort.
 type SearchSortID struct {
-	searchSortBase
+	by   string
+	desc bool
+}
+
+// MarshalJSON marshal's this query to JSON for the search REST API.
+func (q SearchSortID) MarshalJSON() ([]byte, error) {
+
+	return json.Marshal(struct {
+		By   string `json:"by"`
+		Desc bool   `json:"desc,omitempty"`
+	}{
+		By:   q.by,
+		Desc: q.desc,
+	})
 }
 
 // NewSearchSortID creates a new SearchSortScore.
 func NewSearchSortID() *SearchSortID {
-	q := &SearchSortID{newSearchSortBase()}
-	q.options["by"] = "id"
+	q := &SearchSortID{by: "id"}
 	return q
 }
 
 // Descending specifies the ordering of the results.
 func (q *SearchSortID) Descending(descending bool) *SearchSortID {
-	q.options["desc"] = descending
+	q.desc = descending
 	return q
 }
 
 // SearchSortField represents a search field sort.
 type SearchSortField struct {
-	searchSortBase
+	by       string
+	field    string
+	sortType string
+	mode     string
+	missing  string
+	desc     bool
+}
+
+// MarshalJSON marshal's this query to JSON for the search REST API.
+func (q SearchSortField) MarshalJSON() ([]byte, error) {
+
+	return json.Marshal(struct {
+		By       string `json:"by"`
+		Field    string `json:"field"`
+		Desc     bool   `json:"desc,omitempty"`
+		SortType string `json:"type,omitempty"`
+		Mode     string `json:"mode,omitempty"`
+		Missing  string `json:"missing,omitempty"`
+	}{
+		By:       q.by,
+		Field:    q.field,
+		Desc:     q.desc,
+		SortType: q.sortType,
+		Mode:     q.mode,
+		Missing:  q.missing,
+	})
 }
 
 // NewSearchSortField creates a new SearchSortField.
 func NewSearchSortField(field string) *SearchSortField {
-	q := &SearchSortField{newSearchSortBase()}
-	q.options["by"] = "field"
-	q.options["field"] = field
+	q := &SearchSortField{by: "field", field: field}
 	return q
 }
 
 // Type allows you to specify the search field sort type.
 func (q *SearchSortField) Type(value string) *SearchSortField {
-	q.options["type"] = value
+	q.sortType = value
 	return q
 }
 
 // Mode allows you to specify the search field sort mode.
 func (q *SearchSortField) Mode(mode string) *SearchSortField {
-	q.options["mode"] = mode
+	q.mode = mode
 	return q
 }
 
 // Missing allows you to specify the search field sort missing behaviour.
 func (q *SearchSortField) Missing(missing string) *SearchSortField {
-	q.options["missing"] = missing
+	q.missing = missing
 	return q
 }
 
 // Descending specifies the ordering of the results.
 func (q *SearchSortField) Descending(descending bool) *SearchSortField {
-	q.options["desc"] = descending
+	q.desc = descending
 	return q
 }
 
 // SearchSortGeoDistance represents a search geo sort.
 type SearchSortGeoDistance struct {
-	searchSortBase
+	by       string
+	field    string
+	location []float64
+	unit     string
+	desc     bool
+}
+
+// MarshalJSON marshal's this query to JSON for the search REST API.
+func (q SearchSortGeoDistance) MarshalJSON() ([]byte, error) {
+
+	return json.Marshal(struct {
+		By       string    `json:"by"`
+		Field    string    `json:"field"`
+		Location []float64 `json:"location"`
+		Unit     string    `json:"unit,omitempty"`
+		Desc     bool      `json:"desc,omitempty"`
+	}{
+		By:       q.by,
+		Field:    q.field,
+		Location: q.location,
+		Unit:     q.unit,
+		Desc:     q.desc,
+	})
 }
 
 // NewSearchSortGeoDistance creates a new SearchSortGeoDistance.
 func NewSearchSortGeoDistance(field string, lon, lat float64) *SearchSortGeoDistance {
-	q := &SearchSortGeoDistance{newSearchSortBase()}
-	q.options["by"] = "geo_distance"
-	q.options["field"] = field
-	q.options["location"] = []float64{lon, lat}
+	q := &SearchSortGeoDistance{by: "geo_distance", field: field, location: []float64{lon, lat}}
 	return q
 }
 
 // Unit specifies the unit used for sorting
 func (q *SearchSortGeoDistance) Unit(unit string) *SearchSortGeoDistance {
-	q.options["unit"] = unit
+	q.unit = unit
 	return q
 }
 
 // Descending specifies the ordering of the results.
 func (q *SearchSortGeoDistance) Descending(descending bool) *SearchSortGeoDistance {
-	q.options["desc"] = descending
+	q.desc = descending
 	return q
 }
