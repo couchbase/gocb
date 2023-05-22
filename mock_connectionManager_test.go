@@ -106,6 +106,32 @@ func (_m *mockConnectionManager) getAnalyticsProvider() (analyticsProvider, erro
 	return r0, r1
 }
 
+// getCollectionsManagementProvider provides a mock function with given fields: bucketName
+func (_m *mockConnectionManager) getCollectionsManagementProvider(bucketName string) (collectionsManagementProvider, error) {
+	ret := _m.Called(bucketName)
+
+	var r0 collectionsManagementProvider
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (collectionsManagementProvider, error)); ok {
+		return rf(bucketName)
+	}
+	if rf, ok := ret.Get(0).(func(string) collectionsManagementProvider); ok {
+		r0 = rf(bucketName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(collectionsManagementProvider)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(bucketName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // getDiagnosticsProvider provides a mock function with given fields: bucketName
 func (_m *mockConnectionManager) getDiagnosticsProvider(bucketName string) (diagnosticsProvider, error) {
 	ret := _m.Called(bucketName)

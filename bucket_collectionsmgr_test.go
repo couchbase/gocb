@@ -100,58 +100,90 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(9, len(nilParents))
+
+	isProtostellar := globalCluster.IsProtostellar()
+	var operationID string
+	var numDispatchSpans int
+	if isProtostellar {
+		operationID = "CreateScope"
+		numDispatchSpans = 0
+	} else {
+		operationID = "POST " + fmt.Sprintf("/pools/default/buckets/%s/scopes", globalConfig.Bucket)
+		numDispatchSpans = 1
+	}
+
 	suite.AssertHTTPOpSpan(nilParents[0], "manager_collections_create_scope",
 		HTTPOpSpanExpectations{
 			bucket:                  globalConfig.Bucket,
 			scope:                   scopeName,
 			service:                 "management",
-			operationID:             "POST " + fmt.Sprintf("/pools/default/buckets/%s/scopes", globalConfig.Bucket),
-			numDispatchSpans:        1,
+			operationID:             operationID,
+			numDispatchSpans:        numDispatchSpans,
 			atLeastNumDispatchSpans: false,
-			hasEncoding:             true,
+			hasEncoding:             !isProtostellar,
 			dispatchOperationID:     "any",
 		})
+	if isProtostellar {
+		operationID = "CreateCollection"
+	} else {
+		operationID = "POST " + fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections", globalConfig.Bucket, scopeName)
+	}
 	suite.AssertHTTPOpSpan(nilParents[2], "manager_collections_create_collection",
 		HTTPOpSpanExpectations{
 			bucket:                  globalConfig.Bucket,
 			scope:                   scopeName,
 			collection:              collectionName,
 			service:                 "management",
-			operationID:             "POST " + fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections", globalConfig.Bucket, scopeName),
-			numDispatchSpans:        1,
+			operationID:             operationID,
+			numDispatchSpans:        numDispatchSpans,
 			atLeastNumDispatchSpans: false,
-			hasEncoding:             true,
+			hasEncoding:             !isProtostellar,
 			dispatchOperationID:     "any",
 		})
+	if isProtostellar {
+		operationID = "ListCollections"
+	} else {
+		operationID = "GET " + fmt.Sprintf("/pools/default/buckets/%s/scopes", globalConfig.Bucket)
+	}
 	suite.AssertHTTPOpSpan(nilParents[4], "manager_collections_get_all_scopes",
 		HTTPOpSpanExpectations{
 			bucket:                  globalConfig.Bucket,
 			service:                 "management",
-			operationID:             "GET " + fmt.Sprintf("/pools/default/buckets/%s/scopes", globalConfig.Bucket),
-			numDispatchSpans:        1,
+			operationID:             operationID,
+			numDispatchSpans:        numDispatchSpans,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
 			dispatchOperationID:     "any",
 		})
+	if isProtostellar {
+		operationID = "DeleteCollection"
+	} else {
+		operationID = "DELETE " + fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections/%s", globalConfig.Bucket, scopeName, collectionName)
+	}
 	suite.AssertHTTPOpSpan(nilParents[5], "manager_collections_drop_collection",
 		HTTPOpSpanExpectations{
 			bucket:                  globalConfig.Bucket,
 			scope:                   scopeName,
 			collection:              collectionName,
 			service:                 "management",
-			operationID:             "DELETE " + fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections/%s", globalConfig.Bucket, scopeName, collectionName),
-			numDispatchSpans:        1,
+			operationID:             operationID,
+			numDispatchSpans:        numDispatchSpans,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
 			dispatchOperationID:     "any",
 		})
+	if isProtostellar {
+		operationID = "DeleteScope"
+	} else {
+		operationID = "DELETE " + fmt.Sprintf("/pools/default/buckets/%s/scopes/%s", globalConfig.Bucket, scopeName)
+	}
 	suite.AssertHTTPOpSpan(nilParents[7], "manager_collections_drop_scope",
 		HTTPOpSpanExpectations{
 			bucket:                  globalConfig.Bucket,
 			scope:                   scopeName,
 			service:                 "management",
-			operationID:             "DELETE " + fmt.Sprintf("/pools/default/buckets/%s/scopes/%s", globalConfig.Bucket, scopeName),
-			numDispatchSpans:        1,
+			operationID:             operationID,
+			numDispatchSpans:        numDispatchSpans,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
 			dispatchOperationID:     "any",
@@ -549,7 +581,6 @@ func (suite *IntegrationTestSuite) TestNumberOfCollectionInScope() {
 }
 
 func (suite *IntegrationTestSuite) TestMaxNumberOfCollectionInScope() {
-	suite.T().Skip()
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 	suite.skipIfUnsupported(CollectionsManagerMaxCollectionsFeature)
@@ -602,9 +633,13 @@ func (suite *UnitTestSuite) TestGetAllScopesMgmtRequestFails() {
 	provider.On("executeMgmtRequest", nil, mock.AnythingOfType("gocb.mgmtRequest")).Return(nil, errors.New("http send failure"))
 
 	mgr := CollectionManager{
-		mgmtProvider: provider,
-		tracer:       &NoopTracer{},
-		meter:        &meterWrapper{meter: &NoopMeter{}, isNoopMeter: true},
+		getProvider: func() (collectionsManagementProvider, error) {
+			return &collectionsManagementProviderCore{
+				mgmtProvider: provider,
+				tracer:       &NoopTracer{},
+				meter:        &meterWrapper{meter: &NoopMeter{}, isNoopMeter: true},
+			}, nil
+		},
 	}
 
 	scopes, err := mgr.GetAllScopes(nil)

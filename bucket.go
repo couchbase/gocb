@@ -148,10 +148,9 @@ func (b *Bucket) ViewIndexes() *ViewIndexManager {
 func (b *Bucket) Collections() *CollectionManager {
 	// TODO: return error for unsupported collections
 	return &CollectionManager{
-		mgmtProvider: b,
-		bucketName:   b.Name(),
-		tracer:       b.tracer,
-		meter:        b.meter,
+		getProvider: func() (collectionsManagementProvider, error) {
+			return b.connectionManager.getCollectionsManagementProvider(b.Name())
+		},
 	}
 }
 

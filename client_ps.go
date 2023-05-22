@@ -85,6 +85,16 @@ func (c *psConnectionMgr) getQueryIndexProvider() (queryIndexProvider, error) {
 	}, nil
 }
 
+func (c *psConnectionMgr) getCollectionsManagementProvider(bucketName string) (collectionsManagementProvider, error) {
+	return &collectionsManagementProviderPs{
+		provider:       c.agent.CollectionV1(),
+		bucketName:     bucketName,
+		defaultTimeout: c.timeouts.ManagementTimeout,
+		tracer:         c.tracer,
+		meter:          c.meter,
+	}, nil
+}
+
 func (c *psConnectionMgr) getAnalyticsProvider() (analyticsProvider, error) {
 	return &analyticsProviderWrapper{}, ErrFeatureNotAvailable
 }

@@ -35,6 +35,50 @@ type mgmtProvider interface {
 	executeMgmtRequest(ctx context.Context, req mgmtRequest) (*mgmtResponse, error)
 }
 
+type mgmtProviderCore struct {
+	provider             httpProvider
+	mgmtTimeout          time.Duration
+	retryStrategyWrapper *retryStrategyWrapper
+}
+
+func (mpc *mgmtProviderCore) executeMgmtRequest(ctx context.Context, req mgmtRequest) (mgmtRespOut *mgmtResponse, errOut error) {
+	timeout := req.Timeout
+	if timeout == 0 {
+		timeout = mpc.mgmtTimeout
+	}
+
+	retryStrategy := mpc.retryStrategyWrapper
+	if req.RetryStrategy != nil {
+		retryStrategy = newRetryStrategyWrapper(req.RetryStrategy)
+	}
+
+	corereq := &gocbcore.HTTPRequest{
+		Service:       gocbcore.ServiceType(req.Service),
+		Method:        req.Method,
+		Path:          req.Path,
+		Body:          req.Body,
+		Headers:       req.Headers,
+		ContentType:   req.ContentType,
+		IsIdempotent:  req.IsIdempotent,
+		UniqueID:      req.UniqueID,
+		Deadline:      time.Now().Add(timeout),
+		RetryStrategy: retryStrategy,
+		TraceContext:  req.parentSpanCtx,
+	}
+
+	coreresp, err := mpc.provider.DoHTTPRequest(ctx, corereq)
+	if err != nil {
+		return nil, makeGenericHTTPError(err, corereq, coreresp)
+	}
+
+	resp := &mgmtResponse{
+		Endpoint:   coreresp.Endpoint,
+		StatusCode: uint32(coreresp.StatusCode),
+		Body:       coreresp.Body,
+	}
+	return resp, nil
+}
+
 func (c *Cluster) executeMgmtRequest(ctx context.Context, req mgmtRequest) (mgmtRespOut *mgmtResponse, errOut error) {
 	timeout := req.Timeout
 	if timeout == 0 {

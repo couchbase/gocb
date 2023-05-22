@@ -6,6 +6,9 @@ type connectionManager interface {
 	connect() error
 	openBucket(bucketName string) error
 	buildConfig(cluster *Cluster) error
+	connection(bucketName string) (*gocbcore.Agent, error)
+	close() error
+
 	getKvProvider(bucketName string) (kvProvider, error)
 	getKvCapabilitiesProvider(bucketName string) (kvCapabilityVerifier, error)
 	getViewProvider(bucketName string) (viewProvider, error)
@@ -16,8 +19,7 @@ type connectionManager interface {
 	getHTTPProvider(bucketName string) (httpProvider, error)
 	getDiagnosticsProvider(bucketName string) (diagnosticsProvider, error)
 	getWaitUntilReadyProvider(bucketName string) (waitUntilReadyProvider, error)
-	connection(bucketName string) (*gocbcore.Agent, error)
-	close() error
+	getCollectionsManagementProvider(bucketName string) (collectionsManagementProvider, error)
 }
 
 func (c *Cluster) newConnectionMgr(protocol string) connectionManager {
