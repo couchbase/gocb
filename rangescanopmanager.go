@@ -25,7 +25,7 @@ type rangeScanOpManager struct {
 	transcoder    Transcoder
 	timeout       time.Duration
 	deadline      time.Time
-	retryStrategy *retryStrategyWrapper
+	retryStrategy *coreRetryStrategyWrapper
 	impersonate   string
 
 	cancelCh chan struct{}
@@ -37,7 +37,7 @@ type rangeScanOpManager struct {
 	meter       *meterWrapper
 	tracer      RequestTracer
 
-	defaultRetryStrategy *retryStrategyWrapper
+	defaultRetryStrategy *coreRetryStrategyWrapper
 	defaultTranscoder    Transcoder
 	defaultTimeout       time.Duration
 
@@ -100,7 +100,7 @@ func (m *rangeScanOpManager) SetTranscoder(transcoder Transcoder) {
 func (m *rangeScanOpManager) SetRetryStrategy(retryStrategy RetryStrategy) {
 	wrapper := m.defaultRetryStrategy
 	if retryStrategy != nil {
-		wrapper = newRetryStrategyWrapper(retryStrategy)
+		wrapper = newCoreRetryStrategyWrapper(retryStrategy)
 	}
 	m.retryStrategy = wrapper
 }
@@ -194,7 +194,7 @@ func (m *rangeScanOpManager) Timeout() time.Duration {
 	return m.getTimeout()
 }
 
-func (m *rangeScanOpManager) RetryStrategy() *retryStrategyWrapper {
+func (m *rangeScanOpManager) RetryStrategy() *coreRetryStrategyWrapper {
 	return m.retryStrategy
 }
 

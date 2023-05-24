@@ -318,7 +318,7 @@ func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*Ana
 
 	retryStrategy := c.retryStrategyWrapper
 	if opts.RetryStrategy != nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+		retryStrategy = newCoreRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
 	queryOpts, err := opts.toMap()
@@ -362,7 +362,7 @@ func execAnalyticsQuery(
 	options map[string]interface{},
 	priority int32,
 	deadline time.Time,
-	retryStrategy *retryStrategyWrapper,
+	retryStrategy *coreRetryStrategyWrapper,
 	provider analyticsProvider,
 	tracer RequestTracer,
 	user string,

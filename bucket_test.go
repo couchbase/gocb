@@ -8,10 +8,10 @@ import (
 func (suite *IntegrationTestSuite) TestBucketWaitUntilReady() {
 	suite.skipIfUnsupported(WaitUntilReadyFeature)
 
-	c, err := Connect(globalConfig.connstr, ClusterOptions{Authenticator: PasswordAuthenticator{
-		Username: globalConfig.User,
-		Password: globalConfig.Password,
-	}})
+	c, err := Connect(globalConfig.connstr, ClusterOptions{
+		Authenticator:  globalConfig.Auth,
+		SecurityConfig: globalConfig.SecurityConfig,
+	})
 	suite.Require().Nil(err, err)
 	defer c.Close(nil)
 
@@ -27,11 +27,15 @@ func (suite *IntegrationTestSuite) TestBucketWaitUntilReady() {
 
 func (suite *IntegrationTestSuite) TestBucketWaitUntilReadyInvalidAuth() {
 	suite.skipIfUnsupported(WaitUntilReadyFeature)
+	suite.skipIfUnsupported(WaitUntilReadyAuthFailFeature)
 
-	c, err := Connect(globalConfig.connstr, ClusterOptions{Authenticator: PasswordAuthenticator{
-		Username: globalConfig.User,
-		Password: globalConfig.Password + "nopethisshouldntwork",
-	}})
+	c, err := Connect(globalConfig.connstr, ClusterOptions{
+		Authenticator: PasswordAuthenticator{
+			Username: globalConfig.User,
+			Password: globalConfig.Password + "nopethisshouldntwork",
+		},
+		SecurityConfig: globalConfig.SecurityConfig,
+	})
 	suite.Require().Nil(err, err)
 	defer c.Close(nil)
 
@@ -50,11 +54,15 @@ func (suite *IntegrationTestSuite) TestBucketWaitUntilReadyInvalidAuth() {
 
 func (suite *IntegrationTestSuite) TestBucketWaitUntilReadyFastFailAuth() {
 	suite.skipIfUnsupported(WaitUntilReadyFeature)
+	suite.skipIfUnsupported(WaitUntilReadyFastFailFeature)
 
-	c, err := Connect(globalConfig.connstr, ClusterOptions{Authenticator: PasswordAuthenticator{
-		Username: globalConfig.User,
-		Password: "thisisaprettyunlikelypasswordtobeused",
-	}})
+	c, err := Connect(globalConfig.connstr, ClusterOptions{
+		Authenticator: PasswordAuthenticator{
+			Username: globalConfig.User,
+			Password: "thisisaprettyunlikelypasswordtobeused",
+		},
+		SecurityConfig: globalConfig.SecurityConfig,
+	})
 	suite.Require().Nil(err, err)
 	defer c.Close(nil)
 
@@ -71,11 +79,15 @@ func (suite *IntegrationTestSuite) TestBucketWaitUntilReadyFastFailAuth() {
 func (suite *IntegrationTestSuite) TestBucketWaitUntilReadyFastFailConnStr() {
 	suite.skipIfUnsupported(WaitUntilReadyFeature)
 	suite.skipIfUnsupported(WaitUntilReadyClusterFeature)
+	suite.skipIfUnsupported(WaitUntilReadyFastFailFeature)
 
-	c, err := Connect("10.10.10.10", ClusterOptions{Authenticator: PasswordAuthenticator{
-		Username: globalConfig.User,
-		Password: globalConfig.Password,
-	}})
+	c, err := Connect("10.10.10.10", ClusterOptions{
+		Authenticator: PasswordAuthenticator{
+			Username: globalConfig.User,
+			Password: globalConfig.Password,
+		},
+		SecurityConfig: globalConfig.SecurityConfig,
+	})
 	suite.Require().Nil(err, err)
 	defer c.Close(nil)
 

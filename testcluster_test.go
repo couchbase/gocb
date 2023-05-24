@@ -64,6 +64,8 @@ var (
 	ReplicasFeature                           = FeatureCode("replicas")
 	PingAnalyticsFeature                      = FeatureCode("pinganalytics")
 	WaitUntilReadyFeature                     = FeatureCode("waituntilready")
+	WaitUntilReadyFastFailFeature             = FeatureCode("waituntilreadyfastfail")
+	WaitUntilReadyAuthFailFeature             = FeatureCode("waituntilreadyauthfail")
 	WaitUntilReadyClusterFeature              = FeatureCode("waituntilreadycluster")
 	QueryIndexFeature                         = FeatureCode("queryindex")
 	CollectionsQueryFeature                   = FeatureCode("collectionsquery")
@@ -276,6 +278,10 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case PingAnalyticsFeature:
 			supported = !c.Version.Lower(srvVer600) && !c.Version.Equal(protostellarVer)
 		case WaitUntilReadyFeature:
+			supported = true
+		case WaitUntilReadyFastFailFeature:
+			supported = !c.Version.Equal(protostellarVer)
+		case WaitUntilReadyAuthFailFeature:
 			supported = !c.Version.Equal(protostellarVer)
 		case WaitUntilReadyClusterFeature:
 			supported = !c.Version.Lower(srvVer650) && !c.Version.Equal(srvVer750)

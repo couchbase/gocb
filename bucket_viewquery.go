@@ -238,7 +238,7 @@ func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions)
 
 	retryWrapper := b.retryStrategyWrapper
 	if opts.RetryStrategy != nil {
-		retryWrapper = newRetryStrategyWrapper(opts.RetryStrategy)
+		retryWrapper = newCoreRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
 	urlValues, err := opts.toURLValues()
@@ -256,7 +256,7 @@ func (b *Bucket) execViewQuery(
 	viewType, ddoc, viewName string,
 	options url.Values,
 	deadline time.Time,
-	wrapper *retryStrategyWrapper,
+	wrapper *coreRetryStrategyWrapper,
 	user string,
 ) (*ViewResult, error) {
 	provider, err := b.connectionManager.getViewProvider(b.Name())

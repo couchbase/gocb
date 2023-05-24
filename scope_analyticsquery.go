@@ -28,7 +28,7 @@ func (s *Scope) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*Analy
 
 	retryStrategy := s.retryStrategyWrapper
 	if opts.RetryStrategy != nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+		retryStrategy = newCoreRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
 	queryOpts, err := opts.toMap()

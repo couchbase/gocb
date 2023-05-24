@@ -13,7 +13,7 @@ type stdConnectionMgr struct {
 	agentgroup *gocbcore.AgentGroup
 	config     *gocbcore.AgentGroupConfig
 
-	retryStrategyWrapper *retryStrategyWrapper
+	retryStrategyWrapper *coreRetryStrategyWrapper
 	transcoder           Transcoder
 	timeouts             TimeoutsConfig
 	tracer               RequestTracer

@@ -29,7 +29,7 @@ type kvOpManagerCore struct {
 	persistTo       uint
 	replicateTo     uint
 	durabilityLevel memd.DurabilityLevel
-	retryStrategy   *retryStrategyWrapper
+	retryStrategy   *coreRetryStrategyWrapper
 	cancelCh        chan struct{}
 	impersonate     string
 
@@ -138,7 +138,7 @@ func (m *kvOpManagerCore) SetDuraOptions(persistTo, replicateTo uint, level Dura
 func (m *kvOpManagerCore) SetRetryStrategy(retryStrategy RetryStrategy) {
 	wrapper := m.parent.retryStrategyWrapper
 	if retryStrategy != nil {
-		wrapper = newRetryStrategyWrapper(retryStrategy)
+		wrapper = newCoreRetryStrategyWrapper(retryStrategy)
 	}
 	m.retryStrategy = wrapper
 }
@@ -231,7 +231,7 @@ func (m *kvOpManagerCore) Deadline() time.Time {
 	return m.deadline
 }
 
-func (m *kvOpManagerCore) RetryStrategy() *retryStrategyWrapper {
+func (m *kvOpManagerCore) RetryStrategy() *coreRetryStrategyWrapper {
 	return m.retryStrategy
 }
 

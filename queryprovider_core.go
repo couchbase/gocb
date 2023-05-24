@@ -17,7 +17,7 @@ type queryProviderCoreProvider interface {
 type queryProviderCore struct {
 	provider queryProviderCoreProvider
 
-	retryStrategyWrapper *retryStrategyWrapper
+	retryStrategyWrapper *coreRetryStrategyWrapper
 	transcoder           Transcoder
 	timeouts             TimeoutsConfig
 	tracer               RequestTracer
@@ -38,7 +38,7 @@ func (qpc *queryProviderCore) Query(statement string, s *Scope, opts *QueryOptio
 
 	retryStrategy := qpc.retryStrategyWrapper
 	if opts.RetryStrategy != nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+		retryStrategy = newCoreRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
 	queryOpts, err := opts.toMap()

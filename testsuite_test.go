@@ -359,7 +359,7 @@ func (suite *UnitTestSuite) bucket(name string, timeouts TimeoutsConfig, cli *mo
 			ViewTimeout:       timeouts.ViewTimeout,
 		},
 		transcoder:           NewJSONTranscoder(),
-		retryStrategyWrapper: newRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
+		retryStrategyWrapper: newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
 		tracer:               &NoopTracer{},
 		meter:                &meterWrapper{meter: &NoopMeter{}},
 		useServerDurations:   true,
@@ -418,6 +418,6 @@ func (suite *UnitTestSuite) collection(bucket, scope, collection string, provide
 		transcoder:           NewJSONTranscoder(),
 		tracer:               &NoopTracer{},
 		meter:                &meterWrapper{meter: &NoopMeter{}},
-		retryStrategyWrapper: newRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
+		retryStrategyWrapper: newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
 	}
 }

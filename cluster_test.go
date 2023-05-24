@@ -9,10 +9,10 @@ func (suite *IntegrationTestSuite) TestClusterWaitUntilReady() {
 	suite.skipIfUnsupported(WaitUntilReadyFeature)
 	suite.skipIfUnsupported(WaitUntilReadyClusterFeature)
 
-	c, err := Connect(globalConfig.connstr, ClusterOptions{Authenticator: PasswordAuthenticator{
-		Username: globalConfig.User,
-		Password: globalConfig.Password,
-	}})
+	c, err := Connect(globalConfig.connstr, ClusterOptions{
+		Authenticator:  globalConfig.Auth,
+		SecurityConfig: globalConfig.SecurityConfig,
+	})
 	suite.Require().Nil(err, err)
 	defer c.Close(nil)
 
@@ -20,20 +20,22 @@ func (suite *IntegrationTestSuite) TestClusterWaitUntilReady() {
 	suite.Require().Nil(err, err)
 
 	// Just test that we can use the cluster.
-	buckets, err := c.Buckets().GetAllBuckets(nil)
+	_, err = c.Bucket(globalBucket.Name()).DefaultCollection().Upsert("test", "test", nil)
 	suite.Require().Nil(err, err)
-
-	suite.Assert().GreaterOrEqual(len(buckets), 1)
 }
 
 func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyInvalidAuth() {
 	suite.skipIfUnsupported(WaitUntilReadyFeature)
 	suite.skipIfUnsupported(WaitUntilReadyClusterFeature)
+	suite.skipIfUnsupported(WaitUntilReadyAuthFailFeature)
 
-	c, err := Connect(globalConfig.connstr, ClusterOptions{Authenticator: PasswordAuthenticator{
-		Username: globalConfig.User,
-		Password: globalConfig.Password + "nopethisshouldntwork",
-	}})
+	c, err := Connect(globalConfig.connstr, ClusterOptions{
+		Authenticator: PasswordAuthenticator{
+			Username: globalConfig.User,
+			Password: globalConfig.Password + "nopethisshouldntwork",
+		},
+		SecurityConfig: globalConfig.SecurityConfig,
+	})
 	suite.Require().Nil(err, err)
 	defer c.Close(nil)
 
@@ -51,11 +53,15 @@ func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyInvalidAuth() {
 func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyFastFailAuth() {
 	suite.skipIfUnsupported(WaitUntilReadyFeature)
 	suite.skipIfUnsupported(WaitUntilReadyClusterFeature)
+	suite.skipIfUnsupported(WaitUntilReadyFastFailFeature)
 
-	c, err := Connect(globalConfig.connstr, ClusterOptions{Authenticator: PasswordAuthenticator{
-		Username: globalConfig.User,
-		Password: "thisisaprettyunlikelypasswordtobeused",
-	}})
+	c, err := Connect(globalConfig.connstr, ClusterOptions{
+		Authenticator: PasswordAuthenticator{
+			Username: globalConfig.User,
+			Password: "thisisaprettyunlikelypasswordtobeused",
+		},
+		SecurityConfig: globalConfig.SecurityConfig,
+	})
 	suite.Require().Nil(err, err)
 	defer c.Close(nil)
 
@@ -70,11 +76,15 @@ func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyFastFailAuth() {
 func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyFastFailConnStr() {
 	suite.skipIfUnsupported(WaitUntilReadyFeature)
 	suite.skipIfUnsupported(WaitUntilReadyClusterFeature)
+	suite.skipIfUnsupported(WaitUntilReadyFastFailFeature)
 
-	c, err := Connect("10.10.10.10", ClusterOptions{Authenticator: PasswordAuthenticator{
-		Username: globalConfig.User,
-		Password: globalConfig.Password,
-	}})
+	c, err := Connect("10.10.10.10", ClusterOptions{
+		Authenticator: PasswordAuthenticator{
+			Username: globalConfig.User,
+			Password: globalConfig.Password,
+		},
+		SecurityConfig: globalConfig.SecurityConfig,
+	})
 	suite.Require().Nil(err, err)
 	defer c.Close(nil)
 
@@ -89,11 +99,15 @@ func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyFastFailConnStr() {
 func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyKeyValueService() {
 	suite.skipIfUnsupported(WaitUntilReadyFeature)
 	suite.skipIfUnsupported(WaitUntilReadyClusterFeature)
+	suite.skipIfServerVersionEquals(protostellarVer)
 
-	c, err := Connect(globalConfig.connstr, ClusterOptions{Authenticator: PasswordAuthenticator{
-		Username: globalConfig.User,
-		Password: globalConfig.Password,
-	}})
+	c, err := Connect(globalConfig.connstr, ClusterOptions{
+		Authenticator: PasswordAuthenticator{
+			Username: globalConfig.User,
+			Password: globalConfig.Password,
+		},
+		SecurityConfig: globalConfig.SecurityConfig,
+	})
 	suite.Require().Nil(err, err)
 	defer c.Close(nil)
 

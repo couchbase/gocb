@@ -24,7 +24,7 @@ type Cluster struct {
 	timeoutsConfig TimeoutsConfig
 
 	transcoder           Transcoder
-	retryStrategyWrapper *retryStrategyWrapper
+	retryStrategyWrapper *coreRetryStrategyWrapper
 
 	orphanLoggerEnabled    bool
 	orphanLoggerInterval   time.Duration
@@ -244,7 +244,7 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 		},
 		transcoder:             opts.Transcoder,
 		useMutationTokens:      useMutationTokens,
-		retryStrategyWrapper:   newRetryStrategyWrapper(opts.RetryStrategy),
+		retryStrategyWrapper:   newCoreRetryStrategyWrapper(opts.RetryStrategy),
 		orphanLoggerEnabled:    !opts.OrphanReporterConfig.Disabled,
 		orphanLoggerInterval:   opts.OrphanReporterConfig.ReportInterval,
 		orphanLoggerSampleSize: opts.OrphanReporterConfig.SampleSize,

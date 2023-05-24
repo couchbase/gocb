@@ -9,7 +9,7 @@ type Collection struct {
 	timeoutsConfig TimeoutsConfig
 
 	transcoder           Transcoder
-	retryStrategyWrapper *retryStrategyWrapper
+	retryStrategyWrapper *coreRetryStrategyWrapper
 	tracer               RequestTracer
 	meter                *meterWrapper
 

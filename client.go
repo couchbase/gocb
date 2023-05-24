@@ -26,9 +26,10 @@ func (c *Cluster) newConnectionMgr(protocol string) connectionManager {
 	switch protocol {
 	case "protostellar":
 		return &psConnectionMgr{
-			timeouts: c.timeoutsConfig,
-			tracer:   c.tracer,
-			meter:    c.meter,
+			timeouts:     c.timeoutsConfig,
+			tracer:       c.tracer,
+			meter:        c.meter,
+			defaultRetry: c.retryStrategyWrapper.wrapped,
 		}
 	default:
 		return &stdConnectionMgr{

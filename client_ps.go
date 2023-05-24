@@ -14,9 +14,10 @@ type psConnectionMgr struct {
 	config *gocbcoreps.DialOptions
 	agent  *gocbcoreps.RoutingClient
 
-	timeouts TimeoutsConfig
-	tracer   RequestTracer
-	meter    *meterWrapper
+	timeouts     TimeoutsConfig
+	tracer       RequestTracer
+	meter        *meterWrapper
+	defaultRetry RetryStrategy
 }
 
 func (c *psConnectionMgr) connect() error {
@@ -113,7 +114,10 @@ func (c *psConnectionMgr) getDiagnosticsProvider(bucketName string) (diagnostics
 	return &diagnosticsProviderWrapper{}, ErrFeatureNotAvailable
 }
 func (c *psConnectionMgr) getWaitUntilReadyProvider(bucketName string) (waitUntilReadyProvider, error) {
-	return &waitUntilReadyProviderPs{}, nil
+	return &waitUntilReadyProviderPs{
+		defaultRetryStrategy: c.defaultRetry,
+		client:               c.agent,
+	}, nil
 }
 func (c *psConnectionMgr) connection(bucketName string) (*gocbcore.Agent, error) {
 	return &gocbcore.Agent{}, ErrFeatureNotAvailable

@@ -27,18 +27,19 @@ var globalTracer *testTracer
 var globalMeter *testMeter
 
 type testConfig struct {
-	Server       string
-	User         string
-	Password     string
-	Bucket       string
-	Version      string
-	Collection   string
-	Scope        string
-	FeatureFlags []TestFeatureFlag
+	Server         string
+	User           string
+	Password       string
+	Bucket         string
+	Version        string
+	Collection     string
+	Scope          string
+	FeatureFlags   []TestFeatureFlag
+	SecurityConfig SecurityConfig
+	Auth           Authenticator
 
 	connstr   string
 	certsPath string
-	auth      Authenticator
 }
 
 func TestMain(m *testing.M) {
@@ -289,7 +290,8 @@ func setupCluster() {
 	}
 
 	globalConfig.connstr = connStr
-	globalConfig.auth = auth
+	globalConfig.Auth = auth
+	globalConfig.SecurityConfig = options.SecurityConfig
 
 	globalCluster = &testCluster{
 		Cluster:      cluster,

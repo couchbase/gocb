@@ -88,7 +88,7 @@ func mockBackoffCalculator(retryAttempts uint32) time.Duration {
 
 func (suite *UnitTestSuite) TestRetryWrapper_ForwardsAttempt() {
 	expectedAction := &NoRetryRetryAction{}
-	strategy := newRetryStrategyWrapper(&mockRetryStrategy{action: expectedAction})
+	strategy := newCoreRetryStrategyWrapper(&mockRetryStrategy{action: expectedAction})
 
 	request := &mockGocbcoreRequest{
 		reasons: []gocbcore.RetryReason{gocbcore.KVCollectionOutdatedRetryReason, gocbcore.UnknownRetryReason},

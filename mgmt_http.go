@@ -38,7 +38,7 @@ type mgmtProvider interface {
 type mgmtProviderCore struct {
 	provider             httpProvider
 	mgmtTimeout          time.Duration
-	retryStrategyWrapper *retryStrategyWrapper
+	retryStrategyWrapper *coreRetryStrategyWrapper
 }
 
 func (mpc *mgmtProviderCore) executeMgmtRequest(ctx context.Context, req mgmtRequest) (mgmtRespOut *mgmtResponse, errOut error) {
@@ -49,7 +49,7 @@ func (mpc *mgmtProviderCore) executeMgmtRequest(ctx context.Context, req mgmtReq
 
 	retryStrategy := mpc.retryStrategyWrapper
 	if req.RetryStrategy != nil {
-		retryStrategy = newRetryStrategyWrapper(req.RetryStrategy)
+		retryStrategy = newCoreRetryStrategyWrapper(req.RetryStrategy)
 	}
 
 	corereq := &gocbcore.HTTPRequest{
@@ -92,7 +92,7 @@ func (c *Cluster) executeMgmtRequest(ctx context.Context, req mgmtRequest) (mgmt
 
 	retryStrategy := c.retryStrategyWrapper
 	if req.RetryStrategy != nil {
-		retryStrategy = newRetryStrategyWrapper(req.RetryStrategy)
+		retryStrategy = newCoreRetryStrategyWrapper(req.RetryStrategy)
 	}
 
 	corereq := &gocbcore.HTTPRequest{
@@ -135,7 +135,7 @@ func (b *Bucket) executeMgmtRequest(ctx context.Context, req mgmtRequest) (mgmtR
 
 	retryStrategy := b.retryStrategyWrapper
 	if req.RetryStrategy != nil {
-		retryStrategy = newRetryStrategyWrapper(req.RetryStrategy)
+		retryStrategy = newCoreRetryStrategyWrapper(req.RetryStrategy)
 	}
 
 	corereq := &gocbcore.HTTPRequest{

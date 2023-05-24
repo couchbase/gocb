@@ -48,7 +48,7 @@ type searchProviderCore struct {
 	// agent *gocbcore.AgentGroup
 	provider searchProviderCoreProvider
 
-	retryStrategyWrapper *retryStrategyWrapper
+	retryStrategyWrapper *coreRetryStrategyWrapper
 	transcoder           Transcoder
 	timeouts             TimeoutsConfig
 	tracer               RequestTracer
@@ -71,7 +71,7 @@ func (search *searchProviderCore) SearchQuery(indexName string, query cbsearch.Q
 
 	retryStrategy := search.retryStrategyWrapper
 	if opts.RetryStrategy != nil {
-		retryStrategy = newRetryStrategyWrapper(opts.RetryStrategy)
+		retryStrategy = newCoreRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
 	searchOpts, err := opts.toMap(indexName)
@@ -91,7 +91,7 @@ func (search *searchProviderCore) execSearchQuery(ctx context.Context,
 	indexName string,
 	options map[string]interface{},
 	deadline time.Time,
-	retryStrategy *retryStrategyWrapper,
+	retryStrategy *coreRetryStrategyWrapper,
 	user string,
 ) (*SearchResult, error) {
 

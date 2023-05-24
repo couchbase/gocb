@@ -6,47 +6,12 @@ import (
 	"github.com/couchbase/gocbcore/v10"
 )
 
-func translateCoreRetryReasons(reasons []gocbcore.RetryReason) []RetryReason {
-	var reasonsOut []RetryReason
-
-	for _, retryReason := range reasons {
-		gocbReason, ok := retryReason.(RetryReason)
-		if !ok {
-			logErrorf("Failed to assert gocbcore retry reason to gocb retry reason: %v", retryReason)
-			continue
-		}
-		reasonsOut = append(reasonsOut, gocbReason)
-	}
-
-	return reasonsOut
-}
-
 // RetryRequest is a request that can possibly be retried.
 type RetryRequest interface {
 	RetryAttempts() uint32
 	Identifier() string
 	Idempotent() bool
 	RetryReasons() []RetryReason
-}
-
-type wrappedRetryRequest struct {
-	req gocbcore.RetryRequest
-}
-
-func (req *wrappedRetryRequest) RetryAttempts() uint32 {
-	return req.req.RetryAttempts()
-}
-
-func (req *wrappedRetryRequest) Identifier() string {
-	return req.req.Identifier()
-}
-
-func (req *wrappedRetryRequest) Idempotent() bool {
-	return req.req.Idempotent()
-}
-
-func (req *wrappedRetryRequest) RetryReasons() []RetryReason {
-	return translateCoreRetryReasons(req.req.RetryReasons())
 }
 
 // RetryReason represents the reason for an operation possibly being retried.
@@ -118,6 +83,9 @@ var (
 	// QueryErrorRetryable indicates that the operation is retryable as indicated by the query engine.
 	// Uncommitted: This API may change in the future.
 	QueryErrorRetryable = RetryReason(gocbcore.QueryErrorRetryable)
+
+	// NotReadyRetryReason indicates the SDK connections are not setup and ready to be used.
+	NotReadyRetryReason = RetryReason(gocbcore.NotReadyRetryReason)
 )
 
 // RetryAction is used by a RetryStrategy to calculate the duration to wait before retrying an operation.
@@ -150,25 +118,6 @@ type RetryStrategy interface {
 	RetryAfter(req RetryRequest, reason RetryReason) RetryAction
 }
 
-func newRetryStrategyWrapper(strategy RetryStrategy) *retryStrategyWrapper {
-	return &retryStrategyWrapper{
-		wrapped: strategy,
-	}
-}
-
-type retryStrategyWrapper struct {
-	wrapped RetryStrategy
-}
-
-// RetryAfter calculates and returns a RetryAction describing how long to wait before retrying an operation.
-func (rs *retryStrategyWrapper) RetryAfter(req gocbcore.RetryRequest, reason gocbcore.RetryReason) gocbcore.RetryAction {
-	wreq := &wrappedRetryRequest{
-		req: req,
-	}
-	wrappedAction := rs.wrapped.RetryAfter(wreq, RetryReason(reason))
-	return gocbcore.RetryAction(wrappedAction)
-}
-
 // BackoffCalculator defines how backoff durations will be calculated by the retry API.
 type BackoffCalculator func(retryAttempts uint32) time.Duration
 
@@ -195,4 +144,49 @@ func (rs *BestEffortRetryStrategy) RetryAfter(req RetryRequest, reason RetryReas
 	}
 
 	return &NoRetryRetryAction{}
+}
+
+type internalRetryRequest interface {
+	RetryAttempts() uint32
+	Identifier() string
+	Idempotent() bool
+	RetryReasons() []RetryReason
+
+	retryStrategy() RetryStrategy
+	recordRetryAttempt(reason RetryReason)
+}
+
+// retryOrchMaybeRetry will possibly retry an operation according to the strategy belonging to the request.
+// It will use the reason to determine whether or not the failure reason is one that can be retried.
+func retryOrchMaybeRetry(req internalRetryRequest, reason RetryReason) (bool, time.Time) {
+	if reason.AlwaysRetry() {
+		duration := gocbcore.ControlledBackoff(req.RetryAttempts())
+		logDebugf("Will retry request. Backoff=%s, OperationID=%s. Reason=%s", duration, req.Identifier(), reason)
+
+		req.recordRetryAttempt(reason)
+
+		return true, time.Now().Add(duration)
+	}
+
+	retryStrategy := req.retryStrategy()
+	if retryStrategy == nil {
+		return false, time.Time{}
+	}
+
+	action := retryStrategy.RetryAfter(req, reason)
+	if action == nil {
+		logDebugf("Won't retry request.  OperationID=%s. Reason=%s", req.Identifier(), reason)
+		return false, time.Time{}
+	}
+
+	duration := action.Duration()
+	if duration == 0 {
+		logDebugf("Won't retry request.  OperationID=%s. Reason=%s", req.Identifier(), reason)
+		return false, time.Time{}
+	}
+
+	logDebugf("Will retry request. Backoff=%s, OperationID=%s. Reason=%s", duration, req.Identifier(), reason)
+	req.recordRetryAttempt(reason)
+
+	return true, time.Now().Add(duration)
 }
