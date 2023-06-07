@@ -220,6 +220,10 @@ var (
 	// ErrXattrInvalidOrder occurs when a set key key operations are specified for a extended-attribute sub-document
 	// operation in the incorrect order.
 	ErrXattrInvalidOrder = gocbcore.ErrXattrInvalidOrder
+
+	// ErrMutationTokenOutdated occurs when snapshow requirements are specified but the requirements do not align with
+	// the server.
+	ErrMutationTokenOutdated = gocbcore.ErrRangeScanVbUUIDNotEqual
 )
 
 // Query Error Definitions RFC#58@15

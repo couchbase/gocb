@@ -404,58 +404,6 @@ func (_m *mockKvProviderCoreProvider) Prepend(opts gocbcore.AdjoinOptions, cb go
 	return r0, r1
 }
 
-// RangeScanCancel provides a mock function with given fields: scanUUID, vbID, opts, cb
-func (_m *mockKvProviderCoreProvider) RangeScanCancel(scanUUID []byte, vbID uint16, opts gocbcore.RangeScanCancelOptions, cb gocbcore.RangeScanCancelCallback) (gocbcore.PendingOp, error) {
-	ret := _m.Called(scanUUID, vbID, opts, cb)
-
-	var r0 gocbcore.PendingOp
-	var r1 error
-	if rf, ok := ret.Get(0).(func([]byte, uint16, gocbcore.RangeScanCancelOptions, gocbcore.RangeScanCancelCallback) (gocbcore.PendingOp, error)); ok {
-		return rf(scanUUID, vbID, opts, cb)
-	}
-	if rf, ok := ret.Get(0).(func([]byte, uint16, gocbcore.RangeScanCancelOptions, gocbcore.RangeScanCancelCallback) gocbcore.PendingOp); ok {
-		r0 = rf(scanUUID, vbID, opts, cb)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(gocbcore.PendingOp)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func([]byte, uint16, gocbcore.RangeScanCancelOptions, gocbcore.RangeScanCancelCallback) error); ok {
-		r1 = rf(scanUUID, vbID, opts, cb)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// RangeScanContinue provides a mock function with given fields: scanUUID, vbID, opts, dataCb, actionCb
-func (_m *mockKvProviderCoreProvider) RangeScanContinue(scanUUID []byte, vbID uint16, opts gocbcore.RangeScanContinueOptions, dataCb gocbcore.RangeScanContinueDataCallback, actionCb gocbcore.RangeScanContinueActionCallback) (gocbcore.PendingOp, error) {
-	ret := _m.Called(scanUUID, vbID, opts, dataCb, actionCb)
-
-	var r0 gocbcore.PendingOp
-	var r1 error
-	if rf, ok := ret.Get(0).(func([]byte, uint16, gocbcore.RangeScanContinueOptions, gocbcore.RangeScanContinueDataCallback, gocbcore.RangeScanContinueActionCallback) (gocbcore.PendingOp, error)); ok {
-		return rf(scanUUID, vbID, opts, dataCb, actionCb)
-	}
-	if rf, ok := ret.Get(0).(func([]byte, uint16, gocbcore.RangeScanContinueOptions, gocbcore.RangeScanContinueDataCallback, gocbcore.RangeScanContinueActionCallback) gocbcore.PendingOp); ok {
-		r0 = rf(scanUUID, vbID, opts, dataCb, actionCb)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(gocbcore.PendingOp)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func([]byte, uint16, gocbcore.RangeScanContinueOptions, gocbcore.RangeScanContinueDataCallback, gocbcore.RangeScanContinueActionCallback) error); ok {
-		r1 = rf(scanUUID, vbID, opts, dataCb, actionCb)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // RangeScanCreate provides a mock function with given fields: vbID, opts, cb
 func (_m *mockKvProviderCoreProvider) RangeScanCreate(vbID uint16, opts gocbcore.RangeScanCreateOptions, cb gocbcore.RangeScanCreateCallback) (gocbcore.PendingOp, error) {
 	ret := _m.Called(vbID, opts, cb)

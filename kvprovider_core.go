@@ -17,7 +17,7 @@ var _ kvProvider = &kvProviderCore{}
 func (p *kvProviderCore) Scan(c *Collection, scanType ScanType, opts *ScanOptions) (*ScanResult, error) {
 	config, err := p.waitForConfigSnapshot(opts.Context, time.Now().Add(opts.Timeout))
 	if err != nil {
-		return nil, err
+		return nil, maybeEnhanceKVErr(err, c.bucketName(), c.ScopeName(), c.name(), "scan")
 	}
 
 	numVbuckets, err := config.NumVbuckets()
@@ -26,28 +26,54 @@ func (p *kvProviderCore) Scan(c *Collection, scanType ScanType, opts *ScanOption
 	}
 
 	if numVbuckets == 0 {
-		return nil, makeInvalidArgumentsError("can only use RangeScan with couchbase buckets")
+		return nil, makeInvalidArgumentsError("can only use Scan with couchbase buckets")
 	}
 
+	return p.scan(c, scanType, opts, numVbuckets)
+}
+
+func (p *kvProviderCore) scan(c *Collection, scanType ScanType, opts *ScanOptions, numVbuckets int) (*ScanResult, error) {
 	opm, err := p.newRangeScanOpManager(c, scanType, numVbuckets, p.agent, opts.ParentSpan, opts.ConsistentWith,
-		opts.IDsOnly, opts.Sort)
+		opts.IDsOnly)
 	if err != nil {
 		return nil, err
 	}
 
 	opm.SetTranscoder(opts.Transcoder)
-	opm.SetContext(opts.Context)
 	opm.SetImpersonate(opts.Internal.User)
 	opm.SetTimeout(opts.Timeout)
-	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetItemLimit(opts.BatchItemLimit)
 	opm.SetByteLimit(opts.BatchByteLimit)
+	opm.SetMaxConcurrency(opts.MaxConcurrency)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
 	}
 
-	return opm.Scan()
+	return opm.Scan(opts.Context)
+}
+
+func (p *kvProviderCore) waitForConfigSnapshot(ctx context.Context, deadline time.Time) (snapOut *gocbcore.ConfigSnapshot, errOut error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	opm := newAsyncOpManager(ctx)
+	err := opm.Wait(p.agent.WaitForConfigSnapshot(deadline, gocbcore.WaitForConfigSnapshotOptions{}, func(result *gocbcore.WaitForConfigSnapshotResult, err error) {
+		if err != nil {
+			errOut = err
+			opm.Reject()
+			return
+		}
+
+		snapOut = result.Snapshot
+		opm.Resolve()
+	}))
+	if err != nil {
+		errOut = err
+	}
+
+	return
 }
 
 func (p *kvProviderCore) Insert(c *Collection, id string, val interface{}, opts *InsertOptions) (*MutationResult, error) {

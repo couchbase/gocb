@@ -3,7 +3,9 @@ package gocb
 import (
 	"encoding/json"
 	"sync"
+	"sync/atomic"
 	"time"
+	"unsafe"
 )
 
 // Result is the base type for the return types of operations
@@ -369,9 +371,14 @@ func (r *GetReplicaResult) IsReplica() bool {
 // VOLATILE: This API is subject to change at any time.
 type ScanResult struct {
 	resultChan chan *ScanResultItem
-	cancelFn   func()
+	cancelFn   func(error)
 	err        error
 	errLock    sync.Mutex
+
+	limit    uint64
+	numItems uint64
+
+	peeked unsafe.Pointer
 }
 
 func (sr *ScanResult) setErr(err error) {
@@ -382,10 +389,26 @@ func (sr *ScanResult) setErr(err error) {
 
 // Next returns the next item on the stream, if there are no items remaining then nil is returned.
 func (sr *ScanResult) Next() *ScanResultItem {
+	peeked := atomic.SwapPointer(&sr.peeked, nil)
+	if peeked != nil {
+		atomic.AddUint64(&sr.numItems, 1)
+		return (*ScanResultItem)(peeked)
+	}
+
 	item, more := <-sr.resultChan
-	if more {
+	if !more {
+		return nil
+	}
+
+	// If we're doing a sampling scan then we need to only write data into the channel
+	// if we haven't seen the number of items that the user requested. Otherwise
+	// we need to cancel the streams
+	numItems := atomic.AddUint64(&sr.numItems, 1)
+	if sr.limit == 0 || numItems <= sr.limit {
 		return item
 	}
+
+	sr.cancelFn(nil)
 	return nil
 }
 
@@ -408,7 +431,7 @@ func (sr *ScanResult) Close() error {
 		return err
 	}
 
-	sr.cancelFn()
+	sr.cancelFn(ErrRequestCanceled)
 
 	return nil
 }

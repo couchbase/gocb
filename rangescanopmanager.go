@@ -8,29 +8,28 @@ import (
 	"math/rand"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/couchbase/gocbcore/v10"
 )
 
 const (
-	rangeScanDefaultItemLimit  = 50
-	rangeScanDefaultBytesLimit = 15000
+	rangeScanDefaultItemLimit        = 50
+	rangeScanDefaultBytesLimit       = 15000
+	rangeScanDefaultConcurrency      = 1
+	rangeScanDefaultResultBufferSize = 1024
 )
 
 type rangeScanOpManager struct {
 	err error
-	ctx context.Context
 
-	span          RequestSpan
-	transcoder    Transcoder
-	timeout       time.Duration
-	deadline      time.Time
-	retryStrategy *coreRetryStrategyWrapper
-	impersonate   string
+	span        RequestSpan
+	transcoder  Transcoder
+	timeout     time.Duration
+	deadline    time.Time
+	impersonate string
 
 	cancelCh chan struct{}
-	dataCh   chan *ScanResultItem
-	streams  map[uint16]*rangeScanStream
 
 	agent       kvProviderCoreProvider
 	createdTime time.Time
@@ -49,15 +48,143 @@ type rangeScanOpManager struct {
 	samplingOptions       *gocbcore.RangeScanCreateRandomSamplingConfig
 	vBucketToSnapshotOpts map[uint16]gocbcore.RangeScanCreateSnapshotRequirements
 
-	numVbuckets int
-	keysOnly    bool
-	sort        ScanSort
-	itemLimit   uint32
-	byteLimit   uint32
+	numVbuckets    int
+	keysOnly       bool
+	itemLimit      uint32
+	byteLimit      uint32
+	maxConcurrency uint16
 
 	result *ScanResult
 
 	cancelled uint32
+}
+
+func (p *kvProviderCore) newRangeScanOpManager(c *Collection, scanType ScanType, numVbuckets int, agent kvProviderCoreProvider,
+	parentSpan RequestSpan, consistentWith *MutationState, keysOnly bool) (*rangeScanOpManager, error) {
+	var tracectx RequestSpanContext
+	if parentSpan != nil {
+		tracectx = parentSpan.Context()
+	}
+
+	span := c.tracer.RequestSpan(tracectx, "range_scan")
+	span.SetAttribute(spanAttribDBNameKey, c.bucket.Name())
+	span.SetAttribute(spanAttribDBCollectionNameKey, c.Name())
+	span.SetAttribute(spanAttribDBScopeNameKey, c.ScopeName())
+	span.SetAttribute(spanAttribServiceKey, "kv_scan")
+	span.SetAttribute(spanAttribOperationKey, "range_scan")
+	span.SetAttribute(spanAttribDBSystemKey, spanAttribDBSystemValue)
+	span.SetAttribute("num_partitions", numVbuckets)
+	span.SetAttribute("without_content", keysOnly)
+
+	var rangeOptions *gocbcore.RangeScanCreateRangeScanConfig
+	var samplingOptions *gocbcore.RangeScanCreateRandomSamplingConfig
+
+	setRangeScanOpts := func(st RangeScan) error {
+		if st.To == nil {
+			st.To = ScanTermMaximum()
+		}
+		if st.From == nil {
+			st.From = ScanTermMinimum()
+		}
+
+		span.SetAttribute("scan_type", "range")
+		span.SetAttribute("from_term", st.From.Term)
+		span.SetAttribute("to_term", st.To.Term)
+		var err error
+		rangeOptions, err = st.toCore()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	setSamplingScanOpts := func(st SamplingScan) error {
+		if st.Seed == 0 {
+			st.Seed = rand.Uint64() // #nosec G404
+		}
+		span.SetAttribute("scan_type", "sampling")
+		span.SetAttribute("limit", st.Limit)
+		span.SetAttribute("seed", st.Seed)
+		var err error
+		samplingOptions, err = st.toCore()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	var err error
+	switch st := scanType.(type) {
+	case RangeScan:
+		if err := setRangeScanOpts(st); err != nil {
+			return nil, err
+		}
+	case *RangeScan:
+		if err := setRangeScanOpts(*st); err != nil {
+			return nil, err
+		}
+	case SamplingScan:
+		if err := setSamplingScanOpts(st); err != nil {
+			return nil, err
+		}
+	case *SamplingScan:
+		if err := setSamplingScanOpts(*st); err != nil {
+			return nil, err
+		}
+	default:
+		err = makeInvalidArgumentsError("only RangeScan and SamplingScan are supported for ScanType")
+	}
+
+	vBucketToSnapshotOpts := make(map[uint16]gocbcore.RangeScanCreateSnapshotRequirements)
+	if consistentWith != nil {
+		for _, token := range consistentWith.tokens {
+			entry, ok := vBucketToSnapshotOpts[uint16(token.PartitionID())]
+			if ok {
+				// Only replace if the token seqno > existing seqno
+				seqno := gocbcore.SeqNo(token.SequenceNumber())
+				if seqno > entry.SeqNo {
+					vBucketToSnapshotOpts[uint16(token.PartitionID())] = gocbcore.RangeScanCreateSnapshotRequirements{
+						VbUUID: gocbcore.VbUUID(token.PartitionUUID()),
+						SeqNo:  seqno,
+					}
+				}
+			} else {
+				vBucketToSnapshotOpts[uint16(token.PartitionID())] = gocbcore.RangeScanCreateSnapshotRequirements{
+					VbUUID: gocbcore.VbUUID(token.PartitionUUID()),
+					SeqNo:  gocbcore.SeqNo(token.SequenceNumber()),
+				}
+			}
+		}
+	}
+
+	m := &rangeScanOpManager{
+		err: err,
+
+		span:        span,
+		createdTime: time.Now(),
+		meter:       c.meter,
+		tracer:      c.tracer,
+
+		cancelCh: make(chan struct{}),
+
+		numVbuckets:          numVbuckets,
+		agent:                agent,
+		defaultTimeout:       c.timeoutsConfig.KVScanTimeout,
+		defaultTranscoder:    c.transcoder,
+		defaultRetryStrategy: c.retryStrategyWrapper,
+		collectionName:       c.Name(),
+		scopeName:            c.ScopeName(),
+		bucketName:           c.Bucket().Name(),
+
+		rangeOptions:          rangeOptions,
+		samplingOptions:       samplingOptions,
+		vBucketToSnapshotOpts: vBucketToSnapshotOpts,
+		keysOnly:              keysOnly,
+	}
+
+	return m, nil
 }
 
 func (m *rangeScanOpManager) getTimeout() time.Duration {
@@ -86,6 +213,13 @@ func (m *rangeScanOpManager) SetByteLimit(limit uint32) {
 	m.byteLimit = limit
 }
 
+func (m *rangeScanOpManager) SetMaxConcurrency(max uint16) {
+	if max == 0 {
+		max = rangeScanDefaultConcurrency
+	}
+	m.maxConcurrency = max
+}
+
 func (m *rangeScanOpManager) SetResult(result *ScanResult) {
 	m.result = result
 }
@@ -97,23 +231,8 @@ func (m *rangeScanOpManager) SetTranscoder(transcoder Transcoder) {
 	m.transcoder = transcoder
 }
 
-func (m *rangeScanOpManager) SetRetryStrategy(retryStrategy RetryStrategy) {
-	wrapper := m.defaultRetryStrategy
-	if retryStrategy != nil {
-		wrapper = newCoreRetryStrategyWrapper(retryStrategy)
-	}
-	m.retryStrategy = wrapper
-}
-
 func (m *rangeScanOpManager) SetImpersonate(user string) {
 	m.impersonate = user
-}
-
-func (m *rangeScanOpManager) SetContext(ctx context.Context) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	m.ctx = ctx
 }
 
 func (m *rangeScanOpManager) Finish() {
@@ -194,344 +313,211 @@ func (m *rangeScanOpManager) Timeout() time.Duration {
 	return m.getTimeout()
 }
 
-func (m *rangeScanOpManager) RetryStrategy() *coreRetryStrategyWrapper {
-	return m.retryStrategy
-}
-
 func (m *rangeScanOpManager) Impersonate() string {
 	return m.impersonate
 }
 
-func (m *rangeScanOpManager) Context() context.Context {
-	return m.ctx
+// Cancel will trigger all underlying streams to cancel themselves.
+func (m *rangeScanOpManager) Cancel(err error) {
+	m.cancelScan(err)
 }
 
-// Cancel will trigger all underlying streams to cancel themselves, the read loop
-// inside of Scan will handle calling Finish on the span and tidying up.
-func (m *rangeScanOpManager) Cancel() {
-	m.cancel(ErrRequestCanceled)
+func (m *rangeScanOpManager) IsRangeScan() bool {
+	return m.rangeOptions != nil
 }
 
-func (m *rangeScanOpManager) cancel(err error) {
+func (m *rangeScanOpManager) cancelScan(err error) {
 	if atomic.CompareAndSwapUint32(&m.cancelled, 0, 1) {
-		m.result.setErr(err)
+		if err != nil {
+			m.result.setErr(err)
+		}
 		close(m.cancelCh)
 	}
 }
 
-func (m *rangeScanOpManager) DataCh() chan *ScanResultItem {
-	return m.dataCh
-}
-
-func (m *rangeScanOpManager) getNextItemSorted() *ScanResultItem {
-	var lowestKey string
-	var lowestVbID uint16
-	for vbID, stream := range m.streams {
-		peeked := stream.Peek()
-		if peeked == nil {
-			delete(m.streams, vbID)
-			continue
-		}
-
-		if lowestKey == "" || peeked.id < lowestKey {
-			lowestKey = peeked.id
-			lowestVbID = vbID
-		}
+func (m *rangeScanOpManager) Scan(ctx context.Context) (*ScanResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
 	}
 
-	if lowestKey == "" {
-		return nil
-	}
-
-	return m.streams[lowestVbID].Take()
-}
-
-func (m *rangeScanOpManager) getNextItem() *ScanResultItem {
-	for vbID, stream := range m.streams {
-		peeked := stream.Peek()
-		if peeked == nil {
-			delete(m.streams, vbID)
-			continue
-		}
-
-		return stream.Take()
-	}
-
-	return nil
-}
-
-func (m *rangeScanOpManager) Scan() (*ScanResult, error) {
 	var limit uint64
 	if m.SamplingOptions() != nil {
 		limit = m.SamplingOptions().Samples
 	}
-	var numItems uint64
 
-	// Keep a track of the result object so that we can tell it any errors that occur.
+	resultCh := make(chan *ScanResultItem, rangeScanDefaultResultBufferSize)
 	r := &ScanResult{
-		resultChan: m.DataCh(),
+		resultChan: resultCh,
 		cancelFn:   m.Cancel,
+
+		limit: limit,
 	}
 	m.SetResult(r)
 
-	for vbucket := 0; vbucket < m.numVbuckets; vbucket++ {
-		stream := m.newRangeScanStream(uint16(vbucket))
-		m.streams[uint16(vbucket)] = stream
-		go func(stream *rangeScanStream) {
-			// This may seem a little unusual but calling end only once scan has returned allows us to
-			// avoid a lot of races that would otherwise be an issue.
-			stream.Scan()
-			stream.End()
-		}(stream)
-	}
+	vbucketCh := m.createVbucketChannel()
 
-	for _, stream := range m.streams {
-		select {
-		case <-stream.createdCh:
-			// This stream is ready to go.
-		case <-m.cancelCh:
-			return nil, m.result.Err()
+	var complete uint32
+	var seenData uint32
+
+	// We keep separate counts of running and completed to simplify shutdown of the scan.
+	scansRunning := int32(m.maxConcurrency)
+
+	deadline := time.Now().Add(m.Timeout())
+	isRangeScan := m.IsRangeScan()
+
+	var i uint16
+	for i = 0; i < m.maxConcurrency; i++ {
+		go func() {
+			defer func() {
+				if atomic.AddUint32(&complete, 1) == uint32(m.maxConcurrency) {
+					m.Finish()
+					close(vbucketCh)
+					close(resultCh)
+				}
+			}()
+
+			for vbID := range vbucketCh {
+				if atomic.LoadUint32(&m.cancelled) == 1 {
+					return
+				}
+
+				failPoint, err := m.scanPartition(ctx, deadline, vbID, resultCh)
+				if err != nil {
+					err = m.EnhanceErr(err)
+					if failPoint == scanFailPointCreate {
+						if errors.Is(err, gocbcore.ErrDocumentNotFound) {
+							logDebugf("Ignoring vbid %d as no documents exist for that vbucket", vbID)
+							if len(vbucketCh) == 0 {
+								return
+							}
+							continue
+						}
+
+						if errors.Is(err, ErrTemporaryFailure) || errors.Is(err, gocbcore.ErrBusy) {
+							// Put the vbucket back into the channel to be retried later.
+							vbucketCh <- vbID
+
+							if errors.Is(err, gocbcore.ErrBusy) {
+								// Busy indicates that the server is reporting too many active scans.
+								// Shut ourselves down if we're not the only runner remaining.
+								running := atomic.AddInt32(&scansRunning, -1)
+								if running >= 1 {
+									// Shutdown this worker.
+									logDebugf("Shutting down scan runner, remaining %d", running)
+									return
+								}
+							}
+
+							if len(vbucketCh) == 0 {
+								return
+							}
+
+							continue
+						}
+
+						if !m.IsRangeScan() {
+							// We can ignore stream create errors for sampling scans.
+							if len(vbucketCh) == 0 {
+								return
+							}
+							continue
+						}
+
+						// All other errors are fatal.
+						m.cancelScan(err)
+						return
+					}
+					// For range scan these are fatal.
+					var retErr error
+					if errors.Is(err, ErrDocumentNotFound) {
+						if isRangeScan {
+							retErr = err
+						}
+					} else if errors.Is(err, ErrAuthenticationFailure) {
+						if isRangeScan {
+							retErr = err
+						}
+					} else if errors.Is(err, ErrCollectionNotFound) {
+						if isRangeScan {
+							retErr = err
+						}
+					} else if errors.Is(err, gocbcore.ErrRangeScanCancelled) {
+						if isRangeScan {
+							var kvError *KeyValueError
+							if errors.As(err, &kvError) {
+								kvError.InnerError = ErrRequestCanceled
+								retErr = kvError
+							} else {
+								retErr = ErrRequestCanceled
+							}
+						}
+					} else {
+						// Any other error is fatal.
+						retErr = err
+					}
+					if retErr != nil {
+						m.cancelScan(retErr)
+						return
+					}
+
+					if len(vbucketCh) == 0 {
+						return
+					}
+
+					continue
+				}
+
+				if len(vbucketCh) == 0 {
+					return
+				}
+			}
+		}()
+	}
+	// Block waiting for any errors on the first scan(s) so that we can immediately return that error.
+	select {
+	case <-m.cancelCh:
+		return nil, r.Err()
+	case item, more := <-resultCh:
+		// more could be false if no sampling scans returned any data, but that isn't an error case.
+		if more {
+			atomic.StoreUint32(&seenData, 1)
+			r.peeked = unsafe.Pointer(item)
 		}
 	}
-
-	go func() {
-		for {
-			var item *ScanResultItem
-			if m.sort == ScanSortNone {
-				item = m.getNextItem()
-			} else {
-				item = m.getNextItemSorted()
-			}
-			// If we're doing a sampling scan then we need to only write data into the channel
-			// if we haven't seen the number of items that the user requested. Otherwise
-			// we need to cancel the streams and iterate over them until they close.
-			if item != nil && (limit == 0 || numItems < limit) {
-				numItems++
-				m.dataCh <- item
-			}
-			if limit > 0 && numItems == limit {
-				m.cancel(nil)
-			}
-
-			if len(m.streams) == 0 {
-				m.Finish()
-				close(m.dataCh)
-				return
-			}
-		}
-	}()
 
 	return r, nil
 }
 
-func (p *kvProviderCore) newRangeScanOpManager(c *Collection, scanType ScanType, numVbuckets int, agent kvProviderCoreProvider,
-	parentSpan RequestSpan, consistentWith *MutationState, keysOnly bool, sort ScanSort) (*rangeScanOpManager, error) {
-	var tracectx RequestSpanContext
-	if parentSpan != nil {
-		tracectx = parentSpan.Context()
-	}
+type scanFailPoint uint8
 
-	span := c.tracer.RequestSpan(tracectx, "range_scan")
-	span.SetAttribute(spanAttribDBNameKey, c.bucket.Name())
-	span.SetAttribute(spanAttribDBCollectionNameKey, c.Name())
-	span.SetAttribute(spanAttribDBScopeNameKey, c.ScopeName())
-	span.SetAttribute(spanAttribServiceKey, "kv_scan")
-	span.SetAttribute(spanAttribOperationKey, "range_scan")
-	span.SetAttribute(spanAttribDBSystemKey, spanAttribDBSystemValue)
-	span.SetAttribute("num_partitions", numVbuckets)
-	span.SetAttribute("without_content", keysOnly)
+const (
+	scanFailPointCreate scanFailPoint = iota + 1
+	scanFailPointContinue
+)
 
-	var rangeOptions *gocbcore.RangeScanCreateRangeScanConfig
-	var samplingOptions *gocbcore.RangeScanCreateRandomSamplingConfig
-
-	setRangeScanOpts := func(st RangeScan) error {
-		if st.To == nil {
-			st.To = ScanTermMaximum()
-		}
-		if st.From == nil {
-			st.From = ScanTermMinimum()
-		}
-
-		span.SetAttribute("scan_type", "range")
-		span.SetAttribute("from_term", st.From.Term)
-		span.SetAttribute("to_term", st.To.Term)
-		var err error
-		rangeOptions, err = st.toCore()
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	setSamplingScanOpts := func(st SamplingScan) error {
-		if st.Seed == 0 {
-			st.Seed = rand.Uint64() // #nosec G404
-		}
-		span.SetAttribute("scan_type", "sampling")
-		span.SetAttribute("limit", st.Limit)
-		span.SetAttribute("seed", st.Seed)
-		var err error
-		samplingOptions, err = st.toCore()
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	var err error
-	switch st := scanType.(type) {
-	case RangeScan:
-		if err := setRangeScanOpts(st); err != nil {
-			return nil, err
-		}
-	case *RangeScan:
-		if err := setRangeScanOpts(*st); err != nil {
-			return nil, err
-		}
-	case SamplingScan:
-		if err := setSamplingScanOpts(st); err != nil {
-			return nil, err
-		}
-	case *SamplingScan:
-		if err := setSamplingScanOpts(*st); err != nil {
-			return nil, err
-		}
-	default:
-		err = makeInvalidArgumentsError("only RangeScan and SamplingScan are supported for ScanType")
-	}
-
-	vBucketToSnapshotOpts := make(map[uint16]gocbcore.RangeScanCreateSnapshotRequirements)
-	if consistentWith != nil {
-		for _, token := range consistentWith.tokens {
-			vBucketToSnapshotOpts[uint16(token.PartitionID())] = gocbcore.RangeScanCreateSnapshotRequirements{
-				VbUUID: gocbcore.VbUUID(token.PartitionUUID()),
-				SeqNo:  gocbcore.SeqNo(token.SequenceNumber()),
-			}
-		}
-	}
-
-	m := &rangeScanOpManager{
-		err: err,
-
-		span:        span,
-		createdTime: time.Now(),
-		meter:       c.meter,
-		tracer:      c.tracer,
-
-		dataCh:   make(chan *ScanResultItem),
-		cancelCh: make(chan struct{}),
-		streams:  make(map[uint16]*rangeScanStream, numVbuckets),
-
-		numVbuckets:          numVbuckets,
-		agent:                agent,
-		defaultTimeout:       c.timeoutsConfig.KVScanTimeout,
-		defaultTranscoder:    c.transcoder,
-		defaultRetryStrategy: c.retryStrategyWrapper,
-		collectionName:       c.Name(),
-		scopeName:            c.ScopeName(),
-		bucketName:           c.Bucket().Name(),
-
-		rangeOptions:          rangeOptions,
-		samplingOptions:       samplingOptions,
-		vBucketToSnapshotOpts: vBucketToSnapshotOpts,
-		keysOnly:              keysOnly,
-		sort:                  sort,
-	}
-
-	return m, nil
-}
-
-type rangeScanStream struct {
-	// This is a bit lazy, but it saves us copying all the information into 1024 more places.
-	opm       *rangeScanOpManager
-	buffer    chan ScanResultItem
-	vbID      uint16
-	peeked    *ScanResultItem
-	span      RequestSpan
-	createdCh chan struct{}
-}
-
-func (m *rangeScanOpManager) newRangeScanStream(vbID uint16) *rangeScanStream {
+func (m *rangeScanOpManager) scanPartition(ctx context.Context, deadline time.Time, vbID uint16, resultCh chan *ScanResultItem) (scanFailPoint, error) {
 	span := m.tracer.RequestSpan(m.span.Context(), "range_scan_partition")
 	span.SetAttribute("partition_id", vbID)
-
-	return &rangeScanStream{
-		opm:       m,
-		buffer:    make(chan ScanResultItem),
-		vbID:      vbID,
-		span:      span,
-		createdCh: make(chan struct{}),
-	}
-}
-
-func (rss *rangeScanStream) Take() *ScanResultItem {
-	peeked := rss.peeked
-	rss.peeked = nil
-	return peeked
-}
-
-func (rss *rangeScanStream) Peek() *ScanResultItem {
-	if rss.peeked != nil {
-		return rss.peeked
-	}
-
-	select {
-	case peeked, hasMore := <-rss.buffer:
-		if !hasMore {
-			return nil
-		}
-		rss.peeked = &peeked
-		return rss.peeked
-	case <-rss.opm.cancelCh:
-		return nil
-	}
-}
-
-func (rss *rangeScanStream) End() {
-	rss.span.End()
-	close(rss.buffer)
-}
-
-func (rss *rangeScanStream) Scan() {
+	defer span.End()
 	var lastTermSeen []byte
-	rangeOpts := rss.opm.RangeOptions()
-	samplingOpts := rss.opm.SamplingOptions()
-	ctx := rss.opm.Context()
-	var firstCreateDone bool
+	rangeOpts := m.RangeOptions()
+	samplingOpts := m.SamplingOptions()
+
+	var createRes gocbcore.RangeScanCreateResult
 	for {
 		if rangeOpts != nil && len(lastTermSeen) > 0 {
-			rangeOpts.Start = lastTermSeen
+			// Make a copy of the range options so that we don't affect the manager level ones.
+			newRangeOpts := *rangeOpts
+			newRangeOpts.Start = lastTermSeen
+			rangeOpts = &newRangeOpts
 		}
 
-		scanUUID, err := rss.create(ctx, rangeOpts, samplingOpts)
+		var err error
+		createRes, err = m.createStream(ctx, span.Context(), deadline, vbID, rangeOpts, samplingOpts)
 		if err != nil {
-			err = rss.opm.EnhanceErr(err)
-			if errors.Is(err, gocbcore.ErrDocumentNotFound) {
-				if !firstCreateDone {
-					close(rss.createdCh)
-				}
-				logDebugf("Ignoring vbid %d as no documents exist for that vbucket", rss.vbID)
-				return
-			}
-
-			// We only signal to cancel the entire stream if this is a range scan.
-			if rangeOpts == nil {
-				if !firstCreateDone {
-					close(rss.createdCh)
-				}
-			} else {
-				// We don't close the created channel here, because we don't want to signal a successful create
-				// call to the stream manager.
-				rss.opm.cancel(err)
-			}
-			return
+			err = m.EnhanceErr(err)
+			return scanFailPointCreate, err
 		}
-		if !firstCreateDone {
-			close(rss.createdCh)
-		}
-		firstCreateDone = true
 
 		// We only apply context to the initial create stream request, after that we consider the stream active
 		// and context cancellation no longer applies.
@@ -539,20 +525,18 @@ func (rss *rangeScanStream) Scan() {
 
 		// We've created the stream so now loop continue until the stream is complete or cancelled.
 		for {
-			items, isComplete, err := rss.scanContinue(scanUUID)
+			items, isComplete, err := m.continueStream(ctx, span.Context(), createRes)
 			if err != nil {
-				err = rss.opm.EnhanceErr(err)
+				err = m.EnhanceErr(err)
 				// If the error is NMV or EOF then we should recreate the stream from the last known item.
 				// Breaking here without calling cancel will trigger us to reloop rather than call Cancel on
 				// the stream and then return.
 				if errors.Is(err, gocbcore.ErrNotMyVBucket) || errors.Is(err, io.EOF) {
+					logInfof("Received NotMyVbucket or EOF, will retry")
 					break
 				}
-
-				rss.opm.cancel(err)
-				break
+				return scanFailPointContinue, err
 			}
-
 			if len(items) > 0 {
 				for _, item := range items {
 					var expiry time.Time
@@ -560,47 +544,42 @@ func (rss *rangeScanStream) Scan() {
 						expiry = time.Unix(int64(item.Expiry), 0)
 					}
 					select {
-					case <-rss.opm.cancelCh:
+					case <-m.cancelCh:
 						if !isComplete {
-							rss.cancel(scanUUID)
+							m.cancelStream(ctx, span.Context(), deadline, createRes)
 						}
-						return
-					case rss.buffer <- ScanResultItem{
+						return 0, nil
+					case resultCh <- &ScanResultItem{
 						Result: Result{
 							cas: Cas(item.Cas),
 						},
-						transcoder: rss.opm.Transcoder(),
+						transcoder: m.Transcoder(),
 						id:         string(item.Key),
 						flags:      item.Flags,
 						contents:   item.Value,
 						expiryTime: expiry,
-						keysOnly:   rss.opm.KeysOnly(),
+						keysOnly:   m.KeysOnly(),
 					}:
 					}
 				}
-
 				lastTermSeen = items[len(items)-1].Key
 			}
-
 			if isComplete {
-				return
+				return 0, nil
 			}
 		}
-
-		select {
-		case <-rss.opm.cancelCh:
-			rss.cancel(scanUUID)
-			return
-		default:
+		if atomic.LoadUint32(&m.cancelled) == 1 {
+			m.cancelStream(ctx, span.Context(), deadline, createRes)
+			return 0, nil
 		}
 	}
 }
 
-func (rss *rangeScanStream) create(ctx context.Context, rangeOpts *gocbcore.RangeScanCreateRangeScanConfig,
-	samplingOpts *gocbcore.RangeScanCreateRandomSamplingConfig) (uuidOut []byte, errOut error) {
-	span := rss.opm.tracer.RequestSpan(rss.span.Context(), "range_scan_create")
+func (m *rangeScanOpManager) createStream(ctx context.Context, spanCtx RequestSpanContext, deadline time.Time, vbID uint16,
+	rangeOpts *gocbcore.RangeScanCreateRangeScanConfig, samplingOpts *gocbcore.RangeScanCreateRandomSamplingConfig) (gocbcore.RangeScanCreateResult, error) {
+	span := m.tracer.RequestSpan(spanCtx, "range_scan_create")
 	defer span.End()
-	span.SetAttribute("without_content", rss.opm.KeysOnly())
+	span.SetAttribute("without_content", m.KeysOnly())
 	if samplingOpts != nil {
 		span.SetAttribute("scan_type", "sampling")
 		span.SetAttribute("limit", samplingOpts.Samples)
@@ -614,56 +593,60 @@ func (rss *rangeScanStream) create(ctx context.Context, rangeOpts *gocbcore.Rang
 	}
 
 	opMan := newAsyncOpManager(ctx)
-	opMan.SetCancelCh(rss.opm.cancelCh)
+	opMan.SetCancelCh(m.cancelCh)
 
-	err := opMan.Wait(rss.opm.agent.RangeScanCreate(rss.vbID, gocbcore.RangeScanCreateOptions{
-		RetryStrategy:  rss.opm.RetryStrategy(),
-		Deadline:       time.Now().Add(rss.opm.Timeout()),
-		CollectionName: rss.opm.CollectionName(),
-		ScopeName:      rss.opm.ScopeName(),
-		KeysOnly:       rss.opm.KeysOnly(),
+	var createResOut gocbcore.RangeScanCreateResult
+	var errOut error
+	err := opMan.Wait(m.agent.RangeScanCreate(vbID, gocbcore.RangeScanCreateOptions{
+		Deadline:       deadline,
+		CollectionName: m.CollectionName(),
+		ScopeName:      m.ScopeName(),
+		KeysOnly:       m.KeysOnly(),
 		Range:          rangeOpts,
 		Sampling:       samplingOpts,
-		Snapshot:       rss.opm.SnapshotOptions(rss.vbID),
-		User:           rss.opm.Impersonate(),
+		Snapshot:       m.SnapshotOptions(vbID),
+		User:           m.Impersonate(),
 		TraceContext:   span.Context(),
-	}, func(result *gocbcore.RangeScanCreateResult, err error) {
+	}, func(result gocbcore.RangeScanCreateResult, err error) {
 		if err != nil {
 			errOut = err
 			opMan.Reject()
 			return
 		}
 
-		uuidOut = result.ScanUUUID
+		createResOut = result
 		opMan.Resolve()
 	}))
 	if err != nil {
 		errOut = err
 	}
 
-	return
+	return createResOut, errOut
 }
 
-func (rss *rangeScanStream) scanContinue(scanUUID []byte) (itemsOut []gocbcore.RangeScanItem, completeOut bool, errOut error) {
-	span := rss.opm.tracer.RequestSpan(rss.span.Context(), "range_scan_continue")
+func (m *rangeScanOpManager) continueStream(ctx context.Context, spanCtx RequestSpanContext, createRes gocbcore.RangeScanCreateResult) ([]gocbcore.RangeScanItem, bool, error) {
+	span := m.tracer.RequestSpan(spanCtx, "range_scan_continue")
 	defer span.End()
 
-	span.SetAttribute("item_limit", rss.opm.itemLimit)
-	span.SetAttribute("byte_limit", rss.opm.byteLimit)
+	span.SetAttribute("item_limit", m.itemLimit)
+	span.SetAttribute("byte_limit", m.byteLimit)
 	span.SetAttribute("time_limit", 0)
 
-	opm := newAsyncOpManager(context.Background())
-	opm.SetCancelCh(rss.opm.cancelCh)
+	opm := newAsyncOpManager(ctx)
+	opm.SetCancelCh(m.cancelCh)
 
 	var items []gocbcore.RangeScanItem
-	span.SetAttribute("range_scan_id", "0x"+hex.EncodeToString(scanUUID))
+	span.SetAttribute("range_scan_id", "0x"+hex.EncodeToString(createRes.ScanUUID()))
 
-	err := opm.Wait(rss.opm.agent.RangeScanContinue(scanUUID, rss.vbID, gocbcore.RangeScanContinueOptions{
-		RetryStrategy: rss.opm.RetryStrategy(),
-		User:          rss.opm.Impersonate(),
-		TraceContext:  span.Context(),
-		MaxCount:      rss.opm.itemLimit,
-		MaxBytes:      rss.opm.byteLimit,
+	var itemsOut []gocbcore.RangeScanItem
+	var completeOut bool
+	var errOut error
+
+	err := opm.Wait(createRes.RangeScanContinue(gocbcore.RangeScanContinueOptions{
+		User:         m.Impersonate(),
+		TraceContext: span.Context(),
+		MaxCount:     m.itemLimit,
+		MaxBytes:     m.byteLimit,
 	}, func(coreItems []gocbcore.RangeScanItem) {
 		items = append(items, coreItems...)
 	}, func(result *gocbcore.RangeScanContinueResult, err error) {
@@ -690,24 +673,23 @@ func (rss *rangeScanStream) scanContinue(scanUUID []byte) (itemsOut []gocbcore.R
 		errOut = err
 	}
 
-	return
+	return itemsOut, completeOut, errOut
 }
 
-func (rss *rangeScanStream) cancel(scanUUID []byte) {
-	opMan := newAsyncOpManager(context.Background())
-	span := rss.opm.tracer.RequestSpan(rss.span.Context(), "range_scan_cancel")
+func (m *rangeScanOpManager) cancelStream(ctx context.Context, spanCtx RequestSpanContext, deadline time.Time, createRes gocbcore.RangeScanCreateResult) {
+	opMan := newAsyncOpManager(ctx)
+	span := m.tracer.RequestSpan(spanCtx, "range_scan_cancel")
 	defer span.End()
 
-	span.SetAttribute("range_scan_id", "0x"+hex.EncodeToString(scanUUID))
+	span.SetAttribute("range_scan_id", "0x"+hex.EncodeToString(createRes.ScanUUID()))
 
-	err := opMan.Wait(rss.opm.agent.RangeScanCancel(scanUUID, rss.vbID, gocbcore.RangeScanCancelOptions{
-		RetryStrategy: rss.opm.RetryStrategy(),
-		Deadline:      time.Now().Add(rss.opm.Timeout()),
-		User:          rss.opm.Impersonate(),
-		TraceContext:  rss.span.Context(),
+	err := opMan.Wait(createRes.RangeScanCancel(gocbcore.RangeScanCancelOptions{
+		Deadline:     deadline,
+		User:         m.Impersonate(),
+		TraceContext: span.Context(),
 	}, func(result *gocbcore.RangeScanCancelResult, err error) {
 		if err != nil {
-			logDebugf("Failed to cancel scan 0x%s: %v", hex.EncodeToString(scanUUID), err)
+			logDebugf("Failed to cancel scan 0x%s: %v", hex.EncodeToString(createRes.ScanUUID()), err)
 			opMan.Reject()
 			return
 		}
@@ -717,4 +699,22 @@ func (rss *rangeScanStream) cancel(scanUUID []byte) {
 	if err != nil {
 		return
 	}
+}
+
+func (m *rangeScanOpManager) createVbucketChannel() chan uint16 {
+	var vbuckets []uint16
+	for vbucket := 0; vbucket < m.numVbuckets; vbucket++ {
+		vbuckets = append(vbuckets, uint16(vbucket))
+	}
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(m.numVbuckets, func(i, j int) {
+		vbuckets[i], vbuckets[j] = vbuckets[j], vbuckets[i]
+	})
+
+	vbucketCh := make(chan uint16, m.numVbuckets)
+	for _, vbucket := range vbuckets {
+		vbucketCh <- vbucket
+	}
+
+	return vbucketCh
 }

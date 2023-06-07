@@ -10,10 +10,9 @@ import (
 // ScanOptions are the set of options available to the Scan operation.
 // VOLATILE: This API is subject to change at any time.
 type ScanOptions struct {
-	Transcoder    Transcoder
-	Timeout       time.Duration
-	RetryStrategy RetryStrategy
-	ParentSpan    RequestSpan
+	Transcoder Transcoder
+	Timeout    time.Duration
+	ParentSpan RequestSpan
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
 	// also applies to global level timeouts.
@@ -22,29 +21,22 @@ type ScanOptions struct {
 
 	IDsOnly        bool
 	ConsistentWith *MutationState
-	Sort           ScanSort
 
 	// BatchByteLimit specifies a limit to how many bytes are sent from server to client on each partition batch.
 	BatchByteLimit uint32
 	// BatchItemLimit specifies a limit to how many items are sent from server to client on each partition batch.
 	BatchItemLimit uint32
 
+	// MaxConcurrency specifies the maximum number of scans that can be active at the same time.
+	// Defaults to 1 and care must be taken to ensure that the server does not run out of resources due to
+	// concurrent scans.
+	MaxConcurrency uint16
+
 	// Internal: This should never be used and is not supported.
 	Internal struct {
 		User string
 	}
 }
-
-// ScanSort represents the sort order of a Scan operation.
-type ScanSort uint8
-
-const (
-	// ScanSortNone indicates that no sorting should be applied during a Scan operation.
-	ScanSortNone ScanSort = iota
-
-	// ScanSortAscending indicates that ascending sort should be applied during a Scan operation.
-	ScanSortAscending
-)
 
 // ScanTerm represents a term that can be used during a Scan operation.
 type ScanTerm struct {
@@ -62,7 +54,7 @@ func ScanTermMinimum() *ScanTerm {
 // ScanTermMaximum represents the maximum value that a ScanTerm can represent.
 func ScanTermMaximum() *ScanTerm {
 	return &ScanTerm{
-		Term: "\xFF",
+		Term: "\xf48fbfbf",
 	}
 }
 
@@ -80,7 +72,7 @@ func NewRangeScanForPrefix(prefix string) RangeScan {
 			Term: prefix,
 		},
 		To: &ScanTerm{
-			Term: prefix + "\xFF",
+			Term: prefix + ScanTermMaximum().Term,
 		},
 	}
 }
@@ -98,15 +90,19 @@ func (rs RangeScan) toCore() (*gocbcore.RangeScanCreateRangeScanConfig, error) {
 	from := rs.From
 
 	rangeOptions := &gocbcore.RangeScanCreateRangeScanConfig{}
-	if from.Exclusive {
-		rangeOptions.ExclusiveStart = []byte(from.Term)
-	} else {
-		rangeOptions.Start = []byte(from.Term)
+	if from != nil {
+		if from.Exclusive {
+			rangeOptions.ExclusiveStart = []byte(from.Term)
+		} else {
+			rangeOptions.Start = []byte(from.Term)
+		}
 	}
-	if to.Exclusive {
-		rangeOptions.ExclusiveEnd = []byte(to.Term)
-	} else {
-		rangeOptions.End = []byte(to.Term)
+	if to != nil {
+		if to.Exclusive {
+			rangeOptions.ExclusiveEnd = []byte(to.Term)
+		} else {
+			rangeOptions.End = []byte(to.Term)
+		}
 	}
 
 	return rangeOptions, nil
@@ -148,27 +144,4 @@ func (c *Collection) Scan(scanType ScanType, opts *ScanOptions) (*ScanResult, er
 	}
 
 	return agent.Scan(c, scanType, opts)
-}
-
-func (p *kvProviderCore) waitForConfigSnapshot(ctx context.Context, deadline time.Time) (snapOut *gocbcore.ConfigSnapshot, errOut error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	opm := newAsyncOpManager(ctx)
-	err := opm.Wait(p.agent.WaitForConfigSnapshot(deadline, gocbcore.WaitForConfigSnapshotOptions{}, func(result *gocbcore.WaitForConfigSnapshotResult, err error) {
-		if err != nil {
-			errOut = err
-			opm.Reject()
-			return
-		}
-
-		snapOut = result.Snapshot
-		opm.Resolve()
-	}))
-	if err != nil {
-		errOut = err
-	}
-
-	return
 }

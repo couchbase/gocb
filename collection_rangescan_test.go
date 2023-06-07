@@ -123,9 +123,9 @@ func (suite *IntegrationTestSuite) verifyRangeScanTracing(topSpan *testSpan, num
 	if suite.Assert().Contains(topSpan.Spans, "range_scan_partition") {
 		pSpans := topSpan.Spans["range_scan_partition"]
 		suite.Assert().Len(pSpans, numPartitions)
-		for i, partitionSpan := range pSpans {
+		for _, partitionSpan := range pSpans {
 			suite.Assert().Equal("range_scan_partition", partitionSpan.Name)
-			suite.Assert().Equal(uint16(i), partitionSpan.Tags["partition_id"])
+			suite.Assert().Contains(partitionSpan.Tags, "partition_id")
 			suite.Assert().True(partitionSpan.Finished)
 			suite.Assert().Equal(topSpan.Context(), partitionSpan.ParentContext)
 			// Partition spans may only contain a create span if there is no data in the partition.
@@ -185,7 +185,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithContent() {
 
 	value := "test"
 
-	suite.upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
+	state := suite.upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
 		Expiry: 30 * time.Second,
 	})
 	scan := RangeScan{
@@ -196,7 +196,9 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithContent() {
 			Term: "rangescanwithcontent\xFF",
 		},
 	}
-	opts := &ScanOptions{}
+	opts := &ScanOptions{
+		ConsistentWith: state,
+	}
 
 	res, err := globalCollection.Scan(scan, opts)
 	suite.Require().Nil(err, err)
@@ -245,7 +247,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithoutContent() {
 
 	value := makeBinaryValue(1)
 
-	suite.upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
+	state := suite.upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
 		Expiry: 30 * time.Second,
 	})
 
@@ -258,7 +260,8 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithoutContent() {
 		},
 	}
 	opts := &ScanOptions{
-		IDsOnly: true,
+		IDsOnly:        true,
+		ConsistentWith: state,
 	}
 
 	res, err := globalCollection.Scan(scan, opts)
@@ -307,7 +310,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithContentBinaryTranscoder
 	value := makeBinaryValue(1)
 	tcoder := NewRawBinaryTranscoder()
 
-	suite.upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
+	state := suite.upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
 		Expiry:     30 * time.Second,
 		Transcoder: tcoder,
 	})
@@ -320,7 +323,8 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithContentBinaryTranscoder
 		},
 	}
 	opts := &ScanOptions{
-		Transcoder: tcoder,
+		Transcoder:     tcoder,
+		ConsistentWith: state,
 	}
 
 	res, err := globalCollection.Scan(scan, opts)
@@ -374,7 +378,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeCancellation() {
 
 	value := makeBinaryValue(1)
 
-	suite.upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
+	state := suite.upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
 		Expiry: 30 * time.Second,
 	})
 
@@ -389,6 +393,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeCancellation() {
 	opts := &ScanOptions{
 		IDsOnly:        true,
 		BatchItemLimit: 1,
+		ConsistentWith: state,
 	}
 
 	res, err := globalCollection.Scan(scan, opts)
