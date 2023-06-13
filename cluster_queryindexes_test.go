@@ -191,6 +191,8 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 	}, nil)
 	suite.Require().Nil(err, err)
 
+	suite.mustWaitForCollections(scopeName, []string{colName})
+
 	mgr := globalCluster.QueryIndexes()
 
 	deadline := time.Now().Add(60 * time.Second)
@@ -346,10 +348,11 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 	suite.dropAllIndexes()
 	bucketName := globalBucket.Name()
 
+	colName := uuid.NewString()[:6]
 	collections := globalBucket.Collections()
 	err := collections.CreateCollection(CollectionSpec{
 		ScopeName: "_default",
-		Name:      uuid.NewString()[:6],
+		Name:      colName,
 	}, nil)
 	suite.Require().Nil(err, err)
 
@@ -371,7 +374,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 		err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
 			Deferred:       true,
 			ScopeName:      "_default",
-			CollectionName: bucketName,
+			CollectionName: colName,
 		})
 		if err == nil || errors.Is(err, ErrIndexExists) {
 			return true

@@ -36,8 +36,8 @@ func (suite *IntegrationTestSuite) setupScopeQuery() int {
 		globalCollection.Name())
 	suite.Require().Nil(err, "Failed to create dataset %v", err)
 
-	mgr := globalCluster.QueryIndexes()
-	err = mgr.CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
+	mgr := globalCollection.QueryIndexes()
+	err = mgr.CreatePrimaryIndex(&CreatePrimaryQueryIndexOptions{
 		IgnoreIfExists: true,
 		Timeout:        30 * time.Second,
 	})
