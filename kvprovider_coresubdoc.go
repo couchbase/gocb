@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"time"
@@ -23,13 +24,202 @@ func (p *kvProviderCore) LookupIn(c *Collection, id string, ops []LookupInSpec, 
 		return nil, err
 	}
 
-	return p.internalLookupIn(opm, ops, memd.SubdocDocFlag(opts.Internal.DocFlags))
+	return p.internalLookupIn(opm, ops, memd.SubdocDocFlag(opts.Internal.DocFlags), 0)
+}
+
+func (p *kvProviderCore) LookupInAllReplicas(c *Collection, id string, ops []LookupInSpec,
+	opts *LookupInAllReplicaOptions) (docOut *LookupInAllReplicasResult, errOut error) {
+	var tracectx RequestSpanContext
+	if opts.ParentSpan != nil {
+		tracectx = opts.ParentSpan.Context()
+	}
+
+	ctx := opts.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	span := c.startKvOpTrace("lookup_in_all_replicas", tracectx, false)
+
+	// Timeout needs to be adjusted here, since we use it at the bottom of this
+	// function, but the remaining options are all passed downwards and get handled
+	// by those functions rather than us.
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = c.timeoutsConfig.KVTimeout
+	}
+
+	deadline := time.Now().Add(timeout)
+	retryStrategy := opts.RetryStrategy
+
+	snapshot, err := p.waitForConfigSnapshot(ctx, deadline)
+	if err != nil {
+		return nil, err
+	}
+
+	numReplicas, err := snapshot.NumReplicas()
+	if err != nil {
+		return nil, err
+	}
+
+	numServers := numReplicas + 1
+	outCh := make(chan interface{}, numServers)
+	cancelCh := make(chan struct{})
+
+	recorder, err := c.meter.ValueRecorder(meterValueServiceKV, "lookup_in_all_replicas")
+	if err != nil {
+		logDebugf("Failed to create value recorder: %v", err)
+	}
+
+	repRes := &LookupInAllReplicasResult{
+		res: &replicasResult{
+			totalRequests:       uint32(numServers),
+			resCh:               outCh,
+			cancelCh:            cancelCh,
+			span:                span,
+			childReqsCompleteCh: make(chan struct{}),
+			valueRecorder:       recorder,
+			startedTime:         time.Now(),
+		},
+	}
+
+	// Loop all the servers and populate the result object
+	for replicaIdx := 0; replicaIdx < numServers; replicaIdx++ {
+		go func(replicaIdx int) {
+			// This timeout value will cause the getOneReplica operation to timeout after our deadline has expired,
+			// as the deadline has already begun. getOneReplica timing out before our deadline would cause inconsistent
+			// behaviour.
+			res, err := p.lookupInOneReplica(ctx, span, id, ops, replicaIdx, retryStrategy, cancelCh,
+				timeout, opts.Internal.User, c, memd.SubdocDocFlag(opts.Internal.DocFlags))
+			if err != nil {
+				repRes.res.addFailed()
+				logDebugf("Failed to fetch replica from replica %d: %s", replicaIdx, err)
+			} else {
+				repRes.res.addResult(res)
+			}
+		}(replicaIdx)
+	}
+
+	// Start a timer to close it after the deadline
+	go func() {
+		select {
+		case <-time.After(time.Until(deadline)):
+			// If we timeout, we should close the result
+			err := repRes.Close()
+			if err != nil {
+				logDebugf("failed to close LookupInAllReplicas response: %s", err)
+			}
+		case <-cancelCh:
+		// If the cancel channel closes, we are done
+		case <-ctx.Done():
+			err := repRes.Close()
+			if err != nil {
+				logDebugf("failed to close LookupInAllReplicas response: %s", err)
+			}
+		}
+	}()
+
+	return repRes, nil
+}
+
+func (p *kvProviderCore) LookupInAnyReplica(c *Collection, id string, ops []LookupInSpec,
+	opts *LookupInAnyReplicaOptions) (docOut *LookupInReplicaResult, errOut error) {
+	start := time.Now()
+	defer c.meter.ValueRecord("kv", "lookup_in_any_replica", start)
+
+	var tracectx RequestSpanContext
+	if opts.ParentSpan != nil {
+		tracectx = opts.ParentSpan.Context()
+	}
+
+	span := c.startKvOpTrace("lookup_in_any_replica", tracectx, false)
+	defer span.End()
+
+	repRes, err := p.LookupInAllReplicas(c, id, ops, &LookupInAllReplicaOptions{
+		Timeout:       opts.Timeout,
+		RetryStrategy: opts.RetryStrategy,
+		Internal:      opts.Internal,
+		ParentSpan:    span,
+		Context:       opts.Context,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Try to fetch at least one result
+	res := repRes.Next()
+	if res == nil {
+		return nil, &KeyValueError{
+			InnerError:     ErrDocumentUnretrievable,
+			BucketName:     c.bucketName(),
+			ScopeName:      c.scope,
+			CollectionName: c.collectionName,
+		}
+	}
+
+	// Close the results channel since we don't care about any of the
+	// remaining result objects at this point.
+	err = repRes.Close()
+	if err != nil {
+		logDebugf("failed to close LookupInAnyReplica response: %s", err)
+	}
+
+	return res, nil
+}
+
+func (p *kvProviderCore) lookupInOneReplica(
+	ctx context.Context,
+	span RequestSpan,
+	id string,
+	ops []LookupInSpec,
+	replicaIdx int,
+	retryStrategy RetryStrategy,
+	cancelCh chan struct{},
+	timeout time.Duration,
+	user string,
+	c *Collection,
+	flags memd.SubdocDocFlag,
+) (*LookupInReplicaResult, error) {
+	opm := newKvOpManagerCore(c, "lookup_in", span, p)
+	defer opm.Finish(false)
+
+	opm.SetDocumentID(id)
+	opm.SetRetryStrategy(retryStrategy)
+	opm.SetTimeout(timeout)
+	opm.SetImpersonate(user)
+	opm.SetContext(ctx)
+	opm.SetCancelCh(cancelCh)
+
+	if replicaIdx == 0 {
+		res, err := p.internalLookupIn(opm, ops, flags, 0)
+		if err != nil {
+			return nil, err
+		}
+
+		docOut := &LookupInReplicaResult{}
+		docOut.LookupInResult = res
+
+		return docOut, nil
+	}
+
+	newFlags := memd.SubdocDocFlagReplicaRead | flags
+	res, err := p.internalLookupIn(opm, ops, newFlags, replicaIdx)
+	if err != nil {
+		return nil, err
+	}
+
+	docOut := &LookupInReplicaResult{}
+	docOut.LookupInResult = res
+	docOut.isReplica = true
+
+	return docOut, nil
 }
 
 func (p *kvProviderCore) internalLookupIn(
 	opm *kvOpManagerCore,
 	ops []LookupInSpec,
 	flags memd.SubdocDocFlag,
+	replicaIdx int,
 ) (*LookupInResult, error) {
 	var subdocs []gocbcore.SubDocOp
 	for _, op := range ops {
@@ -79,6 +269,7 @@ func (p *kvProviderCore) internalLookupIn(
 		Deadline:       opm.Deadline(),
 		Flags:          flags,
 		User:           opm.Impersonate(),
+		ReplicaIdx:     replicaIdx,
 	}, func(res *gocbcore.LookupInResult, err error) {
 		if err != nil && res == nil {
 			errOut = opm.EnhanceErr(err)

@@ -23,6 +23,8 @@ type kvProvider interface {
 	GetAllReplicas(*Collection, string, *GetAllReplicaOptions) (*GetAllReplicasResult, error)
 
 	LookupIn(*Collection, string, []LookupInSpec, *LookupInOptions) (*LookupInResult, error)
+	LookupInAnyReplica(*Collection, string, []LookupInSpec, *LookupInAnyReplicaOptions) (*LookupInReplicaResult, error)
+	LookupInAllReplicas(*Collection, string, []LookupInSpec, *LookupInAllReplicaOptions) (*LookupInAllReplicasResult, error)
 	MutateIn(*Collection, string, []MutateInSpec, *MutateInOptions) (*MutateInResult, error)
 
 	Increment(*Collection, string, *IncrementOptions) (*CounterResult, error)      // Done

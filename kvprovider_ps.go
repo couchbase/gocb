@@ -135,6 +135,14 @@ func (p *kvProviderPs) LookupIn(c *Collection, id string, ops []LookupInSpec, op
 	return docOut, nil
 }
 
+func (p *kvProviderPs) LookupInAnyReplica(*Collection, string, []LookupInSpec, *LookupInAnyReplicaOptions) (*LookupInReplicaResult, error) {
+	return nil, ErrFeatureNotAvailable
+}
+
+func (p *kvProviderPs) LookupInAllReplicas(*Collection, string, []LookupInSpec, *LookupInAllReplicaOptions) (*LookupInAllReplicasResult, error) {
+	return nil, ErrFeatureNotAvailable
+}
+
 func (p *kvProviderPs) MutateIn(c *Collection, id string, ops []MutateInSpec, opts *MutateInOptions) (*MutateInResult, error) {
 	opm := newKvOpManagerPs(c, "mutate_in", opts.ParentSpan)
 	defer opm.Finish(false)

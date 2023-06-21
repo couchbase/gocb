@@ -95,6 +95,7 @@ var (
 	KeyValueProjectionsFeature                = FeatureCode("keyvalueprojections")
 	NodesMetadataFeature                      = FeatureCode("nodesmetadata")
 	RetriesFeature                            = FeatureCode("retries")
+	SubdocReplicaReadsFeature                 = FeatureCode("subdocreplicas")
 )
 
 type TestFeatureFlag struct {
@@ -228,6 +229,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case RangeScanFeature:
 			supported = false
+		case SubdocReplicaReadsFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -345,6 +348,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Equal(protostellarVer)
 		case RetriesFeature:
 			supported = !c.Version.Equal(protostellarVer)
+		case SubdocReplicaReadsFeature:
+			supported = !c.Version.Lower(srvVer750)
 		}
 	}
 

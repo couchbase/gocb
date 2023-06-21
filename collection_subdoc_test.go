@@ -1,9 +1,12 @@
 package gocb
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/couchbase/gocbcore/v10/memd"
 )
@@ -820,4 +823,145 @@ func (suite *IntegrationTestSuite) TestMutateInLookupInCountersXattrs() {
 	if counter != 7 {
 		suite.T().Fatalf("Expected counter to be 25 but was %v", counter)
 	}
+}
+
+func (suite *IntegrationTestSuite) TestUpsertReplicateToLookupInAnyReplica() {
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(ReplicasFeature)
+	suite.skipIfUnsupported(SubdocReplicaReadsFeature)
+
+	docId := generateDocId("insertReplicaLookupInDoc")
+
+	var doc testBeerDocument
+	err := loadJSONTestDataset("beer_sample_single", &doc)
+	suite.Require().NoError(err, err)
+
+	mutRes, err := globalCollection.Upsert(docId, doc, &UpsertOptions{
+		PersistTo: 1,
+		Timeout:   5 * time.Second,
+	})
+	suite.Require().NoError(err, err)
+	suite.Assert().NotZero(mutRes.Cas())
+
+	result, err := globalCollection.LookupInAnyReplica(docId, []LookupInSpec{
+		GetSpec("name", nil),
+	}, nil)
+	suite.Require().NoError(err, err)
+
+	var name string
+	err = result.ContentAt(0, &name)
+	suite.Require().NoError(err, err)
+
+	suite.Assert().Equal(doc.Name, name)
+
+	suite.Require().Contains(globalTracer.GetSpans(), nil)
+	nilParents := globalTracer.GetSpans()[nil]
+	suite.Require().Equal(len(nilParents), 2)
+	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), true, DurabilityLevelNone)
+
+	span := nilParents[1]
+	suite.AssertKvSpan(span, "lookup_in_any_replica", DurabilityLevelNone)
+
+	suite.Require().Equal(len(span.Spans), 1)
+	suite.Require().Contains(span.Spans, "lookup_in_all_replicas")
+	allReplicasSpans := span.Spans["lookup_in_all_replicas"]
+
+	suite.Require().GreaterOrEqual(len(allReplicasSpans), 1)
+	suite.Require().Contains(allReplicasSpans[0].Spans, "lookup_in")
+	getReplicaSpans := allReplicasSpans[0].Spans["lookup_in"]
+	suite.Require().GreaterOrEqual(len(getReplicaSpans), 2)
+	// We don't actually know which of these will win.
+	for _, span := range getReplicaSpans {
+		suite.Require().Equal(1, len(span.Spans))
+		suite.AssertKvSpan(span, "lookup_in", DurabilityLevelNone)
+		// We don't know which span was actually cancelled so we don't check the CMD spans.
+	}
+
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "lookup_in_any_replica", 1, false)
+
+	// We can't reliably check the metrics for the get cmd spans, as we don't know which one will have won.
+}
+
+func (suite *IntegrationTestSuite) TestUpsertReplicateToGetAllReplicas() {
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(ReplicasFeature)
+	suite.skipIfUnsupported(SubdocReplicaReadsFeature)
+
+	var doc testBeerDocument
+	err := loadJSONTestDataset("beer_sample_single", &doc)
+	suite.Require().NoError(err, err)
+
+	prov, err := globalCollection.getKvProvider()
+	suite.Require().NoError(err, err)
+
+	agent, ok := prov.(*kvProviderCore)
+	suite.Require().True(ok)
+
+	snapshot, err := agent.waitForConfigSnapshot(context.Background(), time.Now().Add(5*time.Second))
+	suite.Require().NoError(err, err)
+
+	numReplicas, err := snapshot.NumReplicas()
+	suite.Require().NoError(err, err)
+
+	expectedReplicas := numReplicas + 1
+
+	docID := uuid.NewString()[:6]
+	mutRes, err := globalCollection.Upsert(docID, doc, &UpsertOptions{
+		PersistTo: uint(expectedReplicas),
+	})
+	suite.Require().NoError(err, err)
+
+	suite.Assert().NotZero(mutRes.Cas())
+
+	stream, err := globalCollection.LookupInAllReplicas(docID, []LookupInSpec{
+		GetSpec("name", nil),
+	}, &LookupInAllReplicaOptions{
+		Timeout: 25 * time.Second,
+	})
+	suite.Require().NoError(err, err)
+
+	actualReplicas := 0
+	numMasters := 0
+
+	for {
+		upsertedDoc := stream.Next()
+		if upsertedDoc == nil {
+			break
+		}
+
+		actualReplicas++
+
+		if !upsertedDoc.IsReplica() {
+			numMasters++
+		}
+
+		var name string
+		err = upsertedDoc.ContentAt(0, &name)
+		suite.Require().NoError(err, err)
+
+		suite.Assert().Equal(doc.Name, name)
+	}
+
+	err = stream.Close()
+	suite.Require().NoError(err, err)
+
+	suite.Assert().Equal(expectedReplicas, actualReplicas)
+	suite.Assert().Equal(1, numMasters)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "lookup_in_all_replicas", 1, false)
+}
+
+func (suite *IntegrationTestSuite) TestLookupInAnyReplicaKeyNotFound() {
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(ReplicasFeature)
+	suite.skipIfUnsupported(SubdocReplicaReadsFeature)
+
+	docId := uuid.NewString()[:6]
+
+	_, err := globalCollection.LookupInAnyReplica(docId, []LookupInSpec{
+		GetSpec("name", nil),
+	}, nil)
+	suite.Require().ErrorIs(err, ErrDocumentUnretrievable)
 }

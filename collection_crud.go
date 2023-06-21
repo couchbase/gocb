@@ -218,11 +218,29 @@ type GetAllReplicaOptions struct {
 
 // GetAllReplicasResult represents the results of a GetAllReplicas operation.
 type GetAllReplicasResult struct {
+	res *replicasResult
+}
+
+// Next fetches the next replica result.
+func (r *GetAllReplicasResult) Next() *GetReplicaResult {
+	res := r.res.Next()
+	if res == nil {
+		return nil
+	}
+	return res.(*GetReplicaResult)
+}
+
+// Close cancels all remaining get replica requests.
+func (r *GetAllReplicasResult) Close() error {
+	return r.res.Close()
+}
+
+type replicasResult struct {
 	lock                sync.Mutex
 	totalRequests       uint32
 	successResults      uint32
 	totalResults        uint32
-	resCh               chan *GetReplicaResult
+	resCh               chan interface{}
 	cancelCh            chan struct{}
 	span                RequestSpan
 	childReqsCompleteCh chan struct{}
@@ -230,18 +248,20 @@ type GetAllReplicasResult struct {
 	startedTime         time.Time
 }
 
-func (r *GetAllReplicasResult) addFailed() {
+func (r *replicasResult) addFailed() {
 	r.lock.Lock()
 
 	r.totalResults++
 	if r.totalResults == r.totalRequests {
 		close(r.childReqsCompleteCh)
+		r.lock.Unlock()
+		return
 	}
 
 	r.lock.Unlock()
 }
 
-func (r *GetAllReplicasResult) addResult(res *GetReplicaResult) {
+func (r *replicasResult) addResult(res interface{}) {
 	// We use a lock here because the alternative means that there is a race
 	// between the channel writes from multiple results and the channels being
 	// closed.  IE: T1-Incr, T2-Incr, T2-Send, T2-Close, T1-Send[PANIC]
@@ -273,12 +293,12 @@ func (r *GetAllReplicasResult) addResult(res *GetReplicaResult) {
 }
 
 // Next fetches the next replica result.
-func (r *GetAllReplicasResult) Next() *GetReplicaResult {
+func (r *replicasResult) Next() interface{} {
 	return <-r.resCh
 }
 
 // Close cancels all remaining get replica requests.
-func (r *GetAllReplicasResult) Close() error {
+func (r *replicasResult) Close() error {
 	// See addResult discussion on lock usage.
 	r.lock.Lock()
 

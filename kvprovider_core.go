@@ -757,7 +757,7 @@ func (p *kvProviderCore) GetAllReplicas(c *Collection, id string, opts *GetAllRe
 	}
 
 	numServers := numReplicas + 1
-	outCh := make(chan *GetReplicaResult, numServers)
+	outCh := make(chan interface{}, numServers)
 	cancelCh := make(chan struct{})
 
 	var recorder ValueRecorder
@@ -769,13 +769,15 @@ func (p *kvProviderCore) GetAllReplicas(c *Collection, id string, opts *GetAllRe
 	}
 
 	repRes := &GetAllReplicasResult{
-		totalRequests:       uint32(numServers),
-		resCh:               outCh,
-		cancelCh:            cancelCh,
-		span:                span,
-		childReqsCompleteCh: make(chan struct{}),
-		valueRecorder:       recorder,
-		startedTime:         time.Now(),
+		res: &replicasResult{
+			totalRequests:       uint32(numServers),
+			resCh:               outCh,
+			cancelCh:            cancelCh,
+			span:                span,
+			childReqsCompleteCh: make(chan struct{}),
+			valueRecorder:       recorder,
+			startedTime:         time.Now(),
+		},
 	}
 
 	// Loop all the servers and populate the result object
@@ -787,10 +789,10 @@ func (p *kvProviderCore) GetAllReplicas(c *Collection, id string, opts *GetAllRe
 			res, err := p.getOneReplica(context.Background(), span, id, replicaIdx, transcoder, retryStrategy, cancelCh,
 				timeout, opts.Internal.User, c)
 			if err != nil {
-				repRes.addFailed()
+				repRes.res.addFailed()
 				logDebugf("Failed to fetch replica from replica %d: %s", replicaIdx, err)
 			} else {
-				repRes.addResult(res)
+				repRes.res.addResult(res)
 			}
 		}(replicaIdx)
 	}
@@ -833,7 +835,7 @@ func (p *kvProviderCore) GetAnyReplica(c *Collection, id string, opts *GetAnyRep
 	span := c.startKvOpTrace("get_any_replica", tracectx, false)
 	defer span.End()
 
-	repRes, err := c.GetAllReplicas(id, &GetAllReplicaOptions{
+	repRes, err := p.GetAllReplicas(c, id, &GetAllReplicaOptions{
 		Timeout:       opts.Timeout,
 		Transcoder:    opts.Transcoder,
 		RetryStrategy: opts.RetryStrategy,

@@ -283,6 +283,36 @@ func (lir *LookupInResult) Exists(idx uint) bool {
 	return lir.contents[idx].exists()
 }
 
+// LookupInAllReplicasResult represents the results of a LookupInAllReplicas operation.
+type LookupInAllReplicasResult struct {
+	res *replicasResult
+}
+
+// Next fetches the next replica result.
+func (r *LookupInAllReplicasResult) Next() *LookupInReplicaResult {
+	res := r.res.Next()
+	if res == nil {
+		return nil
+	}
+	return res.(*LookupInReplicaResult)
+}
+
+// Close cancels all remaining get replica requests.
+func (r *LookupInAllReplicasResult) Close() error {
+	return r.res.Close()
+}
+
+// LookupInReplicaResult is the return type of LookupInReplica operations.
+type LookupInReplicaResult struct {
+	*LookupInResult
+	isReplica bool
+}
+
+// IsReplica returns whether or not this result came from a replica server.
+func (r *LookupInReplicaResult) IsReplica() bool {
+	return r.isReplica
+}
+
 // ExistsResult is the return type of Exist operations.
 type ExistsResult struct {
 	Result

@@ -39,6 +39,71 @@ func (c *Collection) LookupIn(id string, ops []LookupInSpec, opts *LookupInOptio
 	return agent.LookupIn(c, id, ops, opts)
 }
 
+// LookupInAnyReplicaOptions are the set of options available to LookupInAnyReplica.
+type LookupInAnyReplicaOptions struct {
+	Timeout       time.Duration
+	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+
+	// Internal: This should never be used and is not supported.
+	Internal struct {
+		DocFlags SubdocDocFlag
+		User     string
+	}
+}
+
+// LookupInAnyReplica returns the value of a particular document from a replica server.
+func (c *Collection) LookupInAnyReplica(id string, ops []LookupInSpec, opts *LookupInAnyReplicaOptions) (*LookupInReplicaResult, error) {
+	if opts == nil {
+		opts = &LookupInAnyReplicaOptions{}
+	}
+
+	agent, err := c.getKvProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return agent.LookupInAnyReplica(c, id, ops, opts)
+}
+
+// LookupInAllReplicaOptions are the set of options available to LookupInAllReplicas.
+type LookupInAllReplicaOptions struct {
+	Timeout       time.Duration
+	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+
+	// Internal: This should never be used and is not supported.
+	Internal struct {
+		DocFlags SubdocDocFlag
+		User     string
+	}
+}
+
+// LookupInAllReplicas returns the value of a particular document from all replica servers. This will return an iterable
+// which streams results one at a time.
+func (c *Collection) LookupInAllReplicas(id string, ops []LookupInSpec, opts *LookupInAllReplicaOptions) (*LookupInAllReplicasResult, error) {
+	if opts == nil {
+		opts = &LookupInAllReplicaOptions{}
+	}
+
+	agent, err := c.getKvProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return agent.LookupInAllReplicas(c, id, ops, opts)
+}
+
 // StoreSemantics is used to define the document level action to take during a MutateIn operation.
 type StoreSemantics uint8
 
