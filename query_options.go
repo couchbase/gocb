@@ -19,6 +19,19 @@ const (
 	QueryScanConsistencyRequestPlus
 )
 
+// QueryUseReplicaLevel specifies whether to enable replica reads for the request.
+// If left unset will default to the value specified on the cluster.
+type QueryUseReplicaLevel uint
+
+const (
+	// QueryUseReplicaLevelNotSet indicates to not set any replica level for the request.
+	QueryUseReplicaLevelNotSet QueryUseReplicaLevel = iota
+	// QueryUseReplicaLevelOff indicates to disable replica reads.
+	QueryUseReplicaLevelOff
+	// QueryUseReplicaLevelOn indicates to enable replica reads.
+	QueryUseReplicaLevelOn
+)
+
 // QueryOptions represents the options available when executing a query.
 type QueryOptions struct {
 	ScanConsistency QueryScanConsistency
@@ -72,6 +85,12 @@ type QueryOptions struct {
 	// configuration.
 	// UNCOMMITTED: This API may change in the future.
 	AsTransaction *SingleQueryTransactionOptions
+
+	// UseReplica tells the query engine to use replicas, if required, for the query.
+	// This means that results could come from either active or replica nodes, depending on the state of the active node.
+	// If any of the results came from a replica node then a warning will be populated in the query metadata.
+	// If not set then this field is not sent in the query payload and the default setting on the cluster/node will be used.
+	UseReplica QueryUseReplicaLevel
 
 	// Internal: This should never be used and is not supported.
 	Internal struct {
@@ -169,6 +188,16 @@ func (opts *QueryOptions) toMap() (map[string]interface{}, error) {
 
 	if opts.PreserveExpiry {
 		execOpts["preserve_expiry"] = true
+	}
+
+	if opts.UseReplica != QueryUseReplicaLevelNotSet {
+		if opts.UseReplica == QueryUseReplicaLevelOff {
+			execOpts["use_replica"] = "off"
+		} else if opts.UseReplica == QueryUseReplicaLevelOn {
+			execOpts["use_replica"] = "on"
+		} else {
+			return nil, makeInvalidArgumentsError("Unexpected replica level option")
+		}
 	}
 
 	return execOpts, nil
