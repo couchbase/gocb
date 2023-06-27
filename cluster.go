@@ -51,11 +51,9 @@ type IoConfig struct {
 
 // TimeoutsConfig specifies options for various operation timeouts.
 type TimeoutsConfig struct {
-	ConnectTimeout   time.Duration
-	KVTimeout        time.Duration
-	KVDurableTimeout time.Duration
-	// Volatile: This option is subject to change at any time.
-	KVScanTimeout     time.Duration
+	ConnectTimeout    time.Duration
+	KVTimeout         time.Duration
+	KVDurableTimeout  time.Duration
 	ViewTimeout       time.Duration
 	QueryTimeout      time.Duration
 	AnalyticsTimeout  time.Duration
@@ -167,7 +165,6 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 	connectTimeout := 10000 * time.Millisecond
 	kvTimeout := 2500 * time.Millisecond
 	kvDurableTimeout := 10000 * time.Millisecond
-	kvScanTimeout := 10000 * time.Millisecond
 	viewTimeout := 75000 * time.Millisecond
 	queryTimeout := 75000 * time.Millisecond
 	analyticsTimeout := 75000 * time.Millisecond
@@ -181,9 +178,6 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 	}
 	if opts.TimeoutsConfig.KVDurableTimeout > 0 {
 		kvDurableTimeout = opts.TimeoutsConfig.KVDurableTimeout
-	}
-	if opts.TimeoutsConfig.KVScanTimeout > 0 {
-		kvScanTimeout = opts.TimeoutsConfig.KVScanTimeout
 	}
 	if opts.TimeoutsConfig.ViewTimeout > 0 {
 		viewTimeout = opts.TimeoutsConfig.ViewTimeout
@@ -240,7 +234,6 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 			ViewTimeout:       viewTimeout,
 			KVTimeout:         kvTimeout,
 			KVDurableTimeout:  kvDurableTimeout,
-			KVScanTimeout:     kvScanTimeout,
 			ManagementTimeout: managementTimeout,
 		},
 		transcoder:             opts.Transcoder,
@@ -323,15 +316,6 @@ func (c *Cluster) parseExtraConnStrOptions(spec gocbconnstr.ConnSpec) error {
 			return fmt.Errorf("query_timeout option must be a number")
 		}
 		c.timeoutsConfig.KVDurableTimeout = time.Duration(val) * time.Millisecond
-	}
-
-	// Volatile: This option is subject to change at any time.
-	if valStr, ok := fetchOption("kv_scan_timeout"); ok {
-		val, err := strconv.ParseInt(valStr, 10, 64)
-		if err != nil {
-			return fmt.Errorf("query_timeout option must be a number")
-		}
-		c.timeoutsConfig.KVScanTimeout = time.Duration(val) * time.Millisecond
 	}
 
 	if valStr, ok := fetchOption("query_timeout"); ok {

@@ -30,10 +30,6 @@ type kvProvider interface {
 	Append(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinCallback) (gocbcore.PendingOp, error)
 	Prepend(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinCallback) (gocbcore.PendingOp, error)
 	WaitForConfigSnapshot(deadline time.Time, opts gocbcore.WaitForConfigSnapshotOptions, cb gocbcore.WaitForConfigSnapshotCallback) (gocbcore.PendingOp, error)
-	RangeScanCreate(vbID uint16, opts gocbcore.RangeScanCreateOptions, cb gocbcore.RangeScanCreateCallback) (gocbcore.PendingOp, error)
-	RangeScanContinue(scanUUID []byte, vbID uint16, opts gocbcore.RangeScanContinueOptions, dataCb gocbcore.RangeScanContinueDataCallback,
-		actionCb gocbcore.RangeScanContinueActionCallback) (gocbcore.PendingOp, error)
-	RangeScanCancel(scanUUID []byte, vbID uint16, opts gocbcore.RangeScanCancelOptions, cb gocbcore.RangeScanCancelCallback) (gocbcore.PendingOp, error)
 }
 
 // Cas represents the specific state of a document on the cluster.
@@ -1326,4 +1322,27 @@ func (c *Collection) Touch(id string, expiry time.Duration, opts *TouchOptions) 
 // Binary creates and returns a BinaryCollection object.
 func (c *Collection) Binary() *BinaryCollection {
 	return &BinaryCollection{collection: c}
+}
+
+func (c *Collection) waitForConfigSnapshot(ctx context.Context, deadline time.Time, agent kvProvider) (snapOut *gocbcore.ConfigSnapshot, errOut error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	opm := newAsyncOpManager(ctx)
+	err := opm.Wait(agent.WaitForConfigSnapshot(deadline, gocbcore.WaitForConfigSnapshotOptions{}, func(result *gocbcore.WaitForConfigSnapshotResult, err error) {
+		if err != nil {
+			errOut = err
+			opm.Reject()
+			return
+		}
+
+		snapOut = result.Snapshot
+		opm.Resolve()
+	}))
+	if err != nil {
+		errOut = err
+	}
+
+	return
 }

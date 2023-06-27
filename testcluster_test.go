@@ -87,7 +87,6 @@ var (
 	TransactionsSingleQueryExistsErrorFeature = FeatureCode("transactionssinglequeryexists")
 	EventingFunctionManagerMB52649Feature     = FeatureCode("eventingmanagementmb52649")
 	EventingFunctionManagerMB52572Feature     = FeatureCode("eventingmanagementmb52572")
-	RangeScanFeature                          = FeatureCode("rangescan")
 )
 
 type TestFeatureFlag struct {
@@ -215,8 +214,6 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case TransactionsSingleQueryExistsErrorFeature:
 			supported = false
-		case RangeScanFeature:
-			supported = false
 		}
 	} else {
 		switch feature {
@@ -322,8 +319,6 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Equal(srvVer711)
 		case EventingFunctionManagerMB52572Feature:
 			supported = !c.Version.Equal(srvVer711)
-		case RangeScanFeature:
-			supported = !c.Version.Lower(srvVer750)
 		}
 	}
 
