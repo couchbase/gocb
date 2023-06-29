@@ -54,7 +54,7 @@ func redactSystemDataString(v string) string {
 // Logger defines a logging interface. You can either use one of the default loggers
 // (DefaultStdioLogger(), VerboseStdioLogger()) or implement your own.
 type Logger interface {
-	// Outputs logging information:
+	// Log Outputs logging information:
 	// level is the verbosity level
 	// offset is the position within the calling stack from which the message
 	// originated. This is useful for contextual loggers which retrieve file/line

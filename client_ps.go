@@ -46,11 +46,14 @@ func (c *psConnectionMgr) buildConfig(cluster *Cluster) error {
 		return err
 	}
 
+	logger := newZapLogger()
+
 	c.config = &gocbcoreps.DialOptions{
 		Username:           creds[0].Username,
 		Password:           creds[0].Password,
 		InsecureSkipVerify: cluster.securityConfig.TLSSkipVerify,
 		ClientCertificate:  cluster.securityConfig.TLSRootCAs,
+		Logger:             logger,
 	}
 
 	return nil
