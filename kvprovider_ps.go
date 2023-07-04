@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"time"
 
 	"google.golang.org/grpc/status"
@@ -720,42 +721,140 @@ func (p *kvProviderPs) Touch(c *Collection, id string, expiry time.Duration, opt
 	return &mutOut, nil
 }
 
+type psReplicasResult struct {
+	cli        kv_v1.KvService_GetAllReplicasClient
+	cancelFunc context.CancelFunc
+	err        error
+
+	transcoder Transcoder
+}
+
+func (r *psReplicasResult) Next() interface{} {
+	res, err := r.cli.Recv()
+	if err != nil {
+		if errors.Is(err, io.EOF) {
+			r.finishWithoutError()
+			return nil
+		}
+		r.finishWithError(err)
+		return nil
+	}
+
+	return &GetReplicaResult{
+		GetResult: GetResult{
+			Result: Result{
+				cas: Cas(res.Cas),
+			},
+			transcoder: r.transcoder,
+			flags:      res.ContentFlags,
+			contents:   res.Content,
+		},
+		isReplica: res.IsReplica,
+	}
+}
+
+func (r *psReplicasResult) Close() error {
+	if r.err != nil {
+		return r.err
+	}
+	// if the client is nil then we must be closed already.
+	if r.cli == nil {
+		return nil
+	}
+	r.cancelFunc()
+	err := r.cli.CloseSend()
+	r.cli = nil
+	return err
+}
+
+func (r *psReplicasResult) finishWithoutError() {
+	r.cancelFunc()
+	// Close the stream now that we are done with it
+	err := r.cli.CloseSend()
+	if err != nil {
+		logWarnf("replicas stream close failed after results: %s", err)
+	}
+
+	r.cli = nil
+}
+
+func (r *psReplicasResult) finishWithError(err error) {
+	// Lets record the error that happened
+	r.err = err
+	r.cancelFunc()
+
+	// Lets Close the underlying stream
+	closeErr := r.cli.CloseSend()
+	if closeErr != nil {
+		// We log this at debug level, but its almost always going to be an
+		// error since thats the most likely reason we are in finishWithError
+		logDebugf("replicas stream close failed after error: %s", closeErr)
+	}
+
+	// Our client is invalidated as soon as an error occurs
+	r.cli = nil
+}
+
 func (p *kvProviderPs) GetAllReplicas(c *Collection, id string, opts *GetAllReplicaOptions) (*GetAllReplicasResult, error) {
-	return nil, ErrFeatureNotAvailable
+	opm := newKvOpManagerPs(c, "get_all_replicas", opts.ParentSpan)
+	defer opm.Finish(false)
+
+	opm.SetDocumentID(id)
+	opm.SetTimeout(opts.Timeout)
+	opm.SetTranscoder(opts.Transcoder)
+
+	if err := opm.CheckReadyForOp(); err != nil {
+		return nil, err
+	}
+
+	request := &kv_v1.GetAllReplicasRequest{
+		BucketName:     opm.BucketName(),
+		ScopeName:      opm.ScopeName(),
+		CollectionName: opm.CollectionName(),
+		Key:            opm.DocumentID(),
+	}
+
+	ctx, cancel := p.newOpCtx(opts.Context, opm.getTimeout())
+
+	res, err := p.client.GetAllReplicas(ctx, request)
+	if err != nil {
+		return nil, opm.EnhanceErr(err, false)
+	}
+
+	return &GetAllReplicasResult{
+		res: &psReplicasResult{
+			cli:        res,
+			cancelFunc: cancel,
+
+			transcoder: opm.Transcoder(),
+		},
+	}, nil
 }
 
 func (p *kvProviderPs) GetAnyReplica(c *Collection, id string, opts *GetAnyReplicaOptions) (*GetReplicaResult, error) {
-	return nil, ErrFeatureNotAvailable
-}
+	opm := newKvOpManagerPs(c, "get_any_replica", opts.ParentSpan)
+	defer opm.Finish(false)
 
-// func (p *kvProviderPs) GetReplica(opm *kvOpManagerCore) (*GetReplicaResult, error) {
-// 	request := &kv_v1.GetReplicaRequest{
-// 		BucketName:     opm.BucketName(),
-// 		ScopeName:      opm.ScopeName(),
-// 		CollectionName: opm.CollectionName(),
-// 		Key:            string(opm.DocumentID()),
-// 		ReplicaIndex:   uint32(opm.ReplicaIndex()),
-// 	}
-//
-// 	ctx, cancel := p.newOpCtx(opts.Context, opm.getTimeout())
-// 	defer cancel()
-// 	res, err := p.client.GetReplica(opm.ctx, request)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-//
-// 	outCas := res.Cas
-//
-// 	docOut := &GetReplicaResult{}
-// 	docOut.cas = Cas(outCas)
-// 	docOut.transcoder = opm.Transcoder()
-// 	docOut.contents = res.Content
-// 	docOut.flags = res.ContentFlags
-// 	docOut.isReplica = true
-//
-// 	return docOut, nil
-//
-// }
+	res, err := p.GetAllReplicas(c, id, &GetAllReplicaOptions{
+		Transcoder:    opts.Transcoder,
+		Timeout:       opts.Timeout,
+		RetryStrategy: opts.RetryStrategy,
+		ParentSpan:    opm.TraceSpan(),
+		Context:       opts.Context,
+		Internal:      opts.Internal,
+		noMetrics:     false,
+	})
+	if err != nil {
+		return nil, opm.EnhanceErr(err, false)
+	}
+
+	recv := res.Next()
+	if recv == nil {
+		return nil, opm.EnhanceErr(ErrDocumentUnretrievable, true)
+	}
+
+	return recv, nil
+}
 
 func (p *kvProviderPs) Prepend(c *Collection, id string, val []byte, opts *PrependOptions) (*MutationResult, error) {
 	opm := newKvOpManagerPs(c, "prepend", opts.ParentSpan)

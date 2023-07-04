@@ -285,7 +285,7 @@ func (lir *LookupInResult) Exists(idx uint) bool {
 
 // LookupInAllReplicasResult represents the results of a LookupInAllReplicas operation.
 type LookupInAllReplicasResult struct {
-	res *replicasResult
+	res *coreReplicasResult
 }
 
 // Next fetches the next replica result.

@@ -289,7 +289,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case WaitUntilReadyClusterFeature:
 			supported = !c.Version.Lower(srvVer650) && !c.Version.Equal(srvVer750)
 		case ReplicasFeature:
-			supported = !c.Version.Equal(protostellarVer)
+			supported = true
 		case QueryIndexFeature:
 			supported = !c.Version.Equal(srvVer650DP) && !c.Version.Equal(protostellarVer)
 		case CollectionsQueryFeature:

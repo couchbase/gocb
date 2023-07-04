@@ -342,6 +342,7 @@ func (q *queryProviderPsRowReader) Close() error {
 	if q.cli == nil {
 		return nil
 	}
+	q.cancelFunc()
 	err := q.cli.CloseSend()
 	q.cli = nil
 	return err

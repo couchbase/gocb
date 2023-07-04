@@ -1935,15 +1935,17 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAnyReplica() {
 	suite.Require().Contains(span.Spans, "get_all_replicas")
 	allReplicasSpans := span.Spans["get_all_replicas"]
 
-	suite.Require().GreaterOrEqual(len(allReplicasSpans), 1)
-	suite.Require().Contains(allReplicasSpans[0].Spans, "get_replica")
-	getReplicaSpans := allReplicasSpans[0].Spans["get_replica"]
-	suite.Require().GreaterOrEqual(len(getReplicaSpans), 2)
-	// We don't actually know which of these will win.
-	for _, span := range getReplicaSpans {
-		suite.Require().Equal(1, len(span.Spans))
-		suite.AssertKvSpan(span, "get_replica", DurabilityLevelNone)
-		// We don't know which span was actually cancelled so we don't check the CMD spans.
+	if !globalCluster.IsProtostellar() {
+		suite.Require().GreaterOrEqual(len(allReplicasSpans), 1)
+		suite.Require().Contains(allReplicasSpans[0].Spans, "get_replica")
+		getReplicaSpans := allReplicasSpans[0].Spans["get_replica"]
+		suite.Require().GreaterOrEqual(len(getReplicaSpans), 2)
+		// We don't actually know which of these will win.
+		for _, span := range getReplicaSpans {
+			suite.Require().Equal(1, len(span.Spans))
+			suite.AssertKvSpan(span, "get_replica", DurabilityLevelNone)
+			// We don't know which span was actually cancelled so we don't check the CMD spans.
+		}
 	}
 
 	suite.AssertKVMetrics(meterNameCBOperations, "insert", 1, false)
@@ -1967,20 +1969,22 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAllReplicas() {
 		suite.T().Fatalf("Failed to get kv provider, was %v", err)
 	}
 
-	agent, ok := prov.(*kvProviderCore)
-	suite.Require().True(ok)
+	var expectedReplicas int
+	agent, isGocbcore := prov.(*kvProviderCore)
+	if isGocbcore {
 
-	snapshot, err := agent.waitForConfigSnapshot(context.Background(), time.Now().Add(5*time.Second))
-	if err != nil {
-		suite.T().Fatalf("Failed to get config snapshot, was %v", err)
+		snapshot, err := agent.waitForConfigSnapshot(context.Background(), time.Now().Add(5*time.Second))
+		if err != nil {
+			suite.T().Fatalf("Failed to get config snapshot, was %v", err)
+		}
+
+		numReplicas, err := snapshot.NumReplicas()
+		if err != nil {
+			suite.T().Fatalf("Failed to get numReplicas, was %v", err)
+		}
+
+		expectedReplicas = numReplicas + 1
 	}
-
-	numReplicas, err := snapshot.NumReplicas()
-	if err != nil {
-		suite.T().Fatalf("Failed to get numReplicas, was %v", err)
-	}
-
-	expectedReplicas := numReplicas + 1
 
 	mutRes, err := globalCollection.Upsert("insertAllReplicaDoc", doc, &UpsertOptions{
 		PersistTo: uint(expectedReplicas),
@@ -2031,8 +2035,10 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAllReplicas() {
 		suite.T().Fatalf("Expected stream close to not error, was %v", err)
 	}
 
-	if expectedReplicas != actualReplicas {
-		suite.T().Fatalf("Expected replicas to be %d but was %d", expectedReplicas, actualReplicas)
+	if isGocbcore {
+		if expectedReplicas != actualReplicas {
+			suite.T().Fatalf("Expected replicas to be %d but was %d", expectedReplicas, actualReplicas)
+		}
 	}
 
 	if numMasters != 1 {

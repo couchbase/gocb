@@ -218,7 +218,7 @@ type GetAllReplicaOptions struct {
 
 // GetAllReplicasResult represents the results of a GetAllReplicas operation.
 type GetAllReplicasResult struct {
-	res *replicasResult
+	res replicasResult
 }
 
 // Next fetches the next replica result.
@@ -235,7 +235,12 @@ func (r *GetAllReplicasResult) Close() error {
 	return r.res.Close()
 }
 
-type replicasResult struct {
+type replicasResult interface {
+	Next() interface{}
+	Close() error
+}
+
+type coreReplicasResult struct {
 	lock                sync.Mutex
 	totalRequests       uint32
 	successResults      uint32
@@ -248,7 +253,7 @@ type replicasResult struct {
 	startedTime         time.Time
 }
 
-func (r *replicasResult) addFailed() {
+func (r *coreReplicasResult) addFailed() {
 	r.lock.Lock()
 
 	r.totalResults++
@@ -261,7 +266,7 @@ func (r *replicasResult) addFailed() {
 	r.lock.Unlock()
 }
 
-func (r *replicasResult) addResult(res interface{}) {
+func (r *coreReplicasResult) addResult(res interface{}) {
 	// We use a lock here because the alternative means that there is a race
 	// between the channel writes from multiple results and the channels being
 	// closed.  IE: T1-Incr, T2-Incr, T2-Send, T2-Close, T1-Send[PANIC]
@@ -293,12 +298,12 @@ func (r *replicasResult) addResult(res interface{}) {
 }
 
 // Next fetches the next replica result.
-func (r *replicasResult) Next() interface{} {
+func (r *coreReplicasResult) Next() interface{} {
 	return <-r.resCh
 }
 
 // Close cancels all remaining get replica requests.
-func (r *replicasResult) Close() error {
+func (r *coreReplicasResult) Close() error {
 	// See addResult discussion on lock usage.
 	r.lock.Lock()
 

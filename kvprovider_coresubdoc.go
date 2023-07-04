@@ -72,7 +72,7 @@ func (p *kvProviderCore) LookupInAllReplicas(c *Collection, id string, ops []Loo
 	}
 
 	repRes := &LookupInAllReplicasResult{
-		res: &replicasResult{
+		res: &coreReplicasResult{
 			totalRequests:       uint32(numServers),
 			resCh:               outCh,
 			cancelCh:            cancelCh,

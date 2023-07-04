@@ -381,7 +381,7 @@ func psSearchFacetToJSONSearchFacet(facets map[string]*search_v1.SearchQueryResp
 
 			}
 			out[key] = jsonSearchFacet{
-				Name:    f.TermFacet.Name,
+				Name:    key,
 				Field:   f.TermFacet.Field,
 				Total:   uint64(f.TermFacet.Total), // we can't have negative results and we're casting into a larger space
 				Missing: uint64(f.TermFacet.Missing),
@@ -400,7 +400,7 @@ func psSearchFacetToJSONSearchFacet(facets map[string]*search_v1.SearchQueryResp
 
 			}
 			out[key] = jsonSearchFacet{
-				Name:       f.DateRangeFacet.Name,
+				Name:       key,
 				Field:      f.DateRangeFacet.Field,
 				Total:      uint64(f.DateRangeFacet.Total), // we can't have negative results and we're casting into a larger space
 				Missing:    uint64(f.DateRangeFacet.Missing),
@@ -420,7 +420,7 @@ func psSearchFacetToJSONSearchFacet(facets map[string]*search_v1.SearchQueryResp
 
 			}
 			out[key] = jsonSearchFacet{
-				Name:          f.NumericRangeFacet.Name,
+				Name:          key,
 				Field:         f.NumericRangeFacet.Field,
 				Total:         uint64(f.NumericRangeFacet.Total), // we can't have negative results and we're casting into a larger space
 				Missing:       uint64(f.NumericRangeFacet.Missing),
