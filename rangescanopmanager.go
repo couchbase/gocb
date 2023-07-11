@@ -142,6 +142,10 @@ func (p *kvProviderCore) newRangeScanOpManager(c *Collection, scanType ScanType,
 		for _, token := range consistentWith.tokens {
 			entry, ok := vBucketToSnapshotOpts[uint16(token.PartitionID())]
 			if ok {
+				if uint64(entry.VbUUID) != token.PartitionUUID() {
+					return nil, makeInvalidArgumentsError("mutation state contained two token with same " +
+						"partition id but different partition uuids")
+				}
 				// Only replace if the token seqno > existing seqno
 				seqno := gocbcore.SeqNo(token.SequenceNumber())
 				if seqno > entry.SeqNo {
