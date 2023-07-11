@@ -30,7 +30,9 @@ type CreateQueryIndexOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
-	ScopeName      string
+	// Deprecated: See CollectionQueryIndexManager.
+	ScopeName string
+	// Deprecated: See CollectionQueryIndexManager.
 	CollectionName string
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
@@ -80,7 +82,9 @@ type CreatePrimaryQueryIndexOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
-	ScopeName      string
+	// Deprecated: See CollectionQueryIndexManager.
+	ScopeName string
+	// Deprecated: See CollectionQueryIndexManager.
 	CollectionName string
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
@@ -114,7 +118,9 @@ type DropQueryIndexOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
-	ScopeName      string
+	// Deprecated: See CollectionQueryIndexManager.
+	ScopeName string
+	// Deprecated: See CollectionQueryIndexManager.
 	CollectionName string
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
@@ -155,7 +161,9 @@ type DropPrimaryQueryIndexOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
-	ScopeName      string
+	// Deprecated: See CollectionQueryIndexManager.
+	ScopeName string
+	// Deprecated: See CollectionQueryIndexManager.
 	CollectionName string
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
@@ -187,7 +195,9 @@ type GetAllQueryIndexesOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
-	ScopeName      string
+	// Deprecated: See CollectionQueryIndexManager.
+	ScopeName string
+	// Deprecated: See CollectionQueryIndexManager.
 	CollectionName string
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
@@ -216,7 +226,9 @@ type BuildDeferredQueryIndexOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
-	ScopeName      string
+	// Deprecated: See CollectionQueryIndexManager.
+	ScopeName string
+	// Deprecated: See CollectionQueryIndexManager.
 	CollectionName string
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
@@ -251,7 +263,9 @@ type WatchQueryIndexOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
-	ScopeName      string
+	// Deprecated: See CollectionQueryIndexManager.
+	ScopeName string
+	// Deprecated: See CollectionQueryIndexManager.
 	CollectionName string
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
