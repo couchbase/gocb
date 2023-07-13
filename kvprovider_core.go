@@ -1175,37 +1175,3 @@ func (p *kvProviderCore) Decrement(c *Collection, id string, opts *DecrementOpti
 	return countOut, errOut
 
 }
-
-func (p *kvProviderCore) BulkGet(opts gocbcore.GetOptions, cb gocbcore.GetCallback) (gocbcore.PendingOp, error) {
-	return p.agent.Get(opts, cb)
-}
-func (p *kvProviderCore) BulkGetAndTouch(opts gocbcore.GetAndTouchOptions, cb gocbcore.GetAndTouchCallback) (gocbcore.PendingOp, error) {
-	return p.agent.GetAndTouch(opts, cb)
-}
-func (p *kvProviderCore) BulkTouch(opts gocbcore.TouchOptions, cb gocbcore.TouchCallback) (gocbcore.PendingOp, error) {
-	return p.agent.Touch(opts, cb)
-}
-func (p *kvProviderCore) BulkDelete(opts gocbcore.DeleteOptions, cb gocbcore.DeleteCallback) (gocbcore.PendingOp, error) {
-	return p.agent.Delete(opts, cb)
-}
-func (p *kvProviderCore) BulkSet(opts gocbcore.SetOptions, cb gocbcore.StoreCallback) (gocbcore.PendingOp, error) {
-	return p.agent.Set(opts, cb)
-}
-func (p *kvProviderCore) BulkAdd(opts gocbcore.AddOptions, cb gocbcore.StoreCallback) (gocbcore.PendingOp, error) {
-	return p.agent.Add(opts, cb)
-}
-func (p *kvProviderCore) BulkReplace(opts gocbcore.ReplaceOptions, cb gocbcore.StoreCallback) (gocbcore.PendingOp, error) {
-	return p.agent.Replace(opts, cb)
-}
-func (p *kvProviderCore) BulkAppend(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinCallback) (gocbcore.PendingOp, error) {
-	return p.agent.Append(opts, cb)
-}
-func (p *kvProviderCore) BulkPrepend(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinCallback) (gocbcore.PendingOp, error) {
-	return p.agent.Prepend(opts, cb)
-}
-func (p *kvProviderCore) BulkIncrement(opts gocbcore.CounterOptions, cb gocbcore.CounterCallback) (gocbcore.PendingOp, error) {
-	return p.agent.Increment(opts, cb)
-}
-func (p *kvProviderCore) BulkDecrement(opts gocbcore.CounterOptions, cb gocbcore.CounterCallback) (gocbcore.PendingOp, error) {
-	return p.agent.Decrement(opts, cb)
-}

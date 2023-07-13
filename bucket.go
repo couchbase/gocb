@@ -74,6 +74,19 @@ func (b *Bucket) getKvCapabilitiesProvider() (kvCapabilityVerifier, error) {
 	return agent, nil
 }
 
+func (b *Bucket) getKvBulkProvider() (kvBulkProvider, error) {
+	if b.bootstrapError != nil {
+		return nil, b.bootstrapError
+	}
+
+	agent, err := b.connectionManager.getKvBulkProvider(b.bucketName)
+	if err != nil {
+		return nil, err
+	}
+
+	return agent, nil
+}
+
 func (b *Bucket) getQueryProvider() (queryProvider, error) {
 	if b.bootstrapError != nil {
 		return nil, b.bootstrapError

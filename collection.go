@@ -16,6 +16,7 @@ type Collection struct {
 	useMutationTokens bool
 
 	getKvProvider         func() (kvProvider, error)
+	getKvBulkProvider     func() (kvBulkProvider, error)
 	getQueryIndexProvider func() (queryIndexProvider, error)
 	getQueryProvider      func() (queryProvider, error)
 }
@@ -36,6 +37,7 @@ func newCollection(scope *Scope, collectionName string) *Collection {
 		useMutationTokens: scope.useMutationTokens,
 
 		getKvProvider:         scope.getKvProvider,
+		getKvBulkProvider:     scope.getKvBulkProvider,
 		getQueryIndexProvider: scope.getQueryIndexProvider,
 		getQueryProvider:      scope.getQueryProvider,
 	}

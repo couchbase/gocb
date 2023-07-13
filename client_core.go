@@ -145,6 +145,17 @@ func (c *stdConnectionMgr) getKvProvider(bucketName string) (kvProvider, error) 
 	return &kvProviderCore{agent: agent}, nil
 }
 
+func (c *stdConnectionMgr) getKvBulkProvider(bucketName string) (kvBulkProvider, error) {
+	if c.agentgroup == nil {
+		return nil, errors.New("cluster not yet connected")
+	}
+	agent := c.agentgroup.GetAgent(bucketName)
+	if agent == nil {
+		return nil, errors.New("bucket not yet connected")
+	}
+	return &kvBulkProviderCore{agent: agent}, nil
+}
+
 func (c *stdConnectionMgr) getKvCapabilitiesProvider(bucketName string) (kvCapabilityVerifier, error) {
 	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")

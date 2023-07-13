@@ -132,7 +132,7 @@ func maybeEnhanceKVErr(err error, bucketName, scopeName, collName, docKey string
 	return maybeEnhanceCoreErr(err)
 }
 
-func maybeEnhanceCollKVErr(err error, bucket kvProvider, coll *Collection, docKey string) error {
+func maybeEnhanceCollKVErr(err error, coll *Collection, docKey string) error {
 	return maybeEnhanceKVErr(err, coll.bucketName(), coll.Name(), coll.ScopeName(), docKey)
 }
 

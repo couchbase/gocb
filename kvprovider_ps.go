@@ -951,40 +951,6 @@ func psMutToGoCbMut(in *kv_v1.MutationToken) *MutationToken {
 	return nil
 }
 
-func (p *kvProviderPs) BulkGet(gocbcore.GetOptions, gocbcore.GetCallback) (gocbcore.PendingOp, error) {
-	return nil, ErrFeatureNotAvailable
-}
-func (p *kvProviderPs) BulkGetAndTouch(gocbcore.GetAndTouchOptions, gocbcore.GetAndTouchCallback) (gocbcore.PendingOp, error) {
-	return nil, ErrFeatureNotAvailable
-}
-func (p *kvProviderPs) BulkTouch(gocbcore.TouchOptions, gocbcore.TouchCallback) (gocbcore.PendingOp, error) {
-	return nil, ErrFeatureNotAvailable
-}
-func (p *kvProviderPs) BulkDelete(gocbcore.DeleteOptions, gocbcore.DeleteCallback) (gocbcore.PendingOp, error) {
-	return nil, ErrFeatureNotAvailable
-}
-func (p *kvProviderPs) BulkSet(gocbcore.SetOptions, gocbcore.StoreCallback) (gocbcore.PendingOp, error) {
-	return nil, ErrFeatureNotAvailable
-}
-func (p *kvProviderPs) BulkAdd(gocbcore.AddOptions, gocbcore.StoreCallback) (gocbcore.PendingOp, error) {
-	return nil, ErrFeatureNotAvailable
-}
-func (p *kvProviderPs) BulkReplace(gocbcore.ReplaceOptions, gocbcore.StoreCallback) (gocbcore.PendingOp, error) {
-	return nil, ErrFeatureNotAvailable
-}
-func (p *kvProviderPs) BulkAppend(gocbcore.AdjoinOptions, gocbcore.AdjoinCallback) (gocbcore.PendingOp, error) {
-	return nil, ErrFeatureNotAvailable
-}
-func (p *kvProviderPs) BulkPrepend(gocbcore.AdjoinOptions, gocbcore.AdjoinCallback) (gocbcore.PendingOp, error) {
-	return nil, ErrFeatureNotAvailable
-}
-func (p *kvProviderPs) BulkIncrement(gocbcore.CounterOptions, gocbcore.CounterCallback) (gocbcore.PendingOp, error) {
-	return nil, ErrFeatureNotAvailable
-}
-func (p *kvProviderPs) BulkDecrement(gocbcore.CounterOptions, gocbcore.CounterCallback) (gocbcore.PendingOp, error) {
-	return nil, ErrFeatureNotAvailable
-}
-
 func (p *kvProviderPs) newOpCtx(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
 	if ctx == nil {
 		ctx = context.Background()

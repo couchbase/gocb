@@ -184,6 +184,32 @@ func (_m *mockConnectionManager) getHTTPProvider(bucketName string) (httpProvide
 	return r0, r1
 }
 
+// getKvBulkProvider provides a mock function with given fields: bucketName
+func (_m *mockConnectionManager) getKvBulkProvider(bucketName string) (kvBulkProvider, error) {
+	ret := _m.Called(bucketName)
+
+	var r0 kvBulkProvider
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (kvBulkProvider, error)); ok {
+		return rf(bucketName)
+	}
+	if rf, ok := ret.Get(0).(func(string) kvBulkProvider); ok {
+		r0 = rf(bucketName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(kvBulkProvider)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(bucketName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // getKvCapabilitiesProvider provides a mock function with given fields: bucketName
 func (_m *mockConnectionManager) getKvCapabilitiesProvider(bucketName string) (kvCapabilityVerifier, error) {
 	ret := _m.Called(bucketName)

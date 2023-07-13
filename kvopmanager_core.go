@@ -260,7 +260,7 @@ func (m *kvOpManagerCore) NeedsObserve() bool {
 }
 
 func (m *kvOpManagerCore) EnhanceErr(err error) error {
-	return maybeEnhanceCollKVErr(err, nil, m.parent, m.documentID)
+	return maybeEnhanceCollKVErr(err, m.parent, m.documentID)
 }
 
 func (m *kvOpManagerCore) EnhanceMt(token gocbcore.MutationToken) *MutationToken {

@@ -58,13 +58,21 @@ func (c *psConnectionMgr) buildConfig(cluster *Cluster) error {
 
 	return nil
 }
+
 func (c *psConnectionMgr) getKvProvider(bucketName string) (kvProvider, error) {
 	kv := c.agent.KvV1()
 	return &kvProviderPs{client: kv}, nil
 }
+
+func (c *psConnectionMgr) getKvBulkProvider(bucketName string) (kvBulkProvider, error) {
+	kv := c.agent.KvV1()
+	return &kvBulkProviderPs{client: kv}, nil
+}
+
 func (c *psConnectionMgr) getKvCapabilitiesProvider(bucketName string) (kvCapabilityVerifier, error) {
 	return &gocbcore.AgentInternal{}, ErrFeatureNotAvailable
 }
+
 func (c *psConnectionMgr) getViewProvider(bucketName string) (viewProvider, error) {
 	return &viewProviderWrapper{}, ErrFeatureNotAvailable
 }

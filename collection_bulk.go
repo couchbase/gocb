@@ -4,17 +4,10 @@ package gocb
 import (
 	"context"
 	"time"
-
-	"github.com/couchbase/gocbcore/v10"
 )
 
 type bulkOp struct {
-	pendop   gocbcore.PendingOp
 	finishFn func()
-}
-
-func (op *bulkOp) cancel() {
-	op.pendop.Cancel()
 }
 
 func (op *bulkOp) finish() {
@@ -26,10 +19,7 @@ func (op *bulkOp) finish() {
 // such as GetOp, UpsertOp, ReplaceOp, and more.
 // UNCOMMITTED: This API may change in the future.
 type BulkOp interface {
-	execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-		retryWrapper *coreRetryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan)
-	markError(err error)
-	cancel()
+	isBulkOp()
 	finish()
 }
 
@@ -53,48 +43,12 @@ func (c *Collection) Do(ops []BulkOp, opts *BulkOpOptions) error {
 		opts = &BulkOpOptions{}
 	}
 
-	var tracectx RequestSpanContext
-	if opts.ParentSpan != nil {
-		tracectx = opts.ParentSpan.Context()
-	}
-
-	span := c.startKvOpTrace("bulk", tracectx, false)
-	defer span.End()
-
-	timeout := opts.Timeout
-	if opts.Timeout == 0 {
-		timeout = c.timeoutsConfig.KVTimeout * time.Duration(len(ops))
-	}
-
-	retryWrapper := c.retryStrategyWrapper
-	if opts.RetryStrategy != nil {
-		retryWrapper = newCoreRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	if opts.Transcoder == nil {
-		opts.Transcoder = c.transcoder
-	}
-
-	agent, err := c.getKvProvider()
+	agent, err := c.getKvBulkProvider()
 	if err != nil {
 		return err
 	}
 
-	// Make the channel big enough to hold all our ops in case
-	//   we get delayed inside execute (don't want to block the
-	//   individual op handlers when they dispatch their signal).
-	signal := make(chan BulkOp, len(ops))
-	for _, item := range ops {
-		item.execute(span.Context(), c, agent, opts.Transcoder, signal, retryWrapper, time.Now().Add(timeout), c.startKvOpTrace)
-	}
-
-	for range ops {
-		item := <-signal
-		// We're really just clearing the pendop from this thread,
-		//   since it already completed, no cancel actually occurs
-		item.finish()
-	}
-	return nil
+	return agent.Do(c, ops, opts)
 }
 
 // GetOp represents a type of `BulkOp` used for Get operations. See BulkOp.
@@ -107,47 +61,7 @@ type GetOp struct {
 	Err    error
 }
 
-func (item *GetOp) markError(err error) {
-	item.Err = err
-}
-
-func (item *GetOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-	retryWrapper *coreRetryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
-	span := startSpanFunc("get", tracectx, false)
-	start := time.Now()
-	item.bulkOp.finishFn = func() {
-		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "get", start)
-	}
-
-	op, err := provider.BulkGet(gocbcore.GetOptions{
-		Key:            []byte(item.ID),
-		CollectionName: c.name(),
-		ScopeName:      c.ScopeName(),
-		RetryStrategy:  retryWrapper,
-		TraceContext:   span.Context(),
-		Deadline:       deadline,
-	}, func(res *gocbcore.GetResult, err error) {
-		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
-		if item.Err == nil {
-			item.Result = &GetResult{
-				Result: Result{
-					cas: Cas(res.Cas),
-				},
-				transcoder: transcoder,
-				contents:   res.Value,
-				flags:      res.Flags,
-			}
-		}
-		signal <- item
-	})
-	if err != nil {
-		item.Err = err
-		signal <- item
-	} else {
-		item.bulkOp.pendop = op
-	}
-}
+func (item *GetOp) isBulkOp() {}
 
 // GetAndTouchOp represents a type of `BulkOp` used for GetAndTouch operations. See BulkOp.
 // UNCOMMITTED: This API may change in the future.
@@ -160,48 +74,7 @@ type GetAndTouchOp struct {
 	Err    error
 }
 
-func (item *GetAndTouchOp) markError(err error) {
-	item.Err = err
-}
-
-func (item *GetAndTouchOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-	retryWrapper *coreRetryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
-	span := startSpanFunc("get_and_touch", tracectx, false)
-	start := time.Now()
-	item.bulkOp.finishFn = func() {
-		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "get_and_touch", start)
-	}
-
-	op, err := provider.BulkGetAndTouch(gocbcore.GetAndTouchOptions{
-		Key:            []byte(item.ID),
-		Expiry:         durationToExpiry(item.Expiry),
-		CollectionName: c.name(),
-		ScopeName:      c.ScopeName(),
-		RetryStrategy:  retryWrapper,
-		TraceContext:   span.Context(),
-		Deadline:       deadline,
-	}, func(res *gocbcore.GetAndTouchResult, err error) {
-		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
-		if item.Err == nil {
-			item.Result = &GetResult{
-				Result: Result{
-					cas: Cas(res.Cas),
-				},
-				transcoder: transcoder,
-				contents:   res.Value,
-				flags:      res.Flags,
-			}
-		}
-		signal <- item
-	})
-	if err != nil {
-		item.Err = err
-		signal <- item
-	} else {
-		item.bulkOp.pendop = op
-	}
-}
+func (item *GetAndTouchOp) isBulkOp() {}
 
 // TouchOp represents a type of `BulkOp` used for Touch operations. See BulkOp.
 // UNCOMMITTED: This API may change in the future.
@@ -214,53 +87,7 @@ type TouchOp struct {
 	Err    error
 }
 
-func (item *TouchOp) markError(err error) {
-	item.Err = err
-}
-
-func (item *TouchOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-	retryWrapper *coreRetryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
-	span := startSpanFunc("touch", tracectx, false)
-	start := time.Now()
-	item.bulkOp.finishFn = func() {
-		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "touch", start)
-	}
-
-	op, err := provider.BulkTouch(gocbcore.TouchOptions{
-		Key:            []byte(item.ID),
-		Expiry:         durationToExpiry(item.Expiry),
-		CollectionName: c.name(),
-		ScopeName:      c.ScopeName(),
-		RetryStrategy:  retryWrapper,
-		TraceContext:   span.Context(),
-		Deadline:       deadline,
-	}, func(res *gocbcore.TouchResult, err error) {
-		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
-		if item.Err == nil {
-			item.Result = &MutationResult{
-				Result: Result{
-					cas: Cas(res.Cas),
-				},
-			}
-
-			if res.MutationToken.VbUUID != 0 {
-				mutTok := &MutationToken{
-					token:      res.MutationToken,
-					bucketName: c.bucketName(),
-				}
-				item.Result.mt = mutTok
-			}
-		}
-		signal <- item
-	})
-	if err != nil {
-		item.Err = err
-		signal <- item
-	} else {
-		item.bulkOp.pendop = op
-	}
-}
+func (item *TouchOp) isBulkOp() {}
 
 // RemoveOp represents a type of `BulkOp` used for Remove operations. See BulkOp.
 // UNCOMMITTED: This API may change in the future.
@@ -273,53 +100,7 @@ type RemoveOp struct {
 	Err    error
 }
 
-func (item *RemoveOp) markError(err error) {
-	item.Err = err
-}
-
-func (item *RemoveOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-	retryWrapper *coreRetryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
-	span := startSpanFunc("remove", tracectx, false)
-	start := time.Now()
-	item.bulkOp.finishFn = func() {
-		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "remove", start)
-	}
-
-	op, err := provider.BulkDelete(gocbcore.DeleteOptions{
-		Key:            []byte(item.ID),
-		Cas:            gocbcore.Cas(item.Cas),
-		CollectionName: c.name(),
-		ScopeName:      c.ScopeName(),
-		RetryStrategy:  retryWrapper,
-		TraceContext:   span.Context(),
-		Deadline:       deadline,
-	}, func(res *gocbcore.DeleteResult, err error) {
-		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
-		if item.Err == nil {
-			item.Result = &MutationResult{
-				Result: Result{
-					cas: Cas(res.Cas),
-				},
-			}
-
-			if res.MutationToken.VbUUID != 0 {
-				mutTok := &MutationToken{
-					token:      res.MutationToken,
-					bucketName: c.bucketName(),
-				}
-				item.Result.mt = mutTok
-			}
-		}
-		signal <- item
-	})
-	if err != nil {
-		item.Err = err
-		signal <- item
-	} else {
-		item.bulkOp.pendop = op
-	}
-}
+func (item *RemoveOp) isBulkOp() {}
 
 // UpsertOp represents a type of `BulkOp` used for Upsert operations. See BulkOp.
 // UNCOMMITTED: This API may change in the future.
@@ -334,65 +115,7 @@ type UpsertOp struct {
 	Err    error
 }
 
-func (item *UpsertOp) markError(err error) {
-	item.Err = err
-}
-
-func (item *UpsertOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder,
-	signal chan BulkOp, retryWrapper *coreRetryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
-	span := startSpanFunc("upsert", tracectx, false)
-	start := time.Now()
-	item.bulkOp.finishFn = func() {
-		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "upsert", start)
-	}
-
-	etrace := c.startKvOpTrace("request_encoding", span.Context(), true)
-	bytes, flags, err := transcoder.Encode(item.Value)
-	etrace.End()
-	if err != nil {
-		item.Err = err
-		signal <- item
-		return
-	}
-
-	op, err := provider.BulkSet(gocbcore.SetOptions{
-		Key:            []byte(item.ID),
-		Value:          bytes,
-		Flags:          flags,
-		Expiry:         durationToExpiry(item.Expiry),
-		CollectionName: c.name(),
-		ScopeName:      c.ScopeName(),
-		RetryStrategy:  retryWrapper,
-		TraceContext:   span.Context(),
-		Deadline:       deadline,
-	}, func(res *gocbcore.StoreResult, err error) {
-		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
-
-		if item.Err == nil {
-			item.Result = &MutationResult{
-				Result: Result{
-					cas: Cas(res.Cas),
-				},
-			}
-
-			if res.MutationToken.VbUUID != 0 {
-				mutTok := &MutationToken{
-					token:      res.MutationToken,
-					bucketName: c.bucketName(),
-				}
-				item.Result.mt = mutTok
-			}
-		}
-		signal <- item
-	})
-	if err != nil {
-		item.Err = err
-		signal <- item
-	} else {
-		item.bulkOp.pendop = op
-	}
-}
+func (item *UpsertOp) isBulkOp() {}
 
 // InsertOp represents a type of `BulkOp` used for Insert operations. See BulkOp.
 // UNCOMMITTED: This API may change in the future.
@@ -406,65 +129,7 @@ type InsertOp struct {
 	Err    error
 }
 
-func (item *InsertOp) markError(err error) {
-	item.Err = err
-}
-
-func (item *InsertOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-	retryWrapper *coreRetryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
-	span := startSpanFunc("insert", tracectx, false)
-	start := time.Now()
-	item.bulkOp.finishFn = func() {
-		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "insert", start)
-	}
-
-	etrace := c.startKvOpTrace("request_encoding", span.Context(), true)
-	bytes, flags, err := transcoder.Encode(item.Value)
-	if err != nil {
-		etrace.End()
-		item.Err = err
-		signal <- item
-		return
-	}
-	etrace.End()
-
-	op, err := provider.BulkAdd(gocbcore.AddOptions{
-		Key:            []byte(item.ID),
-		Value:          bytes,
-		Flags:          flags,
-		Expiry:         durationToExpiry(item.Expiry),
-		CollectionName: c.name(),
-		ScopeName:      c.ScopeName(),
-		RetryStrategy:  retryWrapper,
-		TraceContext:   span.Context(),
-		Deadline:       deadline,
-	}, func(res *gocbcore.StoreResult, err error) {
-		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
-		if item.Err == nil {
-			item.Result = &MutationResult{
-				Result: Result{
-					cas: Cas(res.Cas),
-				},
-			}
-
-			if res.MutationToken.VbUUID != 0 {
-				mutTok := &MutationToken{
-					token:      res.MutationToken,
-					bucketName: c.bucketName(),
-				}
-				item.Result.mt = mutTok
-			}
-		}
-		signal <- item
-	})
-	if err != nil {
-		item.Err = err
-		signal <- item
-	} else {
-		item.bulkOp.pendop = op
-	}
-}
+func (item *InsertOp) isBulkOp() {}
 
 // ReplaceOp represents a type of `BulkOp` used for Replace operations. See BulkOp.
 // UNCOMMITTED: This API may change in the future.
@@ -479,66 +144,7 @@ type ReplaceOp struct {
 	Err    error
 }
 
-func (item *ReplaceOp) markError(err error) {
-	item.Err = err
-}
-
-func (item *ReplaceOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-	retryWrapper *coreRetryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
-	span := startSpanFunc("replace", tracectx, false)
-	start := time.Now()
-	item.bulkOp.finishFn = func() {
-		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "replace", start)
-	}
-
-	etrace := c.startKvOpTrace("request_encoding", span.Context(), true)
-	bytes, flags, err := transcoder.Encode(item.Value)
-	if err != nil {
-		etrace.End()
-		item.Err = err
-		signal <- item
-		return
-	}
-	etrace.End()
-
-	op, err := provider.BulkReplace(gocbcore.ReplaceOptions{
-		Key:            []byte(item.ID),
-		Value:          bytes,
-		Flags:          flags,
-		Cas:            gocbcore.Cas(item.Cas),
-		Expiry:         durationToExpiry(item.Expiry),
-		CollectionName: c.name(),
-		ScopeName:      c.ScopeName(),
-		RetryStrategy:  retryWrapper,
-		TraceContext:   span.Context(),
-		Deadline:       deadline,
-	}, func(res *gocbcore.StoreResult, err error) {
-		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
-		if item.Err == nil {
-			item.Result = &MutationResult{
-				Result: Result{
-					cas: Cas(res.Cas),
-				},
-			}
-
-			if res.MutationToken.VbUUID != 0 {
-				mutTok := &MutationToken{
-					token:      res.MutationToken,
-					bucketName: c.bucketName(),
-				}
-				item.Result.mt = mutTok
-			}
-		}
-		signal <- item
-	})
-	if err != nil {
-		item.Err = err
-		signal <- item
-	} else {
-		item.bulkOp.pendop = op
-	}
-}
+func (item *ReplaceOp) isBulkOp() {}
 
 // AppendOp represents a type of `BulkOp` used for Append operations. See BulkOp.
 // UNCOMMITTED: This API may change in the future.
@@ -551,53 +157,7 @@ type AppendOp struct {
 	Err    error
 }
 
-func (item *AppendOp) markError(err error) {
-	item.Err = err
-}
-
-func (item *AppendOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-	retryWrapper *coreRetryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
-	span := startSpanFunc("append", tracectx, false)
-	start := time.Now()
-	item.bulkOp.finishFn = func() {
-		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "append", start)
-	}
-
-	op, err := provider.BulkAppend(gocbcore.AdjoinOptions{
-		Key:            []byte(item.ID),
-		Value:          []byte(item.Value),
-		CollectionName: c.name(),
-		ScopeName:      c.ScopeName(),
-		RetryStrategy:  retryWrapper,
-		TraceContext:   span.Context(),
-		Deadline:       deadline,
-	}, func(res *gocbcore.AdjoinResult, err error) {
-		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
-		if item.Err == nil {
-			item.Result = &MutationResult{
-				Result: Result{
-					cas: Cas(res.Cas),
-				},
-			}
-
-			if res.MutationToken.VbUUID != 0 {
-				mutTok := &MutationToken{
-					token:      res.MutationToken,
-					bucketName: c.bucketName(),
-				}
-				item.Result.mt = mutTok
-			}
-		}
-		signal <- item
-	})
-	if err != nil {
-		item.Err = err
-		signal <- item
-	} else {
-		item.bulkOp.pendop = op
-	}
-}
+func (item *AppendOp) isBulkOp() {}
 
 // PrependOp represents a type of `BulkOp` used for Prepend operations. See BulkOp.
 // UNCOMMITTED: This API may change in the future.
@@ -610,53 +170,7 @@ type PrependOp struct {
 	Err    error
 }
 
-func (item *PrependOp) markError(err error) {
-	item.Err = err
-}
-
-func (item *PrependOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-	retryWrapper *coreRetryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
-	span := startSpanFunc("prepend", tracectx, false)
-	start := time.Now()
-	item.bulkOp.finishFn = func() {
-		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "prepend", start)
-	}
-
-	op, err := provider.BulkPrepend(gocbcore.AdjoinOptions{
-		Key:            []byte(item.ID),
-		Value:          []byte(item.Value),
-		CollectionName: c.name(),
-		ScopeName:      c.ScopeName(),
-		RetryStrategy:  retryWrapper,
-		TraceContext:   span.Context(),
-		Deadline:       deadline,
-	}, func(res *gocbcore.AdjoinResult, err error) {
-		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
-		if item.Err == nil {
-			item.Result = &MutationResult{
-				Result: Result{
-					cas: Cas(res.Cas),
-				},
-			}
-
-			if res.MutationToken.VbUUID != 0 {
-				mutTok := &MutationToken{
-					token:      res.MutationToken,
-					bucketName: c.bucketName(),
-				}
-				item.Result.mt = mutTok
-			}
-		}
-		signal <- item
-	})
-	if err != nil {
-		item.Err = err
-		signal <- item
-	} else {
-		item.bulkOp.pendop = op
-	}
-}
+func (item *PrependOp) isBulkOp() {}
 
 // IncrementOp represents a type of `BulkOp` used for Increment operations. See BulkOp.
 // UNCOMMITTED: This API may change in the future.
@@ -672,63 +186,7 @@ type IncrementOp struct {
 	Err    error
 }
 
-func (item *IncrementOp) markError(err error) {
-	item.Err = err
-}
-
-func (item *IncrementOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-	retryWrapper *coreRetryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
-	span := startSpanFunc("increment", tracectx, false)
-	start := time.Now()
-	item.bulkOp.finishFn = func() {
-		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "increment", start)
-	}
-
-	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
-	if item.Initial > 0 {
-		realInitial = uint64(item.Initial)
-	}
-
-	op, err := provider.BulkIncrement(gocbcore.CounterOptions{
-		Key:            []byte(item.ID),
-		Delta:          uint64(item.Delta),
-		Initial:        realInitial,
-		Expiry:         durationToExpiry(item.Expiry),
-		CollectionName: c.name(),
-		ScopeName:      c.ScopeName(),
-		RetryStrategy:  retryWrapper,
-		TraceContext:   span.Context(),
-		Deadline:       deadline,
-	}, func(res *gocbcore.CounterResult, err error) {
-		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
-		if item.Err == nil {
-			item.Result = &CounterResult{
-				MutationResult: MutationResult{
-					Result: Result{
-						cas: Cas(res.Cas),
-					},
-				},
-				content: res.Value,
-			}
-
-			if res.MutationToken.VbUUID != 0 {
-				mutTok := &MutationToken{
-					token:      res.MutationToken,
-					bucketName: c.bucketName(),
-				}
-				item.Result.mt = mutTok
-			}
-		}
-		signal <- item
-	})
-	if err != nil {
-		item.Err = err
-		signal <- item
-	} else {
-		item.bulkOp.pendop = op
-	}
-}
+func (item *IncrementOp) isBulkOp() {}
 
 // DecrementOp represents a type of `BulkOp` used for Decrement operations. See BulkOp.
 // UNCOMMITTED: This API may change in the future.
@@ -744,60 +202,4 @@ type DecrementOp struct {
 	Err    error
 }
 
-func (item *DecrementOp) markError(err error) {
-	item.Err = err
-}
-
-func (item *DecrementOp) execute(tracectx RequestSpanContext, c *Collection, provider kvProvider, transcoder Transcoder, signal chan BulkOp,
-	retryWrapper *coreRetryStrategyWrapper, deadline time.Time, startSpanFunc func(string, RequestSpanContext, bool) RequestSpan) {
-	span := startSpanFunc("decrement", tracectx, false)
-	start := time.Now()
-	item.bulkOp.finishFn = func() {
-		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "decrement", start)
-	}
-
-	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
-	if item.Initial > 0 {
-		realInitial = uint64(item.Initial)
-	}
-
-	op, err := provider.BulkDecrement(gocbcore.CounterOptions{
-		Key:            []byte(item.ID),
-		Delta:          uint64(item.Delta),
-		Initial:        realInitial,
-		Expiry:         durationToExpiry(item.Expiry),
-		CollectionName: c.name(),
-		ScopeName:      c.ScopeName(),
-		RetryStrategy:  retryWrapper,
-		TraceContext:   span.Context(),
-		Deadline:       deadline,
-	}, func(res *gocbcore.CounterResult, err error) {
-		item.Err = maybeEnhanceCollKVErr(err, provider, c, item.ID)
-		if item.Err == nil {
-			item.Result = &CounterResult{
-				MutationResult: MutationResult{
-					Result: Result{
-						cas: Cas(res.Cas),
-					},
-				},
-				content: res.Value,
-			}
-
-			if res.MutationToken.VbUUID != 0 {
-				mutTok := &MutationToken{
-					token:      res.MutationToken,
-					bucketName: c.bucketName(),
-				}
-				item.Result.mt = mutTok
-			}
-		}
-		signal <- item
-	})
-	if err != nil {
-		item.Err = err
-		signal <- item
-	} else {
-		item.bulkOp.pendop = op
-	}
-}
+func (item *DecrementOp) isBulkOp() {}

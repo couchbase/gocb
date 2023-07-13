@@ -2,8 +2,6 @@ package gocb
 
 import (
 	"time"
-
-	gocbcore "github.com/couchbase/gocbcore/v10"
 )
 
 type kvProvider interface {
@@ -33,16 +31,8 @@ type kvProvider interface {
 	Prepend(*Collection, string, []byte, *PrependOptions) (*MutationResult, error) // Done
 
 	Scan(*Collection, ScanType, *ScanOptions) (*ScanResult, error)
+}
 
-	BulkGet(gocbcore.GetOptions, gocbcore.GetCallback) (gocbcore.PendingOp, error)
-	BulkGetAndTouch(gocbcore.GetAndTouchOptions, gocbcore.GetAndTouchCallback) (gocbcore.PendingOp, error)
-	BulkTouch(gocbcore.TouchOptions, gocbcore.TouchCallback) (gocbcore.PendingOp, error)
-	BulkDelete(gocbcore.DeleteOptions, gocbcore.DeleteCallback) (gocbcore.PendingOp, error)
-	BulkSet(gocbcore.SetOptions, gocbcore.StoreCallback) (gocbcore.PendingOp, error)
-	BulkAdd(gocbcore.AddOptions, gocbcore.StoreCallback) (gocbcore.PendingOp, error)
-	BulkReplace(gocbcore.ReplaceOptions, gocbcore.StoreCallback) (gocbcore.PendingOp, error)
-	BulkAppend(gocbcore.AdjoinOptions, gocbcore.AdjoinCallback) (gocbcore.PendingOp, error)
-	BulkPrepend(gocbcore.AdjoinOptions, gocbcore.AdjoinCallback) (gocbcore.PendingOp, error)
-	BulkIncrement(gocbcore.CounterOptions, gocbcore.CounterCallback) (gocbcore.PendingOp, error)
-	BulkDecrement(gocbcore.CounterOptions, gocbcore.CounterCallback) (gocbcore.PendingOp, error)
+type kvBulkProvider interface {
+	Do(*Collection, []BulkOp, *BulkOpOptions) error
 }
