@@ -341,7 +341,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case GetExpiryUsingLookupInFeature:
 			supported = !c.Version.Equal(protostellarVer)
 		case KeyValueBulkFeature:
-			supported = !c.Version.Equal(protostellarVer)
+			supported = true
 		case KeyValueProjectionsFeature:
 			supported = !c.Version.Equal(protostellarVer)
 		case NodesMetadataFeature:

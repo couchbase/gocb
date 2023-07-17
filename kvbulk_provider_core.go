@@ -283,6 +283,7 @@ func (p *kvBulkProviderCore) Set(item *UpsertOp, tracectx RequestSpanContext, c 
 		signal <- item
 	}
 }
+
 func (p *kvBulkProviderCore) Add(item *InsertOp, tracectx RequestSpanContext, c *Collection, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
 	span := c.startKvOpTrace("insert", tracectx, false)
