@@ -196,6 +196,32 @@ func (_m *mockKvProviderCoreProvider) GetAndTouch(opts gocbcore.GetAndTouchOptio
 	return r0, r1
 }
 
+// GetCollectionID provides a mock function with given fields: scopeName, collectionName, opts, cb
+func (_m *mockKvProviderCoreProvider) GetCollectionID(scopeName string, collectionName string, opts gocbcore.GetCollectionIDOptions, cb gocbcore.GetCollectionIDCallback) (gocbcore.PendingOp, error) {
+	ret := _m.Called(scopeName, collectionName, opts, cb)
+
+	var r0 gocbcore.PendingOp
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string, gocbcore.GetCollectionIDOptions, gocbcore.GetCollectionIDCallback) (gocbcore.PendingOp, error)); ok {
+		return rf(scopeName, collectionName, opts, cb)
+	}
+	if rf, ok := ret.Get(0).(func(string, string, gocbcore.GetCollectionIDOptions, gocbcore.GetCollectionIDCallback) gocbcore.PendingOp); ok {
+		r0 = rf(scopeName, collectionName, opts, cb)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(gocbcore.PendingOp)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string, gocbcore.GetCollectionIDOptions, gocbcore.GetCollectionIDCallback) error); ok {
+		r1 = rf(scopeName, collectionName, opts, cb)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetMeta provides a mock function with given fields: opts, cb
 func (_m *mockKvProviderCoreProvider) GetMeta(opts gocbcore.GetMetaOptions, cb gocbcore.GetMetaCallback) (gocbcore.PendingOp, error) {
 	ret := _m.Called(opts, cb)

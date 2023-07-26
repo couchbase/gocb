@@ -1972,8 +1972,7 @@ func (suite *IntegrationTestSuite) TestInsertReplicateToGetAllReplicas() {
 	var expectedReplicas int
 	agent, isGocbcore := prov.(*kvProviderCore)
 	if isGocbcore {
-
-		snapshot, err := agent.waitForConfigSnapshot(context.Background(), time.Now().Add(5*time.Second))
+		snapshot, err := agent.snapshotProvider.WaitForConfigSnapshot(context.Background(), time.Now().Add(5*time.Second))
 		if err != nil {
 			suite.T().Fatalf("Failed to get config snapshot, was %v", err)
 		}

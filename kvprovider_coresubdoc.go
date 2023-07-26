@@ -52,7 +52,7 @@ func (p *kvProviderCore) LookupInAllReplicas(c *Collection, id string, ops []Loo
 	deadline := time.Now().Add(timeout)
 	retryStrategy := opts.RetryStrategy
 
-	snapshot, err := p.waitForConfigSnapshot(ctx, deadline)
+	snapshot, err := p.snapshotProvider.WaitForConfigSnapshot(ctx, deadline)
 	if err != nil {
 		return nil, err
 	}

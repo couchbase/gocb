@@ -90,3 +90,7 @@ func (c *Collection) startKvOpTrace(operationName string, tracectx RequestSpanCo
 func (c *Collection) bucketName() string {
 	return c.bucket.Name()
 }
+
+func (c *Collection) isDefault() bool {
+	return (c.scope == "" || c.scope == "_default") && (c.collectionName == "" || c.collectionName == "_default")
+}

@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"time"
 
 	"github.com/couchbase/gocbcore/v10"
@@ -29,4 +30,44 @@ type kvProviderCoreProvider interface {
 	Prepend(opts gocbcore.AdjoinOptions, cb gocbcore.AdjoinCallback) (gocbcore.PendingOp, error)
 	WaitForConfigSnapshot(deadline time.Time, opts gocbcore.WaitForConfigSnapshotOptions, cb gocbcore.WaitForConfigSnapshotCallback) (gocbcore.PendingOp, error)
 	RangeScanCreate(vbID uint16, opts gocbcore.RangeScanCreateOptions, cb gocbcore.RangeScanCreateCallback) (gocbcore.PendingOp, error)
+	GetCollectionID(scopeName string, collectionName string, opts gocbcore.GetCollectionIDOptions, cb gocbcore.GetCollectionIDCallback) (gocbcore.PendingOp, error)
+}
+
+type kvProviderConfigSnapshotProvider interface {
+	WaitForConfigSnapshot(ctx context.Context, deadline time.Time) (coreConfigSnapshot, error)
+}
+
+type coreConfigSnapshot interface {
+	RevID() int64
+	NumVbuckets() (int, error)
+	NumReplicas() (int, error)
+}
+
+type stdCoreConfigSnapshotProvider struct {
+	agent kvProviderCoreProvider
+}
+
+func (p *stdCoreConfigSnapshotProvider) WaitForConfigSnapshot(ctx context.Context, deadline time.Time) (coreConfigSnapshot, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	var snapOut coreConfigSnapshot
+	var errOut error
+	opm := newAsyncOpManager(ctx)
+	err := opm.Wait(p.agent.WaitForConfigSnapshot(deadline, gocbcore.WaitForConfigSnapshotOptions{}, func(result *gocbcore.WaitForConfigSnapshotResult, err error) {
+		if err != nil {
+			errOut = err
+			opm.Reject()
+			return
+		}
+
+		snapOut = result.Snapshot
+		opm.Resolve()
+	}))
+	if err != nil {
+		errOut = err
+	}
+
+	return snapOut, errOut
 }

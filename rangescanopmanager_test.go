@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"errors"
 	"sync/atomic"
 	"time"
@@ -10,6 +11,32 @@ import (
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/stretchr/testify/mock"
 )
+
+type mockConfigSnapshotProvider struct {
+	snapshot *mockConfigSnapshot
+}
+
+func (p *mockConfigSnapshotProvider) WaitForConfigSnapshot(ctx context.Context, deadline time.Time) (coreConfigSnapshot, error) {
+	return p.snapshot, nil
+}
+
+type mockConfigSnapshot struct {
+	revID       int64
+	numVbuckets int
+	numReplicas int
+}
+
+func (p *mockConfigSnapshot) RevID() int64 {
+	return p.revID
+}
+
+func (p *mockConfigSnapshot) NumVbuckets() (int, error) {
+	return p.numVbuckets, nil
+}
+
+func (p *mockConfigSnapshot) NumReplicas() (int, error) {
+	return p.numReplicas, nil
+}
 
 func (suite *UnitTestSuite) TestScanAllScansTmpFailAtCreate() {
 	test := func(scan ScanType) (*ScanResult, error) {
@@ -30,10 +57,12 @@ func (suite *UnitTestSuite) TestScanAllScansTmpFailAtCreate() {
 			cb(nil, ErrTemporaryFailure)
 		})
 
-		agent := &kvProviderCore{agent: provider}
+		snap := &mockConfigSnapshot{numVbuckets: 8}
+
+		agent := &kvProviderCore{agent: provider, snapshotProvider: &mockConfigSnapshotProvider{snapshot: snap}}
 		col := suite.collection("mock", "", "", agent)
 
-		return agent.scan(col, scan, opts, 8)
+		return agent.Scan(col, scan, opts)
 	}
 
 	suite.Run("Sampling", func() {
@@ -80,10 +109,12 @@ func (suite *UnitTestSuite) TestScanAllScansEmpty() {
 			IDsOnly: true,
 		}
 
-		agent := &kvProviderCore{agent: provider}
+		snap := &mockConfigSnapshot{numVbuckets: 8}
+
+		agent := &kvProviderCore{agent: provider, snapshotProvider: &mockConfigSnapshotProvider{snapshot: snap}}
 		col := suite.collection("mock", "", "", agent)
 
-		res, err := agent.scan(col, scan, opts, 8)
+		res, err := agent.Scan(col, scan, opts)
 		suite.Require().Nil(err, err)
 
 		ids := make(map[string]struct{})
@@ -178,14 +209,16 @@ func (suite *UnitTestSuite) TestScanFirstCreateFailsUnknownError() {
 			}, nil)
 		})
 
-		agent := &kvProviderCore{agent: provider}
+		snap := &mockConfigSnapshot{numVbuckets: 4}
+
+		agent := &kvProviderCore{agent: provider, snapshotProvider: &mockConfigSnapshotProvider{snapshot: snap}}
 		col := suite.collection("mock", "", "", agent)
 
 		opts := &ScanOptions{
 			IDsOnly: true,
 		}
 
-		return agent.scan(col, scan, opts, 4)
+		return agent.Scan(col, scan, opts)
 	}
 
 	suite.Run("Sampling", func() {
@@ -233,14 +266,16 @@ func (suite *UnitTestSuite) TestScanSecondCreateFailsUnknownError() {
 			return
 		})
 
-		agent := &kvProviderCore{agent: provider}
+		snap := &mockConfigSnapshot{numVbuckets: 4}
+
+		agent := &kvProviderCore{agent: provider, snapshotProvider: &mockConfigSnapshotProvider{snapshot: snap}}
 		col := suite.collection("mock", "", "", agent)
 
 		opts := &ScanOptions{
 			IDsOnly: true,
 		}
 
-		return agent.scan(col, scan, opts, 4)
+		return agent.Scan(col, scan, opts)
 	}
 
 	suite.Run("Sampling", func() {
@@ -339,14 +374,16 @@ func (suite *UnitTestSuite) TestScanNMV() {
 			return
 		})
 
-		agent := &kvProviderCore{agent: provider}
+		snap := &mockConfigSnapshot{numVbuckets: 4}
+
+		agent := &kvProviderCore{agent: provider, snapshotProvider: &mockConfigSnapshotProvider{snapshot: snap}}
 		col := suite.collection("mock", "", "", agent)
 
 		opts := &ScanOptions{
 			IDsOnly: true,
 		}
 
-		res, err := agent.scan(col, scan, opts, 4)
+		res, err := agent.Scan(col, scan, opts)
 		if err != nil {
 			return nil, "", err
 		}

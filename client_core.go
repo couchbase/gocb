@@ -142,7 +142,10 @@ func (c *stdConnectionMgr) getKvProvider(bucketName string) (kvProvider, error) 
 	if agent == nil {
 		return nil, errors.New("bucket not yet connected")
 	}
-	return &kvProviderCore{agent: agent}, nil
+	return &kvProviderCore{
+		agent:            agent,
+		snapshotProvider: &stdCoreConfigSnapshotProvider{agent: agent},
+	}, nil
 }
 
 func (c *stdConnectionMgr) getKvBulkProvider(bucketName string) (kvBulkProvider, error) {

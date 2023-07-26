@@ -898,7 +898,7 @@ func (suite *IntegrationTestSuite) TestUpsertReplicateToGetAllReplicas() {
 	agent, ok := prov.(*kvProviderCore)
 	suite.Require().True(ok)
 
-	snapshot, err := agent.waitForConfigSnapshot(context.Background(), time.Now().Add(5*time.Second))
+	snapshot, err := agent.snapshotProvider.WaitForConfigSnapshot(context.Background(), time.Now().Add(5*time.Second))
 	suite.Require().NoError(err, err)
 
 	numReplicas, err := snapshot.NumReplicas()

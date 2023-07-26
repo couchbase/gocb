@@ -40,9 +40,12 @@ type rangeScanOpManager struct {
 	defaultTranscoder    Transcoder
 	defaultTimeout       time.Duration
 
-	collectionName string
+	cid        uint32
+	bucketName string
+
+	// These are used only for creating errors.
 	scopeName      string
-	bucketName     string
+	collectionName string
 
 	rangeOptions          *gocbcore.RangeScanCreateRangeScanConfig
 	samplingOptions       *gocbcore.RangeScanCreateRandomSamplingConfig
@@ -59,7 +62,7 @@ type rangeScanOpManager struct {
 	cancelled uint32
 }
 
-func (p *kvProviderCore) newRangeScanOpManager(c *Collection, scanType ScanType, numVbuckets int, agent kvProviderCoreProvider,
+func (p *kvProviderCore) newRangeScanOpManager(c *Collection, scanType ScanType, agent kvProviderCoreProvider,
 	parentSpan RequestSpan, consistentWith *MutationState, keysOnly bool) (*rangeScanOpManager, error) {
 	var tracectx RequestSpanContext
 	if parentSpan != nil {
@@ -73,7 +76,6 @@ func (p *kvProviderCore) newRangeScanOpManager(c *Collection, scanType ScanType,
 	span.SetAttribute(spanAttribServiceKey, "kv_scan")
 	span.SetAttribute(spanAttribOperationKey, "range_scan")
 	span.SetAttribute(spanAttribDBSystemKey, spanAttribDBSystemValue)
-	span.SetAttribute("num_partitions", numVbuckets)
 	span.SetAttribute("without_content", keysOnly)
 
 	var rangeOptions *gocbcore.RangeScanCreateRangeScanConfig
@@ -173,14 +175,14 @@ func (p *kvProviderCore) newRangeScanOpManager(c *Collection, scanType ScanType,
 
 		cancelCh: make(chan struct{}),
 
-		numVbuckets:          numVbuckets,
 		agent:                agent,
 		defaultTimeout:       c.timeoutsConfig.KVScanTimeout,
 		defaultTranscoder:    c.transcoder,
 		defaultRetryStrategy: c.retryStrategyWrapper,
-		collectionName:       c.Name(),
-		scopeName:            c.ScopeName(),
 		bucketName:           c.Bucket().Name(),
+
+		scopeName:      c.ScopeName(),
+		collectionName: c.Name(),
 
 		rangeOptions:          rangeOptions,
 		samplingOptions:       samplingOptions,
@@ -197,6 +199,15 @@ func (m *rangeScanOpManager) getTimeout() time.Duration {
 	}
 
 	return m.defaultTimeout
+}
+
+func (m *rangeScanOpManager) SetCollectionID(cid uint32) {
+	m.cid = cid
+}
+
+func (m *rangeScanOpManager) SetNumVbuckets(numVbuckets int) {
+	m.numVbuckets = numVbuckets
+	m.span.SetAttribute("num_partitions", numVbuckets)
 }
 
 func (m *rangeScanOpManager) SetTimeout(timeout time.Duration) {
@@ -253,12 +264,8 @@ func (m *rangeScanOpManager) TraceSpan() RequestSpan {
 	return m.span
 }
 
-func (m *rangeScanOpManager) CollectionName() string {
-	return m.collectionName
-}
-
-func (m *rangeScanOpManager) ScopeName() string {
-	return m.scopeName
+func (m *rangeScanOpManager) CID() uint32 {
+	return m.cid
 }
 
 func (m *rangeScanOpManager) BucketName() string {
@@ -301,6 +308,10 @@ func (m *rangeScanOpManager) CheckReadyForOp() error {
 	}
 
 	m.deadline = time.Now().Add(timeout)
+
+	if m.numVbuckets == 0 {
+		return errors.New("range sacn op manager had no number of partitions specified")
+	}
 
 	return nil
 }
@@ -366,7 +377,6 @@ func (m *rangeScanOpManager) Scan(ctx context.Context) (*ScanResult, error) {
 	// We keep separate counts of running and completed to simplify shutdown of the scan.
 	scansRunning := int32(m.maxConcurrency)
 
-	deadline := time.Now().Add(m.Timeout())
 	isRangeScan := m.IsRangeScan()
 
 	var i uint16
@@ -385,6 +395,7 @@ func (m *rangeScanOpManager) Scan(ctx context.Context) (*ScanResult, error) {
 					return
 				}
 
+				deadline := time.Now().Add(m.Timeout())
 				failPoint, err := m.scanPartition(ctx, deadline, vbID, resultCh)
 				if err != nil {
 					err = m.EnhanceErr(err)
@@ -602,15 +613,14 @@ func (m *rangeScanOpManager) createStream(ctx context.Context, spanCtx RequestSp
 	var createResOut gocbcore.RangeScanCreateResult
 	var errOut error
 	err := opMan.Wait(m.agent.RangeScanCreate(vbID, gocbcore.RangeScanCreateOptions{
-		Deadline:       deadline,
-		CollectionName: m.CollectionName(),
-		ScopeName:      m.ScopeName(),
-		KeysOnly:       m.KeysOnly(),
-		Range:          rangeOpts,
-		Sampling:       samplingOpts,
-		Snapshot:       m.SnapshotOptions(vbID),
-		User:           m.Impersonate(),
-		TraceContext:   span.Context(),
+		Deadline:     deadline,
+		CollectionID: m.cid,
+		KeysOnly:     m.KeysOnly(),
+		Range:        rangeOpts,
+		Sampling:     samplingOpts,
+		Snapshot:     m.SnapshotOptions(vbID),
+		User:         m.Impersonate(),
+		TraceContext: span.Context(),
 	}, func(result gocbcore.RangeScanCreateResult, err error) {
 		if err != nil {
 			errOut = err

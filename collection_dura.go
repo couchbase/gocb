@@ -128,7 +128,7 @@ func (p *kvProviderCore) waitForDurability(
 
 	observeOpm.SetDocumentID(docID)
 
-	snapshot, err := p.waitForConfigSnapshot(ctx, deadline)
+	snapshot, err := p.snapshotProvider.WaitForConfigSnapshot(ctx, deadline)
 	if err != nil {
 		return err
 	}

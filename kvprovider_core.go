@@ -9,31 +9,14 @@ import (
 )
 
 type kvProviderCore struct {
-	agent kvProviderCoreProvider
+	agent            kvProviderCoreProvider
+	snapshotProvider kvProviderConfigSnapshotProvider
 }
 
 var _ kvProvider = &kvProviderCore{}
 
 func (p *kvProviderCore) Scan(c *Collection, scanType ScanType, opts *ScanOptions) (*ScanResult, error) {
-	config, err := p.waitForConfigSnapshot(opts.Context, time.Now().Add(opts.Timeout))
-	if err != nil {
-		return nil, maybeEnhanceKVErr(err, c.bucketName(), c.ScopeName(), c.name(), "scan")
-	}
-
-	numVbuckets, err := config.NumVbuckets()
-	if err != nil {
-		return nil, err
-	}
-
-	if numVbuckets == 0 {
-		return nil, makeInvalidArgumentsError("can only use Scan with couchbase buckets")
-	}
-
-	return p.scan(c, scanType, opts, numVbuckets)
-}
-
-func (p *kvProviderCore) scan(c *Collection, scanType ScanType, opts *ScanOptions, numVbuckets int) (*ScanResult, error) {
-	opm, err := p.newRangeScanOpManager(c, scanType, numVbuckets, p.agent, opts.ParentSpan, opts.ConsistentWith,
+	opm, err := p.newRangeScanOpManager(c, scanType, p.agent, opts.ParentSpan, opts.ConsistentWith,
 		opts.IDsOnly)
 	if err != nil {
 		return nil, err
@@ -46,34 +29,80 @@ func (p *kvProviderCore) scan(c *Collection, scanType ScanType, opts *ScanOption
 	opm.SetByteLimit(opts.BatchByteLimit)
 	opm.SetMaxConcurrency(opts.MaxConcurrency)
 
+	config, err := p.snapshotProvider.WaitForConfigSnapshot(opts.Context, time.Now().Add(opm.Timeout()))
+	if err != nil {
+		opm.Finish()
+		return nil, maybeEnhanceKVErr(err, c.bucketName(), c.ScopeName(), c.Name(), "scan")
+	}
+
+	numVbuckets, err := config.NumVbuckets()
+	if err != nil {
+		opm.Finish()
+		return nil, err
+	}
+
+	if numVbuckets == 0 {
+		opm.Finish()
+		return nil, makeInvalidArgumentsError("can only use Scan with couchbase buckets")
+	}
+
+	opm.SetNumVbuckets(numVbuckets)
+
+	cid, err := p.getCollectionID(opts.Context, c, opm.TraceSpan(), opm.Timeout(), opm.Impersonate())
+	if err != nil {
+		opm.Finish()
+		return nil, maybeEnhanceKVErr(err, c.bucketName(), c.ScopeName(), c.Name(), "scan")
+	}
+
+	opm.SetCollectionID(cid)
+
 	if err := opm.CheckReadyForOp(); err != nil {
+		opm.Finish()
 		return nil, err
 	}
 
 	return opm.Scan(opts.Context)
 }
 
-func (p *kvProviderCore) waitForConfigSnapshot(ctx context.Context, deadline time.Time) (snapOut *gocbcore.ConfigSnapshot, errOut error) {
-	if ctx == nil {
-		ctx = context.Background()
+func (p *kvProviderCore) getCollectionID(ctx context.Context, c *Collection, parentSpan RequestSpan, timeout time.Duration,
+	impersonate string) (uint32, error) {
+	if c.isDefault() {
+		return 0, nil
 	}
 
-	opm := newAsyncOpManager(ctx)
-	err := opm.Wait(p.agent.WaitForConfigSnapshot(deadline, gocbcore.WaitForConfigSnapshotOptions{}, func(result *gocbcore.WaitForConfigSnapshotResult, err error) {
+	opm := newKvOpManagerCore(c, "get_collection_id", parentSpan, p)
+	defer opm.Finish(false)
+
+	opm.SetTimeout(timeout)
+	opm.SetImpersonate(impersonate)
+	opm.SetContext(ctx)
+
+	if err := opm.CheckReadyForOp(); err != nil {
+		return 0, err
+	}
+
+	var errOut error
+	var cidOut uint32
+	err := opm.Wait(p.agent.GetCollectionID(c.ScopeName(), c.name(), gocbcore.GetCollectionIDOptions{
+		TraceContext: opm.TraceSpanContext(),
+		Deadline:     opm.Deadline(),
+		// User:         opm.Impersonate(),
+	}, func(res *gocbcore.GetCollectionIDResult, err error) {
 		if err != nil {
-			errOut = err
+			errOut = opm.EnhanceErr(err)
 			opm.Reject()
 			return
 		}
 
-		snapOut = result.Snapshot
-		opm.Resolve()
+		cidOut = res.CollectionID
+
+		opm.Resolve(nil)
 	}))
 	if err != nil {
 		errOut = err
 	}
 
-	return
+	return cidOut, errOut
 }
 
 func (p *kvProviderCore) Insert(c *Collection, id string, val interface{}, opts *InsertOptions) (*MutationResult, error) {
@@ -746,7 +775,7 @@ func (p *kvProviderCore) GetAllReplicas(c *Collection, id string, opts *GetAllRe
 	transcoder := opts.Transcoder
 	retryStrategy := opts.RetryStrategy
 
-	snapshot, err := p.waitForConfigSnapshot(ctx, deadline)
+	snapshot, err := p.snapshotProvider.WaitForConfigSnapshot(ctx, deadline)
 	if err != nil {
 		return nil, err
 	}
