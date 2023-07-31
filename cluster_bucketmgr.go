@@ -258,7 +258,7 @@ func (bm *BucketManager) GetBucket(bucketName string, opts *GetBucketOptions) (*
 	start := time.Now()
 	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_get_bucket", start)
 
-	path := fmt.Sprintf("/pools/default/buckets/%s", bucketName)
+	path := fmt.Sprintf("/pools/default/buckets/%s", url.PathEscape(bucketName))
 	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_create_bucket", "management")
 	span.SetAttribute("db.name", bucketName)
 	span.SetAttribute("db.operation", "GET "+path)
@@ -480,7 +480,7 @@ func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucke
 	start := time.Now()
 	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_update_bucket", start)
 
-	path := fmt.Sprintf("/pools/default/buckets/%s", settings.Name)
+	path := fmt.Sprintf("/pools/default/buckets/%s", url.PathEscape(settings.Name))
 	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_update_bucket", "management")
 	span.SetAttribute("db.name", settings.Name)
 	span.SetAttribute("db.operation", "POST "+path)
@@ -546,7 +546,7 @@ func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error 
 	start := time.Now()
 	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_drop_bucket", start)
 
-	path := fmt.Sprintf("/pools/default/buckets/%s", name)
+	path := fmt.Sprintf("/pools/default/buckets/%s", url.PathEscape(name))
 	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_drop_bucket", "management")
 	span.SetAttribute("db.name", name)
 	span.SetAttribute("db.operation", "DELETE "+path)
@@ -602,7 +602,7 @@ func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) erro
 	start := time.Now()
 	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_flush_bucket", start)
 
-	path := fmt.Sprintf("/pools/default/buckets/%s/controller/doFlush", name)
+	path := fmt.Sprintf("/pools/default/buckets/%s/controller/doFlush", url.PathEscape(name))
 	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_flush_bucket", "management")
 	span.SetAttribute("db.name", name)
 	span.SetAttribute("db.operation", "POST "+path)

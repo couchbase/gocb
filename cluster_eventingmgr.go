@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -722,7 +723,7 @@ func (efm *EventingFunctionManager) UpsertFunction(function EventingFunction, op
 		opts = &UpsertEventingFunctionOptions{}
 	}
 
-	return efm.doRequest(fmt.Sprintf("/api/v1/functions/%s", function.Name), "POST",
+	return efm.doRequest(fmt.Sprintf("/api/v1/functions/%s", url.PathEscape(function.Name)), "POST",
 		"upsert_function", &function, nil, eventingRequestOptions{
 			Timeout:       opts.Timeout,
 			RetryStrategy: opts.RetryStrategy,
@@ -749,7 +750,7 @@ func (efm *EventingFunctionManager) DropFunction(name string, opts *DropEventing
 		opts = &DropEventingFunctionOptions{}
 	}
 
-	return efm.doRequest(fmt.Sprintf("/api/v1/functions/%s", name), "DELETE",
+	return efm.doRequest(fmt.Sprintf("/api/v1/functions/%s", url.PathEscape(name)), "DELETE",
 		"drop_function", nil, nil, eventingRequestOptions{
 			Timeout:       opts.Timeout,
 			RetryStrategy: opts.RetryStrategy,
@@ -776,7 +777,7 @@ func (efm *EventingFunctionManager) DeployFunction(name string, opts *DeployEven
 		opts = &DeployEventingFunctionOptions{}
 	}
 
-	return efm.doRequest(fmt.Sprintf("/api/v1/functions/%s/deploy", name), "POST",
+	return efm.doRequest(fmt.Sprintf("/api/v1/functions/%s/deploy", url.PathEscape(name)), "POST",
 		"deploy_function", nil, nil, eventingRequestOptions{
 			Timeout:       opts.Timeout,
 			RetryStrategy: opts.RetryStrategy,
@@ -803,7 +804,7 @@ func (efm *EventingFunctionManager) UndeployFunction(name string, opts *Undeploy
 		opts = &UndeployEventingFunctionOptions{}
 	}
 
-	return efm.doRequest(fmt.Sprintf("/api/v1/functions/%s/undeploy", name), "POST",
+	return efm.doRequest(fmt.Sprintf("/api/v1/functions/%s/undeploy", url.PathEscape(name)), "POST",
 		"undeploy_function", nil, nil, eventingRequestOptions{
 			Timeout:       opts.Timeout,
 			RetryStrategy: opts.RetryStrategy,
@@ -864,7 +865,7 @@ func (efm *EventingFunctionManager) GetFunction(name string, opts *GetEventingFu
 	}
 
 	var function *EventingFunction
-	err := efm.doRequest(fmt.Sprintf("/api/v1/functions/%s", name), "GET",
+	err := efm.doRequest(fmt.Sprintf("/api/v1/functions/%s", url.PathEscape(name)), "GET",
 		"get_function", nil, &function, eventingRequestOptions{
 			Timeout:       opts.Timeout,
 			RetryStrategy: opts.RetryStrategy,
@@ -896,7 +897,7 @@ func (efm *EventingFunctionManager) PauseFunction(name string, opts *PauseEventi
 		opts = &PauseEventingFunctionOptions{}
 	}
 
-	return efm.doRequest(fmt.Sprintf("/api/v1/functions/%s/pause", name), "POST",
+	return efm.doRequest(fmt.Sprintf("/api/v1/functions/%s/pause", url.PathEscape(name)), "POST",
 		"pause_function", nil, nil, eventingRequestOptions{
 			Timeout:       opts.Timeout,
 			RetryStrategy: opts.RetryStrategy,
@@ -923,7 +924,7 @@ func (efm *EventingFunctionManager) ResumeFunction(name string, opts *ResumeEven
 		opts = &ResumeEventingFunctionOptions{}
 	}
 
-	return efm.doRequest(fmt.Sprintf("/api/v1/functions/%s/resume", name), "POST",
+	return efm.doRequest(fmt.Sprintf("/api/v1/functions/%s/resume", url.PathEscape(name)), "POST",
 		"resume_function", nil, nil, eventingRequestOptions{
 			Timeout:       opts.Timeout,
 			RetryStrategy: opts.RetryStrategy,

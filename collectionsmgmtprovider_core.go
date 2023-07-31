@@ -24,7 +24,7 @@ func (cm *collectionsManagementProviderCore) GetAllScopes(opts *GetAllScopesOpti
 	start := time.Now()
 	defer cm.meter.ValueRecord(meterValueServiceManagement, "manager_collections_get_all_scopes", start)
 
-	path := fmt.Sprintf("/pools/default/buckets/%s/scopes", cm.bucketName)
+	path := fmt.Sprintf("/pools/default/buckets/%s/scopes", url.PathEscape(cm.bucketName))
 	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_get_all_scopes", "management")
 	span.SetAttribute("db.name", cm.bucketName)
 	span.SetAttribute("db.operation", "GET "+path)
@@ -118,7 +118,7 @@ func (cm *collectionsManagementProviderCore) CreateCollection(spec CollectionSpe
 	start := time.Now()
 	defer cm.meter.ValueRecord(meterValueServiceManagement, "manager_collections_create_collection", start)
 
-	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections", cm.bucketName, spec.ScopeName)
+	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections", url.PathEscape(cm.bucketName), url.PathEscape(spec.ScopeName))
 	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_create_collection", "management")
 	span.SetAttribute("db.name", cm.bucketName)
 	span.SetAttribute("db.couchbase.scope", spec.ScopeName)
@@ -188,7 +188,7 @@ func (cm *collectionsManagementProviderCore) DropCollection(spec CollectionSpec,
 	start := time.Now()
 	defer cm.meter.ValueRecord(meterValueServiceManagement, "manager_collections_drop_collection", start)
 
-	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections/%s", cm.bucketName, spec.ScopeName, spec.Name)
+	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections/%s", url.PathEscape(cm.bucketName), url.PathEscape(spec.ScopeName), url.PathEscape(spec.Name))
 	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_drop_collection", "management")
 	span.SetAttribute("db.name", cm.bucketName)
 	span.SetAttribute("db.couchbase.scope", spec.ScopeName)
@@ -241,7 +241,7 @@ func (cm *collectionsManagementProviderCore) CreateScope(scopeName string, opts 
 	start := time.Now()
 	defer cm.meter.ValueRecord(meterValueServiceManagement, "manager_collections_create_scope", start)
 
-	path := fmt.Sprintf("/pools/default/buckets/%s/scopes", cm.bucketName)
+	path := fmt.Sprintf("/pools/default/buckets/%s/scopes", url.PathEscape(cm.bucketName))
 	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_create_scope", "management")
 	span.SetAttribute("db.name", cm.bucketName)
 	span.SetAttribute("db.couchbase.scope", scopeName)
@@ -298,7 +298,7 @@ func (cm *collectionsManagementProviderCore) DropScope(scopeName string, opts *D
 	start := time.Now()
 	defer cm.meter.ValueRecord(meterValueServiceManagement, "manager_collections_drop_scope", start)
 
-	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s", cm.bucketName, scopeName)
+	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s", url.PathEscape(cm.bucketName), url.PathEscape(scopeName))
 	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_drop_scope", "management")
 	span.SetAttribute("db.name", cm.bucketName)
 	span.SetAttribute("db.couchbase.scope", scopeName)

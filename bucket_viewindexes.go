@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"io/ioutil"
+	"net/url"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // DesignDocumentNamespace represents which namespace a design document resides in.
@@ -206,7 +208,7 @@ func (vm *ViewIndexManager) getDesignDocument(name string, namespace DesignDocum
 
 	req := mgmtRequest{
 		Service:       ServiceTypeViews,
-		Path:          fmt.Sprintf("/_design/%s", name),
+		Path:          fmt.Sprintf("/_design/%s", url.PathEscape(name)),
 		Method:        "GET",
 		IsIdempotent:  true,
 		RetryStrategy: opts.RetryStrategy,
@@ -401,7 +403,7 @@ func (vm *ViewIndexManager) upsertDesignDocument(
 
 	req := mgmtRequest{
 		Service:       ServiceTypeViews,
-		Path:          fmt.Sprintf("/_design/%s", ddocName),
+		Path:          fmt.Sprintf("/_design/%s", url.PathEscape(ddocName)),
 		Method:        "PUT",
 		Body:          data,
 		Timeout:       opts.Timeout,
@@ -463,7 +465,7 @@ func (vm *ViewIndexManager) dropDesignDocument(tracectx RequestSpanContext, name
 
 	req := mgmtRequest{
 		Service:       ServiceTypeViews,
-		Path:          fmt.Sprintf("/_design/%s", name),
+		Path:          fmt.Sprintf("/_design/%s", url.PathEscape(name)),
 		Method:        "DELETE",
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,

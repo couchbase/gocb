@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -85,7 +86,7 @@ func (sm *searchIndexProviderCore) GetIndex(indexName string, opts *GetSearchInd
 	start := time.Now()
 	defer sm.meter.ValueRecord(meterValueServiceManagement, "manager_search_get_index", start)
 
-	path := fmt.Sprintf("/api/index/%s", indexName)
+	path := fmt.Sprintf("/api/index/%s", url.PathEscape(indexName))
 	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_get_index", "management")
 	span.SetAttribute("db.operation", "GET "+path)
 	defer span.End()
@@ -145,7 +146,7 @@ func (sm *searchIndexProviderCore) UpsertIndex(indexDefinition SearchIndex, opts
 	start := time.Now()
 	defer sm.meter.ValueRecord(meterValueServiceManagement, "manager_search_upsert_index", start)
 
-	path := fmt.Sprintf("/api/index/%s", indexDefinition.Name)
+	path := fmt.Sprintf("/api/index/%s", url.PathEscape(indexDefinition.Name))
 	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_upsert_index", "management")
 	span.SetAttribute("db.operation", "PUT "+path)
 	defer span.End()
@@ -202,7 +203,7 @@ func (sm *searchIndexProviderCore) DropIndex(indexName string, opts *DropSearchI
 	start := time.Now()
 	defer sm.meter.ValueRecord(meterValueServiceManagement, "manager_search_drop_index", start)
 
-	path := fmt.Sprintf("/api/index/%s", indexName)
+	path := fmt.Sprintf("/api/index/%s", url.PathEscape(indexName))
 	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_drop_index", "management")
 	span.SetAttribute("db.operation", "DELETE "+path)
 	defer span.End()
@@ -237,7 +238,7 @@ func (sm *searchIndexProviderCore) AnalyzeDocument(indexName string, doc interfa
 		return nil, invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	path := fmt.Sprintf("/api/index/%s/analyzeDoc", indexName)
+	path := fmt.Sprintf("/api/index/%s/analyzeDoc", url.PathEscape(indexName))
 	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_analyze_document", "management")
 	span.SetAttribute("db.operation", "POST "+path)
 	defer span.End()
@@ -294,7 +295,7 @@ func (sm *searchIndexProviderCore) GetIndexedDocumentsCount(indexName string, op
 		return 0, invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	path := fmt.Sprintf("/api/index/%s/count", indexName)
+	path := fmt.Sprintf("/api/index/%s/count", url.PathEscape(indexName))
 	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_get_indexed_documents_count", "management")
 	span.SetAttribute("db.operation", "GET "+path)
 	defer span.End()
@@ -344,7 +345,7 @@ func (sm *searchIndexProviderCore) PauseIngest(indexName string, opts *PauseInge
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	path := fmt.Sprintf("/api/index/%s/ingestControl/pause", indexName)
+	path := fmt.Sprintf("/api/index/%s/ingestControl/pause", url.PathEscape(indexName))
 	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_pause_ingest", "management")
 	span.SetAttribute("db.operation", "POST "+path)
 	defer span.End()
@@ -367,7 +368,7 @@ func (sm *searchIndexProviderCore) ResumeIngest(indexName string, opts *ResumeIn
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	path := fmt.Sprintf("/api/index/%s/ingestControl/resume", indexName)
+	path := fmt.Sprintf("/api/index/%s/ingestControl/resume", url.PathEscape(indexName))
 	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_resume_ingest", "management")
 	span.SetAttribute("db.operation", "POST "+path)
 	defer span.End()
@@ -390,7 +391,7 @@ func (sm *searchIndexProviderCore) AllowQuerying(indexName string, opts *AllowQu
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	path := fmt.Sprintf("/api/index/%s/queryControl/allow", indexName)
+	path := fmt.Sprintf("/api/index/%s/queryControl/allow", url.PathEscape(indexName))
 	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_allow_querying", "management")
 	span.SetAttribute("db.operation", "POST "+path)
 	defer span.End()
@@ -413,7 +414,7 @@ func (sm *searchIndexProviderCore) DisallowQuerying(indexName string, opts *Allo
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	path := fmt.Sprintf("/api/index/%s/queryControl/disallow", indexName)
+	path := fmt.Sprintf("/api/index/%s/queryControl/disallow", url.PathEscape(indexName))
 	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_disallow_querying", "management")
 	span.SetAttribute("db.operation", "POST "+path)
 	defer span.End()
@@ -436,7 +437,7 @@ func (sm *searchIndexProviderCore) FreezePlan(indexName string, opts *AllowQuery
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	path := fmt.Sprintf("/api/index/%s/planFreezeControl/freeze", indexName)
+	path := fmt.Sprintf("/api/index/%s/planFreezeControl/freeze", url.PathEscape(indexName))
 	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_freeze_plan", "management")
 	span.SetAttribute("db.operation", "POST "+path)
 	defer span.End()
@@ -459,7 +460,7 @@ func (sm *searchIndexProviderCore) UnfreezePlan(indexName string, opts *AllowQue
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	path := fmt.Sprintf("/api/index/%s/planFreezeControl/unfreeze", indexName)
+	path := fmt.Sprintf("/api/index/%s/planFreezeControl/unfreeze", url.PathEscape(indexName))
 	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_unfreeze_plan", "management")
 	span.SetAttribute("db.operation", "POST "+path)
 	defer span.End()
