@@ -97,6 +97,16 @@ func (c *psConnectionMgr) getQueryIndexProvider() (queryIndexProvider, error) {
 	}, nil
 }
 
+func (c *psConnectionMgr) getSearchIndexProvider() (searchIndexProvider, error) {
+	provider := c.agent.SearchAdminV1()
+	return &searchIndexProviderPs{
+		provider:       provider,
+		defaultTimeout: c.timeouts.ManagementTimeout,
+		tracer:         c.tracer,
+		meter:          c.meter,
+	}, nil
+}
+
 func (c *psConnectionMgr) getCollectionsManagementProvider(bucketName string) (collectionsManagementProvider, error) {
 	return &collectionsManagementProviderPs{
 		provider:       c.agent.CollectionV1(),

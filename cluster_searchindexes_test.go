@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"io/ioutil"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/stretchr/testify/mock"
 )
@@ -245,7 +246,7 @@ func (suite *IntegrationTestSuite) TestSearchIndexesPartitionControl() {
 	}
 }
 
-func (suite *UnitTestSuite) TestSearchIndexesAnalyzeDocument() {
+func (suite *UnitTestSuite) TestSearchIndexesAnalyzeDocumentCore() {
 	analyzeResp, err := loadRawTestDataset("search_analyzedoc")
 	suite.Require().Nil(err, err)
 
@@ -271,7 +272,7 @@ func (suite *UnitTestSuite) TestSearchIndexesAnalyzeDocument() {
 		}).
 		Return(resp, nil)
 
-	mgr := SearchIndexManager{
+	mgr := &searchIndexProviderCore{
 		mgmtProvider: mockProvider,
 		tracer:       &NoopTracer{},
 	}

@@ -2,40 +2,8 @@ package gocb
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io/ioutil"
-	"strings"
 	"time"
 )
-
-type jsonSearchIndexResp struct {
-	Status   string           `json:"status"`
-	IndexDef *jsonSearchIndex `json:"indexDef"`
-}
-
-type jsonSearchIndexDefs struct {
-	IndexDefs   map[string]jsonSearchIndex `json:"indexDefs"`
-	ImplVersion string                     `json:"implVersion"`
-}
-
-type jsonSearchIndexesResp struct {
-	Status    string              `json:"status"`
-	IndexDefs jsonSearchIndexDefs `json:"indexDefs"`
-}
-
-type jsonSearchIndex struct {
-	UUID         string                 `json:"uuid"`
-	Name         string                 `json:"name"`
-	SourceName   string                 `json:"sourceName"`
-	Type         string                 `json:"type"`
-	Params       map[string]interface{} `json:"params"`
-	SourceUUID   string                 `json:"sourceUUID"`
-	SourceParams map[string]interface{} `json:"sourceParams"`
-	SourceType   string                 `json:"sourceType"`
-	PlanParams   map[string]interface{} `json:"planParams"`
-}
 
 // SearchIndex is used to define a search index.
 type SearchIndex struct {
@@ -93,63 +61,7 @@ func (si *SearchIndex) toData() (jsonSearchIndex, error) {
 
 // SearchIndexManager provides methods for performing Couchbase search index management.
 type SearchIndexManager struct {
-	mgmtProvider mgmtProvider
-
-	tracer RequestTracer
-	meter  *meterWrapper
-}
-
-func (sm *SearchIndexManager) checkForRateLimitError(statusCode uint32, errMsg string) error {
-	errMsg = strings.ToLower(errMsg)
-
-	var err error
-	if statusCode == 400 && strings.Contains(errMsg, "num_fts_indexes") {
-		err = ErrQuotaLimitedFailure
-	} else if statusCode == 429 {
-		if strings.Contains(errMsg, "num_concurrent_requests") {
-			err = ErrRateLimitedFailure
-		} else if strings.Contains(errMsg, "num_queries_per_min") {
-			err = ErrRateLimitedFailure
-		} else if strings.Contains(errMsg, "ingress_mib_per_min") {
-			err = ErrRateLimitedFailure
-		} else if strings.Contains(errMsg, "egress_mib_per_min") {
-			err = ErrRateLimitedFailure
-		}
-	}
-
-	return err
-}
-
-func (sm *SearchIndexManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		logDebugf("Failed to read search index response body: %s", err)
-		return nil
-	}
-
-	if err := sm.checkForRateLimitError(resp.StatusCode, string(b)); err != nil {
-		return makeGenericMgmtError(err, req, resp, string(b))
-	}
-
-	var bodyErr error
-	if strings.Contains(strings.ToLower(string(b)), "index not found") {
-		bodyErr = ErrIndexNotFound
-	} else if strings.Contains(strings.ToLower(string(b)), "index with the same name already exists") {
-		bodyErr = ErrIndexExists
-	} else {
-		bodyErr = errors.New(string(b))
-	}
-
-	return makeGenericMgmtError(bodyErr, req, resp, string(b))
-}
-
-func (sm *SearchIndexManager) doMgmtRequest(ctx context.Context, req mgmtRequest) (*mgmtResponse, error) {
-	resp, err := sm.mgmtProvider.executeMgmtRequest(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	getProvider func() (searchIndexProvider, error)
 }
 
 // GetAllSearchIndexOptions is the set of options available to the search indexes GetAllIndexes operation.
@@ -170,57 +82,12 @@ func (sm *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]S
 		opts = &GetAllSearchIndexOptions{}
 	}
 
-	start := time.Now()
-	defer sm.meter.ValueRecord(meterValueServiceManagement, "manager_search_get_all_indexes", start)
-
-	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_get_all_indexes", "management")
-	span.SetAttribute("db.operation", "GET /api/index")
-	defer span.End()
-
-	req := mgmtRequest{
-		Service:       ServiceTypeSearch,
-		Method:        "GET",
-		Path:          "/api/index",
-		IsIdempotent:  true,
-		RetryStrategy: opts.RetryStrategy,
-		Timeout:       opts.Timeout,
-		parentSpanCtx: span.Context(),
-	}
-	resp, err := sm.doMgmtRequest(opts.Context, req)
-	if err != nil {
-		return nil, err
-	}
-	defer ensureBodyClosed(resp.Body)
-
-	if resp.StatusCode != 200 {
-		idxErr := sm.tryParseErrorMessage(&req, resp)
-		if idxErr != nil {
-			return nil, idxErr
-		}
-
-		return nil, makeMgmtBadStatusError("failed to get index", &req, resp)
-	}
-
-	var indexesResp jsonSearchIndexesResp
-	jsonDec := json.NewDecoder(resp.Body)
-	err = jsonDec.Decode(&indexesResp)
+	provider, err := sm.getProvider()
 	if err != nil {
 		return nil, err
 	}
 
-	indexDefs := indexesResp.IndexDefs.IndexDefs
-	var indexes []SearchIndex
-	for _, indexData := range indexDefs {
-		var index SearchIndex
-		err := index.fromData(indexData)
-		if err != nil {
-			return nil, err
-		}
-
-		indexes = append(indexes, index)
-	}
-
-	return indexes, nil
+	return provider.GetAllIndexes(opts)
 }
 
 // GetSearchIndexOptions is the set of options available to the search indexes GetIndex operation.
@@ -241,52 +108,16 @@ func (sm *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOpt
 		opts = &GetSearchIndexOptions{}
 	}
 
-	start := time.Now()
-	defer sm.meter.ValueRecord(meterValueServiceManagement, "manager_search_get_index", start)
-
-	path := fmt.Sprintf("/api/index/%s", indexName)
-	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_get_index", "management")
-	span.SetAttribute("db.operation", "GET "+path)
-	defer span.End()
-
-	req := mgmtRequest{
-		Service:       ServiceTypeSearch,
-		Method:        "GET",
-		Path:          path,
-		IsIdempotent:  true,
-		RetryStrategy: opts.RetryStrategy,
-		Timeout:       opts.Timeout,
-		parentSpanCtx: span.Context(),
-	}
-	resp, err := sm.doMgmtRequest(opts.Context, req)
-	if err != nil {
-		return nil, err
-	}
-	defer ensureBodyClosed(resp.Body)
-
-	if resp.StatusCode != 200 {
-		idxErr := sm.tryParseErrorMessage(&req, resp)
-		if idxErr != nil {
-			return nil, idxErr
-		}
-
-		return nil, makeMgmtBadStatusError("failed to get index", &req, resp)
+	if indexName == "" {
+		return nil, invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	var indexResp jsonSearchIndexResp
-	jsonDec := json.NewDecoder(resp.Body)
-	err = jsonDec.Decode(&indexResp)
+	provider, err := sm.getProvider()
 	if err != nil {
 		return nil, err
 	}
 
-	var indexDef SearchIndex
-	err = indexDef.fromData(*indexResp.IndexDef)
-	if err != nil {
-		return nil, err
-	}
-
-	return &indexDef, nil
+	return provider.GetIndex(indexName, opts)
 }
 
 // UpsertSearchIndexOptions is the set of options available to the search index manager UpsertIndex operation.
@@ -314,52 +145,12 @@ func (sm *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Ups
 		return invalidArgumentsError{"index type cannot be empty"}
 	}
 
-	start := time.Now()
-	defer sm.meter.ValueRecord(meterValueServiceManagement, "manager_search_upsert_index", start)
-
-	path := fmt.Sprintf("/api/index/%s", indexDefinition.Name)
-	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_upsert_index", "management")
-	span.SetAttribute("db.operation", "PUT "+path)
-	defer span.End()
-
-	indexData, err := indexDefinition.toData()
+	provider, err := sm.getProvider()
 	if err != nil {
 		return err
 	}
 
-	b, err := json.Marshal(indexData)
-	if err != nil {
-		return err
-	}
-
-	req := mgmtRequest{
-		Service: ServiceTypeSearch,
-		Method:  "PUT",
-		Path:    path,
-		Headers: map[string]string{
-			"cache-control": "no-cache",
-		},
-		Body:          b,
-		RetryStrategy: opts.RetryStrategy,
-		Timeout:       opts.Timeout,
-		parentSpanCtx: span.Context(),
-	}
-	resp, err := sm.doMgmtRequest(opts.Context, req)
-	if err != nil {
-		return err
-	}
-	defer ensureBodyClosed(resp.Body)
-
-	if resp.StatusCode != 200 {
-		idxErr := sm.tryParseErrorMessage(&req, resp)
-		if idxErr != nil {
-			return idxErr
-		}
-
-		return makeMgmtBadStatusError("failed to create index", &req, resp)
-	}
-
-	return nil
+	return provider.UpsertIndex(indexDefinition, opts)
 }
 
 // DropSearchIndexOptions is the set of options available to the search index DropIndex operation.
@@ -384,33 +175,12 @@ func (sm *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndexO
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	start := time.Now()
-	defer sm.meter.ValueRecord(meterValueServiceManagement, "manager_search_drop_index", start)
-
-	path := fmt.Sprintf("/api/index/%s", indexName)
-	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_drop_index", "management")
-	span.SetAttribute("db.operation", "DELETE "+path)
-	defer span.End()
-
-	req := mgmtRequest{
-		Service:       ServiceTypeSearch,
-		Method:        "DELETE",
-		Path:          path,
-		RetryStrategy: opts.RetryStrategy,
-		Timeout:       opts.Timeout,
-		parentSpanCtx: span.Context(),
-	}
-	resp, err := sm.doMgmtRequest(opts.Context, req)
+	provider, err := sm.getProvider()
 	if err != nil {
 		return err
 	}
-	defer ensureBodyClosed(resp.Body)
 
-	if resp.StatusCode != 200 {
-		return makeMgmtBadStatusError("failed to drop the index", &req, resp)
-	}
-
-	return nil
+	return provider.DropIndex(indexName, opts)
 }
 
 // AnalyzeDocumentOptions is the set of options available to the search index AnalyzeDocument operation.
@@ -435,52 +205,12 @@ func (sm *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{},
 		return nil, invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	path := fmt.Sprintf("/api/index/%s/analyzeDoc", indexName)
-	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_analyze_document", "management")
-	span.SetAttribute("db.operation", "POST "+path)
-	defer span.End()
-
-	b, err := json.Marshal(doc)
+	provider, err := sm.getProvider()
 	if err != nil {
 		return nil, err
 	}
 
-	req := mgmtRequest{
-		Service:       ServiceTypeSearch,
-		Method:        "POST",
-		Path:          path,
-		Body:          b,
-		IsIdempotent:  true,
-		RetryStrategy: opts.RetryStrategy,
-		Timeout:       opts.Timeout,
-		parentSpanCtx: span.Context(),
-	}
-	resp, err := sm.doMgmtRequest(opts.Context, req)
-	if err != nil {
-		return nil, err
-	}
-	defer ensureBodyClosed(resp.Body)
-
-	if resp.StatusCode != 200 {
-		idxErr := sm.tryParseErrorMessage(&req, resp)
-		if idxErr != nil {
-			return nil, idxErr
-		}
-
-		return nil, makeMgmtBadStatusError("failed to analyze document", &req, resp)
-	}
-
-	var analysis struct {
-		Status   string        `json:"status"`
-		Analyzed []interface{} `json:"analyzed"`
-	}
-	jsonDec := json.NewDecoder(resp.Body)
-	err = jsonDec.Decode(&analysis)
-	if err != nil {
-		return nil, err
-	}
-
-	return analysis.Analyzed, nil
+	return provider.AnalyzeDocument(indexName, doc, opts)
 }
 
 // GetIndexedDocumentsCountOptions is the set of options available to the search index GetIndexedDocumentsCount operation.
@@ -505,80 +235,12 @@ func (sm *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *G
 		return 0, invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	path := fmt.Sprintf("/api/index/%s/count", indexName)
-	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_get_indexed_documents_count", "management")
-	span.SetAttribute("db.operation", "GET "+path)
-	defer span.End()
-
-	req := mgmtRequest{
-		Service:       ServiceTypeSearch,
-		Method:        "GET",
-		Path:          path,
-		IsIdempotent:  true,
-		RetryStrategy: opts.RetryStrategy,
-		Timeout:       opts.Timeout,
-		parentSpanCtx: span.Context(),
-	}
-	resp, err := sm.doMgmtRequest(opts.Context, req)
-	if err != nil {
-		return 0, err
-	}
-	defer ensureBodyClosed(resp.Body)
-
-	if resp.StatusCode != 200 {
-		idxErr := sm.tryParseErrorMessage(&req, resp)
-		if idxErr != nil {
-			return 0, idxErr
-		}
-
-		return 0, makeMgmtBadStatusError("failed to get the indexed documents count", &req, resp)
-	}
-
-	var count struct {
-		Count uint64 `json:"count"`
-	}
-	jsonDec := json.NewDecoder(resp.Body)
-	err = jsonDec.Decode(&count)
+	provider, err := sm.getProvider()
 	if err != nil {
 		return 0, err
 	}
 
-	return count.Count, nil
-}
-
-func (sm *SearchIndexManager) performControlRequest(
-	ctx context.Context,
-	tracectx RequestSpanContext,
-	method, uri string,
-	timeout time.Duration,
-	retryStrategy RetryStrategy,
-) error {
-	req := mgmtRequest{
-		Service:       ServiceTypeSearch,
-		Method:        method,
-		Path:          uri,
-		IsIdempotent:  true,
-		Timeout:       timeout,
-		RetryStrategy: retryStrategy,
-		parentSpanCtx: tracectx,
-	}
-
-	resp, err := sm.doMgmtRequest(ctx, req)
-	if err != nil {
-		return err
-	}
-	defer ensureBodyClosed(resp.Body)
-
-	if resp.StatusCode != 200 {
-		idxErr := sm.tryParseErrorMessage(&req, resp)
-		if idxErr != nil {
-			return idxErr
-		}
-
-		return makeMgmtBadStatusError("failed to perform the control request", &req, resp)
-	}
-
-	return nil
+	return provider.GetIndexedDocumentsCount(indexName, opts)
 }
 
 // PauseIngestSearchIndexOptions is the set of options available to the search index PauseIngest operation.
@@ -603,18 +265,12 @@ func (sm *SearchIndexManager) PauseIngest(indexName string, opts *PauseIngestSea
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	path := fmt.Sprintf("/api/index/%s/ingestControl/pause", indexName)
-	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_pause_ingest", "management")
-	span.SetAttribute("db.operation", "POST "+path)
-	defer span.End()
+	provider, err := sm.getProvider()
+	if err != nil {
+		return err
+	}
 
-	return sm.performControlRequest(
-		opts.Context,
-		span.Context(),
-		"POST",
-		path,
-		opts.Timeout,
-		opts.RetryStrategy)
+	return provider.PauseIngest(indexName, opts)
 }
 
 // ResumeIngestSearchIndexOptions is the set of options available to the search index ResumeIngest operation.
@@ -639,18 +295,12 @@ func (sm *SearchIndexManager) ResumeIngest(indexName string, opts *ResumeIngestS
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	path := fmt.Sprintf("/api/index/%s/ingestControl/resume", indexName)
-	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_resume_ingest", "management")
-	span.SetAttribute("db.operation", "POST "+path)
-	defer span.End()
+	provider, err := sm.getProvider()
+	if err != nil {
+		return err
+	}
 
-	return sm.performControlRequest(
-		opts.Context,
-		span.Context(),
-		"POST",
-		path,
-		opts.Timeout,
-		opts.RetryStrategy)
+	return provider.ResumeIngest(indexName, opts)
 }
 
 // AllowQueryingSearchIndexOptions is the set of options available to the search index AllowQuerying operation.
@@ -675,18 +325,12 @@ func (sm *SearchIndexManager) AllowQuerying(indexName string, opts *AllowQueryin
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	path := fmt.Sprintf("/api/index/%s/queryControl/allow", indexName)
-	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_allow_querying", "management")
-	span.SetAttribute("db.operation", "POST "+path)
-	defer span.End()
+	provider, err := sm.getProvider()
+	if err != nil {
+		return err
+	}
 
-	return sm.performControlRequest(
-		opts.Context,
-		span.Context(),
-		"POST",
-		path,
-		opts.Timeout,
-		opts.RetryStrategy)
+	return provider.AllowQuerying(indexName, opts)
 }
 
 // DisallowQueryingSearchIndexOptions is the set of options available to the search index DisallowQuerying operation.
@@ -711,18 +355,12 @@ func (sm *SearchIndexManager) DisallowQuerying(indexName string, opts *AllowQuer
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	path := fmt.Sprintf("/api/index/%s/queryControl/disallow", indexName)
-	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_disallow_querying", "management")
-	span.SetAttribute("db.operation", "POST "+path)
-	defer span.End()
+	provider, err := sm.getProvider()
+	if err != nil {
+		return err
+	}
 
-	return sm.performControlRequest(
-		opts.Context,
-		span.Context(),
-		"POST",
-		path,
-		opts.Timeout,
-		opts.RetryStrategy)
+	return provider.DisallowQuerying(indexName, opts)
 }
 
 // FreezePlanSearchIndexOptions is the set of options available to the search index FreezePlan operation.
@@ -747,18 +385,12 @@ func (sm *SearchIndexManager) FreezePlan(indexName string, opts *AllowQueryingSe
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	path := fmt.Sprintf("/api/index/%s/planFreezeControl/freeze", indexName)
-	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_freeze_plan", "management")
-	span.SetAttribute("db.operation", "POST "+path)
-	defer span.End()
+	provider, err := sm.getProvider()
+	if err != nil {
+		return err
+	}
 
-	return sm.performControlRequest(
-		opts.Context,
-		span.Context(),
-		"POST",
-		path,
-		opts.Timeout,
-		opts.RetryStrategy)
+	return provider.FreezePlan(indexName, opts)
 }
 
 // UnfreezePlanSearchIndexOptions is the set of options available to the search index UnfreezePlan operation.
@@ -783,16 +415,10 @@ func (sm *SearchIndexManager) UnfreezePlan(indexName string, opts *AllowQuerying
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
 
-	path := fmt.Sprintf("/api/index/%s/planFreezeControl/unfreeze", indexName)
-	span := createSpan(sm.tracer, opts.ParentSpan, "manager_search_unfreeze_plan", "management")
-	span.SetAttribute("db.operation", "POST "+path)
-	defer span.End()
+	provider, err := sm.getProvider()
+	if err != nil {
+		return err
+	}
 
-	return sm.performControlRequest(
-		opts.Context,
-		span.Context(),
-		"POST",
-		path,
-		opts.Timeout,
-		opts.RetryStrategy)
+	return provider.UnfreezePlan(indexName, opts)
 }

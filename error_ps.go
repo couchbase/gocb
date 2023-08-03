@@ -18,12 +18,13 @@ const (
 )
 
 const (
-	resourceTypeDocument   = "document"
-	resourceTypeIndex      = "index"
-	resourceTypeBucket     = "bucket"
-	resourceTypeScope      = "scope"
-	resourceTypeCollection = "collection"
-	resourceTypePath       = "path"
+	resourceTypeDocument    = "document"
+	resourceTypeIndex       = "index"
+	resourceTypeBucket      = "bucket"
+	resourceTypeScope       = "scope"
+	resourceTypeCollection  = "collection"
+	resourceTypePath        = "path"
+	resourceTypeSearchIndex = "searchindex"
 )
 
 func tryMapPsErrorStatusToGocbError(st *status.Status, readOnly bool) error {
@@ -58,6 +59,8 @@ func tryMapPsErrorStatusToGocbError(st *status.Status, readOnly bool) error {
 					baseErr = ErrDocumentNotFound
 				case resourceTypeIndex:
 					baseErr = ErrIndexNotFound
+				case resourceTypeSearchIndex:
+					baseErr = ErrIndexNotFound
 				case resourceTypeBucket:
 					baseErr = ErrBucketNotFound
 				case resourceTypeScope:
@@ -72,6 +75,8 @@ func tryMapPsErrorStatusToGocbError(st *status.Status, readOnly bool) error {
 				case resourceTypeDocument:
 					baseErr = ErrDocumentExists
 				case resourceTypeIndex:
+					baseErr = ErrIndexExists
+				case resourceTypeSearchIndex:
 					baseErr = ErrIndexExists
 				case resourceTypeBucket:
 					baseErr = ErrBucketExists

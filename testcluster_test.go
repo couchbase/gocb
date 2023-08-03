@@ -247,9 +247,9 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case XattrFeature:
 			supported = !c.Version.Lower(srvVer450)
 		case SearchFeature:
-			supported = !c.Version.Lower(srvVer500) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(protostellarVer)
+			supported = !c.Version.Lower(srvVer500) && !c.Version.Equal(srvVer650DP)
 		case SearchIndexFeature:
-			supported = !c.Version.Lower(srvVer500) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(protostellarVer)
+			supported = !c.Version.Lower(srvVer500) && !c.Version.Equal(srvVer650DP)
 		case AnalyticsFeature:
 			supported = !c.Version.Lower(srvVer600) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(srvVer750) && !c.Version.Equal(protostellarVer)
 		case CollectionsFeature:

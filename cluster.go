@@ -522,6 +522,15 @@ func (c *Cluster) getSearchProvider() (searchProvider, error) {
 	return provider, nil
 }
 
+func (c *Cluster) getSearchIndexProvider() (searchIndexProvider, error) {
+	provider, err := c.connectionManager.getSearchIndexProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}
+
 func (c *Cluster) getHTTPProvider() (httpProvider, error) {
 	provider, err := c.connectionManager.getHTTPProvider("")
 	if err != nil {
@@ -570,9 +579,7 @@ func (c *Cluster) QueryIndexes() *QueryIndexManager {
 // SearchIndexes returns a SearchIndexManager for managing search indexes.
 func (c *Cluster) SearchIndexes() *SearchIndexManager {
 	return &SearchIndexManager{
-		mgmtProvider: c,
-		tracer:       c.tracer,
-		meter:        c.meter,
+		getProvider: c.getSearchIndexProvider,
 	}
 }
 
