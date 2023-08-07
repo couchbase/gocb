@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync/atomic"
 	"time"
 
 	"google.golang.org/grpc/status"
@@ -24,7 +25,7 @@ type searchProviderPs struct {
 
 var _ searchProvider = &searchProviderPs{}
 
-// executes a search query against PS, taking care of the translation.
+// SearchQuery executes a search query against PS, taking care of the translation.
 func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Query, opts *SearchOptions) (*SearchResult, error) {
 	start := time.Now()
 	defer search.meter.ValueRecord(meterValueServiceSearch, "search", start)
@@ -37,19 +38,6 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 	if timeout == 0 {
 		timeout = search.timeouts.SearchTimeout
 	}
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	var err error
-
-	defer func() {
-		if err != nil {
-			cancel()
-		}
-	}()
 
 	psQuery, err := cbsearch.Internal{}.MapQueryToPs(query)
 	if err != nil {
@@ -107,45 +95,90 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 			err = makeInvalidArgumentsError("invalid highlight option specified")
 			return nil, err
 		}
+	}
+	userCtx := opts.Context
+	if userCtx == nil {
+		userCtx = context.Background()
+	}
+	// We create a context with a timeout which will control timing out the initial request portion
+	// of the operation. We can defer the cancel for this as we aren't applying this context directly
+	// to the request so cancellation will not terminate any streams.
+	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), timeout)
+	defer timeoutCancel()
 
+	var cancellationIsTimeout uint32
+	// This second context has no real parent and will be cancelled if the user context is cancelled or the timeout
+	// is reached. However, if the user context does not get cancelled during the initial request portion of the
+	// operation then this context will live for the lifetime of the op and be used for cancelled if the user calls
+	// Close on the result.
+	doneCh := make(chan struct{})
+	reqCtx, reqCancel := context.WithCancel(context.Background())
+	go func() {
+		select {
+		case <-userCtx.Done():
+			reqCancel()
+		case <-timeoutCtx.Done():
+			atomic.StoreUint32(&cancellationIsTimeout, 1)
+			reqCancel()
+		case <-doneCh:
+		}
+	}()
+
+	client, err := search.provider.SearchQuery(reqCtx, &request)
+	close(doneCh)
+	if err != nil {
+		reqCancel()
+		return nil, search.makeError(err, query, atomic.LoadUint32(&cancellationIsTimeout) == 1, start)
 	}
 
-	client, err := search.provider.SearchQuery(ctx, &request)
+	firstRows, err := client.Recv()
 	if err != nil {
-		st, ok := status.FromError(err)
-		if !ok {
-			return nil, &SearchError{
-				InnerError: err,
-				Query:      query,
-			}
-		}
-
-		gocbErr := tryMapPsErrorStatusToGocbError(st, true)
-		if gocbErr == nil {
-			gocbErr = err
-		}
-
-		if errors.Is(gocbErr, ErrTimeout) {
-			return nil, &TimeoutError{
-				InnerError:    gocbErr,
-				TimeObserved:  time.Since(start),
-				RetryReasons:  nil,
-				RetryAttempts: 0,
-			}
-		}
-
-		return nil, &SearchError{
-			InnerError: gocbErr,
-			Query:      query,
-			ErrorText:  st.Message(),
-		}
+		reqCancel()
+		return nil, search.makeError(err, query, atomic.LoadUint32(&cancellationIsTimeout) == 1, start)
 	}
 
 	return newSearchResult(&psSearchRowReader{
 		client:     client,
-		cancelFunc: cancel,
+		cancelFunc: reqCancel,
 		query:      query,
+
+		nextRows:      firstRows.GetHits(),
+		nextRowsIndex: 0,
+		meta:          firstRows.MetaData,
+		facets:        firstRows.Facets,
 	}), nil
+}
+
+func (search *searchProviderPs) makeError(err error, query interface{}, hasTimedOut bool, start time.Time) error {
+	st, ok := status.FromError(err)
+	if !ok {
+		return &SearchError{
+			InnerError: err,
+			Query:      query,
+		}
+	}
+
+	gocbErr := tryMapPsErrorStatusToGocbError(st, true)
+	if gocbErr == nil {
+		gocbErr = err
+	}
+
+	if errors.Is(err, ErrRequestCanceled) && hasTimedOut {
+		gocbErr = ErrUnambiguousTimeout
+	}
+
+	if errors.Is(gocbErr, ErrTimeout) {
+		return &TimeoutError{
+			InnerError:   gocbErr,
+			TimeObserved: time.Since(start),
+		}
+	}
+
+	return &SearchError{
+		InnerError: gocbErr,
+		Query:      query,
+		ErrorText:  st.Message(),
+	}
 }
 
 // wrapper around the PS result to make it compatible with

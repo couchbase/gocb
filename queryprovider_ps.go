@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"sync/atomic"
 	"time"
 
 	"google.golang.org/grpc/status"
@@ -147,55 +148,98 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 	if timeout == 0 {
 		timeout = qpc.timeouts.QueryTimeout
 	}
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
+	userCtx := opts.Context
+	if userCtx == nil {
+		userCtx = context.Background()
 	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	res, err := qpc.provider.Query(ctx, req)
+	// We create a context with a timeout which will control timing out the initial request portion
+	// of the operation. We can defer the cancel for this as we aren't applying this context directly
+	// to the request so cancellation will not terminate any streams.
+	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), timeout)
+	defer timeoutCancel()
+
+	var cancellationIsTimeout uint32
+	// This second context has no real parent and will be cancelled if the user context is cancelled or the timeout
+	// is reached. However, if the user context does not get cancelled during the initial request portion of the
+	// operation then this context will live for the lifetime of the op and be used for cancelled if the user calls
+	// Close on the result.
+	doneCh := make(chan struct{})
+	reqCtx, reqCancel := context.WithCancel(context.Background())
+	go func() {
+		select {
+		case <-userCtx.Done():
+			reqCancel()
+		case <-timeoutCtx.Done():
+			atomic.StoreUint32(&cancellationIsTimeout, 1)
+			reqCancel()
+		case <-doneCh:
+		}
+	}()
+
+	res, err := qpc.provider.Query(reqCtx, req)
+	close(doneCh)
 	if err != nil {
-		cancel()
-		st, ok := status.FromError(err)
-		if !ok {
-			return nil, &QueryError{
-				InnerError: err,
-				Statement:  statement,
-			}
-		}
-		gocbErr := tryMapPsErrorStatusToGocbError(st, opts.Readonly)
-		if gocbErr == nil {
-			gocbErr = err
-		}
+		reqCancel()
+		return nil, qpc.makeError(err, statement, opts.Readonly, atomic.LoadUint32(&cancellationIsTimeout) == 1, start)
+	}
 
-		if errors.Is(gocbErr, ErrTimeout) {
-			return nil, &TimeoutError{
-				InnerError:    gocbErr,
-				TimeObserved:  time.Since(start),
-				RetryReasons:  nil,
-				RetryAttempts: 0,
-			}
-		}
-
-		return nil, &QueryError{
-			InnerError: gocbErr,
-			Statement:  statement,
-			Errors: []QueryErrorDesc{
-				{
-					Code:    uint32(st.Code()),
-					Message: st.Message(),
-				},
-			},
-		}
+	firstRows, err := res.Recv()
+	if err != nil {
+		reqCancel()
+		return nil, qpc.makeError(err, statement, opts.Readonly, atomic.LoadUint32(&cancellationIsTimeout) == 1, start)
 	}
 
 	reader := &queryProviderPsRowReader{
 		cli:        res,
-		cancelFunc: cancel,
+		cancelFunc: reqCancel,
 
 		statement: statement,
 		readOnly:  opts.Readonly,
+
+		nextRows: firstRows.Rows,
 	}
 	return newQueryResult(reader), nil
+}
+
+func (qpc *queryProviderPs) makeError(err error, statement string, readonly, hasTimedOut bool, start time.Time) error {
+
+	st, ok := status.FromError(err)
+	if !ok {
+		return &QueryError{
+			InnerError: err,
+			Statement:  statement,
+		}
+	}
+	gocbErr := tryMapPsErrorStatusToGocbError(st, readonly)
+	if gocbErr == nil {
+		gocbErr = err
+	}
+
+	if errors.Is(err, ErrRequestCanceled) && hasTimedOut {
+		if readonly {
+			gocbErr = ErrUnambiguousTimeout
+		} else {
+			gocbErr = ErrAmbiguousTimeout
+		}
+	}
+
+	if errors.Is(gocbErr, ErrTimeout) {
+		return &TimeoutError{
+			InnerError:   gocbErr,
+			TimeObserved: time.Since(start),
+		}
+	}
+
+	return &QueryError{
+		InnerError: gocbErr,
+		Statement:  statement,
+		Errors: []QueryErrorDesc{
+			{
+				Code:    uint32(st.Code()),
+				Message: st.Message(),
+			},
+		},
+	}
 }
 
 type queryProviderPsRowReader struct {
