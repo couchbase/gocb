@@ -46,10 +46,11 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 				AuthMechanisms: authMechanisms,
 			},
 			IoConfig: gocbcore.IoConfig{
-				UseCollections:         true,
-				UseDurations:           cluster.useServerDurations,
-				UseMutationTokens:      cluster.useMutationTokens,
-				UseOutOfOrderResponses: true,
+				UseCollections:             true,
+				UseDurations:               cluster.useServerDurations,
+				UseMutationTokens:          cluster.useMutationTokens,
+				UseOutOfOrderResponses:     true,
+				UseClusterMapNotifications: true,
 			},
 			KVConfig: gocbcore.KVConfig{
 				ConnectTimeout:       cluster.timeoutsConfig.ConnectTimeout,
