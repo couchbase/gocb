@@ -318,15 +318,21 @@ func (c *stdConnectionMgr) getCollectionsManagementProvider(bucketName string) (
 		return nil, err
 	}
 
+	capabilityProvider, err := c.getKvCapabilitiesProvider(bucketName)
+	if err != nil {
+		return nil, err
+	}
+
 	return &collectionsManagementProviderCore{
 		mgmtProvider: &mgmtProviderCore{
 			provider:             provider,
 			mgmtTimeout:          c.timeouts.ManagementTimeout,
 			retryStrategyWrapper: c.retryStrategyWrapper,
 		},
-		bucketName: bucketName,
-		tracer:     c.tracer,
-		meter:      c.meter,
+		featureVerifier: capabilityProvider,
+		bucketName:      bucketName,
+		tracer:          c.tracer,
+		meter:           c.meter,
 	}, nil
 }
 

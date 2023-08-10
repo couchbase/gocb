@@ -5,11 +5,18 @@ import (
 	"time"
 )
 
+// CollectionHistorySettings specifies settings for whether history retention should be enabled or disabled
+// for this collection.
+type CollectionHistorySettings struct {
+	Enabled bool
+}
+
 // CollectionSpec describes the specification of a collection.
 type CollectionSpec struct {
 	Name      string
 	ScopeName string
 	MaxExpiry time.Duration
+	History   *CollectionHistorySettings
 }
 
 // ScopeSpec describes the specification of a scope.
@@ -81,6 +88,40 @@ func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateC
 	}
 
 	return provider.CreateCollection(spec, opts)
+}
+
+// UpdateCollectionOptions is the set of options available to the UpdateCollection operation.
+type UpdateCollectionOptions struct {
+	Timeout       time.Duration
+	RetryStrategy RetryStrategy
+	ParentSpan    RequestSpan
+
+	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
+	// also applies to global level timeouts.
+	// UNCOMMITTED: This API may change in the future.
+	Context context.Context
+}
+
+// UpdateCollection creates a new collection on the bucket.
+func (cm *CollectionManager) UpdateCollection(spec CollectionSpec, opts *UpdateCollectionOptions) error {
+	if spec.Name == "" {
+		return makeInvalidArgumentsError("collection name cannot be empty")
+	}
+
+	if spec.ScopeName == "" {
+		return makeInvalidArgumentsError("scope name cannot be empty")
+	}
+
+	if opts == nil {
+		opts = &UpdateCollectionOptions{}
+	}
+
+	provider, err := cm.getProvider()
+	if err != nil {
+		return err
+	}
+
+	return provider.UpdateCollection(spec, opts)
 }
 
 // DropCollectionOptions is the set of options available to the DropCollection operation.

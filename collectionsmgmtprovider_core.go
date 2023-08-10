@@ -14,10 +14,11 @@ import (
 )
 
 type collectionsManagementProviderCore struct {
-	mgmtProvider mgmtProvider
-	bucketName   string
-	tracer       RequestTracer
-	meter        *meterWrapper
+	mgmtProvider    mgmtProvider
+	featureVerifier kvCapabilityVerifier
+	bucketName      string
+	tracer          RequestTracer
+	meter           *meterWrapper
 }
 
 func (cm *collectionsManagementProviderCore) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpec, error) {
@@ -63,11 +64,17 @@ func (cm *collectionsManagementProviderCore) GetAllScopes(opts *GetAllScopesOpti
 		for _, scope := range mfest.Scopes {
 			var collections []CollectionSpec
 			for _, col := range scope.Collections {
-				collections = append(collections, CollectionSpec{
+				c := CollectionSpec{
 					Name:      col.Name,
 					ScopeName: scope.Name,
 					MaxExpiry: time.Duration(col.MaxTTL) * time.Second,
-				})
+				}
+				if col.History != nil {
+					c.History = &CollectionHistorySettings{
+						Enabled: *col.History,
+					}
+				}
+				collections = append(collections, c)
 			}
 			scopes = append(scopes, ScopeSpec{
 				Name:        scope.Name,
@@ -132,6 +139,12 @@ func (cm *collectionsManagementProviderCore) CreateCollection(spec CollectionSpe
 	if spec.MaxExpiry > 0 {
 		posts.Add("maxTTL", fmt.Sprintf("%d", int(spec.MaxExpiry.Seconds())))
 	}
+	if spec.History != nil {
+		if cm.featureVerifier.BucketCapabilityStatus(gocbcore.BucketCapabilityNonDedupedHistory) == gocbcore.BucketCapabilityStatusUnsupported {
+			return wrapError(ErrFeatureNotAvailable, "history is unsupported by the server, are you using a bucket with the magma storage engine?")
+		}
+		posts.Add("history", fmt.Sprintf("%t", spec.History.Enabled))
+	}
 
 	eSpan := createSpan(cm.tracer, span, "request_encoding", "")
 	encoded := posts.Encode()
@@ -141,6 +154,81 @@ func (cm *collectionsManagementProviderCore) CreateCollection(spec CollectionSpe
 		Service:       ServiceTypeManagement,
 		Path:          path,
 		Method:        "POST",
+		Body:          []byte(encoded),
+		ContentType:   "application/x-www-form-urlencoded",
+		RetryStrategy: opts.RetryStrategy,
+		UniqueID:      uuid.New().String(),
+		Timeout:       opts.Timeout,
+		parentSpanCtx: span.Context(),
+	}
+
+	resp, err := cm.mgmtProvider.executeMgmtRequest(opts.Context, req)
+	if err != nil {
+		return makeGenericMgmtError(err, &req, resp, "")
+	}
+	defer ensureBodyClosed(resp.Body)
+
+	if resp.StatusCode != 200 {
+		colErr := cm.tryParseErrorMessage(&req, resp)
+		if colErr != nil {
+			return colErr
+		}
+		return makeMgmtBadStatusError("failed to create collection", &req, resp)
+	}
+
+	err = resp.Body.Close()
+	if err != nil {
+		logDebugf("Failed to close socket (%s)", err)
+	}
+
+	return nil
+}
+
+// UpdateCollection creates a new collection on the bucket.
+func (cm *collectionsManagementProviderCore) UpdateCollection(spec CollectionSpec, opts *UpdateCollectionOptions) error {
+	if spec.Name == "" {
+		return makeInvalidArgumentsError("collection name cannot be empty")
+	}
+
+	if spec.ScopeName == "" {
+		return makeInvalidArgumentsError("scope name cannot be empty")
+	}
+
+	if opts == nil {
+		opts = &UpdateCollectionOptions{}
+	}
+
+	start := time.Now()
+	defer cm.meter.ValueRecord(meterValueServiceManagement, "manager_collections_update_collection", start)
+
+	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections/%s", cm.bucketName, spec.ScopeName, spec.Name)
+	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_update_collection", "management")
+	span.SetAttribute("db.name", cm.bucketName)
+	span.SetAttribute("db.couchbase.scope", spec.ScopeName)
+	span.SetAttribute("db.couchbase.collection", spec.Name)
+	span.SetAttribute("db.operation", "POST "+path)
+	defer span.End()
+
+	posts := url.Values{}
+
+	if spec.MaxExpiry > 0 {
+		posts.Add("maxTTL", fmt.Sprintf("%d", int(spec.MaxExpiry.Seconds())))
+	}
+	if spec.History != nil {
+		if cm.featureVerifier.BucketCapabilityStatus(gocbcore.BucketCapabilityNonDedupedHistory) == gocbcore.BucketCapabilityStatusUnsupported {
+			return wrapError(ErrFeatureNotAvailable, "history is unsupported by the server, are you using a bucket with the magma storage engine?")
+		}
+		posts.Add("history", fmt.Sprintf("%t", spec.History.Enabled))
+	}
+
+	eSpan := createSpan(cm.tracer, span, "request_encoding", "")
+	encoded := posts.Encode()
+	eSpan.End()
+
+	req := mgmtRequest{
+		Service:       ServiceTypeManagement,
+		Path:          path,
+		Method:        "PATCH",
 		Body:          []byte(encoded),
 		ContentType:   "application/x-www-form-urlencoded",
 		RetryStrategy: opts.RetryStrategy,

@@ -96,14 +96,23 @@ type jsonBucketSettings struct {
 		RAM    uint64 `json:"ram"`
 		RawRAM uint64 `json:"rawRAM"`
 	} `json:"quota"`
-	ReplicaNumber          uint32 `json:"replicaNumber"`
-	BucketType             string `json:"bucketType"`
-	ConflictResolutionType string `json:"conflictResolutionType"`
-	EvictionPolicy         string `json:"evictionPolicy"`
-	MaxTTL                 uint32 `json:"maxTTL"`
-	CompressionMode        string `json:"compressionMode"`
-	MinimumDurabilityLevel string `json:"durabilityMinLevel"`
-	StorageBackend         string `json:"storageBackend"`
+	ReplicaNumber                     uint32 `json:"replicaNumber"`
+	BucketType                        string `json:"bucketType"`
+	ConflictResolutionType            string `json:"conflictResolutionType"`
+	EvictionPolicy                    string `json:"evictionPolicy"`
+	MaxTTL                            uint32 `json:"maxTTL"`
+	CompressionMode                   string `json:"compressionMode"`
+	MinimumDurabilityLevel            string `json:"durabilityMinLevel"`
+	StorageBackend                    string `json:"storageBackend"`
+	HistoryRetentionCollectionDefault *bool  `json:"historyRetentionCollectionDefault"`
+	HistoryRetentionBytes             uint64 `json:"historyRetentionBytes"`
+	HistoryRetentionSeconds           int    `json:"historyRetentionSeconds"`
+}
+
+// HistoryRetentionCollectionDefaultSettings specifies settings for whether history retention should be enabled or disabled
+// by default on collections in the bucket.
+type HistoryRetentionCollectionDefaultSettings struct {
+	Enabled bool
 }
 
 // BucketSettings holds information about the settings for a bucket.
@@ -116,11 +125,14 @@ type BucketSettings struct {
 	BucketType           BucketType // Defaults to CouchbaseBucketType.
 	EvictionPolicy       EvictionPolicyType
 	// Deprecated: Use MaxExpiry instead.
-	MaxTTL                 time.Duration
-	MaxExpiry              time.Duration
-	CompressionMode        CompressionMode
-	MinimumDurabilityLevel DurabilityLevel
-	StorageBackend         StorageBackend
+	MaxTTL                            time.Duration
+	MaxExpiry                         time.Duration
+	CompressionMode                   CompressionMode
+	MinimumDurabilityLevel            DurabilityLevel
+	StorageBackend                    StorageBackend
+	HistoryRetentionCollectionDefault *HistoryRetentionCollectionDefaultSettings
+	HistoryRetentionBytes             uint64
+	HistoryRetentionDuration          time.Duration
 }
 
 func (bs *BucketSettings) fromData(data jsonBucketSettings) error {
@@ -135,6 +147,13 @@ func (bs *BucketSettings) fromData(data jsonBucketSettings) error {
 	bs.CompressionMode = CompressionMode(data.CompressionMode)
 	bs.MinimumDurabilityLevel = durabilityLevelFromManagementAPI(data.MinimumDurabilityLevel)
 	bs.StorageBackend = StorageBackend(data.StorageBackend)
+	if data.HistoryRetentionCollectionDefault != nil {
+		bs.HistoryRetentionCollectionDefault = &HistoryRetentionCollectionDefaultSettings{
+			Enabled: *data.HistoryRetentionCollectionDefault,
+		}
+	}
+	bs.HistoryRetentionBytes = data.HistoryRetentionBytes
+	bs.HistoryRetentionDuration = time.Duration(data.HistoryRetentionSeconds) * time.Second
 
 	switch data.BucketType {
 	case "membase":
@@ -720,6 +739,16 @@ func (bm *BucketManager) settingsToPostData(settings *BucketSettings) (url.Value
 
 	if settings.StorageBackend != "" {
 		posts.Add("storageBackend", string(settings.StorageBackend))
+	}
+
+	if settings.HistoryRetentionCollectionDefault != nil {
+		posts.Add("historyRetentionCollectionDefault", fmt.Sprintf("%t", settings.HistoryRetentionCollectionDefault.Enabled))
+	}
+	if settings.HistoryRetentionDuration > 0 {
+		posts.Add("historyRetentionSeconds", fmt.Sprintf("%d", settings.HistoryRetentionDuration/time.Second))
+	}
+	if settings.HistoryRetentionBytes > 0 {
+		posts.Add("historyRetentionBytes", fmt.Sprintf("%d", settings.HistoryRetentionBytes))
 	}
 
 	return posts, nil

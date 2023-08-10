@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/stretchr/testify/mock"
 )
 
@@ -626,6 +628,120 @@ func (suite *IntegrationTestSuite) TestMaxNumberOfCollectionInScope() {
 	})
 
 	suite.Require().True(success)
+}
+
+func (suite *IntegrationTestSuite) TestCollectionHistoryRetention() {
+	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(HistoryRetentionFeature)
+
+	bMgr := globalCluster.Buckets()
+	bName := "a" + uuid.NewString()[:6]
+	settings := BucketSettings{
+		Name:           bName,
+		RAMQuotaMB:     1024,
+		BucketType:     CouchbaseBucketType,
+		StorageBackend: StorageBackendMagma,
+	}
+
+	err := bMgr.CreateBucket(CreateBucketSettings{
+		BucketSettings:         settings,
+		ConflictResolutionType: ConflictResolutionTypeSequenceNumber,
+	}, nil)
+	suite.Require().NoError(err)
+	defer bMgr.DropBucket(bName, nil)
+
+	mgr := globalCluster.Bucket(bName).Collections()
+	scopeName := "a" + uuid.NewString()[:6]
+	err = mgr.CreateScope(scopeName, nil)
+	suite.Require().NoError(err)
+	defer mgr.DropScope(scopeName, nil)
+
+	colName := "a" + uuid.NewString()[:6]
+	err = mgr.CreateCollection(CollectionSpec{
+		Name:      colName,
+		ScopeName: scopeName,
+		History: &CollectionHistorySettings{
+			Enabled: true,
+		},
+	}, nil)
+	suite.Require().NoError(err)
+
+	var collection *CollectionSpec
+	success := suite.tryUntil(time.Now().Add(15*time.Second), 100*time.Millisecond, func() bool {
+		scopes, err := mgr.GetAllScopes(nil)
+		if err != nil {
+			suite.T().Logf("Failed to GetAllScopes %v", err)
+			return false
+		}
+		var scope *ScopeSpec
+		for i, s := range scopes {
+			if s.Name == scopeName {
+				scope = &scopes[i]
+			}
+		}
+		if scope == nil {
+			suite.T().Log("scope not found")
+			return false
+		}
+
+		for _, c := range scope.Collections {
+			if c.Name == colName {
+				collection = &c
+				return true
+			}
+		}
+
+		suite.T().Log("collection not found")
+		return false
+	})
+	suite.Require().True(success)
+
+	if suite.Assert().NotNil(collection.History) {
+		suite.Assert().True(collection.History.Enabled)
+	}
+
+	collection.History = &CollectionHistorySettings{
+		Enabled: false,
+	}
+	err = mgr.UpdateCollection(*collection, nil)
+	suite.Require().NoError(err)
+}
+
+func (suite *IntegrationTestSuite) TestCollectionHistoryRetentionUnsupported() {
+	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(HistoryRetentionFeature)
+
+	bMgr := globalCluster.Buckets()
+	bName := "a" + uuid.NewString()[:6]
+	settings := BucketSettings{
+		Name:           bName,
+		RAMQuotaMB:     256,
+		BucketType:     CouchbaseBucketType,
+		StorageBackend: StorageBackendCouchstore,
+	}
+
+	err := bMgr.CreateBucket(CreateBucketSettings{
+		BucketSettings:         settings,
+		ConflictResolutionType: ConflictResolutionTypeSequenceNumber,
+	}, nil)
+	suite.Require().NoError(err)
+	defer bMgr.DropBucket(bName, nil)
+
+	mgr := globalCluster.Bucket(bName).Collections()
+	scopeName := "a" + uuid.NewString()[:6]
+	err = mgr.CreateScope(scopeName, nil)
+	suite.Require().NoError(err)
+	defer mgr.DropScope(scopeName, nil)
+
+	colName := "a" + uuid.NewString()[:6]
+	err = mgr.CreateCollection(CollectionSpec{
+		Name:      colName,
+		ScopeName: scopeName,
+		History: &CollectionHistorySettings{
+			Enabled: true,
+		},
+	}, nil)
+	suite.Require().ErrorIs(err, ErrFeatureNotAvailable)
 }
 
 func (suite *UnitTestSuite) TestGetAllScopesMgmtRequestFails() {

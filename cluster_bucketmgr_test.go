@@ -4,6 +4,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func (suite *IntegrationTestSuite) TestBucketMgrOps() {
@@ -628,8 +630,61 @@ func (suite *IntegrationTestSuite) TestBucketMgrCustomConflictResolution() {
 	suite.Require().Nil(err, err)
 	defer mgr.DropBucket(bName, nil)
 
-	//Can't check Conflict resolution of bucket
+	// Can't check Conflict resolution of bucket
 	b, err := mgr.GetBucket(bName, nil)
 	suite.Require().Nil(err, err)
 	suite.Assert().Equal(bName, b.Name)
+}
+
+func (suite *IntegrationTestSuite) TestBucketMgrHistoryRetention() {
+	suite.skipIfUnsupported(BucketMgrFeature)
+	suite.skipIfUnsupported(HistoryRetentionFeature)
+
+	mgr := globalCluster.Buckets()
+
+	bName := "a" + uuid.NewString()[:6]
+	settings := BucketSettings{
+		Name:           bName,
+		RAMQuotaMB:     1024,
+		NumReplicas:    1,
+		BucketType:     CouchbaseBucketType,
+		StorageBackend: StorageBackendMagma,
+		HistoryRetentionCollectionDefault: &HistoryRetentionCollectionDefaultSettings{
+			Enabled: true,
+		},
+		HistoryRetentionBytes:    2147483648,
+		HistoryRetentionDuration: 13000 * time.Second,
+	}
+
+	err := mgr.CreateBucket(CreateBucketSettings{
+		BucketSettings:         settings,
+		ConflictResolutionType: ConflictResolutionTypeSequenceNumber,
+	}, nil)
+	suite.Require().Nil(err, err)
+	defer mgr.DropBucket(bName, nil)
+
+	b, err := mgr.GetBucket(bName, nil)
+	suite.Require().Nil(err, err)
+	suite.Assert().Equal(bName, b.Name)
+
+	if suite.Assert().NotNil(b.HistoryRetentionCollectionDefault) {
+		suite.Assert().True(b.HistoryRetentionCollectionDefault.Enabled)
+	}
+	suite.Assert().Equal(settings.HistoryRetentionDuration, b.HistoryRetentionDuration)
+	suite.Assert().Equal(settings.HistoryRetentionBytes, b.HistoryRetentionBytes)
+
+	b.HistoryRetentionCollectionDefault = &HistoryRetentionCollectionDefaultSettings{
+		Enabled: false,
+	}
+
+	err = mgr.UpdateBucket(*b, nil)
+	suite.Require().Nil(err, err)
+
+	b, err = mgr.GetBucket(bName, nil)
+	suite.Require().Nil(err, err)
+	suite.Assert().Equal(bName, b.Name)
+
+	if suite.Assert().NotNil(b.HistoryRetentionCollectionDefault) {
+		suite.Assert().False(b.HistoryRetentionCollectionDefault.Enabled)
+	}
 }

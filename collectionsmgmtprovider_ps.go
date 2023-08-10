@@ -125,6 +125,10 @@ func (cm *collectionsManagementProviderPs) CreateCollection(spec CollectionSpec,
 	return nil
 }
 
+func (cm *collectionsManagementProviderPs) UpdateCollection(spec CollectionSpec, opts *UpdateCollectionOptions) error {
+	return ErrFeatureNotAvailable
+}
+
 // DropCollection removes a collection.
 func (cm *collectionsManagementProviderPs) DropCollection(spec CollectionSpec, opts *DropCollectionOptions) error {
 	start := time.Now()

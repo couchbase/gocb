@@ -96,6 +96,7 @@ var (
 	NodesMetadataFeature                      = FeatureCode("nodesmetadata")
 	RetriesFeature                            = FeatureCode("retries")
 	SubdocReplicaReadsFeature                 = FeatureCode("subdocreplicas")
+	HistoryRetentionFeature                   = FeatureCode("historyretention")
 )
 
 type TestFeatureFlag struct {
@@ -231,6 +232,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case SubdocReplicaReadsFeature:
 			supported = false
+		case HistoryRetentionFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -350,6 +353,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Equal(protostellarVer)
 		case SubdocReplicaReadsFeature:
 			supported = !c.Version.Lower(srvVer750)
+		case HistoryRetentionFeature:
+			supported = !c.Version.Lower(srvVer720) && !c.Version.Equal(protostellarVer)
 		}
 	}
 
