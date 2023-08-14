@@ -57,6 +57,14 @@ func (p *kvProviderCore) LookupInAllReplicas(c *Collection, id string, ops []Loo
 		return nil, err
 	}
 
+	supportStatus, err := c.bucket.Internal().bucketCapabilityStatus(gocbcore.BucketCapabilityReplicaRead)
+	if err != nil {
+		return nil, err
+	}
+	if supportStatus == CapabilityStatusUnsupported {
+		return nil, ErrFeatureNotAvailable
+	}
+
 	numReplicas, err := snapshot.NumReplicas()
 	if err != nil {
 		return nil, err
