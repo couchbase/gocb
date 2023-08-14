@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"github.com/couchbase/gocbcore/v10/memd"
 )
 
 // Result is the base type for the return types of operations
@@ -242,6 +244,7 @@ type LookupInResult struct {
 type lookupInPartial struct {
 	data json.RawMessage
 	err  error
+	op   memd.SubDocOpType
 }
 
 func (pr *lookupInPartial) as(valuePtr interface{}) error {
@@ -262,8 +265,20 @@ func (pr *lookupInPartial) as(valuePtr interface{}) error {
 }
 
 func (pr *lookupInPartial) exists() bool {
-	err := pr.as(nil)
-	return err == nil
+	if pr.op == memd.SubDocOpExists {
+		// For exists spec we need to try to parse the result as a bool
+		// and return the bool value.
+		var exists bool
+		err := pr.as(&exists)
+		if err != nil {
+			return false
+		}
+
+		return exists
+	}
+
+	// For any other spec we can just check for the presence of an error.
+	return pr.err == nil
 }
 
 // ContentAt retrieves the value of the operation by its index. The index is the position of

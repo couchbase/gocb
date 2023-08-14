@@ -293,8 +293,19 @@ func (p *kvProviderCore) internalLookupIn(
 			docOut.cas = Cas(res.Cas)
 			docOut.contents = make([]lookupInPartial, len(subdocs))
 			for i, opRes := range res.Ops {
-				docOut.contents[i].err = opm.EnhanceErr(opRes.Err)
-				docOut.contents[i].data = opRes.Value
+				docOut.contents[i].op = ops[i].op
+				if ops[i].op == memd.SubDocOpExists {
+					if opRes.Err == nil {
+						docOut.contents[i].data = []byte("true")
+					} else if errors.Is(opRes.Err, ErrPathNotFound) {
+						docOut.contents[i].data = []byte("false")
+					} else {
+						docOut.contents[i].err = opm.EnhanceErr(opRes.Err)
+					}
+				} else {
+					docOut.contents[i].err = opm.EnhanceErr(opRes.Err)
+					docOut.contents[i].data = opRes.Value
+				}
 			}
 		}
 

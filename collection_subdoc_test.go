@@ -23,20 +23,14 @@ func (suite *IntegrationTestSuite) TestInsertLookupIn() {
 	}
 	var doc beerWithCountable
 	err := loadJSONTestDataset("beer_sample_single", &doc.testBeerDocument)
-	if err != nil {
-		suite.T().Fatalf("Could not read test dataset: %v", err)
-	}
+	suite.Require().NoError(err, "Could not read test dataset")
 
 	doc.Countable = []string{"one", "two"}
 
 	mutRes, err := globalCollection.Insert(docId, doc, nil)
-	if err != nil {
-		suite.T().Fatalf("Insert failed, error was %v", err)
-	}
+	suite.Require().NoError(err, "Insert failed")
 
-	if mutRes.Cas() == 0 {
-		suite.T().Fatalf("Insert CAS was 0")
-	}
+	suite.Assert().NotZero(mutRes.Cas(), "Insert CAS was 0")
 
 	result, err := globalCollection.LookupIn(docId, []LookupInSpec{
 		GetSpec("name", nil),
@@ -46,57 +40,45 @@ func (suite *IntegrationTestSuite) TestInsertLookupIn() {
 		GetSpec("doesntexist", nil),
 		CountSpec("countable", nil),
 	}, nil)
-	if err != nil {
-		suite.T().Fatalf("Get failed, error was %v", err)
-	}
+	suite.Require().NoError(err, "LookupIn failed")
 
-	if result.Exists(2) {
-		suite.T().Fatalf("Expected doesnt field to not exist")
-	}
+	suite.Assert().False(result.Exists(2), "Expected doesnt field to not exist")
 
-	if !result.Exists(3) {
-		suite.T().Fatalf("Expected style field to exist")
-	}
+	var shouldNotExist bool
+	err = result.ContentAt(2, &shouldNotExist)
+	suite.Require().NoError(err)
+
+	suite.Assert().False(shouldNotExist)
+
+	suite.Assert().True(result.Exists(3), "Expected style field to exist")
+
+	var shouldExist bool
+	err = result.ContentAt(3, &shouldExist)
+	suite.Require().NoError(err)
+
+	suite.Assert().True(shouldExist, "Expected style field to assign true")
 
 	var name string
 	err = result.ContentAt(0, &name)
-	if err != nil {
-		suite.T().Fatalf("Failed to get name from LookupInResult, %v", err)
-	}
+	suite.Require().NoError(err, "Failed to get name from LookupInResult")
 
-	if name != doc.Name {
-		suite.T().Fatalf("Expected name to be %s but was %s", doc.Name, name)
-	}
+	suite.Assert().Equal(doc.Name, name)
 
 	var desc string
 	err = result.ContentAt(1, &desc)
-	if err != nil {
-		suite.T().Fatalf("Failed to get description from LookupInResult, %v", err)
-	}
+	suite.Require().NoError(err, "Failed to get description from LookupInResult")
 
-	if desc != doc.Description {
-		suite.T().Fatalf("Expected description to be %s but was %s", doc.Description, desc)
-	}
+	suite.Assert().Equal(doc.Description, desc)
 
 	var idontexist string
 	err = result.ContentAt(4, &idontexist)
-	if err == nil {
-		suite.T().Fatalf("Expected lookup on a non existent field to return error")
-	}
-
-	if !errors.Is(err, ErrPathNotFound) {
-		suite.T().Fatalf("Expected error to be path not found but was %+v", err)
-	}
+	suite.Require().ErrorIs(err, ErrPathNotFound)
 
 	var count int
 	err = result.ContentAt(5, &count)
-	if err != nil {
-		suite.T().Fatalf("Failed to get count from LookupInResult, %v", err)
-	}
+	suite.Require().NoError(err, "Failed to get count from LookupInResult")
 
-	if count != 2 {
-		suite.T().Fatalf("LookupIn Result count should have be 2 but was %d", count)
-	}
+	suite.Assert().Equal(2, count)
 
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
