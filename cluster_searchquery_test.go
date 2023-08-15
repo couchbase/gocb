@@ -168,9 +168,7 @@ func (suite *IntegrationTestSuite) setupSearch() int {
 		SourceName: globalBucket.Name(),
 		SourceType: "couchbase",
 		Type:       "fulltext-index",
-	}, &UpsertSearchIndexOptions{
-		Timeout: 1 * time.Second,
-	})
+	}, nil)
 	suite.Require().Nil(err, err)
 
 	return n
