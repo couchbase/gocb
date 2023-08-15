@@ -601,6 +601,80 @@ func (suite *IntegrationTestSuite) TestCasMismatchConvertedToExists() {
 	}
 }
 
+func (suite *IntegrationTestSuite) TestLookupInBadComboConvertedToInvalidArgs() {
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(SubdocFeature)
+
+	docId := uuid.NewString()
+
+	var doc testBeerDocument
+	err := loadJSONTestDataset("beer_sample_single", &doc)
+	suite.Require().NoError(err, "Could not read test dataset")
+
+	mutRes, err := globalCollection.Upsert(docId, doc, &UpsertOptions{Expiry: 10 * time.Second})
+	suite.Require().Nil(err, err)
+
+	suite.Assert().NotZero(mutRes.Cas())
+
+	_, err = globalCollection.LookupIn(docId, []LookupInSpec{
+		GetSpec("test", nil),
+		GetSpec("test", nil),
+		GetSpec("test", nil),
+		GetSpec("test", nil),
+		GetSpec("test", nil),
+		GetSpec("test", nil),
+		GetSpec("test", nil),
+		GetSpec("test", nil),
+		GetSpec("test", nil),
+		GetSpec("test", nil),
+		GetSpec("test", nil),
+		GetSpec("test", nil),
+		GetSpec("test", nil),
+		GetSpec("test", nil),
+		GetSpec("test", nil),
+		GetSpec("test", nil),
+		GetSpec("test", nil),
+	}, nil)
+	suite.Require().ErrorIs(err, ErrInvalidArgument)
+}
+
+func (suite *IntegrationTestSuite) TestBadComboConvertedToInvalidArgs() {
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(SubdocFeature)
+
+	docId := uuid.NewString()
+
+	var doc testBeerDocument
+	err := loadJSONTestDataset("beer_sample_single", &doc)
+	suite.Require().NoError(err, "Could not read test dataset")
+
+	mutRes, err := globalCollection.Upsert(docId, doc, &UpsertOptions{Expiry: 10 * time.Second})
+	suite.Require().Nil(err, err)
+
+	suite.Assert().NotZero(mutRes.Cas())
+
+	_, err = globalCollection.MutateIn(docId, []MutateInSpec{
+		ReplaceSpec("brewery_id", "test", nil),
+		ReplaceSpec("brewery_id", "test", nil),
+		ReplaceSpec("brewery_id", "test", nil),
+		ReplaceSpec("brewery_id", "test", nil),
+		ReplaceSpec("brewery_id", "test", nil),
+		ReplaceSpec("brewery_id", "test", nil),
+		ReplaceSpec("brewery_id", "test", nil),
+		ReplaceSpec("brewery_id", "test", nil),
+		ReplaceSpec("brewery_id", "test", nil),
+		ReplaceSpec("brewery_id", "test", nil),
+		ReplaceSpec("brewery_id", "test", nil),
+		ReplaceSpec("brewery_id", "test", nil),
+		ReplaceSpec("brewery_id", "test", nil),
+		ReplaceSpec("brewery_id", "test", nil),
+		ReplaceSpec("brewery_id", "test", nil),
+		ReplaceSpec("brewery_id", "test", nil),
+		ReplaceSpec("brewery_id", "test", nil),
+	}, &MutateInOptions{})
+	suite.Require().ErrorIs(err, ErrInvalidArgument)
+}
+
 func (suite *IntegrationTestSuite) TestMutateInLookupInXattrs() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(SubdocFeature)

@@ -280,6 +280,11 @@ func (p *kvProviderCore) internalLookupIn(
 		ReplicaIdx:     replicaIdx,
 	}, func(res *gocbcore.LookupInResult, err error) {
 		if err != nil && res == nil {
+			if kvErr, ok := err.(*gocbcore.KeyValueError); ok {
+				if errors.Is(err, gocbcore.ErrMemdSubDocBadCombo) {
+					kvErr.InnerError = ErrInvalidArgument
+				}
+			}
 			errOut = opm.EnhanceErr(err)
 		}
 
@@ -407,10 +412,12 @@ func (p *kvProviderCore) internalMutateIn(
 		PreserveExpiry:         preserveTTL,
 	}, func(res *gocbcore.MutateInResult, err error) {
 		if err != nil {
-			// GOCBC-1019: Due to a previous bug in gocbcore we need to convert cas mismatch back to exists.
 			if kvErr, ok := err.(*gocbcore.KeyValueError); ok {
 				if errors.Is(kvErr.InnerError, ErrCasMismatch) {
+					// GOCBC-1019: Due to a previous bug in gocbcore we need to convert cas mismatch back to exists.
 					kvErr.InnerError = ErrDocumentExists
+				} else if errors.Is(err, gocbcore.ErrMemdSubDocBadCombo) {
+					kvErr.InnerError = ErrInvalidArgument
 				}
 			}
 			errOut = opm.EnhanceErr(err)
