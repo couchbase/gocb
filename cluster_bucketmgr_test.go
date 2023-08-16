@@ -26,23 +26,13 @@ func (suite *IntegrationTestSuite) TestBucketMgrOps() {
 		BucketSettings:         settings,
 		ConflictResolutionType: ConflictResolutionTypeSequenceNumber,
 	}, nil)
-	if err != nil {
-		suite.T().Fatalf("Failed to create bucket %v", err)
-	}
+	suite.Require().NoError(err, "Failed to create bucket")
 
 	// Buckets don't become available immediately so we need to do a bit of polling to see if it comes online.
-	var bucket *BucketSettings
-	success := suite.tryUntil(time.Now().Add(2*time.Second), 100*time.Millisecond, func() bool {
-		bucket, err = mgr.GetBucket("test22", nil)
-		if err != nil {
-			suite.T().Logf("Failed to get bucket %v", err)
-			return false
-		}
+	suite.EnsureBucketOnAllNodes(time.Now().Add(30*time.Second), "test22", nil)
 
-		return true
-	})
-
-	suite.Assert().True(success, "GetBucket failed to execute within the required time")
+	bucket, err := mgr.GetBucket("test22", nil)
+	suite.Require().NoError(err, "Failed to get bucket")
 
 	suite.Assert().Equal(settings.BucketType, bucket.BucketType)
 	suite.Assert().Equal(settings.Name, bucket.Name)
@@ -55,18 +45,12 @@ func (suite *IntegrationTestSuite) TestBucketMgrOps() {
 	suite.Assert().True(bucket.ReplicaIndexDisabled)
 
 	err = mgr.UpdateBucket(*bucket, nil)
-	if err != nil {
-		suite.T().Fatalf("Failed to upsert bucket after get %v", err)
-	}
+	suite.Require().NoError(err, "Failed to update bucket")
 
 	buckets, err := mgr.GetAllBuckets(nil)
-	if err != nil {
-		suite.T().Fatalf("Failed to get all buckets %v", err)
-	}
+	suite.Require().NoError(err, "Failed to get all buckets")
 
-	if len(buckets) == 0 {
-		suite.T().Fatalf("Bucket settings list was length 0")
-	}
+	suite.Assert().NotZero(len(buckets), "GetAllBuckets returned no buckets")
 
 	var b *BucketSettings
 	for _, bucket := range buckets {
@@ -75,35 +59,25 @@ func (suite *IntegrationTestSuite) TestBucketMgrOps() {
 		}
 	}
 
-	if b == nil {
-		suite.T().Fatalf("Test bucket was not found in list of bucket settings, %v", buckets)
-	}
+	suite.Assert().NotNilf(b, "Test bucket was not found in list of bucket settings, %v", buckets)
 
-	success = suite.tryUntil(time.Now().Add(5*time.Second), 50*time.Millisecond, func() bool {
+	suite.Assert().True(suite.tryUntil(time.Now().Add(5*time.Second), 50*time.Millisecond, func() bool {
 		err = mgr.FlushBucket("test22", nil)
 		if err != nil {
 			suite.T().Logf("Flush bucket failed with %s", err)
 			return false
 		}
 		return true
-	})
+	}), "Flush bucket did not succeed in time")
 
-	if !success {
-		suite.T().Fatal("Wait time for bucket flush expired")
-	}
-
-	success = suite.tryUntil(time.Now().Add(5*time.Second), 50*time.Millisecond, func() bool {
+	suite.Assert().True(suite.tryUntil(time.Now().Add(5*time.Second), 50*time.Millisecond, func() bool {
 		err = mgr.DropBucket("test22", nil)
 		if err != nil {
 			suite.T().Logf("Drop bucket failed with %s", err)
 			return false
 		}
 		return true
-	})
-
-	if !success {
-		suite.T().Fatal("Wait time for drop bucket expired")
-	}
+	}), "Drop bucket did not succeed in time")
 
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_bucket_create_bucket"), 1, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_bucket_update_bucket"), 1, false)
@@ -118,47 +92,27 @@ func (suite *IntegrationTestSuite) TestBucketMgrFlushDisabled() {
 
 	mgr := globalCluster.Buckets()
 
-	deadline := time.Now().Add(10 * time.Second)
-	for {
-		err := mgr.CreateBucket(CreateBucketSettings{
-			BucketSettings: BucketSettings{
-				Name:                 "testFlush",
-				RAMQuotaMB:           100,
-				NumReplicas:          0,
-				BucketType:           CouchbaseBucketType,
-				EvictionPolicy:       EvictionPolicyTypeValueOnly,
-				FlushEnabled:         false,
-				MaxExpiry:            10,
-				CompressionMode:      CompressionModeActive,
-				ReplicaIndexDisabled: true,
-			},
-			ConflictResolutionType: ConflictResolutionTypeSequenceNumber,
-		}, nil)
-		if err == nil {
-			break
-		}
-
-		suite.T().Logf("Failed to create bucket %v", err)
-
-		if time.Now().After(deadline) {
-			suite.T().Fatalf("Deadline exceeded for create bucket, failing test")
-		}
-	}
+	err := mgr.CreateBucket(CreateBucketSettings{
+		BucketSettings: BucketSettings{
+			Name:                 "testFlush",
+			RAMQuotaMB:           100,
+			NumReplicas:          0,
+			BucketType:           CouchbaseBucketType,
+			EvictionPolicy:       EvictionPolicyTypeValueOnly,
+			FlushEnabled:         false,
+			MaxExpiry:            10,
+			CompressionMode:      CompressionModeActive,
+			ReplicaIndexDisabled: true,
+		},
+		ConflictResolutionType: ConflictResolutionTypeSequenceNumber,
+	}, nil)
+	suite.Require().NoError(err, "Failed to create bucket")
 	defer mgr.DropBucket("testFlush", nil)
 
-	suite.Assert().True(suite.tryUntil(time.Now().Add(10*time.Second), 500*time.Millisecond, func() bool {
-		err := mgr.FlushBucket("testFlush", nil)
-		if err == nil {
-			suite.T().Fatalf("Expected to fail to flush bucket")
-		}
+	suite.EnsureBucketOnAllNodes(time.Now().Add(30*time.Second), "testFlush", nil)
 
-		if errors.Is(err, ErrBucketNotFlushable) {
-			return true
-		}
-
-		suite.T().Logf("Expected error to be bucket not flushable but was %v", err)
-		return false
-	}))
+	err = mgr.FlushBucket("testFlush", nil)
+	suite.Require().ErrorIs(err, ErrBucketNotFlushable)
 }
 
 func (suite *IntegrationTestSuite) TestBucketMgrBucketNotExist() {
@@ -167,13 +121,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrBucketNotExist() {
 	mgr := globalCluster.Buckets()
 
 	_, err := mgr.GetBucket("testBucketThatDoesNotExist", nil)
-	if err == nil {
-		suite.T().Fatalf("Expected to fail to get bucket")
-	}
-
-	if !errors.Is(err, ErrBucketNotFound) {
-		suite.T().Fatalf("Expected error to be bucket not found but was %v", err)
-	}
+	suite.Assert().ErrorIs(err, ErrBucketNotFound)
 }
 
 func (suite *IntegrationTestSuite) TestBucketMgrMemcached() {
@@ -192,23 +140,13 @@ func (suite *IntegrationTestSuite) TestBucketMgrMemcached() {
 	err := mgr.CreateBucket(CreateBucketSettings{
 		BucketSettings: settings,
 	}, nil)
-	if err != nil {
-		suite.T().Fatalf("Failed to create bucket %v", err)
-	}
+	suite.Require().NoError(err, "Failed to create bucket")
 	defer mgr.DropBucket("testmemd", nil)
 
-	// Buckets don't become available immediately so we need to do a bit of polling to see if it comes online.
-	var bucket *BucketSettings
-	success := suite.tryUntil(time.Now().Add(2*time.Second), 100*time.Millisecond, func() bool {
-		bucket, err = mgr.GetBucket("testmemd", nil)
-		if err != nil {
-			suite.T().Logf("Failed to get bucket %v", err)
-			return false
-		}
+	suite.EnsureBucketOnAllNodes(time.Now().Add(30*time.Second), "testmemd", nil)
 
-		return true
-	})
-	suite.Require().True(success, "GetBucket failed to execute within the required time")
+	bucket, err := mgr.GetBucket("testmemd", nil)
+	suite.Require().NoError(err, "Failed to get bucket")
 
 	suite.Assert().Equal(settings.BucketType, bucket.BucketType)
 	suite.Assert().Equal(settings.Name, bucket.Name)
@@ -223,10 +161,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrMemcached() {
 	err = mgr.CreateBucket(CreateBucketSettings{
 		BucketSettings: settings,
 	}, nil)
-
-	if !errors.Is(err, ErrInvalidArgument) {
-		suite.T().Fatalf("Expected invalid argument error but was %v", err)
-	}
+	suite.Require().ErrorIs(err, ErrInvalidArgument)
 }
 
 func (suite *IntegrationTestSuite) TestBucketMgrEphemeral() {
@@ -247,23 +182,14 @@ func (suite *IntegrationTestSuite) TestBucketMgrEphemeral() {
 	err := mgr.CreateBucket(CreateBucketSettings{
 		BucketSettings: settings,
 	}, nil)
-	if err != nil {
-		suite.T().Fatalf("Failed to create bucket %v", err)
-	}
-	defer mgr.DropBucket("testeph", nil)
+	suite.Require().NoError(err, "Failed to create bucket")
 
-	// Buckets don't become available immediately so we need to do a bit of polling to see if it comes online.
-	var bucket *BucketSettings
-	success := suite.tryUntil(time.Now().Add(2*time.Second), 100*time.Millisecond, func() bool {
-		bucket, err = mgr.GetBucket("testeph", nil)
-		if err != nil {
-			suite.T().Logf("Failed to get bucket %v", err)
-			return false
-		}
+	suite.EnsureBucketOnAllNodes(time.Now().Add(30*time.Second), "testeph", nil)
 
-		return true
-	})
-	suite.Require().True(success, "GetBucket failed to execute within the required time")
+	bucket, err := mgr.GetBucket("testeph", nil)
+	suite.Require().NoError(err, "Failed to get bucket")
+
+	mgr.DropBucket("testeph", nil)
 
 	suite.Assert().Equal(settings.BucketType, bucket.BucketType)
 	suite.Assert().Equal(settings.Name, bucket.Name)
@@ -288,22 +214,13 @@ func (suite *IntegrationTestSuite) TestBucketMgrEphemeral() {
 	err = mgr.CreateBucket(CreateBucketSettings{
 		BucketSettings: settings,
 	}, nil)
-	if err != nil {
-		suite.T().Fatalf("Failed to create bucket %v", err)
-	}
+	suite.Require().NoError(err, "Failed to create bucket")
 	defer mgr.DropBucket("testephNRU", nil)
 
-	// Buckets don't become available immediately so we need to do a bit of polling to see if it comes online.
-	success = suite.tryUntil(time.Now().Add(2*time.Second), 100*time.Millisecond, func() bool {
-		bucket, err = mgr.GetBucket("testephNRU", nil)
-		if err != nil {
-			suite.T().Logf("Failed to get bucket %v", err)
-			return false
-		}
+	suite.EnsureBucketOnAllNodes(time.Now().Add(30*time.Second), "testephNRU", nil)
 
-		return true
-	})
-	suite.Require().True(success, "GetBucket failed to execute within the required time")
+	bucket, err = mgr.GetBucket("testephNRU", nil)
+	suite.Require().NoError(err, "Failed to get bucket")
 
 	suite.Assert().Equal(settings.BucketType, bucket.BucketType)
 	suite.Assert().Equal(settings.Name, bucket.Name)
@@ -329,9 +246,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrInvalidEviction() {
 	err := mgr.CreateBucket(CreateBucketSettings{
 		BucketSettings: settings,
 	}, nil)
-	if !errors.Is(err, ErrInvalidArgument) {
-		suite.T().Fatalf("Error should have been invalid argument, was %v", err)
-	}
+	suite.Assert().ErrorIs(err, ErrInvalidArgument)
 
 	settings = BucketSettings{
 		Name:           "test",
@@ -343,9 +258,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrInvalidEviction() {
 	err = mgr.CreateBucket(CreateBucketSettings{
 		BucketSettings: settings,
 	}, nil)
-	if !errors.Is(err, ErrInvalidArgument) {
-		suite.T().Fatalf("Error should have been invalid argument, was %v", err)
-	}
+	suite.Assert().ErrorIs(err, ErrInvalidArgument)
 
 	settings = BucketSettings{
 		Name:           "test",
@@ -357,9 +270,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrInvalidEviction() {
 	err = mgr.CreateBucket(CreateBucketSettings{
 		BucketSettings: settings,
 	}, nil)
-	if !errors.Is(err, ErrInvalidArgument) {
-		suite.T().Fatalf("Error should have been invalid argument, was %v", err)
-	}
+	suite.Assert().ErrorIs(err, ErrInvalidArgument)
 
 	settings = BucketSettings{
 		Name:           "test",
@@ -371,9 +282,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrInvalidEviction() {
 	err = mgr.CreateBucket(CreateBucketSettings{
 		BucketSettings: settings,
 	}, nil)
-	if !errors.Is(err, ErrInvalidArgument) {
-		suite.T().Fatalf("Error should have been invalid argument, was %v", err)
-	}
+	suite.Assert().ErrorIs(err, ErrInvalidArgument)
 
 	settings = BucketSettings{
 		Name:           "test",
@@ -399,9 +308,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrInvalidEviction() {
 	err = mgr.CreateBucket(CreateBucketSettings{
 		BucketSettings: settings,
 	}, nil)
-	if !errors.Is(err, ErrInvalidArgument) {
-		suite.T().Fatalf("Error should have been invalid argument, was %v", err)
-	}
+	suite.Assert().ErrorIs(err, ErrInvalidArgument)
 
 	settings = BucketSettings{
 		Name:           "test",
@@ -413,9 +320,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrInvalidEviction() {
 	err = mgr.CreateBucket(CreateBucketSettings{
 		BucketSettings: settings,
 	}, nil)
-	if !errors.Is(err, ErrInvalidArgument) {
-		suite.T().Fatalf("Error should have been invalid argument, was %v", err)
-	}
+	suite.Assert().ErrorIs(err, ErrInvalidArgument)
 
 	settings = BucketSettings{
 		Name:           "test",
@@ -427,9 +332,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrInvalidEviction() {
 	err = mgr.CreateBucket(CreateBucketSettings{
 		BucketSettings: settings,
 	}, nil)
-	if !errors.Is(err, ErrInvalidArgument) {
-		suite.T().Fatalf("Error should have been invalid argument, was %v", err)
-	}
+	suite.Assert().ErrorIs(err, ErrInvalidArgument)
 }
 
 func (suite *IntegrationTestSuite) TestBucketMgrMinDurability() {
@@ -493,20 +396,11 @@ func (suite *IntegrationTestSuite) TestBucketMgrMinDurability() {
 
 			defer mgr.DropBucket(tCase.settings.Name, nil)
 
-			// Buckets don't become available immediately so we need to do a bit of polling to see if it comes online.
-			var bucket *BucketSettings
-			success := suite.tryUntil(time.Now().Add(5*time.Second), 250*time.Millisecond, func() bool {
-				bucket, err = mgr.GetBucket(tCase.settings.Name, nil)
-				if err != nil {
-					te.Logf("Failed to get bucket %v", err)
-					return false
-				}
+			suite.EnsureBucketOnAllNodes(time.Now().Add(30*time.Second), tCase.settings.Name, nil)
 
-				return true
-			})
-
-			if !success {
-				te.Fatalf("GetBucket failed to execute within the required time")
+			bucket, err := mgr.GetBucket(tCase.settings.Name, nil)
+			if err != nil {
+				te.Fatalf("Failed to get bucket %v", err)
 			}
 
 			if bucket.MinimumDurabilityLevel != tCase.settings.MinimumDurabilityLevel {
@@ -523,13 +417,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrFlushBucketNotFound() {
 	mgr := globalCluster.Buckets()
 
 	err := mgr.FlushBucket("testFlushBucketNotFound", nil)
-	if err == nil {
-		suite.T().Fatalf("Expected to fail to flush bucket")
-	}
-
-	if !errors.Is(err, ErrBucketNotFound) {
-		suite.T().Fatalf("Expected error to be bucket not found but was %v", err)
-	}
+	suite.Require().ErrorIs(err, ErrBucketNotFound)
 }
 
 func (suite *IntegrationTestSuite) TestBucketMgrStorageBackendCouchstore() {
@@ -552,6 +440,8 @@ func (suite *IntegrationTestSuite) TestBucketMgrStorageBackendCouchstore() {
 	}, nil)
 	suite.Require().Nil(err, err)
 	defer mgr.DropBucket(bName, nil)
+
+	suite.EnsureBucketOnAllNodes(time.Now().Add(30*time.Second), bName, nil)
 
 	b, err := mgr.GetBucket(bName, nil)
 	suite.Require().Nil(err, err)
@@ -580,17 +470,10 @@ func (suite *IntegrationTestSuite) TestBucketMgrStorageBackendMagma() {
 	suite.Require().Nil(err, err)
 	defer mgr.DropBucket(bName, nil)
 
-	var bucket *BucketSettings
-	success := suite.tryUntil(time.Now().Add(2*time.Second), 100*time.Millisecond, func() bool {
-		bucket, err = mgr.GetBucket(bName, nil)
-		if err != nil {
-			suite.T().Logf("Failed to get bucket %v", err)
-			return false
-		}
+	suite.EnsureBucketOnAllNodes(time.Now().Add(30*time.Second), bName, nil)
 
-		return true
-	})
-	suite.Assert().True(success, "GetBucket failed to execute within the required time")
+	bucket, err := mgr.GetBucket(bName, nil)
+	suite.Require().NoError(err, "Failed to get bucket")
 
 	suite.Assert().Equal(StorageBackendMagma, bucket.StorageBackend)
 	suite.Assert().Equal(1024, int(bucket.RAMQuotaMB))
@@ -598,6 +481,10 @@ func (suite *IntegrationTestSuite) TestBucketMgrStorageBackendMagma() {
 	bucket.RAMQuotaMB = 1124
 	err = mgr.UpdateBucket(*bucket, nil)
 	suite.Require().Nil(err, err)
+
+	suite.EnsureBucketOnAllNodes(time.Now().Add(30*time.Second), bName, func(bucket *BucketSettings) bool {
+		return bucket.RAMQuotaMB == 1124
+	})
 
 	bucket, err = mgr.GetBucket(bName, nil)
 	suite.Require().Nil(err, err)
@@ -628,7 +515,9 @@ func (suite *IntegrationTestSuite) TestBucketMgrCustomConflictResolution() {
 	suite.Require().Nil(err, err)
 	defer mgr.DropBucket(bName, nil)
 
-	//Can't check Conflict resolution of bucket
+	suite.EnsureBucketOnAllNodes(time.Now().Add(30*time.Second), bName, nil)
+
+	// Can't check Conflict resolution of bucket
 	b, err := mgr.GetBucket(bName, nil)
 	suite.Require().Nil(err, err)
 	suite.Assert().Equal(bName, b.Name)

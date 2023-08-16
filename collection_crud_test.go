@@ -1095,6 +1095,8 @@ func (suite *IntegrationTestSuite) TestCollectionRetry() {
 		suite.T().Fatalf("Could not drop collection: %v", err)
 	}
 
+	suite.EnsureCollectionDroppedOnAllNodes("_default", []string{collectionName})
+
 	err = mgr.CreateCollection(CollectionSpec{ScopeName: "_default", Name: collectionName}, nil)
 	if err != nil {
 		suite.T().Fatalf("Could not create collection: %v", err)

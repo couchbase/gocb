@@ -98,13 +98,10 @@ func (suite *IntegrationTestSuite) setupClusterAnalytics() int {
 	mgr := globalCluster.AnalyticsIndexes()
 	err = mgr.CreateDataset("testAnalytics", globalBucket.Name(), &CreateAnalyticsDatasetOptions{
 		IgnoreIfExists: true,
-		Timeout:        5 * time.Second,
 	})
 	suite.Require().Nil(err, "Failed to create dataset %v", err)
 
-	err = mgr.ConnectLink(&ConnectAnalyticsLinkOptions{
-		Timeout: 10 * time.Second,
-	})
+	err = mgr.ConnectLink(&ConnectAnalyticsLinkOptions{})
 	suite.Require().Nil(err, "Failed to connect link %v", err)
 
 	return n

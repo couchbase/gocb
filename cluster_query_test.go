@@ -283,6 +283,11 @@ func (suite *IntegrationTestSuite) setupClusterQuery() int {
 	})
 	suite.Require().Nil(err, "Failed to create index %v", err)
 
+	suite.EnsureIndexOnAllNodes(time.Now().Add(20*time.Second), "#primary", globalBucket.Name(),
+		"", "", func(row queryRow) bool {
+			return row.State == "online"
+		})
+
 	return n
 }
 

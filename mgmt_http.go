@@ -18,6 +18,7 @@ type mgmtRequest struct {
 	ContentType  string
 	IsIdempotent bool
 	UniqueID     string
+	Endpoint     string
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy

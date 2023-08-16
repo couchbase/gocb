@@ -44,6 +44,11 @@ func (suite *IntegrationTestSuite) setupScopeQuery() int {
 		}
 	}
 
+	suite.EnsureIndexOnAllNodes(time.Now().Add(20*time.Second), "#primary", globalCollection.bucketName(),
+		globalCollection.ScopeName(), globalCollection.Name(), func(row queryRow) bool {
+			return row.State == "online"
+		})
+
 	return n
 }
 

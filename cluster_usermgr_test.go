@@ -31,59 +31,44 @@ func (suite *IntegrationTestSuite) TestUserManagerGroupCrud() {
 		},
 		LDAPGroupReference: "asda=price",
 	}, nil)
-	if err != nil {
-		suite.T().Fatalf("Expected Upsert to not error: %v", err)
-	}
+	suite.Require().NoError(err)
 
-	var group *Group
-	suite.Require().Eventually(func() bool {
-		group, err = mgr.GetGroup("test", nil)
-		if err != nil {
-			suite.T().Logf("Get errored: %v", err)
-			return false
-		}
+	suite.EnsureUserGroupOnAllNodes(time.Now().Add(20*time.Second), "test", nil)
 
-		return true
-	}, 5*time.Second, 100*time.Millisecond)
+	group, err := mgr.GetGroup("test", nil)
+	suite.Require().NoError(err)
+
 	group.Description = "this is still a test"
 	group.Roles = append(group.Roles, Role{Name: "query_system_catalog"})
 
 	err = mgr.UpsertGroup(*group, nil)
-	if err != nil {
-		suite.T().Fatalf("Expected Upsert to not error: %v", err)
-	}
+	suite.Require().NoError(err)
+
+	suite.EnsureUserGroupOnAllNodes(time.Now().Add(20*time.Second), "test", func(g jsonGroup) bool {
+		return g.Description == group.Description
+	})
 
 	group.Name = "test2"
 	err = mgr.UpsertGroup(*group, nil)
-	if err != nil {
-		suite.T().Fatalf("Expected Upsert to not error: %v", err)
-	}
+	suite.Require().NoError(err)
+
+	suite.EnsureUserGroupOnAllNodes(time.Now().Add(20*time.Second), "test2", nil)
 
 	groups, err := mgr.GetAllGroups(nil)
-	if err != nil {
-		suite.T().Fatalf("Expected GetAll to not error: %v", err)
-	}
+	suite.Require().NoError(err)
 
-	if len(groups) < 2 {
-		suite.T().Fatalf("Expected groups to contain at least 2 groups, was %v", groups)
-	}
+	suite.Assert().Len(groups, 2)
 
 	roles, err := mgr.GetRoles(nil)
-	if err != nil {
-		suite.T().Fatalf("Expected GetAllClusterRoles to not error: %v", err)
-	}
+	suite.Require().NoError(err)
 
 	suite.Assert().Greater(len(roles), 0)
 
 	err = mgr.DropGroup("test", nil)
-	if err != nil {
-		suite.T().Fatalf("Expected Drop to not error: %v", err)
-	}
+	suite.Require().NoError(err)
 
 	err = mgr.DropGroup("test2", nil)
-	if err != nil {
-		suite.T().Fatalf("Expected Drop to not error: %v", err)
-	}
+	suite.Require().NoError(err)
 
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_upsert_group"), 3, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_get_group"), 1, false)
@@ -110,9 +95,9 @@ func (suite *IntegrationTestSuite) TestUserManagerWithGroupsCrud() {
 			},
 		},
 	}, nil)
-	if err != nil {
-		suite.T().Fatalf("Expected UpsertGroup to not error: %v", err)
-	}
+	suite.Require().NoError(err)
+
+	suite.EnsureUserGroupOnAllNodes(time.Now().Add(20*time.Second), "test", nil)
 
 	expectedUser := User{
 		Username:    "barry",
@@ -128,20 +113,12 @@ func (suite *IntegrationTestSuite) TestUserManagerWithGroupsCrud() {
 	}
 
 	err = mgr.UpsertUser(expectedUser, nil)
-	if err != nil {
-		suite.T().Fatalf("Expected UpsertUser to not error: %v", err)
-	}
+	suite.Require().NoError(err)
 
-	var user *UserAndMetadata
-	suite.Eventuallyf(func() bool {
-		user, err = mgr.GetUser("barry", nil)
-		if err != nil {
-			suite.T().Logf("GetUser failed: %v", err)
-			return false
-		}
+	suite.EnsureUserOnAllNodes(time.Now().Add(20*time.Second), expectedUser.Username, nil)
 
-		return true
-	}, 30*time.Second, 100*time.Millisecond, "GetUser failed to successfully return user")
+	user, err := mgr.GetUser("barry", nil)
+	suite.Require().NoError(err)
 
 	expectedUserAndMeta := &UserAndMetadata{
 		Domain: "local",
@@ -187,9 +164,14 @@ func (suite *IntegrationTestSuite) TestUserManagerWithGroupsCrud() {
 
 	user.User.DisplayName = "barries"
 	err = mgr.UpsertUser(user.User, nil)
-	if err != nil {
-		suite.T().Fatalf("Expected UpsertUser to not error: %v", err)
-	}
+	suite.Require().NoError(err)
+
+	suite.EnsureUserOnAllNodes(time.Now().Add(20*time.Second), expectedUser.Username, func(u jsonUserMetadata) bool {
+		return u.Name == user.User.DisplayName
+	})
+
+	user, err = mgr.GetUser("barry", nil)
+	suite.Require().NoError(err)
 
 	expectedUserAndMeta.User.DisplayName = "barries"
 	assertUserAndMetadata(suite.T(), user, expectedUserAndMeta)
@@ -199,24 +181,18 @@ func (suite *IntegrationTestSuite) TestUserManagerWithGroupsCrud() {
 		suite.T().Fatalf("Expected GetAllUsers to not error: %v", err)
 	}
 
-	if len(users) == 0 {
-		suite.T().Fatalf("Expected users length to be greater than 0")
-	}
+	suite.Assert().Greater(len(users), 0, "Expected users length to be greater than 0")
 
 	err = mgr.DropUser("barry", nil)
-	if err != nil {
-		suite.T().Fatalf("Expected DropUser to not error: %v", err)
-	}
+	suite.Require().NoError(err)
+
+	suite.EnsureUserDroppedOnAllNodes(time.Now().Add(30*time.Second), expectedUser.Username)
 
 	err = mgr.DropGroup("test", nil)
-	if err != nil {
-		suite.T().Fatalf("Expected DropGroup to not error: %v", err)
-	}
+	suite.Require().NoError(err)
 
 	_, err = mgr.GetUser("barry", nil)
-	if !errors.Is(err, ErrUserNotFound) {
-		suite.T().Fatalf("Expected error to be user not found but was %v", err)
-	}
+	suite.Require().ErrorIs(err, ErrUserNotFound)
 }
 
 func (suite *IntegrationTestSuite) TestUserManagerCrud() {
@@ -246,23 +222,12 @@ func (suite *IntegrationTestSuite) TestUserManagerCrud() {
 		},
 	}
 	err := mgr.UpsertUser(expectedUser, nil)
-	if err != nil {
-		suite.T().Fatalf("Expected UpsertUser to not error: %v", err)
-	}
+	suite.Require().NoError(err, "Expected UpsertUser to not error")
 
-	var user *UserAndMetadata
-	success := suite.tryUntil(time.Now().Add(5*time.Second), 50*time.Millisecond, func() bool {
-		user, err = mgr.GetUser("barry", nil)
-		if err != nil {
-			suite.T().Logf("GetUser request errored with %s", err)
-			return false
-		}
-		return true
-	})
+	suite.EnsureUserOnAllNodes(time.Now().Add(20*time.Second), "barry", nil)
 
-	if !success {
-		suite.T().Fatal("Wait time for get user expired")
-	}
+	user, err := mgr.GetUser("barry", nil)
+	suite.Require().NoError(err, "Expected GetUser to not error")
 
 	expectedUserAndMeta := &UserAndMetadata{
 		Domain: "local",
@@ -296,59 +261,32 @@ func (suite *IntegrationTestSuite) TestUserManagerCrud() {
 
 	user.User.DisplayName = "barries"
 
-	success = suite.tryUntil(time.Now().Add(5*time.Second), 50*time.Millisecond, func() bool {
-		err = mgr.UpsertUser(user.User, nil)
-		if err != nil {
-			suite.T().Logf("UpsertUser errored with %s", err)
-			return false
-		}
+	err = mgr.UpsertUser(user.User, nil)
+	suite.Require().NoError(err, "Expected UpsertUser to not error")
 
-		return true
+	suite.EnsureUserOnAllNodes(time.Now().Add(20*time.Second), expectedUser.Username, func(u jsonUserMetadata) bool {
+		return u.Name == user.User.DisplayName
 	})
-
-	if !success {
-		suite.T().Fatal("Wait time for upsert user expired")
-	}
 
 	users, err := mgr.GetAllUsers(nil)
-	if err != nil {
-		suite.T().Fatalf("Expected GetAllUsers to not error: %v", err)
-	}
+	suite.Require().NoError(err, "Expected GetAllUsers to not error")
 
-	if len(users) == 0 {
-		suite.T().Fatalf("Expected users length to be greater than 0")
-	}
+	suite.Assert().Greater(len(users), 0, "Expected users length to be greater than 0")
 
-	success = suite.tryUntil(time.Now().Add(5*time.Second), 50*time.Millisecond, func() bool {
-		user, err = mgr.GetUser("barry", nil)
-		if err != nil {
-			suite.T().Logf("GetUser errored with %s", err)
-			return false
-		}
-		return true
-	})
-
-	if !success {
-		suite.T().Fatal("Wait time for get user expired")
-	}
+	user, err = mgr.GetUser("barry", nil)
+	suite.Require().NoError(err, "Expected GetUser to not error")
 
 	expectedUserAndMeta.User.DisplayName = "barries"
 	assertUserAndMetadata(suite.T(), user, expectedUserAndMeta)
 
 	err = mgr.DropUser("barry", nil)
-	if err != nil {
-		suite.T().Fatalf("Expected DropUser to not error: %v", err)
-	}
+	suite.Require().NoError(err, "Expected DropUser to not error")
 
-	suite.Require().Eventually(func() bool {
-		_, err = mgr.GetUser("barry", nil)
-		if !errors.Is(err, ErrUserNotFound) {
-			suite.T().Logf("Expected error to be user not found but was %v", err)
-			return false
-		}
+	suite.EnsureUserDroppedOnAllNodes(time.Now().Add(30*time.Second), expectedUser.Username)
 
-		return true
-	}, 5*time.Second, 50*time.Millisecond)
+	_, err = mgr.GetUser("barry", nil)
+	suite.Assert().ErrorIs(err, ErrUserNotFound)
+
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_upsert_user"), 2, true)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_get_user"), 3, true)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_get_all_users"), 1, false)
@@ -433,20 +371,16 @@ func (suite *IntegrationTestSuite) TestUserManagerCollectionsRoles() {
 				return
 			}
 
-			found := suite.tryUntil(time.Now().Add(5*time.Second), 100*time.Millisecond, func() bool {
-				user, err := mgr.GetUser(tCase.user.Username, nil)
-				if err != nil {
-					te.Logf("Expected err to be nil but was %v", err)
-					return false
-				}
+			suite.EnsureUserOnAllNodes(time.Now().Add(20*time.Second), tCase.user.Username, nil)
 
-				assertUser(te, &user.User, &tCase.user)
-				return true
-			})
-
-			if !found {
-				te.Logf("User was not found")
+			user, err := mgr.GetUser(tCase.user.Username, nil)
+			if err != nil {
+				te.Logf("Expected err to be nil but was %v", err)
+				return
 			}
+
+			assertUser(te, &user.User, &tCase.user)
+
 		})
 	}
 }
@@ -469,6 +403,8 @@ func (suite *IntegrationTestSuite) TestUserManagerChangePassword() {
 		},
 	}, nil)
 	suite.Require().Nil(err, err)
+
+	suite.EnsureUserOnAllNodes(time.Now().Add(20*time.Second), username, nil)
 
 	c, err := Connect(globalConfig.connstr, ClusterOptions{Authenticator: PasswordAuthenticator{
 		Username: username,

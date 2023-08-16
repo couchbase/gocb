@@ -26,30 +26,15 @@ func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrud() {
 	}, nil)
 	suite.Require().Nil(err, err)
 
+	suite.EnsureCollectionsOnAllNodes(scopeName, []string{colName})
+	suite.EnsureCollectionOnAllIndexesAndNodes(time.Now().Add(30*time.Second), bucketName, scopeName, colName)
+
 	mgr := globalBucket.Scope(scopeName).Collection(colName).QueryIndexes()
 
-	deadline := time.Now().Add(60 * time.Second)
-	for {
-		err = mgr.CreatePrimaryIndex(&CreatePrimaryQueryIndexOptions{
-			IgnoreIfExists: true,
-		})
-		if err == nil {
-			break
-		}
-
-		suite.T().Logf("Failed to create primary index: %s", err)
-
-		sleepDeadline := time.Now().Add(500 * time.Millisecond)
-		if sleepDeadline.After(deadline) {
-			sleepDeadline = deadline
-		}
-		time.Sleep(sleepDeadline.Sub(time.Now()))
-
-		if sleepDeadline == deadline {
-			suite.T().Errorf("timed out waiting for create index to succeed")
-			return
-		}
-	}
+	err = mgr.CreatePrimaryIndex(&CreatePrimaryQueryIndexOptions{
+		IgnoreIfExists: true,
+	})
+	suite.Require().NoError(err)
 
 	err = mgr.CreatePrimaryIndex(&CreatePrimaryQueryIndexOptions{
 		IgnoreIfExists: false,
@@ -151,30 +136,12 @@ func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrudDefaultSco
 
 	mgr := globalBucket.DefaultCollection().QueryIndexes()
 
-	deadline := time.Now().Add(60 * time.Second)
-	for {
-		err := mgr.CreatePrimaryIndex(&CreatePrimaryQueryIndexOptions{
-			IgnoreIfExists: true,
-		})
-		if err == nil {
-			break
-		}
-
-		suite.T().Logf("Failed to create primary index: %s", err)
-
-		sleepDeadline := time.Now().Add(500 * time.Millisecond)
-		if sleepDeadline.After(deadline) {
-			sleepDeadline = deadline
-		}
-		time.Sleep(sleepDeadline.Sub(time.Now()))
-
-		if sleepDeadline == deadline {
-			suite.T().Errorf("timed out waiting for create index to succeed")
-			return
-		}
-	}
-
 	err := mgr.CreatePrimaryIndex(&CreatePrimaryQueryIndexOptions{
+		IgnoreIfExists: true,
+	})
+	suite.Require().NoError(err)
+
+	err = mgr.CreatePrimaryIndex(&CreatePrimaryQueryIndexOptions{
 		IgnoreIfExists: false,
 	})
 	if !errors.Is(err, ErrIndexExists) {

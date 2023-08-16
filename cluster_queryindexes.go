@@ -236,7 +236,7 @@ type GetAllQueryIndexesOptions struct {
 	Context context.Context
 }
 
-func (qm *QueryIndexManager) buildGetAllIndexesWhereClause(
+func buildGetAllIndexesWhereClause(
 	bucketName,
 	scopeName,
 	collectionName string,
@@ -274,7 +274,7 @@ func (qm *QueryIndexManager) GetAllIndexes(bucketName string, opts *GetAllQueryI
 		opts = &GetAllQueryIndexesOptions{}
 	}
 
-	where, params := qm.buildGetAllIndexesWhereClause(bucketName, opts.ScopeName, opts.CollectionName)
+	where, params := buildGetAllIndexesWhereClause(bucketName, opts.ScopeName, opts.CollectionName)
 
 	return qm.base.GetAllIndexes(
 		opts.Context,
@@ -365,7 +365,7 @@ func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string,
 		return err
 	}
 
-	where, params := qm.buildGetAllIndexesWhereClause(bucketName, opts.ScopeName, opts.CollectionName)
+	where, params := buildGetAllIndexesWhereClause(bucketName, opts.ScopeName, opts.CollectionName)
 
 	return qm.base.WatchIndexes(
 		where,
