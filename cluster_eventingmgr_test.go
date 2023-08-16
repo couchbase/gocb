@@ -3,8 +3,9 @@ package gocb
 import (
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func (suite *IntegrationTestSuite) TestEventingManagerUpsertGetDrop() {
@@ -561,39 +562,5 @@ func (suite *IntegrationTestSuite) dropCollection(scope, collection string) {
 }
 
 func (suite *IntegrationTestSuite) mustWaitForEventingCollections(scopeName string, collections []string) {
-	suite.mustWaitForCollections(scopeName, collections)
-}
-
-func (suite *IntegrationTestSuite) mustWaitForCollections(scopeName string, collections []string) {
-	success := suite.tryUntil(time.Now().Add(5*time.Second), 500*time.Millisecond, func() bool {
-		scopes, err := globalBucket.Collections().GetAllScopes(nil)
-		if err != nil {
-			suite.T().Fatalf("Failed to GetAllScopes %v", err)
-		}
-
-		var scope *ScopeSpec
-		for _, s := range scopes {
-			if s.Name == scopeName {
-				scope = &s
-				break
-			}
-		}
-
-		if scope == nil {
-			return false
-		}
-
-		expected := len(collections)
-		var actual int
-		for _, col := range scope.Collections {
-			for _, n := range collections {
-				if col.Name == n {
-					actual++
-				}
-			}
-		}
-
-		return expected == actual
-	})
-	suite.Require().True(success, "Collections did not come online in time")
+	suite.EnsureCollectionsOnAllNodes(scopeName, collections)
 }

@@ -18,6 +18,7 @@ type mgmtRequest struct {
 	ContentType  string
 	IsIdempotent bool
 	UniqueID     string
+	Endpoint     string
 
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
@@ -64,6 +65,7 @@ func (mpc *mgmtProviderCore) executeMgmtRequest(ctx context.Context, req mgmtReq
 		Deadline:      time.Now().Add(timeout),
 		RetryStrategy: retryStrategy,
 		TraceContext:  req.parentSpanCtx,
+		Endpoint:      req.Endpoint,
 	}
 
 	coreresp, err := mpc.provider.DoHTTPRequest(ctx, corereq)

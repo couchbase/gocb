@@ -3,8 +3,11 @@ package gocb
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"testing"
 	"time"
+
+	"github.com/couchbase/gocbcore/v10"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -28,6 +31,52 @@ func (suite *IntegrationTestSuite) BeforeTest(suiteName, testName string) {
 }
 
 func (suite *IntegrationTestSuite) SetupSuite() {
+	router, err := globalBucket.Internal().IORouter()
+	suite.Require().NoError(err)
+
+	snapCh := make(chan *gocbcore.ConfigSnapshot, 1)
+	_, err = router.WaitForConfigSnapshot(time.Now().Add(15*time.Second), gocbcore.WaitForConfigSnapshotOptions{}, func(result *gocbcore.WaitForConfigSnapshotResult, err error) {
+		if err != nil {
+			log.Fatalf("Error geting config snapshot: %v", err)
+		}
+
+		snapCh <- result.Snapshot
+	})
+	suite.Require().NoError(err)
+
+	snap := <-snapCh
+	replicas, err := snap.NumReplicas()
+	suite.Require().NoError(err)
+
+	if replicas == 0 {
+		suite.T().Logf("Unless explicitly set disabling replicas, durability, and transactions as no replicas on cluster")
+		var replicas bool
+		var dura bool
+		var transactions bool
+		for _, featureFlag := range globalCluster.FeatureFlags {
+			if featureFlag.Feature == ReplicasFeature {
+				replicas = true
+				featureFlag.Enabled = false
+			} else if featureFlag.Feature == DurabilityFeature {
+				dura = true
+				featureFlag.Enabled = false
+			} else if featureFlag.Feature == TransactionsFeature {
+				transactions = true
+				featureFlag.Enabled = false
+			}
+		}
+		if !replicas {
+			globalCluster.FeatureFlags = append(globalCluster.FeatureFlags, TestFeatureFlag{Enabled: false, Feature: ReplicasFeature})
+		}
+		if !dura {
+			globalCluster.FeatureFlags = append(globalCluster.FeatureFlags, TestFeatureFlag{Enabled: false, Feature: DurabilityFeature})
+		}
+		if !transactions {
+			globalCluster.FeatureFlags = append(globalCluster.FeatureFlags, TestFeatureFlag{Enabled: false, Feature: TransactionsFeature})
+		}
+		return
+	}
+
 	if globalCluster.SupportsFeature(ReplicasFeature) {
 		if globalCluster.SupportsFeature(DurabilityFeature) {
 			suite.ensureReplicasUpEnhDura()

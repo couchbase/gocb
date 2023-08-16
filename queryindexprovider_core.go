@@ -145,7 +145,7 @@ func (qpc *queryProviderCore) dropIndex(c *Collection, bucketName, indexName str
 	return err
 }
 
-func (qpc *queryProviderCore) buildGetAllIndexesWhereClause(c *Collection, bucketName, scopeName, collectionName string) (string, map[string]interface{}) {
+func buildGetAllIndexesWhereClause(c *Collection, bucketName, scopeName, collectionName string) (string, map[string]interface{}) {
 	if c == nil {
 		bucketCond := "bucket_id = $bucketName"
 		scopeCond := "(" + bucketCond + " AND scope_id = $scopeName)"
@@ -174,7 +174,7 @@ func (qpc *queryProviderCore) buildGetAllIndexesWhereClause(c *Collection, bucke
 		return where, params
 	}
 
-	scope, collection := qpc.normaliseCollectionKeyspace(c)
+	scope, collection := normaliseQueryCollectionKeyspace(c)
 	var where string
 	if scope == "_default" && collection == "_default" {
 		where = "((bucket_id=$bucketName AND scope_id=$scopeName AND keyspace_id=$collectionName) OR (bucket_id IS MISSING and keyspace_id=$bucketName)) "
@@ -198,7 +198,7 @@ func (qpc *queryProviderCore) GetAllIndexes(c *Collection, bucketName string, op
 }
 
 func (qpc *queryProviderCore) getAllIndexes(c *Collection, bucketName string, opts *GetAllQueryIndexesOptions) ([]QueryIndex, error) {
-	whereClause, params := qpc.buildGetAllIndexesWhereClause(c, bucketName, opts.ScopeName, opts.CollectionName)
+	whereClause, params := buildGetAllIndexesWhereClause(c, bucketName, opts.ScopeName, opts.CollectionName)
 
 	span := createSpan(qpc.tracer, opts.ParentSpan, "manager_query_get_all_indexes", "management")
 	defer span.End()
@@ -259,7 +259,7 @@ func (qpc *queryProviderCore) BuildDeferredIndexes(c *Collection, bucketName str
 			params["collectionName"] = opts.CollectionName
 		}
 	} else {
-		scope, collection := qpc.normaliseCollectionKeyspace(c)
+		scope, collection := normaliseQueryCollectionKeyspace(c)
 		if scope == "_default" && collection == "_default" {
 			whereClause = "((bucket_id=$bucketName AND scope_id=$scopeName AND keyspace_id=$collectionName) OR (bucket_id IS MISSING and keyspace_id=$bucketName)) "
 		} else {
@@ -545,7 +545,7 @@ func (index *QueryIndex) fromData(data jsonQueryIndex) error {
 	return nil
 }
 
-func (qpc *queryProviderCore) normaliseCollectionKeyspace(c *Collection) (string, string) {
+func normaliseQueryCollectionKeyspace(c *Collection) (string, string) {
 	// Ensure scope and collection names are populated, if the DefaultX functions on bucket are
 	// used then the names will be empty by default.
 	scope := c.scope
@@ -563,7 +563,7 @@ func (qpc *queryProviderCore) normaliseCollectionKeyspace(c *Collection) (string
 func (qpc *queryProviderCore) makeKeyspace(c *Collection, bucketName, scopeName, collectionName string) string {
 	if c != nil {
 		// If we have a collection then we need to build the namespace using it rather than options.
-		scope, collection := qpc.normaliseCollectionKeyspace(c)
+		scope, collection := normaliseQueryCollectionKeyspace(c)
 
 		return fmt.Sprintf("`%s`.`%s`.`%s`", c.bucketName(), scope, collection)
 	}

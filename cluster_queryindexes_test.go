@@ -27,6 +27,8 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 		}, nil)
 		suite.Require().Nil(err, err)
 		defer bucketMgr.DropBucket(bucketName, nil)
+
+		suite.EnsureBucketOnAllNodes(time.Now().Add(30*time.Second), bucketName, nil)
 	} else {
 		bucketName = globalBucket.Name()
 		indexes, err := mgr.GetAllIndexes(bucketName, &GetAllQueryIndexesOptions{
@@ -54,49 +56,33 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 		globalMeter.Reset()
 	}
 
-	deadline := time.Now().Add(5 * time.Second)
-	for {
-		err := mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
-			IgnoreIfExists: true,
-		})
-		if err == nil {
-			break
-		}
-
-		suite.T().Logf("Failed to create primary index: %s", err)
-
-		sleepDeadline := time.Now().Add(500 * time.Millisecond)
-		if sleepDeadline.After(deadline) {
-			sleepDeadline = deadline
-		}
-		time.Sleep(sleepDeadline.Sub(time.Now()))
-
-		if sleepDeadline == deadline {
-			suite.T().Errorf("timed out waiting for create index to succeed")
-			return
-		}
-	}
-
 	err := mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
+		IgnoreIfExists: true,
+	})
+	suite.Require().NoError(err)
+
+	suite.EnsureIndexOnAllNodes(time.Now().Add(20*time.Second), "#primary", bucketName, "", "", func(row queryRow) bool {
+		return row.State == "online"
+	})
+
+	err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
 		IgnoreIfExists: false,
 	})
-	suite.Require().NotNil(err, err)
-	if !errors.Is(err, ErrIndexExists) {
-		suite.T().Fatalf("Expected index exists error but was %s", err)
-	}
+	suite.Require().ErrorIs(err, ErrIndexExists)
 
 	err = mgr.CreateIndex(bucketName, "testIndex", []string{"field"}, &CreateQueryIndexOptions{
 		IgnoreIfExists: true,
 	})
 	suite.Require().Nil(err, err)
 
+	suite.EnsureIndexOnAllNodes(time.Now().Add(20*time.Second), "testIndex", bucketName, "", "", func(row queryRow) bool {
+		return row.State == "online"
+	})
+
 	err = mgr.CreateIndex(bucketName, "testIndex", []string{"field"}, &CreateQueryIndexOptions{
 		IgnoreIfExists: false,
 	})
-	suite.Require().NotNil(err, err)
-	if !errors.Is(err, ErrIndexExists) {
-		suite.T().Fatalf("Expected index exists error but was %s", err)
-	}
+	suite.Require().ErrorIs(err, ErrIndexExists)
 
 	// We create this first to give it a chance to be created by the time we need it.
 	err = mgr.CreateIndex(bucketName, "testIndexDeferred", []string{"field"}, &CreateQueryIndexOptions{
@@ -104,6 +90,8 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 		Deferred:       true,
 	})
 	suite.Require().Nil(err, err)
+
+	suite.EnsureIndexOnAllNodes(time.Now().Add(20*time.Second), "testIndexDeferred", bucketName, "", "", nil)
 
 	indexNames, err := mgr.BuildDeferredIndexes(bucketName, nil)
 	suite.Require().Nil(err, err)
@@ -173,6 +161,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 	suite.skipIfUnsupported(QueryIndexFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 	suite.skipIfUnsupported(ClusterLevelQueryFeature)
+	suite.skipIfUnsupported(QueryMB57673Feature)
 
 	suite.dropAllIndexes()
 	bucketName := globalBucket.Name()
@@ -191,34 +180,21 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 	}, nil)
 	suite.Require().Nil(err, err)
 
-	suite.mustWaitForCollections(scopeName, []string{colName})
+	suite.EnsureCollectionsOnAllNodes(scopeName, []string{colName})
+	suite.EnsureCollectionOnAllIndexesAndNodes(time.Now().Add(30*time.Second), globalBucket.Name(), scopeName, colName)
 
 	mgr := globalCluster.QueryIndexes()
 
-	deadline := time.Now().Add(60 * time.Second)
-	for {
-		err = mgr.CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
-			IgnoreIfExists: true,
-			ScopeName:      scopeName,
-			CollectionName: colName,
-		})
-		if err == nil {
-			break
-		}
+	err = mgr.CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
+		IgnoreIfExists: true,
+		ScopeName:      scopeName,
+		CollectionName: colName,
+	})
+	suite.Require().NoError(err)
 
-		suite.T().Logf("Failed to create primary index: %s", err)
-
-		sleepDeadline := time.Now().Add(500 * time.Millisecond)
-		if sleepDeadline.After(deadline) {
-			sleepDeadline = deadline
-		}
-		time.Sleep(sleepDeadline.Sub(time.Now()))
-
-		if sleepDeadline == deadline {
-			suite.T().Errorf("timed out waiting for create index to succeed")
-			return
-		}
-	}
+	suite.EnsureIndexOnAllNodes(time.Now().Add(20*time.Second), "#primary", bucketName, scopeName, colName, func(row queryRow) bool {
+		return row.State == "online"
+	})
 
 	err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
 		IgnoreIfExists: false,
@@ -236,6 +212,10 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 		CollectionName: colName,
 	})
 	suite.Require().Nil(err, err)
+
+	suite.EnsureIndexOnAllNodes(time.Now().Add(20*time.Second), "testIndex", bucketName, scopeName, colName, func(row queryRow) bool {
+		return row.State == "online"
+	})
 
 	err = mgr.CreateIndex(bucketName, "testIndex", []string{"field"}, &CreateQueryIndexOptions{
 		IgnoreIfExists: false,
@@ -255,6 +235,8 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 		CollectionName: colName,
 	})
 	suite.Require().Nil(err, err)
+
+	suite.EnsureIndexOnAllNodes(time.Now().Add(20*time.Second), "testIndexDeferred", bucketName, scopeName, colName, nil)
 
 	indexNames, err := mgr.BuildDeferredIndexes(bucketName, &BuildDeferredQueryIndexOptions{
 		ScopeName:      scopeName,
@@ -356,33 +338,26 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 	}, nil)
 	suite.Require().Nil(err, err)
 
+	suite.EnsureCollectionsOnAllNodes("_default", []string{colName})
+
 	mgr := globalCluster.QueryIndexes()
 
-	suite.tryUntil(time.Now().Add(5*time.Second), 100*time.Millisecond, func() bool {
-		err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
-			Deferred: true,
-		})
-		if err == nil || errors.Is(err, ErrIndexExists) {
-			return true
-		}
-
-		suite.T().Logf("Unexpected error, retrying: %v", err)
-		return false
+	err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
+		Deferred:       true,
+		IgnoreIfExists: true,
 	})
+	suite.Require().NoError(err)
 
-	suite.tryUntil(time.Now().Add(5*time.Second), 100*time.Millisecond, func() bool {
-		err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
-			Deferred:       true,
-			ScopeName:      "_default",
-			CollectionName: colName,
-		})
-		if err == nil || errors.Is(err, ErrIndexExists) {
-			return true
-		}
-
-		suite.T().Logf("Unexpected error, retrying: %v", err)
-		return false
+	err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
+		Deferred:       true,
+		ScopeName:      "_default",
+		CollectionName: colName,
+		IgnoreIfExists: true,
 	})
+	suite.Require().NoError(err)
+
+	suite.EnsureIndexOnAllNodes(time.Now().Add(20*time.Second), "#primary", bucketName, "", "", nil)
+	suite.EnsureIndexOnAllNodes(time.Now().Add(20*time.Second), "#primary", bucketName, "_default", colName, nil)
 
 	names, err := mgr.BuildDeferredIndexes(bucketName, nil)
 	suite.Require().Nil(err, err)
@@ -425,33 +400,26 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 	}, nil)
 	suite.Require().Nil(err, err)
 
+	suite.EnsureCollectionsOnAllNodes("_default", []string{collectionName})
+
 	mgr := globalCluster.QueryIndexes()
 
-	suite.tryUntil(time.Now().Add(5*time.Second), 100*time.Millisecond, func() bool {
-		err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
-			Deferred: true,
-		})
-		if err == nil || errors.Is(err, ErrIndexExists) {
-			return true
-		}
-
-		suite.T().Logf("Unexpected error, retrying: %v", err)
-		return false
+	err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
+		Deferred:       true,
+		IgnoreIfExists: true,
 	})
+	suite.Require().NoError(err)
 
-	suite.tryUntil(time.Now().Add(5*time.Second), 100*time.Millisecond, func() bool {
-		err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
-			Deferred:       true,
-			ScopeName:      "_default",
-			CollectionName: collectionName,
-		})
-		if err == nil || errors.Is(err, ErrIndexExists) {
-			return true
-		}
-
-		suite.T().Logf("Unexpected error, retrying: %v", err)
-		return false
+	err = mgr.CreatePrimaryIndex(bucketName, &CreatePrimaryQueryIndexOptions{
+		Deferred:       true,
+		ScopeName:      "_default",
+		CollectionName: collectionName,
+		IgnoreIfExists: true,
 	})
+	suite.Require().NoError(err)
+
+	suite.EnsureIndexOnAllNodes(time.Now().Add(20*time.Second), "#primary", bucketName, "", "", nil)
+	suite.EnsureIndexOnAllNodes(time.Now().Add(20*time.Second), "#primary", bucketName, "_default", collectionName, nil)
 
 	names, err := mgr.BuildDeferredIndexes(bucketName, &BuildDeferredQueryIndexOptions{
 		ScopeName:      "_default",
@@ -501,6 +469,8 @@ func (suite *IntegrationTestSuite) TestQueryIndexesIncludesDefaultCollection() {
 		}, nil)
 		suite.Require().Nil(err, err)
 		defer bucketMgr.DropBucket(bucketName, nil)
+
+		suite.EnsureBucketOnAllNodes(time.Now().Add(30*time.Second), bucketName, nil)
 	} else {
 		bucketName = globalBucket.Name()
 		indexes, err := mgr.GetAllIndexes(bucketName, &GetAllQueryIndexesOptions{
@@ -525,28 +495,12 @@ func (suite *IntegrationTestSuite) TestQueryIndexesIncludesDefaultCollection() {
 		}
 	}
 
-	deadline := time.Now().Add(5 * time.Second)
-	for {
-		err := mgr.CreateIndex(bucketName, "myindex", []string{"field"}, &CreateQueryIndexOptions{
-			IgnoreIfExists: true,
-		})
-		if err == nil {
-			break
-		}
+	err := mgr.CreateIndex(bucketName, "myindex", []string{"field"}, &CreateQueryIndexOptions{
+		IgnoreIfExists: true,
+	})
+	suite.Require().NoError(err)
 
-		suite.T().Logf("Failed to create index: %s", err)
-
-		sleepDeadline := time.Now().Add(500 * time.Millisecond)
-		if sleepDeadline.After(deadline) {
-			sleepDeadline = deadline
-		}
-		time.Sleep(sleepDeadline.Sub(time.Now()))
-
-		if sleepDeadline == deadline {
-			suite.T().Errorf("timed out waiting for create index to succeed")
-			return
-		}
-	}
+	suite.EnsureIndexOnAllNodes(time.Now().Add(20*time.Second), "myindex", bucketName, "", "", nil)
 
 	indexes, err := mgr.GetAllIndexes(bucketName, &GetAllQueryIndexesOptions{
 		ScopeName: "_default",

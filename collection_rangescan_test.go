@@ -436,81 +436,14 @@ func (suite *IntegrationTestSuite) TestRangeScanSampling() {
 	}, nil)
 	suite.Require().Nil(err, err)
 
+	suite.EnsureCollectionsOnAllNodes(scopeName, []string{scopeName})
+
 	docIDs := makeDocIDs(10, generateDocId("samplingscan"))
 
 	value := "test"
 
 	col := globalBucket.Scope(scopeName).Collection(scopeName)
-	suite.upsertAndCreateMutationState(col, docIDs, value, &UpsertOptions{
-		Expiry: 30 * time.Second,
-	})
-	scan := SamplingScan{
-		Limit: 10,
-		Seed:  50,
-	}
-	opts := &ScanOptions{}
-
-	res, err := col.Scan(scan, opts)
-	suite.Require().Nil(err, err)
-
-	ids := make(map[string]struct{})
-	for {
-		d := res.Next()
-		if d == nil {
-			break
-		}
-
-		suite.Assert().NotZero(d.Cas())
-		var v string
-		err := d.Content(&v)
-		if suite.Assert().Nil(err) {
-			suite.Assert().Equal(value, v)
-		}
-		suite.Assert().Greater(time.Until(d.ExpiryTime()), 15*time.Second)
-		suite.Assert().NotEmpty(d.ID())
-
-		ids[d.ID()] = struct{}{}
-	}
-
-	suite.Assert().Len(ids, len(docIDs))
-	for id := range docIDs {
-		suite.Assert().Contains(ids, id)
-	}
-
-	err = res.Err()
-	suite.Require().Nil(err, err)
-
-	numVbuckets := suite.numVbuckets()
-
-	suite.Require().Contains(globalTracer.GetSpans(), nil)
-	nilParents := globalTracer.GetSpans()[nil]
-	suite.Require().Equal(len(nilParents), 1)
-	suite.verifyRangeScanTracing(nilParents[0], numVbuckets, scan, scopeName, scopeName, opts)
-
-	suite.AssertKVMetrics(meterNameCBOperations, "range_scan", 1, false)
-}
-
-func (suite *IntegrationTestSuite) TestRangeScanSamplingMutationState() {
-	suite.skipIfUnsupported(KeyValueFeature)
-	suite.skipIfUnsupported(RangeScanFeature)
-
-	scopeName := generateDocId("samplingrangescanmutationstate")
-	colMgr := globalBucket.Collections()
-	err := colMgr.CreateScope(scopeName, nil)
-	suite.Require().Nil(err, err)
-	defer colMgr.DropScope(scopeName, nil)
-	err = colMgr.CreateCollection(CollectionSpec{
-		Name:      scopeName,
-		ScopeName: scopeName,
-	}, nil)
-	suite.Require().Nil(err, err)
-
-	docIDs := makeDocIDs(10, generateDocId("samplingrangescanmutationstate"))
-
-	value := "test"
-
-	col := globalBucket.Scope(scopeName).Collection(scopeName)
-	mutationState := suite.upsertAndCreateMutationState(col, docIDs, value, &UpsertOptions{
+	state := suite.upsertAndCreateMutationState(col, docIDs, value, &UpsertOptions{
 		Expiry: 30 * time.Second,
 	})
 	scan := SamplingScan{
@@ -518,7 +451,7 @@ func (suite *IntegrationTestSuite) TestRangeScanSamplingMutationState() {
 		Seed:  50,
 	}
 	opts := &ScanOptions{
-		ConsistentWith: mutationState,
+		ConsistentWith: state,
 	}
 
 	res, err := col.Scan(scan, opts)
@@ -561,7 +494,7 @@ func (suite *IntegrationTestSuite) TestRangeScanSamplingMutationState() {
 	suite.AssertKVMetrics(meterNameCBOperations, "range_scan", 1, false)
 }
 
-func (suite *IntegrationTestSuite) TestRangeScanRangeMutationState() {
+func (suite *IntegrationTestSuite) TestRangeScanRange() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(RangeScanFeature)
 

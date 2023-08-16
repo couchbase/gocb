@@ -97,6 +97,7 @@ var (
 	RetriesFeature                            = FeatureCode("retries")
 	SubdocReplicaReadsFeature                 = FeatureCode("subdocreplicas")
 	HistoryRetentionFeature                   = FeatureCode("historyretention")
+	QueryMB57673Feature                       = FeatureCode("mb57673")
 )
 
 type TestFeatureFlag struct {
@@ -355,6 +356,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer750)
 		case HistoryRetentionFeature:
 			supported = !c.Version.Lower(srvVer720) && !c.Version.Equal(protostellarVer)
+		case QueryMB57673Feature:
+			supported = !c.Version.Equal(srvVer720)
 		}
 	}
 

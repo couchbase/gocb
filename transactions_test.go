@@ -112,7 +112,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadata() {
 		Name:      metaCollectionName,
 		ScopeName: globalScope.Name(),
 	}, nil)
-	suite.mustWaitForCollections(globalScope.Name(), []string{metaCollectionName})
+	suite.EnsureCollectionsOnAllNodes(globalScope.Name(), []string{metaCollectionName})
 
 	tConfig := globalCluster.transactionsConfig
 	tConfig.MetadataCollection = &TransactionKeyspace{
@@ -197,7 +197,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadataTransactionOpti
 		Name:      metaCollectionName,
 		ScopeName: globalScope.Name(),
 	}, nil)
-	suite.mustWaitForCollections(globalScope.Name(), []string{metaCollectionName})
+	suite.EnsureCollectionsOnAllNodes(globalScope.Name(), []string{metaCollectionName})
 
 	perConfig := &TransactionOptions{
 		MetadataCollection: globalBucket.Collection(metaCollectionName),
@@ -266,7 +266,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadataLocationRemoved
 		ScopeName: globalScope.Name(),
 	}, nil)
 	suite.Require().Nil(err, err)
-	suite.mustWaitForCollections(globalScope.Name(), []string{metaCollectionName})
+	suite.EnsureCollectionsOnAllNodes(globalScope.Name(), []string{metaCollectionName})
 
 	perConfig := &TransactionOptions{
 		MetadataCollection: globalBucket.Collection(metaCollectionName),
