@@ -67,6 +67,28 @@ func (suite *IntegrationTestSuite) EnsureUserOnAllNodes(deadline time.Time, name
 	})
 }
 
+func (suite *IntegrationTestSuite) EnsureUserDroppedOnAllNodes(deadline time.Time, name string) {
+	if globalCluster.IsProtostellar() {
+		return
+	}
+
+	router, err := globalBucket.Internal().IORouter()
+	suite.Require().NoError(err, "Failed to get IO router")
+
+	endpoints := router.MgmtEps()
+
+	path := fmt.Sprintf("/settings/rbac/users/%s/%s", LocalDomain, url.PathEscape(name))
+	suite.ensureResource(deadline, ServiceTypeManagement, "GET", path, nil, endpoints, func(ep string, response *mgmtResponse) bool {
+		if response.StatusCode == 404 {
+			return true
+		}
+
+		body, _ := io.ReadAll(response.Body)
+		suite.T().Logf("Execute mgmt request non-404 response against %s, status: %d, body: %s", ep, response.StatusCode, body)
+		return false
+	})
+}
+
 type queryRow struct {
 	Name  string `json:"name"`
 	State string `json:"state"`
@@ -157,6 +179,17 @@ func (suite *IntegrationTestSuite) EnsureCollectionOnAllIndexesAndNodes(deadline
 	})
 }
 
+func (suite *IntegrationTestSuite) EnsureEveningFunctionOnAllNodes(deadline time.Time, name string) {
+	if globalCluster.IsProtostellar() {
+		return
+	}
+
+	path := fmt.Sprintf("/api/v1/functions/%s", url.PathEscape(name))
+	suite.ensureEventingResource(deadline, path, func(closer io.ReadCloser) bool {
+		return true
+	})
+}
+
 func (suite *IntegrationTestSuite) EnsureBucketOnAllNodes(deadline time.Time, name string,
 	predicate func(bucket *BucketSettings) bool) {
 	if globalCluster.IsProtostellar() {
@@ -212,13 +245,46 @@ func (suite *IntegrationTestSuite) EnsureCollectionsOnAllNodes(scopeName string,
 	})
 }
 
+func (suite *IntegrationTestSuite) EnsureCollectionDroppedOnAllNodes(scopeName string, collections []string) {
+	if globalCluster.IsProtostellar() {
+		return
+	}
+
+	path := fmt.Sprintf("/pools/default/buckets/%s/scopes", url.PathEscape(globalBucket.Name()))
+	suite.ensureMgmtResource(time.Now().Add(30*time.Second), path, func(reader io.ReadCloser) bool {
+		var mfest gocbcore.Manifest
+		jsonDec := json.NewDecoder(reader)
+		jsonDec.Decode(&mfest)
+
+		var found int
+		for _, scope := range mfest.Scopes {
+			if scope.Name != scopeName {
+				continue
+			}
+			for _, col := range scope.Collections {
+				for _, n := range collections {
+					if col.Name == n {
+						found++
+					}
+				}
+			}
+		}
+		if found == 0 {
+			return true
+		}
+		suite.T().Logf("Collections not all dropped, found %d , will retry", found)
+
+		return false
+	})
+}
+
 func (suite *IntegrationTestSuite) ensureQueryResource(deadline time.Time, payload []byte, handleBody func(closer io.ReadCloser) bool) {
 	router, err := globalBucket.Internal().IORouter()
 	suite.Require().NoError(err, "Failed to get IO router")
 
 	endpoints := router.N1qlEps()
 
-	suite.ensureResource(deadline, ServiceTypeQuery, "POST", "/query/service", payload, endpoints, handleBody)
+	suite.ensureResourceStatus200(deadline, ServiceTypeQuery, "POST", "/query/service", payload, endpoints, handleBody)
 }
 
 func (suite *IntegrationTestSuite) ensureMgmtResource(deadline time.Time, path string, handleBody func(closer io.ReadCloser) bool) {
@@ -227,11 +293,36 @@ func (suite *IntegrationTestSuite) ensureMgmtResource(deadline time.Time, path s
 
 	endpoints := router.MgmtEps()
 
-	suite.ensureResource(deadline, ServiceTypeManagement, "GET", path, nil, endpoints, handleBody)
+	suite.ensureResourceStatus200(deadline, ServiceTypeManagement, "GET", path, nil, endpoints, handleBody)
+}
+
+func (suite *IntegrationTestSuite) ensureEventingResource(deadline time.Time, path string, handleBody func(closer io.ReadCloser) bool) {
+	router, err := globalBucket.Internal().IORouter()
+	suite.Require().NoError(err, "Failed to get IO router")
+
+	endpoints := router.MgmtEps()
+
+	suite.ensureResourceStatus200(deadline, ServiceTypeEventing, "GET", path, nil, endpoints, handleBody)
+}
+
+func (suite *IntegrationTestSuite) ensureResourceStatus200(deadline time.Time, service ServiceType, method, path string, body []byte, endpoints []string,
+	handleBody func(closer io.ReadCloser) bool) {
+	suite.ensureResource(deadline, service, method, path, body, endpoints, func(ep string, resp *mgmtResponse) bool {
+		var success bool
+		if resp.StatusCode == 200 {
+			success = handleBody(resp.Body)
+			resp.Body.Close()
+		} else {
+			body, _ := io.ReadAll(resp.Body)
+			suite.T().Logf("Execute mgmt request non-200 response against %s, status: %d, body: %s", ep, resp.StatusCode, body)
+		}
+
+		return success
+	})
 }
 
 func (suite *IntegrationTestSuite) ensureResource(deadline time.Time, service ServiceType, method, path string, body []byte, endpoints []string,
-	handleBody func(closer io.ReadCloser) bool) {
+	handleResp func(ep string, response *mgmtResponse) bool) {
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
 
@@ -241,7 +332,6 @@ func (suite *IntegrationTestSuite) ensureResource(deadline time.Time, service Se
 	for _, ep := range endpoints {
 		go func(ep string) {
 			for {
-				var success bool
 				req := mgmtRequest{
 					Service:      service,
 					Path:         path,
@@ -258,13 +348,8 @@ func (suite *IntegrationTestSuite) ensureResource(deadline time.Time, service Se
 					return
 				}
 
-				if resp.StatusCode == 200 {
-					success = handleBody(resp.Body)
-					resp.Body.Close()
-				} else {
-					body, _ := io.ReadAll(resp.Body)
-					suite.T().Logf("Execute mgmt request non-200 response against %s, status: %d, body: %s", ep, resp.StatusCode, body)
-				}
+				success := handleResp(ep, resp)
+				_ = resp.Body.Close()
 
 				if success {
 					wait <- struct{}{}

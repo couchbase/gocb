@@ -186,6 +186,8 @@ func (suite *IntegrationTestSuite) TestUserManagerWithGroupsCrud() {
 	err = mgr.DropUser("barry", nil)
 	suite.Require().NoError(err)
 
+	suite.EnsureUserDroppedOnAllNodes(time.Now().Add(30*time.Second), expectedUser.Username)
+
 	err = mgr.DropGroup("test", nil)
 	suite.Require().NoError(err)
 
@@ -280,15 +282,11 @@ func (suite *IntegrationTestSuite) TestUserManagerCrud() {
 	err = mgr.DropUser("barry", nil)
 	suite.Require().NoError(err, "Expected DropUser to not error")
 
-	suite.Require().Eventually(func() bool {
-		_, err = mgr.GetUser("barry", nil)
-		if !errors.Is(err, ErrUserNotFound) {
-			suite.T().Logf("Expected error to be user not found but was %v", err)
-			return false
-		}
+	suite.EnsureUserDroppedOnAllNodes(time.Now().Add(30*time.Second), expectedUser.Username)
 
-		return true
-	}, 5*time.Second, 50*time.Millisecond)
+	_, err = mgr.GetUser("barry", nil)
+	suite.Assert().ErrorIs(err, ErrUserNotFound)
+
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_upsert_user"), 2, true)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_get_user"), 3, true)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_get_all_users"), 1, false)

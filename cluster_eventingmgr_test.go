@@ -19,7 +19,7 @@ func (suite *IntegrationTestSuite) TestEventingManagerUpsertGetDrop() {
 	suite.mustCreateCollection(scopeName, "source")
 	suite.mustCreateCollection(scopeName, "meta")
 
-	suite.mustWaitForEventingCollections(scopeName, []string{"source", "meta"})
+	suite.EnsureCollectionsOnAllNodes(scopeName, []string{"source", "meta"})
 
 	fnName := uuid.New().String()
 	expectedFn := EventingFunction{
@@ -77,6 +77,8 @@ func (suite *IntegrationTestSuite) TestEventingManagerUpsertGetDrop() {
 	})
 	suite.Require().True(success, "Upsert function did not succeed in time")
 
+	suite.EnsureEveningFunctionOnAllNodes(time.Now().Add(30*time.Second), fnName)
+
 	functions, err := mgr.GetAllFunctions(nil)
 	suite.Require().Nil(err, err)
 
@@ -98,7 +100,8 @@ func (suite *IntegrationTestSuite) TestEventingManagerUpsertGetDrop() {
 			foundStatus = &fn
 		}
 	}
-	suite.Assert().NotZero(foundStatus.Status)
+	suite.Require().NotNil(foundStatus, "Evening function status not found")
+	suite.Assert().NotEmpty(foundStatus.Status)
 
 	actualFn, err := mgr.GetFunction(fnName, nil)
 	suite.Require().Nil(err, err)
@@ -147,7 +150,7 @@ func (suite *IntegrationTestSuite) TestEventingManagerUnknownFunction() {
 	suite.mustCreateCollection(scopeName, "source")
 	suite.mustCreateCollection(scopeName, "meta")
 
-	suite.mustWaitForEventingCollections(scopeName, []string{"source", "meta"})
+	suite.EnsureCollectionsOnAllNodes(scopeName, []string{"source", "meta"})
 
 	fnName := uuid.New().String()
 	fn, err := mgr.GetFunction(fnName, nil)
@@ -195,7 +198,7 @@ func (suite *IntegrationTestSuite) TestEventingManagerInvalidCode() {
 	suite.mustCreateCollection(scopeName, "source")
 	suite.mustCreateCollection(scopeName, "meta")
 
-	suite.mustWaitForEventingCollections(scopeName, []string{"source", "meta"})
+	suite.EnsureCollectionsOnAllNodes(scopeName, []string{"source", "meta"})
 
 	fnName := uuid.New().String()
 	expectedFn := EventingFunction{
@@ -234,7 +237,7 @@ func (suite *IntegrationTestSuite) TestEventingManagerCollectionNotFound() {
 	defer suite.dropScope(scopeName)
 	suite.mustCreateCollection(scopeName, "source")
 
-	suite.mustWaitForEventingCollections(scopeName, []string{"source"})
+	suite.EnsureCollectionsOnAllNodes(scopeName, []string{"source"})
 
 	fnName := uuid.New().String()
 	expectedFn := EventingFunction{
@@ -268,7 +271,7 @@ func (suite *IntegrationTestSuite) TestEventingManagerSameSourceAndMetaKeyspace(
 	defer suite.dropScope(scopeName)
 	suite.mustCreateCollection(scopeName, "source")
 
-	suite.mustWaitForEventingCollections(scopeName, []string{"source"})
+	suite.EnsureCollectionsOnAllNodes(scopeName, []string{"source"})
 
 	fnName := uuid.New().String()
 	expectedFn := EventingFunction{
@@ -309,7 +312,7 @@ func (suite *IntegrationTestSuite) TestEventingManagerDeploysAndUndeploys() {
 	suite.mustCreateCollection(scopeName, "source")
 	suite.mustCreateCollection(scopeName, "meta")
 
-	suite.mustWaitForEventingCollections(scopeName, []string{"source", "meta"})
+	suite.EnsureCollectionsOnAllNodes(scopeName, []string{"source", "meta"})
 
 	fnName := uuid.New().String()
 	expectedFn := EventingFunction{
@@ -337,6 +340,8 @@ func (suite *IntegrationTestSuite) TestEventingManagerDeploysAndUndeploys() {
 		return true
 	})
 	suite.Require().True(success, "Upsert function did not succeed in time")
+
+	suite.EnsureEveningFunctionOnAllNodes(time.Now().Add(30*time.Second), fnName)
 
 	actualFn, err := mgr.GetFunction(fnName, nil)
 	suite.Require().Nil(err, err)
@@ -413,7 +418,7 @@ func (suite *IntegrationTestSuite) TestEventingManagerPausesAndResumes() {
 	suite.mustCreateCollection(scopeName, "source")
 	suite.mustCreateCollection(scopeName, "meta")
 
-	suite.mustWaitForEventingCollections(scopeName, []string{"source", "meta"})
+	suite.EnsureCollectionsOnAllNodes(scopeName, []string{"source", "meta"})
 
 	fnName := uuid.New().String()
 	expectedFn := EventingFunction{
@@ -441,6 +446,8 @@ func (suite *IntegrationTestSuite) TestEventingManagerPausesAndResumes() {
 		return true
 	})
 	suite.Require().True(success, "Upsert function did not succeed in time")
+
+	suite.EnsureEveningFunctionOnAllNodes(time.Now().Add(30*time.Second), fnName)
 
 	actualFn, err := mgr.GetFunction(fnName, nil)
 	suite.Require().Nil(err, err)
@@ -559,8 +566,4 @@ func (suite *IntegrationTestSuite) dropCollection(scope, collection string) {
 		ScopeName: scope,
 	}, nil)
 	suite.Require().Nil(err, err)
-}
-
-func (suite *IntegrationTestSuite) mustWaitForEventingCollections(scopeName string, collections []string) {
-	suite.EnsureCollectionsOnAllNodes(scopeName, collections)
 }
