@@ -141,7 +141,7 @@ func (cm *collectionsManagementProviderCore) CreateCollection(spec CollectionSpe
 	}
 	if spec.History != nil {
 		if cm.featureVerifier.BucketCapabilityStatus(gocbcore.BucketCapabilityNonDedupedHistory) == gocbcore.BucketCapabilityStatusUnsupported {
-			return wrapError(ErrFeatureNotAvailable, "history is unsupported by the server, are you using a bucket with the magma storage engine?")
+			return wrapError(ErrFeatureNotAvailable, "history retention is not supported - note that both server 7.2+ and Magma storage engine must be used")
 		}
 		posts.Add("history", fmt.Sprintf("%t", spec.History.Enabled))
 	}
@@ -216,7 +216,7 @@ func (cm *collectionsManagementProviderCore) UpdateCollection(spec CollectionSpe
 	}
 	if spec.History != nil {
 		if cm.featureVerifier.BucketCapabilityStatus(gocbcore.BucketCapabilityNonDedupedHistory) == gocbcore.BucketCapabilityStatusUnsupported {
-			return wrapError(ErrFeatureNotAvailable, "history is unsupported by the server, are you using a bucket with the magma storage engine?")
+			return wrapError(ErrFeatureNotAvailable, "history retention is not supported - note that both server 7.2+ and Magma storage engine must be used")
 		}
 		posts.Add("history", fmt.Sprintf("%t", spec.History.Enabled))
 	}
