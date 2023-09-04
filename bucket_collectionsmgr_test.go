@@ -741,7 +741,12 @@ func (suite *IntegrationTestSuite) TestCollectionHistoryRetentionUnsupported() {
 	suite.Require().NoError(err)
 	defer bMgr.DropBucket(bName, nil)
 
-	mgr := globalCluster.Bucket(bName).Collections()
+	bucket := globalCluster.Bucket(bName)
+	err = bucket.WaitUntilReady(10*time.Second, &WaitUntilReadyOptions{
+		ServiceTypes: []ServiceType{ServiceTypeKeyValue},
+	})
+
+	mgr := bucket.Collections()
 	scopeName := "a" + uuid.NewString()[:6]
 	err = mgr.CreateScope(scopeName, nil)
 	suite.Require().NoError(err)
