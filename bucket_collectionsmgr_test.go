@@ -634,7 +634,14 @@ func (suite *IntegrationTestSuite) TestCollectionHistoryRetention() {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(HistoryRetentionFeature)
 
-	bMgr := globalCluster.Buckets()
+	cluster, err := Connect(globalConfig.connstr, ClusterOptions{
+		Authenticator:  globalConfig.Auth,
+		SecurityConfig: globalConfig.SecurityConfig,
+	})
+	suite.Require().NoError(err)
+	defer cluster.Close(nil)
+
+	bMgr := cluster.Buckets()
 	bName := "a" + uuid.NewString()[:6]
 	settings := BucketSettings{
 		Name:           bName,
@@ -643,7 +650,7 @@ func (suite *IntegrationTestSuite) TestCollectionHistoryRetention() {
 		StorageBackend: StorageBackendMagma,
 	}
 
-	err := bMgr.CreateBucket(CreateBucketSettings{
+	err = bMgr.CreateBucket(CreateBucketSettings{
 		BucketSettings:         settings,
 		ConflictResolutionType: ConflictResolutionTypeSequenceNumber,
 	}, nil)
@@ -711,7 +718,14 @@ func (suite *IntegrationTestSuite) TestCollectionHistoryRetentionUnsupported() {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(HistoryRetentionFeature)
 
-	bMgr := globalCluster.Buckets()
+	cluster, err := Connect(globalConfig.connstr, ClusterOptions{
+		Authenticator:  globalConfig.Auth,
+		SecurityConfig: globalConfig.SecurityConfig,
+	})
+	suite.Require().NoError(err)
+	defer cluster.Close(nil)
+
+	bMgr := cluster.Buckets()
 	bName := "a" + uuid.NewString()[:6]
 	settings := BucketSettings{
 		Name:           bName,
@@ -720,7 +734,7 @@ func (suite *IntegrationTestSuite) TestCollectionHistoryRetentionUnsupported() {
 		StorageBackend: StorageBackendCouchstore,
 	}
 
-	err := bMgr.CreateBucket(CreateBucketSettings{
+	err = bMgr.CreateBucket(CreateBucketSettings{
 		BucketSettings:         settings,
 		ConflictResolutionType: ConflictResolutionTypeSequenceNumber,
 	}, nil)
