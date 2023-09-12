@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -25,12 +26,12 @@ func (suite *IntegrationTestSuite) TestSearchIndexesCrud() {
 
 	indexName := suite.newSearchIndexName()
 
-	err := mgr.UpsertIndex(SearchIndex{
-		Name:       indexName,
-		Type:       "fulltext-index",
-		SourceType: "couchbase",
-		SourceName: globalBucket.Name(),
-	}, nil)
+	source := []byte(fmt.Sprintf(`{"name":"%s","type":"fulltext-index","sourceType":"couchbase","sourceName":"%s"}`, indexName, globalBucket.Name()))
+	var upsertIndex SearchIndex
+	err := json.Unmarshal(source, &upsertIndex)
+	suite.Require().NoError(err)
+
+	err = mgr.UpsertIndex(upsertIndex, nil)
 	if err != nil {
 		suite.T().Fatalf("Expected UpsertIndex err to be nil but was %v", err)
 	}
@@ -84,6 +85,13 @@ func (suite *IntegrationTestSuite) TestSearchIndexesCrud() {
 	if err != nil {
 		suite.T().Fatalf("Expected GetIndex err to be nil but was %v", err)
 	}
+
+	indexBytes, err := json.Marshal(index)
+	suite.Require().NoError(err)
+
+	var unmarhsalledIndex SearchIndex
+	err = json.Unmarshal(indexBytes, &unmarhsalledIndex)
+	suite.Require().NoError(err)
 
 	_, err = mgr.GetIndex("testindexthatdoesnotexist", nil)
 	if !errors.Is(err, ErrIndexNotFound) {
@@ -283,4 +291,32 @@ func (suite *UnitTestSuite) TestSearchIndexesAnalyzeDocumentCore() {
 	suite.Require().Nil(err, err)
 
 	suite.Require().NotNil(res)
+}
+
+func (suite *UnitTestSuite) TestSearchIndexSerialization() {
+	source := []byte(`{"name":"test","type":"fulltext-index","sourceType":"couchbase","sourceName":"bucket"}`)
+	var index SearchIndex
+	err := json.Unmarshal(source, &index)
+	suite.Require().NoError(err)
+
+	b, err := json.Marshal(index)
+	suite.Require().NoError(err)
+
+	var index2 SearchIndex
+	err = json.Unmarshal(b, &index2)
+	suite.Require().NoError(err)
+
+	suite.Assert().Equal(index, index2)
+
+}
+
+func (suite *UnitTestSuite) TestSearchIndexCanDeserializeFromUI() {
+	data, err := loadRawTestDataset("uisearchindex")
+	suite.Require().NoError(err)
+
+	var index SearchIndex
+	err = json.Unmarshal(data, &index)
+	suite.Require().NoError(err)
+
+	suite.Assert().Equal("test", index.Name)
 }

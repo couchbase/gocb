@@ -1,0 +1,48 @@
+{
+  "name": "test",
+  "type": "fulltext-index",
+  "params": {
+    "mapping": {
+      "default_mapping": {
+        "enabled": true,
+        "dynamic": true
+      },
+      "default_type": "_default",
+      "default_analyzer": "standard",
+      "default_datetime_parser": "dateTimeOptional",
+      "default_field": "_all",
+      "analysis": {
+        "char_filters": {
+          "a": {
+            "regexp": "",
+            "replace": "",
+            "type": "regexp"
+          }
+        }
+      },
+      "store_dynamic": false,
+      "index_dynamic": true,
+      "docvalues_dynamic": false
+    },
+    "store": {
+      "indexType": "scorch",
+      "kvStoreName": ""
+    },
+    "doc_config": {
+      "mode": "type_field",
+      "type_field": "type",
+      "docid_prefix_delim": "",
+      "docid_regexp": ""
+    }
+  },
+  "sourceType": "couchbase",
+  "sourceName": "default",
+  "sourceUUID": "9575a0cc8ecfa8bad6168b8d0a4fd411",
+  "sourceParams": {},
+  "planParams": {
+    "maxPartitionsPerPIndex": 512,
+    "numReplicas": 2,
+    "indexPartitions": 2
+  },
+  "uuid": ""
+}

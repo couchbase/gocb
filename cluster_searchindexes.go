@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 )
 
@@ -27,6 +28,25 @@ type SearchIndex struct {
 	SourceType string
 	// PlanParams are plan properties such as number of replicas and number of partitions.
 	PlanParams map[string]interface{}
+}
+
+func (si *SearchIndex) UnmarshalJSON(bytes []byte) error {
+	var index jsonSearchIndex
+	err := json.Unmarshal(bytes, &index)
+	if err != nil {
+		return err
+	}
+
+	return si.fromData(index)
+}
+
+func (si *SearchIndex) MarshalJSON() ([]byte, error) {
+	index, err := si.toData()
+	if err != nil {
+		return nil, err
+	}
+
+	return json.Marshal(index)
 }
 
 func (si *SearchIndex) fromData(data jsonSearchIndex) error {
