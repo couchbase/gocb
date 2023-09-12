@@ -63,14 +63,16 @@ func (suite *IntegrationTestSuite) TestBucketMgrOps() {
 
 	suite.Assert().NotNilf(b, "Test bucket was not found in list of bucket settings, %v", buckets)
 
-	suite.Assert().True(suite.tryUntil(time.Now().Add(5*time.Second), 50*time.Millisecond, func() bool {
-		err = mgr.FlushBucket("test22", nil)
-		if err != nil {
-			suite.T().Logf("Flush bucket failed with %s", err)
-			return false
-		}
-		return true
-	}), "Flush bucket did not succeed in time")
+	if globalCluster.SupportsFeature(FlushBucketFeature) {
+		suite.Assert().True(suite.tryUntil(time.Now().Add(5*time.Second), 50*time.Millisecond, func() bool {
+			err = mgr.FlushBucket("test22", nil)
+			if err != nil {
+				suite.T().Logf("Flush bucket failed with %s", err)
+				return false
+			}
+			return true
+		}), "Flush bucket did not succeed in time")
+	}
 
 	suite.Assert().True(suite.tryUntil(time.Now().Add(5*time.Second), 50*time.Millisecond, func() bool {
 		err = mgr.DropBucket("test22", nil)
@@ -85,12 +87,15 @@ func (suite *IntegrationTestSuite) TestBucketMgrOps() {
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_bucket_update_bucket"), 1, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_bucket_get_bucket"), 1, true)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_bucket_get_all_buckets"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_bucket_flush_bucket"), 1, true)
+	if globalCluster.SupportsFeature(FlushBucketFeature) {
+		suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_bucket_flush_bucket"), 1, true)
+	}
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_bucket_drop_bucket"), 1, true)
 }
 
 func (suite *IntegrationTestSuite) TestBucketMgrFlushDisabled() {
 	suite.skipIfUnsupported(BucketMgrFeature)
+	suite.skipIfUnsupported(FlushBucketFeature)
 
 	mgr := globalCluster.Buckets()
 
@@ -415,6 +420,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrMinDurability() {
 
 func (suite *IntegrationTestSuite) TestBucketMgrFlushBucketNotFound() {
 	suite.skipIfUnsupported(BucketMgrFeature)
+	suite.skipIfUnsupported(FlushBucketFeature)
 
 	mgr := globalCluster.Buckets()
 

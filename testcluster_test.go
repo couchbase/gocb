@@ -98,6 +98,7 @@ var (
 	SubdocReplicaReadsFeature                 = FeatureCode("subdocreplicas")
 	HistoryRetentionFeature                   = FeatureCode("historyretention")
 	QueryMB57673Feature                       = FeatureCode("mb57673")
+	FlushBucketFeature                        = FeatureCode("flushbucket")
 )
 
 type TestFeatureFlag struct {
@@ -235,6 +236,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case HistoryRetentionFeature:
 			supported = false
+		case FlushBucketFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -271,7 +274,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case AnalyticsIndexFeature:
 			supported = !c.Version.Lower(srvVer600) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(srvVer750) && !c.Version.Equal(protostellarVer)
 		case BucketMgrFeature:
-			supported = !c.Version.Equal(srvVer750) && !c.Version.Equal(protostellarVer)
+			supported = !c.Version.Equal(srvVer750)
 		case SearchAnalyzeFeature:
 			supported = !c.Version.Lower(srvVer650) && !c.Version.Equal(srvVer650DP)
 		case AnalyticsIndexPendingMutationsFeature:
@@ -295,17 +298,17 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case ReplicasFeature:
 			supported = true
 		case QueryIndexFeature:
-			supported = !c.Version.Equal(srvVer650DP) && !c.Version.Equal(protostellarVer)
+			supported = !c.Version.Equal(srvVer650DP)
 		case CollectionsQueryFeature:
 			supported = !c.Version.Lower(srvVer700)
 		case CollectionsAnalyticsFeature:
 			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(srvVer750) && !c.Version.Equal(protostellarVer)
 		case CollectionsManagerFeature:
-			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(protostellarVer)
+			supported = !c.Version.Lower(srvVer700)
 		case CollectionsManagerMaxCollectionsFeature:
 			supported = false
 		case BucketMgrDurabilityFeature:
-			supported = !c.Version.Lower(srvVer660) && !c.Version.Equal(protostellarVer)
+			supported = !c.Version.Lower(srvVer660)
 		case AnalyticsIndexLinksFeature:
 			supported = !c.Version.Lower(srvVer660) && !c.Version.Equal(protostellarVer)
 		case AnalyticsIndexLinksScopesFeature:
@@ -317,7 +320,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case EventingFunctionManagerFeature:
 			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(srvVer750) && !c.Version.Equal(protostellarVer)
 		case StorageBackendFeature:
-			supported = !c.Version.Lower(srvVer710) && (c.Version.Edition != CommunityNodeEdition) && !c.Version.Equal(protostellarVer)
+			supported = !c.Version.Lower(srvVer710) && (c.Version.Edition != CommunityNodeEdition)
 		case HLCFeature:
 			supported = !c.Version.Lower(srvVer660)
 		case TransactionsFeature:
@@ -358,6 +361,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer720) && !c.Version.Equal(protostellarVer)
 		case QueryMB57673Feature:
 			supported = !c.Version.Equal(srvVer720)
+		case FlushBucketFeature:
+			supported = !c.Version.Equal(protostellarVer)
 		}
 	}
 

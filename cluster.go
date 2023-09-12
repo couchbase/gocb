@@ -540,6 +540,15 @@ func (c *Cluster) getHTTPProvider() (httpProvider, error) {
 	return provider, nil
 }
 
+func (c *Cluster) getbucketManagementProvider() (bucketManagementProvider, error) {
+	provider, err := c.connectionManager.getBucketManagementProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}
+
 // Users returns a UserManager for managing users.
 func (c *Cluster) Users() *UserManager {
 	return &UserManager{
@@ -552,9 +561,7 @@ func (c *Cluster) Users() *UserManager {
 // Buckets returns a BucketManager for managing buckets.
 func (c *Cluster) Buckets() *BucketManager {
 	return &BucketManager{
-		provider: c,
-		tracer:   c.tracer,
-		meter:    c.meter,
+		getProvider: c.getbucketManagementProvider,
 	}
 }
 

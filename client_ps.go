@@ -117,6 +117,15 @@ func (c *psConnectionMgr) getCollectionsManagementProvider(bucketName string) (c
 	}, nil
 }
 
+func (c *psConnectionMgr) getBucketManagementProvider() (bucketManagementProvider, error) {
+	return &bucketManagementProviderPs{
+		provider:       c.agent.BucketV1(),
+		defaultTimeout: c.timeouts.ManagementTimeout,
+		tracer:         c.tracer,
+		meter:          c.meter,
+	}, nil
+}
+
 func (c *psConnectionMgr) getAnalyticsProvider() (analyticsProvider, error) {
 	return &analyticsProviderWrapper{}, ErrFeatureNotAvailable
 }

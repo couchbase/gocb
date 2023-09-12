@@ -21,6 +21,7 @@ type connectionManager interface {
 	getDiagnosticsProvider(bucketName string) (diagnosticsProvider, error)
 	getWaitUntilReadyProvider(bucketName string) (waitUntilReadyProvider, error)
 	getCollectionsManagementProvider(bucketName string) (collectionsManagementProvider, error)
+	getBucketManagementProvider() (bucketManagementProvider, error)
 	getSearchIndexProvider() (searchIndexProvider, error)
 }
 
