@@ -657,11 +657,10 @@ func (suite *IntegrationTestSuite) TestCollectionHistoryRetention() {
 	suite.Require().NoError(err)
 	defer bMgr.DropBucket(bName, nil)
 
-	mgr := globalCluster.Bucket(bName).Collections()
+	mgr := cluster.Bucket(bName).Collections()
 	scopeName := "a" + uuid.NewString()[:6]
 	err = mgr.CreateScope(scopeName, nil)
 	suite.Require().NoError(err)
-	defer mgr.DropScope(scopeName, nil)
 
 	colName := "a" + uuid.NewString()[:6]
 	err = mgr.CreateCollection(CollectionSpec{
@@ -739,9 +738,8 @@ func (suite *IntegrationTestSuite) TestCollectionHistoryRetentionUnsupported() {
 		ConflictResolutionType: ConflictResolutionTypeSequenceNumber,
 	}, nil)
 	suite.Require().NoError(err)
-	defer bMgr.DropBucket(bName, nil)
 
-	bucket := globalCluster.Bucket(bName)
+	bucket := cluster.Bucket(bName)
 	err = bucket.WaitUntilReady(10*time.Second, &WaitUntilReadyOptions{
 		ServiceTypes: []ServiceType{ServiceTypeKeyValue},
 	})
