@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/grpc/status"
-
 	"github.com/couchbase/goprotostellar/genproto/admin_query_v1"
 )
 
@@ -420,35 +418,25 @@ func (qpc *queryIndexProviderPs) makeKeyspace(c *Collection, bucketName, scopeNa
 }
 
 func (qpc *queryIndexProviderPs) handleError(err error) error {
-	st, ok := status.FromError(err)
-	if !ok {
-		return &QueryError{
-			InnerError: err,
-		}
-	}
-	gocbErr := tryMapPsErrorStatusToGocbError(st, false)
+	gocbErr := mapPsErrorToGocbError(err, false)
 	if errors.Is(gocbErr, ErrInternalServerFailure) {
-		gocbErr = qpc.tryParseErrorMessage(st)
-	}
-	if gocbErr == nil {
-		gocbErr = err
+		gocbErr = qpc.tryParseErrorMessage(gocbErr)
 	}
 
-	return &QueryError{
-		InnerError: gocbErr,
-		Errors: []QueryErrorDesc{
-			{
-				Code:    uint32(st.Code()),
-				Message: st.Message(),
-			},
-		},
-	}
-
+	return gocbErr
 }
 
 // tryParseErrorMessage is temporary until protostellar gives us the correct errors.
-func (qpc *queryIndexProviderPs) tryParseErrorMessage(st *status.Status) error {
-	msg := strings.ToLower(st.Message())
+func (qpc *queryIndexProviderPs) tryParseErrorMessage(err *GenericError) *GenericError {
+	server, ok := err.Context["server"]
+	if !ok {
+		return err
+	}
+	msg, ok := server.(string)
+	if !ok {
+		return err
+	}
+
 	var innerErr error
 	if strings.Contains(msg, " 12016 ") {
 		innerErr = ErrIndexNotFound
@@ -457,16 +445,8 @@ func (qpc *queryIndexProviderPs) tryParseErrorMessage(st *status.Status) error {
 	}
 
 	if innerErr == nil {
-		return nil
+		return err
 	}
 
-	return &QueryError{
-		InnerError: innerErr,
-		Errors: []QueryErrorDesc{
-			{
-				Code:    uint32(st.Code()),
-				Message: st.Message(),
-			},
-		},
-	}
+	return makeGenericError(innerErr, err.Context)
 }

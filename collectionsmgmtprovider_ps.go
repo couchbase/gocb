@@ -4,8 +4,6 @@ import (
 	"context"
 	"time"
 
-	"google.golang.org/grpc/status"
-
 	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
 )
 
@@ -44,16 +42,7 @@ func (cm *collectionsManagementProviderPs) GetAllScopes(opts *GetAllScopesOption
 
 	resp, err := cm.provider.ListCollections(ctx, req)
 	if err != nil {
-		st, ok := status.FromError(err)
-		if !ok {
-			return nil, makeGenericMgmtError(err, nil, nil, err.Error())
-		}
-		gocbErr := tryMapPsErrorStatusToGocbError(st, true)
-		if gocbErr == nil {
-			gocbErr = err
-		}
-
-		return nil, makeGenericMgmtError(gocbErr, nil, nil, err.Error())
+		return nil, mapPsErrorToGocbError(err, true)
 	}
 
 	var scopes []ScopeSpec
@@ -110,16 +99,7 @@ func (cm *collectionsManagementProviderPs) CreateCollection(spec CollectionSpec,
 
 	_, err := cm.provider.CreateCollection(ctx, req)
 	if err != nil {
-		st, ok := status.FromError(err)
-		if !ok {
-			return makeGenericMgmtError(err, nil, nil, err.Error())
-		}
-		gocbErr := tryMapPsErrorStatusToGocbError(st, false)
-		if gocbErr == nil {
-			gocbErr = err
-		}
-
-		return makeGenericMgmtError(gocbErr, nil, nil, err.Error())
+		return mapPsErrorToGocbError(err, false)
 	}
 
 	return nil
@@ -160,16 +140,7 @@ func (cm *collectionsManagementProviderPs) DropCollection(spec CollectionSpec, o
 
 	_, err := cm.provider.DeleteCollection(ctx, req)
 	if err != nil {
-		st, ok := status.FromError(err)
-		if !ok {
-			return makeGenericMgmtError(err, nil, nil, err.Error())
-		}
-		gocbErr := tryMapPsErrorStatusToGocbError(st, false)
-		if gocbErr == nil {
-			gocbErr = err
-		}
-
-		return makeGenericMgmtError(gocbErr, nil, nil, err.Error())
+		return mapPsErrorToGocbError(err, false)
 	}
 
 	return nil
@@ -204,16 +175,7 @@ func (cm *collectionsManagementProviderPs) CreateScope(scopeName string, opts *C
 
 	_, err := cm.provider.CreateScope(ctx, req)
 	if err != nil {
-		st, ok := status.FromError(err)
-		if !ok {
-			return makeGenericMgmtError(err, nil, nil, err.Error())
-		}
-		gocbErr := tryMapPsErrorStatusToGocbError(st, false)
-		if gocbErr == nil {
-			gocbErr = err
-		}
-
-		return makeGenericMgmtError(gocbErr, nil, nil, err.Error())
+		return mapPsErrorToGocbError(err, false)
 	}
 
 	return nil
@@ -248,16 +210,7 @@ func (cm *collectionsManagementProviderPs) DropScope(scopeName string, opts *Dro
 
 	_, err := cm.provider.DeleteScope(ctx, req)
 	if err != nil {
-		st, ok := status.FromError(err)
-		if !ok {
-			return makeGenericMgmtError(err, nil, nil, err.Error())
-		}
-		gocbErr := tryMapPsErrorStatusToGocbError(st, false)
-		if gocbErr == nil {
-			gocbErr = err
-		}
-
-		return makeGenericMgmtError(gocbErr, nil, nil, err.Error())
+		return mapPsErrorToGocbError(err, false)
 	}
 
 	return nil

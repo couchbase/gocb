@@ -8,8 +8,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"google.golang.org/grpc/status"
-
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
 
@@ -202,24 +200,13 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 }
 
 func (qpc *queryProviderPs) makeError(err error, statement string, readonly, hasTimedOut bool, start time.Time) error {
-
-	st, ok := status.FromError(err)
-	if !ok {
-		return &QueryError{
-			InnerError: err,
-			Statement:  statement,
-		}
-	}
-	gocbErr := tryMapPsErrorStatusToGocbError(st, readonly)
-	if gocbErr == nil {
-		gocbErr = err
-	}
+	gocbErr := mapPsErrorToGocbError(err, readonly)
 
 	if errors.Is(err, ErrRequestCanceled) && hasTimedOut {
 		if readonly {
-			gocbErr = ErrUnambiguousTimeout
+			gocbErr.InnerError = ErrUnambiguousTimeout
 		} else {
-			gocbErr = ErrAmbiguousTimeout
+			gocbErr.InnerError = ErrAmbiguousTimeout
 		}
 	}
 
@@ -230,16 +217,12 @@ func (qpc *queryProviderPs) makeError(err error, statement string, readonly, has
 		}
 	}
 
-	return &QueryError{
-		InnerError: gocbErr,
-		Statement:  statement,
-		Errors: []QueryErrorDesc{
-			{
-				Code:    uint32(st.Code()),
-				Message: st.Message(),
-			},
-		},
+	if gocbErr.Context == nil {
+		gocbErr.Context = make(map[string]interface{})
 	}
+	gocbErr.Context["statement"] = statement
+
+	return gocbErr
 }
 
 type queryProviderPsRowReader struct {
@@ -287,27 +270,14 @@ func (q *queryProviderPsRowReader) Err() error {
 	if q.err == nil {
 		return nil
 	}
-	st, ok := status.FromError(q.err)
-	if !ok {
-		return &QueryError{
-			InnerError: q.err,
-			Statement:  q.statement,
-		}
+
+	gocbErr := mapPsErrorToGocbError(q.err, q.readOnly)
+	if gocbErr.Context == nil {
+		gocbErr.Context = make(map[string]interface{})
 	}
-	gocbErr := tryMapPsErrorStatusToGocbError(st, q.readOnly)
-	if gocbErr == nil {
-		gocbErr = q.err
-	}
-	return &QueryError{
-		InnerError: gocbErr,
-		Statement:  q.statement,
-		Errors: []QueryErrorDesc{
-			{
-				Code:    uint32(st.Code()),
-				Message: st.Message(),
-			},
-		},
-	}
+	gocbErr.Context["statement"] = q.statement
+
+	return gocbErr
 }
 
 func (q *queryProviderPsRowReader) MetaData() ([]byte, error) {

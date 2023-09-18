@@ -7,8 +7,6 @@ import (
 
 	"github.com/couchbase/goprotostellar/genproto/admin_bucket_v1"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
-
-	"google.golang.org/grpc/status"
 )
 
 type bucketManagementProviderPs struct {
@@ -43,30 +41,21 @@ func (bm bucketManagementProviderPs) GetBucket(bucketName string, opts *GetBucke
 
 	resp, err := bm.provider.ListBuckets(ctx, req)
 	if err != nil {
-		st, ok := status.FromError(err)
-		if !ok {
-			return nil, makeGenericMgmtError(err, nil, nil, err.Error())
-		}
-		gocbErr := tryMapPsErrorStatusToGocbError(st, true)
-		if gocbErr == nil {
-			gocbErr = err
-		}
-
-		return nil, makeGenericMgmtError(gocbErr, nil, nil, err.Error())
+		return nil, mapPsErrorToGocbError(err, true)
 	}
 
 	for _, source := range resp.Buckets {
 		if source.BucketName == bucketName {
 			bucket, err := bm.psBucketToBucket(source)
 			if err != nil {
-				return nil, makeGenericMgmtError(err, nil, nil, err.Error())
+				return nil, makeGenericError(err, nil)
 			}
 
 			return bucket, nil
 		}
 	}
 
-	return nil, makeGenericMgmtError(ErrBucketNotFound, nil, nil, ErrBucketNotFound.Error())
+	return nil, makeGenericError(ErrBucketNotFound, nil)
 }
 
 func (bm bucketManagementProviderPs) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]BucketSettings, error) {
@@ -92,23 +81,14 @@ func (bm bucketManagementProviderPs) GetAllBuckets(opts *GetAllBucketsOptions) (
 
 	resp, err := bm.provider.ListBuckets(ctx, req)
 	if err != nil {
-		st, ok := status.FromError(err)
-		if !ok {
-			return nil, makeGenericMgmtError(err, nil, nil, err.Error())
-		}
-		gocbErr := tryMapPsErrorStatusToGocbError(st, true)
-		if gocbErr == nil {
-			gocbErr = err
-		}
-
-		return nil, makeGenericMgmtError(gocbErr, nil, nil, err.Error())
+		return nil, mapPsErrorToGocbError(err, true)
 	}
 
 	buckets := make(map[string]BucketSettings)
 	for _, source := range resp.Buckets {
 		bucket, err := bm.psBucketToBucket(source)
 		if err != nil {
-			return nil, makeGenericMgmtError(err, nil, nil, err.Error())
+			return nil, makeGenericError(err, nil)
 		}
 
 		buckets[bucket.Name] = *bucket
@@ -128,7 +108,7 @@ func (bm bucketManagementProviderPs) CreateBucket(settings CreateBucketSettings,
 
 	req, err := bm.settingsToCreateReq(settings)
 	if err != nil {
-		return makeGenericMgmtError(err, nil, nil, err.Error())
+		return makeGenericError(err, nil)
 	}
 
 	timeout := opts.Timeout
@@ -144,16 +124,7 @@ func (bm bucketManagementProviderPs) CreateBucket(settings CreateBucketSettings,
 
 	_, err = bm.provider.CreateBucket(ctx, req)
 	if err != nil {
-		st, ok := status.FromError(err)
-		if !ok {
-			return makeGenericMgmtError(err, nil, nil, err.Error())
-		}
-		gocbErr := tryMapPsErrorStatusToGocbError(st, false)
-		if gocbErr == nil {
-			gocbErr = err
-		}
-
-		return makeGenericMgmtError(gocbErr, nil, nil, err.Error())
+		return mapPsErrorToGocbError(err, false)
 	}
 
 	return nil
@@ -170,7 +141,7 @@ func (bm bucketManagementProviderPs) UpdateBucket(settings BucketSettings, opts 
 
 	req, err := bm.settingsToUpdateReq(settings)
 	if err != nil {
-		return makeGenericMgmtError(err, nil, nil, err.Error())
+		return makeGenericError(err, nil)
 	}
 
 	timeout := opts.Timeout
@@ -186,16 +157,7 @@ func (bm bucketManagementProviderPs) UpdateBucket(settings BucketSettings, opts 
 
 	_, err = bm.provider.UpdateBucket(ctx, req)
 	if err != nil {
-		st, ok := status.FromError(err)
-		if !ok {
-			return makeGenericMgmtError(err, nil, nil, err.Error())
-		}
-		gocbErr := tryMapPsErrorStatusToGocbError(st, false)
-		if gocbErr == nil {
-			gocbErr = err
-		}
-
-		return makeGenericMgmtError(gocbErr, nil, nil, err.Error())
+		return mapPsErrorToGocbError(err, false)
 	}
 
 	return nil
@@ -225,16 +187,7 @@ func (bm bucketManagementProviderPs) DropBucket(name string, opts *DropBucketOpt
 
 	_, err := bm.provider.DeleteBucket(ctx, req)
 	if err != nil {
-		st, ok := status.FromError(err)
-		if !ok {
-			return makeGenericMgmtError(err, nil, nil, err.Error())
-		}
-		gocbErr := tryMapPsErrorStatusToGocbError(st, false)
-		if gocbErr == nil {
-			gocbErr = err
-		}
-
-		return makeGenericMgmtError(gocbErr, nil, nil, err.Error())
+		return mapPsErrorToGocbError(err, false)
 	}
 
 	return nil

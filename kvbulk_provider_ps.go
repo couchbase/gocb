@@ -97,7 +97,7 @@ func (p *kvBulkProviderPs) Get(ctx context.Context, item *GetOp, tracectx Reques
 
 	res, err := p.client.Get(ctx, request)
 	if err != nil {
-		item.Err = maybeEnhanceCollKVErr(err, c, item.ID)
+		item.Err = mapPsErrorToGocbError(err, true)
 		signal <- item
 		return
 	}
@@ -136,7 +136,7 @@ func (p *kvBulkProviderPs) GetAndTouch(ctx context.Context, item *GetAndTouchOp,
 
 	res, err := p.client.GetAndTouch(ctx, request)
 	if err != nil {
-		item.Err = maybeEnhanceCollKVErr(err, c, item.ID)
+		item.Err = mapPsErrorToGocbError(err, false)
 		signal <- item
 		return
 	}
@@ -173,7 +173,7 @@ func (p *kvBulkProviderPs) Touch(ctx context.Context, item *TouchOp, tracectx Re
 
 	res, err := p.client.Touch(ctx, request)
 	if err != nil {
-		item.Err = maybeEnhanceCollKVErr(err, c, item.ID)
+		item.Err = mapPsErrorToGocbError(err, false)
 		signal <- item
 		return
 	}
@@ -216,7 +216,7 @@ func (p *kvBulkProviderPs) Remove(ctx context.Context, item *RemoveOp, tracectx 
 
 	res, err := p.client.Remove(ctx, request)
 	if err != nil {
-		item.Err = maybeEnhanceCollKVErr(err, c, item.ID)
+		item.Err = mapPsErrorToGocbError(err, false)
 		signal <- item
 		return
 	}
@@ -269,7 +269,7 @@ func (p *kvBulkProviderPs) Upsert(ctx context.Context, item *UpsertOp, tracectx 
 
 	res, err := p.client.Upsert(ctx, request)
 	if err != nil {
-		item.Err = maybeEnhanceCollKVErr(err, c, item.ID)
+		item.Err = mapPsErrorToGocbError(err, false)
 		signal <- item
 		return
 	}
@@ -322,7 +322,7 @@ func (p *kvBulkProviderPs) Insert(ctx context.Context, item *InsertOp, tracectx 
 
 	res, err := p.client.Insert(ctx, request)
 	if err != nil {
-		item.Err = maybeEnhanceCollKVErr(err, c, item.ID)
+		item.Err = mapPsErrorToGocbError(err, false)
 		signal <- item
 		return
 	}
@@ -381,7 +381,7 @@ func (p *kvBulkProviderPs) Replace(ctx context.Context, item *ReplaceOp, tracect
 
 	res, err := p.client.Replace(ctx, request)
 	if err != nil {
-		item.Err = maybeEnhanceCollKVErr(err, c, item.ID)
+		item.Err = mapPsErrorToGocbError(err, false)
 		signal <- item
 		return
 	}
@@ -417,7 +417,7 @@ func (p *kvBulkProviderPs) Append(ctx context.Context, item *AppendOp, tracectx 
 
 	res, err := p.client.Append(ctx, request)
 	if err != nil {
-		item.Err = maybeEnhanceCollKVErr(err, c, item.ID)
+		item.Err = mapPsErrorToGocbError(err, false)
 		signal <- item
 		return
 	}
@@ -453,7 +453,7 @@ func (p *kvBulkProviderPs) Prepend(ctx context.Context, item *PrependOp, tracect
 
 	res, err := p.client.Prepend(ctx, request)
 	if err != nil {
-		item.Err = maybeEnhanceCollKVErr(err, c, item.ID)
+		item.Err = mapPsErrorToGocbError(err, false)
 		signal <- item
 		return
 	}
@@ -496,7 +496,7 @@ func (p *kvBulkProviderPs) Increment(ctx context.Context, item *IncrementOp, tra
 
 	res, err := p.client.Increment(ctx, request)
 	if err != nil {
-		item.Err = maybeEnhanceCollKVErr(err, c, item.ID)
+		item.Err = mapPsErrorToGocbError(err, false)
 		signal <- item
 		return
 	}
@@ -537,7 +537,7 @@ func (p *kvBulkProviderPs) Decrement(ctx context.Context, item *DecrementOp, tra
 
 	res, err := p.client.Decrement(ctx, request)
 	if err != nil {
-		item.Err = maybeEnhanceCollKVErr(err, c, item.ID)
+		item.Err = mapPsErrorToGocbError(err, false)
 		signal <- item
 		return
 	}

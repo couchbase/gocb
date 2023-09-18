@@ -2,7 +2,6 @@ package gocb
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"google.golang.org/grpc/status"
@@ -166,10 +165,7 @@ func (m *kvOpManagerPs) CheckReadyForOp() error {
 }
 
 func (m *kvOpManagerPs) EnhanceErrorStatus(st *status.Status, readOnly bool) error {
-	err := tryMapPsErrorStatusToGocbError(st, readOnly)
-	if err == nil {
-		err = fmt.Errorf("an unknown error occurred: %s", st.Message())
-	}
+	err := mapPsErrorStatusToGocbError(st, readOnly)
 
 	if errors.Is(err, ErrTimeout) {
 		return &TimeoutError{
@@ -180,56 +176,20 @@ func (m *kvOpManagerPs) EnhanceErrorStatus(st *status.Status, readOnly bool) err
 		}
 	}
 
-	return &KeyValueError{
-		InnerError:       err,
-		DocumentID:       m.DocumentID(),
-		BucketName:       m.BucketName(),
-		ScopeName:        m.ScopeName(),
-		CollectionName:   m.CollectionName(),
-		ErrorName:        st.Code().String(),
-		ErrorDescription: st.Message(),
-		RetryReasons:     nil,
-		RetryAttempts:    0,
-	}
+	return err
 }
 
 func (m *kvOpManagerPs) EnhanceErr(err error, readOnly bool) error {
-	st, ok := status.FromError(err)
-	if !ok {
-		return &KeyValueError{
-			InnerError:     err,
-			DocumentID:     m.DocumentID(),
-			BucketName:     m.BucketName(),
-			ScopeName:      m.ScopeName(),
-			CollectionName: m.CollectionName(),
-		}
-	}
-
-	gocbErr := tryMapPsErrorStatusToGocbError(st, readOnly)
-	if gocbErr == nil {
-		gocbErr = err
-	}
+	gocbErr := mapPsErrorToGocbError(err, readOnly)
 
 	if errors.Is(gocbErr, ErrTimeout) {
 		return &TimeoutError{
-			InnerError:    gocbErr,
-			TimeObserved:  time.Since(m.createdTime),
-			RetryReasons:  nil,
-			RetryAttempts: 0,
+			InnerError:   gocbErr,
+			TimeObserved: time.Since(m.createdTime),
 		}
 	}
 
-	return &KeyValueError{
-		InnerError:       gocbErr,
-		DocumentID:       m.DocumentID(),
-		BucketName:       m.BucketName(),
-		ScopeName:        m.ScopeName(),
-		CollectionName:   m.CollectionName(),
-		ErrorName:        st.Code().String(),
-		ErrorDescription: st.Message(),
-		RetryReasons:     nil,
-		RetryAttempts:    0,
-	}
+	return gocbErr
 }
 
 func newKvOpManagerPs(c *Collection, opName string, parentSpan RequestSpan) *kvOpManagerPs {

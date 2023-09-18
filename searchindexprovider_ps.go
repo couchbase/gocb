@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/couchbase/goprotostellar/genproto/admin_search_v1"
-	"google.golang.org/grpc/status"
 )
 
 type searchIndexProviderPs struct {
@@ -34,31 +33,22 @@ func (sip *searchIndexProviderPs) GetAllIndexes(opts *GetAllSearchIndexOptions) 
 
 	resp, err := sip.provider.ListIndexes(ctx, req)
 	if err != nil {
-		st, ok := status.FromError(err)
-		if !ok {
-			return nil, makeGenericMgmtError(err, nil, nil, err.Error())
-		}
-		gocbErr := tryMapPsErrorStatusToGocbError(st, true)
-		if gocbErr == nil {
-			gocbErr = err
-		}
-
-		return nil, makeGenericMgmtError(gocbErr, nil, nil, err.Error())
+		return nil, mapPsErrorToGocbError(err, true)
 	}
 
 	indexes := make([]SearchIndex, len(resp.Indexes))
 	for i, idx := range resp.Indexes {
 		params, err := deserializeBytesMap(idx.Params)
 		if err != nil {
-			return nil, makeGenericMgmtError(err, nil, nil, err.Error())
+			return nil, makeGenericError(err, nil)
 		}
 		sourceParams, err := deserializeBytesMap(idx.Params)
 		if err != nil {
-			return nil, makeGenericMgmtError(err, nil, nil, err.Error())
+			return nil, makeGenericError(err, nil)
 		}
 		planParams, err := deserializeBytesMap(idx.Params)
 		if err != nil {
-			return nil, makeGenericMgmtError(err, nil, nil, err.Error())
+			return nil, makeGenericError(err, nil)
 		}
 
 		index := SearchIndex{
@@ -96,22 +86,22 @@ func (sip *searchIndexProviderPs) GetIndex(indexName string, opts *GetSearchInde
 
 	resp, err := sip.provider.GetIndex(ctx, req)
 	if err != nil {
-		return nil, sip.makeRespError(err)
+		return nil, sip.makeRespError(err, true)
 	}
 
 	idx := resp.Index
 
 	params, err := deserializeBytesMap(idx.Params)
 	if err != nil {
-		return nil, makeGenericMgmtError(err, nil, nil, err.Error())
+		return nil, makeGenericError(err, nil)
 	}
 	sourceParams, err := deserializeBytesMap(idx.Params)
 	if err != nil {
-		return nil, makeGenericMgmtError(err, nil, nil, err.Error())
+		return nil, makeGenericError(err, nil)
 	}
 	planParams, err := deserializeBytesMap(idx.Params)
 	if err != nil {
-		return nil, makeGenericMgmtError(err, nil, nil, err.Error())
+		return nil, makeGenericError(err, nil)
 	}
 
 	return &SearchIndex{
@@ -158,7 +148,7 @@ func (sip *searchIndexProviderPs) updateIndex(ctx context.Context, parentSpan Re
 
 	_, err = sip.provider.UpdateIndex(ctx, req)
 	if err != nil {
-		return sip.makeRespError(err)
+		return sip.makeRespError(err, false)
 	}
 
 	return nil
@@ -204,7 +194,7 @@ func (sip *searchIndexProviderPs) createIndex(ctx context.Context, parentSpan Re
 
 	_, err = sip.provider.CreateIndex(ctx, req)
 	if err != nil {
-		return sip.makeRespError(err)
+		return sip.makeRespError(err, false)
 	}
 
 	return nil
@@ -227,7 +217,7 @@ func (sip *searchIndexProviderPs) DropIndex(indexName string, opts *DropSearchIn
 
 	_, err := sip.provider.DeleteIndex(ctx, req)
 	if err != nil {
-		return sip.makeRespError(err)
+		return sip.makeRespError(err, false)
 	}
 	return nil
 }
@@ -255,13 +245,13 @@ func (sip *searchIndexProviderPs) AnalyzeDocument(indexName string, doc interfac
 
 	resp, err := sip.provider.AnalyzeDocument(ctx, req)
 	if err != nil {
-		return nil, sip.makeRespError(err)
+		return nil, sip.makeRespError(err, true)
 	}
 
 	var analyzed []interface{}
 	err = json.Unmarshal(resp.Analyzed, &analyzed)
 	if err != nil {
-		return nil, sip.makeRespError(err)
+		return nil, sip.makeRespError(err, true)
 	}
 
 	return analyzed, nil
@@ -284,7 +274,7 @@ func (sip *searchIndexProviderPs) GetIndexedDocumentsCount(indexName string, opt
 
 	resp, err := sip.provider.GetIndexedDocumentsCount(ctx, req)
 	if err != nil {
-		return 0, sip.makeRespError(err)
+		return 0, sip.makeRespError(err, true)
 	}
 
 	return resp.Count, nil
@@ -307,7 +297,7 @@ func (sip *searchIndexProviderPs) PauseIngest(indexName string, opts *PauseInges
 
 	_, err := sip.provider.PauseIndexIngest(ctx, req)
 	if err != nil {
-		return sip.makeRespError(err)
+		return sip.makeRespError(err, false)
 	}
 	return nil
 }
@@ -329,7 +319,7 @@ func (sip *searchIndexProviderPs) ResumeIngest(indexName string, opts *ResumeIng
 
 	_, err := sip.provider.ResumeIndexIngest(ctx, req)
 	if err != nil {
-		return sip.makeRespError(err)
+		return sip.makeRespError(err, false)
 	}
 	return nil
 }
@@ -351,7 +341,7 @@ func (sip *searchIndexProviderPs) AllowQuerying(indexName string, opts *AllowQue
 
 	_, err := sip.provider.AllowIndexQuerying(ctx, req)
 	if err != nil {
-		return sip.makeRespError(err)
+		return sip.makeRespError(err, false)
 	}
 	return nil
 }
@@ -373,7 +363,7 @@ func (sip *searchIndexProviderPs) DisallowQuerying(indexName string, opts *Allow
 
 	_, err := sip.provider.DisallowIndexQuerying(ctx, req)
 	if err != nil {
-		return sip.makeRespError(err)
+		return sip.makeRespError(err, false)
 	}
 	return nil
 }
@@ -395,7 +385,7 @@ func (sip *searchIndexProviderPs) FreezePlan(indexName string, opts *AllowQueryi
 
 	_, err := sip.provider.FreezeIndexPlan(ctx, req)
 	if err != nil {
-		return sip.makeRespError(err)
+		return sip.makeRespError(err, false)
 	}
 	return nil
 }
@@ -417,7 +407,7 @@ func (sip *searchIndexProviderPs) UnfreezePlan(indexName string, opts *AllowQuer
 
 	_, err := sip.provider.UnfreezeIndexPlan(ctx, req)
 	if err != nil {
-		return sip.makeRespError(err)
+		return sip.makeRespError(err, false)
 	}
 	return nil
 }
@@ -432,17 +422,8 @@ func (sip *searchIndexProviderPs) makeReqContext(ctx context.Context, timeout ti
 	return context.WithTimeout(ctx, timeout)
 }
 
-func (sip *searchIndexProviderPs) makeRespError(err error) error {
-	st, ok := status.FromError(err)
-	if !ok {
-		return makeGenericMgmtError(err, nil, nil, err.Error())
-	}
-	gocbErr := tryMapPsErrorStatusToGocbError(st, true)
-	if gocbErr == nil {
-		gocbErr = err
-	}
-
-	return makeGenericMgmtError(gocbErr, nil, nil, err.Error())
+func (sip *searchIndexProviderPs) makeRespError(err error, readOnly bool) error {
+	return mapPsErrorToGocbError(err, readOnly)
 }
 
 func (sip *searchIndexProviderPs) makeIndex(idx SearchIndex) (*admin_search_v1.Index, error) {

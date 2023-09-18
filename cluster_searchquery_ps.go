@@ -9,8 +9,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"google.golang.org/grpc/status"
-
 	cbsearch "github.com/couchbase/gocb/v2/search"
 	"github.com/couchbase/goprotostellar/genproto/search_v1"
 )
@@ -150,21 +148,10 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 }
 
 func (search *searchProviderPs) makeError(err error, query interface{}, hasTimedOut bool, start time.Time) error {
-	st, ok := status.FromError(err)
-	if !ok {
-		return &SearchError{
-			InnerError: err,
-			Query:      query,
-		}
-	}
-
-	gocbErr := tryMapPsErrorStatusToGocbError(st, true)
-	if gocbErr == nil {
-		gocbErr = err
-	}
+	gocbErr := mapPsErrorToGocbError(err, true)
 
 	if errors.Is(err, ErrRequestCanceled) && hasTimedOut {
-		gocbErr = ErrUnambiguousTimeout
+		gocbErr.InnerError = ErrUnambiguousTimeout
 	}
 
 	if errors.Is(gocbErr, ErrTimeout) {
@@ -174,11 +161,12 @@ func (search *searchProviderPs) makeError(err error, query interface{}, hasTimed
 		}
 	}
 
-	return &SearchError{
-		InnerError: gocbErr,
-		Query:      query,
-		ErrorText:  st.Message(),
+	if gocbErr.Context == nil {
+		gocbErr.Context = make(map[string]interface{})
 	}
+	gocbErr.Context["query"] = query
+
+	return gocbErr
 }
 
 // wrapper around the PS result to make it compatible with
@@ -283,24 +271,8 @@ func (reader *psSearchRowReader) Err() error {
 	if err == nil {
 		return nil
 	}
-	st, ok := status.FromError(err)
-	if !ok {
-		return &SearchError{
-			InnerError: err,
-			Query:      reader.query,
-		}
-	}
 
-	gocbErr := tryMapPsErrorStatusToGocbError(st, true)
-	if gocbErr == nil {
-		gocbErr = err
-	}
-
-	return &SearchError{
-		InnerError: gocbErr,
-		Query:      reader.query,
-		ErrorText:  st.Message(),
-	}
+	return mapPsErrorToGocbError(err, true)
 }
 
 func (reader *psSearchRowReader) finishWithoutError() {

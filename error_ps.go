@@ -27,7 +27,21 @@ const (
 	resourceTypeSearchIndex = "searchindex"
 )
 
-func tryMapPsErrorStatusToGocbError(st *status.Status, readOnly bool) error {
+func mapPsErrorToGocbError(err error, readOnly bool) *GenericError {
+	st, ok := status.FromError(err)
+	if !ok {
+		return makeGenericError(err, nil)
+	}
+
+	return mapPsErrorStatusToGocbError(st, readOnly)
+}
+
+func mapPsErrorStatusToGocbError(st *status.Status, readOnly bool) *GenericError {
+	context := map[string]interface{}{
+		"server":  st.Message(),
+		"details": len(st.Details()),
+	}
+
 	code := st.Code()
 	details := st.Details()
 	if len(details) > 0 {
@@ -53,6 +67,9 @@ func tryMapPsErrorStatusToGocbError(st *status.Status, readOnly bool) error {
 				}
 			}
 		case *errdetails.ResourceInfo:
+			context["resource_name"] = d.ResourceName
+			context["resource_type"] = d.ResourceType
+
 			if code == codes.NotFound {
 				switch d.ResourceType {
 				case resourceTypeDocument:
@@ -90,7 +107,7 @@ func tryMapPsErrorStatusToGocbError(st *status.Status, readOnly bool) error {
 			}
 		}
 		if baseErr != nil {
-			return baseErr
+			return makeGenericError(baseErr, context)
 		}
 	}
 
@@ -126,7 +143,9 @@ func tryMapPsErrorStatusToGocbError(st *status.Status, readOnly bool) error {
 		baseErr = wrapError(ErrFeatureNotAvailable, st.Message())
 	case codes.Unavailable:
 		baseErr = ErrServiceNotAvailable
+	default:
+		baseErr = st.Err()
 	}
 
-	return baseErr
+	return makeGenericError(baseErr, context)
 }

@@ -253,7 +253,7 @@ func (p *kvProviderPs) MutateIn(c *Collection, id string, ops []MutateInSpec, op
 
 		// GOCBC-1019: Due to a previous bug in gocbcore we need to convert cas mismatch back to exists to match classic
 		// behaviour.
-		if kvErr, ok := err.(*KeyValueError); ok {
+		if kvErr, ok := err.(*GenericError); ok {
 			if errors.Is(kvErr.InnerError, ErrCasMismatch) {
 				kvErr.InnerError = ErrDocumentExists
 			}
