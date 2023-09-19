@@ -326,6 +326,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 	suite.skipIfUnsupported(QueryIndexFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 	suite.skipIfUnsupported(ClusterLevelQueryFeature)
+	suite.skipIfUnsupported(QueryMB57673Feature)
 
 	suite.dropAllIndexes()
 	bucketName := globalBucket.Name()
@@ -338,7 +339,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 	}, nil)
 	suite.Require().Nil(err, err)
 
-	suite.EnsureCollectionsOnAllNodes("_default", []string{colName})
+	suite.EnsureCollectionOnAllIndexesAndNodes(time.Now().Add(20*time.Second), bucketName, "_default", colName)
 
 	mgr := globalCluster.QueryIndexes()
 
@@ -388,6 +389,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 	suite.skipIfUnsupported(QueryIndexFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 	suite.skipIfUnsupported(ClusterLevelQueryFeature)
+	suite.skipIfUnsupported(QueryMB57673Feature)
 
 	suite.dropAllIndexes()
 	bucketName := globalBucket.Name()
@@ -400,7 +402,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 	}, nil)
 	suite.Require().Nil(err, err)
 
-	suite.EnsureCollectionsOnAllNodes("_default", []string{collectionName})
+	suite.EnsureCollectionOnAllIndexesAndNodes(time.Now().Add(20*time.Second), bucketName, "_default", collectionName)
 
 	mgr := globalCluster.QueryIndexes()
 
