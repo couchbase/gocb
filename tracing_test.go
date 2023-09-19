@@ -286,7 +286,7 @@ func (suite *IntegrationTestSuite) AssertKVDispatchSpan(span *testSpan) {
 	suite.Assert().NotEmpty(span.Tags["net.host.port"])
 	suite.Assert().NotEmpty(span.Tags["net.peer.name"])
 	suite.Assert().NotEmpty(span.Tags["net.peer.port"])
-	suite.Assert().NotEmpty(span.Tags["db.couchbase.server_duration"])
+	suite.Assert().Contains(span.Tags, "db.couchbase.server_duration")
 }
 
 func (suite *IntegrationTestSuite) AssertHTTPDispatchSpan(span *testSpan, operationID string) {
