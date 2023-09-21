@@ -90,6 +90,10 @@ type QueryOptions struct {
 	// This means that results could come from either active or replica nodes, depending on the state of the active node.
 	// If any of the results came from a replica node then a warning will be populated in the query metadata.
 	// If not set then this field is not sent in the query payload and the default setting on the cluster/node will be used.
+	//
+	// # UNCOMMITTED
+	//
+	// This API is UNCOMMITTED and may change in the future.
 	UseReplica QueryUseReplicaLevel
 
 	// Internal: This should never be used and is not supported.

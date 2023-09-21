@@ -94,14 +94,26 @@ type BucketSettings struct {
 	BucketType           BucketType // Defaults to CouchbaseBucketType.
 	EvictionPolicy       EvictionPolicyType
 	// Deprecated: Use MaxExpiry instead.
-	MaxTTL                            time.Duration
-	MaxExpiry                         time.Duration
-	CompressionMode                   CompressionMode
-	MinimumDurabilityLevel            DurabilityLevel
-	StorageBackend                    StorageBackend
+	MaxTTL                 time.Duration
+	MaxExpiry              time.Duration
+	CompressionMode        CompressionMode
+	MinimumDurabilityLevel DurabilityLevel
+	StorageBackend         StorageBackend
+
+	// # UNCOMMITTED
+	//
+	// This API is UNCOMMITTED and may change in the future.
 	HistoryRetentionCollectionDefault *HistoryRetentionCollectionDefaultSettings
-	HistoryRetentionBytes             uint64
-	HistoryRetentionDuration          time.Duration
+
+	// # UNCOMMITTED
+	//
+	// This API is UNCOMMITTED and may change in the future.
+	HistoryRetentionBytes uint64
+
+	// # UNCOMMITTED
+	//
+	// This API is UNCOMMITTED and may change in the future.
+	HistoryRetentionDuration time.Duration
 }
 
 // BucketManager provides methods for performing bucket management operations.

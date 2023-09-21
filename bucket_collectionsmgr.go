@@ -16,7 +16,11 @@ type CollectionSpec struct {
 	Name      string
 	ScopeName string
 	MaxExpiry time.Duration
-	History   *CollectionHistorySettings
+
+	// # UNCOMMITTED
+	//
+	// This API is UNCOMMITTED and may change in the future.
+	History *CollectionHistorySettings
 }
 
 // ScopeSpec describes the specification of a scope.
