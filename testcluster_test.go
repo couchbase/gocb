@@ -87,6 +87,7 @@ var (
 	TransactionsSingleQueryExistsErrorFeature = FeatureCode("transactionssinglequeryexists")
 	EventingFunctionManagerMB52649Feature     = FeatureCode("eventingmanagementmb52649")
 	EventingFunctionManagerMB52572Feature     = FeatureCode("eventingmanagementmb52572")
+	QueryMB57673Feature                       = FeatureCode("mb57673")
 )
 
 type TestFeatureFlag struct {
@@ -319,6 +320,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Equal(srvVer711)
 		case EventingFunctionManagerMB52572Feature:
 			supported = !c.Version.Equal(srvVer711)
+		case QueryMB57673Feature:
+			supported = !c.Version.Equal(srvVer720)
 		}
 	}
 

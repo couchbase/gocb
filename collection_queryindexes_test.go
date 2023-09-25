@@ -8,6 +8,7 @@ import (
 func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrud() {
 	suite.skipIfUnsupported(QueryIndexFeature)
 	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(QueryMB57673Feature)
 
 	bucketName := globalBucket.Name()
 
@@ -144,6 +145,7 @@ func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrud() {
 func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrudDefaultScopeCollection() {
 	suite.skipIfUnsupported(QueryIndexFeature)
 	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(QueryMB57673Feature)
 
 	suite.dropAllIndexesAtCollectionLevel()
 
