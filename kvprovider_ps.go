@@ -46,7 +46,10 @@ func (p *kvProviderPs) LookupIn(c *Collection, id string, ops []LookupInSpec, op
 	defer opm.Finish(opts.noMetrics)
 
 	opm.SetDocumentID(id)
+	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetContext(opts.Context)
+	opm.SetIsIdempotent(true)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -101,11 +104,16 @@ func (p *kvProviderPs) LookupIn(c *Collection, id string, ops []LookupInSpec, op
 		Flags:          requestFlags,
 	}
 
-	ctx, cancel := p.newOpCtx(opts.Context, opm.getTimeout())
-	defer cancel()
-	res, err := p.client.LookupIn(ctx, req)
+	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
+		return p.client.LookupIn(ctx, req)
+	})
 	if err != nil {
-		return nil, opm.EnhanceErr(err, true)
+		return nil, err
+	}
+
+	res, ok := src.(*kv_v1.LookupInResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	docOut := &LookupInResult{}
@@ -149,9 +157,10 @@ func (p *kvProviderPs) MutateIn(c *Collection, id string, ops []MutateInSpec, op
 	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
+	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
-
 	opm.SetDuraOptions(opts.DurabilityLevel)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -245,14 +254,10 @@ func (p *kvProviderPs) MutateIn(c *Collection, id string, ops []MutateInSpec, op
 		Expiry:          expiry,
 	}
 
-	ctx, cancel := p.newOpCtx(opts.Context, opm.getTimeout())
-	defer cancel()
-	res, err := p.client.MutateIn(ctx, request)
+	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
+		return p.client.MutateIn(ctx, request)
+	})
 	if err != nil {
-		err = opm.EnhanceErr(err, false)
-
-		// GOCBC-1019: Due to a previous bug in gocbcore we need to convert cas mismatch back to exists to match classic
-		// behaviour.
 		if kvErr, ok := err.(*GenericError); ok {
 			if errors.Is(kvErr.InnerError, ErrCasMismatch) {
 				kvErr.InnerError = ErrDocumentExists
@@ -260,6 +265,11 @@ func (p *kvProviderPs) MutateIn(c *Collection, id string, ops []MutateInSpec, op
 		}
 
 		return nil, err
+	}
+
+	res, ok := src.(*kv_v1.MutateInResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	mutOut := &MutateInResult{}
@@ -283,9 +293,11 @@ func (p *kvProviderPs) Insert(c *Collection, id string, val interface{}, opts *I
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
+	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetValue(val)
 	opm.SetDuraOptions(opts.DurabilityLevel)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -309,11 +321,16 @@ func (p *kvProviderPs) Insert(c *Collection, id string, val interface{}, opts *I
 		DurabilityLevel: opm.DurabilityLevel(),
 	}
 
-	ctx, cancel := p.newOpCtx(opts.Context, opm.getTimeout())
-	defer cancel()
-	res, err := p.client.Insert(ctx, request)
+	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
+		return p.client.Insert(ctx, request)
+	})
 	if err != nil {
-		return nil, opm.EnhanceErr(err, false)
+		return nil, err
+	}
+
+	res, ok := src.(*kv_v1.InsertResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	mt := psMutToGoCbMut(res.MutationToken)
@@ -334,9 +351,11 @@ func (p *kvProviderPs) Upsert(c *Collection, id string, val interface{}, opts *U
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
+	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetValue(val)
 	opm.SetDuraOptions(opts.DurabilityLevel)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -359,11 +378,16 @@ func (p *kvProviderPs) Upsert(c *Collection, id string, val interface{}, opts *U
 		DurabilityLevel: opm.DurabilityLevel(),
 	}
 
-	ctx, cancel := p.newOpCtx(opts.Context, opm.getTimeout())
-	defer cancel()
-	res, err := p.client.Upsert(ctx, request)
+	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
+		return p.client.Upsert(ctx, request)
+	})
 	if err != nil {
-		return nil, opm.EnhanceErr(err, false)
+		return nil, err
+	}
+
+	res, ok := src.(*kv_v1.UpsertResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	mt := psMutToGoCbMut(res.MutationToken)
@@ -384,9 +408,11 @@ func (p *kvProviderPs) Replace(c *Collection, id string, val interface{}, opts *
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
+	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetValue(val)
 	opm.SetDuraOptions(opts.DurabilityLevel)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -416,11 +442,16 @@ func (p *kvProviderPs) Replace(c *Collection, id string, val interface{}, opts *
 		DurabilityLevel: opm.DurabilityLevel(),
 	}
 
-	ctx, cancel := p.newOpCtx(opts.Context, opm.getTimeout())
-	defer cancel()
-	res, err := p.client.Replace(ctx, request)
+	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
+		return p.client.Replace(ctx, request)
+	})
 	if err != nil {
-		return nil, opm.EnhanceErr(err, false)
+		return nil, err
+	}
+
+	res, ok := src.(*kv_v1.ReplaceResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	mt := psMutToGoCbMut(res.MutationToken)
@@ -445,7 +476,10 @@ func (p *kvProviderPs) Get(c *Collection, id string, opts *GetOptions) (*GetResu
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
+	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetContext(opts.Context)
+	opm.SetIsIdempotent(true)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -459,11 +493,16 @@ func (p *kvProviderPs) Get(c *Collection, id string, opts *GetOptions) (*GetResu
 		BucketName:     opm.BucketName(),
 	}
 
-	ctx, cancel := p.newOpCtx(opts.Context, opm.getTimeout())
-	defer cancel()
-	res, err := p.client.Get(ctx, request)
+	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
+		return p.client.Get(ctx, request)
+	})
 	if err != nil {
-		return nil, opm.EnhanceErr(err, true)
+		return nil, err
+	}
+
+	res, ok := src.(*kv_v1.GetResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	resOut := GetResult{
@@ -489,7 +528,9 @@ func (p *kvProviderPs) GetAndTouch(c *Collection, id string, expiry time.Duratio
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
+	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -507,11 +548,16 @@ func (p *kvProviderPs) GetAndTouch(c *Collection, id string, expiry time.Duratio
 		Expiry: reqExpiry,
 	}
 
-	ctx, cancel := p.newOpCtx(opts.Context, opm.getTimeout())
-	defer cancel()
-	res, err := p.client.GetAndTouch(ctx, request)
+	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
+		return p.client.GetAndTouch(ctx, request)
+	})
 	if err != nil {
-		return nil, opm.EnhanceErr(err, false)
+		return nil, err
+	}
+
+	res, ok := src.(*kv_v1.GetAndTouchResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	resOut := GetResult{
@@ -535,7 +581,9 @@ func (p *kvProviderPs) GetAndLock(c *Collection, id string, lockTime time.Durati
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
+	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -549,11 +597,16 @@ func (p *kvProviderPs) GetAndLock(c *Collection, id string, lockTime time.Durati
 		LockTime:       uint32(lockTime.Seconds()),
 	}
 
-	ctx, cancel := p.newOpCtx(opts.Context, opm.getTimeout())
-	defer cancel()
-	res, err := p.client.GetAndLock(ctx, request)
+	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
+		return p.client.GetAndLock(ctx, request)
+	})
 	if err != nil {
-		return nil, opm.EnhanceErr(err, false)
+		return nil, err
+	}
+
+	res, ok := src.(*kv_v1.GetAndLockResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	resOut := GetResult{
@@ -577,6 +630,9 @@ func (p *kvProviderPs) Exists(c *Collection, id string, opts *ExistsOptions) (*E
 
 	opm.SetDocumentID(id)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetRetryStrategy(opts.RetryStrategy)
+	opm.SetContext(opts.Context)
+	opm.SetIsIdempotent(true)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -590,11 +646,16 @@ func (p *kvProviderPs) Exists(c *Collection, id string, opts *ExistsOptions) (*E
 		BucketName:     opm.BucketName(),
 	}
 
-	ctx, cancel := p.newOpCtx(opts.Context, opm.getTimeout())
-	defer cancel()
-	res, err := p.client.Exists(ctx, request)
+	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
+		return p.client.Exists(ctx, request)
+	})
 	if err != nil {
-		return nil, opm.EnhanceErr(err, true)
+		return nil, err
+	}
+
+	res, ok := src.(*kv_v1.ExistsResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	resOut := ExistsResult{
@@ -613,7 +674,9 @@ func (p *kvProviderPs) Remove(c *Collection, id string, opts *RemoveOptions) (*M
 
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.DurabilityLevel)
+	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -633,11 +696,16 @@ func (p *kvProviderPs) Remove(c *Collection, id string, opts *RemoveOptions) (*M
 		DurabilityLevel: opm.DurabilityLevel(),
 	}
 
-	ctx, cancel := p.newOpCtx(opts.Context, opm.getTimeout())
-	defer cancel()
-	res, err := p.client.Remove(ctx, request)
+	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
+		return p.client.Remove(ctx, request)
+	})
 	if err != nil {
-		return nil, opm.EnhanceErr(err, false)
+		return nil, err
+	}
+
+	res, ok := src.(*kv_v1.RemoveResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	mt := psMutToGoCbMut(res.MutationToken)
@@ -659,6 +727,7 @@ func (p *kvProviderPs) Unlock(c *Collection, id string, cas Cas, opts *UnlockOpt
 
 	opm.SetDocumentID(id)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return err
@@ -672,11 +741,11 @@ func (p *kvProviderPs) Unlock(c *Collection, id string, cas Cas, opts *UnlockOpt
 		Cas:            (uint64)(cas),
 	}
 
-	ctx, cancel := p.newOpCtx(opts.Context, opm.getTimeout())
-	defer cancel()
-	_, err := p.client.Unlock(ctx, request)
+	_, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
+		return p.client.Unlock(ctx, request)
+	})
 	if err != nil {
-		return opm.EnhanceErr(err, false)
+		return err
 	}
 
 	return nil
@@ -687,7 +756,9 @@ func (p *kvProviderPs) Touch(c *Collection, id string, expiry time.Duration, opt
 	defer opm.Finish(false)
 
 	opm.SetDocumentID(id)
+	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -701,11 +772,16 @@ func (p *kvProviderPs) Touch(c *Collection, id string, expiry time.Duration, opt
 		Expiry:         &kv_v1.TouchRequest_ExpirySecs{ExpirySecs: uint32(expiry.Seconds())},
 	}
 
-	ctx, cancel := p.newOpCtx(opts.Context, opm.getTimeout())
-	defer cancel()
-	res, err := p.client.Touch(ctx, request)
+	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
+		return p.client.Touch(ctx, request)
+	})
 	if err != nil {
-		return nil, opm.EnhanceErr(err, false)
+		return nil, err
+	}
+
+	res, ok := src.(*kv_v1.TouchResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	mt := psMutToGoCbMut(res.MutationToken)
@@ -801,7 +877,9 @@ func (p *kvProviderPs) GetAllReplicas(c *Collection, id string, opts *GetAllRepl
 
 	opm.SetDocumentID(id)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTranscoder(opts.Transcoder)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -816,9 +894,16 @@ func (p *kvProviderPs) GetAllReplicas(c *Collection, id string, opts *GetAllRepl
 
 	ctx, cancel := p.newOpCtx(opts.Context, opm.getTimeout())
 
-	res, err := p.client.GetAllReplicas(ctx, request)
+	src, err := opm.WrapCtx(ctx, func(ctx context.Context) (interface{}, error) {
+		return p.client.GetAllReplicas(ctx, request)
+	})
 	if err != nil {
-		return nil, opm.EnhanceErr(err, false)
+		return nil, err
+	}
+
+	res, ok := src.(kv_v1.KvService_GetAllReplicasClient)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	return &GetAllReplicasResult{
@@ -862,7 +947,9 @@ func (p *kvProviderPs) Prepend(c *Collection, id string, val []byte, opts *Prepe
 
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.DurabilityLevel)
+	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -883,11 +970,16 @@ func (p *kvProviderPs) Prepend(c *Collection, id string, val []byte, opts *Prepe
 		DurabilityLevel: opm.DurabilityLevel(),
 	}
 
-	ctx, cancel := p.newOpCtx(opts.Context, opm.getTimeout())
-	defer cancel()
-	res, err := p.client.Prepend(ctx, request)
+	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
+		return p.client.Prepend(ctx, request)
+	})
 	if err != nil {
-		return nil, opm.EnhanceErr(err, false)
+		return nil, err
+	}
+
+	res, ok := src.(*kv_v1.PrependResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	mt := psMutToGoCbMut(res.MutationToken)
@@ -908,7 +1000,9 @@ func (p *kvProviderPs) Append(c *Collection, id string, val []byte, opts *Append
 
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.DurabilityLevel)
+	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetContext(opts.Context)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -929,11 +1023,16 @@ func (p *kvProviderPs) Append(c *Collection, id string, val []byte, opts *Append
 		DurabilityLevel: opm.DurabilityLevel(),
 	}
 
-	ctx, cancel := p.newOpCtx(opts.Context, opm.getTimeout())
-	defer cancel()
-	res, err := p.client.Append(ctx, request)
+	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
+		return p.client.Append(ctx, request)
+	})
 	if err != nil {
-		return nil, opm.EnhanceErr(err, false)
+		return nil, err
+	}
+
+	res, ok := src.(*kv_v1.AppendResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	mt := psMutToGoCbMut(res.MutationToken)
@@ -959,6 +1058,8 @@ func (p *kvProviderPs) Increment(c *Collection, id string, opts *IncrementOption
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.DurabilityLevel)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetRetryStrategy(opts.RetryStrategy)
+	opm.SetContext(opts.Context)
 
 	var expiry *kv_v1.IncrementRequest_ExpirySecs
 	if opts.Expiry > 0 {
@@ -976,11 +1077,16 @@ func (p *kvProviderPs) Increment(c *Collection, id string, opts *IncrementOption
 		DurabilityLevel: opm.DurabilityLevel(),
 	}
 
-	ctx, cancel := p.newOpCtx(opts.Context, opm.getTimeout())
-	defer cancel()
-	res, err := p.client.Increment(ctx, request)
+	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
+		return p.client.Increment(ctx, request)
+	})
 	if err != nil {
-		return nil, opm.EnhanceErr(err, false)
+		return nil, err
+	}
+
+	res, ok := src.(*kv_v1.IncrementResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	countOut := &CounterResult{}
@@ -1002,6 +1108,8 @@ func (p *kvProviderPs) Decrement(c *Collection, id string, opts *DecrementOption
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.DurabilityLevel)
 	opm.SetTimeout(opts.Timeout)
+	opm.SetRetryStrategy(opts.RetryStrategy)
+	opm.SetContext(opts.Context)
 
 	var expiry *kv_v1.DecrementRequest_ExpirySecs
 	if opts.Expiry > 0 {
@@ -1019,11 +1127,16 @@ func (p *kvProviderPs) Decrement(c *Collection, id string, opts *DecrementOption
 		DurabilityLevel: opm.DurabilityLevel(),
 	}
 
-	ctx, cancel := p.newOpCtx(opts.Context, opm.getTimeout())
-	defer cancel()
-	res, err := p.client.Decrement(ctx, request)
+	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
+		return p.client.Decrement(ctx, request)
+	})
 	if err != nil {
-		return nil, opm.EnhanceErr(err, false)
+		return nil, err
+	}
+
+	res, ok := src.(*kv_v1.DecrementResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	countOut := &CounterResult{}

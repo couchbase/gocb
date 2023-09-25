@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -22,6 +23,9 @@ type kvOpManagerPs struct {
 	bytes           []byte
 	flags           uint32
 	durabilityLevel *kv_v1.DurabilityLevel
+	retryStrategy   RetryStrategy
+	ctx             context.Context
+	isIdempotent    bool
 
 	operationName string
 	createdTime   time.Time
@@ -104,6 +108,26 @@ func (m *kvOpManagerPs) SetDuraOptions(level DurabilityLevel) {
 	}
 }
 
+func (m *kvOpManagerPs) SetRetryStrategy(retryStrategy RetryStrategy) {
+	strat := m.parent.retryStrategyWrapper.wrapped
+	if retryStrategy != nil {
+		strat = retryStrategy
+	}
+	m.retryStrategy = strat
+}
+
+func (m *kvOpManagerPs) SetContext(ctx context.Context) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	m.ctx = ctx
+}
+
+func (m *kvOpManagerPs) SetIsIdempotent(idempotent bool) {
+	m.isIdempotent = idempotent
+}
+
 func (m *kvOpManagerPs) Finish(noMetrics bool) {
 	m.span.End()
 
@@ -152,6 +176,14 @@ func (m *kvOpManagerPs) DurabilityLevel() *kv_v1.DurabilityLevel {
 	return m.durabilityLevel
 }
 
+func (m *kvOpManagerPs) RetryStrategy() RetryStrategy {
+	return m.retryStrategy
+}
+
+func (m *kvOpManagerPs) IsIdempotent() bool {
+	return m.isIdempotent
+}
+
 func (m *kvOpManagerPs) CheckReadyForOp() error {
 	if m.err != nil {
 		return m.err
@@ -164,32 +196,38 @@ func (m *kvOpManagerPs) CheckReadyForOp() error {
 	return nil
 }
 
-func (m *kvOpManagerPs) EnhanceErrorStatus(st *status.Status, readOnly bool) error {
-	err := mapPsErrorStatusToGocbError(st, readOnly)
+func (m *kvOpManagerPs) Wrap(fn func(ctx context.Context) (interface{}, error)) (interface{}, error) {
+	ctx, cancel := context.WithTimeout(m.ctx, m.getTimeout())
+	defer cancel()
 
-	if errors.Is(err, ErrTimeout) {
-		return &TimeoutError{
-			InnerError:    err,
-			TimeObserved:  time.Since(m.createdTime),
-			RetryReasons:  nil,
-			RetryAttempts: 0,
+	return m.WrapCtx(ctx, fn)
+}
+
+func (m *kvOpManagerPs) WrapCtx(ctx context.Context, fn func(ctx context.Context) (interface{}, error)) (interface{}, error) {
+	req := newRetriableRequestPS(m.operationName, m.IsIdempotent(), m.TraceSpanContext(), m.RetryStrategy(), fn)
+
+	res, err := handleRetriableRequest(ctx, m.createdTime, m.parent.tracer, req, func(err error) RetryReason {
+		if errors.Is(err, ErrDocumentLocked) {
+			return KVLockedRetryReason
+		} else if errors.Is(err, ErrServiceNotAvailable) {
+			return ServiceNotAvailableRetryReason
 		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, m.EnhanceErr(err, m.IsIdempotent())
 	}
 
-	return err
+	return res, nil
+}
+
+func (m *kvOpManagerPs) EnhanceErrorStatus(st *status.Status, readOnly bool) error {
+	return mapPsErrorStatusToGocbError(st, readOnly)
 }
 
 func (m *kvOpManagerPs) EnhanceErr(err error, readOnly bool) error {
-	gocbErr := mapPsErrorToGocbError(err, readOnly)
-
-	if errors.Is(gocbErr, ErrTimeout) {
-		return &TimeoutError{
-			InnerError:   gocbErr,
-			TimeObserved: time.Since(m.createdTime),
-		}
-	}
-
-	return gocbErr
+	return mapPsErrorToGocbError(err, readOnly)
 }
 
 func newKvOpManagerPs(c *Collection, opName string, parentSpan RequestSpan) *kvOpManagerPs {

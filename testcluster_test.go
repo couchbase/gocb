@@ -94,7 +94,6 @@ var (
 	KeyValueBulkFeature                       = FeatureCode("keyvaluebulk")
 	KeyValueProjectionsFeature                = FeatureCode("keyvalueprojections")
 	NodesMetadataFeature                      = FeatureCode("nodesmetadata")
-	RetriesFeature                            = FeatureCode("retries")
 	SubdocReplicaReadsFeature                 = FeatureCode("subdocreplicas")
 	HistoryRetentionFeature                   = FeatureCode("historyretention")
 	QueryMB57673Feature                       = FeatureCode("mb57673")
@@ -352,8 +351,6 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case KeyValueProjectionsFeature:
 			supported = !c.Version.Equal(protostellarVer)
 		case NodesMetadataFeature:
-			supported = !c.Version.Equal(protostellarVer)
-		case RetriesFeature:
 			supported = !c.Version.Equal(protostellarVer)
 		case SubdocReplicaReadsFeature:
 			supported = !c.Version.Lower(srvVer750)

@@ -1225,7 +1225,6 @@ func (rts *upsertRetriesStrategy) RetryAfter(RetryRequest, RetryReason) RetryAct
 
 func (suite *IntegrationTestSuite) TestUpsertRetries() {
 	suite.skipIfUnsupported(KeyValueFeature)
-	suite.skipIfUnsupported(RetriesFeature)
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)

@@ -63,7 +63,6 @@ func (suite *UnitTestSuite) TestTimeoutError() {
 
 func (suite *IntegrationTestSuite) TestTimeoutError_Retries() {
 	suite.skipIfUnsupported(KeyValueFeature)
-	suite.skipIfUnsupported(RetriesFeature)
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
@@ -104,15 +103,21 @@ func (suite *IntegrationTestSuite) TestTimeoutError_Retries() {
 
 	var tErr *TimeoutError
 	if errors.As(err, &tErr) {
-		suite.Assert().Equal(tErr.OperationID, "Set")
+		if globalCluster.IsProtostellar() {
+			suite.Assert().Equal(tErr.OperationID, "upsert")
+		} else {
+			suite.Assert().Equal(tErr.OperationID, "Set")
+		}
 		suite.Assert().NotEmpty(tErr.Opaque)
 		// Testify doesn't like using Greater with time.Duration
 		suite.Assert().Greater(tErr.TimeObserved.Microseconds(), 100*time.Millisecond.Microseconds())
 		suite.Assert().NotEmpty(tErr.RetryReasons)
 		suite.Assert().Greater(tErr.RetryAttempts, uint32(0))
-		suite.Assert().NotEmpty(tErr.LastDispatchedTo)
-		suite.Assert().NotEmpty(tErr.LastDispatchedFrom)
-		suite.Assert().NotEmpty(tErr.LastConnectionID)
+		if !globalCluster.IsProtostellar() {
+			suite.Assert().NotEmpty(tErr.LastDispatchedTo)
+			suite.Assert().NotEmpty(tErr.LastDispatchedFrom)
+			suite.Assert().NotEmpty(tErr.LastConnectionID)
+		}
 	} else {
 		suite.T().Fatalf("Error couldn't be asserted to TimeoutError: %v", err)
 	}
