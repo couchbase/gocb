@@ -201,18 +201,24 @@ type retriableRequestPs struct {
 	attempts uint32
 
 	operation        string
-	identifier       string
+	traceIdentifier  string
+	loggerIdentifier string
 	idempotent       bool
 	sendFn           func(ctx context.Context) (interface{}, error)
 	strategy         RetryStrategy
 	rootTraceContext RequestSpanContext
 }
 
-func newRetriableRequestPS(operation string, idempotent bool, rootContext RequestSpanContext, strategy RetryStrategy,
-	sendFn func(ctx context.Context) (interface{}, error)) *retriableRequestPs {
+func newRetriableRequestPS(operation string, idempotent bool, rootContext RequestSpanContext, traceIdentifier string,
+	strategy RetryStrategy, sendFn func(ctx context.Context) (interface{}, error)) *retriableRequestPs {
+	loggerIdentifier := traceIdentifier
+	if loggerIdentifier == "" {
+		loggerIdentifier = uuid.NewString()[:6]
+	}
 	return &retriableRequestPs{
 		operation:        operation,
-		identifier:       uuid.NewString()[:6],
+		traceIdentifier:  traceIdentifier,
+		loggerIdentifier: loggerIdentifier,
 		idempotent:       idempotent,
 		sendFn:           sendFn,
 		rootTraceContext: rootContext,
@@ -225,7 +231,7 @@ func (w *retriableRequestPs) RetryAttempts() uint32 {
 }
 
 func (w *retriableRequestPs) Identifier() string {
-	return w.identifier
+	return w.loggerIdentifier
 }
 
 func (w *retriableRequestPs) Idempotent() bool {
@@ -267,11 +273,18 @@ func (w *retriableRequestPs) recordRetryAttempt(reason RetryReason) {
 func handleRetriableRequest(ctx context.Context, createdTime time.Time, tracer RequestTracer, req *retriableRequestPs,
 	retryReasonFn func(err error) RetryReason) (interface{}, error) {
 	for {
-		logSchedf("Writing request ID=%s, OP=%s", req.identifier, req.operation)
+		logSchedf("Writing request ID=%s, OP=%s", req.loggerIdentifier, req.operation)
 		span := tracer.RequestSpan(req.rootTraceContext, "dispatch_to_server")
+		span.SetAttribute(spanAttribDBSystemKey, spanAttribDBSystemValue)
+		span.SetAttribute(spanAttribNumRetries, req.RetryAttempts())
+		span.SetAttribute(spanAttribNetTransport, "IP.TCP")
+		if req.traceIdentifier != "" {
+			span.SetAttribute(spanAttribOperationIDKey, req.traceIdentifier)
+		}
+
 		res, err := req.Send(ctx)
 		span.End()
-		logSchedf("Handling response ID=%s, OP=%s", req.identifier, req.operation)
+		logSchedf("Handling response ID=%s, OP=%s", req.loggerIdentifier, req.operation)
 
 		if err != nil {
 			gocbErr := mapPsErrorToGocbError(err, req.Idempotent())

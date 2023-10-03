@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
@@ -10,39 +11,44 @@ import (
 type collectionsManagementProviderPs struct {
 	provider admin_collection_v1.CollectionAdminServiceClient
 
-	defaultTimeout time.Duration
-	bucketName     string
-	tracer         RequestTracer
-	meter          *meterWrapper
+	managerProvider *psOpManagerProvider
+	bucketName      string
+}
+
+func (cm collectionsManagementProviderPs) newOpManager(parentSpan RequestSpan, opName string, attribs map[string]interface{}) *psOpManager {
+	return cm.managerProvider.NewManager(parentSpan, opName, attribs)
 }
 
 func (cm *collectionsManagementProviderPs) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpec, error) {
-	start := time.Now()
-	defer cm.meter.ValueRecord(meterValueServiceManagement, "manager_collections_get_all_scopes", start)
+	manager := cm.newOpManager(opts.ParentSpan, "manager_collections_get_all_scopes", map[string]interface{}{
+		"db.name":      cm.bucketName,
+		"db.operation": "ListCollections",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_get_all_scopes", "management")
-	span.SetAttribute("db.name", cm.bucketName)
-	span.SetAttribute("db.operation", "ListCollections")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(true)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
+
+	if err := manager.CheckReadyForOp(); err != nil {
+		return nil, err
+	}
 
 	req := &admin_collection_v1.ListCollectionsRequest{
 		BucketName: cm.bucketName,
 	}
 
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = cm.defaultTimeout
-	}
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	resp, err := cm.provider.ListCollections(ctx, req)
+	src, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return cm.provider.ListCollections(ctx, req)
+	})
 	if err != nil {
-		return nil, mapPsErrorToGocbError(err, true)
+		return nil, err
+	}
+
+	resp, ok := src.(*admin_collection_v1.ListCollectionsResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	var scopes []ScopeSpec
@@ -66,15 +72,22 @@ func (cm *collectionsManagementProviderPs) GetAllScopes(opts *GetAllScopesOption
 
 // CreateCollection creates a new collection on the bucket.
 func (cm *collectionsManagementProviderPs) CreateCollection(spec CollectionSpec, opts *CreateCollectionOptions) error {
-	start := time.Now()
-	defer cm.meter.ValueRecord(meterValueServiceManagement, "manager_collections_create_collection", start)
+	manager := cm.newOpManager(opts.ParentSpan, "manager_collections_create_collection", map[string]interface{}{
+		"db.name":                 cm.bucketName,
+		"db.couchbase.scope":      spec.ScopeName,
+		"db.couchbase.collection": spec.Name,
+		"db.operation":            "CreateCollection",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_create_collection", "management")
-	span.SetAttribute("db.name", cm.bucketName)
-	span.SetAttribute("db.couchbase.scope", spec.ScopeName)
-	span.SetAttribute("db.couchbase.collection", spec.Name)
-	span.SetAttribute("db.operation", "CreateCollection")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
+
+	if err := manager.CheckReadyForOp(); err != nil {
+		return err
+	}
 
 	req := &admin_collection_v1.CreateCollectionRequest{
 		BucketName:     cm.bucketName,
@@ -86,20 +99,11 @@ func (cm *collectionsManagementProviderPs) CreateCollection(spec CollectionSpec,
 		req.MaxExpirySecs = &expiry
 	}
 
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = cm.defaultTimeout
-	}
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	_, err := cm.provider.CreateCollection(ctx, req)
+	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return cm.provider.CreateCollection(ctx, req)
+	})
 	if err != nil {
-		return mapPsErrorToGocbError(err, false)
+		return err
 	}
 
 	return nil
@@ -111,15 +115,22 @@ func (cm *collectionsManagementProviderPs) UpdateCollection(spec CollectionSpec,
 
 // DropCollection removes a collection.
 func (cm *collectionsManagementProviderPs) DropCollection(spec CollectionSpec, opts *DropCollectionOptions) error {
-	start := time.Now()
-	defer cm.meter.ValueRecord(meterValueServiceManagement, "manager_collections_drop_collection", start)
+	manager := cm.newOpManager(opts.ParentSpan, "manager_collections_drop_collection", map[string]interface{}{
+		"db.name":                 cm.bucketName,
+		"db.couchbase.scope":      spec.ScopeName,
+		"db.couchbase.collection": spec.Name,
+		"db.operation":            "DeleteCollection",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_drop_collection", "management")
-	span.SetAttribute("db.name", cm.bucketName)
-	span.SetAttribute("db.couchbase.scope", spec.ScopeName)
-	span.SetAttribute("db.couchbase.collection", spec.Name)
-	span.SetAttribute("db.operation", "DeleteCollection")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
+
+	if err := manager.CheckReadyForOp(); err != nil {
+		return err
+	}
 
 	req := &admin_collection_v1.DeleteCollectionRequest{
 		BucketName:     cm.bucketName,
@@ -127,20 +138,11 @@ func (cm *collectionsManagementProviderPs) DropCollection(spec CollectionSpec, o
 		CollectionName: spec.Name,
 	}
 
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = cm.defaultTimeout
-	}
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	_, err := cm.provider.DeleteCollection(ctx, req)
+	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return cm.provider.DeleteCollection(ctx, req)
+	})
 	if err != nil {
-		return mapPsErrorToGocbError(err, false)
+		return err
 	}
 
 	return nil
@@ -148,34 +150,32 @@ func (cm *collectionsManagementProviderPs) DropCollection(spec CollectionSpec, o
 
 // CreateScope creates a new scope on the bucket.
 func (cm *collectionsManagementProviderPs) CreateScope(scopeName string, opts *CreateScopeOptions) error {
-	start := time.Now()
-	defer cm.meter.ValueRecord(meterValueServiceManagement, "manager_collections_create_scope", start)
+	manager := cm.newOpManager(opts.ParentSpan, "manager_collections_create_scope", map[string]interface{}{
+		"db.name":            cm.bucketName,
+		"db.couchbase.scope": scopeName,
+		"db.operation":       "CreateScope",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_create_scope", "management")
-	span.SetAttribute("db.name", cm.bucketName)
-	span.SetAttribute("db.couchbase.scope", scopeName)
-	span.SetAttribute("db.operation", "CreateScope")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
+
+	if err := manager.CheckReadyForOp(); err != nil {
+		return err
+	}
 
 	req := &admin_collection_v1.CreateScopeRequest{
 		BucketName: cm.bucketName,
 		ScopeName:  scopeName,
 	}
 
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = cm.defaultTimeout
-	}
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	_, err := cm.provider.CreateScope(ctx, req)
+	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return cm.provider.CreateScope(ctx, req)
+	})
 	if err != nil {
-		return mapPsErrorToGocbError(err, false)
+		return err
 	}
 
 	return nil
@@ -183,34 +183,32 @@ func (cm *collectionsManagementProviderPs) CreateScope(scopeName string, opts *C
 
 // DropScope removes a scope.
 func (cm *collectionsManagementProviderPs) DropScope(scopeName string, opts *DropScopeOptions) error {
-	start := time.Now()
-	defer cm.meter.ValueRecord(meterValueServiceManagement, "manager_collections_drop_scope", start)
+	manager := cm.newOpManager(opts.ParentSpan, "manager_collections_drop_scope", map[string]interface{}{
+		"db.name":            cm.bucketName,
+		"db.couchbase.scope": scopeName,
+		"db.operation":       "DeleteScope",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_drop_scope", "management")
-	span.SetAttribute("db.name", cm.bucketName)
-	span.SetAttribute("db.couchbase.scope", scopeName)
-	span.SetAttribute("db.operation", "DeleteScope")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
+
+	if err := manager.CheckReadyForOp(); err != nil {
+		return err
+	}
 
 	req := &admin_collection_v1.DeleteScopeRequest{
 		BucketName: cm.bucketName,
 		ScopeName:  scopeName,
 	}
 
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = cm.defaultTimeout
-	}
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	_, err := cm.provider.DeleteScope(ctx, req)
+	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return cm.provider.DeleteScope(ctx, req)
+	})
 	if err != nil {
-		return mapPsErrorToGocbError(err, false)
+		return err
 	}
 
 	return nil

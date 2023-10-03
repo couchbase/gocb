@@ -294,9 +294,12 @@ func (suite *IntegrationTestSuite) AssertHTTPDispatchSpan(span *testSpan, operat
 	suite.Assert().True(span.Finished)
 	suite.Assert().Equal("couchbase", span.Tags["db.system"])
 	suite.Assert().Equal("IP.TCP", span.Tags["net.transport"])
-	suite.Assert().NotEmpty(span.Tags["net.peer.name"])
-	suite.Assert().NotEmpty(span.Tags["net.peer.port"])
-	spans := 5
+	spans := 3
+	if !globalCluster.IsProtostellar() {
+		spans += 2
+		suite.Assert().NotEmpty(span.Tags["net.peer.name"])
+		suite.Assert().NotEmpty(span.Tags["net.peer.port"])
+	}
 	if operationID == "" {
 		suite.Assert().NotContains(span.Tags, "db.couchbase.operation_id")
 	} else if operationID == "any" {

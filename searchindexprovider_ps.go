@@ -3,7 +3,7 @@ package gocb
 import (
 	"context"
 	"encoding/json"
-	"time"
+	"errors"
 
 	"github.com/couchbase/goprotostellar/genproto/admin_search_v1"
 )
@@ -11,29 +11,42 @@ import (
 type searchIndexProviderPs struct {
 	provider admin_search_v1.SearchAdminServiceClient
 
-	defaultTimeout time.Duration
-	tracer         RequestTracer
-	meter          *meterWrapper
+	managerProvider *psOpManagerProvider
 }
 
 var _ searchIndexProvider = (*searchIndexProviderPs)(nil)
 
-func (sip *searchIndexProviderPs) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]SearchIndex, error) {
-	start := time.Now()
-	defer sip.meter.ValueRecord(meterValueServiceManagement, "manager_search_get_all_indexes", start)
+func (sip *searchIndexProviderPs) newOpManager(parentSpan RequestSpan, opName string, attribs map[string]interface{}) *psOpManager {
+	return sip.managerProvider.NewManager(parentSpan, opName, attribs)
+}
 
-	span := createSpan(sip.tracer, opts.ParentSpan, "manager_search_get_all_indexes", "management")
-	span.SetAttribute("db.operation", "GetAllIndexes")
-	defer span.End()
+func (sip *searchIndexProviderPs) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]SearchIndex, error) {
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_get_all_indexes", map[string]interface{}{
+		"db.operation": "ListIndexes",
+	})
+	defer manager.Finish(false)
+
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(true)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
+
+	if err := manager.CheckReadyForOp(); err != nil {
+		return nil, err
+	}
 
 	req := &admin_search_v1.ListIndexesRequest{}
 
-	ctx, cancel := sip.makeReqContext(opts.Context, opts.Timeout)
-	defer cancel()
-
-	resp, err := sip.provider.ListIndexes(ctx, req)
+	src, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return sip.provider.ListIndexes(ctx, req)
+	})
 	if err != nil {
-		return nil, mapPsErrorToGocbError(err, true)
+		return nil, err
+	}
+
+	resp, ok := src.(*admin_search_v1.ListIndexesResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	indexes := make([]SearchIndex, len(resp.Indexes))
@@ -70,23 +83,34 @@ func (sip *searchIndexProviderPs) GetAllIndexes(opts *GetAllSearchIndexOptions) 
 }
 
 func (sip *searchIndexProviderPs) GetIndex(indexName string, opts *GetSearchIndexOptions) (*SearchIndex, error) {
-	start := time.Now()
-	defer sip.meter.ValueRecord(meterValueServiceManagement, "manager_search_get_index", start)
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_get_index", map[string]interface{}{
+		"db.operation": "GetIndex",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(sip.tracer, opts.ParentSpan, "manager_search_get_index", "management")
-	span.SetAttribute("db.operation", "GetIndex")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(true)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
+
+	if err := manager.CheckReadyForOp(); err != nil {
+		return nil, err
+	}
 
 	req := &admin_search_v1.GetIndexRequest{
 		Name: indexName,
 	}
 
-	ctx, cancel := sip.makeReqContext(opts.Context, opts.Timeout)
-	defer cancel()
-
-	resp, err := sip.provider.GetIndex(ctx, req)
+	src, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return sip.provider.GetIndex(ctx, req)
+	})
 	if err != nil {
-		return nil, sip.makeRespError(err, true)
+		return nil, err
+	}
+
+	resp, ok := src.(*admin_search_v1.GetIndexResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	idx := resp.Index
@@ -118,26 +142,27 @@ func (sip *searchIndexProviderPs) GetIndex(indexName string, opts *GetSearchInde
 }
 
 func (sip *searchIndexProviderPs) UpsertIndex(indexDefinition SearchIndex, opts *UpsertSearchIndexOptions) error {
-	start := time.Now()
-	defer sip.meter.ValueRecord(meterValueServiceManagement, "manager_search_upsert_index", start)
-
-	span := createSpan(sip.tracer, opts.ParentSpan, "manager_search_upsert_index", "management")
-	defer span.End()
-
-	ctx, cancel := sip.makeReqContext(opts.Context, opts.Timeout)
-	defer cancel()
-
 	if indexDefinition.UUID == "" {
-		return sip.createIndex(ctx, span, indexDefinition)
+		return sip.createIndex(indexDefinition, opts)
 	}
 
-	return sip.updateIndex(ctx, span, indexDefinition)
+	return sip.updateIndex(indexDefinition, opts)
 }
 
-func (sip *searchIndexProviderPs) updateIndex(ctx context.Context, parentSpan RequestSpan, index SearchIndex) error {
-	span := createSpan(sip.tracer, parentSpan, "manager_search_update_index", "management")
-	span.SetAttribute("db.operation", "UpdateIndex")
-	defer span.End()
+func (sip *searchIndexProviderPs) updateIndex(index SearchIndex, opts *UpsertSearchIndexOptions) error {
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_upsert_index", map[string]interface{}{
+		"db.operation": "UpdateIndex",
+	})
+	defer manager.Finish(false)
+
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
+
+	if err := manager.CheckReadyForOp(); err != nil {
+		return err
+	}
 
 	req := &admin_search_v1.UpdateIndexRequest{}
 	var err error
@@ -146,18 +171,30 @@ func (sip *searchIndexProviderPs) updateIndex(ctx context.Context, parentSpan Re
 		return err
 	}
 
-	_, err = sip.provider.UpdateIndex(ctx, req)
+	_, err = manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return sip.provider.UpdateIndex(ctx, req)
+	})
 	if err != nil {
-		return sip.makeRespError(err, false)
+		return err
 	}
 
 	return nil
 }
 
-func (sip *searchIndexProviderPs) createIndex(ctx context.Context, parentSpan RequestSpan, index SearchIndex) error {
-	span := createSpan(sip.tracer, parentSpan, "manager_search_create_index", "management")
-	span.SetAttribute("db.operation", "CreateIndex")
-	defer span.End()
+func (sip *searchIndexProviderPs) createIndex(index SearchIndex, opts *UpsertSearchIndexOptions) error {
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_upsert_index", map[string]interface{}{
+		"db.operation": "CreateIndex",
+	})
+	defer manager.Finish(false)
+
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
+
+	if err := manager.CheckReadyForOp(); err != nil {
+		return err
+	}
 
 	req := &admin_search_v1.CreateIndexRequest{
 		Name: index.Name,
@@ -192,43 +229,59 @@ func (sip *searchIndexProviderPs) createIndex(ctx context.Context, parentSpan Re
 		return err
 	}
 
-	_, err = sip.provider.CreateIndex(ctx, req)
+	_, err = manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return sip.provider.CreateIndex(ctx, req)
+	})
 	if err != nil {
-		return sip.makeRespError(err, false)
+		return err
 	}
 
 	return nil
 }
 
 func (sip *searchIndexProviderPs) DropIndex(indexName string, opts *DropSearchIndexOptions) error {
-	start := time.Now()
-	defer sip.meter.ValueRecord(meterValueServiceManagement, "manager_search_drop_index", start)
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_drop_index", map[string]interface{}{
+		"db.operation": "DeleteIndex",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(sip.tracer, opts.ParentSpan, "manager_search_drop_index", "management")
-	span.SetAttribute("db.operation", "DeleteIndex")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
+
+	if err := manager.CheckReadyForOp(); err != nil {
+		return err
+	}
 
 	req := &admin_search_v1.DeleteIndexRequest{
 		Name: indexName,
 	}
 
-	ctx, cancel := sip.makeReqContext(opts.Context, opts.Timeout)
-	defer cancel()
-
-	_, err := sip.provider.DeleteIndex(ctx, req)
+	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return sip.provider.DeleteIndex(ctx, req)
+	})
 	if err != nil {
-		return sip.makeRespError(err, false)
+		return err
 	}
+
 	return nil
 }
 
 func (sip *searchIndexProviderPs) AnalyzeDocument(indexName string, doc interface{}, opts *AnalyzeDocumentOptions) ([]interface{}, error) {
-	start := time.Now()
-	defer sip.meter.ValueRecord(meterValueServiceManagement, "manager_search_analyze_document", start)
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_analyze_document", map[string]interface{}{
+		"db.operation": "AnalyzeDocument",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(sip.tracer, opts.ParentSpan, "manager_search_analyze_document", "management")
-	span.SetAttribute("db.operation", "AnalyzeDocument")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(true)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
+
+	if err := manager.CheckReadyForOp(); err != nil {
+		return nil, err
+	}
 
 	b, err := json.Marshal(doc)
 	if err != nil {
@@ -239,191 +292,205 @@ func (sip *searchIndexProviderPs) AnalyzeDocument(indexName string, doc interfac
 		Name: indexName,
 		Doc:  b,
 	}
-
-	ctx, cancel := sip.makeReqContext(opts.Context, opts.Timeout)
-	defer cancel()
-
-	resp, err := sip.provider.AnalyzeDocument(ctx, req)
+	src, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return sip.provider.AnalyzeDocument(ctx, req)
+	})
 	if err != nil {
-		return nil, sip.makeRespError(err, true)
+		return nil, err
+	}
+
+	resp, ok := src.(*admin_search_v1.AnalyzeDocumentResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	var analyzed []interface{}
 	err = json.Unmarshal(resp.Analyzed, &analyzed)
 	if err != nil {
-		return nil, sip.makeRespError(err, true)
+		return nil, err
 	}
 
 	return analyzed, nil
 }
 
 func (sip *searchIndexProviderPs) GetIndexedDocumentsCount(indexName string, opts *GetIndexedDocumentsCountOptions) (uint64, error) {
-	start := time.Now()
-	defer sip.meter.ValueRecord(meterValueServiceManagement, "manager_search_get_indexed_documents_count", start)
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_get_indexed_documents_count", map[string]interface{}{
+		"db.operation": "GetIndexedDocumentsCount",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(sip.tracer, opts.ParentSpan, "manager_search_get_indexed_documents_count", "management")
-	span.SetAttribute("db.operation", "GetIndexedDocumentsCount")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(true)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
 
 	req := &admin_search_v1.GetIndexedDocumentsCountRequest{
 		Name: indexName,
 	}
 
-	ctx, cancel := sip.makeReqContext(opts.Context, opts.Timeout)
-	defer cancel()
-
-	resp, err := sip.provider.GetIndexedDocumentsCount(ctx, req)
+	src, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return sip.provider.GetIndexedDocumentsCount(ctx, req)
+	})
 	if err != nil {
-		return 0, sip.makeRespError(err, true)
+		return 0, err
+	}
+
+	resp, ok := src.(*admin_search_v1.GetIndexedDocumentsCountResponse)
+	if !ok {
+		return 0, errors.New("response was not expected type, please file a bug")
 	}
 
 	return resp.Count, nil
 }
 
 func (sip *searchIndexProviderPs) PauseIngest(indexName string, opts *PauseIngestSearchIndexOptions) error {
-	start := time.Now()
-	defer sip.meter.ValueRecord(meterValueServiceManagement, "manager_search_pause_ingest", start)
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_pause_ingest", map[string]interface{}{
+		"db.operation": "PauseIndexIngest",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(sip.tracer, opts.ParentSpan, "manager_search_pause_ingest", "management")
-	span.SetAttribute("db.operation", "PauseIndexIngest")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
 
 	req := &admin_search_v1.PauseIndexIngestRequest{
 		Name: indexName,
 	}
 
-	ctx, cancel := sip.makeReqContext(opts.Context, opts.Timeout)
-	defer cancel()
-
-	_, err := sip.provider.PauseIndexIngest(ctx, req)
+	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return sip.provider.PauseIndexIngest(ctx, req)
+	})
 	if err != nil {
-		return sip.makeRespError(err, false)
+		return err
 	}
+
 	return nil
 }
 
 func (sip *searchIndexProviderPs) ResumeIngest(indexName string, opts *ResumeIngestSearchIndexOptions) error {
-	start := time.Now()
-	defer sip.meter.ValueRecord(meterValueServiceManagement, "manager_search_resume_ingest", start)
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_resume_ingest", map[string]interface{}{
+		"db.operation": "ResumeIndexIngest",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(sip.tracer, opts.ParentSpan, "manager_search_resume_ingest", "management")
-	span.SetAttribute("db.operation", "ResumeIndexIngest")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
 
 	req := &admin_search_v1.ResumeIndexIngestRequest{
 		Name: indexName,
 	}
 
-	ctx, cancel := sip.makeReqContext(opts.Context, opts.Timeout)
-	defer cancel()
-
-	_, err := sip.provider.ResumeIndexIngest(ctx, req)
+	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return sip.provider.ResumeIndexIngest(ctx, req)
+	})
 	if err != nil {
-		return sip.makeRespError(err, false)
+		return err
 	}
+
 	return nil
 }
 
 func (sip *searchIndexProviderPs) AllowQuerying(indexName string, opts *AllowQueryingSearchIndexOptions) error {
-	start := time.Now()
-	defer sip.meter.ValueRecord(meterValueServiceManagement, "manager_search_allow_querying", start)
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_allow_querying", map[string]interface{}{
+		"db.operation": "AllowIndexQuerying",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(sip.tracer, opts.ParentSpan, "manager_search_allow_querying", "management")
-	span.SetAttribute("db.operation", "AllowIndexQuerying")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
 
 	req := &admin_search_v1.AllowIndexQueryingRequest{
 		Name: indexName,
 	}
 
-	ctx, cancel := sip.makeReqContext(opts.Context, opts.Timeout)
-	defer cancel()
-
-	_, err := sip.provider.AllowIndexQuerying(ctx, req)
+	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return sip.provider.AllowIndexQuerying(ctx, req)
+	})
 	if err != nil {
-		return sip.makeRespError(err, false)
+		return err
 	}
+
 	return nil
 }
 
 func (sip *searchIndexProviderPs) DisallowQuerying(indexName string, opts *AllowQueryingSearchIndexOptions) error {
-	start := time.Now()
-	defer sip.meter.ValueRecord(meterValueServiceManagement, "manager_search_disallow_querying", start)
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_disallow_querying", map[string]interface{}{
+		"db.operation": "DisallowIndexQuerying",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(sip.tracer, opts.ParentSpan, "manager_search_disallow_querying", "management")
-	span.SetAttribute("db.operation", "DisallowIndexQuerying")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
 
 	req := &admin_search_v1.DisallowIndexQueryingRequest{
 		Name: indexName,
 	}
 
-	ctx, cancel := sip.makeReqContext(opts.Context, opts.Timeout)
-	defer cancel()
-
-	_, err := sip.provider.DisallowIndexQuerying(ctx, req)
+	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return sip.provider.DisallowIndexQuerying(ctx, req)
+	})
 	if err != nil {
-		return sip.makeRespError(err, false)
+		return err
 	}
+
 	return nil
 }
 
 func (sip *searchIndexProviderPs) FreezePlan(indexName string, opts *AllowQueryingSearchIndexOptions) error {
-	start := time.Now()
-	defer sip.meter.ValueRecord(meterValueServiceManagement, "manager_search_freeze_plan", start)
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_freeze_plan", map[string]interface{}{
+		"db.operation": "FreezeIndexPlan",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(sip.tracer, opts.ParentSpan, "manager_search_freeze_plan", "management")
-	span.SetAttribute("db.operation", "DisallowQuerying")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
 
 	req := &admin_search_v1.FreezeIndexPlanRequest{
 		Name: indexName,
 	}
 
-	ctx, cancel := sip.makeReqContext(opts.Context, opts.Timeout)
-	defer cancel()
-
-	_, err := sip.provider.FreezeIndexPlan(ctx, req)
+	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return sip.provider.FreezeIndexPlan(ctx, req)
+	})
 	if err != nil {
-		return sip.makeRespError(err, false)
+		return err
 	}
+
 	return nil
 }
 
 func (sip *searchIndexProviderPs) UnfreezePlan(indexName string, opts *AllowQueryingSearchIndexOptions) error {
-	start := time.Now()
-	defer sip.meter.ValueRecord(meterValueServiceManagement, "manager_search_unfreeze_plan", start)
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_unfreeze_plan", map[string]interface{}{
+		"db.operation": "UnfreezeIndexPlan",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(sip.tracer, opts.ParentSpan, "manager_search_unfreeze_plan", "management")
-	span.SetAttribute("db.operation", "UnfreezeIndexPlan")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
 
 	req := &admin_search_v1.UnfreezeIndexPlanRequest{
 		Name: indexName,
 	}
 
-	ctx, cancel := sip.makeReqContext(opts.Context, opts.Timeout)
-	defer cancel()
-
-	_, err := sip.provider.UnfreezeIndexPlan(ctx, req)
+	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return sip.provider.UnfreezeIndexPlan(ctx, req)
+	})
 	if err != nil {
-		return sip.makeRespError(err, false)
+		return err
 	}
+
 	return nil
-}
-
-func (sip *searchIndexProviderPs) makeReqContext(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
-	if timeout == 0 {
-		timeout = sip.defaultTimeout
-	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return context.WithTimeout(ctx, timeout)
-}
-
-func (sip *searchIndexProviderPs) makeRespError(err error, readOnly bool) error {
-	return mapPsErrorToGocbError(err, readOnly)
 }
 
 func (sip *searchIndexProviderPs) makeIndex(idx SearchIndex) (*admin_search_v1.Index, error) {

@@ -335,6 +335,7 @@ const (
 	spanAttribOperationIDKey      = "db.couchbase.operation_id"
 	spanAttribOperationKey        = "db.operation"
 	spanAttribLocalIDKey          = "db.couchbase.local_id"
+	spanAttribNetTransport        = "net.transport"
 	spanAttribNetHostNameKey      = "net.host.name"
 	spanAttribNetHostPortKey      = "net.host.port"
 	spanAttribNetPeerNameKey      = "net.peer.name"
@@ -345,6 +346,7 @@ const (
 	spanAttribDBCollectionNameKey = "db.couchbase.collection"
 	spanAttribDBScopeNameKey      = "db.couchbase.scope"
 	spanAttribDBDurability        = "db.couchbase.durability"
+	spanAttribNumRetries          = "db.couchbase.retries"
 
 	meterNameCBOperations       = "db.couchbase.operations"
 	meterAttribServiceKey       = "db.couchbase.service"

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
+
 	"google.golang.org/grpc/status"
 
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
@@ -204,7 +206,7 @@ func (m *kvOpManagerPs) Wrap(fn func(ctx context.Context) (interface{}, error)) 
 }
 
 func (m *kvOpManagerPs) WrapCtx(ctx context.Context, fn func(ctx context.Context) (interface{}, error)) (interface{}, error) {
-	req := newRetriableRequestPS(m.operationName, m.IsIdempotent(), m.TraceSpanContext(), m.RetryStrategy(), fn)
+	req := newRetriableRequestPS(m.operationName, m.IsIdempotent(), m.TraceSpanContext(), uuid.NewString()[:6], m.RetryStrategy(), fn)
 
 	res, err := handleRetriableRequest(ctx, m.createdTime, m.parent.tracer, req, func(err error) RetryReason {
 		if errors.Is(err, ErrDocumentLocked) {

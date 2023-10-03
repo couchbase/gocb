@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -12,36 +13,40 @@ import (
 type bucketManagementProviderPs struct {
 	provider admin_bucket_v1.BucketAdminServiceClient
 
-	defaultTimeout time.Duration
-	tracer         RequestTracer
-	meter          *meterWrapper
+	managerProvider *psOpManagerProvider
+}
+
+func (bm bucketManagementProviderPs) newOpManager(parentSpan RequestSpan, opName string, attribs map[string]interface{}) *psOpManager {
+	return bm.managerProvider.NewManager(parentSpan, opName, attribs)
 }
 
 func (bm bucketManagementProviderPs) GetBucket(bucketName string, opts *GetBucketOptions) (*BucketSettings, error) {
-	start := time.Now()
-	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_get_bucket", start)
+	manager := bm.newOpManager(opts.ParentSpan, "manager_bucket_get_bucket", map[string]interface{}{
+		"db.name":      bucketName,
+		"db.operation": "ListBuckets",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_get_bucket", "management")
-	span.SetAttribute("db.name", bucketName)
-	span.SetAttribute("db.operation", "ListBuckets")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(true)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
+
+	if err := manager.CheckReadyForOp(); err != nil {
+		return nil, err
+	}
 
 	req := &admin_bucket_v1.ListBucketsRequest{}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = bm.defaultTimeout
-	}
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	resp, err := bm.provider.ListBuckets(ctx, req)
+	src, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return bm.provider.ListBuckets(ctx, req)
+	})
 	if err != nil {
-		return nil, mapPsErrorToGocbError(err, true)
+		return nil, err
+	}
+
+	resp, ok := src.(*admin_bucket_v1.ListBucketsResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	for _, source := range resp.Buckets {
@@ -59,29 +64,31 @@ func (bm bucketManagementProviderPs) GetBucket(bucketName string, opts *GetBucke
 }
 
 func (bm bucketManagementProviderPs) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]BucketSettings, error) {
-	start := time.Now()
-	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_get_all_buckets", start)
+	manager := bm.newOpManager(opts.ParentSpan, "manager_bucket_get_all_buckets", map[string]interface{}{
+		"db.operation": "ListBuckets",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_get_all_buckets", "management")
-	span.SetAttribute("db.operation", "ListBuckets")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(true)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
+
+	if err := manager.CheckReadyForOp(); err != nil {
+		return nil, err
+	}
 
 	req := &admin_bucket_v1.ListBucketsRequest{}
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = bm.defaultTimeout
-	}
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	resp, err := bm.provider.ListBuckets(ctx, req)
+	src, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return bm.provider.ListBuckets(ctx, req)
+	})
 	if err != nil {
-		return nil, mapPsErrorToGocbError(err, true)
+		return nil, err
+	}
+
+	resp, ok := src.(*admin_bucket_v1.ListBucketsResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	buckets := make(map[string]BucketSettings)
@@ -98,96 +105,90 @@ func (bm bucketManagementProviderPs) GetAllBuckets(opts *GetAllBucketsOptions) (
 }
 
 func (bm bucketManagementProviderPs) CreateBucket(settings CreateBucketSettings, opts *CreateBucketOptions) error {
-	start := time.Now()
-	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_create_bucket", start)
+	manager := bm.newOpManager(opts.ParentSpan, "manager_bucket_create_bucket", map[string]interface{}{
+		"db.name":      settings.Name,
+		"db.operation": "CreateBucket",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_create_bucket", "management")
-	span.SetAttribute("db.name", settings.Name)
-	span.SetAttribute("db.operation", "CreateBucket")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
+
+	if err := manager.CheckReadyForOp(); err != nil {
+		return err
+	}
 
 	req, err := bm.settingsToCreateReq(settings)
 	if err != nil {
 		return makeGenericError(err, nil)
 	}
 
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = bm.defaultTimeout
-	}
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	_, err = bm.provider.CreateBucket(ctx, req)
+	_, err = manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return bm.provider.CreateBucket(ctx, req)
+	})
 	if err != nil {
-		return mapPsErrorToGocbError(err, false)
+		return err
 	}
 
 	return nil
 }
 
 func (bm bucketManagementProviderPs) UpdateBucket(settings BucketSettings, opts *UpdateBucketOptions) error {
-	start := time.Now()
-	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_update_bucket", start)
+	manager := bm.newOpManager(opts.ParentSpan, "manager_bucket_update_bucket", map[string]interface{}{
+		"db.name":      settings.Name,
+		"db.operation": "UpdateBucket",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_update_bucket", "management")
-	span.SetAttribute("db.name", settings.Name)
-	span.SetAttribute("db.operation", "UpdateBucket")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
+
+	if err := manager.CheckReadyForOp(); err != nil {
+		return err
+	}
 
 	req, err := bm.settingsToUpdateReq(settings)
 	if err != nil {
 		return makeGenericError(err, nil)
 	}
 
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = bm.defaultTimeout
-	}
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	_, err = bm.provider.UpdateBucket(ctx, req)
+	_, err = manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return bm.provider.UpdateBucket(ctx, req)
+	})
 	if err != nil {
-		return mapPsErrorToGocbError(err, false)
+		return err
 	}
 
 	return nil
 }
 
 func (bm bucketManagementProviderPs) DropBucket(name string, opts *DropBucketOptions) error {
-	start := time.Now()
-	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_drop_bucket", start)
+	manager := bm.newOpManager(opts.ParentSpan, "manager_bucket_drop_bucket", map[string]interface{}{
+		"db.name":      name,
+		"db.operation": "DeleteBucket",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_drop_bucket", "management")
-	span.SetAttribute("db.name", name)
-	span.SetAttribute("db.operation", "DeleteBucket")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
+
+	if err := manager.CheckReadyForOp(); err != nil {
+		return err
+	}
 
 	req := &admin_bucket_v1.DeleteBucketRequest{BucketName: name}
 
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = bm.defaultTimeout
-	}
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	_, err := bm.provider.DeleteBucket(ctx, req)
+	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return bm.provider.DeleteBucket(ctx, req)
+	})
 	if err != nil {
-		return mapPsErrorToGocbError(err, false)
+		return err
 	}
 
 	return nil

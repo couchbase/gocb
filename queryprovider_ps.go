@@ -17,22 +17,29 @@ import (
 type queryProviderPs struct {
 	provider query_v1.QueryServiceClient
 
-	timeouts TimeoutsConfig
-	tracer   RequestTracer
-	meter    *meterWrapper
+	managerProvider *psOpManagerProvider
 }
 
 func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions) (*QueryResult, error) {
-	start := time.Now()
-	defer qpc.meter.ValueRecord(meterValueServiceQuery, "query", start)
-
-	span := createSpan(qpc.tracer, opts.ParentSpan, "query", "query")
-	span.SetAttribute("db.statement", statement)
-	if s != nil {
-		span.SetAttribute("db.name", s.BucketName())
-		span.SetAttribute("db.couchbase.scope", s.Name())
+	attribs := map[string]interface{}{
+		"db.statement": statement,
 	}
-	defer span.End()
+	if s != nil {
+		attribs["db.name"] = s.BucketName()
+		attribs["db.couchbase.scope"] = s.Name()
+	}
+
+	manager := qpc.managerProvider.NewManager(opts.ParentSpan, "query", attribs)
+	defer manager.Finish(false)
+
+	manager.SetIsIdempotent(opts.Readonly)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
+	manager.SetOperationID(opts.ClientContextID)
+
+	if err := manager.CheckReadyForOp(); err != nil {
+		return nil, err
+	}
 
 	prepared := !opts.Adhoc
 	req := &query_v1.QueryRequest{
@@ -142,10 +149,7 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 		req.ProfileMode = &profileMode
 	}
 
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = qpc.timeouts.QueryTimeout
-	}
+	timeout := manager.GetTimeout()
 	userCtx := opts.Context
 	if userCtx == nil {
 		userCtx = context.Background()
@@ -174,17 +178,24 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 		}
 	}()
 
-	res, err := qpc.provider.Query(reqCtx, req)
+	src, err := manager.WrapCtx(reqCtx, func(ctx context.Context) (interface{}, error) {
+		return qpc.provider.Query(ctx, req)
+	})
 	close(doneCh)
 	if err != nil {
 		reqCancel()
-		return nil, qpc.makeError(err, statement, opts.Readonly, atomic.LoadUint32(&cancellationIsTimeout) == 1, start)
+		return nil, qpc.makeError(err, statement, opts.Readonly, atomic.LoadUint32(&cancellationIsTimeout) == 1, manager.ElapsedTime())
+	}
+
+	res, ok := src.(query_v1.QueryService_QueryClient)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	firstRows, err := res.Recv()
 	if err != nil {
 		reqCancel()
-		return nil, qpc.makeError(err, statement, opts.Readonly, atomic.LoadUint32(&cancellationIsTimeout) == 1, start)
+		return nil, qpc.makeError(err, statement, opts.Readonly, atomic.LoadUint32(&cancellationIsTimeout) == 1, manager.ElapsedTime())
 	}
 
 	reader := &queryProviderPsRowReader{
@@ -199,8 +210,11 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 	return newQueryResult(reader), nil
 }
 
-func (qpc *queryProviderPs) makeError(err error, statement string, readonly, hasTimedOut bool, start time.Time) error {
-	gocbErr := mapPsErrorToGocbError(err, readonly)
+func (qpc *queryProviderPs) makeError(err error, statement string, readonly, hasTimedOut bool, elapsed time.Duration) error {
+	var gocbErr *GenericError
+	if !errors.As(err, &gocbErr) {
+		return err
+	}
 
 	if errors.Is(err, ErrRequestCanceled) && hasTimedOut {
 		if readonly {
@@ -213,7 +227,7 @@ func (qpc *queryProviderPs) makeError(err error, statement string, readonly, has
 	if errors.Is(gocbErr, ErrTimeout) {
 		return &TimeoutError{
 			InnerError:   gocbErr,
-			TimeObserved: time.Since(start),
+			TimeObserved: elapsed,
 		}
 	}
 

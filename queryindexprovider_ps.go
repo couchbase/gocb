@@ -12,28 +12,27 @@ import (
 type queryIndexProviderPs struct {
 	provider admin_query_v1.QueryAdminServiceClient
 
-	defaultTimeout time.Duration
-	tracer         RequestTracer
-	meter          *meterWrapper
+	managerProvider *psOpManagerProvider
+}
+
+func (qpc *queryIndexProviderPs) newOpManager(parentSpan RequestSpan, opName string, attribs map[string]interface{}) *psOpManager {
+	return qpc.managerProvider.NewManager(parentSpan, opName, attribs)
 }
 
 func (qpc *queryIndexProviderPs) CreatePrimaryIndex(c *Collection, bucketName string, opts *CreatePrimaryQueryIndexOptions) error {
-	start := time.Now()
-	defer qpc.meter.ValueRecord(meterValueServiceManagement, "manager_query_create_primary_index", start)
+	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_create_primary_index", map[string]interface{}{
+		"db.operation": "CreatePrimaryIndex",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(qpc.tracer, opts.ParentSpan, "manager_query_create_primary_index", "management")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
 
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = qpc.defaultTimeout
+	if err := manager.CheckReadyForOp(); err != nil {
+		return err
 	}
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
 
 	bucket, scope, collection := qpc.makeKeyspace(c, bucketName, opts.ScopeName, opts.CollectionName)
 	var numReplicas int32
@@ -52,7 +51,10 @@ func (qpc *queryIndexProviderPs) CreatePrimaryIndex(c *Collection, bucketName st
 		Deferred:       &opts.Deferred,
 		Name:           name,
 	}
-	_, err := qpc.provider.CreatePrimaryIndex(ctx, req)
+
+	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return qpc.provider.CreatePrimaryIndex(ctx, req)
+	})
 	if err != nil {
 		err = qpc.handleError(err)
 
@@ -67,22 +69,19 @@ func (qpc *queryIndexProviderPs) CreatePrimaryIndex(c *Collection, bucketName st
 }
 
 func (qpc *queryIndexProviderPs) CreateIndex(c *Collection, bucketName, indexName string, fields []string, opts *CreateQueryIndexOptions) error {
-	start := time.Now()
-	defer qpc.meter.ValueRecord(meterValueServiceManagement, "manager_query_create_index", start)
+	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_create_index", map[string]interface{}{
+		"db.operation": "CreateIndex",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(qpc.tracer, opts.ParentSpan, "manager_query_create_index", "management")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
 
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = qpc.defaultTimeout
+	if err := manager.CheckReadyForOp(); err != nil {
+		return err
 	}
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
 
 	bucket, scope, collection := qpc.makeKeyspace(c, bucketName, opts.ScopeName, opts.CollectionName)
 	var numReplicas int32
@@ -98,7 +97,9 @@ func (qpc *queryIndexProviderPs) CreateIndex(c *Collection, bucketName, indexNam
 		Fields:         fields,
 		Deferred:       &opts.Deferred,
 	}
-	_, err := qpc.provider.CreateIndex(ctx, req)
+	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return qpc.provider.CreateIndex(ctx, req)
+	})
 	if err != nil {
 		err = qpc.handleError(err)
 
@@ -113,22 +114,19 @@ func (qpc *queryIndexProviderPs) CreateIndex(c *Collection, bucketName, indexNam
 }
 
 func (qpc *queryIndexProviderPs) DropPrimaryIndex(c *Collection, bucketName string, opts *DropPrimaryQueryIndexOptions) error {
-	start := time.Now()
-	defer qpc.meter.ValueRecord(meterValueServiceManagement, "manager_query_drop_primary_index", start)
+	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_drop_primary_index", map[string]interface{}{
+		"db.operation": "DropPrimaryIndex",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(qpc.tracer, opts.ParentSpan, "manager_query_drop_primary_index", "management")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
 
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = qpc.defaultTimeout
+	if err := manager.CheckReadyForOp(); err != nil {
+		return err
 	}
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
 
 	bucket, scope, collection := qpc.makeKeyspace(c, bucketName, opts.ScopeName, opts.CollectionName)
 
@@ -143,7 +141,9 @@ func (qpc *queryIndexProviderPs) DropPrimaryIndex(c *Collection, bucketName stri
 		CollectionName: collection,
 		Name:           name,
 	}
-	_, err := qpc.provider.DropPrimaryIndex(ctx, req)
+	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return qpc.provider.DropPrimaryIndex(ctx, req)
+	})
 	if err != nil {
 		err = qpc.handleError(err)
 
@@ -158,22 +158,19 @@ func (qpc *queryIndexProviderPs) DropPrimaryIndex(c *Collection, bucketName stri
 }
 
 func (qpc *queryIndexProviderPs) DropIndex(c *Collection, bucketName, indexName string, opts *DropQueryIndexOptions) error {
-	start := time.Now()
-	defer qpc.meter.ValueRecord(meterValueServiceManagement, "manager_query_drop_index", start)
+	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_drop_index", map[string]interface{}{
+		"db.operation": "DropIndex",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(qpc.tracer, opts.ParentSpan, "manager_query_drop_index", "management")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
 
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = qpc.defaultTimeout
+	if err := manager.CheckReadyForOp(); err != nil {
+		return err
 	}
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
 
 	bucket, scope, collection := qpc.makeKeyspace(c, bucketName, opts.ScopeName, opts.CollectionName)
 
@@ -183,7 +180,9 @@ func (qpc *queryIndexProviderPs) DropIndex(c *Collection, bucketName, indexName 
 		CollectionName: collection,
 		Name:           indexName,
 	}
-	_, err := qpc.provider.DropIndex(ctx, req)
+	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return qpc.provider.DropIndex(ctx, req)
+	})
 	if err != nil {
 		err = qpc.handleError(err)
 
@@ -198,27 +197,25 @@ func (qpc *queryIndexProviderPs) DropIndex(c *Collection, bucketName, indexName 
 }
 
 func (qpc *queryIndexProviderPs) GetAllIndexes(c *Collection, bucketName string, opts *GetAllQueryIndexesOptions) ([]QueryIndex, error) {
-	start := time.Now()
-	defer qpc.meter.ValueRecord(meterValueServiceManagement, "manager_query_get_all_indexes", start)
+	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_get_all_indexes", map[string]interface{}{
+		"db.operation": "GetAllIndexes",
+	})
+	defer manager.Finish(false)
 
-	return qpc.getAllIndexes(c, bucketName, opts)
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(true)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
+
+	if err := manager.CheckReadyForOp(); err != nil {
+		return nil, err
+	}
+
+	return qpc.getAllIndexes(c, bucketName, manager, opts)
 }
 
-func (qpc *queryIndexProviderPs) getAllIndexes(c *Collection, bucketName string, opts *GetAllQueryIndexesOptions) ([]QueryIndex, error) {
-	span := createSpan(qpc.tracer, opts.ParentSpan, "manager_query_get_all_indexes", "management")
-	defer span.End()
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = qpc.defaultTimeout
-	}
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
+func (qpc *queryIndexProviderPs) getAllIndexes(c *Collection, bucketName string, manager *psOpManager,
+	opts *GetAllQueryIndexesOptions) ([]QueryIndex, error) {
 	bucket, scope, collection := qpc.makeKeyspace(c, bucketName, opts.ScopeName, opts.CollectionName)
 
 	req := &admin_query_v1.GetAllIndexesRequest{
@@ -226,9 +223,16 @@ func (qpc *queryIndexProviderPs) getAllIndexes(c *Collection, bucketName string,
 		ScopeName:      scope,
 		CollectionName: collection,
 	}
-	resp, err := qpc.provider.GetAllIndexes(ctx, req)
+	src, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return qpc.provider.GetAllIndexes(ctx, req)
+	})
 	if err != nil {
 		return nil, qpc.handleError(err)
+	}
+
+	resp, ok := src.(*admin_query_v1.GetAllIndexesResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	var indexes []QueryIndex
@@ -263,22 +267,19 @@ func (qpc *queryIndexProviderPs) getAllIndexes(c *Collection, bucketName string,
 }
 
 func (qpc *queryIndexProviderPs) BuildDeferredIndexes(c *Collection, bucketName string, opts *BuildDeferredQueryIndexOptions) ([]string, error) {
-	start := time.Now()
-	defer qpc.meter.ValueRecord(meterValueServiceManagement, "manager_query_build_deferred_indexes", start)
+	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_build_deferred_indexes", map[string]interface{}{
+		"db.operation": "BuildDeferredIndexes",
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(qpc.tracer, opts.ParentSpan, "manager_query_build_deferred_indexes", "management")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
 
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = qpc.defaultTimeout
+	if err := manager.CheckReadyForOp(); err != nil {
+		return nil, err
 	}
-	ctx := opts.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
 
 	bucket, scope, collection := qpc.makeKeyspace(c, bucketName, opts.ScopeName, opts.CollectionName)
 
@@ -287,7 +288,9 @@ func (qpc *queryIndexProviderPs) BuildDeferredIndexes(c *Collection, bucketName 
 		ScopeName:      scope,
 		CollectionName: collection,
 	}
-	_, err := qpc.provider.BuildDeferredIndexes(ctx, req)
+	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+		return qpc.provider.BuildDeferredIndexes(ctx, req)
+	})
 	if err != nil {
 		return nil, qpc.handleError(err)
 	}
@@ -323,11 +326,17 @@ func checkIndexesActivePs(indexes []QueryIndex, checkList []string) (bool, error
 
 func (qpc *queryIndexProviderPs) WatchIndexes(c *Collection, bucketName string, watchList []string, timeout time.Duration, opts *WatchQueryIndexOptions,
 ) error {
-	start := time.Now()
-	defer qpc.meter.ValueRecord(meterValueServiceManagement, "manager_query_watch_indexes", start)
+	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_watch_indexes", map[string]interface{}{})
+	defer manager.Finish(false)
 
-	span := createSpan(qpc.tracer, opts.ParentSpan, "manager_query_watch_indexes", "management")
-	defer span.End()
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(true)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(timeout)
+
+	if err := manager.CheckReadyForOp(); err != nil {
+		return err
+	}
 
 	if opts.WatchPrimary {
 		watchList = append(watchList, "#primary")
@@ -341,9 +350,12 @@ func (qpc *queryIndexProviderPs) WatchIndexes(c *Collection, bucketName string, 
 			return ErrUnambiguousTimeout
 		}
 
+		span := manager.NewSpan("manager_query_get_all_indexes")
+
 		indexes, err := qpc.getAllIndexes(
 			c,
 			bucketName,
+			manager,
 			&GetAllQueryIndexesOptions{
 				Timeout:        time.Until(deadline),
 				RetryStrategy:  opts.RetryStrategy,
@@ -352,6 +364,7 @@ func (qpc *queryIndexProviderPs) WatchIndexes(c *Collection, bucketName string, 
 				CollectionName: opts.CollectionName,
 				Context:        opts.Context,
 			})
+		span.End()
 		if err != nil {
 			return err
 		}
@@ -418,12 +431,14 @@ func (qpc *queryIndexProviderPs) makeKeyspace(c *Collection, bucketName, scopeNa
 }
 
 func (qpc *queryIndexProviderPs) handleError(err error) error {
-	gocbErr := mapPsErrorToGocbError(err, false)
-	if errors.Is(gocbErr, ErrInternalServerFailure) {
-		gocbErr = qpc.tryParseErrorMessage(gocbErr)
+	if errors.Is(err, ErrInternalServerFailure) {
+		var gocbErr *GenericError
+		if errors.As(err, &gocbErr) {
+			return qpc.tryParseErrorMessage(gocbErr)
+		}
 	}
 
-	return gocbErr
+	return err
 }
 
 // tryParseErrorMessage is temporary until protostellar gives us the correct errors.

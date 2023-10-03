@@ -16,26 +16,21 @@ import (
 type searchProviderPs struct {
 	provider search_v1.SearchServiceClient
 
-	timeouts TimeoutsConfig
-	tracer   RequestTracer
-	meter    *meterWrapper
+	managerProvider *psOpManagerProvider
 }
 
 var _ searchProvider = &searchProviderPs{}
 
 // SearchQuery executes a search query against PS, taking care of the translation.
 func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Query, opts *SearchOptions) (*SearchResult, error) {
-	start := time.Now()
-	defer search.meter.ValueRecord(meterValueServiceSearch, "search", start)
+	manager := search.managerProvider.NewManager(opts.ParentSpan, "search", map[string]interface{}{
+		"db.operation": indexName,
+	})
+	defer manager.Finish(false)
 
-	span := createSpan(search.tracer, opts.ParentSpan, "search", "search")
-	span.SetAttribute("db.operation", indexName)
-	defer span.End()
-
-	timeout := opts.Timeout
-	if timeout == 0 {
-		timeout = search.timeouts.SearchTimeout
-	}
+	manager.SetIsIdempotent(true)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
 
 	psQuery, err := cbsearch.Internal{}.MapQueryToPs(query)
 	if err != nil {
@@ -101,7 +96,7 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 	// We create a context with a timeout which will control timing out the initial request portion
 	// of the operation. We can defer the cancel for this as we aren't applying this context directly
 	// to the request so cancellation will not terminate any streams.
-	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), timeout)
+	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), manager.GetTimeout())
 	defer timeoutCancel()
 
 	var cancellationIsTimeout uint32
@@ -122,17 +117,24 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 		}
 	}()
 
-	client, err := search.provider.SearchQuery(reqCtx, &request)
+	src, err := manager.WrapCtx(reqCtx, func(ctx context.Context) (interface{}, error) {
+		return search.provider.SearchQuery(ctx, &request)
+	})
 	close(doneCh)
 	if err != nil {
 		reqCancel()
-		return nil, search.makeError(err, query, atomic.LoadUint32(&cancellationIsTimeout) == 1, start)
+		return nil, search.makeError(err, query, atomic.LoadUint32(&cancellationIsTimeout) == 1, manager.ElapsedTime())
+	}
+
+	client, ok := src.(search_v1.SearchService_SearchQueryClient)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	firstRows, err := client.Recv()
 	if err != nil {
 		reqCancel()
-		return nil, search.makeError(err, query, atomic.LoadUint32(&cancellationIsTimeout) == 1, start)
+		return nil, search.makeError(err, query, atomic.LoadUint32(&cancellationIsTimeout) == 1, manager.ElapsedTime())
 	}
 
 	return newSearchResult(&psSearchRowReader{
@@ -147,8 +149,11 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 	}), nil
 }
 
-func (search *searchProviderPs) makeError(err error, query interface{}, hasTimedOut bool, start time.Time) error {
-	gocbErr := mapPsErrorToGocbError(err, true)
+func (search *searchProviderPs) makeError(err error, query interface{}, hasTimedOut bool, elapsed time.Duration) error {
+	var gocbErr *GenericError
+	if !errors.As(err, &gocbErr) {
+		return err
+	}
 
 	if errors.Is(err, ErrRequestCanceled) && hasTimedOut {
 		gocbErr.InnerError = ErrUnambiguousTimeout
@@ -157,7 +162,7 @@ func (search *searchProviderPs) makeError(err error, query interface{}, hasTimed
 	if errors.Is(gocbErr, ErrTimeout) {
 		return &TimeoutError{
 			InnerError:   gocbErr,
-			TimeObserved: time.Since(start),
+			TimeObserved: elapsed,
 		}
 	}
 

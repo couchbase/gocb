@@ -67,7 +67,9 @@ func (suite *IntegrationTestSuite) runPreparedQueryTest(n int, query, bucket, sc
 		suite.Require().Equal(1, len(nilParents))
 
 		var numDispatchSpans int
-		if !globalCluster.IsProtostellar() {
+		if globalCluster.IsProtostellar() {
+			numDispatchSpans = 1
+		} else {
 			numDispatchSpans = 1
 			if !globalCluster.SupportsFeature(EnhancedPreparedStatementsFeature) {
 				// Old style prepared statements means 2 requests.
@@ -204,16 +206,13 @@ func (suite *IntegrationTestSuite) runQueryTest(n int, query, bucket, scope stri
 		suite.Require().Contains(globalTracer.GetSpans(), nil)
 		nilParents := globalTracer.GetSpans()[nil]
 		suite.Require().Equal(1, len(nilParents))
-		var numDispatchSpans int
-		if !globalCluster.IsProtostellar() {
-			numDispatchSpans = 1
-		}
+
 		suite.AssertHTTPOpSpan(nilParents[0], "query",
 			HTTPOpSpanExpectations{
 				bucket:                  bucket,
 				scope:                   scope,
 				statement:               query,
-				numDispatchSpans:        numDispatchSpans,
+				numDispatchSpans:        1,
 				atLeastNumDispatchSpans: false,
 				hasEncoding:             !globalCluster.IsProtostellar(),
 				service:                 "query",

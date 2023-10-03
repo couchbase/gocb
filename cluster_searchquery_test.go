@@ -48,7 +48,7 @@ func (suite *IntegrationTestSuite) runSearchTest(n int) {
 				operationID:             "search_test_index",
 				numDispatchSpans:        1,
 				atLeastNumDispatchSpans: false,
-				hasEncoding:             true,
+				hasEncoding:             !globalCluster.IsProtostellar(),
 				service:                 "search",
 			})
 
