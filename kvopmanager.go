@@ -121,7 +121,13 @@ func (m *kvOpManager) SetDuraOptions(persistTo, replicateTo uint, level Durabili
 
 	m.persistTo = persistTo
 	m.replicateTo = replicateTo
-	m.durabilityLevel, m.err = level.toMemd()
+	durabilityLevel, err := level.toMemd()
+	if err != nil {
+		m.err = err
+		return
+	}
+
+	m.durabilityLevel = durabilityLevel
 
 	if level > DurabilityLevelNone {
 		levelStr, err := level.toManagementAPI()
