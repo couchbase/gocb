@@ -538,17 +538,16 @@ func (suite *IntegrationTestSuite) TestBucketMgrHistoryRetention() {
 	mgr := globalCluster.Buckets()
 
 	bName := "a" + uuid.NewString()[:6]
+	historyRetentionCollectionDefault := true
 	settings := BucketSettings{
-		Name:           bName,
-		RAMQuotaMB:     1024,
-		NumReplicas:    1,
-		BucketType:     CouchbaseBucketType,
-		StorageBackend: StorageBackendMagma,
-		HistoryRetentionCollectionDefault: &HistoryRetentionCollectionDefaultSettings{
-			Enabled: true,
-		},
-		HistoryRetentionBytes:    2147483648,
-		HistoryRetentionDuration: 13000 * time.Second,
+		Name:                              bName,
+		RAMQuotaMB:                        1024,
+		NumReplicas:                       1,
+		BucketType:                        CouchbaseBucketType,
+		StorageBackend:                    StorageBackendMagma,
+		HistoryRetentionCollectionDefault: &historyRetentionCollectionDefault,
+		HistoryRetentionBytes:             2147483648,
+		HistoryRetentionDuration:          13000 * time.Second,
 	}
 
 	err := mgr.CreateBucket(CreateBucketSettings{
@@ -565,14 +564,13 @@ func (suite *IntegrationTestSuite) TestBucketMgrHistoryRetention() {
 	suite.Assert().Equal(bName, b.Name)
 
 	if suite.Assert().NotNil(b.HistoryRetentionCollectionDefault) {
-		suite.Assert().True(b.HistoryRetentionCollectionDefault.Enabled)
+		suite.Assert().True(*b.HistoryRetentionCollectionDefault)
 	}
 	suite.Assert().Equal(settings.HistoryRetentionDuration, b.HistoryRetentionDuration)
 	suite.Assert().Equal(settings.HistoryRetentionBytes, b.HistoryRetentionBytes)
 
-	b.HistoryRetentionCollectionDefault = &HistoryRetentionCollectionDefaultSettings{
-		Enabled: false,
-	}
+	historyRetentionCollectionDefault = false
+	b.HistoryRetentionCollectionDefault = &historyRetentionCollectionDefault
 
 	err = mgr.UpdateBucket(*b, nil)
 	suite.Require().Nil(err, err)
@@ -586,6 +584,6 @@ func (suite *IntegrationTestSuite) TestBucketMgrHistoryRetention() {
 	suite.Assert().Equal(bName, b.Name)
 
 	if suite.Assert().NotNil(b.HistoryRetentionCollectionDefault) {
-		suite.Assert().False(b.HistoryRetentionCollectionDefault.Enabled)
+		suite.Assert().False(*b.HistoryRetentionCollectionDefault)
 	}
 }

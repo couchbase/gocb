@@ -78,12 +78,6 @@ const (
 	StorageBackendMagma StorageBackend = "magma"
 )
 
-// HistoryRetentionCollectionDefaultSettings specifies settings for whether history retention should be enabled or disabled
-// by default on collections in the bucket.
-type HistoryRetentionCollectionDefaultSettings struct {
-	Enabled bool
-}
-
 // BucketSettings holds information about the settings for a bucket.
 type BucketSettings struct {
 	Name                 string
@@ -102,8 +96,9 @@ type BucketSettings struct {
 
 	// # UNCOMMITTED
 	//
+	// Specifies whether history retention should be enabled or disabled by default on collections in the bucket.
 	// This API is UNCOMMITTED and may change in the future.
-	HistoryRetentionCollectionDefault *HistoryRetentionCollectionDefaultSettings
+	HistoryRetentionCollectionDefault *bool
 
 	// # UNCOMMITTED
 	//

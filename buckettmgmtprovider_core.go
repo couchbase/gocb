@@ -54,11 +54,7 @@ func (bs *BucketSettings) fromData(data jsonBucketSettings) error {
 	bs.CompressionMode = CompressionMode(data.CompressionMode)
 	bs.MinimumDurabilityLevel = durabilityLevelFromManagementAPI(data.MinimumDurabilityLevel)
 	bs.StorageBackend = StorageBackend(data.StorageBackend)
-	if data.HistoryRetentionCollectionDefault != nil {
-		bs.HistoryRetentionCollectionDefault = &HistoryRetentionCollectionDefaultSettings{
-			Enabled: *data.HistoryRetentionCollectionDefault,
-		}
-	}
+	bs.HistoryRetentionCollectionDefault = data.HistoryRetentionCollectionDefault
 	bs.HistoryRetentionBytes = data.HistoryRetentionBytes
 	bs.HistoryRetentionDuration = time.Duration(data.HistoryRetentionSeconds) * time.Second
 
@@ -539,7 +535,7 @@ func (bm *bucketManagementProviderCore) settingsToPostData(settings *BucketSetti
 	}
 
 	if settings.HistoryRetentionCollectionDefault != nil {
-		posts.Add("historyRetentionCollectionDefault", fmt.Sprintf("%t", settings.HistoryRetentionCollectionDefault.Enabled))
+		posts.Add("historyRetentionCollectionDefault", fmt.Sprintf("%t", *settings.HistoryRetentionCollectionDefault))
 	}
 	if settings.HistoryRetentionDuration > 0 {
 		posts.Add("historyRetentionSeconds", fmt.Sprintf("%d", settings.HistoryRetentionDuration/time.Second))
