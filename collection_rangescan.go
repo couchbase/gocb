@@ -23,9 +23,11 @@ type ScanOptions struct {
 	ConsistentWith *MutationState
 
 	// BatchByteLimit specifies a limit to how many bytes are sent from server to client on each partition batch.
-	BatchByteLimit uint32
+	// Defaults to 15000. A value of 0 is equivalent to no limit.
+	BatchByteLimit *uint32
 	// BatchItemLimit specifies a limit to how many items are sent from server to client on each partition batch.
-	BatchItemLimit uint32
+	// Defaults to 50. A value of 0 is equivalent to no limit.
+	BatchItemLimit *uint32
 
 	// MaxConcurrency specifies the maximum number of scans that can be active at the same time.
 	// Defaults to 1 and care must be taken to ensure that the server does not run out of resources due to

@@ -214,18 +214,20 @@ func (m *rangeScanOpManager) SetTimeout(timeout time.Duration) {
 	m.timeout = timeout
 }
 
-func (m *rangeScanOpManager) SetItemLimit(limit uint32) {
-	if limit == 0 {
-		limit = rangeScanDefaultItemLimit
+func (m *rangeScanOpManager) SetItemLimit(limit *uint32) {
+	if limit == nil {
+		m.itemLimit = rangeScanDefaultItemLimit
+	} else {
+		m.itemLimit = *limit
 	}
-	m.itemLimit = limit
 }
 
-func (m *rangeScanOpManager) SetByteLimit(limit uint32) {
-	if limit == 0 {
-		limit = rangeScanDefaultBytesLimit
+func (m *rangeScanOpManager) SetByteLimit(limit *uint32) {
+	if limit == nil {
+		m.byteLimit = rangeScanDefaultBytesLimit
+	} else {
+		m.byteLimit = *limit
 	}
-	m.byteLimit = limit
 }
 
 func (m *rangeScanOpManager) SetMaxConcurrency(max uint16) {

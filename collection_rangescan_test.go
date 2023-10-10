@@ -111,12 +111,14 @@ func (suite *IntegrationTestSuite) verifyRangeScanTracing(topSpan *testSpan, num
 	}
 
 	itemLimit := opts.BatchItemLimit
-	if itemLimit == 0 {
-		itemLimit = rangeScanDefaultItemLimit
+	if itemLimit == nil {
+		limit := uint32(rangeScanDefaultItemLimit)
+		itemLimit = &limit
 	}
 	byteLimit := opts.BatchByteLimit
-	if byteLimit == 0 {
-		byteLimit = rangeScanDefaultBytesLimit
+	if byteLimit == nil {
+		limit := uint32(rangeScanDefaultBytesLimit)
+		byteLimit = &limit
 	}
 
 	suite.Assert().GreaterOrEqual(len(topSpan.Spans), 1)
@@ -166,8 +168,8 @@ func (suite *IntegrationTestSuite) verifyRangeScanTracing(topSpan *testSpan, num
 						suite.Assert().True(s.Finished)
 						suite.Assert().Equal(partitionSpan.Context(), s.ParentContext)
 						suite.Assert().Len(s.Tags, 4)
-						suite.Assert().Equal(itemLimit, s.Tags["item_limit"])
-						suite.Assert().Equal(byteLimit, s.Tags["byte_limit"])
+						suite.Assert().Equal(*itemLimit, s.Tags["item_limit"])
+						suite.Assert().Equal(*byteLimit, s.Tags["byte_limit"])
 						suite.Assert().Zero(s.Tags["time_limit"])
 						suite.Assert().NotEmpty(s.Tags["range_scan_id"])
 					}
@@ -247,7 +249,8 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithoutContent() {
 	value := makeBinaryValue(1)
 
 	state := suite.upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
-		Expiry: 30 * time.Second,
+		Expiry:     30 * time.Second,
+		Transcoder: NewRawBinaryTranscoder(),
 	})
 
 	scan := RangeScan{
@@ -378,7 +381,8 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeCancellation() {
 	value := makeBinaryValue(1)
 
 	state := suite.upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
-		Expiry: 30 * time.Second,
+		Expiry:     30 * time.Second,
+		Transcoder: NewRawBinaryTranscoder(),
 	})
 
 	scan := RangeScan{
@@ -389,9 +393,10 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeCancellation() {
 			Term: "rangekeysonly\xFF",
 		},
 	}
+	itemLimit := uint32(1)
 	opts := &ScanOptions{
 		IDsOnly:        true,
-		BatchItemLimit: 1,
+		BatchItemLimit: &itemLimit,
 		ConsistentWith: state,
 	}
 
@@ -503,7 +508,8 @@ func (suite *IntegrationTestSuite) TestRangeScanRange() {
 	value := makeBinaryValue(1)
 
 	mutationState := suite.upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
-		Expiry: 30 * time.Second,
+		Expiry:     30 * time.Second,
+		Transcoder: NewRawBinaryTranscoder(),
 	})
 
 	scan := RangeScan{
@@ -603,7 +609,8 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeEmoji() {
 	value := makeBinaryValue(1)
 
 	mutationState := suite.upsertAndCreateMutationState(globalCollection, docIDs, value, &UpsertOptions{
-		Expiry: 30 * time.Second,
+		Expiry:     30 * time.Second,
+		Transcoder: NewRawBinaryTranscoder(),
 	})
 
 	scan := NewRangeScanForPrefix("\U0001F600")
