@@ -327,4 +327,8 @@ var (
 
 	// ErrNoResult occurs when no results are available to a query.
 	ErrNoResult = errors.New("no result was available")
+
+	// ErrCircuitBreakerOpen occurs when the operation was cancelled because the circuit breaker was open
+	// # UNCOMMITTED: This API may change in the future.
+	ErrCircuitBreakerOpen = gocbcore.ErrCircuitBreakerOpen
 )

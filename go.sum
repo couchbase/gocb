@@ -1,6 +1,8 @@
 github.com/benbjohnson/clock v1.1.0 h1:Q92kusRqC1XV2MjkWETPvjJVqKetz1OzxZB7mHJLju8=
 github.com/couchbase/gocbcore/v10 v10.2.6-0.20230925103338-e0417e22ea06 h1:T7qNvGMPwYaPz6pZQ1GYjXQSUElkTzEgqx8eZn7Y3IA=
 github.com/couchbase/gocbcore/v10 v10.2.6-0.20230925103338-e0417e22ea06/go.mod h1:lYQIIk+tzoMcwtwU5GzPbDdqEkwkH3isI2rkSpfL0oM=
+github.com/couchbase/gocbcore/v10 v10.2.6-0.20231018082520-2fad08b5c8d1 h1:sdFzMvIGHWsFLc+wXDSV8tbkWV3FHbhqjgnPAoqixro=
+github.com/couchbase/gocbcore/v10 v10.2.6-0.20231018082520-2fad08b5c8d1/go.mod h1:lYQIIk+tzoMcwtwU5GzPbDdqEkwkH3isI2rkSpfL0oM=
 github.com/couchbase/gocbcoreps v0.0.0-20230807073947-b16d0c10005d h1:fgzn/MDXGK9nycLdjyTjm8T+H2D0WD8LNtmHPIYkRtM=
 github.com/couchbase/gocbcoreps v0.0.0-20230807073947-b16d0c10005d/go.mod h1:c3ffv0L5noZgAFNvsvMvWKWFcatgnEH7wnOYiI9sORE=
 github.com/couchbase/goprotostellar v0.0.1-3.0.20230725105451-6df02ac9cd41 h1:fBHouTOvR9D2vzGnTHyJCsU5gu23mnBOaKNytkWVNQI=
