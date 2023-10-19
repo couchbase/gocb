@@ -11,8 +11,9 @@ const (
 	preconditionLocked              = "LOCKED"
 	preconditionPathMismatch        = "PATH_MISMATCH"
 	preconditionDocNotJSON          = "DOC_NOT_JSON"
-	preconditionDodcTooDeep         = "DOC_TOO_DEEP"
+	preconditionDocTooDeep          = "DOC_TOO_DEEP"
 	preconditionWouldInvalidateJSON = "WOULD_INVALIDATE_JSON"
+	preconditionValueTooLarge       = "VALUE_TOO_LARGE"
 	// Not currently used as it's unclear what exception this maps to.
 	// preconditionPathValueOutOfRange = "PATH_VALUE_OUT_OF_RANGE"
 )
@@ -60,10 +61,12 @@ func mapPsErrorStatusToGocbError(st *status.Status, readOnly bool) *GenericError
 					baseErr = ErrPathMismatch
 				case preconditionDocNotJSON:
 					baseErr = ErrDocumentNotJSON
-				case preconditionDodcTooDeep:
+				case preconditionDocTooDeep:
 					baseErr = ErrValueTooDeep
 				case preconditionWouldInvalidateJSON:
 					baseErr = ErrValueInvalid
+				case preconditionValueTooLarge:
+					baseErr = ErrValueTooLarge
 				}
 			}
 		case *errdetails.ResourceInfo:
