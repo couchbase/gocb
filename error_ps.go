@@ -7,7 +7,6 @@ import (
 )
 
 const (
-	preconditionCAS                 = "CAS"
 	preconditionLocked              = "LOCKED"
 	preconditionPathMismatch        = "PATH_MISMATCH"
 	preconditionDocNotJSON          = "DOC_NOT_JSON"
@@ -26,6 +25,10 @@ const (
 	resourceTypeCollection  = "collection"
 	resourceTypePath        = "path"
 	resourceTypeSearchIndex = "searchindex"
+)
+
+const (
+	reasonCasMismatch = "CAS_MISMATCH"
 )
 
 func mapPsErrorToGocbError(err error, readOnly bool) *GenericError {
@@ -51,10 +54,10 @@ func mapPsErrorStatusToGocbError(st *status.Status, readOnly bool) *GenericError
 		switch d := detail.(type) {
 		case *errdetails.PreconditionFailure:
 			if len(d.Violations) > 0 {
+				context["precondition_violation"] = d.Violations[0].Type
+
 				violation := d.Violations[0]
 				switch violation.Type {
-				case preconditionCAS:
-					baseErr = ErrCasMismatch
 				case preconditionLocked:
 					baseErr = ErrDocumentLocked
 				case preconditionPathMismatch:
@@ -70,7 +73,9 @@ func mapPsErrorStatusToGocbError(st *status.Status, readOnly bool) *GenericError
 				}
 			}
 		case *errdetails.ResourceInfo:
-			context["resource_name"] = d.ResourceName
+			if d.ResourceName != "" {
+				context["resource_name"] = d.ResourceName
+			}
 			context["resource_type"] = d.ResourceType
 
 			if code == codes.NotFound {
@@ -107,6 +112,12 @@ func mapPsErrorStatusToGocbError(st *status.Status, readOnly bool) *GenericError
 				case resourceTypePath:
 					baseErr = ErrPathExists
 				}
+			}
+		case *errdetails.ErrorInfo:
+			context["reason"] = d.Reason
+			switch d.Reason {
+			case reasonCasMismatch:
+				baseErr = ErrCasMismatch
 			}
 		}
 		if baseErr != nil {
