@@ -208,7 +208,7 @@ func (bm bucketManagementProviderPs) psBucketToBucket(source *admin_bucket_v1.Li
 		MaxExpiry:            time.Duration(source.MaxExpirySecs) * time.Second,
 	}
 
-	// memcached buckets are not supported by protostellar so we shouldn't be receiving buckets of that type.
+	// memcached buckets are not supported by couchbase2 so we shouldn't be receiving buckets of that type.
 	switch source.BucketType {
 	case admin_bucket_v1.BucketType_BUCKET_TYPE_COUCHBASE:
 		bucket.BucketType = CouchbaseBucketType
@@ -415,7 +415,7 @@ func (bm *bucketManagementProviderPs) bucketTypeToPS(bucketType BucketType) (adm
 	case CouchbaseBucketType:
 		return admin_bucket_v1.BucketType_BUCKET_TYPE_COUCHBASE, nil
 	case MemcachedBucketType:
-		return 0, makeInvalidArgumentsError("memcached bucket type is not supported for protostellar")
+		return 0, makeInvalidArgumentsError("memcached bucket type is not supported by the couchbase2 protocol")
 	case EphemeralBucketType:
 		return admin_bucket_v1.BucketType_BUCKET_TYPE_EPHEMERAL, nil
 	default:

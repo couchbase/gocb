@@ -170,7 +170,7 @@ func (p *kvProviderPs) MutateIn(c *Collection, id string, ops []MutateInSpec, op
 	memdDocFlags := memd.SubdocDocFlag(opts.Internal.DocFlags)
 	preserveTTL := opts.PreserveExpiry
 	if preserveTTL {
-		return nil, makeInvalidArgumentsError("cannot use preserve expiry with protostellar")
+		return nil, makeInvalidArgumentsError("cannot use preserve expiry with the couchbase2 protocol")
 	}
 
 	var psAction kv_v1.MutateInRequest_StoreSemantic
@@ -207,7 +207,7 @@ func (p *kvProviderPs) MutateIn(c *Collection, id string, ops []MutateInSpec, op
 		}
 
 		if flags&memd.SubdocFlagExpandMacros == memd.SubdocFlagExpandMacros {
-			return nil, wrapError(ErrFeatureNotAvailable, "unsupported flag for protostellar: macro expansion")
+			return nil, wrapError(ErrFeatureNotAvailable, "unsupported flag for  the couchbase2 protocol: macro expansion")
 		}
 		createPath := op.createPath
 		isXattr := op.isXattr
@@ -468,7 +468,7 @@ func (p *kvProviderPs) Replace(c *Collection, id string, val interface{}, opts *
 
 func (p *kvProviderPs) Get(c *Collection, id string, opts *GetOptions) (*GetResult, error) {
 	if len(opts.Project) > 0 {
-		return nil, wrapError(ErrFeatureNotAvailable, "cannot use project with protostellar")
+		return nil, wrapError(ErrFeatureNotAvailable, "cannot use project with  the couchbase2 protocol")
 	}
 
 	opm := newKvOpManagerPs(c, "get", opts.ParentSpan)

@@ -268,7 +268,7 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 	}
 
 	if connSpec.Scheme == "http" {
-		return nil, errors.New("http scheme is not supported, use couchbase or couchbases instead")
+		return nil, errors.New("http scheme is not supported")
 	}
 
 	cluster := clusterFromOptions(opts)

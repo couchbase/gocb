@@ -31,7 +31,7 @@ type Transactions struct {
 func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, error) {
 	// TODO: protostellar doesn't support transactions.
 	// so we'll just bail early.
-	if c.cSpec.Scheme == "protostellar" || c.cSpec.Scheme == "protostellars" {
+	if c.cSpec.Scheme == "couchbase2" {
 		return &Transactions{
 			unsupported: true,
 		}, nil
@@ -156,7 +156,7 @@ func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, er
 // singular transaction.
 func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (*TransactionResult, error) {
 	if t.unsupported {
-		return nil, wrapError(ErrFeatureNotAvailable, "transactions are not currently supported against protostellar")
+		return nil, wrapError(ErrFeatureNotAvailable, "transactions are not currently supported against  the couchbase2 protocol")
 	}
 	return t.run(logicFn, perConfig, false)
 }
@@ -388,7 +388,7 @@ func (t *Transactions) atrLocationsProvider() ([]gocbcore.TransactionLostATRLoca
 
 func (t *Transactions) singleQuery(statement string, scope *Scope, opts QueryOptions) (*QueryResult, error) {
 	if t.unsupported {
-		return nil, wrapError(ErrFeatureNotAvailable, "transactions are not currently supported against protostellar")
+		return nil, wrapError(ErrFeatureNotAvailable, "transactions are not currently supported against  the couchbase2 protocol")
 	}
 	if opts.Context != nil {
 		return nil, makeInvalidArgumentsError("cannot use context and transactions together")

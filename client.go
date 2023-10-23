@@ -27,7 +27,7 @@ type connectionManager interface {
 
 func (c *Cluster) newConnectionMgr(protocol string) connectionManager {
 	switch protocol {
-	case "protostellar":
+	case "couchbase2":
 		return &psConnectionMgr{
 			timeouts:     c.timeoutsConfig,
 			tracer:       c.tracer,
