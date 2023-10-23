@@ -208,11 +208,10 @@ func (bm bucketManagementProviderPs) psBucketToBucket(source *admin_bucket_v1.Li
 		MaxExpiry:            time.Duration(source.MaxExpirySecs) * time.Second,
 	}
 
+	// memcached buckets are not supported by protostellar so we shouldn't be receiving buckets of that type.
 	switch source.BucketType {
 	case admin_bucket_v1.BucketType_BUCKET_TYPE_COUCHBASE:
 		bucket.BucketType = CouchbaseBucketType
-	case admin_bucket_v1.BucketType_BUCKET_TYPE_MEMCACHED:
-		bucket.BucketType = MemcachedBucketType
 	case admin_bucket_v1.BucketType_BUCKET_TYPE_EPHEMERAL:
 		bucket.BucketType = EphemeralBucketType
 	default:
@@ -252,11 +251,13 @@ func (bm bucketManagementProviderPs) psBucketToBucket(source *admin_bucket_v1.Li
 		}
 	}
 
-	switch source.StorageBackend {
-	case admin_bucket_v1.StorageBackend_STORAGE_BACKEND_COUCHSTORE:
-		bucket.StorageBackend = StorageBackendCouchstore
-	case admin_bucket_v1.StorageBackend_STORAGE_BACKEND_MAGMA:
-		bucket.StorageBackend = StorageBackendMagma
+	if source.StorageBackend != nil {
+		switch *source.StorageBackend {
+		case admin_bucket_v1.StorageBackend_STORAGE_BACKEND_COUCHSTORE:
+			bucket.StorageBackend = StorageBackendCouchstore
+		case admin_bucket_v1.StorageBackend_STORAGE_BACKEND_MAGMA:
+			bucket.StorageBackend = StorageBackendMagma
+		}
 	}
 
 	return bucket, nil
@@ -359,11 +360,6 @@ func (bm *bucketManagementProviderPs) settingsToUpdateReq(settings BucketSetting
 		request.FlushEnabled = &settings.FlushEnabled
 	}
 
-	if settings.ReplicaIndexDisabled {
-		replicasEnabled := false
-		request.ReplicaIndexes = &replicasEnabled
-	}
-
 	if settings.EvictionPolicy != "" {
 		request.EvictionMode, err = bm.evictionPolicyToPS(settings.EvictionPolicy, settings.BucketType)
 		if err != nil {
@@ -419,7 +415,7 @@ func (bm *bucketManagementProviderPs) bucketTypeToPS(bucketType BucketType) (adm
 	case CouchbaseBucketType:
 		return admin_bucket_v1.BucketType_BUCKET_TYPE_COUCHBASE, nil
 	case MemcachedBucketType:
-		return admin_bucket_v1.BucketType_BUCKET_TYPE_MEMCACHED, nil
+		return 0, makeInvalidArgumentsError("memcached bucket type is not supported for protostellar")
 	case EphemeralBucketType:
 		return admin_bucket_v1.BucketType_BUCKET_TYPE_EPHEMERAL, nil
 	default:

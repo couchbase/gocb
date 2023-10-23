@@ -98,6 +98,7 @@ var (
 	HistoryRetentionFeature                   = FeatureCode("historyretention")
 	QueryMB57673Feature                       = FeatureCode("mb57673")
 	FlushBucketFeature                        = FeatureCode("flushbucket")
+	MemcachedBucketFeature                    = FeatureCode("memcachedbucket")
 )
 
 type TestFeatureFlag struct {
@@ -237,6 +238,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case FlushBucketFeature:
 			supported = false
+		case MemcachedBucketFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -359,6 +362,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case QueryMB57673Feature:
 			supported = !c.Version.Equal(srvVer720)
 		case FlushBucketFeature:
+			supported = !c.Version.Equal(protostellarVer)
+		case MemcachedBucketFeature:
 			supported = !c.Version.Equal(protostellarVer)
 		}
 	}

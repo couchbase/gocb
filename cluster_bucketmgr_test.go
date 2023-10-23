@@ -147,6 +147,11 @@ func (suite *IntegrationTestSuite) TestBucketMgrMemcached() {
 	err := mgr.CreateBucket(CreateBucketSettings{
 		BucketSettings: settings,
 	}, nil)
+	if !globalCluster.SupportsFeature(MemcachedBucketFeature) {
+		suite.Require().ErrorIs(err, ErrInvalidArgument)
+		return
+	}
+
 	suite.Require().NoError(err, "Failed to create bucket")
 	defer mgr.DropBucket("testmemd", nil)
 
