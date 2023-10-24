@@ -3,7 +3,6 @@ package gocb
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"time"
@@ -120,23 +119,9 @@ func (p *kvProviderPs) LookupIn(c *Collection, id string, ops []LookupInSpec, op
 	docOut.cas = Cas(res.Cas)
 	docOut.contents = make([]lookupInPartial, len(lookUpInPSSpecs))
 	for i, opRes := range res.Specs {
+		docOut.contents[i].op = ops[i].op
 		if opRes.Status != nil && opRes.Status.Code != 0 {
 			docOut.contents[i].err = opm.EnhanceErrorStatus(status.FromProto(opRes.Status), true)
-		} else if ops[i].op == memd.SubDocOpExists {
-			// PS and classic do not return exists in the same way.
-			// Classic indicates exists via status code, whereas PS uses an actual bool value.
-			var exists bool
-			err = json.Unmarshal(opRes.Content, &exists)
-			if err != nil {
-				logInfof("Failed to unmarshal exists spec response: %s", err)
-				continue
-			}
-
-			if !exists {
-				// If the path doesn't exist then populate the error value. Exists cannot be done at the doc level
-				// so we know that this is path not found.
-				docOut.contents[i].err = opm.EnhanceErr(ErrPathNotFound, false)
-			}
 		}
 		docOut.contents[i].data = opRes.Content
 	}
