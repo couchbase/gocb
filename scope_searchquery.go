@@ -16,7 +16,7 @@ func (s *Scope) Search(indexName string, request SearchRequest, opts *SearchOpti
 
 	provider, err := s.getSearchProvider()
 	if err != nil {
-		return nil, SearchError{
+		return nil, &SearchError{
 			InnerError: wrapError(err, "failed to get search provider"),
 			Query:      request,
 		}

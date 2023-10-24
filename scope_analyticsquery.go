@@ -33,7 +33,7 @@ func (s *Scope) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*Analy
 
 	queryOpts, err := opts.toMap()
 	if err != nil {
-		return nil, AnalyticsError{
+		return nil, &AnalyticsError{
 			InnerError:      wrapError(err, "failed to generate query options"),
 			Statement:       statement,
 			ClientContextID: opts.ClientContextID,
@@ -50,7 +50,7 @@ func (s *Scope) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*Analy
 
 	provider, err := s.getAnalyticsProvider()
 	if err != nil {
-		return nil, AnalyticsError{
+		return nil, &AnalyticsError{
 			InnerError:      wrapError(err, "failed to get query provider"),
 			Statement:       statement,
 			ClientContextID: maybeGetAnalyticsOption(queryOpts, "client_context_id"),

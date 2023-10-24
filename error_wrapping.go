@@ -1,19 +1,10 @@
 package gocb
 
 import (
-	"encoding/json"
 	"errors"
 
 	gocbcore "github.com/couchbase/gocbcore/v10"
 )
-
-func serializeWrappedError(err error) string {
-	errBytes, serErr := json.Marshal(err)
-	if serErr != nil {
-		logErrorf("failed to serialize error to json: %s", serErr.Error())
-	}
-	return string(errBytes)
-}
 
 func maybeEnhanceCoreErr(err error) error {
 	if kvErr, ok := err.(*gocbcore.KeyValueError); ok {

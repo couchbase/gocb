@@ -81,7 +81,7 @@ func makeGenericHTTPError(baseErr error, req *gocbcore.HTTPRequest, resp *gocbco
 		baseErr = errors.New("unknown error")
 	}
 
-	err := HTTPError{
+	err := &HTTPError{
 		InnerError: baseErr,
 	}
 
@@ -103,7 +103,7 @@ func makeGenericMgmtError(baseErr error, req *mgmtRequest, resp *mgmtResponse, e
 		baseErr = errors.New("unknown error")
 	}
 
-	err := HTTPError{
+	err := &HTTPError{
 		InnerError: baseErr,
 		ErrorText:  errText,
 	}

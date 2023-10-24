@@ -3,7 +3,7 @@ package gocb
 import "encoding/json"
 
 func (suite *UnitTestSuite) TestQueryError() {
-	aErr := QueryError{
+	aErr := &QueryError{
 		InnerError:      ErrIndexFailure,
 		Statement:       "select * from dataset",
 		ClientContextID: "12345",
@@ -30,7 +30,7 @@ func (suite *UnitTestSuite) TestQueryError() {
 }
 
 func (suite *UnitTestSuite) TestQueryErrorImproved() {
-	aErr := QueryError{
+	aErr := &QueryError{
 		InnerError:      ErrIndexFailure,
 		Statement:       "select * from dataset",
 		ClientContextID: "12345",

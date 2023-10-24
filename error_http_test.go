@@ -6,7 +6,7 @@ import (
 )
 
 func (suite *UnitTestSuite) TestHTTPError() {
-	aErr := HTTPError{
+	aErr := &HTTPError{
 		InnerError:    errors.New("uh oh"),
 		Endpoint:      "http://127.0.0.1:8091",
 		UniqueID:      "123445",

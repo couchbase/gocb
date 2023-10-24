@@ -6,7 +6,7 @@ import (
 )
 
 func (suite *UnitTestSuite) TestKeyValueError() {
-	aErr := KeyValueError{
+	aErr := &KeyValueError{
 		InnerError:         ErrPathNotFound,
 		StatusCode:         memd.StatusBusy,
 		DocumentID:         "key",

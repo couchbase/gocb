@@ -19,69 +19,70 @@ type TimeoutError struct {
 	LastConnectionID   string
 }
 
-type timeoutError struct {
-	InnerError         error    `json:"-"`
-	OperationID        string   `json:"s,omitempty"`
-	Opaque             string   `json:"i,omitempty"`
-	TimeObserved       uint64   `json:"t,omitempty"`
-	RetryReasons       []string `json:"rr,omitempty"`
-	RetryAttempts      uint32   `json:"ra,omitempty"`
-	LastDispatchedTo   string   `json:"r,omitempty"`
-	LastDispatchedFrom string   `json:"l,omitempty"`
-	LastConnectionID   string   `json:"c,omitempty"`
-}
-
 // MarshalJSON implements the Marshaler interface.
-func (err *TimeoutError) MarshalJSON() ([]byte, error) {
+func (e TimeoutError) MarshalJSON() ([]byte, error) {
+	var innerError string
+	if e.InnerError != nil {
+		innerError = e.InnerError.Error()
+	}
 	var retries []string
-	for _, rr := range err.RetryReasons {
+	for _, rr := range e.RetryReasons {
 		retries = append(retries, rr.Description())
 	}
-
-	toMarshal := timeoutError{
-		InnerError:         err.InnerError,
-		OperationID:        err.OperationID,
-		Opaque:             err.Opaque,
-		TimeObserved:       uint64(err.TimeObserved / time.Microsecond),
+	return json.Marshal(struct {
+		InnerError         string   `json:"msg,omitempty"`
+		OperationID        string   `json:"operation_id,omitempty"`
+		Opaque             string   `json:"opaque,omitempty"`
+		TimeObserved       uint64   `json:"time_observed,omitempty"`
+		RetryReasons       []string `json:"retry_reasons,omitempty"`
+		RetryAttempts      uint32   `json:"retry_attempts,omitempty"`
+		LastDispatchedTo   string   `json:"last_dispatched_to,omitempty"`
+		LastDispatchedFrom string   `json:"last_dispatched_from,omitempty"`
+		LastConnectionID   string   `json:"last_connection_id,omitempty"`
+	}{
+		InnerError:         innerError,
+		OperationID:        e.OperationID,
+		Opaque:             e.Opaque,
+		TimeObserved:       uint64(e.TimeObserved / time.Microsecond),
 		RetryReasons:       retries,
-		RetryAttempts:      err.RetryAttempts,
-		LastDispatchedTo:   err.LastDispatchedTo,
-		LastDispatchedFrom: err.LastDispatchedFrom,
-		LastConnectionID:   err.LastConnectionID,
-	}
-
-	return json.Marshal(toMarshal)
+		RetryAttempts:      e.RetryAttempts,
+		LastDispatchedTo:   e.LastDispatchedTo,
+		LastDispatchedFrom: e.LastDispatchedFrom,
+		LastConnectionID:   e.LastConnectionID,
+	})
 }
 
-// UnmarshalJSON implements the Unmarshaler interface.
-func (err *TimeoutError) UnmarshalJSON(data []byte) error {
-	var tErr *timeoutError
-	if err := json.Unmarshal(data, &tErr); err != nil {
-		return err
+// Error returns the string representation of this error.
+func (e TimeoutError) Error() string {
+	errBytes, serErr := json.Marshal(struct {
+		InnerError         error         `json:"-"`
+		OperationID        string        `json:"operation_id,omitempty"`
+		Opaque             string        `json:"opaque,omitempty"`
+		TimeObserved       uint64        `json:"time_observed,omitempty"`
+		RetryReasons       []RetryReason `json:"retry_reasons,omitempty"`
+		RetryAttempts      uint32        `json:"retry_attempts,omitempty"`
+		LastDispatchedTo   string        `json:"last_dispatched_to,omitempty"`
+		LastDispatchedFrom string        `json:"last_dispatched_from,omitempty"`
+		LastConnectionID   string        `json:"last_connection_id,omitempty"`
+	}{
+		InnerError:         e.InnerError,
+		OperationID:        e.OperationID,
+		Opaque:             e.Opaque,
+		TimeObserved:       uint64(e.TimeObserved / time.Microsecond),
+		RetryReasons:       e.RetryReasons,
+		RetryAttempts:      e.RetryAttempts,
+		LastDispatchedTo:   e.LastDispatchedTo,
+		LastDispatchedFrom: e.LastDispatchedFrom,
+		LastConnectionID:   e.LastConnectionID,
+	})
+	if serErr != nil {
+		logErrorf("failed to serialize error to json: %s", serErr.Error())
 	}
 
-	duration := time.Duration(tErr.TimeObserved) * time.Microsecond
-
-	// Note that we cannot reasonably unmarshal the retry reasons
-	err.OperationID = tErr.OperationID
-	err.Opaque = tErr.Opaque
-	err.TimeObserved = duration
-	err.RetryAttempts = tErr.RetryAttempts
-	err.LastDispatchedTo = tErr.LastDispatchedTo
-	err.LastDispatchedFrom = tErr.LastDispatchedFrom
-	err.LastConnectionID = tErr.LastConnectionID
-
-	return nil
-}
-
-func (err TimeoutError) Error() string {
-	if err.InnerError == nil {
-		return serializeWrappedError(err)
-	}
-	return err.InnerError.Error() + " | " + serializeWrappedError(err)
+	return e.InnerError.Error() + " | " + string(errBytes)
 }
 
 // Unwrap returns the underlying reason for the error
-func (err TimeoutError) Unwrap() error {
-	return err.InnerError
+func (e TimeoutError) Unwrap() error {
+	return e.InnerError
 }

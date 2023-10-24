@@ -12,7 +12,7 @@ func (s *Scope) Query(statement string, opts *QueryOptions) (*QueryResult, error
 
 	provider, err := s.getQueryProvider()
 	if err != nil {
-		return nil, QueryError{
+		return nil, &QueryError{
 			InnerError:      wrapError(err, "failed to get query provider"),
 			Statement:       statement,
 			ClientContextID: opts.ClientContextID,

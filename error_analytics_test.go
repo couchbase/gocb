@@ -5,7 +5,7 @@ import (
 )
 
 func (suite *UnitTestSuite) TestAnalyticsError() {
-	aErr := AnalyticsError{
+	aErr := &AnalyticsError{
 		InnerError:      ErrDatasetNotFound,
 		Statement:       "select * from dataset",
 		ClientContextID: "12345",

@@ -47,20 +47,8 @@ func (suite *UnitTestSuite) TestTimeoutError() {
 	b, mErr := json.Marshal(tErr)
 	suite.Require().Nil(mErr, mErr)
 
-	expectedJSON := `{"s":"Get","i":"0x09","t":100000,"rr":["KV_LOCKED","CIRCUIT_BREAKER_OPEN"],"ra":5,"r":"127.0.0.1:56830","l":"127.0.0.1:56839","c":"d323bee8e92a20d6/63ac5d0cc19a1334"}`
+	expectedJSON := `{"msg":"ambiguous timeout","operation_id":"Get","opaque":"0x09","time_observed":100000,"retry_reasons":["KV_LOCKED","CIRCUIT_BREAKER_OPEN"],"retry_attempts":5,"last_dispatched_to":"127.0.0.1:56830","last_dispatched_from":"127.0.0.1:56839","last_connection_id":"d323bee8e92a20d6/63ac5d0cc19a1334"}`
 	suite.Assert().Equal(expectedJSON, string(b))
-
-	var tErr2 *TimeoutError
-	suite.Require().Nil(json.Unmarshal(b, &tErr2))
-
-	// Note that we cannot unmarshal retry reasons or inner error
-	suite.Assert().Equal(tErr2.OperationID, err.OperationID)
-	suite.Assert().Equal(tErr2.Opaque, err.Opaque)
-	suite.Assert().Equal(tErr2.TimeObserved, err.TimeObserved)
-	suite.Assert().Equal(tErr2.RetryAttempts, err.RetryAttempts)
-	suite.Assert().Equal(tErr2.LastDispatchedTo, err.LastDispatchedTo)
-	suite.Assert().Equal(tErr2.LastDispatchedFrom, err.LastDispatchedFrom)
-	suite.Assert().Equal(tErr2.LastConnectionID, err.LastConnectionID)
 }
 
 func (suite *IntegrationTestSuite) TestTimeoutError_Retries() {

@@ -6,7 +6,7 @@ import (
 )
 
 func (suite *UnitTestSuite) TestSearchError() {
-	aErr := SearchError{
+	aErr := &SearchError{
 		InnerError:    ErrIndexFailure,
 		Query:         search.NewMatchAllQuery(),
 		Endpoint:      "http://127.0.0.1:8094",

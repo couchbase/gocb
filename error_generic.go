@@ -16,7 +16,7 @@ type GenericError struct {
 }
 
 // MarshalJSON implements the Marshaler interface.
-func (e *GenericError) MarshalJSON() ([]byte, error) {
+func (e GenericError) MarshalJSON() ([]byte, error) {
 	var innerError string
 	if e.InnerError != nil {
 		innerError = e.InnerError.Error()
@@ -31,7 +31,7 @@ func (e *GenericError) MarshalJSON() ([]byte, error) {
 }
 
 // Error returns the string representation of a kv error.
-func (e *GenericError) Error() string {
+func (e GenericError) Error() string {
 	errBytes, serErr := json.Marshal(struct {
 		InnerError error                  `json:"-"`
 		Context    map[string]interface{} `json:"context,omitempty"`
@@ -47,7 +47,7 @@ func (e *GenericError) Error() string {
 }
 
 // Unwrap returns the underlying reason for the error
-func (e *GenericError) Unwrap() error {
+func (e GenericError) Unwrap() error {
 	return e.InnerError
 }
 

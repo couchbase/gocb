@@ -362,7 +362,7 @@ func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResult, err
 
 	provider, err := c.getQueryProvider()
 	if err != nil {
-		return nil, QueryError{
+		return nil, &QueryError{
 			InnerError:      wrapError(err, "failed to get query provider"),
 			Statement:       statement,
 			ClientContextID: opts.ClientContextID,

@@ -5,7 +5,7 @@ import (
 )
 
 func (suite *UnitTestSuite) TestViewError() {
-	aErr := ViewError{
+	aErr := &ViewError{
 		InnerError:         ErrViewNotFound,
 		DesignDocumentName: "designdoc",
 		ViewName:           "viewname",

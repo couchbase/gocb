@@ -105,7 +105,7 @@ func (search *searchProviderCore) search(scope *Scope, indexName string, sQuery 
 
 	searchOpts, err := opts.toMap(indexName)
 	if err != nil {
-		return nil, SearchError{
+		return nil, &SearchError{
 			InnerError: wrapError(err, "failed to generate query options"),
 		}
 	}
@@ -155,7 +155,7 @@ func (search *searchProviderCore) execSearchQuery(
 	reqBytes, err := json.Marshal(options)
 	eSpan.End()
 	if err != nil {
-		return nil, SearchError{
+		return nil, &SearchError{
 			InnerError: wrapError(err, "failed to marshall query body"),
 			Query:      maybeGetSearchOptionQuery(options),
 		}

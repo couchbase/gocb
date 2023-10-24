@@ -261,7 +261,7 @@ func (b *Bucket) execViewQuery(
 ) (*ViewResult, error) {
 	provider, err := b.connectionManager.getViewProvider(b.Name())
 	if err != nil {
-		return nil, ViewError{
+		return nil, &ViewError{
 			InnerError:         wrapError(err, "failed to get query provider"),
 			DesignDocumentName: ddoc,
 			ViewName:           viewName,

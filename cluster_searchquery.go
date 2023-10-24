@@ -15,7 +15,7 @@ func (c *Cluster) SearchQuery(indexName string, query cbsearch.Query, opts *Sear
 
 	provider, err := c.getSearchProvider()
 	if err != nil {
-		return nil, SearchError{
+		return nil, &SearchError{
 			InnerError: wrapError(err, "failed to get search provider"),
 			Query:      query,
 		}
@@ -39,7 +39,7 @@ func (c *Cluster) Search(indexName string, request SearchRequest, opts *SearchOp
 
 	provider, err := c.getSearchProvider()
 	if err != nil {
-		return nil, SearchError{
+		return nil, &SearchError{
 			InnerError: wrapError(err, "failed to get search provider"),
 			Query:      request,
 		}

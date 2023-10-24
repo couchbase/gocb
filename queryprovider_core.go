@@ -43,7 +43,7 @@ func (qpc *queryProviderCore) Query(statement string, s *Scope, opts *QueryOptio
 
 	queryOpts, err := opts.toMap()
 	if err != nil {
-		return nil, QueryError{
+		return nil, &QueryError{
 			InnerError:      wrapError(err, "failed to generate query options"),
 			Statement:       statement,
 			ClientContextID: opts.ClientContextID,
@@ -66,7 +66,7 @@ func (qpc *queryProviderCore) Query(statement string, s *Scope, opts *QueryOptio
 	reqBytes, err := json.Marshal(queryOpts)
 	eSpan.End()
 	if err != nil {
-		return nil, QueryError{
+		return nil, &QueryError{
 			InnerError:      wrapError(err, "failed to marshall query body"),
 			Statement:       maybeGetQueryOption(queryOpts, "statement"),
 			ClientContextID: maybeGetQueryOption(queryOpts, "client_context_id"),

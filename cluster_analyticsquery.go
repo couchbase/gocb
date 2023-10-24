@@ -323,7 +323,7 @@ func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*Ana
 
 	queryOpts, err := opts.toMap()
 	if err != nil {
-		return nil, AnalyticsError{
+		return nil, &AnalyticsError{
 			InnerError:      wrapError(err, "failed to generate query options"),
 			Statement:       statement,
 			ClientContextID: opts.ClientContextID,
@@ -339,7 +339,7 @@ func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*Ana
 
 	provider, err := c.getAnalyticsProvider()
 	if err != nil {
-		return nil, AnalyticsError{
+		return nil, &AnalyticsError{
 			InnerError:      wrapError(err, "failed to get query provider"),
 			Statement:       statement,
 			ClientContextID: maybeGetAnalyticsOption(queryOpts, "client_context_id"),
@@ -371,7 +371,7 @@ func execAnalyticsQuery(
 	reqBytes, err := json.Marshal(options)
 	eSpan.End()
 	if err != nil {
-		return nil, AnalyticsError{
+		return nil, &AnalyticsError{
 			InnerError:      wrapError(err, "failed to marshall query body"),
 			Statement:       maybeGetAnalyticsOption(options, "statement"),
 			ClientContextID: maybeGetAnalyticsOption(options, "client_context_id"),
