@@ -218,7 +218,7 @@ func (m *kvOpManagerPs) WrapCtx(ctx context.Context, fn func(ctx context.Context
 		return nil
 	})
 	if err != nil {
-		return nil, m.EnhanceErr(err, m.IsIdempotent())
+		return nil, err
 	}
 
 	return res, nil

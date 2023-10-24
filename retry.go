@@ -291,7 +291,7 @@ func handleRetriableRequest(ctx context.Context, createdTime time.Time, tracer R
 
 			if errors.Is(gocbErr, ErrTimeout) {
 				return nil, &TimeoutError{
-					InnerError:    err,
+					InnerError:    gocbErr,
 					OperationID:   req.Operation(),
 					Opaque:        req.Identifier(),
 					TimeObserved:  time.Since(createdTime),

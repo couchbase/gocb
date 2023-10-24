@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/couchbase/gocbcore/v10"
 )
 
@@ -70,7 +72,8 @@ func (suite *IntegrationTestSuite) TestTimeoutError_Retries() {
 		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
-	mutRes, err := globalCollection.Upsert("unlockTimeout", doc, nil)
+	docId := uuid.NewString()[:6]
+	mutRes, err := globalCollection.Upsert(docId, doc, nil)
 	if err != nil {
 		suite.T().Fatalf("Upsert failed, error was %v", err)
 	}
@@ -79,7 +82,7 @@ func (suite *IntegrationTestSuite) TestTimeoutError_Retries() {
 		suite.T().Fatalf("Upsert CAS was 0")
 	}
 
-	lockedDoc, err := globalCollection.GetAndLock("unlockTimeout", 10, nil)
+	lockedDoc, err := globalCollection.GetAndLock(docId, 10, nil)
 	if err != nil {
 		suite.T().Fatalf("Get failed, error was %v", err)
 	}
@@ -94,7 +97,7 @@ func (suite *IntegrationTestSuite) TestTimeoutError_Retries() {
 		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, lockedDocContent)
 	}
 
-	_, err = globalCollection.Upsert("unlockTimeout", 1234, &UpsertOptions{
+	_, err = globalCollection.Upsert(docId, 1234, &UpsertOptions{
 		Timeout: 1000 * time.Millisecond,
 	})
 	if !errors.Is(err, ErrTimeout) {
