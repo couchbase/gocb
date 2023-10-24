@@ -19,7 +19,7 @@ const (
 
 const (
 	resourceTypeDocument    = "document"
-	resourceTypeIndex       = "index"
+	resourceTypeIndex       = "queryindex"
 	resourceTypeBucket      = "bucket"
 	resourceTypeScope       = "scope"
 	resourceTypeCollection  = "collection"
