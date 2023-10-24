@@ -109,6 +109,9 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 	go func() {
 		select {
 		case <-userCtx.Done():
+			if errors.Is(userCtx.Err(), context.DeadlineExceeded) {
+				atomic.StoreUint32(&cancellationIsTimeout, 1)
+			}
 			reqCancel()
 		case <-timeoutCtx.Done():
 			atomic.StoreUint32(&cancellationIsTimeout, 1)
@@ -123,7 +126,7 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 	close(doneCh)
 	if err != nil {
 		reqCancel()
-		return nil, search.makeError(err, query, atomic.LoadUint32(&cancellationIsTimeout) == 1, manager.ElapsedTime())
+		return nil, search.makeError(err, query, atomic.LoadUint32(&cancellationIsTimeout) == 1, manager.ElapsedTime(), manager.Request())
 	}
 
 	client, ok := src.(search_v1.SearchService_SearchQueryClient)
@@ -134,7 +137,8 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 	firstRows, err := client.Recv()
 	if err != nil {
 		reqCancel()
-		return nil, search.makeError(err, query, atomic.LoadUint32(&cancellationIsTimeout) == 1, manager.ElapsedTime())
+		gocbErr := mapPsErrorToGocbError(err, true)
+		return nil, search.makeError(gocbErr, query, atomic.LoadUint32(&cancellationIsTimeout) == 1, manager.ElapsedTime(), manager.Request())
 	}
 
 	return newSearchResult(&psSearchRowReader{
@@ -149,20 +153,21 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 	}), nil
 }
 
-func (search *searchProviderPs) makeError(err error, query interface{}, hasTimedOut bool, elapsed time.Duration) error {
+func (search *searchProviderPs) makeError(err error, query interface{}, hasTimedOut bool, elapsed time.Duration,
+	req *retriableRequestPs) error {
 	var gocbErr *GenericError
 	if !errors.As(err, &gocbErr) {
 		return err
 	}
 
 	if errors.Is(err, ErrRequestCanceled) && hasTimedOut {
-		gocbErr.InnerError = ErrUnambiguousTimeout
-	}
-
-	if errors.Is(gocbErr, ErrTimeout) {
 		return &TimeoutError{
-			InnerError:   gocbErr,
-			TimeObserved: elapsed,
+			InnerError:    ErrUnambiguousTimeout,
+			TimeObserved:  elapsed,
+			OperationID:   req.Operation(),
+			Opaque:        req.Identifier(),
+			RetryReasons:  req.RetryReasons(),
+			RetryAttempts: req.RetryAttempts(),
 		}
 	}
 

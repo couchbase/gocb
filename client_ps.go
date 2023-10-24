@@ -208,6 +208,8 @@ type psOpManager struct {
 	timeout       time.Duration
 	ctx           context.Context
 	isIdempotent  bool
+
+	req *retriableRequestPs
 }
 
 func (m *psOpManager) SetTimeout(timeout time.Duration) {
@@ -294,6 +296,10 @@ func (m *psOpManager) OperationID() string {
 	return m.operationID
 }
 
+func (m *psOpManager) Request() *retriableRequestPs {
+	return m.req
+}
+
 func (m *psOpManager) Wrap(fn func(ctx context.Context) (interface{}, error)) (interface{}, error) {
 	ctx, cancel := context.WithTimeout(m.ctx, m.GetTimeout())
 	defer cancel()
@@ -302,9 +308,9 @@ func (m *psOpManager) Wrap(fn func(ctx context.Context) (interface{}, error)) (i
 }
 
 func (m *psOpManager) WrapCtx(ctx context.Context, fn func(ctx context.Context) (interface{}, error)) (interface{}, error) {
-	req := newRetriableRequestPS(m.opName, m.IsIdempotent(), m.TraceSpanContext(), m.OperationID(), m.RetryStrategy(), fn)
+	m.req = newRetriableRequestPS(m.opName, m.IsIdempotent(), m.TraceSpanContext(), m.OperationID(), m.RetryStrategy(), fn)
 
-	res, err := handleRetriableRequest(ctx, m.createdTime, m.tracer, req, func(err error) RetryReason {
+	res, err := handleRetriableRequest(ctx, m.createdTime, m.tracer, m.req, func(err error) RetryReason {
 		if errors.Is(err, ErrServiceNotAvailable) {
 			return ServiceNotAvailableRetryReason
 		}

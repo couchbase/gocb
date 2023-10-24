@@ -170,6 +170,9 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 	go func() {
 		select {
 		case <-userCtx.Done():
+			if errors.Is(userCtx.Err(), context.DeadlineExceeded) {
+				atomic.StoreUint32(&cancellationIsTimeout, 1)
+			}
 			reqCancel()
 		case <-timeoutCtx.Done():
 			atomic.StoreUint32(&cancellationIsTimeout, 1)
@@ -184,7 +187,8 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 	close(doneCh)
 	if err != nil {
 		reqCancel()
-		return nil, qpc.makeError(err, statement, opts.Readonly, atomic.LoadUint32(&cancellationIsTimeout) == 1, manager.ElapsedTime())
+		return nil, qpc.makeError(err, statement, opts.Readonly, atomic.LoadUint32(&cancellationIsTimeout) == 1,
+			manager.ElapsedTime(), manager.Request())
 	}
 
 	res, ok := src.(query_v1.QueryService_QueryClient)
@@ -195,7 +199,9 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 	firstRows, err := res.Recv()
 	if err != nil {
 		reqCancel()
-		return nil, qpc.makeError(err, statement, opts.Readonly, atomic.LoadUint32(&cancellationIsTimeout) == 1, manager.ElapsedTime())
+		gocbErr := mapPsErrorToGocbError(err, opts.Readonly)
+		return nil, qpc.makeError(gocbErr, statement, opts.Readonly, atomic.LoadUint32(&cancellationIsTimeout) == 1,
+			manager.ElapsedTime(), manager.Request())
 	}
 
 	reader := &queryProviderPsRowReader{
@@ -210,24 +216,28 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 	return newQueryResult(reader), nil
 }
 
-func (qpc *queryProviderPs) makeError(err error, statement string, readonly, hasTimedOut bool, elapsed time.Duration) error {
+func (qpc *queryProviderPs) makeError(err error, statement string, readonly, hasTimedOut bool, elapsed time.Duration,
+	req *retriableRequestPs) error {
 	var gocbErr *GenericError
 	if !errors.As(err, &gocbErr) {
 		return err
 	}
 
 	if errors.Is(err, ErrRequestCanceled) && hasTimedOut {
+		var innerErr error
 		if readonly {
-			gocbErr.InnerError = ErrUnambiguousTimeout
+			innerErr = ErrUnambiguousTimeout
 		} else {
-			gocbErr.InnerError = ErrAmbiguousTimeout
+			innerErr = ErrAmbiguousTimeout
 		}
-	}
 
-	if errors.Is(gocbErr, ErrTimeout) {
 		return &TimeoutError{
-			InnerError:   gocbErr,
-			TimeObserved: elapsed,
+			InnerError:    innerErr,
+			TimeObserved:  elapsed,
+			OperationID:   req.Operation(),
+			Opaque:        req.Identifier(),
+			RetryReasons:  req.RetryReasons(),
+			RetryAttempts: req.RetryAttempts(),
 		}
 	}
 

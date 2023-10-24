@@ -194,7 +194,7 @@ func (suite *IntegrationTestSuite) TestSearchContext() {
 	res, err = globalCluster.SearchQuery("test", search.NewMatchAllQuery(), &SearchOptions{
 		Context: ctx,
 	})
-	if !errors.Is(err, ErrRequestCanceled) {
+	if !errors.Is(err, ErrRequestCanceled) && !errors.Is(err, ErrTimeout) {
 		suite.T().Fatalf("Expected error to be canceled but was %v", err)
 	}
 	suite.Require().Nil(res)
