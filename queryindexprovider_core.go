@@ -345,7 +345,7 @@ func checkIndexesActiveCore(indexes []QueryIndex, checkList []string) (bool, err
 	}
 
 	for i := 0; i < len(checkIndexes); i++ {
-		if checkIndexes[i].State != "online" {
+		if checkIndexes[i].State != string(queryIndexStateOnline) {
 			logDebugf("Index not online: %s is in state %s", checkIndexes[i].Name, checkIndexes[i].State)
 			return false, nil
 		}
@@ -492,18 +492,30 @@ func (qpc *queryProviderCore) doQuery(c *Collection, q string, opts *QueryOption
 	return rows, nil
 }
 
+type queryIndexState string
+
+const (
+	queryIndexStateDeferred  queryIndexState = "deferred"
+	queryIndexStateBuilding  queryIndexState = "building"
+	queryIndexStatePending   queryIndexState = "pending"
+	queryIndexStateOnline    queryIndexState = "online"
+	queryIndexStateOffline   queryIndexState = "offline"
+	queryIndexStateAbridged  queryIndexState = "abridged"
+	queryIndexStateScheduled queryIndexState = "scheduled for creation"
+)
+
 type jsonQueryIndex struct {
-	Name      string         `json:"name"`
-	IsPrimary bool           `json:"is_primary"`
-	Type      QueryIndexType `json:"using"`
-	State     string         `json:"state"`
-	Keyspace  string         `json:"keyspace_id"`
-	Namespace string         `json:"namespace_id"`
-	IndexKey  []string       `json:"index_key"`
-	Condition string         `json:"condition"`
-	Partition string         `json:"partition"`
-	Scope     string         `json:"scope_id"`
-	Bucket    string         `json:"bucket_id"`
+	Name      string          `json:"name"`
+	IsPrimary bool            `json:"is_primary"`
+	Type      QueryIndexType  `json:"using"`
+	State     queryIndexState `json:"state"`
+	Keyspace  string          `json:"keyspace_id"`
+	Namespace string          `json:"namespace_id"`
+	IndexKey  []string        `json:"index_key"`
+	Condition string          `json:"condition"`
+	Partition string          `json:"partition"`
+	Scope     string          `json:"scope_id"`
+	Bucket    string          `json:"bucket_id"`
 }
 
 // QueryIndex represents a Couchbase GSI index.
@@ -526,7 +538,7 @@ func (index *QueryIndex) fromData(data jsonQueryIndex) error {
 	index.Name = data.Name
 	index.IsPrimary = data.IsPrimary
 	index.Type = data.Type
-	index.State = data.State
+	index.State = string(data.State)
 	index.Keyspace = data.Keyspace
 	index.Namespace = data.Namespace
 	index.IndexKey = data.IndexKey

@@ -247,11 +247,29 @@ func (qpc *queryIndexProviderPs) getAllIndexes(c *Collection, bucketName string,
 			logInfof("Unknown query index type: %s", index.Type)
 		}
 
+		var state queryIndexState
+		switch index.State {
+		case admin_query_v1.IndexState_INDEX_STATE_DEFERRED:
+			state = queryIndexStateDeferred
+		case admin_query_v1.IndexState_INDEX_STATE_BUILDING:
+			state = queryIndexStateBuilding
+		case admin_query_v1.IndexState_INDEX_STATE_PENDING:
+			state = queryIndexStatePending
+		case admin_query_v1.IndexState_INDEX_STATE_ONLINE:
+			state = queryIndexStateOnline
+		case admin_query_v1.IndexState_INDEX_STATE_OFFLINE:
+			state = queryIndexStateOffline
+		case admin_query_v1.IndexState_INDEX_STATE_ABRIDGED:
+			state = queryIndexStateAbridged
+		case admin_query_v1.IndexState_INDEX_STATE_SCHEDULED:
+			state = queryIndexStateScheduled
+		}
+
 		indexes = append(indexes, QueryIndex{
 			Name:           index.Name,
 			IsPrimary:      index.IsPrimary,
 			Type:           indexType,
-			State:          index.State.String(),
+			State:          string(state),
 			IndexKey:       index.Fields,
 			Condition:      index.GetCondition(),
 			Partition:      index.GetPartition(),
@@ -288,14 +306,19 @@ func (qpc *queryIndexProviderPs) BuildDeferredIndexes(c *Collection, bucketName 
 		ScopeName:      scope,
 		CollectionName: collection,
 	}
-	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
+	src, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
 		return qpc.provider.BuildDeferredIndexes(ctx, req)
 	})
 	if err != nil {
 		return nil, qpc.handleError(err)
 	}
 
-	return []string{""}, nil
+	resp, ok := src.(*admin_query_v1.BuildDeferredIndexesResponse)
+	if !ok {
+		return nil, errors.New("response was not expected type, please file a bug")
+	}
+
+	return resp.IndexNames, nil
 }
 
 func checkIndexesActivePs(indexes []QueryIndex, checkList []string) (bool, error) {
@@ -316,7 +339,7 @@ func checkIndexesActivePs(indexes []QueryIndex, checkList []string) (bool, error
 	}
 
 	for i := 0; i < len(checkIndexes); i++ {
-		if checkIndexes[i].State != admin_query_v1.IndexState_INDEX_STATE_ONLINE.String() {
+		if checkIndexes[i].State != string(queryIndexStateOnline) {
 			logDebugf("Index not online: %s is in state %s", checkIndexes[i].Name, checkIndexes[i].State)
 			return false, nil
 		}
