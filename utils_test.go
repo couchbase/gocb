@@ -3,7 +3,7 @@ package gocb
 import (
 	"encoding/json"
 	"io"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/google/uuid"
@@ -49,7 +49,7 @@ type testMetadata struct {
 }
 
 func loadRawTestDataset(dataset string) ([]byte, error) {
-	return ioutil.ReadFile("testdata/" + dataset + ".json")
+	return os.ReadFile("testdata/" + dataset + ".json")
 }
 
 func loadJSONTestDataset(dataset string, valuePtr interface{}) error {

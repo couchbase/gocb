@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"strings"
 	"time"
@@ -531,7 +531,7 @@ func (sm *searchIndexProviderCore) checkForRateLimitError(statusCode uint32, err
 }
 
 func (sm *searchIndexProviderCore) tryParseErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		logDebugf("Failed to read search index response body: %s", err)
 		return nil

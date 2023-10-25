@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"time"
 
 	"github.com/stretchr/testify/mock"
@@ -155,7 +155,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerGetDoesntExist() {
 	resp := &mgmtResponse{
 		Endpoint:   "http://localhost:8092/default",
 		StatusCode: 404,
-		Body:       ioutil.NopCloser(bytes.NewReader([]byte(retErr))),
+		Body:       io.NopCloser(bytes.NewReader([]byte(retErr))),
 	}
 
 	mockProvider := new(mockMgmtProvider)
@@ -194,7 +194,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerPublishDoesntExist() {
 	resp := &mgmtResponse{
 		Endpoint:   "http://localhost:8092/default",
 		StatusCode: 404,
-		Body:       ioutil.NopCloser(bytes.NewReader([]byte(retErr))),
+		Body:       io.NopCloser(bytes.NewReader([]byte(retErr))),
 	}
 
 	mockProvider := new(mockMgmtProvider)
@@ -233,7 +233,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerDropDoesntExist() {
 	resp := &mgmtResponse{
 		Endpoint:   "http://localhost:8092/default",
 		StatusCode: 404,
-		Body:       ioutil.NopCloser(bytes.NewReader([]byte(retErr))),
+		Body:       io.NopCloser(bytes.NewReader([]byte(retErr))),
 	}
 
 	mockProvider := new(mockMgmtProvider)
@@ -273,7 +273,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerGetAllDesignDocumentsFiltersCorr
 	resp := &mgmtResponse{
 		Endpoint:   "http://localhost:8092/default",
 		StatusCode: 200,
-		Body:       ioutil.NopCloser(bytes.NewReader(payload)),
+		Body:       io.NopCloser(bytes.NewReader(payload)),
 	}
 
 	mockProvider := new(mockMgmtProvider)
@@ -314,7 +314,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerGetAllDesignDocumentsFiltersCorr
 	resp := &mgmtResponse{
 		Endpoint:   "http://localhost:8092/default",
 		StatusCode: 200,
-		Body:       ioutil.NopCloser(bytes.NewReader(payload)),
+		Body:       io.NopCloser(bytes.NewReader(payload)),
 	}
 
 	mockProvider := new(mockMgmtProvider)

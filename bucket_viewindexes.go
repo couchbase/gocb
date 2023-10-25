@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"strings"
 	"time"
@@ -108,7 +108,7 @@ type ViewIndexManager struct {
 }
 
 func (vm *ViewIndexManager) tryParseErrorMessage(req mgmtRequest, resp *mgmtResponse) error {
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		logDebugf("Failed to read view index manager response body: %s", err)
 		return nil

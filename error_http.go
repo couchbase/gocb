@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/couchbase/gocbcore/v10"
-	"io/ioutil"
+	"io"
 )
 
 // HTTPError is the error type of management HTTP errors.
@@ -123,7 +123,7 @@ func makeGenericMgmtError(baseErr error, req *mgmtRequest, resp *mgmtResponse, e
 func makeMgmtBadStatusError(message string, req *mgmtRequest, resp *mgmtResponse) error {
 	var errText string
 	if resp != nil {
-		b, err := ioutil.ReadAll(resp.Body)
+		b, err := io.ReadAll(resp.Body)
 		if err != nil {
 			logDebugf("failed to read http body: %s", err)
 			return nil

@@ -3,7 +3,6 @@ package gocb
 import (
 	"crypto/x509"
 	"flag"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -251,12 +250,12 @@ func setupCluster() {
 
 	if globalConfig.certsPath != "" {
 		rootCAs := x509.NewCertPool()
-		files, err := ioutil.ReadDir(globalConfig.certsPath)
+		files, err := os.ReadDir(globalConfig.certsPath)
 		if err != nil {
 			log.Fatal(err)
 		}
 		for _, f := range files {
-			certs, err := ioutil.ReadFile(globalConfig.certsPath + "/" + f.Name())
+			certs, err := os.ReadFile(globalConfig.certsPath + "/" + f.Name())
 			if strings.Contains(f.Name(), "roots") {
 				if err != nil {
 					log.Fatalf("Failed to append %q to RootCAs: %v", f, err)

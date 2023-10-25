@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"time"
 
 	"github.com/google/uuid"
@@ -260,7 +260,7 @@ func (suite *UnitTestSuite) TestSearchIndexesAnalyzeDocumentCore() {
 
 	resp := &mgmtResponse{
 		StatusCode: 200,
-		Body:       ioutil.NopCloser(bytes.NewReader(analyzeResp)),
+		Body:       io.NopCloser(bytes.NewReader(analyzeResp)),
 	}
 
 	indexName := "searchy"

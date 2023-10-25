@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"strings"
 	"time"
@@ -77,7 +77,7 @@ type bucketMgrErrorResp struct {
 }
 
 func (bm *bucketManagementProviderCore) tryParseErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		logDebugf("Failed to read bucket manager response body: %s", err)
 		return nil
@@ -121,7 +121,7 @@ func (bm *bucketManagementProviderCore) tryParseErrorMessage(req *mgmtRequest, r
 
 // Flush doesn't use the same body format as anything else...
 func (bm *bucketManagementProviderCore) tryParseFlushErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		logDebugf("Failed to read bucket manager response body: %s", err)
 		return makeMgmtBadStatusError("failed to flush bucket", req, resp)

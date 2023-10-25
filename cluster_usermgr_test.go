@@ -3,7 +3,7 @@ package gocb
 import (
 	"bytes"
 	"errors"
-	"io/ioutil"
+	"io"
 	"testing"
 	"time"
 
@@ -534,7 +534,7 @@ func (suite *UnitTestSuite) TestUserManagerGetUserDoesntExist() {
 	retErr := `Unknown user.`
 	resp := &mgmtResponse{
 		StatusCode: 404,
-		Body:       ioutil.NopCloser(bytes.NewReader([]byte(retErr))),
+		Body:       io.NopCloser(bytes.NewReader([]byte(retErr))),
 	}
 
 	username := "larry"
@@ -568,7 +568,7 @@ func (suite *UnitTestSuite) TestUserManagerDropUserDoesntExist() {
 	retErr := `User was not found.`
 	resp := &mgmtResponse{
 		StatusCode: 404,
-		Body:       ioutil.NopCloser(bytes.NewReader([]byte(retErr))),
+		Body:       io.NopCloser(bytes.NewReader([]byte(retErr))),
 	}
 
 	username := "larry"
@@ -602,7 +602,7 @@ func (suite *UnitTestSuite) TestUserManagerGetGroupDoesntExist() {
 	retErr := `Unknown group.`
 	resp := &mgmtResponse{
 		StatusCode: 404,
-		Body:       ioutil.NopCloser(bytes.NewReader([]byte(retErr))),
+		Body:       io.NopCloser(bytes.NewReader([]byte(retErr))),
 	}
 
 	name := "g"
@@ -636,7 +636,7 @@ func (suite *UnitTestSuite) TestUserManagerDropGroupDoesntExist() {
 	retErr := `Group was not found.`
 	resp := &mgmtResponse{
 		StatusCode: 404,
-		Body:       ioutil.NopCloser(bytes.NewReader([]byte(retErr))),
+		Body:       io.NopCloser(bytes.NewReader([]byte(retErr))),
 	}
 
 	name := "g"

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"strings"
 	"time"
@@ -31,7 +31,7 @@ func (efm *EventingFunctionManager) doMgmtRequest(ctx context.Context, req mgmtR
 }
 
 func (efm *EventingFunctionManager) tryParseErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		logDebugf("Failed to read eventing function response body: %s", err)
 		return nil

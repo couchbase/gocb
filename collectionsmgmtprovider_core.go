@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"strings"
 	"time"
@@ -426,7 +426,7 @@ func (cm *collectionsManagementProviderCore) DropScope(scopeName string, opts *D
 }
 
 func (cm *collectionsManagementProviderCore) tryParseErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		logDebugf("failed to read http body: %s", err)
 		return nil
