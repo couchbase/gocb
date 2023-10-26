@@ -86,8 +86,11 @@ func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrud() {
 	suite.Assert().False(index.IsPrimary)
 	suite.Assert().Equal(QueryIndexTypeGsi, index.Type)
 	suite.Assert().Equal("online", index.State)
-	suite.Assert().Equal(colName, index.Keyspace)
-	suite.Assert().Equal("default", index.Namespace)
+	// Protostellar doesn't support keyspace or namespace.
+	if !globalCluster.IsProtostellar() {
+		suite.Assert().Equal(colName, index.Keyspace)
+		suite.Assert().Equal("default", index.Namespace)
+	}
 	suite.Assert().Equal(scopeName, index.ScopeName)
 	suite.Assert().Equal(colName, index.CollectionName)
 	suite.Assert().Equal(bucketName, index.BucketName)
@@ -189,10 +192,18 @@ func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrudDefaultSco
 	suite.Assert().False(index.IsPrimary)
 	suite.Assert().Equal(QueryIndexTypeGsi, index.Type)
 	suite.Assert().Equal("online", index.State)
-	suite.Assert().Equal(globalBucket.bucketName, index.Keyspace)
-	suite.Assert().Equal("default", index.Namespace)
-	suite.Assert().Equal("", index.ScopeName)
-	suite.Assert().Equal("", index.CollectionName)
+	if !globalCluster.IsProtostellar() {
+		suite.Assert().Equal(globalBucket.bucketName, index.Keyspace)
+		suite.Assert().Equal("default", index.Namespace)
+	}
+	if index.ScopeName != "" && index.ScopeName != "_default" {
+		suite.T().Logf("Expected scope name to be _default or empty, was %s", index.ScopeName)
+		suite.T().Fail()
+	}
+	if index.CollectionName != "" && index.CollectionName != "_default" {
+		suite.T().Logf("Expected collection name to be _default or empty, was %s", index.CollectionName)
+		suite.T().Fail()
+	}
 	suite.Assert().Equal(globalBucket.Name(), index.BucketName)
 	if suite.Assert().Len(index.IndexKey, 1) {
 		suite.Assert().Equal("`field`", index.IndexKey[0])

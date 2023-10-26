@@ -386,12 +386,16 @@ func (qpc *queryIndexProviderPs) WatchIndexes(c *Collection, bucketName string, 
 		watchList = append(watchList, "#primary")
 	}
 
-	deadline := time.Now().Add(timeout)
+	start := time.Now()
+	deadline := start.Add(timeout)
 
 	curInterval := 50 * time.Millisecond
 	for {
 		if deadline.Before(time.Now()) {
-			return ErrUnambiguousTimeout
+			return &TimeoutError{
+				InnerError:   ErrUnambiguousTimeout,
+				TimeObserved: time.Since(start),
+			}
 		}
 
 		span := manager.NewSpan("manager_query_get_all_indexes")

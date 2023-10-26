@@ -356,7 +356,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case NodesMetadataFeature:
 			supported = !c.Version.Equal(protostellarVer)
 		case SubdocReplicaReadsFeature:
-			supported = !c.Version.Lower(srvVer750)
+			supported = !c.Version.Lower(srvVer750) && !c.Version.Equal(protostellarVer)
 		case HistoryRetentionFeature:
 			supported = !c.Version.Lower(srvVer720) && !c.Version.Equal(protostellarVer)
 		case QueryMB57673Feature:

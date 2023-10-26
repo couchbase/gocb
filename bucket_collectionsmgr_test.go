@@ -106,12 +106,14 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 	isProtostellar := globalCluster.IsProtostellar()
 	var operationID string
 	var numDispatchSpans int
+	var dispatchOperationID string
 	if isProtostellar {
 		operationID = "CreateScope"
-		numDispatchSpans = 0
+		numDispatchSpans = 1
 	} else {
 		operationID = "POST " + fmt.Sprintf("/pools/default/buckets/%s/scopes", globalConfig.Bucket)
 		numDispatchSpans = 1
+		dispatchOperationID = "any"
 	}
 
 	suite.AssertHTTPOpSpan(nilParents[0], "manager_collections_create_scope",
@@ -123,7 +125,7 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 			numDispatchSpans:        numDispatchSpans,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             !isProtostellar,
-			dispatchOperationID:     "any",
+			dispatchOperationID:     dispatchOperationID,
 		})
 	if isProtostellar {
 		operationID = "CreateCollection"
@@ -140,7 +142,7 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 			numDispatchSpans:        numDispatchSpans,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             !isProtostellar,
-			dispatchOperationID:     "any",
+			dispatchOperationID:     dispatchOperationID,
 		})
 	if isProtostellar {
 		operationID = "ListCollections"
@@ -155,7 +157,7 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 			numDispatchSpans:        numDispatchSpans,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			dispatchOperationID:     "any",
+			dispatchOperationID:     dispatchOperationID,
 		})
 	if isProtostellar {
 		operationID = "DeleteCollection"
@@ -172,7 +174,7 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 			numDispatchSpans:        numDispatchSpans,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			dispatchOperationID:     "any",
+			dispatchOperationID:     dispatchOperationID,
 		})
 	if isProtostellar {
 		operationID = "DeleteScope"
@@ -188,7 +190,7 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 			numDispatchSpans:        numDispatchSpans,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			dispatchOperationID:     "any",
+			dispatchOperationID:     dispatchOperationID,
 		})
 
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_collections_create_scope"), 2, false)
