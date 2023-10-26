@@ -318,7 +318,28 @@ func (qpc *queryIndexProviderPs) BuildDeferredIndexes(c *Collection, bucketName 
 		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
-	return resp.IndexNames, nil
+	indexNames := make([]string, len(resp.Indexes))
+	for i, index := range resp.Indexes {
+		fullName := index.BucketName
+		if index.ScopeName != nil || index.CollectionName != nil {
+			scopeName := index.GetScopeName()
+			if scopeName == "" {
+				scopeName = "_default"
+			}
+			collectionName := index.GetCollectionName()
+			if collectionName == "" {
+				collectionName = "_default"
+			}
+
+			fullName += "." + scopeName + "." + collectionName
+		}
+
+		fullName = fullName + "." + index.Name
+
+		indexNames[i] = fullName
+	}
+
+	return indexNames, nil
 }
 
 func checkIndexesActivePs(indexes []QueryIndex, checkList []string) (bool, error) {
