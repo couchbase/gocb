@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
 
@@ -73,9 +75,14 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 	if disableMetrics {
 		req.TuningOptions.DisableMetrics = &disableMetrics
 	}
-	if opts.ClientContextID != "" {
+	if opts.ClientContextID == "" {
+		clientContextID := uuid.NewString()
+		req.ClientContextId = &clientContextID
+	} else {
 		req.ClientContextId = &opts.ClientContextID
 	}
+	manager.SetOperationID(*req.ClientContextId)
+
 	if opts.ScanConsistency != 0 {
 		var consistency query_v1.QueryRequest_ScanConsistency
 		if opts.ScanConsistency == QueryScanConsistencyNotBounded {
