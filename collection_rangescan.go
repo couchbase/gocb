@@ -29,11 +29,6 @@ type ScanOptions struct {
 	// Defaults to 50. A value of 0 is equivalent to no limit.
 	BatchItemLimit *uint32
 
-	// MaxConcurrency specifies the maximum number of scans that can be active at the same time.
-	// Defaults to 1 and care must be taken to ensure that the server does not run out of resources due to
-	// concurrent scans.
-	MaxConcurrency uint16
-
 	// Internal: This should never be used and is not supported.
 	Internal struct {
 		User string

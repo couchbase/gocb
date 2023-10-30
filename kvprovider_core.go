@@ -27,7 +27,7 @@ func (p *kvProviderCore) Scan(c *Collection, scanType ScanType, opts *ScanOption
 	opm.SetTimeout(opts.Timeout)
 	opm.SetItemLimit(opts.BatchItemLimit)
 	opm.SetByteLimit(opts.BatchByteLimit)
-	opm.SetMaxConcurrency(opts.MaxConcurrency)
+	opm.SetMaxConcurrency(1)
 
 	config, err := p.snapshotProvider.WaitForConfigSnapshot(opts.Context, time.Now().Add(opm.Timeout()))
 	if err != nil {
