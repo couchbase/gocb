@@ -212,6 +212,7 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 		readOnly:  opts.Readonly,
 
 		nextRows: firstRows.Rows,
+		meta:     firstRows.MetaData,
 	}
 	return newQueryResult(reader), nil
 }
