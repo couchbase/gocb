@@ -326,8 +326,8 @@ func (q *queryProviderPsRowReader) MetaData() ([]byte, error) {
 	meta := jsonQueryResponse{
 		RequestID:       q.meta.RequestId,
 		ClientContextID: q.meta.ClientContextId,
-		Profile:         q.meta.Profile,
-		Signature:       q.meta.Signature,
+		Profile:         json.RawMessage(q.meta.Profile),
+		Signature:       json.RawMessage(q.meta.Signature),
 	}
 	switch q.meta.Status {
 	case query_v1.QueryResponse_MetaData_STATUS_RUNNING:
