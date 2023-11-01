@@ -20,7 +20,6 @@ func (suite *IntegrationTestSuite) newSearchIndexName() string {
 
 func (suite *IntegrationTestSuite) TestSearchIndexesCrud() {
 	suite.skipIfUnsupported(SearchIndexFeature)
-	suite.skipIfServerVersionEquals(srvVer750)
 
 	mgr := globalCluster.SearchIndexes()
 

@@ -99,7 +99,7 @@ func (suite *IntegrationTestSuite) TestTransactionsInsert() {
 
 func (suite *IntegrationTestSuite) TestTransactionsCustomMetadata() {
 	suite.skipIfUnsupported(TransactionsFeature)
-	suite.skipIfServerVersionEquals(srvVer750)
+	suite.skipIfUnsupported(TransactionsCustomMetadataFeature)
 
 	metaCollectionName := "txnsCustomMetadata"
 	collections := globalBucket.Collections()

@@ -132,7 +132,6 @@ function (doc, meta) {
 
 func (suite *IntegrationTestSuite) TestViewQueryContext() {
 	suite.skipIfUnsupported(ViewFeature)
-	suite.skipIfServerVersionEquals(srvVer750)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

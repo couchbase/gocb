@@ -79,14 +79,15 @@ var (
 	RateLimitingFeature                       = FeatureCode("ratelimits")
 	StorageBackendFeature                     = FeatureCode("storagebackend")
 	HLCFeature                                = FeatureCode("hlc")
-	TransactionsFeature                       = FeatureCode("transactions")
-	TransactionsBulkFeature                   = FeatureCode("transactionsbulk")
 	CustomConflictResolutionFeature           = FeatureCode("customconflictresolution")
 	QueryImprovedErrorsFeature                = FeatureCode("queryimprovederrors")
-	TransactionsQueryFeature                  = FeatureCode("transactionsquery")
 	UserManagerChangePasswordFeature          = FeatureCode("usermanagerchangepassword")
+	TransactionsFeature                       = FeatureCode("transactions")
+	TransactionsBulkFeature                   = FeatureCode("transactionsbulk")
+	TransactionsQueryFeature                  = FeatureCode("transactionsquery")
 	TransactionsRemoveLocationFeature         = FeatureCode("transactionsremovelocation")
 	TransactionsSingleQueryExistsErrorFeature = FeatureCode("transactionssinglequeryexists")
+	TransactionsCustomMetadataFeature         = FeatureCode("transactionscustommetadata")
 	EventingFunctionManagerMB52649Feature     = FeatureCode("eventingmanagementmb52649")
 	EventingFunctionManagerMB52572Feature     = FeatureCode("eventingmanagementmb52572")
 	RangeScanFeature                          = FeatureCode("rangescan")
@@ -99,6 +100,7 @@ var (
 	QueryMB57673Feature                       = FeatureCode("mb57673")
 	FlushBucketFeature                        = FeatureCode("flushbucket")
 	MemcachedBucketFeature                    = FeatureCode("memcachedbucket")
+	UnlockMissingDocFailFeature               = FeatureCode("unlockmissingdocfail")
 )
 
 type TestFeatureFlag struct {
@@ -230,6 +232,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case TransactionsSingleQueryExistsErrorFeature:
 			supported = false
+		case TransactionsCustomMetadataFeature:
+			supported = false
 		case RangeScanFeature:
 			supported = false
 		case SubdocReplicaReadsFeature:
@@ -258,7 +262,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case SearchFeature:
 			supported = !c.Version.Lower(srvVer500) && !c.Version.Equal(srvVer650DP)
 		case SearchIndexFeature:
-			supported = !c.Version.Lower(srvVer500) && !c.Version.Equal(srvVer650DP)
+			supported = !c.Version.Lower(srvVer500) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(srvVer750)
 		case AnalyticsFeature:
 			supported = !c.Version.Lower(srvVer600) && !c.Version.Equal(srvVer650DP) && !c.Version.Equal(srvVer750) && !c.Version.Equal(protostellarVer)
 		case CollectionsFeature:
@@ -296,7 +300,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case WaitUntilReadyAuthFailFeature:
 			supported = !c.Version.Equal(protostellarVer)
 		case WaitUntilReadyClusterFeature:
-			supported = !c.Version.Lower(srvVer650) && !c.Version.Equal(srvVer750)
+			supported = !c.Version.Lower(srvVer650) && !c.Version.Equal(srvVer750) && !c.Version.Equal(protostellarVer)
 		case ReplicasFeature:
 			supported = true
 		case QueryIndexFeature:
@@ -365,6 +369,10 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Equal(protostellarVer)
 		case MemcachedBucketFeature:
 			supported = !c.Version.Equal(protostellarVer)
+		case TransactionsCustomMetadataFeature:
+			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(protostellarVer) && !c.Version.Equal(srvVer750)
+		case UnlockMissingDocFailFeature:
+			supported = !c.Version.Equal(srvVer750)
 		}
 	}
 

@@ -99,7 +99,6 @@ func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyFastFailConnStr() {
 func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyKeyValueService() {
 	suite.skipIfUnsupported(WaitUntilReadyFeature)
 	suite.skipIfUnsupported(WaitUntilReadyClusterFeature)
-	suite.skipIfServerVersionEquals(protostellarVer)
 
 	c, err := Connect(globalConfig.connstr, ClusterOptions{
 		Authenticator: PasswordAuthenticator{
