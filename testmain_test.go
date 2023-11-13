@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/couchbase/gocbcore/v10"
+
 	cavescli "github.com/couchbaselabs/gocaves/client"
 	"github.com/google/uuid"
 )
@@ -136,6 +138,10 @@ func TestMain(m *testing.M) {
 		setupCluster()
 	}
 
+	if !globalCluster.IsProtostellar() {
+		gocbcore.EnableHttpResponseTracking()
+	}
+
 	result := m.Run()
 
 	if globalCluster != nil {
@@ -169,6 +175,10 @@ func TestMain(m *testing.M) {
 		result = 1
 	} else {
 		log.Printf("No goroutines appear to have leaked (%d before == %d after)", initialGoroutineCount, finalGoroutineCount)
+	}
+
+	if !globalCluster.IsProtostellar() && !gocbcore.ReportLeakedHttpResponses() {
+		result = 1
 	}
 
 	os.Exit(result)

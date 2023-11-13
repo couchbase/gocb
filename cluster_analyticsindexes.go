@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"io"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // AnalyticsIndexManager provides methods for performing Couchbase Analytics index management.
@@ -883,6 +884,11 @@ func (am *AnalyticsIndexManager) CreateLink(link AnalyticsLink, opts *CreateAnal
 		return am.tryParseLinkErrorMessage(&req, resp)
 	}
 
+	err = resp.Body.Close()
+	if err != nil {
+		logDebugf("Failed to close socket (%s)", err)
+	}
+
 	return nil
 }
 
@@ -948,6 +954,11 @@ func (am *AnalyticsIndexManager) ReplaceLink(link AnalyticsLink, opts *ReplaceAn
 
 	if resp.StatusCode != 200 {
 		return am.tryParseLinkErrorMessage(&req, resp)
+	}
+
+	err = resp.Body.Close()
+	if err != nil {
+		logDebugf("Failed to close socket (%s)", err)
 	}
 
 	return nil
@@ -1019,6 +1030,11 @@ func (am *AnalyticsIndexManager) DropLink(linkName, dataverseName string, opts *
 
 	if resp.StatusCode != 200 {
 		return am.tryParseLinkErrorMessage(&req, resp)
+	}
+
+	err = resp.Body.Close()
+	if err != nil {
+		logDebugf("Failed to close socket (%s)", err)
 	}
 
 	return nil
@@ -1142,6 +1158,11 @@ func (am *AnalyticsIndexManager) GetLinks(opts *GetAnalyticsLinksOptions) ([]Ana
 		}
 
 		links = append(links, link)
+	}
+
+	err = resp.Body.Close()
+	if err != nil {
+		logDebugf("Failed to close socket (%s)", err)
 	}
 
 	return links, nil
