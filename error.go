@@ -331,4 +331,10 @@ var (
 	// ErrCircuitBreakerOpen occurs when the operation was cancelled because the circuit breaker was open
 	// # UNCOMMITTED: This API may change in the future.
 	ErrCircuitBreakerOpen = gocbcore.ErrCircuitBreakerOpen
+
+	// ErrDocumentTooDeep occurs when an operation would cause a document to be
+	// nested beyond the depth limits allowed by the sub-document specification.
+	// This error occurs when couchbase2 scheme is in use and is equivalent to
+	// ErrPathTooDeep when other schemes are used.
+	ErrDocumentTooDeep = errors.New("document too deep")
 )

@@ -11,10 +11,9 @@ const (
 	preconditionPathMismatch        = "PATH_MISMATCH"
 	preconditionDocNotJSON          = "DOC_NOT_JSON"
 	preconditionDocTooDeep          = "DOC_TOO_DEEP"
-	preconditionWouldInvalidateJSON = "WOULD_INVALIDATE_JSON"
 	preconditionValueTooLarge       = "VALUE_TOO_LARGE"
-	// Not currently used as it's unclear what exception this maps to.
-	// preconditionPathValueOutOfRange = "PATH_VALUE_OUT_OF_RANGE"
+	preconditionValueOutOfRange     = "VALUE_OUT_OF_RANGE"
+	preconditionPathValueOutOfRange = "PATH_VALUE_OUT_OF_RANGE"
 )
 
 const (
@@ -65,11 +64,13 @@ func mapPsErrorStatusToGocbError(st *status.Status, readOnly bool) *GenericError
 				case preconditionDocNotJSON:
 					baseErr = ErrDocumentNotJSON
 				case preconditionDocTooDeep:
-					baseErr = ErrValueTooDeep
-				case preconditionWouldInvalidateJSON:
-					baseErr = ErrValueInvalid
+					baseErr = ErrDocumentTooDeep
 				case preconditionValueTooLarge:
 					baseErr = ErrValueTooLarge
+				case preconditionValueOutOfRange:
+					baseErr = ErrValueInvalid
+				case preconditionPathValueOutOfRange:
+					baseErr = ErrNumberTooBig
 				}
 			}
 		case *errdetails.ResourceInfo:
@@ -129,14 +130,8 @@ func mapPsErrorStatusToGocbError(st *status.Status, readOnly bool) *GenericError
 	switch st.Code() {
 	case codes.Canceled:
 		baseErr = ErrRequestCanceled
-	case codes.Aborted:
-		baseErr = ErrInternalServerFailure
-	case codes.Unknown:
-		baseErr = ErrInternalServerFailure
 	case codes.Internal:
 		baseErr = ErrInternalServerFailure
-	case codes.OutOfRange:
-		baseErr = ErrInvalidArgument
 	case codes.InvalidArgument:
 		baseErr = ErrInvalidArgument
 	case codes.DeadlineExceeded:
@@ -145,10 +140,6 @@ func mapPsErrorStatusToGocbError(st *status.Status, readOnly bool) *GenericError
 		} else {
 			baseErr = ErrAmbiguousTimeout
 		}
-	case codes.NotFound:
-		baseErr = ErrDocumentNotFound
-	case codes.AlreadyExists:
-		baseErr = ErrDocumentExists
 	case codes.Unauthenticated:
 		baseErr = wrapError(ErrAuthenticationFailure, "server reported that permission to the resource was denied")
 	case codes.PermissionDenied:
