@@ -293,13 +293,15 @@ func (p *kvProviderPs) Insert(c *Collection, id string, val interface{}, opts *I
 		expiry = &kv_v1.InsertRequest_ExpirySecs{ExpirySecs: uint32(opts.Expiry.Seconds())}
 	}
 
+	content := &kv_v1.InsertRequest_ContentUncompressed{ContentUncompressed: opm.ValueBytes()}
+
 	request := &kv_v1.InsertRequest{
 		BucketName:     opm.BucketName(),
 		ScopeName:      opm.ScopeName(),
 		CollectionName: opm.CollectionName(),
 
 		Key:          opm.DocumentID(),
-		Content:      opm.ValueBytes(),
+		Content:      content,
 		ContentFlags: opm.ValueFlags(),
 
 		Expiry:          expiry,
@@ -351,12 +353,14 @@ func (p *kvProviderPs) Upsert(c *Collection, id string, val interface{}, opts *U
 		expiry = &kv_v1.UpsertRequest_ExpirySecs{ExpirySecs: uint32(opts.Expiry.Seconds())}
 	}
 
+	content := &kv_v1.UpsertRequest_ContentUncompressed{ContentUncompressed: opm.ValueBytes()}
+
 	request := &kv_v1.UpsertRequest{
 		Key:            opm.DocumentID(),
 		BucketName:     opm.BucketName(),
 		ScopeName:      opm.ScopeName(),
 		CollectionName: opm.CollectionName(),
-		Content:        opm.ValueBytes(),
+		Content:        content,
 		ContentFlags:   opm.ValueFlags(),
 
 		Expiry:          expiry,
@@ -413,9 +417,11 @@ func (p *kvProviderPs) Replace(c *Collection, id string, val interface{}, opts *
 		expiry = &kv_v1.ReplaceRequest_ExpirySecs{ExpirySecs: uint32(opts.Expiry.Seconds())}
 	}
 
+	content := &kv_v1.ReplaceRequest_ContentUncompressed{ContentUncompressed: opm.ValueBytes()}
+
 	request := &kv_v1.ReplaceRequest{
 		Key:          opm.DocumentID(),
-		Content:      opm.ValueBytes(),
+		Content:      content,
 		ContentFlags: opm.ValueFlags(),
 
 		Cas:            cas,
@@ -490,10 +496,19 @@ func (p *kvProviderPs) Get(c *Collection, id string, opts *GetOptions) (*GetResu
 		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
+	var content []byte
+	switch c := res.Content.(type) {
+	case *kv_v1.GetResponse_ContentUncompressed:
+		content = c.ContentUncompressed
+	case *kv_v1.GetResponse_ContentCompressed:
+		content = c.ContentCompressed
+		logWarnf("couchbase2 does not currently support compressed content, passing through compressed value")
+	}
+
 	resOut := GetResult{
 		Result: Result{Cas(res.Cas)},
 
-		contents: res.Content,
+		contents: content,
 		flags:    res.ContentFlags,
 
 		transcoder: opm.Transcoder(),
@@ -545,11 +560,20 @@ func (p *kvProviderPs) GetAndTouch(c *Collection, id string, expiry time.Duratio
 		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
+	var content []byte
+	switch c := res.Content.(type) {
+	case *kv_v1.GetAndTouchResponse_ContentUncompressed:
+		content = c.ContentUncompressed
+	case *kv_v1.GetAndTouchResponse_ContentCompressed:
+		content = c.ContentCompressed
+		logWarnf("couchbase2 does not currently support compressed content, passing through compressed value")
+	}
+
 	resOut := GetResult{
 		Result:     Result{Cas(res.Cas)},
 		transcoder: opm.Transcoder(),
 
-		contents: res.Content,
+		contents: content,
 		flags:    res.ContentFlags,
 	}
 	if res.Expiry != nil {
@@ -594,11 +618,20 @@ func (p *kvProviderPs) GetAndLock(c *Collection, id string, lockTime time.Durati
 		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
+	var content []byte
+	switch c := res.Content.(type) {
+	case *kv_v1.GetAndLockResponse_ContentUncompressed:
+		content = c.ContentUncompressed
+	case *kv_v1.GetAndLockResponse_ContentCompressed:
+		content = c.ContentCompressed
+		logWarnf("couchbase2 does not currently support compressed content, passing through compressed value")
+	}
+
 	resOut := GetResult{
 		Result:     Result{Cas(res.Cas)},
 		transcoder: opm.Transcoder(),
 
-		contents: res.Content,
+		contents: content,
 		flags:    res.ContentFlags,
 	}
 	if res.Expiry != nil {

@@ -6,10 +6,10 @@ github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDk
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
 github.com/couchbase/gocbcore/v10 v10.2.6-0.20231018082520-2fad08b5c8d1 h1:sdFzMvIGHWsFLc+wXDSV8tbkWV3FHbhqjgnPAoqixro=
 github.com/couchbase/gocbcore/v10 v10.2.6-0.20231018082520-2fad08b5c8d1/go.mod h1:lYQIIk+tzoMcwtwU5GzPbDdqEkwkH3isI2rkSpfL0oM=
-github.com/couchbase/gocbcoreps v0.0.0-20231031081914-427437bce69f h1:H7QIWp9iZAFRC5Ji+ePy7m6FN4wQs+zoJynC7AksiDQ=
-github.com/couchbase/gocbcoreps v0.0.0-20231031081914-427437bce69f/go.mod h1:dyilEkFXjQcI/uAAAR1im/HhA/S9XXztbYBQEFyey1g=
-github.com/couchbase/goprotostellar v0.0.1-3.0.20231026130943-2a7a7c48d499 h1:XAPVPCJGX3WH59dMeez9OyLVbKniBppDt4jInCX/UXU=
-github.com/couchbase/goprotostellar v0.0.1-3.0.20231026130943-2a7a7c48d499/go.mod h1:gs1eioLVOHETTFWxDY4v7Q/kRPMgqmX6t/TPcI429ls=
+github.com/couchbase/gocbcoreps v0.0.0-20231113141308-5f0347744035 h1:WGd1UJoW/Wa2qx7ZzWK1DeJvyGYetjvXlRid6zM9PDM=
+github.com/couchbase/gocbcoreps v0.0.0-20231113141308-5f0347744035/go.mod h1:hwy2m5dFJDwMNln5fR5llMTnIbuwGuXtLxoMgA/NOFA=
+github.com/couchbase/goprotostellar v0.0.1-3.0.20231102140456-4b5bcf407d9d h1:0w7U/19DufAhamFZ7ewheJpTPlkN1veAnAt14WKDxSo=
+github.com/couchbase/goprotostellar v0.0.1-3.0.20231102140456-4b5bcf407d9d/go.mod h1:gs1eioLVOHETTFWxDY4v7Q/kRPMgqmX6t/TPcI429ls=
 github.com/couchbaselabs/gocaves/client v0.0.0-20230307083111-cc3960c624b1/go.mod h1:AVekAZwIY2stsJOMWLAS/0uA/+qdp7pjO8EHnl61QkY=
 github.com/couchbaselabs/gocaves/client v0.0.0-20230404095311-05e3ba4f0259 h1:2TXy68EGEzIMHOx9UvczR5ApVecwCfQZ0LjkmwMI6g4=
 github.com/couchbaselabs/gocaves/client v0.0.0-20230404095311-05e3ba4f0259/go.mod h1:AVekAZwIY2stsJOMWLAS/0uA/+qdp7pjO8EHnl61QkY=

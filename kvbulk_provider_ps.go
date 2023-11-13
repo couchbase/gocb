@@ -102,12 +102,21 @@ func (p *kvBulkProviderPs) Get(ctx context.Context, item *GetOp, tracectx Reques
 		return
 	}
 
+	var content []byte
+	switch c := res.Content.(type) {
+	case *kv_v1.GetResponse_ContentUncompressed:
+		content = c.ContentUncompressed
+	case *kv_v1.GetResponse_ContentCompressed:
+		content = c.ContentCompressed
+		logWarnf("couchbase2 does not currently support compressed content, passing through compressed value")
+	}
+
 	item.Result = &GetResult{
 		Result: Result{
 			cas: Cas(res.Cas),
 		},
 		transcoder: transcoder,
-		contents:   res.Content,
+		contents:   content,
 		flags:      res.ContentFlags,
 	}
 	signal <- item
@@ -141,12 +150,21 @@ func (p *kvBulkProviderPs) GetAndTouch(ctx context.Context, item *GetAndTouchOp,
 		return
 	}
 
+	var content []byte
+	switch c := res.Content.(type) {
+	case *kv_v1.GetAndTouchResponse_ContentUncompressed:
+		content = c.ContentUncompressed
+	case *kv_v1.GetAndTouchResponse_ContentCompressed:
+		content = c.ContentCompressed
+		logWarnf("couchbase2 does not currently support compressed content, passing through compressed value")
+	}
+
 	item.Result = &GetResult{
 		Result: Result{
 			cas: Cas(res.Cas),
 		},
 		transcoder: transcoder,
-		contents:   res.Content,
+		contents:   content,
 		flags:      res.ContentFlags,
 	}
 	signal <- item
@@ -256,12 +274,14 @@ func (p *kvBulkProviderPs) Upsert(ctx context.Context, item *UpsertOp, tracectx 
 		expiry = &kv_v1.UpsertRequest_ExpirySecs{ExpirySecs: uint32(item.Expiry.Seconds())}
 	}
 
+	content := &kv_v1.UpsertRequest_ContentUncompressed{ContentUncompressed: bytes}
+
 	request := &kv_v1.UpsertRequest{
 		Key:            item.ID,
 		BucketName:     c.bucketName(),
 		ScopeName:      c.ScopeName(),
 		CollectionName: c.name(),
-		Content:        bytes,
+		Content:        content,
 		ContentFlags:   flags,
 
 		Expiry: expiry,
@@ -309,12 +329,14 @@ func (p *kvBulkProviderPs) Insert(ctx context.Context, item *InsertOp, tracectx 
 		expiry = &kv_v1.InsertRequest_ExpirySecs{ExpirySecs: uint32(item.Expiry.Seconds())}
 	}
 
+	content := &kv_v1.InsertRequest_ContentUncompressed{ContentUncompressed: bytes}
+
 	request := &kv_v1.InsertRequest{
 		Key:            item.ID,
 		BucketName:     c.bucketName(),
 		ScopeName:      c.ScopeName(),
 		CollectionName: c.name(),
-		Content:        bytes,
+		Content:        content,
 		ContentFlags:   flags,
 
 		Expiry: expiry,
@@ -367,12 +389,14 @@ func (p *kvBulkProviderPs) Replace(ctx context.Context, item *ReplaceOp, tracect
 		expiry = &kv_v1.ReplaceRequest_ExpirySecs{ExpirySecs: uint32(item.Expiry.Seconds())}
 	}
 
+	content := &kv_v1.ReplaceRequest_ContentUncompressed{ContentUncompressed: bytes}
+
 	request := &kv_v1.ReplaceRequest{
 		Key:            item.ID,
 		BucketName:     c.bucketName(),
 		ScopeName:      c.ScopeName(),
 		CollectionName: c.name(),
-		Content:        bytes,
+		Content:        content,
 		ContentFlags:   flags,
 		Cas:            cas,
 
