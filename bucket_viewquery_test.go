@@ -147,6 +147,8 @@ func (suite *IntegrationTestSuite) TestViewQueryContext() {
 	ctx, cancel = context.WithDeadline(context.Background(), time.Now().Add(1*time.Nanosecond))
 	defer cancel()
 
+	time.Sleep(1 * time.Millisecond)
+
 	res, err = globalBucket.ViewQuery("test", "test", &ViewOptions{
 		Context: ctx,
 	})
