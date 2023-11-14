@@ -322,7 +322,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case EnhancedPreparedStatementsFeature:
 			supported = !c.Version.Lower(srvVer650)
 		case PreserveExpiryFeature:
-			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(protostellarVer)
+			supported = !c.Version.Lower(srvVer700)
 		case EventingFunctionManagerFeature:
 			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(srvVer750) && !c.Version.Equal(protostellarVer)
 		case StorageBackendFeature:

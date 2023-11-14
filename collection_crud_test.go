@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/couchbase/gocbcore/v10/memd"
 
 	"github.com/stretchr/testify/mock"
@@ -174,33 +176,44 @@ func (suite *IntegrationTestSuite) TestPreserveExpiry() {
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	suite.Require().Nil(err, err)
 
-	start := time.Now()
-	mutRes, err := globalCollection.Upsert("preservettl", doc, &UpsertOptions{Expiry: 25 * time.Second})
-	suite.Require().Nil(err, err)
+	verifyExpiry := func(docID string, start time.Time, expiryDuration time.Duration) {
+		doc, err := globalCollection.Get(docID, &GetOptions{WithExpiry: true})
+		suite.Require().Nil(err, err)
 
-	suite.Assert().NotZero(mutRes.Cas())
-
-	mutRes, err = globalCollection.Upsert("preservettl", doc, &UpsertOptions{PreserveExpiry: true})
-	suite.Require().Nil(err, err)
-
-	suite.Assert().NotZero(mutRes.Cas())
-
-	insertedDoc, err := globalCollection.Get("preservettl", &GetOptions{WithExpiry: true})
-	suite.Require().Nil(err, err)
-
-	suite.Assert().InDelta(start.Add(25*time.Second).Unix(), insertedDoc.ExpiryTime().Unix(), 5)
-
-	mutRes, err = globalCollection.Replace("preservettl", doc, &ReplaceOptions{PreserveExpiry: true})
-	suite.Require().Nil(err, err)
-
-	if mutRes.Cas() == 0 {
-		suite.T().Fatalf("Replace CAS was 0")
+		suite.Assert().InDelta(start.Add(expiryDuration).Unix(), doc.ExpiryTime().Unix(), 5)
 	}
 
-	replacedDoc, err := globalCollection.Get("preservettl", &GetOptions{WithExpiry: true})
-	suite.Require().Nil(err, err)
+	suite.Run("Upsert", func() {
+		start := time.Now()
+		docID := uuid.NewString()[:6]
+		mutRes, err := globalCollection.Upsert(docID, doc, &UpsertOptions{Expiry: 25 * time.Second})
+		suite.Require().Nil(err, err)
 
-	suite.Assert().InDelta(start.Add(25*time.Second).Unix(), replacedDoc.ExpiryTime().Unix(), 5)
+		suite.Assert().NotZero(mutRes.Cas())
+
+		mutRes, err = globalCollection.Upsert(docID, doc, &UpsertOptions{PreserveExpiry: true, Expiry: 50 * time.Second})
+		suite.Require().Nil(err, err)
+
+		suite.Assert().NotZero(mutRes.Cas())
+
+		verifyExpiry(docID, start, 25*time.Second)
+	})
+
+	suite.Run("Replace", func() {
+		start := time.Now()
+		docID := uuid.NewString()[:6]
+		mutRes, err := globalCollection.Upsert(docID, doc, &UpsertOptions{Expiry: 25 * time.Second})
+		suite.Require().Nil(err, err)
+
+		mutRes, err = globalCollection.Replace(docID, doc, &ReplaceOptions{PreserveExpiry: true})
+		suite.Require().Nil(err, err)
+
+		if mutRes.Cas() == 0 {
+			suite.T().Fatalf("Replace CAS was 0")
+		}
+
+		verifyExpiry(docID, start, 25*time.Second)
+	})
 }
 
 func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {

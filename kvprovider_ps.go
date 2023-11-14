@@ -153,16 +153,15 @@ func (p *kvProviderPs) MutateIn(c *Collection, id string, ops []MutateInSpec, op
 
 	psSpecs := make([]*kv_v1.MutateInRequest_Spec, len(ops))
 	memdDocFlags := memd.SubdocDocFlag(opts.Internal.DocFlags)
-	preserveTTL := opts.PreserveExpiry
-	if preserveTTL {
-		return nil, makeInvalidArgumentsError("cannot use preserve expiry with the couchbase2 protocol")
-	}
 
 	var psAction kv_v1.MutateInRequest_StoreSemantic
 	switch opts.StoreSemantic {
 	case StoreSemanticsReplace:
 		// this is default behavior
 		psAction = kv_v1.MutateInRequest_STORE_SEMANTIC_REPLACE
+		if opts.Expiry > 0 && opts.PreserveExpiry {
+			return nil, makeInvalidArgumentsError("cannot use preserve expiry with expiry for replace store semantics")
+		}
 	case StoreSemanticsUpsert:
 		memdDocFlags |= memd.SubdocDocFlagMkDoc
 		psAction = kv_v1.MutateInRequest_STORE_SEMANTIC_UPSERT
@@ -221,9 +220,15 @@ func (p *kvProviderPs) MutateIn(c *Collection, id string, ops []MutateInSpec, op
 	if opts.Cas > 0 {
 		cas = (*uint64)(&opts.Cas)
 	}
+
+	// CNG interprets a nil expiry value as "preserve expiry"
 	var expiry *kv_v1.MutateInRequest_ExpirySecs
-	if opts.Expiry > 0 {
-		expiry = &kv_v1.MutateInRequest_ExpirySecs{ExpirySecs: uint32(opts.Expiry.Seconds())}
+	if !opts.PreserveExpiry {
+		if opts.Expiry > 0 {
+			expiry = &kv_v1.MutateInRequest_ExpirySecs{ExpirySecs: uint32(opts.Expiry.Seconds())}
+		} else {
+			expiry = &kv_v1.MutateInRequest_ExpirySecs{ExpirySecs: 0}
+		}
 	}
 
 	request := &kv_v1.MutateInRequest{
@@ -353,6 +358,15 @@ func (p *kvProviderPs) Upsert(c *Collection, id string, val interface{}, opts *U
 		expiry = &kv_v1.UpsertRequest_ExpirySecs{ExpirySecs: uint32(opts.Expiry.Seconds())}
 	}
 
+	var preserveExpiry *bool
+	if opts.PreserveExpiry {
+		preserveExpiry = &opts.PreserveExpiry
+	} else {
+		if opts.Expiry == 0 {
+			expiry = &kv_v1.UpsertRequest_ExpirySecs{ExpirySecs: 0}
+		}
+	}
+
 	content := &kv_v1.UpsertRequest_ContentUncompressed{ContentUncompressed: opm.ValueBytes()}
 
 	request := &kv_v1.UpsertRequest{
@@ -363,8 +377,9 @@ func (p *kvProviderPs) Upsert(c *Collection, id string, val interface{}, opts *U
 		Content:        content,
 		ContentFlags:   opm.ValueFlags(),
 
-		Expiry:          expiry,
-		DurabilityLevel: opm.DurabilityLevel(),
+		PreserveExpiryOnExisting: preserveExpiry,
+		Expiry:                   expiry,
+		DurabilityLevel:          opm.DurabilityLevel(),
 	}
 
 	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
@@ -412,9 +427,14 @@ func (p *kvProviderPs) Replace(c *Collection, id string, val interface{}, opts *
 		cas = (*uint64)(&opts.Cas)
 	}
 
+	// CNG interprets a nil expiry value as "preserve expiry"
 	var expiry *kv_v1.ReplaceRequest_ExpirySecs
-	if opts.Expiry > 0 {
-		expiry = &kv_v1.ReplaceRequest_ExpirySecs{ExpirySecs: uint32(opts.Expiry.Seconds())}
+	if !opts.PreserveExpiry {
+		if opts.Expiry > 0 {
+			expiry = &kv_v1.ReplaceRequest_ExpirySecs{ExpirySecs: uint32(opts.Expiry.Seconds())}
+		} else {
+			expiry = &kv_v1.ReplaceRequest_ExpirySecs{ExpirySecs: 0}
+		}
 	}
 
 	content := &kv_v1.ReplaceRequest_ContentUncompressed{ContentUncompressed: opm.ValueBytes()}
@@ -459,7 +479,7 @@ func (p *kvProviderPs) Replace(c *Collection, id string, val interface{}, opts *
 
 func (p *kvProviderPs) Get(c *Collection, id string, opts *GetOptions) (*GetResult, error) {
 	if len(opts.Project) > 0 {
-		return nil, wrapError(ErrFeatureNotAvailable, "cannot use project with  the couchbase2 protocol")
+		return nil, wrapError(ErrFeatureNotAvailable, "cannot use project with the couchbase2 protocol")
 	}
 
 	opm := newKvOpManagerPs(c, "get", opts.ParentSpan)
