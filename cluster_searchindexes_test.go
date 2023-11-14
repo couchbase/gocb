@@ -56,8 +56,8 @@ func (suite *IntegrationTestSuite) TestSearchIndexesCrud() {
 		},
 		Params: map[string]interface{}{
 			"store": map[string]string{
-				"indexType":   "upside_down",
-				"kvStoreName": "moss",
+				"indexType":   "scorch",
+				"kvStoreName": "",
 			},
 		},
 	}, nil)
