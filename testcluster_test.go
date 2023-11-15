@@ -356,7 +356,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case KeyValueBulkFeature:
 			supported = true
 		case KeyValueProjectionsFeature:
-			supported = !c.Version.Equal(protostellarVer)
+			supported = true
 		case NodesMetadataFeature:
 			supported = !c.Version.Equal(protostellarVer)
 		case SubdocReplicaReadsFeature:

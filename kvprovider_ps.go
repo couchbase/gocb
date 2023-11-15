@@ -478,10 +478,6 @@ func (p *kvProviderPs) Replace(c *Collection, id string, val interface{}, opts *
 }
 
 func (p *kvProviderPs) Get(c *Collection, id string, opts *GetOptions) (*GetResult, error) {
-	if len(opts.Project) > 0 {
-		return nil, wrapError(ErrFeatureNotAvailable, "cannot use project with the couchbase2 protocol")
-	}
-
 	opm := newKvOpManagerPs(c, "get", opts.ParentSpan)
 	defer opm.Finish(false)
 
@@ -502,6 +498,7 @@ func (p *kvProviderPs) Get(c *Collection, id string, opts *GetOptions) (*GetResu
 		CollectionName: opm.CollectionName(),
 		ScopeName:      opm.ScopeName(),
 		BucketName:     opm.BucketName(),
+		Project:        opts.Project,
 	}
 
 	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {

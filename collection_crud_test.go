@@ -652,12 +652,14 @@ func (suite *IntegrationTestSuite) TestInsertGetProjection() {
 			span := nilParents[0]
 			suite.AssertKvSpan(span, "get", DurabilityLevelNone)
 
-			suite.Require().Equal(len(span.Spans), 1)
-			suite.Require().Contains(span.Spans, "lookup_in")
-			lookupSpans := span.Spans["lookup_in"]
+			if !globalCluster.IsProtostellar() {
+				suite.Require().Equal(len(span.Spans), 1)
+				suite.Require().Contains(span.Spans, "lookup_in")
+				lookupSpans := span.Spans["lookup_in"]
 
-			suite.Require().Equal(len(lookupSpans), 1)
-			suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), false, DurabilityLevelNone)
+				suite.Require().Equal(len(lookupSpans), 1)
+				suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), false, DurabilityLevelNone)
+			}
 
 			suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
 		})
