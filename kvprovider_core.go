@@ -1019,6 +1019,14 @@ func (p *kvProviderCore) Prepend(c *Collection, id string, val []byte, opts *Pre
 		User:                   opm.Impersonate(),
 	}, func(res *gocbcore.AdjoinResult, err error) {
 		if err != nil {
+			var coreErr *gocbcore.KeyValueError
+			// We do not have a ErrNotStored error and this error should be translated
+			// to ErrDocumentNotFound. At time of writing this would be a breaking change
+			// in gocbcore so we do it here instead.
+			if errors.Is(err, gocbcore.ErrNotStored) && errors.As(err, &coreErr) {
+				coreErr.InnerError = ErrDocumentNotFound
+				err = coreErr
+			}
 			errOut = opm.EnhanceErr(err)
 			opm.Reject()
 			return
@@ -1068,6 +1076,14 @@ func (p *kvProviderCore) Append(c *Collection, id string, val []byte, opts *Appe
 		User:                   opm.Impersonate(),
 	}, func(res *gocbcore.AdjoinResult, err error) {
 		if err != nil {
+			var coreErr *gocbcore.KeyValueError
+			// We do not have a ErrNotStored error and this error should be translated
+			// to ErrDocumentNotFound. At time of writing this would be a breaking change
+			// in gocbcore so we do it here instead.
+			if errors.Is(err, gocbcore.ErrNotStored) && errors.As(err, &coreErr) {
+				coreErr.InnerError = ErrDocumentNotFound
+				err = coreErr
+			}
 			errOut = opm.EnhanceErr(err)
 			opm.Reject()
 			return
