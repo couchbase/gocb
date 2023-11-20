@@ -101,9 +101,8 @@ func (d *GetResult) fromSubDoc(ops []LookupInSpec, result *LookupInResult) error
 	for i, op := range ops {
 		err := result.contents[i].err
 		if err != nil {
-			// We return the first error that has occurred, this will be
-			// a SubDocument error and will indicate the real reason.
-			return err
+			logDebugf("Omitting %s from result due to error: %s", op.path, err)
+			continue
 		}
 
 		parts := d.pathParts(op.path)

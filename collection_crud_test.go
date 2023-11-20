@@ -877,12 +877,19 @@ func (suite *IntegrationTestSuite) TestInsertGetProjectionPathMissing() {
 		suite.T().Fatalf("Insert CAS was 0")
 	}
 
-	_, err = globalCollection.Get(docId, &GetOptions{
+	content, err := globalCollection.Get(docId, &GetOptions{
 		Project: []string{"name", "thisfielddoesntexist"},
 	})
-	if err == nil {
-		suite.T().Fatalf("Get should have failed")
+	suite.Require().NoError(err, err)
+
+	var docContent map[string]interface{}
+	err = content.Content(&docContent)
+	if err != nil {
+		suite.T().Fatalf("Content failed, error was %v", err)
 	}
+
+	suite.Assert().Len(docContent, 1)
+	suite.Assert().Equal(doc.Name, docContent["name"])
 
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
