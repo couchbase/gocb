@@ -156,7 +156,7 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 		req.ProfileMode = &profileMode
 	}
 
-	timeout := manager.GetTimeout()
+	timeout := manager.Timeout()
 	userCtx := opts.Context
 	if userCtx == nil {
 		userCtx = context.Background()
@@ -188,19 +188,12 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 		}
 	}()
 
-	src, err := manager.WrapCtx(reqCtx, func(ctx context.Context) (interface{}, error) {
-		return qpc.provider.Query(ctx, req)
-	})
+	res, err := wrapPSOpCtx(reqCtx, manager, req, qpc.provider.Query)
 	close(doneCh)
 	if err != nil {
 		reqCancel()
 		return nil, qpc.makeError(err, statement, opts.Readonly, atomic.LoadUint32(&cancellationIsTimeout) == 1,
-			manager.ElapsedTime(), manager.Request())
-	}
-
-	res, ok := src.(query_v1.QueryService_QueryClient)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
+			manager.ElapsedTime(), manager.RetryInfo())
 	}
 
 	firstRows, err := res.Recv()
@@ -208,7 +201,7 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 		reqCancel()
 		gocbErr := mapPsErrorToGocbError(err, opts.Readonly)
 		return nil, qpc.makeError(gocbErr, statement, opts.Readonly, atomic.LoadUint32(&cancellationIsTimeout) == 1,
-			manager.ElapsedTime(), manager.Request())
+			manager.ElapsedTime(), manager.RetryInfo())
 	}
 
 	reader := &queryProviderPsRowReader{
@@ -225,7 +218,7 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 }
 
 func (qpc *queryProviderPs) makeError(err error, statement string, readonly, hasTimedOut bool, elapsed time.Duration,
-	req *retriableRequestPs) error {
+	retryInfo retriedRequestInfo) error {
 	var gocbErr *GenericError
 	if !errors.As(err, &gocbErr) {
 		return err
@@ -242,10 +235,10 @@ func (qpc *queryProviderPs) makeError(err error, statement string, readonly, has
 		return &TimeoutError{
 			InnerError:    innerErr,
 			TimeObserved:  elapsed,
-			OperationID:   req.Operation(),
-			Opaque:        req.Identifier(),
-			RetryReasons:  req.RetryReasons(),
-			RetryAttempts: req.RetryAttempts(),
+			OperationID:   retryInfo.Operation(),
+			Opaque:        retryInfo.Identifier(),
+			RetryReasons:  retryInfo.RetryReasons(),
+			RetryAttempts: retryInfo.RetryAttempts(),
 		}
 	}
 

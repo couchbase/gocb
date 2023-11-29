@@ -28,6 +28,7 @@ type kvOpManagerPs struct {
 	retryStrategy   RetryStrategy
 	ctx             context.Context
 	isIdempotent    bool
+	operationID     string
 
 	operationName string
 	createdTime   time.Time
@@ -198,30 +199,46 @@ func (m *kvOpManagerPs) CheckReadyForOp() error {
 	return nil
 }
 
-func (m *kvOpManagerPs) Wrap(fn func(ctx context.Context) (interface{}, error)) (interface{}, error) {
-	ctx, cancel := context.WithTimeout(m.ctx, m.getTimeout())
-	defer cancel()
-
-	return m.WrapCtx(ctx, fn)
+func (m *kvOpManagerPs) OpName() string {
+	return m.operationName
 }
 
-func (m *kvOpManagerPs) WrapCtx(ctx context.Context, fn func(ctx context.Context) (interface{}, error)) (interface{}, error) {
-	req := newRetriableRequestPS(m.operationName, m.IsIdempotent(), m.TraceSpanContext(), uuid.NewString()[:6], m.RetryStrategy(), fn)
+func (m *kvOpManagerPs) CreatedAt() time.Time {
+	return m.createdTime
+}
 
-	res, err := handleRetriableRequest(ctx, m.createdTime, m.parent.tracer, req, func(err error) RetryReason {
-		if errors.Is(err, ErrDocumentLocked) {
-			return KVLockedRetryReason
-		} else if errors.Is(err, ErrServiceNotAvailable) {
-			return ServiceNotAvailableRetryReason
-		}
+func (m *kvOpManagerPs) Tracer() RequestTracer {
+	return m.parent.tracer
+}
 
-		return nil
-	})
-	if err != nil {
-		return nil, err
+func (m *kvOpManagerPs) RetryInfo() retriedRequestInfo {
+	return nil
+}
+
+func (m *kvOpManagerPs) SetRetryRequest(req *retriableRequestPs) {
+	// we don't store this as we don't need it.
+}
+
+func (m *kvOpManagerPs) OperationID() string {
+	return m.operationID
+}
+
+func (m *kvOpManagerPs) Context() context.Context {
+	return m.ctx
+}
+
+func (m *kvOpManagerPs) Timeout() time.Duration {
+	return m.getTimeout()
+}
+
+func (m *kvOpManagerPs) RetryReasonFor(err error) RetryReason {
+	if errors.Is(err, ErrDocumentLocked) {
+		return KVLockedRetryReason
+	} else if errors.Is(err, ErrServiceNotAvailable) {
+		return ServiceNotAvailableRetryReason
 	}
 
-	return res, nil
+	return nil
 }
 
 func (m *kvOpManagerPs) EnhanceErrorStatus(st *status.Status, readOnly bool) error {
@@ -246,5 +263,6 @@ func newKvOpManagerPs(c *Collection, opName string, parentSpan RequestSpan) *kvO
 		operationName: opName,
 		createdTime:   time.Now(),
 		meter:         c.meter,
+		operationID:   uuid.NewString()[:6],
 	}
 }

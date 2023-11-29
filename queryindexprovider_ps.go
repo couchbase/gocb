@@ -1,7 +1,6 @@
 package gocb
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"time"
@@ -15,7 +14,7 @@ type queryIndexProviderPs struct {
 	managerProvider *psOpManagerProvider
 }
 
-func (qpc *queryIndexProviderPs) newOpManager(parentSpan RequestSpan, opName string, attribs map[string]interface{}) *psOpManager {
+func (qpc *queryIndexProviderPs) newOpManager(parentSpan RequestSpan, opName string, attribs map[string]interface{}) *psOpManagerDefault {
 	return qpc.managerProvider.NewManager(parentSpan, opName, attribs)
 }
 
@@ -52,9 +51,7 @@ func (qpc *queryIndexProviderPs) CreatePrimaryIndex(c *Collection, bucketName st
 		Name:           name,
 	}
 
-	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return qpc.provider.CreatePrimaryIndex(ctx, req)
-	})
+	_, err := wrapPSOp(manager, req, qpc.provider.CreatePrimaryIndex)
 	if err != nil {
 		err = qpc.handleError(err)
 
@@ -97,9 +94,8 @@ func (qpc *queryIndexProviderPs) CreateIndex(c *Collection, bucketName, indexNam
 		Fields:         fields,
 		Deferred:       &opts.Deferred,
 	}
-	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return qpc.provider.CreateIndex(ctx, req)
-	})
+
+	_, err := wrapPSOp(manager, req, qpc.provider.CreateIndex)
 	if err != nil {
 		err = qpc.handleError(err)
 
@@ -141,9 +137,8 @@ func (qpc *queryIndexProviderPs) DropPrimaryIndex(c *Collection, bucketName stri
 		CollectionName: collection,
 		Name:           name,
 	}
-	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return qpc.provider.DropPrimaryIndex(ctx, req)
-	})
+
+	_, err := wrapPSOp(manager, req, qpc.provider.DropPrimaryIndex)
 	if err != nil {
 		err = qpc.handleError(err)
 
@@ -180,9 +175,8 @@ func (qpc *queryIndexProviderPs) DropIndex(c *Collection, bucketName, indexName 
 		CollectionName: collection,
 		Name:           indexName,
 	}
-	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return qpc.provider.DropIndex(ctx, req)
-	})
+
+	_, err := wrapPSOp(manager, req, qpc.provider.DropIndex)
 	if err != nil {
 		err = qpc.handleError(err)
 
@@ -214,7 +208,7 @@ func (qpc *queryIndexProviderPs) GetAllIndexes(c *Collection, bucketName string,
 	return qpc.getAllIndexes(c, bucketName, manager, opts)
 }
 
-func (qpc *queryIndexProviderPs) getAllIndexes(c *Collection, bucketName string, manager *psOpManager,
+func (qpc *queryIndexProviderPs) getAllIndexes(c *Collection, bucketName string, manager *psOpManagerDefault,
 	opts *GetAllQueryIndexesOptions) ([]QueryIndex, error) {
 	bucket, scope, collection := qpc.makeKeyspace(c, bucketName, opts.ScopeName, opts.CollectionName)
 
@@ -223,16 +217,10 @@ func (qpc *queryIndexProviderPs) getAllIndexes(c *Collection, bucketName string,
 		ScopeName:      scope,
 		CollectionName: collection,
 	}
-	src, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return qpc.provider.GetAllIndexes(ctx, req)
-	})
+
+	resp, err := wrapPSOp(manager, req, qpc.provider.GetAllIndexes)
 	if err != nil {
 		return nil, qpc.handleError(err)
-	}
-
-	resp, ok := src.(*admin_query_v1.GetAllIndexesResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	var indexes []QueryIndex
@@ -306,16 +294,10 @@ func (qpc *queryIndexProviderPs) BuildDeferredIndexes(c *Collection, bucketName 
 		ScopeName:      scope,
 		CollectionName: collection,
 	}
-	src, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return qpc.provider.BuildDeferredIndexes(ctx, req)
-	})
+
+	resp, err := wrapPSOp(manager, req, qpc.provider.BuildDeferredIndexes)
 	if err != nil {
 		return nil, qpc.handleError(err)
-	}
-
-	resp, ok := src.(*admin_query_v1.BuildDeferredIndexesResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	indexNames := make([]string, len(resp.Indexes))

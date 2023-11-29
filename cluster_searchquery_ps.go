@@ -96,7 +96,7 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 	// We create a context with a timeout which will control timing out the initial request portion
 	// of the operation. We can defer the cancel for this as we aren't applying this context directly
 	// to the request so cancellation will not terminate any streams.
-	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), manager.GetTimeout())
+	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), manager.Timeout())
 	defer timeoutCancel()
 
 	var cancellationIsTimeout uint32
@@ -120,25 +120,18 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 		}
 	}()
 
-	src, err := manager.WrapCtx(reqCtx, func(ctx context.Context) (interface{}, error) {
-		return search.provider.SearchQuery(ctx, &request)
-	})
+	client, err := wrapPSOpCtx(reqCtx, manager, &request, search.provider.SearchQuery)
 	close(doneCh)
 	if err != nil {
 		reqCancel()
-		return nil, search.makeError(err, query, atomic.LoadUint32(&cancellationIsTimeout) == 1, manager.ElapsedTime(), manager.Request())
-	}
-
-	client, ok := src.(search_v1.SearchService_SearchQueryClient)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
+		return nil, search.makeError(err, query, atomic.LoadUint32(&cancellationIsTimeout) == 1, manager.ElapsedTime(), manager.RetryInfo())
 	}
 
 	firstRows, err := client.Recv()
 	if err != nil {
 		reqCancel()
 		gocbErr := mapPsErrorToGocbError(err, true)
-		return nil, search.makeError(gocbErr, query, atomic.LoadUint32(&cancellationIsTimeout) == 1, manager.ElapsedTime(), manager.Request())
+		return nil, search.makeError(gocbErr, query, atomic.LoadUint32(&cancellationIsTimeout) == 1, manager.ElapsedTime(), manager.RetryInfo())
 	}
 
 	return newSearchResult(&psSearchRowReader{
@@ -154,7 +147,7 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 }
 
 func (search *searchProviderPs) makeError(err error, query interface{}, hasTimedOut bool, elapsed time.Duration,
-	req *retriableRequestPs) error {
+	retryInfo retriedRequestInfo) error {
 	var gocbErr *GenericError
 	if !errors.As(err, &gocbErr) {
 		return err
@@ -164,10 +157,10 @@ func (search *searchProviderPs) makeError(err error, query interface{}, hasTimed
 		return &TimeoutError{
 			InnerError:    ErrUnambiguousTimeout,
 			TimeObserved:  elapsed,
-			OperationID:   req.Operation(),
-			Opaque:        req.Identifier(),
-			RetryReasons:  req.RetryReasons(),
-			RetryAttempts: req.RetryAttempts(),
+			OperationID:   retryInfo.Operation(),
+			Opaque:        retryInfo.Identifier(),
+			RetryReasons:  retryInfo.RetryReasons(),
+			RetryAttempts: retryInfo.RetryAttempts(),
 		}
 	}
 

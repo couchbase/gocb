@@ -103,16 +103,9 @@ func (p *kvProviderPs) LookupIn(c *Collection, id string, ops []LookupInSpec, op
 		Flags:          requestFlags,
 	}
 
-	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
-		return p.client.LookupIn(ctx, req)
-	})
+	res, err := wrapPSOp(opm, req, p.client.LookupIn)
 	if err != nil {
 		return nil, err
-	}
-
-	res, ok := src.(*kv_v1.LookupInResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	docOut := &LookupInResult{}
@@ -244,9 +237,7 @@ func (p *kvProviderPs) MutateIn(c *Collection, id string, ops []MutateInSpec, op
 		Expiry:          expiry,
 	}
 
-	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
-		return p.client.MutateIn(ctx, request)
-	})
+	res, err := wrapPSOp(opm, request, p.client.MutateIn)
 	if err != nil {
 		if kvErr, ok := err.(*GenericError); ok {
 			if errors.Is(kvErr.InnerError, ErrCasMismatch) {
@@ -255,11 +246,6 @@ func (p *kvProviderPs) MutateIn(c *Collection, id string, ops []MutateInSpec, op
 		}
 
 		return nil, err
-	}
-
-	res, ok := src.(*kv_v1.MutateInResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	mutOut := &MutateInResult{}
@@ -313,16 +299,9 @@ func (p *kvProviderPs) Insert(c *Collection, id string, val interface{}, opts *I
 		DurabilityLevel: opm.DurabilityLevel(),
 	}
 
-	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
-		return p.client.Insert(ctx, request)
-	})
+	res, err := wrapPSOp(opm, request, p.client.Insert)
 	if err != nil {
 		return nil, err
-	}
-
-	res, ok := src.(*kv_v1.InsertResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	mt := psMutToGoCbMut(res.MutationToken)
@@ -382,16 +361,9 @@ func (p *kvProviderPs) Upsert(c *Collection, id string, val interface{}, opts *U
 		DurabilityLevel:          opm.DurabilityLevel(),
 	}
 
-	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
-		return p.client.Upsert(ctx, request)
-	})
+	res, err := wrapPSOp(opm, request, p.client.Upsert)
 	if err != nil {
 		return nil, err
-	}
-
-	res, ok := src.(*kv_v1.UpsertResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	mt := psMutToGoCbMut(res.MutationToken)
@@ -453,16 +425,9 @@ func (p *kvProviderPs) Replace(c *Collection, id string, val interface{}, opts *
 		DurabilityLevel: opm.DurabilityLevel(),
 	}
 
-	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
-		return p.client.Replace(ctx, request)
-	})
+	res, err := wrapPSOp(opm, request, p.client.Replace)
 	if err != nil {
 		return nil, err
-	}
-
-	res, ok := src.(*kv_v1.ReplaceResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	mt := psMutToGoCbMut(res.MutationToken)
@@ -501,16 +466,9 @@ func (p *kvProviderPs) Get(c *Collection, id string, opts *GetOptions) (*GetResu
 		Project:        opts.Project,
 	}
 
-	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
-		return p.client.Get(ctx, request)
-	})
+	res, err := wrapPSOp(opm, request, p.client.Get)
 	if err != nil {
 		return nil, err
-	}
-
-	res, ok := src.(*kv_v1.GetResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	var content []byte
@@ -565,16 +523,9 @@ func (p *kvProviderPs) GetAndTouch(c *Collection, id string, expiry time.Duratio
 		Expiry: reqExpiry,
 	}
 
-	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
-		return p.client.GetAndTouch(ctx, request)
-	})
+	res, err := wrapPSOp(opm, request, p.client.GetAndTouch)
 	if err != nil {
 		return nil, err
-	}
-
-	res, ok := src.(*kv_v1.GetAndTouchResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	var content []byte
@@ -623,16 +574,9 @@ func (p *kvProviderPs) GetAndLock(c *Collection, id string, lockTime time.Durati
 		LockTime:       uint32(lockTime.Seconds()),
 	}
 
-	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
-		return p.client.GetAndLock(ctx, request)
-	})
+	res, err := wrapPSOp(opm, request, p.client.GetAndLock)
 	if err != nil {
 		return nil, err
-	}
-
-	res, ok := src.(*kv_v1.GetAndLockResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	var content []byte
@@ -681,16 +625,9 @@ func (p *kvProviderPs) Exists(c *Collection, id string, opts *ExistsOptions) (*E
 		BucketName:     opm.BucketName(),
 	}
 
-	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
-		return p.client.Exists(ctx, request)
-	})
+	res, err := wrapPSOp(opm, request, p.client.Exists)
 	if err != nil {
 		return nil, err
-	}
-
-	res, ok := src.(*kv_v1.ExistsResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	resOut := ExistsResult{
@@ -731,16 +668,9 @@ func (p *kvProviderPs) Remove(c *Collection, id string, opts *RemoveOptions) (*M
 		DurabilityLevel: opm.DurabilityLevel(),
 	}
 
-	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
-		return p.client.Remove(ctx, request)
-	})
+	res, err := wrapPSOp(opm, request, p.client.Remove)
 	if err != nil {
 		return nil, err
-	}
-
-	res, ok := src.(*kv_v1.RemoveResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	mt := psMutToGoCbMut(res.MutationToken)
@@ -776,9 +706,7 @@ func (p *kvProviderPs) Unlock(c *Collection, id string, cas Cas, opts *UnlockOpt
 		Cas:            (uint64)(cas),
 	}
 
-	_, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
-		return p.client.Unlock(ctx, request)
-	})
+	_, err := wrapPSOp(opm, request, p.client.Unlock)
 	if err != nil {
 		return err
 	}
@@ -807,16 +735,9 @@ func (p *kvProviderPs) Touch(c *Collection, id string, expiry time.Duration, opt
 		Expiry:         &kv_v1.TouchRequest_ExpirySecs{ExpirySecs: uint32(expiry.Seconds())},
 	}
 
-	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
-		return p.client.Touch(ctx, request)
-	})
+	res, err := wrapPSOp(opm, request, p.client.Touch)
 	if err != nil {
 		return nil, err
-	}
-
-	res, ok := src.(*kv_v1.TouchResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	mt := psMutToGoCbMut(res.MutationToken)
@@ -929,16 +850,9 @@ func (p *kvProviderPs) GetAllReplicas(c *Collection, id string, opts *GetAllRepl
 
 	ctx, cancel := p.newOpCtx(opts.Context, opm.getTimeout())
 
-	src, err := opm.WrapCtx(ctx, func(ctx context.Context) (interface{}, error) {
-		return p.client.GetAllReplicas(ctx, request)
-	})
+	res, err := wrapPSOpCtx(ctx, opm, request, p.client.GetAllReplicas)
 	if err != nil {
 		return nil, err
-	}
-
-	res, ok := src.(kv_v1.KvService_GetAllReplicasClient)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	return &GetAllReplicasResult{
@@ -1005,16 +919,9 @@ func (p *kvProviderPs) Prepend(c *Collection, id string, val []byte, opts *Prepe
 		DurabilityLevel: opm.DurabilityLevel(),
 	}
 
-	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
-		return p.client.Prepend(ctx, request)
-	})
+	res, err := wrapPSOp(opm, request, p.client.Prepend)
 	if err != nil {
 		return nil, err
-	}
-
-	res, ok := src.(*kv_v1.PrependResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	mt := psMutToGoCbMut(res.MutationToken)
@@ -1058,16 +965,9 @@ func (p *kvProviderPs) Append(c *Collection, id string, val []byte, opts *Append
 		DurabilityLevel: opm.DurabilityLevel(),
 	}
 
-	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
-		return p.client.Append(ctx, request)
-	})
+	res, err := wrapPSOp(opm, request, p.client.Append)
 	if err != nil {
 		return nil, err
-	}
-
-	res, ok := src.(*kv_v1.AppendResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	mt := psMutToGoCbMut(res.MutationToken)
@@ -1112,16 +1012,9 @@ func (p *kvProviderPs) Increment(c *Collection, id string, opts *IncrementOption
 		DurabilityLevel: opm.DurabilityLevel(),
 	}
 
-	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
-		return p.client.Increment(ctx, request)
-	})
+	res, err := wrapPSOp(opm, request, p.client.Increment)
 	if err != nil {
 		return nil, err
-	}
-
-	res, ok := src.(*kv_v1.IncrementResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	countOut := &CounterResult{}
@@ -1162,16 +1055,9 @@ func (p *kvProviderPs) Decrement(c *Collection, id string, opts *DecrementOption
 		DurabilityLevel: opm.DurabilityLevel(),
 	}
 
-	src, err := opm.Wrap(func(ctx context.Context) (interface{}, error) {
-		return p.client.Decrement(ctx, request)
-	})
+	res, err := wrapPSOp(opm, request, p.client.Decrement)
 	if err != nil {
 		return nil, err
-	}
-
-	res, ok := src.(*kv_v1.DecrementResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	countOut := &CounterResult{}

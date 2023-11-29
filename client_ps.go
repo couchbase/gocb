@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/grpc"
+
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcoreps"
 )
@@ -172,8 +174,8 @@ func newPsOpManagerProvider(retry RetryStrategy, tracer RequestTracer, timeout t
 	}
 }
 
-func (p *psOpManagerProvider) NewManager(parentSpan RequestSpan, opName string, attribs map[string]interface{}) *psOpManager {
-	m := &psOpManager{
+func (p *psOpManagerProvider) NewManager(parentSpan RequestSpan, opName string, attribs map[string]interface{}) *psOpManagerDefault {
+	m := &psOpManagerDefault{
 		defaultRetryStrategy: p.defaultRetryStrategy,
 		tracer:               p.tracer,
 		defaultTimeout:       p.defaultTimeout,
@@ -192,7 +194,22 @@ func (p *psOpManagerProvider) NewManager(parentSpan RequestSpan, opName string, 
 	return m
 }
 
-type psOpManager struct {
+type psOpManager interface {
+	IsIdempotent() bool
+	TraceSpanContext() RequestSpanContext
+	OperationID() string
+	RetryStrategy() RetryStrategy
+	OpName() string
+	CreatedAt() time.Time
+	Tracer() RequestTracer
+	RetryInfo() retriedRequestInfo
+	SetRetryRequest(ps *retriableRequestPs)
+	RetryReasonFor(error) RetryReason
+	Timeout() time.Duration
+	Context() context.Context
+}
+
+type psOpManagerDefault struct {
 	defaultRetryStrategy RetryStrategy
 	tracer               RequestTracer
 	defaultTimeout       time.Duration
@@ -212,11 +229,11 @@ type psOpManager struct {
 	req *retriableRequestPs
 }
 
-func (m *psOpManager) SetTimeout(timeout time.Duration) {
+func (m *psOpManagerDefault) SetTimeout(timeout time.Duration) {
 	m.timeout = timeout
 }
 
-func (m *psOpManager) SetRetryStrategy(retryStrategy RetryStrategy) {
+func (m *psOpManagerDefault) SetRetryStrategy(retryStrategy RetryStrategy) {
 	strat := m.defaultRetryStrategy
 	if retryStrategy != nil {
 		strat = retryStrategy
@@ -224,7 +241,7 @@ func (m *psOpManager) SetRetryStrategy(retryStrategy RetryStrategy) {
 	m.retryStrategy = strat
 }
 
-func (m *psOpManager) SetContext(ctx context.Context) {
+func (m *psOpManagerDefault) SetContext(ctx context.Context) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -232,19 +249,19 @@ func (m *psOpManager) SetContext(ctx context.Context) {
 	m.ctx = ctx
 }
 
-func (m *psOpManager) SetIsIdempotent(idempotent bool) {
+func (m *psOpManagerDefault) SetIsIdempotent(idempotent bool) {
 	m.isIdempotent = idempotent
 }
 
-func (m *psOpManager) SetOperationID(id string) {
+func (m *psOpManagerDefault) SetOperationID(id string) {
 	m.operationID = id
 }
 
-func (m *psOpManager) NewSpan(name string) RequestSpan {
+func (m *psOpManagerDefault) NewSpan(name string) RequestSpan {
 	return createSpan(m.tracer, m.span, name, m.service)
 }
 
-func (m *psOpManager) Finish(noMetrics bool) {
+func (m *psOpManagerDefault) Finish(noMetrics bool) {
 	m.span.End()
 
 	if !noMetrics {
@@ -252,23 +269,23 @@ func (m *psOpManager) Finish(noMetrics bool) {
 	}
 }
 
-func (m *psOpManager) TraceSpanContext() RequestSpanContext {
+func (m *psOpManagerDefault) TraceSpanContext() RequestSpanContext {
 	return m.span.Context()
 }
 
-func (m *psOpManager) TraceSpan() RequestSpan {
+func (m *psOpManagerDefault) TraceSpan() RequestSpan {
 	return m.span
 }
 
-func (m *psOpManager) RetryStrategy() RetryStrategy {
+func (m *psOpManagerDefault) RetryStrategy() RetryStrategy {
 	return m.retryStrategy
 }
 
-func (m *psOpManager) IsIdempotent() bool {
+func (m *psOpManagerDefault) IsIdempotent() bool {
 	return m.isIdempotent
 }
 
-func (m *psOpManager) GetTimeout() time.Duration {
+func (m *psOpManagerDefault) Timeout() time.Duration {
 	if m.timeout > 0 {
 		return m.timeout
 	}
@@ -276,8 +293,8 @@ func (m *psOpManager) GetTimeout() time.Duration {
 	return m.defaultTimeout
 }
 
-func (m *psOpManager) CheckReadyForOp() error {
-	if m.GetTimeout() == 0 {
+func (m *psOpManagerDefault) CheckReadyForOp() error {
+	if m.Timeout() == 0 {
 		return errors.New("op manager had no timeout specified")
 	}
 
@@ -288,37 +305,64 @@ func (m *psOpManager) CheckReadyForOp() error {
 	return nil
 }
 
-func (m *psOpManager) ElapsedTime() time.Duration {
+func (m *psOpManagerDefault) ElapsedTime() time.Duration {
 	return time.Since(m.createdTime)
 }
 
-func (m *psOpManager) OperationID() string {
+func (m *psOpManagerDefault) OperationID() string {
 	return m.operationID
 }
 
-func (m *psOpManager) Request() *retriableRequestPs {
+func (m *psOpManagerDefault) OpName() string {
+	return m.opName
+}
+
+func (m *psOpManagerDefault) RetryInfo() retriedRequestInfo {
 	return m.req
 }
 
-func (m *psOpManager) Wrap(fn func(ctx context.Context) (interface{}, error)) (interface{}, error) {
-	ctx, cancel := context.WithTimeout(m.ctx, m.GetTimeout())
-	defer cancel()
-
-	return m.WrapCtx(ctx, fn)
+func (m *psOpManagerDefault) SetRetryRequest(req *retriableRequestPs) {
+	m.req = req
 }
 
-func (m *psOpManager) WrapCtx(ctx context.Context, fn func(ctx context.Context) (interface{}, error)) (interface{}, error) {
-	m.req = newRetriableRequestPS(m.opName, m.IsIdempotent(), m.TraceSpanContext(), m.OperationID(), m.RetryStrategy(), fn)
+func (m *psOpManagerDefault) Tracer() RequestTracer {
+	return m.tracer
+}
 
-	res, err := handleRetriableRequest(ctx, m.createdTime, m.tracer, m.req, func(err error) RetryReason {
-		if errors.Is(err, ErrServiceNotAvailable) {
-			return ServiceNotAvailableRetryReason
-		}
+func (m *psOpManagerDefault) CreatedAt() time.Time {
+	return m.createdTime
+}
 
-		return nil
-	})
+func (m *psOpManagerDefault) RetryReasonFor(err error) RetryReason {
+	if errors.Is(err, ErrServiceNotAvailable) {
+		return ServiceNotAvailableRetryReason
+	}
+
+	return nil
+}
+
+func (m *psOpManagerDefault) Context() context.Context {
+	return m.ctx
+}
+
+func wrapPSOp[ReqT any, RespT any](m psOpManager, req ReqT,
+	fn func(context.Context, ReqT, ...grpc.CallOption) (RespT, error)) (RespT, error) {
+	ctx, cancel := context.WithTimeout(m.Context(), m.Timeout())
+	defer cancel()
+
+	return wrapPSOpCtx(ctx, m, req, fn)
+}
+
+func wrapPSOpCtx[ReqT any, RespT any](ctx context.Context, m psOpManager,
+	req ReqT,
+	fn func(context.Context, ReqT, ...grpc.CallOption) (RespT, error)) (RespT, error) {
+	retryReq := newRetriableRequestPS(m.OpName(), m.IsIdempotent(), m.TraceSpanContext(), m.OperationID(), m.RetryStrategy())
+	m.SetRetryRequest(retryReq)
+
+	res, err := handleRetriableRequest(ctx, m.CreatedAt(), m.Tracer(), req, retryReq, fn, m.RetryReasonFor)
 	if err != nil {
-		return nil, err
+		var emptyResp RespT
+		return emptyResp, err
 	}
 
 	return res, nil

@@ -1,8 +1,6 @@
 package gocb
 
 import (
-	"context"
-	"errors"
 	"time"
 
 	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
@@ -15,7 +13,7 @@ type collectionsManagementProviderPs struct {
 	bucketName      string
 }
 
-func (cm collectionsManagementProviderPs) newOpManager(parentSpan RequestSpan, opName string, attribs map[string]interface{}) *psOpManager {
+func (cm collectionsManagementProviderPs) newOpManager(parentSpan RequestSpan, opName string, attribs map[string]interface{}) *psOpManagerDefault {
 	return cm.managerProvider.NewManager(parentSpan, opName, attribs)
 }
 
@@ -39,16 +37,9 @@ func (cm *collectionsManagementProviderPs) GetAllScopes(opts *GetAllScopesOption
 		BucketName: cm.bucketName,
 	}
 
-	src, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return cm.provider.ListCollections(ctx, req)
-	})
+	resp, err := wrapPSOp(manager, req, cm.provider.ListCollections)
 	if err != nil {
 		return nil, err
-	}
-
-	resp, ok := src.(*admin_collection_v1.ListCollectionsResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	var scopes []ScopeSpec
@@ -99,9 +90,7 @@ func (cm *collectionsManagementProviderPs) CreateCollection(spec CollectionSpec,
 		req.MaxExpirySecs = &expiry
 	}
 
-	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return cm.provider.CreateCollection(ctx, req)
-	})
+	_, err := wrapPSOp(manager, req, cm.provider.CreateCollection)
 	if err != nil {
 		return err
 	}
@@ -138,9 +127,7 @@ func (cm *collectionsManagementProviderPs) DropCollection(spec CollectionSpec, o
 		CollectionName: spec.Name,
 	}
 
-	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return cm.provider.DeleteCollection(ctx, req)
-	})
+	_, err := wrapPSOp(manager, req, cm.provider.DeleteCollection)
 	if err != nil {
 		return err
 	}
@@ -171,9 +158,7 @@ func (cm *collectionsManagementProviderPs) CreateScope(scopeName string, opts *C
 		ScopeName:  scopeName,
 	}
 
-	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return cm.provider.CreateScope(ctx, req)
-	})
+	_, err := wrapPSOp(manager, req, cm.provider.CreateScope)
 	if err != nil {
 		return err
 	}
@@ -204,9 +189,7 @@ func (cm *collectionsManagementProviderPs) DropScope(scopeName string, opts *Dro
 		ScopeName:  scopeName,
 	}
 
-	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return cm.provider.DeleteScope(ctx, req)
-	})
+	_, err := wrapPSOp(manager, req, cm.provider.DeleteScope)
 	if err != nil {
 		return err
 	}

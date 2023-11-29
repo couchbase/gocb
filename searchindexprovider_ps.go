@@ -1,9 +1,7 @@
 package gocb
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 
 	"github.com/couchbase/goprotostellar/genproto/admin_search_v1"
 )
@@ -16,7 +14,7 @@ type searchIndexProviderPs struct {
 
 var _ searchIndexProvider = (*searchIndexProviderPs)(nil)
 
-func (sip *searchIndexProviderPs) newOpManager(parentSpan RequestSpan, opName string, attribs map[string]interface{}) *psOpManager {
+func (sip *searchIndexProviderPs) newOpManager(parentSpan RequestSpan, opName string, attribs map[string]interface{}) *psOpManagerDefault {
 	return sip.managerProvider.NewManager(parentSpan, opName, attribs)
 }
 
@@ -37,16 +35,9 @@ func (sip *searchIndexProviderPs) GetAllIndexes(opts *GetAllSearchIndexOptions) 
 
 	req := &admin_search_v1.ListIndexesRequest{}
 
-	src, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return sip.provider.ListIndexes(ctx, req)
-	})
+	resp, err := wrapPSOp(manager, req, sip.provider.ListIndexes)
 	if err != nil {
 		return nil, err
-	}
-
-	resp, ok := src.(*admin_search_v1.ListIndexesResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	indexes := make([]SearchIndex, len(resp.Indexes))
@@ -101,16 +92,9 @@ func (sip *searchIndexProviderPs) GetIndex(indexName string, opts *GetSearchInde
 		Name: indexName,
 	}
 
-	src, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return sip.provider.GetIndex(ctx, req)
-	})
+	resp, err := wrapPSOp(manager, req, sip.provider.GetIndex)
 	if err != nil {
 		return nil, err
-	}
-
-	resp, ok := src.(*admin_search_v1.GetIndexResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	idx := resp.Index
@@ -171,9 +155,7 @@ func (sip *searchIndexProviderPs) updateIndex(index SearchIndex, opts *UpsertSea
 		return err
 	}
 
-	_, err = manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return sip.provider.UpdateIndex(ctx, req)
-	})
+	_, err = wrapPSOp(manager, req, sip.provider.UpdateIndex)
 	if err != nil {
 		return err
 	}
@@ -229,9 +211,7 @@ func (sip *searchIndexProviderPs) createIndex(index SearchIndex, opts *UpsertSea
 		return err
 	}
 
-	_, err = manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return sip.provider.CreateIndex(ctx, req)
-	})
+	_, err = wrapPSOp(manager, req, sip.provider.CreateIndex)
 	if err != nil {
 		return err
 	}
@@ -258,9 +238,7 @@ func (sip *searchIndexProviderPs) DropIndex(indexName string, opts *DropSearchIn
 		Name: indexName,
 	}
 
-	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return sip.provider.DeleteIndex(ctx, req)
-	})
+	_, err := wrapPSOp(manager, req, sip.provider.DeleteIndex)
 	if err != nil {
 		return err
 	}
@@ -292,16 +270,10 @@ func (sip *searchIndexProviderPs) AnalyzeDocument(indexName string, doc interfac
 		Name: indexName,
 		Doc:  b,
 	}
-	src, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return sip.provider.AnalyzeDocument(ctx, req)
-	})
+
+	resp, err := wrapPSOp(manager, req, sip.provider.AnalyzeDocument)
 	if err != nil {
 		return nil, err
-	}
-
-	resp, ok := src.(*admin_search_v1.AnalyzeDocumentResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	var analyzed []interface{}
@@ -328,16 +300,9 @@ func (sip *searchIndexProviderPs) GetIndexedDocumentsCount(indexName string, opt
 		Name: indexName,
 	}
 
-	src, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return sip.provider.GetIndexedDocumentsCount(ctx, req)
-	})
+	resp, err := wrapPSOp(manager, req, sip.provider.GetIndexedDocumentsCount)
 	if err != nil {
 		return 0, err
-	}
-
-	resp, ok := src.(*admin_search_v1.GetIndexedDocumentsCountResponse)
-	if !ok {
-		return 0, errors.New("response was not expected type, please file a bug")
 	}
 
 	return resp.Count, nil
@@ -358,9 +323,7 @@ func (sip *searchIndexProviderPs) PauseIngest(indexName string, opts *PauseInges
 		Name: indexName,
 	}
 
-	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return sip.provider.PauseIndexIngest(ctx, req)
-	})
+	_, err := wrapPSOp(manager, req, sip.provider.PauseIndexIngest)
 	if err != nil {
 		return err
 	}
@@ -383,9 +346,7 @@ func (sip *searchIndexProviderPs) ResumeIngest(indexName string, opts *ResumeIng
 		Name: indexName,
 	}
 
-	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return sip.provider.ResumeIndexIngest(ctx, req)
-	})
+	_, err := wrapPSOp(manager, req, sip.provider.ResumeIndexIngest)
 	if err != nil {
 		return err
 	}
@@ -408,9 +369,7 @@ func (sip *searchIndexProviderPs) AllowQuerying(indexName string, opts *AllowQue
 		Name: indexName,
 	}
 
-	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return sip.provider.AllowIndexQuerying(ctx, req)
-	})
+	_, err := wrapPSOp(manager, req, sip.provider.AllowIndexQuerying)
 	if err != nil {
 		return err
 	}
@@ -433,9 +392,7 @@ func (sip *searchIndexProviderPs) DisallowQuerying(indexName string, opts *Allow
 		Name: indexName,
 	}
 
-	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return sip.provider.DisallowIndexQuerying(ctx, req)
-	})
+	_, err := wrapPSOp(manager, req, sip.provider.DisallowIndexQuerying)
 	if err != nil {
 		return err
 	}
@@ -458,9 +415,7 @@ func (sip *searchIndexProviderPs) FreezePlan(indexName string, opts *AllowQueryi
 		Name: indexName,
 	}
 
-	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return sip.provider.FreezeIndexPlan(ctx, req)
-	})
+	_, err := wrapPSOp(manager, req, sip.provider.FreezeIndexPlan)
 	if err != nil {
 		return err
 	}
@@ -483,9 +438,7 @@ func (sip *searchIndexProviderPs) UnfreezePlan(indexName string, opts *AllowQuer
 		Name: indexName,
 	}
 
-	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return sip.provider.UnfreezeIndexPlan(ctx, req)
-	})
+	_, err := wrapPSOp(manager, req, sip.provider.UnfreezeIndexPlan)
 	if err != nil {
 		return err
 	}

@@ -1,8 +1,6 @@
 package gocb
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -16,7 +14,7 @@ type bucketManagementProviderPs struct {
 	managerProvider *psOpManagerProvider
 }
 
-func (bm bucketManagementProviderPs) newOpManager(parentSpan RequestSpan, opName string, attribs map[string]interface{}) *psOpManager {
+func (bm bucketManagementProviderPs) newOpManager(parentSpan RequestSpan, opName string, attribs map[string]interface{}) *psOpManagerDefault {
 	return bm.managerProvider.NewManager(parentSpan, opName, attribs)
 }
 
@@ -37,16 +35,9 @@ func (bm bucketManagementProviderPs) GetBucket(bucketName string, opts *GetBucke
 	}
 
 	req := &admin_bucket_v1.ListBucketsRequest{}
-	src, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return bm.provider.ListBuckets(ctx, req)
-	})
+	resp, err := wrapPSOp(manager, req, bm.provider.ListBuckets)
 	if err != nil {
 		return nil, err
-	}
-
-	resp, ok := src.(*admin_bucket_v1.ListBucketsResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	for _, source := range resp.Buckets {
@@ -79,16 +70,9 @@ func (bm bucketManagementProviderPs) GetAllBuckets(opts *GetAllBucketsOptions) (
 	}
 
 	req := &admin_bucket_v1.ListBucketsRequest{}
-	src, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return bm.provider.ListBuckets(ctx, req)
-	})
+	resp, err := wrapPSOp(manager, req, bm.provider.ListBuckets)
 	if err != nil {
 		return nil, err
-	}
-
-	resp, ok := src.(*admin_bucket_v1.ListBucketsResponse)
-	if !ok {
-		return nil, errors.New("response was not expected type, please file a bug")
 	}
 
 	buckets := make(map[string]BucketSettings)
@@ -125,9 +109,7 @@ func (bm bucketManagementProviderPs) CreateBucket(settings CreateBucketSettings,
 		return makeGenericError(err, nil)
 	}
 
-	_, err = manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return bm.provider.CreateBucket(ctx, req)
-	})
+	_, err = wrapPSOp(manager, req, bm.provider.CreateBucket)
 	if err != nil {
 		return err
 	}
@@ -156,9 +138,7 @@ func (bm bucketManagementProviderPs) UpdateBucket(settings BucketSettings, opts 
 		return makeGenericError(err, nil)
 	}
 
-	_, err = manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return bm.provider.UpdateBucket(ctx, req)
-	})
+	_, err = wrapPSOp(manager, req, bm.provider.UpdateBucket)
 	if err != nil {
 		return err
 	}
@@ -184,9 +164,7 @@ func (bm bucketManagementProviderPs) DropBucket(name string, opts *DropBucketOpt
 
 	req := &admin_bucket_v1.DeleteBucketRequest{BucketName: name}
 
-	_, err := manager.Wrap(func(ctx context.Context) (interface{}, error) {
-		return bm.provider.DeleteBucket(ctx, req)
-	})
+	_, err := wrapPSOp(manager, req, bm.provider.DeleteBucket)
 	if err != nil {
 		return err
 	}

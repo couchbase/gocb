@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"google.golang.org/grpc"
+
 	"github.com/google/uuid"
 
 	"github.com/couchbase/gocbcore/v10"
@@ -195,6 +197,13 @@ func retryOrchMaybeRetry(req internalRetryRequest, reason RetryReason) (bool, ti
 	return true, time.Now().Add(duration)
 }
 
+type retriedRequestInfo interface {
+	Operation() string
+	Identifier() string
+	RetryAttempts() uint32
+	RetryReasons() []RetryReason
+}
+
 type retriableRequestPs struct {
 	// reasons is effectively a set, so we can't just use len(reasons) for num attempts.
 	reasons  []RetryReason
@@ -204,13 +213,12 @@ type retriableRequestPs struct {
 	traceIdentifier  string
 	loggerIdentifier string
 	idempotent       bool
-	sendFn           func(ctx context.Context) (interface{}, error)
 	strategy         RetryStrategy
 	rootTraceContext RequestSpanContext
 }
 
 func newRetriableRequestPS(operation string, idempotent bool, rootContext RequestSpanContext, traceIdentifier string,
-	strategy RetryStrategy, sendFn func(ctx context.Context) (interface{}, error)) *retriableRequestPs {
+	strategy RetryStrategy) *retriableRequestPs {
 	loggerIdentifier := traceIdentifier
 	if loggerIdentifier == "" {
 		loggerIdentifier = uuid.NewString()[:6]
@@ -220,7 +228,6 @@ func newRetriableRequestPS(operation string, idempotent bool, rootContext Reques
 		traceIdentifier:  traceIdentifier,
 		loggerIdentifier: loggerIdentifier,
 		idempotent:       idempotent,
-		sendFn:           sendFn,
 		rootTraceContext: rootContext,
 		strategy:         strategy,
 	}
@@ -240,10 +247,6 @@ func (w *retriableRequestPs) Idempotent() bool {
 
 func (w *retriableRequestPs) RetryReasons() []RetryReason {
 	return w.reasons
-}
-
-func (w *retriableRequestPs) Send(ctx context.Context) (interface{}, error) {
-	return w.sendFn(ctx)
 }
 
 func (w *retriableRequestPs) Operation() string {
@@ -270,44 +273,49 @@ func (w *retriableRequestPs) recordRetryAttempt(reason RetryReason) {
 	}
 }
 
-func handleRetriableRequest(ctx context.Context, createdTime time.Time, tracer RequestTracer, req *retriableRequestPs,
-	retryReasonFn func(err error) RetryReason) (interface{}, error) {
+func handleRetriableRequest[ReqT any, RespT any](
+	ctx context.Context, createdTime time.Time, tracer RequestTracer,
+	req ReqT,
+	retryReq *retriableRequestPs,
+	sendFn func(context.Context, ReqT, ...grpc.CallOption) (RespT, error),
+	retryReasonFn func(err error) RetryReason) (RespT, error) {
 	for {
-		logSchedf("Writing request ID=%s, OP=%s", req.loggerIdentifier, req.operation)
-		span := tracer.RequestSpan(req.rootTraceContext, "dispatch_to_server")
+		logSchedf("Writing request ID=%s, OP=%s", retryReq.loggerIdentifier, retryReq.operation)
+		span := tracer.RequestSpan(retryReq.rootTraceContext, "dispatch_to_server")
 		span.SetAttribute(spanAttribDBSystemKey, spanAttribDBSystemValue)
-		span.SetAttribute(spanAttribNumRetries, req.RetryAttempts())
+		span.SetAttribute(spanAttribNumRetries, retryReq.RetryAttempts())
 		span.SetAttribute(spanAttribNetTransport, "IP.TCP")
-		if req.traceIdentifier != "" {
-			span.SetAttribute(spanAttribOperationIDKey, req.traceIdentifier)
+		if retryReq.traceIdentifier != "" {
+			span.SetAttribute(spanAttribOperationIDKey, retryReq.traceIdentifier)
 		}
 
-		res, err := req.Send(ctx)
+		res, err := sendFn(ctx, req)
 		span.End()
-		logSchedf("Handling response ID=%s, OP=%s", req.loggerIdentifier, req.operation)
+		logSchedf("Handling response ID=%s, OP=%s", retryReq.loggerIdentifier, retryReq.operation)
 
 		if err != nil {
-			gocbErr := mapPsErrorToGocbError(err, req.Idempotent())
+			gocbErr := mapPsErrorToGocbError(err, retryReq.Idempotent())
 
+			var emptyResp RespT
 			if errors.Is(gocbErr, ErrTimeout) {
-				return nil, &TimeoutError{
+				return emptyResp, &TimeoutError{
 					InnerError:    gocbErr,
-					OperationID:   req.Operation(),
-					Opaque:        req.Identifier(),
+					OperationID:   retryReq.Operation(),
+					Opaque:        retryReq.Identifier(),
 					TimeObserved:  time.Since(createdTime),
-					RetryReasons:  req.RetryReasons(),
-					RetryAttempts: req.RetryAttempts(),
+					RetryReasons:  retryReq.RetryReasons(),
+					RetryAttempts: retryReq.RetryAttempts(),
 				}
 			}
 
 			retryReason := retryReasonFn(gocbErr)
 			if retryReason == nil {
-				return nil, gocbErr
+				return emptyResp, gocbErr
 			}
 
-			shouldRetry, retryWait := retryOrchMaybeRetry(req, retryReason)
+			shouldRetry, retryWait := retryOrchMaybeRetry(retryReq, retryReason)
 			if !shouldRetry {
-				return nil, gocbErr
+				return emptyResp, gocbErr
 			}
 
 			select {
@@ -316,16 +324,16 @@ func handleRetriableRequest(ctx context.Context, createdTime time.Time, tracer R
 			case <-ctx.Done():
 				err := ctx.Err()
 				if errors.Is(err, context.DeadlineExceeded) {
-					return nil, &TimeoutError{
+					return emptyResp, &TimeoutError{
 						InnerError:    ErrUnambiguousTimeout,
-						OperationID:   req.Operation(),
-						Opaque:        req.Identifier(),
+						OperationID:   retryReq.Operation(),
+						Opaque:        retryReq.Identifier(),
 						TimeObserved:  time.Since(createdTime),
-						RetryReasons:  req.RetryReasons(),
-						RetryAttempts: req.RetryAttempts(),
+						RetryReasons:  retryReq.RetryReasons(),
+						RetryAttempts: retryReq.RetryAttempts(),
 					}
 				} else {
-					return nil, makeGenericError(ErrRequestCanceled, nil)
+					return emptyResp, makeGenericError(ErrRequestCanceled, nil)
 				}
 			}
 		}
