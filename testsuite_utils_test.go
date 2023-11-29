@@ -300,7 +300,7 @@ func (suite *IntegrationTestSuite) ensureEventingResource(deadline time.Time, pa
 	router, err := globalBucket.Internal().IORouter()
 	suite.Require().NoError(err, "Failed to get IO router")
 
-	endpoints := router.MgmtEps()
+	endpoints := router.EventingEps()
 
 	suite.ensureResourceStatus200(deadline, ServiceTypeEventing, "GET", path, nil, endpoints, handleBody)
 }
@@ -330,7 +330,7 @@ func (suite *IntegrationTestSuite) ensureResource(deadline time.Time, service Se
 
 	wait := make(chan struct{}, len(endpoints))
 	for _, ep := range endpoints {
-		go func(ep string) {
+		go func(endpoint string) {
 			for {
 				req := mgmtRequest{
 					Service:      service,
@@ -339,16 +339,16 @@ func (suite *IntegrationTestSuite) ensureResource(deadline time.Time, service Se
 					IsIdempotent: true,
 					UniqueID:     uuid.New().String(),
 					Timeout:      time.Until(deadline),
-					Endpoint:     ep,
+					Endpoint:     endpoint,
 					Body:         body,
 				}
 				resp, err := globalCluster.executeMgmtRequest(ctx, req)
 				if err != nil {
-					suite.T().Logf("Failed to execute mgmt request against %s, err: %s", ep, err)
+					suite.T().Logf("Failed to execute mgmt request against %s, err: %s", endpoint, err)
 					return
 				}
 
-				success := handleResp(ep, resp)
+				success := handleResp(endpoint, resp)
 				_ = resp.Body.Close()
 
 				if success {

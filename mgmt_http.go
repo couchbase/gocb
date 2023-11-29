@@ -109,6 +109,7 @@ func (c *Cluster) executeMgmtRequest(ctx context.Context, req mgmtRequest) (mgmt
 		Deadline:      time.Now().Add(timeout),
 		RetryStrategy: retryStrategy,
 		TraceContext:  req.parentSpanCtx,
+		Endpoint:      req.Endpoint,
 	}
 
 	coreresp, err := provider.DoHTTPRequest(ctx, corereq)
@@ -152,6 +153,7 @@ func (b *Bucket) executeMgmtRequest(ctx context.Context, req mgmtRequest) (mgmtR
 		Deadline:      time.Now().Add(timeout),
 		RetryStrategy: retryStrategy,
 		TraceContext:  req.parentSpanCtx,
+		Endpoint:      req.Endpoint,
 	}
 
 	coreresp, err := provider.DoHTTPRequest(ctx, corereq)
