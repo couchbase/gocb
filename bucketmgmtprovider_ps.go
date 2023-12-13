@@ -238,6 +238,16 @@ func (bm bucketManagementProviderPs) psBucketToBucket(source *admin_bucket_v1.Li
 		}
 	}
 
+	bucket.HistoryRetentionCollectionDefault = source.HistoryRetentionCollectionDefault
+
+	if source.HistoryRetentionDurationSecs != nil && *source.HistoryRetentionDurationSecs > 0 {
+		bucket.HistoryRetentionDuration = time.Duration(*source.HistoryRetentionDurationSecs) * time.Second
+	}
+
+	if source.HistoryRetentionBytes != nil && *source.HistoryRetentionBytes > 0 {
+		bucket.HistoryRetentionBytes = *source.HistoryRetentionBytes
+	}
+
 	return bucket, nil
 }
 
@@ -319,6 +329,17 @@ func (bm *bucketManagementProviderPs) settingsToCreateReq(settings CreateBucketS
 		request.ConflictResolutionType = &conflictRes
 	}
 
+	request.HistoryRetentionCollectionDefault = settings.HistoryRetentionCollectionDefault
+
+	if settings.HistoryRetentionDuration > 0 {
+		duration := uint32(settings.HistoryRetentionDuration / time.Second)
+		request.HistoryRetentionDurationSecs = &duration
+	}
+	if settings.HistoryRetentionBytes > 0 {
+		bytes := settings.HistoryRetentionBytes
+		request.HistoryRetentionBytes = &bytes
+	}
+
 	return request, nil
 }
 
@@ -366,6 +387,18 @@ func (bm *bucketManagementProviderPs) settingsToUpdateReq(settings BucketSetting
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	request.HistoryRetentionCollectionDefault = settings.HistoryRetentionCollectionDefault
+
+	if settings.HistoryRetentionDuration > 0 {
+		duration := uint32(settings.HistoryRetentionDuration / time.Second)
+		request.HistoryRetentionDurationSecs = &duration
+	}
+
+	if settings.HistoryRetentionBytes > 0 {
+		bytes := settings.HistoryRetentionBytes
+		request.HistoryRetentionBytes = &bytes
 	}
 
 	return request, nil
