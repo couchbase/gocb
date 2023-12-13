@@ -99,7 +99,42 @@ func (cm *collectionsManagementProviderPs) CreateCollection(spec CollectionSpec,
 }
 
 func (cm *collectionsManagementProviderPs) UpdateCollection(spec CollectionSpec, opts *UpdateCollectionOptions) error {
-	return ErrFeatureNotAvailable
+	manager := cm.newOpManager(opts.ParentSpan, "manager_collections_update_collection", map[string]interface{}{
+		"db.name":                 cm.bucketName,
+		"db.couchbase.scope":      spec.ScopeName,
+		"db.couchbase.collection": spec.Name,
+		"db.operation":            "UpdateCollection",
+	})
+	defer manager.Finish(false)
+
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
+
+	if err := manager.CheckReadyForOp(); err != nil {
+		return err
+	}
+
+	req := &admin_collection_v1.UpdateCollectionRequest{
+		BucketName:     cm.bucketName,
+		ScopeName:      spec.ScopeName,
+		CollectionName: spec.Name,
+	}
+	if spec.MaxExpiry > 0 {
+		expiry := uint32(spec.MaxExpiry.Seconds())
+		req.MaxExpirySecs = &expiry
+	}
+	if spec.History != nil {
+		req.HistoryRetentionEnabled = &spec.History.Enabled
+	}
+
+	_, err := wrapPSOp(manager, req, cm.provider.UpdateCollection)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // DropCollection removes a collection.
