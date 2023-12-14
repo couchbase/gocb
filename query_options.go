@@ -133,10 +133,6 @@ func (opts *QueryOptions) toMap() (map[string]interface{}, error) {
 		execOpts["readonly"] = opts.Readonly
 	}
 
-	if opts.PositionalParameters != nil && opts.NamedParameters != nil {
-		return nil, makeInvalidArgumentsError("Positional and named parameters must be used exclusively")
-	}
-
 	if opts.PositionalParameters != nil {
 		execOpts["args"] = opts.PositionalParameters
 	}

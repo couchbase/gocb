@@ -30,18 +30,21 @@ func (suite *IntegrationTestSuite) TestQuery() {
 	suite.Run("TestClusterQuery", func() {
 		suite.runClusterQueryPositionalTest(n, true)
 		suite.runClusterQueryNamedTest(n, true)
+		suite.runClusterQueryBothPositionalAndNamedTest(n, true)
 	})
 	suite.Run("TestClusterQueryNoMetrics", func() {
 		suite.runClusterQueryPositionalTest(n, false)
 		suite.runClusterQueryNamedTest(n, false)
+		suite.runClusterQueryBothPositionalAndNamedTest(n, false)
 	})
 	suite.Run("TestClusterPreparedQuery", func() {
 		suite.runClusterPreparedQueryPositionalTest(n)
 		suite.runClusterPreparedQueryNamedTest(n)
+		suite.runClusterPreparedQueryBothPositionalAndNamedTest(n)
 	})
 }
 
-func (suite *IntegrationTestSuite) runPreparedQueryTest(n int, query, bucket, scope string, queryFn queryIface, params interface{}) {
+func (suite *IntegrationTestSuite) runPreparedQueryTest(n int, query, bucket, scope string, queryFn queryIface, positionalParams []interface{}, namedParams map[string]interface{}) {
 	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	deadline := time.Now().Add(60 * time.Second)
@@ -50,14 +53,10 @@ func (suite *IntegrationTestSuite) runPreparedQueryTest(n int, query, bucket, sc
 		globalMeter.Reset()
 		contextID := "contextID"
 		opts := &QueryOptions{
-			Timeout:         5 * time.Second,
-			ClientContextID: contextID,
-		}
-		switch p := params.(type) {
-		case []interface{}:
-			opts.PositionalParameters = p
-		case map[string]interface{}:
-			opts.NamedParameters = p
+			Timeout:              5 * time.Second,
+			ClientContextID:      contextID,
+			PositionalParameters: positionalParams,
+			NamedParameters:      namedParams,
 		}
 		result, err := queryFn.Query(query, opts)
 		suite.Require().Nil(err, "Failed to execute query %v", err)
@@ -127,14 +126,21 @@ func (suite *IntegrationTestSuite) runClusterPreparedQueryPositionalTest(n int) 
 	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=? LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
-	suite.runPreparedQueryTest(n, query, "", "", globalCluster, []interface{}{"query"})
+	suite.runPreparedQueryTest(n, query, "", "", globalCluster, []interface{}{"query"}, nil)
 }
 
 func (suite *IntegrationTestSuite) runClusterPreparedQueryNamedTest(n int) {
 	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=$service LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
-	suite.runPreparedQueryTest(n, query, "", "", globalCluster, map[string]interface{}{"service": "query"})
+	suite.runPreparedQueryTest(n, query, "", "", globalCluster, nil, map[string]interface{}{"service": "query"})
+}
+
+func (suite *IntegrationTestSuite) runClusterPreparedQueryBothPositionalAndNamedTest(n int) {
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
+
+	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=$service AND type=? LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
+	suite.runPreparedQueryTest(n, query, "", "", globalCluster, []interface{}{"brewery"}, map[string]interface{}{"service": "query"})
 }
 
 func (suite *IntegrationTestSuite) TestClusterQueryImprovedErrorsDocNotFound() {
@@ -180,7 +186,7 @@ func (suite *IntegrationTestSuite) TestClusterQueryImprovedErrorsDocNotFound() {
 	suite.Assert().Equal(float64(17012), qErr.Errors[0].Reason["code"])
 }
 
-func (suite *IntegrationTestSuite) runQueryTest(n int, query, bucket, scope string, queryFn queryIface, withMetrics bool, params interface{}) {
+func (suite *IntegrationTestSuite) runQueryTest(n int, query, bucket, scope string, queryFn queryIface, withMetrics bool, positionalParams []interface{}, namedParams map[string]interface{}) {
 	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	deadline := time.Now().Add(60 * time.Second)
@@ -189,16 +195,12 @@ func (suite *IntegrationTestSuite) runQueryTest(n int, query, bucket, scope stri
 		globalMeter.Reset()
 		contextID := "contextID"
 		opts := &QueryOptions{
-			Timeout:         5 * time.Second,
-			Adhoc:           true,
-			Metrics:         withMetrics,
-			ClientContextID: contextID,
-		}
-		switch p := params.(type) {
-		case []interface{}:
-			opts.PositionalParameters = p
-		case map[string]interface{}:
-			opts.NamedParameters = p
+			Timeout:              5 * time.Second,
+			Adhoc:                true,
+			Metrics:              withMetrics,
+			ClientContextID:      contextID,
+			PositionalParameters: positionalParams,
+			NamedParameters:      namedParams,
 		}
 		result, err := queryFn.Query(query, opts)
 		suite.Require().Nil(err, "Failed to execute query %v", err)
@@ -267,14 +269,21 @@ func (suite *IntegrationTestSuite) runClusterQueryPositionalTest(n int, withMetr
 	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=? LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
-	suite.runQueryTest(n, query, "", "", globalCluster, withMetrics, []interface{}{"query"})
+	suite.runQueryTest(n, query, "", "", globalCluster, withMetrics, []interface{}{"query"}, nil)
 }
 
 func (suite *IntegrationTestSuite) runClusterQueryNamedTest(n int, withMetrics bool) {
 	suite.skipIfUnsupported(ClusterLevelQueryFeature)
 
 	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=$service LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
-	suite.runQueryTest(n, query, "", "", globalCluster, withMetrics, map[string]interface{}{"service": "query"})
+	suite.runQueryTest(n, query, "", "", globalCluster, withMetrics, nil, map[string]interface{}{"service": "query"})
+}
+
+func (suite *IntegrationTestSuite) runClusterQueryBothPositionalAndNamedTest(n int, withMetrics bool) {
+	suite.skipIfUnsupported(ClusterLevelQueryFeature)
+
+	query := fmt.Sprintf("SELECT `%s`.* FROM `%s` WHERE service=$service AND type=? LIMIT %d;", globalBucket.Name(), globalBucket.Name(), n)
+	suite.runQueryTest(n, query, "", "", globalCluster, withMetrics, []interface{}{"brewery"}, map[string]interface{}{"service": "query"})
 }
 
 func (suite *IntegrationTestSuite) setupClusterQuery() int {
@@ -926,6 +935,42 @@ func (suite *UnitTestSuite) TestQueryPositionalParams() {
 
 	result, err := cluster.Query(statement, &QueryOptions{
 		PositionalParameters: params,
+		Adhoc:                true,
+	})
+	suite.Require().Nil(err)
+	suite.Require().NotNil(result)
+}
+
+func (suite *UnitTestSuite) TestQueryBothPositionalAndNamedParams() {
+	reader := new(mockQueryRowReader)
+
+	statement := "SELECT * FROM dataset"
+	positionalParams := []interface{}{float64(1), "imafish"}
+	namedParams := map[string]interface{}{
+		"num":     1,
+		"imafish": "namedbarry",
+		"$cilit":  "bang",
+	}
+
+	cluster := suite.queryCluster(false, reader, func(args mock.Arguments) {
+		opts := args.Get(1).(gocbcore.N1QLQueryOptions)
+
+		var actualOptions map[string]interface{}
+		err := json.Unmarshal(opts.Payload, &actualOptions)
+		suite.Require().Nil(err)
+
+		if suite.Assert().Contains(actualOptions, "args") {
+			suite.Require().Equal(positionalParams, actualOptions["args"])
+		}
+
+		suite.Assert().Equal(float64(1), actualOptions["$num"])
+		suite.Assert().Equal("namedbarry", actualOptions["$imafish"])
+		suite.Assert().Equal("bang", actualOptions["$cilit"])
+	})
+
+	result, err := cluster.Query(statement, &QueryOptions{
+		PositionalParameters: positionalParams,
+		NamedParameters:      namedParams,
 		Adhoc:                true,
 	})
 	suite.Require().Nil(err)
