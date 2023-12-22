@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
+func (suite *IntegrationTestSuite) runCollectionManagerCrudTest(v2 bool) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 
@@ -19,35 +19,61 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 	collectionName := generateDocId("testCollection")
 
 	mgr := globalBucket.Collections()
+	mgrV2 := globalBucket.CollectionsV2()
 
-	err := mgr.CreateScope(scopeName, nil)
+	var err error
+	if v2 {
+		err = mgrV2.CreateScope(scopeName, nil)
+	} else {
+		err = mgr.CreateScope(scopeName, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = mgr.CreateScope(scopeName, nil)
+	if v2 {
+		err = mgrV2.CreateScope(scopeName, nil)
+	} else {
+		err = mgr.CreateScope(scopeName, nil)
+	}
 	if !errors.Is(err, ErrScopeExists) {
 		suite.T().Fatalf("Expected create scope to error with ScopeExists but was %v", err)
 	}
 
-	err = mgr.CreateCollection(CollectionSpec{
-		Name:      collectionName,
-		ScopeName: scopeName,
-		MaxExpiry: 5 * time.Second,
-	}, nil)
+	if v2 {
+		err = mgrV2.CreateCollection(scopeName, collectionName, &CreateCollectionSettings{
+			MaxExpiry: 5 * time.Second,
+		}, nil)
+	} else {
+		err = mgr.CreateCollection(CollectionSpec{
+			Name:      collectionName,
+			ScopeName: scopeName,
+			MaxExpiry: 5 * time.Second,
+		}, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
-	err = mgr.CreateCollection(CollectionSpec{
-		Name:      collectionName,
-		ScopeName: scopeName,
-	}, nil)
+	if v2 {
+		err = mgrV2.CreateCollection(scopeName, collectionName, nil, nil)
+	} else {
+		err = mgr.CreateCollection(CollectionSpec{
+			Name:      collectionName,
+			ScopeName: scopeName,
+		}, nil)
+	}
+
 	if !errors.Is(err, ErrCollectionExists) {
 		suite.T().Fatalf("Expected create collection to error with CollectionExists but was %v", err)
 	}
 
-	scopes, err := mgr.GetAllScopes(nil)
+	var scopes []ScopeSpec
+	if v2 {
+		scopes, err = mgrV2.GetAllScopes(nil)
+	} else {
+		scopes, err = mgr.GetAllScopes(nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to GetAllScopes %v", err)
 	}
@@ -73,28 +99,44 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 	}
 	suite.Assert().True(found)
 
-	err = mgr.DropCollection(CollectionSpec{
-		Name:      collectionName,
-		ScopeName: scopeName,
-	}, nil)
+	if v2 {
+		err = mgrV2.DropCollection(scopeName, collectionName, nil)
+	} else {
+		err = mgr.DropCollection(CollectionSpec{
+			Name:      collectionName,
+			ScopeName: scopeName,
+		}, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Expected DropCollection to not error but was %v", err)
 	}
 
-	err = mgr.DropCollection(CollectionSpec{
-		Name:      collectionName,
-		ScopeName: scopeName,
-	}, nil)
+	if v2 {
+		err = mgrV2.DropCollection(scopeName, collectionName, nil)
+	} else {
+		err = mgr.DropCollection(CollectionSpec{
+			Name:      collectionName,
+			ScopeName: scopeName,
+		}, nil)
+	}
 	if !errors.Is(err, ErrCollectionNotFound) {
 		suite.T().Fatalf("Expected drop collection to error with ErrCollectionNotFound but was %v", err)
 	}
 
-	err = mgr.DropScope(scopeName, nil)
+	if v2 {
+		err = mgrV2.DropScope(scopeName, nil)
+	} else {
+		err = mgr.DropScope(scopeName, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Expected DropScope to not error but was %v", err)
 	}
 
-	err = mgr.DropScope(scopeName, nil)
+	if v2 {
+		err = mgrV2.DropScope(scopeName, nil)
+	} else {
+		err = mgr.DropScope(scopeName, nil)
+	}
 	if !errors.Is(err, ErrScopeNotFound) {
 		suite.T().Fatalf("Expected drop scope to error with ErrScopeNotFound but was %v", err)
 	}
@@ -200,62 +242,99 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrud() {
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_collections_drop_collection"), 2, false)
 }
 
-func (suite *IntegrationTestSuite) TestDropNonExistentScope() {
+func (suite *IntegrationTestSuite) runDropNonExistentScopeTest(v2 bool) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 
 	scopeName := generateDocId("testDropScopeX")
 
 	mgr := globalBucket.Collections()
+	mgrV2 := globalBucket.CollectionsV2()
 
-	err := mgr.CreateScope(scopeName, nil)
+	var err error
+	if v2 {
+		err = mgrV2.CreateScope(scopeName, nil)
+	} else {
+		err = mgr.CreateScope(scopeName, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
-	err = mgr.CreateCollection(CollectionSpec{
-		Name:      generateDocId("testDropCollection"),
-		ScopeName: scopeName,
-	}, nil)
+	if v2 {
+		err = mgrV2.CreateCollection(scopeName, generateDocId("testDropCollection"), nil, nil)
+	} else {
+		err = mgr.CreateCollection(CollectionSpec{
+			Name:      generateDocId("testDropCollection"),
+			ScopeName: scopeName,
+		}, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
-	err = mgr.DropScope(generateDocId("testScopeX"), nil)
+	if v2 {
+		err = mgrV2.DropScope(generateDocId("testScopeX"), nil)
+	} else {
+		err = mgr.DropScope(generateDocId("testScopeX"), nil)
+	}
 	if err == nil {
 		suite.T().Fatalf("Expected error to be non-nil")
 	}
 }
 
-func (suite *IntegrationTestSuite) TestDropNonExistentCollection() {
+func (suite *IntegrationTestSuite) TestDropNotExistentScope() {
+	suite.runDropNonExistentScopeTest(false)
+}
+
+func (suite *IntegrationTestSuite) runTestDropNonExistentCollectionTest(v2 bool) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 
 	scopeName := generateDocId("testDropScopeY")
 
 	mgr := globalBucket.Collections()
-	err := mgr.CreateScope(scopeName, nil)
+	mgrV2 := globalBucket.CollectionsV2()
+
+	var err error
+	if v2 {
+		err = mgrV2.CreateScope(scopeName, nil)
+	} else {
+		err = mgr.CreateScope(scopeName, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = mgr.CreateCollection(CollectionSpec{
-		Name:      generateDocId("testDropCollectionY"),
-		ScopeName: scopeName,
-	}, nil)
+	if v2 {
+		err = mgrV2.CreateCollection(scopeName, generateDocId("testDropCollectionY"), nil, nil)
+	} else {
+		err = mgr.CreateCollection(CollectionSpec{
+			Name:      generateDocId("testDropCollectionY"),
+			ScopeName: scopeName,
+		}, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
-	err = mgr.DropCollection(CollectionSpec{
-		Name:      generateDocId("testCollectionZ"),
-		ScopeName: scopeName,
-	}, nil)
+	if v2 {
+		err = mgrV2.DropCollection(scopeName, generateDocId("testCollectionZ"), nil)
+	} else {
+		err = mgr.DropCollection(CollectionSpec{
+			Name:      generateDocId("testCollectionZ"),
+			ScopeName: scopeName,
+		}, nil)
+	}
 	if err == nil {
 		suite.T().Fatalf("Expected error to be non-nil")
 	}
 }
 
-func (suite *IntegrationTestSuite) TestCollectionsAreNotPresent() {
+func (suite *IntegrationTestSuite) TestDropNonExistentCollection() {
+	suite.runTestDropNonExistentCollectionTest(false)
+}
+
+func (suite *IntegrationTestSuite) runCollectionsAreNotPresentTest(v2 bool) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 
@@ -265,145 +344,251 @@ func (suite *IntegrationTestSuite) TestCollectionsAreNotPresent() {
 	collectionName2 := generateDocId("collection-2-")
 
 	mgr := globalBucket.Collections()
+	mgrV2 := globalBucket.CollectionsV2()
 
-	err := mgr.CreateScope(scopeName1, nil)
+	var err error
+	if v2 {
+		err = mgrV2.CreateScope(scopeName1, nil)
+	} else {
+		err = mgr.CreateScope(scopeName1, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = mgr.CreateScope(scopeName2, nil)
+	if v2 {
+		err = mgrV2.CreateScope(scopeName2, nil)
+	} else {
+		err = mgr.CreateScope(scopeName2, nil)
+
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = mgr.CreateCollection(CollectionSpec{
-		Name:      collectionName1,
-		ScopeName: scopeName1,
-	}, nil)
+	if v2 {
+		err = mgrV2.CreateCollection(scopeName1, collectionName1, nil, nil)
+	} else {
+		err = mgr.CreateCollection(CollectionSpec{
+			Name:      collectionName1,
+			ScopeName: scopeName1,
+		}, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
-	err = mgr.CreateCollection(CollectionSpec{
-		Name:      collectionName2,
-		ScopeName: scopeName2,
-	}, nil)
+	if v2 {
+		err = mgrV2.CreateCollection(scopeName2, collectionName2, nil, nil)
+	} else {
+		err = mgr.CreateCollection(CollectionSpec{
+			Name:      collectionName2,
+			ScopeName: scopeName2,
+		}, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
-	err = mgr.DropCollection(CollectionSpec{
-		Name:      collectionName1,
-		ScopeName: scopeName1,
-	}, nil)
+	if v2 {
+		err = mgrV2.DropCollection(scopeName1, collectionName1, nil)
+	} else {
+		err = mgr.DropCollection(CollectionSpec{
+			Name:      collectionName1,
+			ScopeName: scopeName1,
+		}, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Expected DropCollection to not error but was %v", err)
 	}
 
-	err = mgr.DropCollection(CollectionSpec{
-		Name:      collectionName2,
-		ScopeName: scopeName2,
-	}, nil)
+	if v2 {
+		err = mgrV2.DropCollection(scopeName2, collectionName2, nil)
+	} else {
+		err = mgr.DropCollection(CollectionSpec{
+			Name:      collectionName2,
+			ScopeName: scopeName2,
+		}, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Expected DropCollection to not error but was %v", err)
 	}
 
-	err = mgr.DropCollection(CollectionSpec{
-		Name:      collectionName2,
-		ScopeName: scopeName2,
-	}, nil)
+	if v2 {
+		err = mgrV2.DropCollection(scopeName2, collectionName2, nil)
+	} else {
+		err = mgr.DropCollection(CollectionSpec{
+			Name:      collectionName2,
+			ScopeName: scopeName2,
+		}, nil)
+	}
 	if err == nil {
 		suite.T().Fatalf("Expected error to be non-nil")
 	}
 
 }
 
-func (suite *IntegrationTestSuite) TestDropScopesAreNotExist() {
+func (suite *IntegrationTestSuite) TestCollectionsAreNotPresent() {
+	suite.runCollectionsAreNotPresentTest(false)
+}
+
+func (suite *IntegrationTestSuite) runDropScopesAreNotExistTest(v2 bool) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 
+	scopeName1 := "testDropScope1"
+	scopeName2 := "testDropScope2"
+	collectionName1 := "testDropCollection1"
+	collectionName2 := "testDropCollection2"
+
 	mgr := globalBucket.Collections()
+	mgrV2 := globalBucket.CollectionsV2()
 
-	err := mgr.CreateScope("testDropScope1", nil)
+	var err error
+	if v2 {
+		err = mgrV2.CreateScope(scopeName1, nil)
+	} else {
+		err = mgr.CreateScope(scopeName1, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = mgr.CreateScope("testDropScope2", nil)
+	if v2 {
+		err = mgrV2.CreateScope(scopeName2, nil)
+	} else {
+		err = mgr.CreateScope(scopeName2, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = mgr.CreateCollection(CollectionSpec{
-		Name:      "testDropCollection1",
-		ScopeName: "testDropScope1",
-	}, nil)
+	if v2 {
+		err = mgrV2.CreateCollection(scopeName1, collectionName1, nil, nil)
+	} else {
+		err = mgr.CreateCollection(CollectionSpec{
+			Name:      collectionName1,
+			ScopeName: scopeName1,
+		}, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
-	err = mgr.CreateCollection(CollectionSpec{
-		Name:      "testDropCollection2",
-		ScopeName: "testDropScope2",
-	}, nil)
+	if v2 {
+		err = mgrV2.CreateCollection(scopeName2, collectionName2, nil, nil)
+	} else {
+		err = mgr.CreateCollection(CollectionSpec{
+			Name:      collectionName2,
+			ScopeName: scopeName2,
+		}, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
-	err = mgr.DropScope("testDropScope1", nil)
+	if v2 {
+		err = mgrV2.DropScope(scopeName1, nil)
+	} else {
+		err = mgr.DropScope(scopeName1, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Expected DropScope to not error but was %v", err)
 	}
 
-	err = mgr.DropScope("testDropScope2", nil)
+	if v2 {
+		err = mgrV2.DropScope(scopeName2, nil)
+	} else {
+		err = mgr.DropScope(scopeName2, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Expected DropScope to not error but was %v", err)
 	}
 
-	err = mgr.DropScope("testDropScope1", nil)
+	if v2 {
+		err = mgrV2.DropScope(scopeName1, nil)
+	} else {
+		err = mgr.DropScope(scopeName1, nil)
+	}
 	if err == nil {
 		suite.T().Fatalf("Expected error to be non-nil")
 	}
 
-	err = mgr.DropCollection(CollectionSpec{
-		Name:      "testDropCollection1",
-		ScopeName: "testDropScope1",
-	}, nil)
+	if v2 {
+		err = mgrV2.DropCollection(scopeName1, collectionName1, nil)
+	} else {
+		err = mgr.DropCollection(CollectionSpec{
+			Name:      collectionName1,
+			ScopeName: scopeName1,
+		}, nil)
+	}
 	if err == nil {
 		suite.T().Fatalf("Expected error to be non-nil")
 	}
 }
-func (suite *IntegrationTestSuite) TestGetAllScopes() {
+
+func (suite *IntegrationTestSuite) TestDropScopesAreNotExist() {
+	suite.runDropScopesAreNotExistTest(false)
+}
+
+func (suite *IntegrationTestSuite) runGetAllScopesTest(v2 bool) {
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 
-	bucket1 := globalBucket.Collections()
+	mgr := globalBucket.Collections()
+	mgrV2 := globalBucket.CollectionsV2()
 
-	err := bucket1.CreateScope(generateDocId("testScopeX1"), nil)
+	var err error
+	if v2 {
+		err = mgrV2.CreateScope(generateDocId("testScopeX1"), nil)
+	} else {
+		err = mgr.CreateScope(generateDocId("testScopeX1"), nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = bucket1.CreateScope(generateDocId("testScopeX2"), nil)
+	if v2 {
+		err = mgrV2.CreateScope(generateDocId("testScopeX2"), nil)
+	} else {
+		err = mgr.CreateScope(generateDocId("testScopeX2"), nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = bucket1.CreateScope(generateDocId("testScopeX3"), nil)
+	if v2 {
+		err = mgrV2.CreateScope(generateDocId("testScopeX3"), nil)
+	} else {
+		err = mgr.CreateScope(generateDocId("testScopeX3"), nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = bucket1.CreateScope(generateDocId("testScopeX4"), nil)
+	if v2 {
+		err = mgrV2.CreateScope(generateDocId("testScopeX4"), nil)
+	} else {
+		err = mgr.CreateScope(generateDocId("testScopeX4"), nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = bucket1.CreateScope(generateDocId("testScopeX5"), nil)
+	if v2 {
+		err = mgrV2.CreateScope(generateDocId("testScopeX5"), nil)
+	} else {
+		err = mgr.CreateScope(generateDocId("testScopeX5"), nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	scopes, err := bucket1.GetAllScopes(nil)
+	var scopes []ScopeSpec
+	if v2 {
+		scopes, err = mgrV2.GetAllScopes(nil)
+	} else {
+		scopes, err = mgr.GetAllScopes(nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to GetAllScopes %v", err)
 	}
@@ -413,61 +598,96 @@ func (suite *IntegrationTestSuite) TestGetAllScopes() {
 	}
 }
 
-func (suite *IntegrationTestSuite) TestCollectionsInBucket() {
+func (suite *IntegrationTestSuite) TestGetAllScopes() {
+	suite.runGetAllScopesTest(false)
+}
+
+func (suite *IntegrationTestSuite) runCollectionsInBucketTest(v2 bool) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 
 	scopeName := generateDocId("collectionsInBucketScope")
 
-	bucket1 := globalBucket.Collections()
+	mgr := globalBucket.Collections()
+	mgrV2 := globalBucket.CollectionsV2()
 
-	err := bucket1.CreateScope(scopeName, nil)
+	var err error
+	if v2 {
+		err = mgrV2.CreateScope(scopeName, nil)
+	} else {
+		err = mgr.CreateScope(scopeName, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = bucket1.CreateCollection(CollectionSpec{
-		Name:      generateDocId("testCollection1-"),
-		ScopeName: scopeName,
-	}, nil)
+	if v2 {
+		err = mgrV2.CreateCollection(scopeName, generateDocId("testCollection1-"), nil, nil)
+	} else {
+		err = mgr.CreateCollection(CollectionSpec{
+			Name:      generateDocId("testCollection1-"),
+			ScopeName: scopeName,
+		}, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
-	err = bucket1.CreateCollection(CollectionSpec{
-		Name:      generateDocId("testCollection2-"),
-		ScopeName: scopeName,
-	}, nil)
+	if v2 {
+		err = mgrV2.CreateCollection(scopeName, generateDocId("testCollection2-"), nil, nil)
+	} else {
+		err = mgr.CreateCollection(CollectionSpec{
+			Name:      generateDocId("testCollection2-"),
+			ScopeName: scopeName,
+		}, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
-	err = bucket1.CreateCollection(CollectionSpec{
-		Name:      generateDocId("testCollection3-"),
-		ScopeName: scopeName,
-	}, nil)
+	if v2 {
+		err = mgrV2.CreateCollection(scopeName, generateDocId("testCollection3-"), nil, nil)
+	} else {
+		err = mgr.CreateCollection(CollectionSpec{
+			Name:      generateDocId("testCollection3-"),
+			ScopeName: scopeName,
+		}, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
-	err = bucket1.CreateCollection(CollectionSpec{
-		Name:      generateDocId("testCollection4-"),
-		ScopeName: scopeName,
-	}, nil)
+	if v2 {
+		err = mgrV2.CreateCollection(scopeName, generateDocId("testCollection4-"), nil, nil)
+	} else {
+		err = mgr.CreateCollection(CollectionSpec{
+			Name:      generateDocId("testCollection4-"),
+			ScopeName: scopeName,
+		}, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
-	err = bucket1.CreateCollection(CollectionSpec{
-		Name:      generateDocId("testCollection5-"),
-		ScopeName: scopeName,
-	}, nil)
+	if v2 {
+		err = mgrV2.CreateCollection(scopeName, generateDocId("testCollection5-"), nil, nil)
+	} else {
+		err = mgr.CreateCollection(CollectionSpec{
+			Name:      generateDocId("testCollection5-"),
+			ScopeName: scopeName,
+		}, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
 	success := suite.tryUntil(time.Now().Add(5*time.Second), 500*time.Millisecond, func() bool {
-		scopes, err := bucket1.GetAllScopes(nil)
+		var scopes []ScopeSpec
+		if v2 {
+			scopes, err = mgrV2.GetAllScopes(nil)
+		} else {
+			scopes, err = mgr.GetAllScopes(nil)
+		}
 		if err != nil {
 			suite.T().Fatalf("Failed to GetAllScopes %v", err)
 		}
@@ -490,82 +710,77 @@ func (suite *IntegrationTestSuite) TestCollectionsInBucket() {
 	suite.Require().True(success)
 }
 
-func (suite *IntegrationTestSuite) TestNumberOfCollectionInScope() {
+func (suite *IntegrationTestSuite) TestCollectionsInBucket() {
+	suite.runCollectionsInBucketTest(false)
+}
+
+func (suite *IntegrationTestSuite) runNumberOfCollectionInScopeTest(v2 bool) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 
 	scopeName1 := generateDocId("numCollectionsScope1-")
 	scopeName2 := generateDocId("numCollectionsScope2-")
 
-	bucketX := globalBucket.Collections()
+	mgr := globalBucket.Collections()
+	mgrV2 := globalBucket.CollectionsV2()
 
-	err := bucketX.CreateScope(scopeName1, nil)
+	var err error
+	if v2 {
+		err = mgrV2.CreateScope(scopeName1, nil)
+	} else {
+		err = mgr.CreateScope(scopeName1, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = bucketX.CreateScope(scopeName2, nil)
+	if v2 {
+		err = mgrV2.CreateScope(scopeName2, nil)
+	} else {
+		err = mgr.CreateScope(scopeName2, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = bucketX.CreateCollection(CollectionSpec{
-		Name:      generateDocId("testCollection1-"),
-		ScopeName: scopeName1,
-	}, nil)
-	if err != nil {
-		suite.T().Fatalf("Failed to create collection %v", err)
+	// Create 5 collections in the first scope
+	for i := 1; i <= 5; i++ {
+		collectionName := generateDocId(fmt.Sprintf("testCollection%d-", i))
+		if v2 {
+			err = mgrV2.CreateCollection(scopeName1, collectionName, nil, nil)
+		} else {
+			err = mgr.CreateCollection(CollectionSpec{
+				Name:      collectionName,
+				ScopeName: scopeName1,
+			}, nil)
+		}
+		if err != nil {
+			suite.T().Fatalf("Failed to create collection %v", err)
+		}
 	}
 
-	err = bucketX.CreateCollection(CollectionSpec{
-		Name:      generateDocId("testCollection2-"),
-		ScopeName: scopeName1,
-	}, nil)
-	if err != nil {
-		suite.T().Fatalf("Failed to create collection %v", err)
+	// Create 2 collections in the second scope
+	for i := 1; i <= 2; i++ {
+		collectionName := generateDocId(fmt.Sprintf("testCollection%d-", i))
+		if v2 {
+			err = mgrV2.CreateCollection(scopeName2, collectionName, nil, nil)
+		} else {
+			err = mgr.CreateCollection(CollectionSpec{
+				Name:      collectionName,
+				ScopeName: scopeName2,
+			}, nil)
+		}
+		if err != nil {
+			suite.T().Fatalf("Failed to create collection %v", err)
+		}
 	}
 
-	err = bucketX.CreateCollection(CollectionSpec{
-		Name:      generateDocId("testCollection3-"),
-		ScopeName: scopeName1,
-	}, nil)
-	if err != nil {
-		suite.T().Fatalf("Failed to create collection %v", err)
+	var scopes []ScopeSpec
+	if v2 {
+		scopes, err = mgrV2.GetAllScopes(nil)
+	} else {
+		scopes, err = mgr.GetAllScopes(nil)
 	}
-
-	err = bucketX.CreateCollection(CollectionSpec{
-		Name:      generateDocId("testCollection4-"),
-		ScopeName: scopeName1,
-	}, nil)
-	if err != nil {
-		suite.T().Fatalf("Failed to create collection %v", err)
-	}
-
-	err = bucketX.CreateCollection(CollectionSpec{
-		Name:      generateDocId("testCollection5-"),
-		ScopeName: scopeName1,
-	}, nil)
-	if err != nil {
-		suite.T().Fatalf("Failed to create collection %v", err)
-	}
-
-	err = bucketX.CreateCollection(CollectionSpec{
-		Name:      generateDocId("testCollection6-"),
-		ScopeName: scopeName2,
-	}, nil)
-	if err != nil {
-		suite.T().Fatalf("Failed to create collection %v", err)
-	}
-
-	err = bucketX.CreateCollection(CollectionSpec{
-		Name:      generateDocId("testCollection6-"),
-		ScopeName: scopeName2,
-	}, nil)
-	if err != nil {
-		suite.T().Fatalf("Failed to create collection %v", err)
-	}
-
-	scopes, err := bucketX.GetAllScopes(nil)
 	if err != nil {
 		suite.T().Fatalf("Failed to GetAllScopes %v", err)
 	}
@@ -581,38 +796,59 @@ func (suite *IntegrationTestSuite) TestNumberOfCollectionInScope() {
 	if len(scope.Collections) != 5 {
 		suite.T().Fatalf("Expected collections in scope should be 5 but was %v", scope)
 	}
-
 }
 
-func (suite *IntegrationTestSuite) TestMaxNumberOfCollectionInScope() {
+func (suite *IntegrationTestSuite) TestNumberOfCollectionsInScope() {
+	suite.runNumberOfCollectionInScopeTest(false)
+}
+
+func (suite *IntegrationTestSuite) runMaxNumberOfCollectionsInScopeTest(v2 bool) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 	suite.skipIfUnsupported(CollectionsManagerMaxCollectionsFeature)
 
-	testBucket1 := globalBucket.Collections()
-	err := testBucket1.CreateScope("singleScope", nil)
+	mgr := globalBucket.Collections()
+	mgrV2 := globalBucket.CollectionsV2()
+
+	scopeName := generateDocId("singleScope")
+
+	var err error
+	if v2 {
+		err = mgrV2.CreateScope(scopeName, nil)
+	} else {
+		err = mgr.CreateScope(scopeName, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 	for i := 0; i < 1000; i++ {
-		err = testBucket1.CreateCollection(CollectionSpec{
-			Name:      strconv.Itoa(1000 + i),
-			ScopeName: "singleScope",
-		}, nil)
+		if v2 {
+			err = mgrV2.CreateCollection(scopeName, strconv.Itoa(1000+i), nil, nil)
+		} else {
+			err = mgr.CreateCollection(CollectionSpec{
+				Name:      strconv.Itoa(1000 + i),
+				ScopeName: scopeName,
+			}, nil)
+		}
 		if err != nil {
 			suite.T().Fatalf("Failed to create collection %v", err)
 		}
 	}
 
 	success := suite.tryUntil(time.Now().Add(15*time.Second), 100*time.Millisecond, func() bool {
-		scopes, err := testBucket1.GetAllScopes(nil)
+		var scopes []ScopeSpec
+		if v2 {
+			scopes, err = mgrV2.GetAllScopes(nil)
+		} else {
+			scopes, err = mgr.GetAllScopes(nil)
+		}
 		if err != nil {
 			suite.T().Logf("Failed to GetAllScopes %v", err)
 			return false
 		}
 		var scope *ScopeSpec
 		for i, s := range scopes {
-			if s.Name == "singleScope" {
+			if s.Name == scopeName {
 				scope = &scopes[i]
 			}
 		}
@@ -632,7 +868,11 @@ func (suite *IntegrationTestSuite) TestMaxNumberOfCollectionInScope() {
 	suite.Require().True(success)
 }
 
-func (suite *IntegrationTestSuite) TestCollectionHistoryRetention() {
+func (suite *IntegrationTestSuite) TestMaxNumberOfCollectionsInScope() {
+	suite.runMaxNumberOfCollectionsInScopeTest(false)
+}
+
+func (suite *IntegrationTestSuite) runCollectionHistoryRetentionTest(v2 bool) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(HistoryRetentionFeature)
 
@@ -660,23 +900,42 @@ func (suite *IntegrationTestSuite) TestCollectionHistoryRetention() {
 	defer bMgr.DropBucket(bName, nil)
 
 	mgr := cluster.Bucket(bName).Collections()
+	mgrV2 := cluster.Bucket(bName).CollectionsV2()
+
 	scopeName := "a" + uuid.NewString()[:6]
-	err = mgr.CreateScope(scopeName, nil)
+	if v2 {
+		err = mgrV2.CreateScope(scopeName, nil)
+	} else {
+		err = mgr.CreateScope(scopeName, nil)
+	}
 	suite.Require().NoError(err)
 
 	colName := "a" + uuid.NewString()[:6]
-	err = mgr.CreateCollection(CollectionSpec{
-		Name:      colName,
-		ScopeName: scopeName,
-		History: &CollectionHistorySettings{
-			Enabled: true,
-		},
-	}, nil)
+	if v2 {
+		err = mgrV2.CreateCollection(scopeName, colName, &CreateCollectionSettings{
+			History: &CollectionHistorySettings{
+				Enabled: true,
+			},
+		}, nil)
+	} else {
+		err = mgr.CreateCollection(CollectionSpec{
+			Name:      colName,
+			ScopeName: scopeName,
+			History: &CollectionHistorySettings{
+				Enabled: true,
+			},
+		}, nil)
+	}
 	suite.Require().NoError(err)
 
 	var collection *CollectionSpec
 	success := suite.tryUntil(time.Now().Add(15*time.Second), 100*time.Millisecond, func() bool {
-		scopes, err := mgr.GetAllScopes(nil)
+		var scopes []ScopeSpec
+		if v2 {
+			scopes, err = mgrV2.GetAllScopes(nil)
+		} else {
+			scopes, err = mgr.GetAllScopes(nil)
+		}
 		if err != nil {
 			suite.T().Logf("Failed to GetAllScopes %v", err)
 			return false
@@ -708,14 +967,27 @@ func (suite *IntegrationTestSuite) TestCollectionHistoryRetention() {
 		suite.Assert().True(collection.History.Enabled)
 	}
 
-	collection.History = &CollectionHistorySettings{
-		Enabled: false,
+	if v2 {
+		settings := UpdateCollectionSettings{
+			History: &CollectionHistorySettings{
+				Enabled: false,
+			},
+		}
+		err = mgrV2.UpdateCollection(collection.ScopeName, collection.Name, settings, nil)
+	} else {
+		collection.History = &CollectionHistorySettings{
+			Enabled: false,
+		}
+		err = mgr.UpdateCollection(*collection, nil)
 	}
-	err = mgr.UpdateCollection(*collection, nil)
 	suite.Require().NoError(err)
 }
 
-func (suite *IntegrationTestSuite) TestCollectionHistoryRetentionUnsupported() {
+func (suite *IntegrationTestSuite) TestCollectionHistoryRetentionTest() {
+	suite.runCollectionHistoryRetentionTest(false)
+}
+
+func (suite *IntegrationTestSuite) runCollectionHistoryRetentionUnsupportedTest(v2 bool) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(HistoryRetentionFeature)
 
@@ -747,23 +1019,45 @@ func (suite *IntegrationTestSuite) TestCollectionHistoryRetentionUnsupported() {
 	})
 
 	mgr := bucket.Collections()
+	mgrV2 := bucket.CollectionsV2()
+
 	scopeName := "a" + uuid.NewString()[:6]
-	err = mgr.CreateScope(scopeName, nil)
+	if v2 {
+		err = mgrV2.CreateScope(scopeName, nil)
+	} else {
+		err = mgr.CreateScope(scopeName, nil)
+	}
 	suite.Require().NoError(err)
-	defer mgr.DropScope(scopeName, nil)
+	if v2 {
+		defer mgrV2.DropScope(scopeName, nil)
+	} else {
+		defer mgr.DropScope(scopeName, nil)
+	}
 
 	colName := "a" + uuid.NewString()[:6]
-	err = mgr.CreateCollection(CollectionSpec{
-		Name:      colName,
-		ScopeName: scopeName,
-		History: &CollectionHistorySettings{
-			Enabled: true,
-		},
-	}, nil)
+	if v2 {
+		err = mgrV2.CreateCollection(scopeName, colName, &CreateCollectionSettings{
+			History: &CollectionHistorySettings{
+				Enabled: true,
+			},
+		}, nil)
+	} else {
+		err = mgr.CreateCollection(CollectionSpec{
+			Name:      colName,
+			ScopeName: scopeName,
+			History: &CollectionHistorySettings{
+				Enabled: true,
+			},
+		}, nil)
+	}
 	suite.Require().ErrorIs(err, ErrFeatureNotAvailable)
 }
 
-func (suite *IntegrationTestSuite) TestCreateCollectionWithMaxExpiryAsNoExpiry() {
+func (suite *IntegrationTestSuite) TestCollectionHistoryRetentionUnsupported() {
+	suite.runCollectionHistoryRetentionUnsupportedTest(false)
+}
+
+func (suite *IntegrationTestSuite) runCreateCollectionWithMaxExpiryAsNoExpiryTest(v2 bool) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 	suite.skipIfUnsupported(CollectionMaxExpiryNoExpiry)
@@ -772,24 +1066,41 @@ func (suite *IntegrationTestSuite) TestCreateCollectionWithMaxExpiryAsNoExpiry()
 	collectionName := generateDocId("testCollection")
 
 	mgr := globalBucket.Collections()
+	mgrV2 := globalBucket.CollectionsV2()
 
-	err := mgr.CreateScope(scopeName, nil)
+	var err error
+	if v2 {
+		err = mgrV2.CreateScope(scopeName, nil)
+	} else {
+		err = mgr.CreateScope(scopeName, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = mgr.CreateCollection(CollectionSpec{
-		Name:      collectionName,
-		ScopeName: scopeName,
-		MaxExpiry: -1 * time.Second,
-	}, nil)
+	if v2 {
+		err = mgrV2.CreateCollection(scopeName, collectionName, &CreateCollectionSettings{
+			MaxExpiry: -1 * time.Second,
+		}, nil)
+	} else {
+		err = mgr.CreateCollection(CollectionSpec{
+			Name:      collectionName,
+			ScopeName: scopeName,
+			MaxExpiry: -1 * time.Second,
+		}, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
 	suite.EnsureCollectionsOnAllNodes(scopeName, []string{collectionName})
 
-	scopes, err := mgr.GetAllScopes(nil)
+	var scopes []ScopeSpec
+	if v2 {
+		scopes, err = mgrV2.GetAllScopes(nil)
+	} else {
+		scopes, err = mgr.GetAllScopes(nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to GetAllScopes %v", err)
 	}
@@ -815,13 +1126,21 @@ func (suite *IntegrationTestSuite) TestCreateCollectionWithMaxExpiryAsNoExpiry()
 	}
 	suite.Assert().True(found)
 
-	err = mgr.DropScope(scopeName, nil)
+	if v2 {
+		err = mgrV2.DropScope(scopeName, nil)
+	} else {
+		err = mgr.DropScope(scopeName, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Expected DropScope to not error but was %v", err)
 	}
 }
 
-func (suite *IntegrationTestSuite) TestUpdateCollectionWithMaxExpiryAsNoExpiry() {
+func (suite *IntegrationTestSuite) TestCreateCollectionWithMaxExpiryAsNoExpiry() {
+	suite.runCreateCollectionWithMaxExpiryAsNoExpiryTest(false)
+}
+
+func (suite *IntegrationTestSuite) runUpdateCollectionWithMaxExpiryAsNoExpiryTest(v2 bool) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
 	suite.skipIfUnsupported(CollectionMaxExpiryNoExpiry)
@@ -831,33 +1150,57 @@ func (suite *IntegrationTestSuite) TestUpdateCollectionWithMaxExpiryAsNoExpiry()
 	collectionName := generateDocId("testCollection")
 
 	mgr := globalBucket.Collections()
+	mgrV2 := globalBucket.CollectionsV2()
 
-	err := mgr.CreateScope(scopeName, nil)
+	var err error
+	if v2 {
+		err = mgrV2.CreateScope(scopeName, nil)
+	} else {
+		err = mgr.CreateScope(scopeName, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
-	err = mgr.CreateCollection(CollectionSpec{
-		Name:      collectionName,
-		ScopeName: scopeName,
-		MaxExpiry: 20 * time.Second,
-	}, nil)
+	if v2 {
+		err = mgrV2.CreateCollection(scopeName, collectionName, &CreateCollectionSettings{
+			MaxExpiry: 20 * time.Second,
+		}, nil)
+	} else {
+		err = mgr.CreateCollection(CollectionSpec{
+			Name:      collectionName,
+			ScopeName: scopeName,
+			MaxExpiry: 20 * time.Second,
+		}, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to create collection %v", err)
 	}
 
 	suite.EnsureCollectionsOnAllNodes(scopeName, []string{collectionName})
 
-	err = mgr.UpdateCollection(CollectionSpec{
-		Name:      collectionName,
-		ScopeName: scopeName,
-		MaxExpiry: -1 * time.Second,
-	}, nil)
+	if v2 {
+		err = mgrV2.UpdateCollection(scopeName, collectionName, UpdateCollectionSettings{
+			MaxExpiry: -1 * time.Second,
+		}, nil)
+	} else {
+		err = mgr.UpdateCollection(CollectionSpec{
+			Name:      collectionName,
+			ScopeName: scopeName,
+			MaxExpiry: -1 * time.Second,
+		}, nil)
+	}
+
 	if err != nil {
 		suite.T().Fatalf("Failed to update collection %v", err)
 	}
 
-	scopes, err := mgr.GetAllScopes(nil)
+	var scopes []ScopeSpec
+	if v2 {
+		scopes, err = mgrV2.GetAllScopes(nil)
+	} else {
+		scopes, err = mgr.GetAllScopes(nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Failed to GetAllScopes %v", err)
 	}
@@ -883,17 +1226,25 @@ func (suite *IntegrationTestSuite) TestUpdateCollectionWithMaxExpiryAsNoExpiry()
 	}
 	suite.Assert().True(found)
 
-	err = mgr.DropScope(scopeName, nil)
+	if v2 {
+		err = mgrV2.DropScope(scopeName, nil)
+	} else {
+		err = mgr.DropScope(scopeName, nil)
+	}
 	if err != nil {
 		suite.T().Fatalf("Expected DropScope to not error but was %v", err)
 	}
 }
 
-func (suite *UnitTestSuite) TestGetAllScopesMgmtRequestFails() {
+func (suite *IntegrationTestSuite) TestUpdateCollectionWithMaxExpiryAsNoExpiry() {
+	suite.runUpdateCollectionWithMaxExpiryAsNoExpiryTest(false)
+}
+
+func (suite *UnitTestSuite) runGetAllScopesMgmtRequestFailsTest(v2 bool) {
 	provider := new(mockMgmtProvider)
 	provider.On("executeMgmtRequest", nil, mock.AnythingOfType("gocb.mgmtRequest")).Return(nil, errors.New("http send failure"))
 
-	mgr := CollectionManager{
+	mgrV2 := CollectionManagerV2{
 		getProvider: func() (collectionsManagementProvider, error) {
 			return &collectionsManagementProviderCore{
 				mgmtProvider: provider,
@@ -903,7 +1254,21 @@ func (suite *UnitTestSuite) TestGetAllScopesMgmtRequestFails() {
 		},
 	}
 
-	scopes, err := mgr.GetAllScopes(nil)
+	mgr := CollectionManager{
+		managerV2: &mgrV2,
+	}
+
+	var err error
+	var scopes []ScopeSpec
+	if v2 {
+		scopes, err = mgrV2.GetAllScopes(nil)
+	} else {
+		scopes, err = mgr.GetAllScopes(nil)
+	}
 	suite.Require().NotNil(err)
 	suite.Require().Nil(scopes)
+}
+
+func (suite *UnitTestSuite) TestGetAllScopesMgmtRequestFails() {
+	suite.runGetAllScopesMgmtRequestFailsTest(false)
 }

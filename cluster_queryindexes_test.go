@@ -177,15 +177,12 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 	scopeName := "testQueryIndexesScope"
 	colName := "testQueryIndexesCollection"
 
-	colmgr := globalBucket.Collections()
+	colmgr := globalBucket.CollectionsV2()
 	err := colmgr.CreateScope(scopeName, nil)
 	suite.Require().Nil(err, err)
 	defer colmgr.DropScope(scopeName, nil)
 
-	err = colmgr.CreateCollection(CollectionSpec{
-		ScopeName: scopeName,
-		Name:      colName,
-	}, nil)
+	err = colmgr.CreateCollection(scopeName, colName, nil, nil)
 	suite.Require().Nil(err, err)
 
 	suite.EnsureCollectionsOnAllNodes(scopeName, []string{colName})
@@ -342,11 +339,8 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 	bucketName := globalBucket.Name()
 
 	colName := uuid.NewString()[:6]
-	collections := globalBucket.Collections()
-	err := collections.CreateCollection(CollectionSpec{
-		ScopeName: "_default",
-		Name:      colName,
-	}, nil)
+	collections := globalBucket.CollectionsV2()
+	err := collections.CreateCollection("_default", colName, nil, nil)
 	suite.Require().Nil(err, err)
 
 	suite.EnsureCollectionOnAllIndexesAndNodes(time.Now().Add(20*time.Second), bucketName, "_default", colName)
@@ -410,11 +404,8 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 	bucketName := globalBucket.Name()
 	collectionName := uuid.NewString()
 
-	collections := globalBucket.Collections()
-	err := collections.CreateCollection(CollectionSpec{
-		ScopeName: "_default",
-		Name:      collectionName,
-	}, nil)
+	collections := globalBucket.CollectionsV2()
+	err := collections.CreateCollection("_default", collectionName, nil, nil)
 	suite.Require().Nil(err, err)
 
 	suite.EnsureCollectionOnAllIndexesAndNodes(time.Now().Add(20*time.Second), bucketName, "_default", collectionName)

@@ -431,14 +431,11 @@ func (suite *IntegrationTestSuite) TestRangeScanSampling() {
 	suite.skipIfUnsupported(RangeScanFeature)
 
 	scopeName := generateDocId("samplingrangescan")
-	colMgr := globalBucket.Collections()
+	colMgr := globalBucket.CollectionsV2()
 	err := colMgr.CreateScope(scopeName, nil)
 	suite.Require().Nil(err, err)
 	defer colMgr.DropScope(scopeName, nil)
-	err = colMgr.CreateCollection(CollectionSpec{
-		Name:      scopeName,
-		ScopeName: scopeName,
-	}, nil)
+	err = colMgr.CreateCollection(scopeName, scopeName, nil, nil)
 	suite.Require().Nil(err, err)
 
 	suite.EnsureCollectionsOnAllNodes(scopeName, []string{scopeName})

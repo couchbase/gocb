@@ -33,8 +33,9 @@ type ScopeSpec struct {
 }
 
 // CollectionManager provides methods for performing collections management.
+// Will be deprecated in favor of CollectionManagerV2 in the next minor release.
 type CollectionManager struct {
-	getProvider func() (collectionsManagementProvider, error)
+	managerV2 *CollectionManagerV2
 }
 
 // GetAllScopesOptions is the set of options available to the GetAllScopes operation.
@@ -50,17 +51,9 @@ type GetAllScopesOptions struct {
 }
 
 // GetAllScopes gets all scopes from the bucket.
+// Will be deprecated in favor of CollectionManagerV2.GetAllScopes in the next minor release.
 func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpec, error) {
-	if opts == nil {
-		opts = &GetAllScopesOptions{}
-	}
-
-	provider, err := cm.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.GetAllScopes(opts)
+	return cm.managerV2.GetAllScopes(opts)
 }
 
 // CreateCollectionOptions is the set of options available to the CreateCollection operation.
@@ -76,25 +69,14 @@ type CreateCollectionOptions struct {
 }
 
 // CreateCollection creates a new collection on the bucket.
+// Will be deprecated in favor of CollectionManagerV2.CreateCollection in the next minor release.
 func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateCollectionOptions) error {
-	if spec.Name == "" {
-		return makeInvalidArgumentsError("collection name cannot be empty")
+	settings := &CreateCollectionSettings{
+		MaxExpiry: spec.MaxExpiry,
+		History:   spec.History,
 	}
 
-	if spec.ScopeName == "" {
-		return makeInvalidArgumentsError("scope name cannot be empty")
-	}
-
-	if opts == nil {
-		opts = &CreateCollectionOptions{}
-	}
-
-	provider, err := cm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.CreateCollection(spec, opts)
+	return cm.managerV2.CreateCollection(spec.ScopeName, spec.Name, settings, opts)
 }
 
 // UpdateCollectionOptions is the set of options available to the UpdateCollection operation.
@@ -109,26 +91,15 @@ type UpdateCollectionOptions struct {
 	Context context.Context
 }
 
-// UpdateCollection creates a new collection on the bucket.
+// UpdateCollection updates the settings of an existing collection.
+// Will be deprecated in favor of CollectionManagerV2.UpdateCollection in the next minor release.
 func (cm *CollectionManager) UpdateCollection(spec CollectionSpec, opts *UpdateCollectionOptions) error {
-	if spec.Name == "" {
-		return makeInvalidArgumentsError("collection name cannot be empty")
+	settings := UpdateCollectionSettings{
+		MaxExpiry: spec.MaxExpiry,
+		History:   spec.History,
 	}
 
-	if spec.ScopeName == "" {
-		return makeInvalidArgumentsError("scope name cannot be empty")
-	}
-
-	if opts == nil {
-		opts = &UpdateCollectionOptions{}
-	}
-
-	provider, err := cm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.UpdateCollection(spec, opts)
+	return cm.managerV2.UpdateCollection(spec.ScopeName, spec.Name, settings, opts)
 }
 
 // DropCollectionOptions is the set of options available to the DropCollection operation.
@@ -144,25 +115,9 @@ type DropCollectionOptions struct {
 }
 
 // DropCollection removes a collection.
+// Will be deprecated in favor of CollectionManagerV2.DropCollection in the next minor release.
 func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropCollectionOptions) error {
-	if spec.Name == "" {
-		return makeInvalidArgumentsError("collection name cannot be empty")
-	}
-
-	if spec.ScopeName == "" {
-		return makeInvalidArgumentsError("scope name cannot be empty")
-	}
-
-	if opts == nil {
-		opts = &DropCollectionOptions{}
-	}
-
-	provider, err := cm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.DropCollection(spec, opts)
+	return cm.managerV2.DropCollection(spec.ScopeName, spec.Name, opts)
 }
 
 // CreateScopeOptions is the set of options available to the CreateScope operation.
@@ -178,21 +133,9 @@ type CreateScopeOptions struct {
 }
 
 // CreateScope creates a new scope on the bucket.
+// Will be deprecated in favor of CollectionManagerV2.CreateScope in the next minor release.
 func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOptions) error {
-	if scopeName == "" {
-		return makeInvalidArgumentsError("scope name cannot be empty")
-	}
-
-	if opts == nil {
-		opts = &CreateScopeOptions{}
-	}
-
-	provider, err := cm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.CreateScope(scopeName, opts)
+	return cm.managerV2.CreateScope(scopeName, opts)
 }
 
 // DropScopeOptions is the set of options available to the DropScope operation.
@@ -208,19 +151,7 @@ type DropScopeOptions struct {
 }
 
 // DropScope removes a scope.
+// Will be deprecated in favor of CollectionManagerV2.DropScope in the next minor release.
 func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions) error {
-	if scopeName == "" {
-		return makeInvalidArgumentsError("scope name cannot be empty")
-	}
-
-	if opts == nil {
-		opts = &DropScopeOptions{}
-	}
-
-	provider, err := cm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.DropScope(scopeName, opts)
+	return cm.managerV2.DropScope(scopeName, opts)
 }

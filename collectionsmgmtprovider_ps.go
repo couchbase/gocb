@@ -62,11 +62,11 @@ func (cm *collectionsManagementProviderPs) GetAllScopes(opts *GetAllScopesOption
 }
 
 // CreateCollection creates a new collection on the bucket.
-func (cm *collectionsManagementProviderPs) CreateCollection(spec CollectionSpec, opts *CreateCollectionOptions) error {
+func (cm *collectionsManagementProviderPs) CreateCollection(scopeName string, collectionName string, settings *CreateCollectionSettings, opts *CreateCollectionOptions) error {
 	manager := cm.newOpManager(opts.ParentSpan, "manager_collections_create_collection", map[string]interface{}{
 		"db.name":                 cm.bucketName,
-		"db.couchbase.scope":      spec.ScopeName,
-		"db.couchbase.collection": spec.Name,
+		"db.couchbase.scope":      scopeName,
+		"db.couchbase.collection": collectionName,
 		"db.operation":            "CreateCollection",
 	})
 	defer manager.Finish(false)
@@ -82,11 +82,11 @@ func (cm *collectionsManagementProviderPs) CreateCollection(spec CollectionSpec,
 
 	req := &admin_collection_v1.CreateCollectionRequest{
 		BucketName:     cm.bucketName,
-		ScopeName:      spec.ScopeName,
-		CollectionName: spec.Name,
+		ScopeName:      scopeName,
+		CollectionName: collectionName,
 	}
-	if spec.MaxExpiry > 0 {
-		expiry := uint32(spec.MaxExpiry.Seconds())
+	if settings.MaxExpiry > 0 {
+		expiry := uint32(settings.MaxExpiry.Seconds())
 		req.MaxExpirySecs = &expiry
 	}
 
@@ -98,11 +98,11 @@ func (cm *collectionsManagementProviderPs) CreateCollection(spec CollectionSpec,
 	return nil
 }
 
-func (cm *collectionsManagementProviderPs) UpdateCollection(spec CollectionSpec, opts *UpdateCollectionOptions) error {
+func (cm *collectionsManagementProviderPs) UpdateCollection(scopeName string, collectionName string, settings UpdateCollectionSettings, opts *UpdateCollectionOptions) error {
 	manager := cm.newOpManager(opts.ParentSpan, "manager_collections_update_collection", map[string]interface{}{
 		"db.name":                 cm.bucketName,
-		"db.couchbase.scope":      spec.ScopeName,
-		"db.couchbase.collection": spec.Name,
+		"db.couchbase.scope":      scopeName,
+		"db.couchbase.collection": collectionName,
 		"db.operation":            "UpdateCollection",
 	})
 	defer manager.Finish(false)
@@ -118,15 +118,15 @@ func (cm *collectionsManagementProviderPs) UpdateCollection(spec CollectionSpec,
 
 	req := &admin_collection_v1.UpdateCollectionRequest{
 		BucketName:     cm.bucketName,
-		ScopeName:      spec.ScopeName,
-		CollectionName: spec.Name,
+		ScopeName:      scopeName,
+		CollectionName: collectionName,
 	}
-	if spec.MaxExpiry > 0 {
-		expiry := uint32(spec.MaxExpiry.Seconds())
+	if settings.MaxExpiry > 0 {
+		expiry := uint32(settings.MaxExpiry.Seconds())
 		req.MaxExpirySecs = &expiry
 	}
-	if spec.History != nil {
-		req.HistoryRetentionEnabled = &spec.History.Enabled
+	if settings.History != nil {
+		req.HistoryRetentionEnabled = &settings.History.Enabled
 	}
 
 	_, err := wrapPSOp(manager, req, cm.provider.UpdateCollection)
@@ -138,11 +138,11 @@ func (cm *collectionsManagementProviderPs) UpdateCollection(spec CollectionSpec,
 }
 
 // DropCollection removes a collection.
-func (cm *collectionsManagementProviderPs) DropCollection(spec CollectionSpec, opts *DropCollectionOptions) error {
+func (cm *collectionsManagementProviderPs) DropCollection(scopeName string, collectionName string, opts *DropCollectionOptions) error {
 	manager := cm.newOpManager(opts.ParentSpan, "manager_collections_drop_collection", map[string]interface{}{
 		"db.name":                 cm.bucketName,
-		"db.couchbase.scope":      spec.ScopeName,
-		"db.couchbase.collection": spec.Name,
+		"db.couchbase.scope":      scopeName,
+		"db.couchbase.collection": collectionName,
 		"db.operation":            "DeleteCollection",
 	})
 	defer manager.Finish(false)
@@ -158,8 +158,8 @@ func (cm *collectionsManagementProviderPs) DropCollection(spec CollectionSpec, o
 
 	req := &admin_collection_v1.DeleteCollectionRequest{
 		BucketName:     cm.bucketName,
-		ScopeName:      spec.ScopeName,
-		CollectionName: spec.Name,
+		ScopeName:      scopeName,
+		CollectionName: collectionName,
 	}
 
 	_, err := wrapPSOp(manager, req, cm.provider.DeleteCollection)

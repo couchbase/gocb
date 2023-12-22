@@ -1124,9 +1124,9 @@ func (suite *IntegrationTestSuite) TestCollectionRetry() {
 	collectionName := generateDocId("insertRetry")
 
 	// cli := globalBucket.sb.getCachedClient()
-	mgr := globalBucket.Collections()
+	mgr := globalBucket.CollectionsV2()
 
-	err = mgr.CreateCollection(CollectionSpec{ScopeName: "_default", Name: collectionName}, nil)
+	err = mgr.CreateCollection("_default", collectionName, nil, nil)
 	if err != nil {
 		suite.T().Fatalf("Could not create collection: %v", err)
 	}
@@ -1151,14 +1151,14 @@ func (suite *IntegrationTestSuite) TestCollectionRetry() {
 	suite.Require().True(success)
 
 	// The following delete and create will recreate a collection with the same name but a different cid.
-	err = mgr.DropCollection(CollectionSpec{ScopeName: "_default", Name: collectionName}, nil)
+	err = mgr.DropCollection("_default", collectionName, nil)
 	if err != nil {
 		suite.T().Fatalf("Could not drop collection: %v", err)
 	}
 
 	suite.EnsureCollectionDroppedOnAllNodes("_default", []string{collectionName})
 
-	err = mgr.CreateCollection(CollectionSpec{ScopeName: "_default", Name: collectionName}, nil)
+	err = mgr.CreateCollection("_default", collectionName, nil, nil)
 	if err != nil {
 		suite.T().Fatalf("Could not create collection: %v", err)
 	}

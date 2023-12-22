@@ -109,13 +109,17 @@ func (cm *collectionsManagementProviderCore) GetAllScopes(opts *GetAllScopesOpti
 }
 
 // CreateCollection creates a new collection on the bucket.
-func (cm *collectionsManagementProviderCore) CreateCollection(spec CollectionSpec, opts *CreateCollectionOptions) error {
-	if spec.Name == "" {
+func (cm *collectionsManagementProviderCore) CreateCollection(scopeName string, collectionName string, settings *CreateCollectionSettings, opts *CreateCollectionOptions) error {
+	if collectionName == "" {
 		return makeInvalidArgumentsError("collection name cannot be empty")
 	}
 
-	if spec.ScopeName == "" {
+	if scopeName == "" {
 		return makeInvalidArgumentsError("scope name cannot be empty")
+	}
+
+	if settings == nil {
+		settings = &CreateCollectionSettings{}
 	}
 
 	if opts == nil {
@@ -125,25 +129,25 @@ func (cm *collectionsManagementProviderCore) CreateCollection(spec CollectionSpe
 	start := time.Now()
 	defer cm.meter.ValueRecord(meterValueServiceManagement, "manager_collections_create_collection", start)
 
-	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections", url.PathEscape(cm.bucketName), url.PathEscape(spec.ScopeName))
+	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections", url.PathEscape(cm.bucketName), url.PathEscape(scopeName))
 	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_create_collection", "management")
 	span.SetAttribute("db.name", cm.bucketName)
-	span.SetAttribute("db.couchbase.scope", spec.ScopeName)
-	span.SetAttribute("db.couchbase.collection", spec.Name)
+	span.SetAttribute("db.couchbase.scope", scopeName)
+	span.SetAttribute("db.couchbase.collection", collectionName)
 	span.SetAttribute("db.operation", "POST "+path)
 	defer span.End()
 
 	posts := url.Values{}
-	posts.Add("name", spec.Name)
+	posts.Add("name", collectionName)
 
-	if spec.MaxExpiry != 0 {
-		posts.Add("maxTTL", fmt.Sprintf("%d", int(spec.MaxExpiry.Seconds())))
+	if settings.MaxExpiry != 0 {
+		posts.Add("maxTTL", fmt.Sprintf("%d", int(settings.MaxExpiry.Seconds())))
 	}
-	if spec.History != nil {
+	if settings.History != nil {
 		if cm.featureVerifier.BucketCapabilityStatus(gocbcore.BucketCapabilityNonDedupedHistory) == gocbcore.BucketCapabilityStatusUnsupported {
 			return wrapError(ErrFeatureNotAvailable, "history retention is not supported - note that both server 7.2+ and Magma storage engine must be used")
 		}
-		posts.Add("history", fmt.Sprintf("%t", spec.History.Enabled))
+		posts.Add("history", fmt.Sprintf("%t", settings.History.Enabled))
 	}
 
 	eSpan := createSpan(cm.tracer, span, "request_encoding", "")
@@ -185,12 +189,12 @@ func (cm *collectionsManagementProviderCore) CreateCollection(spec CollectionSpe
 }
 
 // UpdateCollection creates a new collection on the bucket.
-func (cm *collectionsManagementProviderCore) UpdateCollection(spec CollectionSpec, opts *UpdateCollectionOptions) error {
-	if spec.Name == "" {
+func (cm *collectionsManagementProviderCore) UpdateCollection(scopeName string, collectionName string, settings UpdateCollectionSettings, opts *UpdateCollectionOptions) error {
+	if collectionName == "" {
 		return makeInvalidArgumentsError("collection name cannot be empty")
 	}
 
-	if spec.ScopeName == "" {
+	if scopeName == "" {
 		return makeInvalidArgumentsError("scope name cannot be empty")
 	}
 
@@ -201,24 +205,24 @@ func (cm *collectionsManagementProviderCore) UpdateCollection(spec CollectionSpe
 	start := time.Now()
 	defer cm.meter.ValueRecord(meterValueServiceManagement, "manager_collections_update_collection", start)
 
-	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections/%s", cm.bucketName, spec.ScopeName, spec.Name)
+	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections/%s", cm.bucketName, scopeName, collectionName)
 	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_update_collection", "management")
 	span.SetAttribute("db.name", cm.bucketName)
-	span.SetAttribute("db.couchbase.scope", spec.ScopeName)
-	span.SetAttribute("db.couchbase.collection", spec.Name)
+	span.SetAttribute("db.couchbase.scope", scopeName)
+	span.SetAttribute("db.couchbase.collection", collectionName)
 	span.SetAttribute("db.operation", "POST "+path)
 	defer span.End()
 
 	posts := url.Values{}
 
-	if spec.MaxExpiry != 0 {
-		posts.Add("maxTTL", fmt.Sprintf("%d", int(spec.MaxExpiry.Seconds())))
+	if settings.MaxExpiry != 0 {
+		posts.Add("maxTTL", fmt.Sprintf("%d", int(settings.MaxExpiry.Seconds())))
 	}
-	if spec.History != nil {
+	if settings.History != nil {
 		if cm.featureVerifier.BucketCapabilityStatus(gocbcore.BucketCapabilityNonDedupedHistory) == gocbcore.BucketCapabilityStatusUnsupported {
 			return wrapError(ErrFeatureNotAvailable, "history retention is not supported - note that both server 7.2+ and Magma storage engine must be used")
 		}
-		posts.Add("history", fmt.Sprintf("%t", spec.History.Enabled))
+		posts.Add("history", fmt.Sprintf("%t", settings.History.Enabled))
 	}
 
 	eSpan := createSpan(cm.tracer, span, "request_encoding", "")
@@ -260,12 +264,12 @@ func (cm *collectionsManagementProviderCore) UpdateCollection(spec CollectionSpe
 }
 
 // DropCollection removes a collection.
-func (cm *collectionsManagementProviderCore) DropCollection(spec CollectionSpec, opts *DropCollectionOptions) error {
-	if spec.Name == "" {
+func (cm *collectionsManagementProviderCore) DropCollection(scopeName string, collectionName string, opts *DropCollectionOptions) error {
+	if collectionName == "" {
 		return makeInvalidArgumentsError("collection name cannot be empty")
 	}
 
-	if spec.ScopeName == "" {
+	if scopeName == "" {
 		return makeInvalidArgumentsError("scope name cannot be empty")
 	}
 
@@ -276,11 +280,11 @@ func (cm *collectionsManagementProviderCore) DropCollection(spec CollectionSpec,
 	start := time.Now()
 	defer cm.meter.ValueRecord(meterValueServiceManagement, "manager_collections_drop_collection", start)
 
-	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections/%s", url.PathEscape(cm.bucketName), url.PathEscape(spec.ScopeName), url.PathEscape(spec.Name))
+	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections/%s", url.PathEscape(cm.bucketName), url.PathEscape(scopeName), url.PathEscape(collectionName))
 	span := createSpan(cm.tracer, opts.ParentSpan, "manager_collections_drop_collection", "management")
 	span.SetAttribute("db.name", cm.bucketName)
-	span.SetAttribute("db.couchbase.scope", spec.ScopeName)
-	span.SetAttribute("db.couchbase.collection", spec.Name)
+	span.SetAttribute("db.couchbase.scope", scopeName)
+	span.SetAttribute("db.couchbase.collection", collectionName)
 	span.SetAttribute("db.operation", "DELETE "+path)
 	defer span.End()
 

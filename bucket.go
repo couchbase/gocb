@@ -157,13 +157,22 @@ func (b *Bucket) ViewIndexes() *ViewIndexManager {
 	}
 }
 
-// Collections provides functions for managing collections.
-func (b *Bucket) Collections() *CollectionManager {
-	// TODO: return error for unsupported collections
-	return &CollectionManager{
+// CollectionsV2 provides functions for managing collections.
+// # UNCOMMITTED: This API may change in the future.
+func (b *Bucket) CollectionsV2() *CollectionManagerV2 {
+	return &CollectionManagerV2{
 		getProvider: func() (collectionsManagementProvider, error) {
 			return b.connectionManager.getCollectionsManagementProvider(b.Name())
 		},
+	}
+}
+
+// Collections provides functions for managing collections.
+// Will be deprecated in favor of CollectionsV2 in the next minor release.
+func (b *Bucket) Collections() *CollectionManager {
+	// TODO: return error for unsupported collections
+	return &CollectionManager{
+		managerV2: b.CollectionsV2(),
 	}
 }
 

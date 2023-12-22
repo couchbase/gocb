@@ -539,31 +539,25 @@ func (suite *IntegrationTestSuite) TestEventingManagerPausesAndResumes() {
 }
 
 func (suite *IntegrationTestSuite) mustCreateScope(scope string) {
-	cmgr := globalBucket.Collections()
+	cmgr := globalBucket.CollectionsV2()
 	err := cmgr.CreateScope(scope, nil)
 	suite.Require().Nil(err, err)
 }
 
 func (suite *IntegrationTestSuite) dropScope(scope string) {
-	cmgr := globalBucket.Collections()
+	cmgr := globalBucket.CollectionsV2()
 	err := cmgr.DropScope(scope, nil)
 	suite.Require().Nil(err, err)
 }
 
 func (suite *IntegrationTestSuite) mustCreateCollection(scope, collection string) {
-	cmgr := globalBucket.Collections()
-	err := cmgr.CreateCollection(CollectionSpec{
-		Name:      collection,
-		ScopeName: scope,
-	}, nil)
+	cmgr := globalBucket.CollectionsV2()
+	err := cmgr.CreateCollection(scope, collection, nil, nil)
 	suite.Require().Nil(err, err)
 }
 
 func (suite *IntegrationTestSuite) dropCollection(scope, collection string) {
-	cmgr := globalBucket.Collections()
-	err := cmgr.DropCollection(CollectionSpec{
-		Name:      collection,
-		ScopeName: scope,
-	}, nil)
+	cmgr := globalBucket.CollectionsV2()
+	err := cmgr.DropCollection(scope, collection, nil)
 	suite.Require().Nil(err, err)
 }

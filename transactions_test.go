@@ -102,16 +102,10 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadata() {
 	suite.skipIfUnsupported(TransactionsCustomMetadataFeature)
 
 	metaCollectionName := "txnsCustomMetadata"
-	collections := globalBucket.Collections()
-	err := collections.CreateCollection(CollectionSpec{
-		Name:      metaCollectionName,
-		ScopeName: globalScope.Name(),
-	}, nil)
+	collections := globalBucket.CollectionsV2()
+	err := collections.CreateCollection(globalScope.Name(), metaCollectionName, nil, nil)
 	suite.Require().Nil(err, err)
-	defer collections.DropCollection(CollectionSpec{
-		Name:      metaCollectionName,
-		ScopeName: globalScope.Name(),
-	}, nil)
+	defer collections.DropCollection(globalScope.Name(), metaCollectionName, nil)
 	suite.EnsureCollectionsOnAllNodes(globalScope.Name(), []string{metaCollectionName})
 
 	tConfig := globalCluster.transactionsConfig
@@ -187,16 +181,10 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadataTransactionOpti
 	suite.skipIfUnsupported(TransactionsFeature)
 
 	metaCollectionName := generateDocId("txnsCustomMetadataTxnOption")
-	collections := globalBucket.Collections()
-	err := collections.CreateCollection(CollectionSpec{
-		Name:      metaCollectionName,
-		ScopeName: globalScope.Name(),
-	}, nil)
+	collections := globalBucket.CollectionsV2()
+	err := collections.CreateCollection(globalScope.Name(), metaCollectionName, nil, nil)
 	suite.Require().Nil(err, err)
-	defer collections.DropCollection(CollectionSpec{
-		Name:      metaCollectionName,
-		ScopeName: globalScope.Name(),
-	}, nil)
+	defer collections.DropCollection(globalScope.Name(), metaCollectionName, nil)
 	suite.EnsureCollectionsOnAllNodes(globalScope.Name(), []string{metaCollectionName})
 
 	perConfig := &TransactionOptions{
@@ -260,11 +248,8 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadataLocationRemoved
 	suite.skipIfUnsupported(TransactionsRemoveLocationFeature)
 
 	metaCollectionName := uuid.NewString()
-	collections := globalBucket.Collections()
-	err := collections.CreateCollection(CollectionSpec{
-		Name:      metaCollectionName,
-		ScopeName: globalScope.Name(),
-	}, nil)
+	collections := globalBucket.CollectionsV2()
+	err := collections.CreateCollection(globalScope.Name(), metaCollectionName, nil, nil)
 	suite.Require().Nil(err, err)
 	suite.EnsureCollectionsOnAllNodes(globalScope.Name(), []string{metaCollectionName})
 
@@ -300,10 +285,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadataLocationRemoved
 
 	suite.Require().Contains(txns.Internal().CleanupLocations(), location)
 
-	err = collections.DropCollection(CollectionSpec{
-		Name:      metaCollectionName,
-		ScopeName: globalScope.Name(),
-	}, nil)
+	err = collections.DropCollection(globalScope.Name(), metaCollectionName, nil)
 	suite.Require().Nil(err, err)
 
 	suite.Eventually(func() bool {

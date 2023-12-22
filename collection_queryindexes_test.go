@@ -14,15 +14,12 @@ func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrud() {
 	scopeName := generateDocId("scope")
 	colName := generateDocId("collection")
 
-	colmgr := globalBucket.Collections()
+	colmgr := globalBucket.CollectionsV2()
 	err := colmgr.CreateScope(scopeName, nil)
 	suite.Require().Nil(err, err)
 	defer colmgr.DropScope(scopeName, nil)
 
-	err = colmgr.CreateCollection(CollectionSpec{
-		ScopeName: scopeName,
-		Name:      colName,
-	}, nil)
+	err = colmgr.CreateCollection(scopeName, colName, nil, nil)
 	suite.Require().Nil(err, err)
 
 	suite.EnsureCollectionsOnAllNodes(scopeName, []string{colName})
