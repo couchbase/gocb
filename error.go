@@ -221,9 +221,13 @@ var (
 	// operation in the incorrect order.
 	ErrXattrInvalidOrder = gocbcore.ErrXattrInvalidOrder
 
-	// ErrMutationTokenOutdated occurs when snapshow requirements are specified but the requirements do not align with
+	// ErrMutationTokenOutdated occurs when snapshot requirements are specified but the requirements do not align with
 	// the server.
 	ErrMutationTokenOutdated = gocbcore.ErrRangeScanVbUUIDNotEqual
+
+	// ErrDocumentNotLocked occurs when unlock is called on a document that is not locked.
+	// # UNCOMMITTED: This API may change in the future.
+	ErrDocumentNotLocked = gocbcore.ErrDocumentNotLocked
 )
 
 // Query Error Definitions RFC#58@15

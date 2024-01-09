@@ -29,6 +29,7 @@ var (
 	srvVer720       = NodeVersion{7, 2, 0, 0, 0, "", false}
 	protostellarVer = NodeVersion{7, 5, 0, 0, ProtostellarNodeEdition, "", false}
 	srvVer750       = NodeVersion{7, 5, 0, 0, 0, "", false}
+	srvVer760       = NodeVersion{7, 6, 0, 0, 0, "", false}
 	mockVer156      = NodeVersion{1, 5, 6, 0, 0, "", true}
 	mockVer1513     = NodeVersion{1, 5, 13, 0, 0, "", true}
 	mockVer1515     = NodeVersion{1, 5, 15, 0, 0, "", true}
@@ -101,6 +102,7 @@ var (
 	FlushBucketFeature                        = FeatureCode("flushbucket")
 	MemcachedBucketFeature                    = FeatureCode("memcachedbucket")
 	UnlockMissingDocFailFeature               = FeatureCode("unlockmissingdocfail")
+	NotLockedFeature                          = FeatureCode("notlocked")
 )
 
 type TestFeatureFlag struct {
@@ -244,6 +246,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case MemcachedBucketFeature:
 			supported = false
+		case NotLockedFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -373,6 +377,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(protostellarVer) && !c.Version.Equal(srvVer750)
 		case UnlockMissingDocFailFeature:
 			supported = !c.Version.Equal(srvVer750)
+		case NotLockedFeature:
+			supported = !c.Version.Lower(srvVer760)
 		}
 	}
 

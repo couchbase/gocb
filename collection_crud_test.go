@@ -1677,6 +1677,32 @@ func (suite *IntegrationTestSuite) TestUnlock() {
 	suite.AssertKVMetrics(meterNameCBOperations, "unlock", 1, false)
 }
 
+func (suite *IntegrationTestSuite) TestUnlockNotLocked() {
+	suite.skipIfUnsupported(KeyValueFeature)
+	suite.skipIfUnsupported(NotLockedFeature)
+
+	var doc testBeerDocument
+	err := loadJSONTestDataset("beer_sample_single", &doc)
+	suite.Require().NoErrorf(err, "Could not read test dataset: %v", err)
+
+	mutRes, err := globalCollection.Upsert("unlock", doc, nil)
+	suite.Require().NoErrorf(err, "Upsert failed, error was %v", err)
+
+	suite.Assert().NotZero(mutRes.Cas(), "Upsert CAS was 0")
+
+	err = globalCollection.Unlock("unlock", mutRes.Cas(), nil)
+	suite.Assert().ErrorIs(err, ErrDocumentNotLocked)
+
+	suite.Require().Contains(globalTracer.GetSpans(), nil)
+	nilParents := globalTracer.GetSpans()[nil]
+	suite.Require().Equal(len(nilParents), 2)
+	suite.AssertKvOpSpan(nilParents[0], "upsert", memd.CmdSet.Name(), true, DurabilityLevelNone)
+	suite.AssertKvOpSpan(nilParents[1], "unlock", memd.CmdUnlockKey.Name(), false, DurabilityLevelNone)
+
+	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "unlock", 1, false)
+}
+
 func (suite *IntegrationTestSuite) TestUnlockInvalidCas() {
 	suite.skipIfUnsupported(KeyValueFeature)
 
