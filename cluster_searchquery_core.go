@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/couchbase/gocb/v2/vector"
 	"time"
 
 	cbsearch "github.com/couchbase/gocb/v2/search"
 	"github.com/couchbase/gocbcore/v10"
 )
+
+var defaultVectorQueryNumCandidates = uint32(3)
 
 type searchProviderWrapper struct {
 	agent *gocbcore.AgentGroup
@@ -55,7 +58,24 @@ type searchProviderCore struct {
 	meter                *meterWrapper
 }
 
+func (search *searchProviderCore) Search(indexName string, request SearchRequest, opts *SearchOptions) (*SearchResult, error) {
+	searchQuery := request.SearchQuery
+	if searchQuery == nil {
+		// See MB-60312.
+		searchQuery = cbsearch.NewMatchNoneQuery()
+	}
+	return search.search(indexName, searchQuery, request.VectorSearch, false, opts)
+}
+
 func (search *searchProviderCore) SearchQuery(indexName string, query cbsearch.Query, opts *SearchOptions) (*SearchResult, error) {
+	return search.search(indexName, query, nil, true, opts)
+}
+
+func (search *searchProviderCore) search(indexName string, sQuery cbsearch.Query, vSearch *vector.Search, showRequest bool, opts *SearchOptions) (*SearchResult, error) {
+	if sQuery == nil && vSearch == nil {
+		return nil, makeInvalidArgumentsError("must specify either a search query or a vector search")
+	}
+
 	start := time.Now()
 	defer search.meter.ValueRecord(meterValueServiceSearch, "search", start)
 
@@ -78,12 +98,37 @@ func (search *searchProviderCore) SearchQuery(indexName string, query cbsearch.Q
 	if err != nil {
 		return nil, SearchError{
 			InnerError: wrapError(err, "failed to generate query options"),
-			Query:      query,
 		}
 	}
-	searchOpts["query"] = query
+	if !showRequest {
+		searchOpts["showrequest"] = false
+	}
+	if sQuery != nil {
+		searchOpts["query"] = sQuery
+	}
+	if vSearch != nil {
+		internalVSearch := vSearch.Internal()
+
+		if err := internalVSearch.Validate(); err != nil {
+			return nil, makeInvalidArgumentsError(err.Error())
+		}
+
+		queries := make([]vector.InternalQuery, len(internalVSearch.Queries))
+		for i, query := range internalVSearch.Queries {
+			if query.NumCandidates == nil {
+				query.NumCandidates = &defaultVectorQueryNumCandidates
+			}
+			queries[i] = query
+		}
+
+		searchOpts["knn"] = queries
+		if internalVSearch.VectorQueryCombination != vector.VectorQueryCombinationNotSet {
+			searchOpts["knn_operator"] = string(internalVSearch.VectorQueryCombination)
+		}
+	}
 
 	return search.execSearchQuery(opts.Context, span, indexName, searchOpts, deadline, retryStrategy, opts.Internal.User)
+
 }
 
 func (search *searchProviderCore) execSearchQuery(ctx context.Context,

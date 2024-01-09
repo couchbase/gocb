@@ -21,6 +21,10 @@ type searchProviderPs struct {
 
 var _ searchProvider = &searchProviderPs{}
 
+func (search *searchProviderPs) Search(indexName string, request SearchRequest, opts *SearchOptions) (*SearchResult, error) {
+	return nil, ErrFeatureNotAvailable
+}
+
 // SearchQuery executes a search query against PS, taking care of the translation.
 func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Query, opts *SearchOptions) (*SearchResult, error) {
 	manager := search.managerProvider.NewManager(opts.ParentSpan, "search", map[string]interface{}{
