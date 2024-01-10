@@ -62,7 +62,9 @@ type jsonSearchRow struct {
 }
 
 type jsonSearchResponseStatus struct {
-	Errors map[string]string `json:"errors"`
+	Errors     map[string]string `json:"errors"`
+	Failed     uint64            `json:"failed"`
+	Successful uint64            `json:"successful"`
 }
 
 type jsonSearchResponse struct {
@@ -87,6 +89,9 @@ func (metrics *SearchMetrics) fromData(data jsonSearchResponse) error {
 	metrics.TotalRows = data.TotalHits
 	metrics.MaxScore = data.MaxScore
 	metrics.Took = time.Duration(data.Took) / time.Nanosecond
+	metrics.TotalPartitionCount = data.Status.Successful + data.Status.Failed
+	metrics.SuccessPartitionCount = data.Status.Successful
+	metrics.ErrorPartitionCount = data.Status.Failed
 
 	return nil
 }
