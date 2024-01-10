@@ -44,6 +44,9 @@ func (metrics *SearchMetrics) fromData(data jsonSearchResponse) error {
 	metrics.TotalRows = data.TotalHits
 	metrics.MaxScore = data.MaxScore
 	metrics.Took = time.Duration(data.Took) / time.Nanosecond
+	metrics.TotalPartitionCount = data.Status.Successful + data.Status.Failed
+	metrics.SuccessPartitionCount = data.Status.Successful
+	metrics.ErrorPartitionCount = data.Status.Failed
 
 	return nil
 }

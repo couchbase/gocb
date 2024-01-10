@@ -172,7 +172,9 @@ type jsonSearchRow struct {
 }
 
 type jsonSearchResponseStatus struct {
-	Errors map[string]string `json:"errors"`
+	Errors     map[string]string `json:"errors"`
+	Failed     uint64            `json:"failed"`
+	Successful uint64            `json:"successful"`
 }
 
 type jsonSearchResponse struct {
