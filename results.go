@@ -43,7 +43,11 @@ func (d *GetResult) Expiry() *time.Duration {
 		return nil
 	}
 
-	t := time.Until(*d.expiryTime)
+	var t time.Duration
+	if !d.expiryTime.IsZero() {
+		t = time.Until(*d.expiryTime)
+	}
+
 	return &t
 }
 

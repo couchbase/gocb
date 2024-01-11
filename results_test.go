@@ -27,6 +27,13 @@ func (suite *UnitTestSuite) TestGetResultExpiry() {
 	suite.Require().Nil(res.Expiry())
 	suite.Require().Zero(res.ExpiryTime())
 
+	res.expiryTime = &time.Time{}
+
+	if suite.Assert().NotNil(res.Expiry()) {
+		suite.Require().Zero(*res.Expiry())
+	}
+	suite.Require().Zero(res.ExpiryTime())
+
 	expiry := 32 * time.Second
 	expiryTime := time.Now().Add(expiry)
 	res.expiryTime = &expiryTime

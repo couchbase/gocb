@@ -406,7 +406,10 @@ func (p *kvProviderCore) getProjected(c *Collection, id string, opts *GetOptions
 			return nil, err
 		}
 
-		expiryTime := time.Unix(expires, 0)
+		var expiryTime time.Time
+		if expires > 0 {
+			expiryTime = time.Unix(expires, 0)
+		}
 		doc.expiryTime = &expiryTime
 
 		ops = ops[1:]

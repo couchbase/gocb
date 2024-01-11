@@ -220,63 +220,92 @@ func (suite *IntegrationTestSuite) TestInsertGetWithExpiry() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(XattrFeature)
 
-	docId := generateDocId("expiryDoc")
-
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	if err != nil {
 		suite.T().Fatalf("Could not read test dataset: %v", err)
 	}
 
-	start := time.Now()
-	mutRes, err := globalCollection.Insert(docId, doc, &InsertOptions{Expiry: 10 * time.Second})
-	if err != nil {
-		suite.T().Fatalf("Insert failed, error was %v", err)
+	type tCase struct {
+		name   string
+		expiry time.Duration
+	}
+	tCases := []tCase{
+		{
+			name:   "TestInsertGetWithExpiry10Seconds",
+			expiry: 10 * time.Second,
+		},
+		{
+			name:   "TestInsertGetWithExpiryNoExpiry",
+			expiry: 0,
+		},
 	}
 
-	if mutRes.Cas() == 0 {
-		suite.T().Fatalf("Insert CAS was 0")
-	}
+	for _, tCase := range tCases {
+		suite.T().Run(tCase.name, func(te *testing.T) {
+			docId := generateDocId("expiryDoc")
 
-	insertedDoc, err := globalCollection.Get(docId, &GetOptions{WithExpiry: true})
-	if err != nil {
-		suite.T().Fatalf("Get failed, error was %v", err)
-	}
-	end := time.Now()
+			start := time.Now()
+			mutRes, err := globalCollection.Insert(docId, doc, &InsertOptions{Expiry: tCase.expiry})
+			if err != nil {
+				suite.T().Fatalf("Insert failed, error was %v", err)
+			}
 
-	var insertedDocContent testBeerDocument
-	err = insertedDoc.Content(&insertedDocContent)
-	if err != nil {
-		suite.T().Fatalf("Content failed, error was %v", err)
-	}
+			if mutRes.Cas() == 0 {
+				suite.T().Fatalf("Insert CAS was 0")
+			}
 
-	if doc != insertedDocContent {
-		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
-	}
+			insertedDoc, err := globalCollection.Get(docId, &GetOptions{WithExpiry: true})
+			if err != nil {
+				suite.T().Fatalf("Get failed, error was %v", err)
+			}
+			end := time.Now()
 
-	if suite.Assert().NotNil(insertedDoc.Expiry()) {
-		suite.Assert().InDelta(end.Sub(start).Seconds(), insertedDoc.Expiry().Seconds(), float64(1*time.Second))
+			var insertedDocContent testBeerDocument
+			err = insertedDoc.Content(&insertedDocContent)
+			if err != nil {
+				suite.T().Fatalf("Content failed, error was %v", err)
+			}
+
+			if doc != insertedDocContent {
+				suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
+			}
+
+			if tCase.expiry != 0 {
+				if suite.Assert().NotNil(insertedDoc.Expiry()) {
+					suite.Assert().InDelta(end.Sub(start).Seconds(), insertedDoc.Expiry().Seconds(), float64(1*time.Second))
+				}
+				suite.Assert().InDelta(start.Add(tCase.expiry).Second(), insertedDoc.ExpiryTime().Second(), float64(1*time.Second))
+			} else {
+				if suite.Assert().NotNil(insertedDoc.Expiry()) {
+					suite.Assert().Equal(float64(0), insertedDoc.Expiry().Seconds())
+				}
+				suite.Assert().True(insertedDoc.ExpiryTime().IsZero())
+			}
+		})
 	}
-	suite.Assert().InDelta(start.Add(10*time.Second).Second(), insertedDoc.ExpiryTime().Second(), float64(1*time.Second))
 
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
-	suite.Require().Equal(len(nilParents), 2)
-	suite.AssertKvOpSpan(nilParents[0], "insert", memd.CmdAdd.Name(), true, DurabilityLevelNone)
-	span := nilParents[1]
-	suite.AssertKvSpan(span, "get", DurabilityLevelNone)
+	suite.Require().Equal(4, len(nilParents))
 
-	if globalCluster.SupportsFeature(GetExpiryUsingLookupInFeature) {
-		suite.Require().Equal(len(span.Spans), 1)
-		suite.Require().Contains(span.Spans, "lookup_in")
-		lookupSpans := span.Spans["lookup_in"]
+	for i := 0; i < 4; i += 2 {
+		suite.AssertKvOpSpan(nilParents[i], "insert", memd.CmdAdd.Name(), true, DurabilityLevelNone)
+		span := nilParents[i+1]
+		suite.AssertKvSpan(span, "get", DurabilityLevelNone)
 
-		suite.Require().Equal(len(lookupSpans), 1)
-		suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), false, DurabilityLevelNone)
+		if globalCluster.SupportsFeature(GetExpiryUsingLookupInFeature) {
+			suite.Require().Equal(len(span.Spans), 1)
+			suite.Require().Contains(span.Spans, "lookup_in")
+			lookupSpans := span.Spans["lookup_in"]
+
+			suite.Require().Equal(len(lookupSpans), 1)
+			suite.AssertKvOpSpan(lookupSpans[0], "lookup_in", memd.CmdSubDocMultiLookup.Name(), false, DurabilityLevelNone)
+		}
 	}
 
-	suite.AssertKVMetrics(meterNameCBOperations, "insert", 1, false)
-	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "insert", 2, false)
+	suite.AssertKVMetrics(meterNameCBOperations, "get", 2, false)
 }
 
 func (suite *IntegrationTestSuite) TestUpsertGetWithExpiryTranscoder() {
