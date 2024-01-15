@@ -115,7 +115,7 @@ func (i Internal) mapDateRangeFacetToPs(dateRanges []dateFacetRange) []*search_v
 }
 
 // helper function for handling conjunct/disjunct which consist of multiple queries.
-func (i Internal) mapQueriesToPs(queries ...Query) ([]*search_v1.Query, error) {
+func (i Internal) mapQueriesToPs(queries []Query) ([]*search_v1.Query, error) {
 	out := make([]*search_v1.Query, len(queries))
 	var err error
 	for index, query := range queries {
