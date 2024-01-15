@@ -12,6 +12,7 @@ type Collection struct {
 	retryStrategyWrapper *coreRetryStrategyWrapper
 	tracer               RequestTracer
 	meter                *meterWrapper
+	compressor           *compressor
 
 	useMutationTokens bool
 
@@ -33,6 +34,7 @@ func newCollection(scope *Scope, collectionName string) *Collection {
 		retryStrategyWrapper: scope.retryStrategyWrapper,
 		tracer:               scope.tracer,
 		meter:                scope.meter,
+		compressor:           scope.compressor,
 
 		useMutationTokens: scope.useMutationTokens,
 

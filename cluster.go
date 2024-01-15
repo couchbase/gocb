@@ -38,6 +38,7 @@ type Cluster struct {
 	internalConfig       InternalConfig
 	transactionsConfig   TransactionsConfig
 	compressionConfig    CompressionConfig
+	compressor           *compressor
 
 	transactions *Transactions
 }
@@ -256,6 +257,11 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 		internalConfig:         opts.InternalConfig,
 		transactionsConfig:     opts.TransactionsConfig,
 		compressionConfig:      opts.CompressionConfig,
+		compressor: &compressor{
+			CompressionEnabled:  !opts.CompressionConfig.Disabled,
+			CompressionMinSize:  opts.CompressionConfig.MinSize,
+			CompressionMinRatio: opts.CompressionConfig.MinRatio,
+		},
 	}
 }
 

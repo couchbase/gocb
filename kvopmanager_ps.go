@@ -33,6 +33,7 @@ type kvOpManagerPs struct {
 	operationName string
 	createdTime   time.Time
 	meter         *meterWrapper
+	compressor    *compressor
 }
 
 func (m *kvOpManagerPs) getTimeout() time.Duration {
@@ -163,6 +164,11 @@ func (m *kvOpManagerPs) BucketName() string {
 	return m.parent.bucketName()
 }
 
+func (m *kvOpManagerPs) Value() ([]byte, bool) {
+	return m.compressor.Compress(m.bytes)
+}
+
+// ValueBytes is necessary for now because protostellar doesn't support compression for all commands.
 func (m *kvOpManagerPs) ValueBytes() []byte {
 	return m.bytes
 }
@@ -177,6 +183,15 @@ func (m *kvOpManagerPs) Transcoder() Transcoder {
 
 func (m *kvOpManagerPs) DurabilityLevel() *kv_v1.DurabilityLevel {
 	return m.durabilityLevel
+}
+
+func (m *kvOpManagerPs) CompressionEnabled() *kv_v1.CompressionEnabled {
+	if m.compressor.CompressionEnabled {
+		compressionEnabledOptional := kv_v1.CompressionEnabled_COMPRESSION_ENABLED_OPTIONAL
+		return &compressionEnabledOptional
+	}
+
+	return nil
 }
 
 func (m *kvOpManagerPs) RetryStrategy() RetryStrategy {
@@ -264,5 +279,6 @@ func newKvOpManagerPs(c *Collection, opName string, parentSpan RequestSpan) *kvO
 		createdTime:   time.Now(),
 		meter:         c.meter,
 		operationID:   uuid.NewString()[:6],
+		compressor:    c.compressor,
 	}
 }

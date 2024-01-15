@@ -14,6 +14,7 @@ type Bucket struct {
 	retryStrategyWrapper *coreRetryStrategyWrapper
 	tracer               RequestTracer
 	meter                *meterWrapper
+	compressor           *compressor
 
 	useServerDurations bool
 	useMutationTokens  bool
@@ -33,8 +34,9 @@ func newBucket(c *Cluster, bucketName string) *Bucket {
 
 		retryStrategyWrapper: c.retryStrategyWrapper,
 
-		tracer: c.tracer,
-		meter:  c.meter,
+		tracer:     c.tracer,
+		meter:      c.meter,
+		compressor: c.compressor,
 
 		useServerDurations: c.useServerDurations,
 		useMutationTokens:  c.useMutationTokens,

@@ -284,19 +284,23 @@ func (p *kvProviderPs) Insert(c *Collection, id string, val interface{}, opts *I
 		expiry = &kv_v1.InsertRequest_ExpirySecs{ExpirySecs: uint32(opts.Expiry.Seconds())}
 	}
 
-	content := &kv_v1.InsertRequest_ContentUncompressed{ContentUncompressed: opm.ValueBytes()}
-
 	request := &kv_v1.InsertRequest{
 		BucketName:     opm.BucketName(),
 		ScopeName:      opm.ScopeName(),
 		CollectionName: opm.CollectionName(),
 
 		Key:          opm.DocumentID(),
-		Content:      content,
 		ContentFlags: opm.ValueFlags(),
 
 		Expiry:          expiry,
 		DurabilityLevel: opm.DurabilityLevel(),
+	}
+
+	value, isCompressed := opm.Value()
+	if isCompressed {
+		request.Content = &kv_v1.InsertRequest_ContentCompressed{ContentCompressed: value}
+	} else {
+		request.Content = &kv_v1.InsertRequest_ContentUncompressed{ContentUncompressed: value}
 	}
 
 	res, err := wrapPSOp(opm, request, p.client.Insert)
@@ -346,19 +350,23 @@ func (p *kvProviderPs) Upsert(c *Collection, id string, val interface{}, opts *U
 		}
 	}
 
-	content := &kv_v1.UpsertRequest_ContentUncompressed{ContentUncompressed: opm.ValueBytes()}
-
 	request := &kv_v1.UpsertRequest{
 		Key:            opm.DocumentID(),
 		BucketName:     opm.BucketName(),
 		ScopeName:      opm.ScopeName(),
 		CollectionName: opm.CollectionName(),
-		Content:        content,
 		ContentFlags:   opm.ValueFlags(),
 
 		PreserveExpiryOnExisting: preserveExpiry,
 		Expiry:                   expiry,
 		DurabilityLevel:          opm.DurabilityLevel(),
+	}
+
+	value, isCompressed := opm.Value()
+	if isCompressed {
+		request.Content = &kv_v1.UpsertRequest_ContentCompressed{ContentCompressed: value}
+	} else {
+		request.Content = &kv_v1.UpsertRequest_ContentUncompressed{ContentUncompressed: value}
 	}
 
 	res, err := wrapPSOp(opm, request, p.client.Upsert)
@@ -409,11 +417,8 @@ func (p *kvProviderPs) Replace(c *Collection, id string, val interface{}, opts *
 		}
 	}
 
-	content := &kv_v1.ReplaceRequest_ContentUncompressed{ContentUncompressed: opm.ValueBytes()}
-
 	request := &kv_v1.ReplaceRequest{
 		Key:          opm.DocumentID(),
-		Content:      content,
 		ContentFlags: opm.ValueFlags(),
 
 		Cas:            cas,
@@ -423,6 +428,13 @@ func (p *kvProviderPs) Replace(c *Collection, id string, val interface{}, opts *
 
 		Expiry:          expiry,
 		DurabilityLevel: opm.DurabilityLevel(),
+	}
+
+	value, isCompressed := opm.Value()
+	if isCompressed {
+		request.Content = &kv_v1.ReplaceRequest_ContentCompressed{ContentCompressed: value}
+	} else {
+		request.Content = &kv_v1.ReplaceRequest_ContentUncompressed{ContentUncompressed: value}
 	}
 
 	res, err := wrapPSOp(opm, request, p.client.Replace)
@@ -464,6 +476,8 @@ func (p *kvProviderPs) Get(c *Collection, id string, opts *GetOptions) (*GetResu
 		ScopeName:      opm.ScopeName(),
 		BucketName:     opm.BucketName(),
 		Project:        opts.Project,
+
+		Compression: opm.CompressionEnabled(),
 	}
 
 	res, err := wrapPSOp(opm, request, p.client.Get)
@@ -471,13 +485,9 @@ func (p *kvProviderPs) Get(c *Collection, id string, opts *GetOptions) (*GetResu
 		return nil, err
 	}
 
-	var content []byte
-	switch c := res.Content.(type) {
-	case *kv_v1.GetResponse_ContentUncompressed:
-		content = c.ContentUncompressed
-	case *kv_v1.GetResponse_ContentCompressed:
-		content = c.ContentCompressed
-		logWarnf("couchbase2 does not currently support compressed content, passing through compressed value")
+	content, err := c.compressor.Decompress(res)
+	if err != nil {
+		return nil, err
 	}
 
 	resOut := GetResult{
@@ -520,7 +530,8 @@ func (p *kvProviderPs) GetAndTouch(c *Collection, id string, expiry time.Duratio
 		ScopeName:      opm.ScopeName(),
 		BucketName:     opm.BucketName(),
 
-		Expiry: reqExpiry,
+		Expiry:      reqExpiry,
+		Compression: opm.CompressionEnabled(),
 	}
 
 	res, err := wrapPSOp(opm, request, p.client.GetAndTouch)
@@ -528,13 +539,9 @@ func (p *kvProviderPs) GetAndTouch(c *Collection, id string, expiry time.Duratio
 		return nil, err
 	}
 
-	var content []byte
-	switch c := res.Content.(type) {
-	case *kv_v1.GetAndTouchResponse_ContentUncompressed:
-		content = c.ContentUncompressed
-	case *kv_v1.GetAndTouchResponse_ContentCompressed:
-		content = c.ContentCompressed
-		logWarnf("couchbase2 does not currently support compressed content, passing through compressed value")
+	content, err := c.compressor.Decompress(res)
+	if err != nil {
+		return nil, err
 	}
 
 	resOut := GetResult{
@@ -567,11 +574,14 @@ func (p *kvProviderPs) GetAndLock(c *Collection, id string, lockTime time.Durati
 	}
 
 	request := &kv_v1.GetAndLockRequest{
+		Key: opm.DocumentID(),
+
 		BucketName:     opm.BucketName(),
 		ScopeName:      opm.ScopeName(),
 		CollectionName: opm.CollectionName(),
-		Key:            opm.DocumentID(),
 		LockTime:       uint32(lockTime.Seconds()),
+
+		Compression: opm.CompressionEnabled(),
 	}
 
 	res, err := wrapPSOp(opm, request, p.client.GetAndLock)
@@ -579,13 +589,9 @@ func (p *kvProviderPs) GetAndLock(c *Collection, id string, lockTime time.Durati
 		return nil, err
 	}
 
-	var content []byte
-	switch c := res.Content.(type) {
-	case *kv_v1.GetAndLockResponse_ContentUncompressed:
-		content = c.ContentUncompressed
-	case *kv_v1.GetAndLockResponse_ContentCompressed:
-		content = c.ContentCompressed
-		logWarnf("couchbase2 does not currently support compressed content, passing through compressed value")
+	content, err := c.compressor.Decompress(res)
+	if err != nil {
+		return nil, err
 	}
 
 	resOut := GetResult{
@@ -899,6 +905,7 @@ func (p *kvProviderPs) Prepend(c *Collection, id string, val []byte, opts *Prepe
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetContext(opts.Context)
+	opm.SetValue(val)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -914,7 +921,7 @@ func (p *kvProviderPs) Prepend(c *Collection, id string, val []byte, opts *Prepe
 		ScopeName:       opm.ScopeName(),
 		CollectionName:  opm.CollectionName(),
 		Key:             opm.DocumentID(),
-		Content:         val,
+		Content:         opm.ValueBytes(),
 		Cas:             cas,
 		DurabilityLevel: opm.DurabilityLevel(),
 	}
@@ -945,6 +952,7 @@ func (p *kvProviderPs) Append(c *Collection, id string, val []byte, opts *Append
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetContext(opts.Context)
+	opm.SetValue(val)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -960,7 +968,7 @@ func (p *kvProviderPs) Append(c *Collection, id string, val []byte, opts *Append
 		ScopeName:       opm.ScopeName(),
 		CollectionName:  opm.CollectionName(),
 		Key:             opm.DocumentID(),
-		Content:         val,
+		Content:         opm.ValueBytes(),
 		Cas:             cas,
 		DurabilityLevel: opm.DurabilityLevel(),
 	}
