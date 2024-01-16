@@ -128,13 +128,29 @@ func (q *SearchSortField) Descending(descending bool) *SearchSortField {
 	return q
 }
 
+// SearchSortGeoDistanceUnits represents the set of unit values available for use with SearchSortGeoDistance.
+type SearchSortGeoDistanceUnits string
+
+const (
+	SearchSortGeoDistanceUnitsMeters        SearchSortGeoDistanceUnits = "meters"
+	SearchSortGeoDistanceUnitsCentimeters   SearchSortGeoDistanceUnits = "centimeters"
+	SearchSortGeoDistanceUnitsFeet          SearchSortGeoDistanceUnits = "feet"
+	SearchSortGeoDistanceUnitsInches        SearchSortGeoDistanceUnits = "inch"
+	SearchSortGeoDistanceUnitsKilometers    SearchSortGeoDistanceUnits = "kilometers"
+	SearchSortGeoDistanceUnitsMiles         SearchSortGeoDistanceUnits = "miles"
+	SearchSortGeoDistanceUnitsMilliMeters   SearchSortGeoDistanceUnits = "millimeters"
+	SearchSortGeoDistanceUnitsNauticalMiles SearchSortGeoDistanceUnits = "nauticalmiles"
+	SearchSortGeoDistanceUnitsYards         SearchSortGeoDistanceUnits = "yards"
+)
+
 // SearchSortGeoDistance represents a search geo sort.
 type SearchSortGeoDistance struct {
 	by       string
 	field    string
 	location []float64
-	unit     string
-	desc     bool
+	// See SearchSortGeoDistanceUnits for the set of values available to use with unit.
+	unit string
+	desc bool
 }
 
 // MarshalJSON marshal's this query to JSON for the search REST API.
