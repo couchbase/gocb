@@ -44,7 +44,11 @@ func (c *psConnectionMgr) openBucket(bucketName string) error {
 }
 
 func (c *psConnectionMgr) buildConfig(cluster *Cluster) error {
-	c.host = fmt.Sprintf("%s:%d", cluster.connSpec().Addresses[0].Host, cluster.connSpec().Addresses[0].Port)
+	port := cluster.connSpec().Addresses[0].Port
+	if port == 0 {
+		port = 18098
+	}
+	c.host = fmt.Sprintf("%s:%d", cluster.connSpec().Addresses[0].Host, port)
 
 	creds, err := cluster.authenticator().Credentials(AuthCredsRequest{})
 	if err != nil {
