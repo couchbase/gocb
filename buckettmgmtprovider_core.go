@@ -54,9 +54,16 @@ func (bs *BucketSettings) fromData(data jsonBucketSettings) error {
 	bs.CompressionMode = CompressionMode(data.CompressionMode)
 	bs.MinimumDurabilityLevel = durabilityLevelFromManagementAPI(data.MinimumDurabilityLevel)
 	bs.StorageBackend = StorageBackend(data.StorageBackend)
-	bs.HistoryRetentionCollectionDefault = data.HistoryRetentionCollectionDefault
 	bs.HistoryRetentionBytes = data.HistoryRetentionBytes
 	bs.HistoryRetentionDuration = time.Duration(data.HistoryRetentionSeconds) * time.Second
+
+	if data.HistoryRetentionCollectionDefault != nil {
+		if *data.HistoryRetentionCollectionDefault {
+			bs.HistoryRetentionCollectionDefault = HistoryRetentionCollectionDefaultEnabled
+		} else {
+			bs.HistoryRetentionCollectionDefault = HistoryRetentionCollectionDefaultDisabled
+		}
+	}
 
 	switch data.BucketType {
 	case "membase":
@@ -540,8 +547,15 @@ func (bm *bucketManagementProviderCore) settingsToPostData(settings *BucketSetti
 		posts.Add("storageBackend", string(settings.StorageBackend))
 	}
 
-	if settings.HistoryRetentionCollectionDefault != nil {
-		posts.Add("historyRetentionCollectionDefault", fmt.Sprintf("%t", *settings.HistoryRetentionCollectionDefault))
+	if settings.HistoryRetentionCollectionDefault != HistoryRetentionCollectionDefaultUnset {
+		switch settings.HistoryRetentionCollectionDefault {
+		case HistoryRetentionCollectionDefaultEnabled:
+			posts.Add("historyRetentionCollectionDefault", "true")
+		case HistoryRetentionCollectionDefaultDisabled:
+			posts.Add("historyRetentionCollectionDefault", "false")
+		default:
+			return nil, makeInvalidArgumentsError("unrecognized history retention collection default value")
+		}
 	}
 	if settings.HistoryRetentionDuration > 0 {
 		posts.Add("historyRetentionSeconds", fmt.Sprintf("%d", settings.HistoryRetentionDuration/time.Second))

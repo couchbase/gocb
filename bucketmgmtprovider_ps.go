@@ -260,7 +260,13 @@ func (bm bucketManagementProviderPs) psBucketToBucket(source *admin_bucket_v1.Li
 		}
 	}
 
-	bucket.HistoryRetentionCollectionDefault = source.HistoryRetentionCollectionDefault
+	if source.HistoryRetentionCollectionDefault != nil {
+		if *source.HistoryRetentionCollectionDefault {
+			bucket.HistoryRetentionCollectionDefault = HistoryRetentionCollectionDefaultEnabled
+		} else {
+			bucket.HistoryRetentionCollectionDefault = HistoryRetentionCollectionDefaultDisabled
+		}
+	}
 
 	if source.HistoryRetentionDurationSecs != nil && *source.HistoryRetentionDurationSecs > 0 {
 		bucket.HistoryRetentionDuration = time.Duration(*source.HistoryRetentionDurationSecs) * time.Second
@@ -351,7 +357,17 @@ func (bm *bucketManagementProviderPs) settingsToCreateReq(settings CreateBucketS
 		request.ConflictResolutionType = &conflictRes
 	}
 
-	request.HistoryRetentionCollectionDefault = settings.HistoryRetentionCollectionDefault
+	if settings.HistoryRetentionCollectionDefault != HistoryRetentionCollectionDefaultUnset {
+		var val bool
+		if settings.HistoryRetentionCollectionDefault == HistoryRetentionCollectionDefaultEnabled {
+			val = true
+		} else if settings.HistoryRetentionCollectionDefault == HistoryRetentionCollectionDefaultDisabled {
+			val = false
+		} else {
+			return nil, makeInvalidArgumentsError("unrecognized history retention collection default value")
+		}
+		request.HistoryRetentionCollectionDefault = &val
+	}
 
 	if settings.HistoryRetentionDuration > 0 {
 		duration := uint32(settings.HistoryRetentionDuration / time.Second)
@@ -411,7 +427,17 @@ func (bm *bucketManagementProviderPs) settingsToUpdateReq(settings BucketSetting
 		}
 	}
 
-	request.HistoryRetentionCollectionDefault = settings.HistoryRetentionCollectionDefault
+	if settings.HistoryRetentionCollectionDefault != HistoryRetentionCollectionDefaultUnset {
+		var val bool
+		if settings.HistoryRetentionCollectionDefault == HistoryRetentionCollectionDefaultEnabled {
+			val = true
+		} else if settings.HistoryRetentionCollectionDefault == HistoryRetentionCollectionDefaultDisabled {
+			val = false
+		} else {
+			return nil, makeInvalidArgumentsError("unrecognized history retention collection default value")
+		}
+		request.HistoryRetentionCollectionDefault = &val
+	}
 
 	if settings.HistoryRetentionDuration > 0 {
 		duration := uint32(settings.HistoryRetentionDuration / time.Second)
