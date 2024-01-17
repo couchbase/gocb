@@ -1,9 +1,9 @@
 module github.com/couchbase/gocb/v2
 
 require (
-	github.com/couchbase/gocbcore/v10 v10.3.1-0.20240117095257-5bec48f71944
-	github.com/couchbase/gocbcoreps v0.1.1-0.20231220162712-aa366fd7df65
-	github.com/couchbase/goprotostellar v1.0.1-0.20231220111120-c4d2428ed125
+	github.com/couchbase/gocbcore/v10 v10.3.1
+	github.com/couchbase/gocbcoreps v0.1.1
+	github.com/couchbase/goprotostellar v1.0.1
 	github.com/couchbaselabs/gocaves/client v0.0.0-20230404095311-05e3ba4f0259
 	github.com/couchbaselabs/gocbconnstr/v2 v2.0.0-20230515165046-68b522a21131
 	github.com/google/uuid v1.5.0
