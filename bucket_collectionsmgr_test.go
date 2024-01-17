@@ -763,6 +763,132 @@ func (suite *IntegrationTestSuite) TestCollectionHistoryRetentionUnsupported() {
 	suite.Require().ErrorIs(err, ErrFeatureNotAvailable)
 }
 
+func (suite *IntegrationTestSuite) TestCreateCollectionWithMaxExpiryAsNoExpiry() {
+	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(CollectionsManagerFeature)
+	suite.skipIfUnsupported(CollectionMaxExpiryNoExpiry)
+
+	scopeName := generateDocId("testScope")
+	collectionName := generateDocId("testCollection")
+
+	mgr := globalBucket.Collections()
+
+	err := mgr.CreateScope(scopeName, nil)
+	if err != nil {
+		suite.T().Fatalf("Failed to create scope %v", err)
+	}
+
+	err = mgr.CreateCollection(CollectionSpec{
+		Name:      collectionName,
+		ScopeName: scopeName,
+		MaxExpiry: -1 * time.Second,
+	}, nil)
+	if err != nil {
+		suite.T().Fatalf("Failed to create collection %v", err)
+	}
+
+	suite.EnsureCollectionsOnAllNodes(scopeName, []string{collectionName})
+
+	scopes, err := mgr.GetAllScopes(nil)
+	if err != nil {
+		suite.T().Fatalf("Failed to GetAllScopes %v", err)
+	}
+
+	if len(scopes) < 2 {
+		suite.T().Fatalf("Expected scopes to contain at least 2 scopes but was %v", scopes)
+	}
+
+	var found bool
+	for _, scope := range scopes {
+		if scope.Name != scopeName {
+			continue
+		}
+
+		found = true
+		if suite.Assert().Len(scope.Collections, 1) {
+			col := scope.Collections[0]
+			suite.Assert().Equal(collectionName, col.Name)
+			suite.Assert().Equal(scopeName, col.ScopeName)
+			suite.Assert().Equal(-1*time.Second, col.MaxExpiry)
+		}
+		break
+	}
+	suite.Assert().True(found)
+
+	err = mgr.DropScope(scopeName, nil)
+	if err != nil {
+		suite.T().Fatalf("Expected DropScope to not error but was %v", err)
+	}
+}
+
+func (suite *IntegrationTestSuite) TestUpdateCollectionWithMaxExpiryAsNoExpiry() {
+	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(CollectionsManagerFeature)
+	suite.skipIfUnsupported(CollectionMaxExpiryNoExpiry)
+	suite.skipIfUnsupported(CollectionUpdateMaxExpiry)
+
+	scopeName := generateDocId("testScope")
+	collectionName := generateDocId("testCollection")
+
+	mgr := globalBucket.Collections()
+
+	err := mgr.CreateScope(scopeName, nil)
+	if err != nil {
+		suite.T().Fatalf("Failed to create scope %v", err)
+	}
+
+	err = mgr.CreateCollection(CollectionSpec{
+		Name:      collectionName,
+		ScopeName: scopeName,
+		MaxExpiry: 20 * time.Second,
+	}, nil)
+	if err != nil {
+		suite.T().Fatalf("Failed to create collection %v", err)
+	}
+
+	suite.EnsureCollectionsOnAllNodes(scopeName, []string{collectionName})
+
+	err = mgr.UpdateCollection(CollectionSpec{
+		Name:      collectionName,
+		ScopeName: scopeName,
+		MaxExpiry: -1 * time.Second,
+	}, nil)
+	if err != nil {
+		suite.T().Fatalf("Failed to update collection %v", err)
+	}
+
+	scopes, err := mgr.GetAllScopes(nil)
+	if err != nil {
+		suite.T().Fatalf("Failed to GetAllScopes %v", err)
+	}
+
+	if len(scopes) < 2 {
+		suite.T().Fatalf("Expected scopes to contain at least 2 scopes but was %v", scopes)
+	}
+
+	var found bool
+	for _, scope := range scopes {
+		if scope.Name != scopeName {
+			continue
+		}
+
+		found = true
+		if suite.Assert().Len(scope.Collections, 1) {
+			col := scope.Collections[0]
+			suite.Assert().Equal(collectionName, col.Name)
+			suite.Assert().Equal(scopeName, col.ScopeName)
+			suite.Assert().Equal(-1*time.Second, col.MaxExpiry)
+		}
+		break
+	}
+	suite.Assert().True(found)
+
+	err = mgr.DropScope(scopeName, nil)
+	if err != nil {
+		suite.T().Fatalf("Expected DropScope to not error but was %v", err)
+	}
+}
+
 func (suite *UnitTestSuite) TestGetAllScopesMgmtRequestFails() {
 	provider := new(mockMgmtProvider)
 	provider.On("executeMgmtRequest", nil, mock.AnythingOfType("gocb.mgmtRequest")).Return(nil, errors.New("http send failure"))

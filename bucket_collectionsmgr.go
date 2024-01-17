@@ -15,6 +15,9 @@ type CollectionHistorySettings struct {
 type CollectionSpec struct {
 	Name      string
 	ScopeName string
+
+	// The maximum expiry all documents in the collection can have. Defaults to the bucket-level setting.
+	// Value of -1 seconds (time.Duration(-1) * time.Second)  denotes 'no expiry'.
 	MaxExpiry time.Duration
 
 	// # UNCOMMITTED

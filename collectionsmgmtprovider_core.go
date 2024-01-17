@@ -136,7 +136,7 @@ func (cm *collectionsManagementProviderCore) CreateCollection(spec CollectionSpe
 	posts := url.Values{}
 	posts.Add("name", spec.Name)
 
-	if spec.MaxExpiry > 0 {
+	if spec.MaxExpiry != 0 {
 		posts.Add("maxTTL", fmt.Sprintf("%d", int(spec.MaxExpiry.Seconds())))
 	}
 	if spec.History != nil {
@@ -211,7 +211,7 @@ func (cm *collectionsManagementProviderCore) UpdateCollection(spec CollectionSpe
 
 	posts := url.Values{}
 
-	if spec.MaxExpiry > 0 {
+	if spec.MaxExpiry != 0 {
 		posts.Add("maxTTL", fmt.Sprintf("%d", int(spec.MaxExpiry.Seconds())))
 	}
 	if spec.History != nil {
@@ -448,6 +448,10 @@ func (cm *collectionsManagementProviderCore) tryParseErrorMessage(req *mgmtReque
 		return makeGenericMgmtError(ErrCollectionExists, req, resp, string(b))
 	} else if strings.Contains(errText, "already exists") && strings.Contains(errText, "scope") {
 		return makeGenericMgmtError(ErrScopeExists, req, resp, string(b))
+	}
+
+	if resp.StatusCode == 400 {
+		return makeGenericMgmtError(ErrInvalidArgument, req, resp, string(b))
 	}
 
 	return makeGenericMgmtError(errors.New(errText), req, resp, string(b))

@@ -103,6 +103,8 @@ var (
 	MemcachedBucketFeature                    = FeatureCode("memcachedbucket")
 	UnlockMissingDocFailFeature               = FeatureCode("unlockmissingdocfail")
 	NotLockedFeature                          = FeatureCode("notlocked")
+	CollectionMaxExpiryNoExpiry               = FeatureCode("collectionmaxexpirynoexpiry")
+	CollectionUpdateMaxExpiry                 = FeatureCode("collectionupdatemaxexpiry")
 )
 
 type TestFeatureFlag struct {
@@ -248,6 +250,10 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case NotLockedFeature:
 			supported = false
+		case CollectionUpdateMaxExpiry:
+			supported = false
+		case CollectionMaxExpiryNoExpiry:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -378,6 +384,10 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case UnlockMissingDocFailFeature:
 			supported = !c.Version.Equal(srvVer750)
 		case NotLockedFeature:
+			supported = !c.Version.Lower(srvVer760)
+		case CollectionMaxExpiryNoExpiry:
+			supported = !c.Version.Lower(srvVer760)
+		case CollectionUpdateMaxExpiry:
 			supported = !c.Version.Lower(srvVer760)
 		}
 	}
