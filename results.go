@@ -328,14 +328,23 @@ func (r *LookupInReplicaResult) IsReplica() bool {
 }
 
 // ExistsResult is the return type of Exist operations.
-type ExistsResult struct {
-	Result
+type ExistsResult interface {
+	Exists() bool
+	Result() Result
+}
+
+type existsResult struct {
+	result    Result
 	docExists bool
 }
 
 // Exists returns whether or not the document exists.
-func (d *ExistsResult) Exists() bool {
+func (d *existsResult) Exists() bool {
 	return d.docExists
+}
+
+func (d *existsResult) Result() Result {
+	return d.result
 }
 
 // MutationResult is the return type of any store related operations. It contains Cas and mutation tokens.

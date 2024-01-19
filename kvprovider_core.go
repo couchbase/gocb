@@ -552,7 +552,7 @@ func (p *kvProviderCore) GetAndLock(c *Collection, id string, lockTime time.Dura
 	return getOut, errOut
 }
 
-func (p *kvProviderCore) Exists(c *Collection, id string, opts *ExistsOptions) (*ExistsResult, error) {
+func (p *kvProviderCore) Exists(c *Collection, id string, opts *ExistsOptions) (ExistsResult, error) {
 	opm := newKvOpManagerCore(c, "exists", opts.ParentSpan, p)
 	defer opm.Finish(false)
 
@@ -566,7 +566,7 @@ func (p *kvProviderCore) Exists(c *Collection, id string, opts *ExistsOptions) (
 		return nil, err
 	}
 
-	var docExists *ExistsResult
+	var docExists ExistsResult
 	var errOut error
 	err := opm.Wait(p.agent.GetMeta(gocbcore.GetMetaOptions{
 		Key:            opm.DocumentID(),
@@ -578,8 +578,8 @@ func (p *kvProviderCore) Exists(c *Collection, id string, opts *ExistsOptions) (
 		User:           opm.Impersonate(),
 	}, func(res *gocbcore.GetMetaResult, err error) {
 		if errors.Is(err, ErrDocumentNotFound) {
-			docExists = &ExistsResult{
-				Result: Result{
+			docExists = &existsResult{
+				result: Result{
 					cas: Cas(0),
 				},
 				docExists: false,
@@ -595,8 +595,8 @@ func (p *kvProviderCore) Exists(c *Collection, id string, opts *ExistsOptions) (
 		}
 
 		if res != nil {
-			docExists = &ExistsResult{
-				Result: Result{
+			docExists = &existsResult{
+				result: Result{
 					cas: Cas(res.Cas),
 				},
 				docExists: res.Deleted == 0,
