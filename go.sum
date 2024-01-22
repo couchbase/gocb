@@ -6,10 +6,10 @@ github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDk
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
 github.com/couchbase/gocbcore/v10 v10.3.1 h1:dx+lub02eDYiQXavtF0EwYMppVUcbjCxAAqa6/nQldg=
 github.com/couchbase/gocbcore/v10 v10.3.1/go.mod h1:lYQIIk+tzoMcwtwU5GzPbDdqEkwkH3isI2rkSpfL0oM=
-github.com/couchbase/gocbcoreps v0.1.1 h1:H5Q/TVmRqEpcdTDlepwAmLW7cemP9Di6Lp91Qa9oz1A=
-github.com/couchbase/gocbcoreps v0.1.1/go.mod h1:tpbHglpBO7DZZmr8XhHe7INj5VJcJ3i+41Ktep9lejI=
-github.com/couchbase/goprotostellar v1.0.1 h1:mtDVYTgnnDSQ3t7mQRG6jl/tOXKOuuFM9PakqC1qhCY=
-github.com/couchbase/goprotostellar v1.0.1/go.mod h1:gs1eioLVOHETTFWxDY4v7Q/kRPMgqmX6t/TPcI429ls=
+github.com/couchbase/gocbcoreps v0.1.2-0.20240123092254-fc2a1d28f615 h1:CPSWQ0RVlEEb1MVfSZjRkIcCycNrP4mIWZkH8ut/KQI=
+github.com/couchbase/gocbcoreps v0.1.2-0.20240123092254-fc2a1d28f615/go.mod h1:7FmuMToGTlek0o2iLzh2jrPHD2E8TstoC8+Iq89JZ68=
+github.com/couchbase/goprotostellar v1.0.2-0.20240122192557-b65fd378bd4a h1:6Wzo3lAtXSO+SM2UcOgDVgMT7sAEp+aw1SgipYfpYaU=
+github.com/couchbase/goprotostellar v1.0.2-0.20240122192557-b65fd378bd4a/go.mod h1:gs1eioLVOHETTFWxDY4v7Q/kRPMgqmX6t/TPcI429ls=
 github.com/couchbaselabs/gocaves/client v0.0.0-20230307083111-cc3960c624b1/go.mod h1:AVekAZwIY2stsJOMWLAS/0uA/+qdp7pjO8EHnl61QkY=
 github.com/couchbaselabs/gocaves/client v0.0.0-20230404095311-05e3ba4f0259 h1:2TXy68EGEzIMHOx9UvczR5ApVecwCfQZ0LjkmwMI6g4=
 github.com/couchbaselabs/gocaves/client v0.0.0-20230404095311-05e3ba4f0259/go.mod h1:AVekAZwIY2stsJOMWLAS/0uA/+qdp7pjO8EHnl61QkY=

@@ -173,7 +173,29 @@ func (bm bucketManagementProviderPs) DropBucket(name string, opts *DropBucketOpt
 }
 
 func (bm bucketManagementProviderPs) FlushBucket(name string, opts *FlushBucketOptions) error {
-	return ErrFeatureNotAvailable
+	manager := bm.newOpManager(opts.ParentSpan, "manager_bucket_flush_bucket", map[string]interface{}{
+		"db.name":      name,
+		"db.operation": "FlushBucket",
+	})
+	defer manager.Finish(false)
+
+	manager.SetContext(opts.Context)
+	manager.SetIsIdempotent(false)
+	manager.SetRetryStrategy(opts.RetryStrategy)
+	manager.SetTimeout(opts.Timeout)
+
+	if err := manager.CheckReadyForOp(); err != nil {
+		return err
+	}
+
+	req := &admin_bucket_v1.FlushBucketRequest{BucketName: name}
+
+	_, err := wrapPSOp(manager, req, bm.provider.FlushBucket)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (bm bucketManagementProviderPs) psBucketToBucket(source *admin_bucket_v1.ListBucketsResponse_Bucket) (*BucketSettings, error) {
