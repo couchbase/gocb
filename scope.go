@@ -14,12 +14,14 @@ type Scope struct {
 
 	useMutationTokens bool
 
-	getKvProvider         func() (kvProvider, error)
-	getKvBulkProvider     func() (kvBulkProvider, error)
-	getQueryProvider      func() (queryProvider, error)
-	getQueryIndexProvider func() (queryIndexProvider, error)
-	getAnalyticsProvider  func() (analyticsProvider, error)
-	getTransactions       func() *Transactions
+	getKvProvider          func() (kvProvider, error)
+	getKvBulkProvider      func() (kvBulkProvider, error)
+	getQueryProvider       func() (queryProvider, error)
+	getQueryIndexProvider  func() (queryIndexProvider, error)
+	getSearchProvider      func() (searchProvider, error)
+	getSearchIndexProvider func() (searchIndexProvider, error)
+	getAnalyticsProvider   func() (analyticsProvider, error)
+	getTransactions        func() *Transactions
 }
 
 func newScope(bucket *Bucket, scopeName string) *Scope {
@@ -36,12 +38,14 @@ func newScope(bucket *Bucket, scopeName string) *Scope {
 
 		useMutationTokens: bucket.useMutationTokens,
 
-		getKvProvider:         bucket.getKvProvider,
-		getKvBulkProvider:     bucket.getKvBulkProvider,
-		getQueryProvider:      bucket.getQueryProvider,
-		getQueryIndexProvider: bucket.getQueryIndexProvider,
-		getAnalyticsProvider:  bucket.getAnalyticsProvider,
-		getTransactions:       bucket.getTransactions,
+		getKvProvider:          bucket.getKvProvider,
+		getKvBulkProvider:      bucket.getKvBulkProvider,
+		getQueryProvider:       bucket.getQueryProvider,
+		getQueryIndexProvider:  bucket.getQueryIndexProvider,
+		getSearchProvider:      bucket.getSearchProvider,
+		getSearchIndexProvider: bucket.getSearchIndexProvider,
+		getAnalyticsProvider:   bucket.getAnalyticsProvider,
+		getTransactions:        bucket.getTransactions,
 	}
 }
 
@@ -59,4 +63,17 @@ func (s *Scope) BucketName() string {
 // Collection returns an instance of a collection.
 func (s *Scope) Collection(collectionName string) *Collection {
 	return newCollection(s, collectionName)
+}
+
+// SearchIndexes returns a ScopeSearchIndexManager for managing scope-level search indexes.
+//
+// # VOLATILE
+//
+// This API is VOLATILE and subject to change at any time.
+func (s *Scope) SearchIndexes() *ScopeSearchIndexManager {
+	return &ScopeSearchIndexManager{
+		getProvider: s.getSearchIndexProvider,
+
+		scope: s,
+	}
 }

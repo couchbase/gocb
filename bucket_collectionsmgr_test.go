@@ -1060,7 +1060,7 @@ func (suite *IntegrationTestSuite) TestCollectionHistoryRetentionUnsupported() {
 func (suite *IntegrationTestSuite) runCreateCollectionWithMaxExpiryAsNoExpiryTest(v2 bool) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
-	suite.skipIfUnsupported(CollectionMaxExpiryNoExpiry)
+	suite.skipIfUnsupported(CollectionMaxExpiryNoExpiryFeature)
 
 	scopeName := generateDocId("testScope")
 	collectionName := generateDocId("testCollection")
@@ -1143,8 +1143,8 @@ func (suite *IntegrationTestSuite) TestCreateCollectionWithMaxExpiryAsNoExpiry()
 func (suite *IntegrationTestSuite) runUpdateCollectionWithMaxExpiryAsNoExpiryTest(v2 bool) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(CollectionsManagerFeature)
-	suite.skipIfUnsupported(CollectionMaxExpiryNoExpiry)
-	suite.skipIfUnsupported(CollectionUpdateMaxExpiry)
+	suite.skipIfUnsupported(CollectionMaxExpiryNoExpiryFeature)
+	suite.skipIfUnsupported(CollectionUpdateMaxExpiryFeature)
 
 	scopeName := generateDocId("testScope")
 	collectionName := generateDocId("testCollection")

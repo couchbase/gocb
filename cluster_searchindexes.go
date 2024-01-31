@@ -107,7 +107,7 @@ func (sm *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]S
 		return nil, err
 	}
 
-	return provider.GetAllIndexes(opts)
+	return provider.GetAllIndexes(nil, opts)
 }
 
 // GetSearchIndexOptions is the set of options available to the search indexes GetIndex operation.
@@ -137,7 +137,7 @@ func (sm *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOpt
 		return nil, err
 	}
 
-	return provider.GetIndex(indexName, opts)
+	return provider.GetIndex(nil, indexName, opts)
 }
 
 // UpsertSearchIndexOptions is the set of options available to the search index manager UpsertIndex operation.
@@ -170,7 +170,7 @@ func (sm *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *Ups
 		return err
 	}
 
-	return provider.UpsertIndex(indexDefinition, opts)
+	return provider.UpsertIndex(nil, indexDefinition, opts)
 }
 
 // DropSearchIndexOptions is the set of options available to the search index DropIndex operation.
@@ -200,7 +200,7 @@ func (sm *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndexO
 		return err
 	}
 
-	return provider.DropIndex(indexName, opts)
+	return provider.DropIndex(nil, indexName, opts)
 }
 
 // AnalyzeDocumentOptions is the set of options available to the search index AnalyzeDocument operation.
@@ -230,7 +230,7 @@ func (sm *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{},
 		return nil, err
 	}
 
-	return provider.AnalyzeDocument(indexName, doc, opts)
+	return provider.AnalyzeDocument(nil, indexName, doc, opts)
 }
 
 // GetIndexedDocumentsCountOptions is the set of options available to the search index GetIndexedDocumentsCount operation.
@@ -260,7 +260,7 @@ func (sm *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *G
 		return 0, err
 	}
 
-	return provider.GetIndexedDocumentsCount(indexName, opts)
+	return provider.GetIndexedDocumentsCount(nil, indexName, opts)
 }
 
 // PauseIngestSearchIndexOptions is the set of options available to the search index PauseIngest operation.
@@ -290,7 +290,7 @@ func (sm *SearchIndexManager) PauseIngest(indexName string, opts *PauseIngestSea
 		return err
 	}
 
-	return provider.PauseIngest(indexName, opts)
+	return provider.PauseIngest(nil, indexName, opts)
 }
 
 // ResumeIngestSearchIndexOptions is the set of options available to the search index ResumeIngest operation.
@@ -320,7 +320,7 @@ func (sm *SearchIndexManager) ResumeIngest(indexName string, opts *ResumeIngestS
 		return err
 	}
 
-	return provider.ResumeIngest(indexName, opts)
+	return provider.ResumeIngest(nil, indexName, opts)
 }
 
 // AllowQueryingSearchIndexOptions is the set of options available to the search index AllowQuerying operation.
@@ -350,7 +350,7 @@ func (sm *SearchIndexManager) AllowQuerying(indexName string, opts *AllowQueryin
 		return err
 	}
 
-	return provider.AllowQuerying(indexName, opts)
+	return provider.AllowQuerying(nil, indexName, opts)
 }
 
 // DisallowQueryingSearchIndexOptions is the set of options available to the search index DisallowQuerying operation.
@@ -380,7 +380,12 @@ func (sm *SearchIndexManager) DisallowQuerying(indexName string, opts *AllowQuer
 		return err
 	}
 
-	return provider.DisallowQuerying(indexName, opts)
+	return provider.DisallowQuerying(nil, indexName, &DisallowQueryingSearchIndexOptions{
+		Timeout:       opts.Timeout,
+		RetryStrategy: opts.RetryStrategy,
+		ParentSpan:    opts.ParentSpan,
+		Context:       opts.Context,
+	})
 }
 
 // FreezePlanSearchIndexOptions is the set of options available to the search index FreezePlan operation.
@@ -410,7 +415,12 @@ func (sm *SearchIndexManager) FreezePlan(indexName string, opts *AllowQueryingSe
 		return err
 	}
 
-	return provider.FreezePlan(indexName, opts)
+	return provider.FreezePlan(nil, indexName, &FreezePlanSearchIndexOptions{
+		Timeout:       opts.Timeout,
+		RetryStrategy: opts.RetryStrategy,
+		ParentSpan:    opts.ParentSpan,
+		Context:       opts.Context,
+	})
 }
 
 // UnfreezePlanSearchIndexOptions is the set of options available to the search index UnfreezePlan operation.
@@ -440,5 +450,10 @@ func (sm *SearchIndexManager) UnfreezePlan(indexName string, opts *AllowQuerying
 		return err
 	}
 
-	return provider.UnfreezePlan(indexName, opts)
+	return provider.UnfreezePlan(nil, indexName, &UnfreezePlanSearchIndexOptions{
+		Timeout:       opts.Timeout,
+		RetryStrategy: opts.RetryStrategy,
+		ParentSpan:    opts.ParentSpan,
+		Context:       opts.Context,
+	})
 }

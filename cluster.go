@@ -583,7 +583,7 @@ func (c *Cluster) QueryIndexes() *QueryIndexManager {
 	}
 }
 
-// SearchIndexes returns a SearchIndexManager for managing search indexes.
+// SearchIndexes returns a SearchIndexManager for managing cluster-level search indexes.
 func (c *Cluster) SearchIndexes() *SearchIndexManager {
 	return &SearchIndexManager{
 		getProvider: c.getSearchIndexProvider,

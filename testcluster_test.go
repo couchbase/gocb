@@ -103,8 +103,10 @@ var (
 	MemcachedBucketFeature                    = FeatureCode("memcachedbucket")
 	UnlockMissingDocFailFeature               = FeatureCode("unlockmissingdocfail")
 	NotLockedFeature                          = FeatureCode("notlocked")
-	CollectionMaxExpiryNoExpiry               = FeatureCode("collectionmaxexpirynoexpiry")
-	CollectionUpdateMaxExpiry                 = FeatureCode("collectionupdatemaxexpiry")
+	CollectionMaxExpiryNoExpiryFeature        = FeatureCode("collectionmaxexpirynoexpiry")
+	CollectionUpdateMaxExpiryFeature          = FeatureCode("collectionupdatemaxexpiry")
+	ScopeSearchIndexFeature                   = FeatureCode("scopesearchindex")
+	ScopeSearchFeature                        = FeatureCode("scopesearch")
 )
 
 type TestFeatureFlag struct {
@@ -250,9 +252,13 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case NotLockedFeature:
 			supported = false
-		case CollectionUpdateMaxExpiry:
+		case CollectionUpdateMaxExpiryFeature:
 			supported = false
-		case CollectionMaxExpiryNoExpiry:
+		case CollectionMaxExpiryNoExpiryFeature:
+			supported = false
+		case ScopeSearchIndexFeature:
+			supported = false
+		case ScopeSearchFeature:
 			supported = false
 		}
 	} else {
@@ -385,10 +391,14 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Equal(srvVer750)
 		case NotLockedFeature:
 			supported = !c.Version.Lower(srvVer760)
-		case CollectionMaxExpiryNoExpiry:
+		case CollectionMaxExpiryNoExpiryFeature:
 			supported = !c.Version.Lower(srvVer760)
-		case CollectionUpdateMaxExpiry:
+		case CollectionUpdateMaxExpiryFeature:
 			supported = !c.Version.Lower(srvVer760)
+		case ScopeSearchIndexFeature:
+			supported = !c.Version.Lower(srvVer750)
+		case ScopeSearchFeature:
+			supported = !c.Version.Lower(srvVer750) && !c.Version.Equal(protostellarVer)
 		}
 	}
 

@@ -58,20 +58,20 @@ type searchProviderCore struct {
 	meter                *meterWrapper
 }
 
-func (search *searchProviderCore) Search(indexName string, request SearchRequest, opts *SearchOptions) (*SearchResult, error) {
+func (search *searchProviderCore) Search(scope *Scope, indexName string, request SearchRequest, opts *SearchOptions) (*SearchResult, error) {
 	searchQuery := request.SearchQuery
 	if searchQuery == nil {
 		// See MB-60312.
 		searchQuery = cbsearch.NewMatchNoneQuery()
 	}
-	return search.search(indexName, searchQuery, request.VectorSearch, false, opts)
+	return search.search(scope, indexName, searchQuery, request.VectorSearch, false, opts)
 }
 
 func (search *searchProviderCore) SearchQuery(indexName string, query cbsearch.Query, opts *SearchOptions) (*SearchResult, error) {
-	return search.search(indexName, query, nil, true, opts)
+	return search.search(nil, indexName, query, nil, true, opts)
 }
 
-func (search *searchProviderCore) search(indexName string, sQuery cbsearch.Query, vSearch *vector.Search, showRequest bool, opts *SearchOptions) (*SearchResult, error) {
+func (search *searchProviderCore) search(scope *Scope, indexName string, sQuery cbsearch.Query, vSearch *vector.Search, showRequest bool, opts *SearchOptions) (*SearchResult, error) {
 	if sQuery == nil && vSearch == nil {
 		return nil, makeInvalidArgumentsError("must specify either a search query or a vector search")
 	}
@@ -81,6 +81,10 @@ func (search *searchProviderCore) search(indexName string, sQuery cbsearch.Query
 
 	span := createSpan(search.tracer, opts.ParentSpan, "search", "search")
 	span.SetAttribute("db.operation", indexName)
+	if scope != nil {
+		span.SetAttribute("db.name", scope.BucketName())
+		span.SetAttribute("db.couchbase.scope", scope.Name())
+	}
 	defer span.End()
 
 	timeout := opts.Timeout
@@ -127,12 +131,14 @@ func (search *searchProviderCore) search(indexName string, sQuery cbsearch.Query
 		}
 	}
 
-	return search.execSearchQuery(opts.Context, span, indexName, searchOpts, deadline, retryStrategy, opts.Internal.User)
+	return search.execSearchQuery(opts.Context, span, scope, indexName, searchOpts, deadline, retryStrategy, opts.Internal.User)
 
 }
 
-func (search *searchProviderCore) execSearchQuery(ctx context.Context,
+func (search *searchProviderCore) execSearchQuery(
+	ctx context.Context,
 	span RequestSpan,
+	scope *Scope,
 	indexName string,
 	options map[string]interface{},
 	deadline time.Time,
@@ -150,14 +156,21 @@ func (search *searchProviderCore) execSearchQuery(ctx context.Context,
 		}
 	}
 
-	res, err := search.provider.SearchQuery(ctx, gocbcore.SearchQueryOptions{
+	coreOpts := gocbcore.SearchQueryOptions{
 		IndexName:     indexName,
 		Payload:       reqBytes,
 		RetryStrategy: retryStrategy,
 		Deadline:      deadline,
 		TraceContext:  span.Context(),
 		User:          user,
-	})
+	}
+
+	if scope != nil {
+		coreOpts.BucketName = scope.bucket.bucketName
+		coreOpts.ScopeName = scope.scopeName
+	}
+
+	res, err := search.provider.SearchQuery(ctx, coreOpts)
 	if err != nil {
 		return nil, maybeEnhanceSearchError(err)
 	}

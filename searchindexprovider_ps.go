@@ -18,7 +18,7 @@ func (sip *searchIndexProviderPs) newOpManager(parentSpan RequestSpan, opName st
 	return sip.managerProvider.NewManager(parentSpan, opName, attribs)
 }
 
-func (sip *searchIndexProviderPs) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]SearchIndex, error) {
+func (sip *searchIndexProviderPs) GetAllIndexes(scope *Scope, opts *GetAllSearchIndexOptions) ([]SearchIndex, error) {
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_get_all_indexes", map[string]interface{}{
 		"db.operation": "ListIndexes",
 	})
@@ -34,6 +34,11 @@ func (sip *searchIndexProviderPs) GetAllIndexes(opts *GetAllSearchIndexOptions) 
 	}
 
 	req := &admin_search_v1.ListIndexesRequest{}
+
+	if scope != nil {
+		req.ScopeName = &scope.scopeName
+		req.BucketName = &scope.bucket.bucketName
+	}
 
 	resp, err := wrapPSOp(manager, req, sip.provider.ListIndexes)
 	if err != nil {
@@ -73,7 +78,7 @@ func (sip *searchIndexProviderPs) GetAllIndexes(opts *GetAllSearchIndexOptions) 
 	return indexes, nil
 }
 
-func (sip *searchIndexProviderPs) GetIndex(indexName string, opts *GetSearchIndexOptions) (*SearchIndex, error) {
+func (sip *searchIndexProviderPs) GetIndex(scope *Scope, indexName string, opts *GetSearchIndexOptions) (*SearchIndex, error) {
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_get_index", map[string]interface{}{
 		"db.operation": "GetIndex",
 	})
@@ -90,6 +95,11 @@ func (sip *searchIndexProviderPs) GetIndex(indexName string, opts *GetSearchInde
 
 	req := &admin_search_v1.GetIndexRequest{
 		Name: indexName,
+	}
+
+	if scope != nil {
+		req.ScopeName = &scope.scopeName
+		req.BucketName = &scope.bucket.bucketName
 	}
 
 	resp, err := wrapPSOp(manager, req, sip.provider.GetIndex)
@@ -125,15 +135,15 @@ func (sip *searchIndexProviderPs) GetIndex(indexName string, opts *GetSearchInde
 	}, nil
 }
 
-func (sip *searchIndexProviderPs) UpsertIndex(indexDefinition SearchIndex, opts *UpsertSearchIndexOptions) error {
+func (sip *searchIndexProviderPs) UpsertIndex(scope *Scope, indexDefinition SearchIndex, opts *UpsertSearchIndexOptions) error {
 	if indexDefinition.UUID == "" {
-		return sip.createIndex(indexDefinition, opts)
+		return sip.createIndex(scope, indexDefinition, opts)
 	}
 
-	return sip.updateIndex(indexDefinition, opts)
+	return sip.updateIndex(scope, indexDefinition, opts)
 }
 
-func (sip *searchIndexProviderPs) updateIndex(index SearchIndex, opts *UpsertSearchIndexOptions) error {
+func (sip *searchIndexProviderPs) updateIndex(scope *Scope, index SearchIndex, opts *UpsertSearchIndexOptions) error {
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_upsert_index", map[string]interface{}{
 		"db.operation": "UpdateIndex",
 	})
@@ -155,6 +165,11 @@ func (sip *searchIndexProviderPs) updateIndex(index SearchIndex, opts *UpsertSea
 		return err
 	}
 
+	if scope != nil {
+		req.ScopeName = &scope.scopeName
+		req.BucketName = &scope.bucket.bucketName
+	}
+
 	_, err = wrapPSOp(manager, req, sip.provider.UpdateIndex)
 	if err != nil {
 		return err
@@ -163,7 +178,7 @@ func (sip *searchIndexProviderPs) updateIndex(index SearchIndex, opts *UpsertSea
 	return nil
 }
 
-func (sip *searchIndexProviderPs) createIndex(index SearchIndex, opts *UpsertSearchIndexOptions) error {
+func (sip *searchIndexProviderPs) createIndex(scope *Scope, index SearchIndex, opts *UpsertSearchIndexOptions) error {
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_upsert_index", map[string]interface{}{
 		"db.operation": "CreateIndex",
 	})
@@ -195,6 +210,11 @@ func (sip *searchIndexProviderPs) createIndex(index SearchIndex, opts *UpsertSea
 		req.SourceName = &index.SourceUUID
 	}
 
+	if scope != nil {
+		req.ScopeName = &scope.scopeName
+		req.BucketName = &scope.bucket.bucketName
+	}
+
 	var err error
 	req.Params, err = serializeBytesMap(index.Params)
 	if err != nil {
@@ -219,7 +239,7 @@ func (sip *searchIndexProviderPs) createIndex(index SearchIndex, opts *UpsertSea
 	return nil
 }
 
-func (sip *searchIndexProviderPs) DropIndex(indexName string, opts *DropSearchIndexOptions) error {
+func (sip *searchIndexProviderPs) DropIndex(scope *Scope, indexName string, opts *DropSearchIndexOptions) error {
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_drop_index", map[string]interface{}{
 		"db.operation": "DeleteIndex",
 	})
@@ -238,6 +258,11 @@ func (sip *searchIndexProviderPs) DropIndex(indexName string, opts *DropSearchIn
 		Name: indexName,
 	}
 
+	if scope != nil {
+		req.ScopeName = &scope.scopeName
+		req.BucketName = &scope.bucket.bucketName
+	}
+
 	_, err := wrapPSOp(manager, req, sip.provider.DeleteIndex)
 	if err != nil {
 		return err
@@ -246,7 +271,7 @@ func (sip *searchIndexProviderPs) DropIndex(indexName string, opts *DropSearchIn
 	return nil
 }
 
-func (sip *searchIndexProviderPs) AnalyzeDocument(indexName string, doc interface{}, opts *AnalyzeDocumentOptions) ([]interface{}, error) {
+func (sip *searchIndexProviderPs) AnalyzeDocument(scope *Scope, indexName string, doc interface{}, opts *AnalyzeDocumentOptions) ([]interface{}, error) {
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_analyze_document", map[string]interface{}{
 		"db.operation": "AnalyzeDocument",
 	})
@@ -271,6 +296,11 @@ func (sip *searchIndexProviderPs) AnalyzeDocument(indexName string, doc interfac
 		Doc:  b,
 	}
 
+	if scope != nil {
+		req.ScopeName = &scope.scopeName
+		req.BucketName = &scope.bucket.bucketName
+	}
+
 	resp, err := wrapPSOp(manager, req, sip.provider.AnalyzeDocument)
 	if err != nil {
 		return nil, err
@@ -285,7 +315,7 @@ func (sip *searchIndexProviderPs) AnalyzeDocument(indexName string, doc interfac
 	return analyzed, nil
 }
 
-func (sip *searchIndexProviderPs) GetIndexedDocumentsCount(indexName string, opts *GetIndexedDocumentsCountOptions) (uint64, error) {
+func (sip *searchIndexProviderPs) GetIndexedDocumentsCount(scope *Scope, indexName string, opts *GetIndexedDocumentsCountOptions) (uint64, error) {
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_get_indexed_documents_count", map[string]interface{}{
 		"db.operation": "GetIndexedDocumentsCount",
 	})
@@ -300,6 +330,11 @@ func (sip *searchIndexProviderPs) GetIndexedDocumentsCount(indexName string, opt
 		Name: indexName,
 	}
 
+	if scope != nil {
+		req.ScopeName = &scope.scopeName
+		req.BucketName = &scope.bucket.bucketName
+	}
+
 	resp, err := wrapPSOp(manager, req, sip.provider.GetIndexedDocumentsCount)
 	if err != nil {
 		return 0, err
@@ -308,7 +343,7 @@ func (sip *searchIndexProviderPs) GetIndexedDocumentsCount(indexName string, opt
 	return resp.Count, nil
 }
 
-func (sip *searchIndexProviderPs) PauseIngest(indexName string, opts *PauseIngestSearchIndexOptions) error {
+func (sip *searchIndexProviderPs) PauseIngest(scope *Scope, indexName string, opts *PauseIngestSearchIndexOptions) error {
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_pause_ingest", map[string]interface{}{
 		"db.operation": "PauseIndexIngest",
 	})
@@ -323,6 +358,11 @@ func (sip *searchIndexProviderPs) PauseIngest(indexName string, opts *PauseInges
 		Name: indexName,
 	}
 
+	if scope != nil {
+		req.ScopeName = &scope.scopeName
+		req.BucketName = &scope.bucket.bucketName
+	}
+
 	_, err := wrapPSOp(manager, req, sip.provider.PauseIndexIngest)
 	if err != nil {
 		return err
@@ -331,7 +371,7 @@ func (sip *searchIndexProviderPs) PauseIngest(indexName string, opts *PauseInges
 	return nil
 }
 
-func (sip *searchIndexProviderPs) ResumeIngest(indexName string, opts *ResumeIngestSearchIndexOptions) error {
+func (sip *searchIndexProviderPs) ResumeIngest(scope *Scope, indexName string, opts *ResumeIngestSearchIndexOptions) error {
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_resume_ingest", map[string]interface{}{
 		"db.operation": "ResumeIndexIngest",
 	})
@@ -346,6 +386,11 @@ func (sip *searchIndexProviderPs) ResumeIngest(indexName string, opts *ResumeIng
 		Name: indexName,
 	}
 
+	if scope != nil {
+		req.ScopeName = &scope.scopeName
+		req.BucketName = &scope.bucket.bucketName
+	}
+
 	_, err := wrapPSOp(manager, req, sip.provider.ResumeIndexIngest)
 	if err != nil {
 		return err
@@ -354,7 +399,7 @@ func (sip *searchIndexProviderPs) ResumeIngest(indexName string, opts *ResumeIng
 	return nil
 }
 
-func (sip *searchIndexProviderPs) AllowQuerying(indexName string, opts *AllowQueryingSearchIndexOptions) error {
+func (sip *searchIndexProviderPs) AllowQuerying(scope *Scope, indexName string, opts *AllowQueryingSearchIndexOptions) error {
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_allow_querying", map[string]interface{}{
 		"db.operation": "AllowIndexQuerying",
 	})
@@ -369,6 +414,11 @@ func (sip *searchIndexProviderPs) AllowQuerying(indexName string, opts *AllowQue
 		Name: indexName,
 	}
 
+	if scope != nil {
+		req.ScopeName = &scope.scopeName
+		req.BucketName = &scope.bucket.bucketName
+	}
+
 	_, err := wrapPSOp(manager, req, sip.provider.AllowIndexQuerying)
 	if err != nil {
 		return err
@@ -377,7 +427,7 @@ func (sip *searchIndexProviderPs) AllowQuerying(indexName string, opts *AllowQue
 	return nil
 }
 
-func (sip *searchIndexProviderPs) DisallowQuerying(indexName string, opts *AllowQueryingSearchIndexOptions) error {
+func (sip *searchIndexProviderPs) DisallowQuerying(scope *Scope, indexName string, opts *DisallowQueryingSearchIndexOptions) error {
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_disallow_querying", map[string]interface{}{
 		"db.operation": "DisallowIndexQuerying",
 	})
@@ -392,6 +442,11 @@ func (sip *searchIndexProviderPs) DisallowQuerying(indexName string, opts *Allow
 		Name: indexName,
 	}
 
+	if scope != nil {
+		req.ScopeName = &scope.scopeName
+		req.BucketName = &scope.bucket.bucketName
+	}
+
 	_, err := wrapPSOp(manager, req, sip.provider.DisallowIndexQuerying)
 	if err != nil {
 		return err
@@ -400,7 +455,7 @@ func (sip *searchIndexProviderPs) DisallowQuerying(indexName string, opts *Allow
 	return nil
 }
 
-func (sip *searchIndexProviderPs) FreezePlan(indexName string, opts *AllowQueryingSearchIndexOptions) error {
+func (sip *searchIndexProviderPs) FreezePlan(scope *Scope, indexName string, opts *FreezePlanSearchIndexOptions) error {
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_freeze_plan", map[string]interface{}{
 		"db.operation": "FreezeIndexPlan",
 	})
@@ -415,6 +470,11 @@ func (sip *searchIndexProviderPs) FreezePlan(indexName string, opts *AllowQueryi
 		Name: indexName,
 	}
 
+	if scope != nil {
+		req.ScopeName = &scope.scopeName
+		req.BucketName = &scope.bucket.bucketName
+	}
+
 	_, err := wrapPSOp(manager, req, sip.provider.FreezeIndexPlan)
 	if err != nil {
 		return err
@@ -423,7 +483,7 @@ func (sip *searchIndexProviderPs) FreezePlan(indexName string, opts *AllowQueryi
 	return nil
 }
 
-func (sip *searchIndexProviderPs) UnfreezePlan(indexName string, opts *AllowQueryingSearchIndexOptions) error {
+func (sip *searchIndexProviderPs) UnfreezePlan(scope *Scope, indexName string, opts *UnfreezePlanSearchIndexOptions) error {
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_unfreeze_plan", map[string]interface{}{
 		"db.operation": "UnfreezeIndexPlan",
 	})
@@ -436,6 +496,11 @@ func (sip *searchIndexProviderPs) UnfreezePlan(indexName string, opts *AllowQuer
 
 	req := &admin_search_v1.UnfreezeIndexPlanRequest{
 		Name: indexName,
+	}
+
+	if scope != nil {
+		req.ScopeName = &scope.scopeName
+		req.BucketName = &scope.bucket.bucketName
 	}
 
 	_, err := wrapPSOp(manager, req, sip.provider.UnfreezeIndexPlan)

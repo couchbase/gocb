@@ -44,7 +44,7 @@ func (c *Cluster) Search(indexName string, request SearchRequest, opts *SearchOp
 			Query:      request,
 		}
 	}
-	return provider.Search(indexName, request, opts)
+	return provider.Search(nil, indexName, request, opts)
 }
 
 func maybeGetSearchOptionQuery(options map[string]interface{}) interface{} {

@@ -519,3 +519,25 @@ func (suite *UnitTestSuite) TestSearchQueryCollections() {
 	})
 	suite.Require().Nil(err, err)
 }
+
+func (suite *UnitTestSuite) TestClusterSearchEmptyBucketAndScopeNames() {
+	reader := &mockSearchRowReader{
+		Dataset: []jsonSearchRow{},
+		Meta:    []byte{},
+		Suite:   suite,
+	}
+
+	request := SearchRequest{
+		SearchQuery: search.NewMatchAllQuery(),
+	}
+
+	var cluster *Cluster
+	cluster = suite.searchCluster(reader, func(args mock.Arguments) {
+		opts := args.Get(1).(gocbcore.SearchQueryOptions)
+		suite.Assert().Empty(opts.ScopeName)
+		suite.Assert().Empty(opts.BucketName)
+	})
+
+	_, err := cluster.Search("testindex", request, nil)
+	suite.Require().Nil(err, err)
+}

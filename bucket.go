@@ -109,6 +109,24 @@ func (b *Bucket) getQueryIndexProvider() (queryIndexProvider, error) {
 	return provider, nil
 }
 
+func (b *Bucket) getSearchProvider() (searchProvider, error) {
+	provider, err := b.connectionManager.getSearchProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}
+
+func (b *Bucket) getSearchIndexProvider() (searchIndexProvider, error) {
+	provider, err := b.connectionManager.getSearchIndexProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}
+
 func (b *Bucket) getAnalyticsProvider() (analyticsProvider, error) {
 	if b.bootstrapError != nil {
 		return nil, b.bootstrapError

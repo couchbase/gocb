@@ -21,7 +21,7 @@ type searchProviderPs struct {
 
 var _ searchProvider = &searchProviderPs{}
 
-func (search *searchProviderPs) Search(indexName string, request SearchRequest, opts *SearchOptions) (*SearchResult, error) {
+func (search *searchProviderPs) Search(scope *Scope, indexName string, request SearchRequest, opts *SearchOptions) (*SearchResult, error) {
 	return nil, ErrFeatureNotAvailable
 }
 
