@@ -223,6 +223,11 @@ func (sm *searchIndexProviderCore) DropIndex(indexName string, opts *DropSearchI
 	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
+		idxErr := sm.tryParseErrorMessage(&req, resp)
+		if idxErr != nil {
+			return idxErr
+		}
+
 		return makeMgmtBadStatusError("failed to drop the index", &req, resp)
 	}
 

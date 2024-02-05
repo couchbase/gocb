@@ -253,6 +253,55 @@ func (suite *IntegrationTestSuite) TestSearchIndexesPartitionControl() {
 	}
 }
 
+func (suite *IntegrationTestSuite) TestSearchIndexNotFound() {
+	suite.skipIfUnsupported(SearchIndexFeature)
+
+	mgr := globalCluster.SearchIndexes()
+
+	indexName := "does-not-exist"
+
+	suite.Run("TestDropSearchIndexNotFound", func() {
+		err := mgr.DropIndex(indexName, nil)
+		suite.Require().ErrorIs(err, ErrIndexNotFound)
+	})
+	suite.Run("TestGetSearchIndexNotFound", func() {
+		_, err := mgr.GetIndex(indexName, nil)
+		suite.Require().ErrorIs(err, ErrIndexNotFound)
+	})
+	suite.Run("TestAnalyzeDocumentIndexNotFound", func() {
+		_, err := mgr.AnalyzeDocument(indexName, "foo", nil)
+		suite.Require().ErrorIs(err, ErrIndexNotFound)
+	})
+	suite.Run("TestGetIndexedDocumentsCountIndexNotFound", func() {
+		_, err := mgr.GetIndexedDocumentsCount(indexName, nil)
+		suite.Require().ErrorIs(err, ErrIndexNotFound)
+	})
+	suite.Run("TestPauseIngestIndexNotFound", func() {
+		err := mgr.PauseIngest(indexName, nil)
+		suite.Require().ErrorIs(err, ErrIndexNotFound)
+	})
+	suite.Run("TestResumeIngestIndexNotFound", func() {
+		err := mgr.ResumeIngest(indexName, nil)
+		suite.Require().ErrorIs(err, ErrIndexNotFound)
+	})
+	suite.Run("TestAllowQueryingIndexNotFound", func() {
+		err := mgr.AllowQuerying(indexName, nil)
+		suite.Require().ErrorIs(err, ErrIndexNotFound)
+	})
+	suite.Run("TestDisallowQueryingIndexNotFound", func() {
+		err := mgr.DisallowQuerying(indexName, nil)
+		suite.Require().ErrorIs(err, ErrIndexNotFound)
+	})
+	suite.Run("TestFreezePlanIndexNotFound", func() {
+		err := mgr.FreezePlan(indexName, nil)
+		suite.Require().ErrorIs(err, ErrIndexNotFound)
+	})
+	suite.Run("TestUnfreezePlanIndexNotFound", func() {
+		err := mgr.UnfreezePlan(indexName, nil)
+		suite.Require().ErrorIs(err, ErrIndexNotFound)
+	})
+}
+
 func (suite *UnitTestSuite) TestSearchIndexesAnalyzeDocumentCore() {
 	analyzeResp, err := loadRawTestDataset("search_analyzedoc")
 	suite.Require().Nil(err, err)
