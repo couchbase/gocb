@@ -85,7 +85,10 @@ func (bm *bucketManagementProviderCore) tryParseErrorMessage(req *mgmtRequest, r
 
 	if resp.StatusCode == 404 {
 		// If it was a 404 then there's no chance of the response body containing any structure
-		if strings.Contains(strings.ToLower(string(b)), "resource not found") {
+		// The server will not return 'non existent bucket' after MB-60487, will remove soon as it will not be returned from a released server version
+		if strings.Contains(strings.ToLower(string(b)), "resource not found") ||
+			strings.Contains(strings.ToLower(string(b)), "non existent bucket") {
+
 			return makeGenericMgmtError(ErrBucketNotFound, req, resp, string(b))
 		}
 
@@ -129,7 +132,10 @@ func (bm *bucketManagementProviderCore) tryParseFlushErrorMessage(req *mgmtReque
 
 	if resp.StatusCode == 404 {
 		// If it was a 404 then there's no chance of the response body containing any structure
-		if strings.Contains(strings.ToLower(string(b)), "resource not found") {
+		// The server will not return 'non existent bucket' after MB-60487, will remove soon as it will not be returned from a released server version
+		if strings.Contains(strings.ToLower(string(b)), "resource not found") ||
+			strings.Contains(strings.ToLower(string(b)), "non existent bucket") {
+
 			return makeGenericMgmtError(ErrBucketNotFound, req, resp, string(b))
 		}
 
