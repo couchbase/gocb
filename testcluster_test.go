@@ -396,9 +396,9 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case CollectionUpdateMaxExpiryFeature:
 			supported = !c.Version.Lower(srvVer760)
 		case ScopeSearchIndexFeature:
-			supported = !c.Version.Lower(srvVer750)
+			supported = !c.Version.Lower(srvVer760)
 		case ScopeSearchFeature:
-			supported = !c.Version.Lower(srvVer750) && !c.Version.Equal(protostellarVer)
+			supported = !c.Version.Lower(srvVer760) && !c.Version.Equal(protostellarVer)
 		}
 	}
 

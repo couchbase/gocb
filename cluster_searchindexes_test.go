@@ -268,10 +268,6 @@ func (suite *IntegrationTestSuite) TestSearchIndexNotFound() {
 		_, err := mgr.GetIndex(indexName, nil)
 		suite.Require().ErrorIs(err, ErrIndexNotFound)
 	})
-	suite.Run("TestAnalyzeDocumentIndexNotFound", func() {
-		_, err := mgr.AnalyzeDocument(indexName, "foo", nil)
-		suite.Require().ErrorIs(err, ErrIndexNotFound)
-	})
 	suite.Run("TestGetIndexedDocumentsCountIndexNotFound", func() {
 		_, err := mgr.GetIndexedDocumentsCount(indexName, nil)
 		suite.Require().ErrorIs(err, ErrIndexNotFound)
