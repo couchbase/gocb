@@ -1,23 +1,23 @@
 module github.com/couchbase/gocb/v2
 
 require (
-	github.com/couchbase/gocbcore/v10 v10.3.2-0.20240130181904-457a05dfb3dd
-	github.com/couchbase/gocbcoreps v0.1.2-0.20240123092254-fc2a1d28f615
-	github.com/couchbase/goprotostellar v1.0.2-0.20240122192557-b65fd378bd4a
+	github.com/couchbase/gocbcore/v10 v10.3.2-0.20240209122714-8c8c79204421
+	github.com/couchbase/gocbcoreps v0.1.2-0.20240215120132-74c8921e4135
+	github.com/couchbase/goprotostellar v1.0.2-0.20240215113513-9f4d8c4fcd2a
 	github.com/couchbaselabs/gocaves/client v0.0.0-20230404095311-05e3ba4f0259
 	github.com/couchbaselabs/gocbconnstr/v2 v2.0.0-20230515165046-68b522a21131
-	github.com/google/uuid v1.5.0
+	github.com/golang/snappy v0.0.4
+	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.26.0
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240108191215-35c7eff3a6b1
-	google.golang.org/grpc v1.60.1
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240213162025-012b6fc9bca9
+	google.golang.org/grpc v1.61.1
 	google.golang.org/protobuf v1.32.0
 )
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
-	github.com/golang/snappy v0.0.4 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
