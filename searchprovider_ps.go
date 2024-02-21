@@ -27,6 +27,13 @@ func (search *searchProviderPs) Search(scope *Scope, indexName string, request S
 
 // SearchQuery executes a search query against PS, taking care of the translation.
 func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Query, opts *SearchOptions) (*SearchResult, error) {
+	if opts.ConsistentWith != nil {
+		return nil, wrapError(ErrFeatureNotAvailable, "the ConsistentWith search option is not supported by the couchbase2 protocol")
+	}
+	if len(opts.Raw) > 0 {
+		return nil, wrapError(ErrFeatureNotAvailable, "the Raw search option is not supported by the couchbase2 protocol")
+	}
+
 	manager := search.managerProvider.NewManager(opts.ParentSpan, "search", map[string]interface{}{
 		"db.operation": indexName,
 	})
