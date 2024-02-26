@@ -51,12 +51,12 @@ type noopValueRecorder struct{}
 func (bc *noopValueRecorder) RecordValue(val uint64) {
 }
 
-// nolint: unused
+//nolint:unused
 type coreMeterWrapper struct {
 	meter Meter
 }
 
-// nolint: unused
+//nolint:unused
 func (meter *coreMeterWrapper) Counter(name string, tags map[string]string) (gocbcore.Counter, error) {
 	counter, err := meter.meter.Counter(name, tags)
 	if err != nil {
@@ -67,7 +67,7 @@ func (meter *coreMeterWrapper) Counter(name string, tags map[string]string) (goc
 	}, nil
 }
 
-// nolint: unused
+//nolint:unused
 func (meter *coreMeterWrapper) ValueRecorder(name string, tags map[string]string) (gocbcore.ValueRecorder, error) {
 	if name == "db.couchbase.requests" {
 		// gocbcore has its own requests metrics, we don't want to record those.
@@ -83,22 +83,22 @@ func (meter *coreMeterWrapper) ValueRecorder(name string, tags map[string]string
 	}, nil
 }
 
-// nolint: unused
+//nolint:unused
 type coreCounterWrapper struct {
 	counter Counter
 }
 
-// nolint: unused
+//nolint:unused
 func (nm *coreCounterWrapper) IncrementBy(num uint64) {
 	nm.counter.IncrementBy(num)
 }
 
-// nolint: unused
+//nolint:unused
 type coreValueRecorderWrapper struct {
 	valueRecorder ValueRecorder
 }
 
-// nolint: unused
+//nolint:unused
 func (nm *coreValueRecorderWrapper) RecordValue(val uint64) {
 	nm.valueRecorder.RecordValue(val)
 }

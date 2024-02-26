@@ -83,7 +83,7 @@ var (
 )
 
 // NoopTracer is a RequestTracer implementation that does not perform any tracing.
-type NoopTracer struct { // nolint: unused
+type NoopTracer struct { //nolint:unused
 }
 
 // RequestSpan creates a new RequestSpan.

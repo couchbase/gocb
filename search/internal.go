@@ -103,11 +103,11 @@ func (i Internal) mapNumericRangeFacetToPs(numericRanges []numericFacetRange) ([
 func (i Internal) mapDateRangeFacetToPs(dateRanges []dateFacetRange) []*search_v1.DateRange {
 	out := make([]*search_v1.DateRange, len(dateRanges))
 
-	for i, dateRange := range dateRanges {
+	for i := range dateRanges {
 		out[i] = &search_v1.DateRange{
-			Name:  dateRange.Name,
-			Start: &dateRange.Start,
-			End:   &dateRange.End,
+			Name:  dateRanges[i].Name,
+			Start: &dateRanges[i].Start,
+			End:   &dateRanges[i].End,
 		}
 	}
 

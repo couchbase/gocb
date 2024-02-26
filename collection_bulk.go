@@ -1,4 +1,4 @@
-// nolint: unused
+//nolint:unused
 package gocb
 
 import (

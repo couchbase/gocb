@@ -76,7 +76,8 @@ func (wrapper coreLogWrapper) Log(level LogLevel, offset int, format string, v .
 }
 
 // DefaultStdioLogger gets the default standard I/O logger.
-//  gocb.SetLogger(gocb.DefaultStdioLogger())
+//
+//	gocb.SetLogger(gocb.DefaultStdioLogger())
 func DefaultStdioLogger() Logger {
 	return &coreLogWrapper{
 		wrapped: gocbcore.DefaultStdioLogger(),
@@ -86,7 +87,8 @@ func DefaultStdioLogger() Logger {
 // VerboseStdioLogger is a more verbose level of DefaultStdioLogger(). Messages
 // pertaining to the scheduling of ordinary commands (and their responses) will
 // also be emitted.
-//  gocb.SetLogger(gocb.VerboseStdioLogger())
+//
+//	gocb.SetLogger(gocb.VerboseStdioLogger())
 func VerboseStdioLogger() Logger {
 	return coreLogWrapper{
 		wrapped: gocbcore.VerboseStdioLogger(),
