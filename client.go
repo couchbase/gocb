@@ -23,6 +23,7 @@ type connectionManager interface {
 	getCollectionsManagementProvider(bucketName string) (collectionsManagementProvider, error)
 	getBucketManagementProvider() (bucketManagementProvider, error)
 	getSearchIndexProvider() (searchIndexProvider, error)
+	getSearchCapabilitiesProvider() (searchCapabilityVerifier, error)
 }
 
 func (c *Cluster) newConnectionMgr(protocol string) connectionManager {

@@ -9,10 +9,13 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/couchbase/gocbcore/v10"
 )
 
 type searchIndexProviderCore struct {
-	mgmtProvider mgmtProvider
+	mgmtProvider      mgmtProvider
+	searchCapVerifier searchCapabilityVerifier
 
 	tracer RequestTracer
 	meter  *meterWrapper
@@ -23,6 +26,10 @@ var _ searchIndexProvider = (*searchIndexProviderCore)(nil)
 func (sm *searchIndexProviderCore) GetAllIndexes(scope *Scope, opts *GetAllSearchIndexOptions) ([]SearchIndex, error) {
 	if opts == nil {
 		opts = &GetAllSearchIndexOptions{}
+	}
+
+	if scope != nil && sm.scopedIndexesUnsupported() {
+		return nil, wrapError(ErrFeatureNotAvailable, "scoped indexes cannot be used with this server version")
 	}
 
 	start := time.Now()
@@ -85,6 +92,10 @@ func (sm *searchIndexProviderCore) GetIndex(scope *Scope, indexName string, opts
 		opts = &GetSearchIndexOptions{}
 	}
 
+	if scope != nil && sm.scopedIndexesUnsupported() {
+		return nil, wrapError(ErrFeatureNotAvailable, "scoped indexes cannot be used with this server version")
+	}
+
 	start := time.Now()
 	defer sm.meter.ValueRecord(meterValueServiceManagement, "manager_search_get_index", start)
 
@@ -136,6 +147,10 @@ func (sm *searchIndexProviderCore) GetIndex(scope *Scope, indexName string, opts
 func (sm *searchIndexProviderCore) UpsertIndex(scope *Scope, indexDefinition SearchIndex, opts *UpsertSearchIndexOptions) error {
 	if opts == nil {
 		opts = &UpsertSearchIndexOptions{}
+	}
+
+	if scope != nil && sm.scopedIndexesUnsupported() {
+		return wrapError(ErrFeatureNotAvailable, "scoped indexes cannot be used with this server version")
 	}
 
 	if indexDefinition.Name == "" {
@@ -198,6 +213,10 @@ func (sm *searchIndexProviderCore) DropIndex(scope *Scope, indexName string, opt
 		opts = &DropSearchIndexOptions{}
 	}
 
+	if scope != nil && sm.scopedIndexesUnsupported() {
+		return wrapError(ErrFeatureNotAvailable, "scoped indexes cannot be used with this server version")
+	}
+
 	if indexName == "" {
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
@@ -239,6 +258,10 @@ func (sm *searchIndexProviderCore) DropIndex(scope *Scope, indexName string, opt
 func (sm *searchIndexProviderCore) AnalyzeDocument(scope *Scope, indexName string, doc interface{}, opts *AnalyzeDocumentOptions) ([]interface{}, error) {
 	if opts == nil {
 		opts = &AnalyzeDocumentOptions{}
+	}
+
+	if scope != nil && sm.scopedIndexesUnsupported() {
+		return nil, wrapError(ErrFeatureNotAvailable, "scoped indexes cannot be used with this server version")
 	}
 
 	if indexName == "" {
@@ -298,6 +321,10 @@ func (sm *searchIndexProviderCore) GetIndexedDocumentsCount(scope *Scope, indexN
 		opts = &GetIndexedDocumentsCountOptions{}
 	}
 
+	if scope != nil && sm.scopedIndexesUnsupported() {
+		return 0, wrapError(ErrFeatureNotAvailable, "scoped indexes cannot be used with this server version")
+	}
+
 	if indexName == "" {
 		return 0, invalidArgumentsError{"indexName cannot be empty"}
 	}
@@ -348,6 +375,10 @@ func (sm *searchIndexProviderCore) PauseIngest(scope *Scope, indexName string, o
 		opts = &PauseIngestSearchIndexOptions{}
 	}
 
+	if scope != nil && sm.scopedIndexesUnsupported() {
+		return wrapError(ErrFeatureNotAvailable, "scoped indexes cannot be used with this server version")
+	}
+
 	if indexName == "" {
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
@@ -369,6 +400,10 @@ func (sm *searchIndexProviderCore) PauseIngest(scope *Scope, indexName string, o
 func (sm *searchIndexProviderCore) ResumeIngest(scope *Scope, indexName string, opts *ResumeIngestSearchIndexOptions) error {
 	if opts == nil {
 		opts = &ResumeIngestSearchIndexOptions{}
+	}
+
+	if scope != nil && sm.scopedIndexesUnsupported() {
+		return wrapError(ErrFeatureNotAvailable, "scoped indexes cannot be used with this server version")
 	}
 
 	if indexName == "" {
@@ -394,6 +429,10 @@ func (sm *searchIndexProviderCore) AllowQuerying(scope *Scope, indexName string,
 		opts = &AllowQueryingSearchIndexOptions{}
 	}
 
+	if scope != nil && sm.scopedIndexesUnsupported() {
+		return wrapError(ErrFeatureNotAvailable, "scoped indexes cannot be used with this server version")
+	}
+
 	if indexName == "" {
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
@@ -415,6 +454,10 @@ func (sm *searchIndexProviderCore) AllowQuerying(scope *Scope, indexName string,
 func (sm *searchIndexProviderCore) DisallowQuerying(scope *Scope, indexName string, opts *DisallowQueryingSearchIndexOptions) error {
 	if opts == nil {
 		opts = &DisallowQueryingSearchIndexOptions{}
+	}
+
+	if scope != nil && sm.scopedIndexesUnsupported() {
+		return wrapError(ErrFeatureNotAvailable, "scoped indexes cannot be used with this server version")
 	}
 
 	if indexName == "" {
@@ -440,6 +483,10 @@ func (sm *searchIndexProviderCore) FreezePlan(scope *Scope, indexName string, op
 		opts = &FreezePlanSearchIndexOptions{}
 	}
 
+	if scope != nil && sm.scopedIndexesUnsupported() {
+		return wrapError(ErrFeatureNotAvailable, "scoped indexes cannot be used with this server version")
+	}
+
 	if indexName == "" {
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
@@ -461,6 +508,10 @@ func (sm *searchIndexProviderCore) FreezePlan(scope *Scope, indexName string, op
 func (sm *searchIndexProviderCore) UnfreezePlan(scope *Scope, indexName string, opts *UnfreezePlanSearchIndexOptions) error {
 	if opts == nil {
 		opts = &UnfreezePlanSearchIndexOptions{}
+	}
+
+	if scope != nil && sm.scopedIndexesUnsupported() {
+		return wrapError(ErrFeatureNotAvailable, "scoped indexes cannot be used with this server version")
 	}
 
 	if indexName == "" {
@@ -487,6 +538,10 @@ func (sm *searchIndexProviderCore) pathPrefix(scope *Scope) string {
 	} else {
 		return fmt.Sprintf("/api/bucket/%s/scope/%s/index", url.PathEscape(scope.bucket.bucketName), url.PathEscape(scope.scopeName))
 	}
+}
+
+func (sm *searchIndexProviderCore) scopedIndexesUnsupported() bool {
+	return sm.searchCapVerifier.SearchCapabilityStatus(gocbcore.SearchCapabilityScopedIndexes) == gocbcore.CapabilityStatusUnsupported
 }
 
 func (sm *searchIndexProviderCore) performControlRequest(
@@ -557,7 +612,7 @@ func (sm *searchIndexProviderCore) tryParseErrorMessage(req *mgmtRequest, resp *
 	}
 
 	if resp.StatusCode == 404 {
-		return makeGenericMgmtError(ErrFeatureNotAvailable, req, resp, "Scoped indexes cannot be used with this server version")
+		return makeGenericMgmtError(ErrFeatureNotAvailable, req, resp, "scoped indexes cannot be used with this server version")
 	}
 
 	var bodyErr error

@@ -1,10 +1,12 @@
 package gocb
 
 import (
+	"time"
+
+	"github.com/stretchr/testify/mock"
+
 	"github.com/couchbase/gocb/v2/search"
 	"github.com/couchbase/gocbcore/v10"
-	"github.com/stretchr/testify/mock"
-	"time"
 )
 
 func (suite *IntegrationTestSuite) TestScopeSearch() {
@@ -172,6 +174,19 @@ func (suite *IntegrationTestSuite) setupScopeSearch() int {
 	}, nil)
 	suite.Require().Nil(err, err)
 	return n
+}
+
+func (suite *IntegrationTestSuite) TestScopeSearchFeatureNotAvailable() {
+	suite.skipIfUnsupported(SearchFeature)
+	suite.skipIfSupported(ScopeSearchFeature)
+
+	request := SearchRequest{
+		SearchQuery: search.NewTermQuery("search").Field("service"),
+	}
+	res, err := globalScope.Search("foo", request, nil)
+
+	suite.Assert().ErrorIs(err, ErrFeatureNotAvailable)
+	suite.Assert().Nil(res)
 }
 
 func (suite *UnitTestSuite) searchScope(reader searchRowReader, runFn func(args mock.Arguments)) *Scope {

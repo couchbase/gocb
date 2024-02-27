@@ -13,18 +13,18 @@ type mockKvCapabilityVerifier struct {
 }
 
 // BucketCapabilityStatus provides a mock function with given fields: cap
-func (_m *mockKvCapabilityVerifier) BucketCapabilityStatus(cap gocbcore.BucketCapability) gocbcore.BucketCapabilityStatus {
+func (_m *mockKvCapabilityVerifier) BucketCapabilityStatus(cap gocbcore.BucketCapability) gocbcore.CapabilityStatus {
 	ret := _m.Called(cap)
 
 	if len(ret) == 0 {
 		panic("no return value specified for BucketCapabilityStatus")
 	}
 
-	var r0 gocbcore.BucketCapabilityStatus
-	if rf, ok := ret.Get(0).(func(gocbcore.BucketCapability) gocbcore.BucketCapabilityStatus); ok {
+	var r0 gocbcore.CapabilityStatus
+	if rf, ok := ret.Get(0).(func(gocbcore.BucketCapability) gocbcore.CapabilityStatus); ok {
 		r0 = rf(cap)
 	} else {
-		r0 = ret.Get(0).(gocbcore.BucketCapabilityStatus)
+		r0 = ret.Get(0).(gocbcore.CapabilityStatus)
 	}
 
 	return r0

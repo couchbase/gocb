@@ -47,6 +47,11 @@ func (search *searchProviderWrapper) SearchQuery(ctx context.Context, opts gocbc
 type searchProviderCoreProvider interface {
 	SearchQuery(ctx context.Context, opts gocbcore.SearchQueryOptions) (searchRowReader, error)
 }
+
+type searchCapabilityVerifier interface {
+	SearchCapabilityStatus(cap gocbcore.SearchCapability) gocbcore.CapabilityStatus
+}
+
 type searchProviderCore struct {
 	// agent *gocbcore.AgentGroup
 	provider searchProviderCoreProvider

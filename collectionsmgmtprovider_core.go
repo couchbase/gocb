@@ -144,7 +144,7 @@ func (cm *collectionsManagementProviderCore) CreateCollection(scopeName string, 
 		posts.Add("maxTTL", fmt.Sprintf("%d", int(settings.MaxExpiry.Seconds())))
 	}
 	if settings.History != nil {
-		if cm.featureVerifier.BucketCapabilityStatus(gocbcore.BucketCapabilityNonDedupedHistory) == gocbcore.BucketCapabilityStatusUnsupported {
+		if cm.featureVerifier.BucketCapabilityStatus(gocbcore.BucketCapabilityNonDedupedHistory) == gocbcore.CapabilityStatusUnsupported {
 			return wrapError(ErrFeatureNotAvailable, "history retention is not supported - note that both server 7.2+ and Magma storage engine must be used")
 		}
 		posts.Add("history", fmt.Sprintf("%t", settings.History.Enabled))
@@ -219,7 +219,7 @@ func (cm *collectionsManagementProviderCore) UpdateCollection(scopeName string, 
 		posts.Add("maxTTL", fmt.Sprintf("%d", int(settings.MaxExpiry.Seconds())))
 	}
 	if settings.History != nil {
-		if cm.featureVerifier.BucketCapabilityStatus(gocbcore.BucketCapabilityNonDedupedHistory) == gocbcore.BucketCapabilityStatusUnsupported {
+		if cm.featureVerifier.BucketCapabilityStatus(gocbcore.BucketCapabilityNonDedupedHistory) == gocbcore.CapabilityStatusUnsupported {
 			return wrapError(ErrFeatureNotAvailable, "history retention is not supported - note that both server 7.2+ and Magma storage engine must be used")
 		}
 		posts.Add("history", fmt.Sprintf("%t", settings.History.Enabled))

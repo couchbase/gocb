@@ -109,6 +109,10 @@ func (c *psConnectionMgr) getSearchIndexProvider() (searchIndexProvider, error) 
 	}, nil
 }
 
+func (c *psConnectionMgr) getSearchCapabilitiesProvider() (searchCapabilityVerifier, error) {
+	return nil, ErrFeatureNotAvailable
+}
+
 func (c *psConnectionMgr) getCollectionsManagementProvider(bucketName string) (collectionsManagementProvider, error) {
 	return &collectionsManagementProviderPs{
 		provider:   c.agent.CollectionV1(),
@@ -129,6 +133,7 @@ func (c *psConnectionMgr) getBucketManagementProvider() (bucketManagementProvide
 func (c *psConnectionMgr) getAnalyticsProvider() (analyticsProvider, error) {
 	return &analyticsProviderWrapper{}, ErrFeatureNotAvailable
 }
+
 func (c *psConnectionMgr) getSearchProvider() (searchProvider, error) {
 	return &searchProviderPs{
 		provider: c.agent.SearchV1(),
@@ -136,21 +141,26 @@ func (c *psConnectionMgr) getSearchProvider() (searchProvider, error) {
 		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, meterValueServiceSearch),
 	}, nil
 }
+
 func (c *psConnectionMgr) getHTTPProvider(bucketName string) (httpProvider, error) {
 	return &httpProviderWrapper{}, ErrFeatureNotAvailable
 }
+
 func (c *psConnectionMgr) getDiagnosticsProvider(bucketName string) (diagnosticsProvider, error) {
 	return &diagnosticsProviderWrapper{}, ErrFeatureNotAvailable
 }
+
 func (c *psConnectionMgr) getWaitUntilReadyProvider(bucketName string) (waitUntilReadyProvider, error) {
 	return &waitUntilReadyProviderPs{
 		defaultRetryStrategy: c.defaultRetry,
 		client:               c.agent,
 	}, nil
 }
+
 func (c *psConnectionMgr) connection(bucketName string) (*gocbcore.Agent, error) {
 	return &gocbcore.Agent{}, ErrFeatureNotAvailable
 }
+
 func (c *psConnectionMgr) close() error {
 	return c.agent.Close()
 }

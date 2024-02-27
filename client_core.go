@@ -244,15 +244,29 @@ func (c *stdConnectionMgr) getSearchIndexProvider() (searchIndexProvider, error)
 		return nil, err
 	}
 
+	capVerifier, err := c.getSearchCapabilitiesProvider()
+	if err != nil {
+		return nil, err
+	}
+
 	return &searchIndexProviderCore{
 		mgmtProvider: &mgmtProviderCore{
 			provider:             provider,
 			mgmtTimeout:          c.timeouts.ManagementTimeout,
 			retryStrategyWrapper: c.retryStrategyWrapper,
 		},
-		tracer: c.tracer,
-		meter:  c.meter,
+		searchCapVerifier: capVerifier,
+		tracer:            c.tracer,
+		meter:             c.meter,
 	}, nil
+}
+
+func (c *stdConnectionMgr) getSearchCapabilitiesProvider() (searchCapabilityVerifier, error) {
+	if c.agentgroup == nil {
+		return nil, errors.New("cluster not yet connected")
+	}
+
+	return c.agentgroup.Internal(), nil
 }
 
 func (c *stdConnectionMgr) getHTTPProvider(bucketName string) (httpProvider, error) {

@@ -9,8 +9,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
 	"github.com/stretchr/testify/mock"
+
+	"github.com/couchbase/gocbcore/v10"
 )
 
 func (suite *IntegrationTestSuite) newSearchIndexName() string {
@@ -324,9 +325,15 @@ func (suite *UnitTestSuite) TestSearchIndexesAnalyzeDocumentCore() {
 		}).
 		Return(resp, nil)
 
+	capVerifier := new(mockSearchCapabilityVerifier)
+	capVerifier.
+		On("SearchCapabilityStatus", mock.AnythingOfType("gocbcore.SearchCapability")).
+		Return(gocbcore.CapabilityStatusSupported)
+
 	mgr := &searchIndexProviderCore{
-		mgmtProvider: mockProvider,
-		tracer:       &NoopTracer{},
+		mgmtProvider:      mockProvider,
+		searchCapVerifier: capVerifier,
+		tracer:            &NoopTracer{},
 	}
 
 	res, err := mgr.AnalyzeDocument(nil, indexName, struct{}{}, &AnalyzeDocumentOptions{

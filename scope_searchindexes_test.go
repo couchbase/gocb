@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/mock"
+
+	"github.com/couchbase/gocbcore/v10"
 )
 
 func (suite *IntegrationTestSuite) TestScopeSearchIndexesCrud() {
@@ -213,7 +215,7 @@ func (suite *IntegrationTestSuite) TestScopeSearchIndexesPartitionControl() {
 	}
 }
 
-func (suite *IntegrationTestSuite) TestScopeSearchIndexNotFound() {
+func (suite *IntegrationTestSuite) TestScopeSearchIndexesIndexNotFound() {
 	suite.skipIfUnsupported(ScopeSearchIndexFeature)
 
 	mgr := globalScope.SearchIndexes()
@@ -286,9 +288,15 @@ func (suite *UnitTestSuite) TestScopeSearchIndexesAnalyzeDocumentCore() {
 		}).
 		Return(resp, nil)
 
+	mockCapVerifier := new(mockSearchCapabilityVerifier)
+	mockCapVerifier.
+		On("SearchCapabilityStatus", mock.AnythingOfType("gocbcore.SearchCapability")).
+		Return(gocbcore.CapabilityStatusSupported)
+
 	mgr := &searchIndexProviderCore{
-		mgmtProvider: mockProvider,
-		tracer:       &NoopTracer{},
+		mgmtProvider:      mockProvider,
+		searchCapVerifier: mockCapVerifier,
+		tracer:            &NoopTracer{},
 	}
 
 	res, err := mgr.AnalyzeDocument(globalScope, indexName, struct{}{}, &AnalyzeDocumentOptions{
@@ -297,4 +305,63 @@ func (suite *UnitTestSuite) TestScopeSearchIndexesAnalyzeDocumentCore() {
 	suite.Require().Nil(err, err)
 
 	suite.Require().NotNil(res)
+}
+
+func (suite *UnitTestSuite) TestScopeSearchIndexesFeatureNotAvailable() {
+	mockCapVerifier := new(mockSearchCapabilityVerifier)
+	mockCapVerifier.
+		On("SearchCapabilityStatus", gocbcore.SearchCapabilityScopedIndexes).
+		Return(gocbcore.CapabilityStatusUnsupported)
+
+	cli := new(mockConnectionManager)
+	cli.On("getSearchIndexProvider").Return(&searchIndexProviderCore{
+		searchCapVerifier: mockCapVerifier,
+	}, nil)
+
+	b := suite.bucket("mock", suite.defaultTimeoutConfig(), cli)
+	s := suite.newScope(b, "test")
+	mgr := s.SearchIndexes()
+
+	indexName := "test-index"
+
+	suite.Run("DropIndex", func() {
+		err := mgr.DropIndex(indexName, nil)
+		suite.Require().ErrorIs(err, ErrFeatureNotAvailable)
+	})
+	suite.Run("GetIndex", func() {
+		_, err := mgr.GetIndex(indexName, nil)
+		suite.Require().ErrorIs(err, ErrFeatureNotAvailable)
+	})
+	suite.Run("GetIndexedDocumentsCount", func() {
+		_, err := mgr.GetIndexedDocumentsCount(indexName, nil)
+		suite.Require().ErrorIs(err, ErrFeatureNotAvailable)
+	})
+	suite.Run("PauseIngest", func() {
+		err := mgr.PauseIngest(indexName, nil)
+		suite.Require().ErrorIs(err, ErrFeatureNotAvailable)
+	})
+	suite.Run("ResumeIngest", func() {
+		err := mgr.ResumeIngest(indexName, nil)
+		suite.Require().ErrorIs(err, ErrFeatureNotAvailable)
+	})
+	suite.Run("AllowQuerying", func() {
+		err := mgr.AllowQuerying(indexName, nil)
+		suite.Require().ErrorIs(err, ErrFeatureNotAvailable)
+	})
+	suite.Run("DisallowQuerying", func() {
+		err := mgr.DisallowQuerying(indexName, nil)
+		suite.Require().ErrorIs(err, ErrFeatureNotAvailable)
+	})
+	suite.Run("FreezePlan", func() {
+		err := mgr.FreezePlan(indexName, nil)
+		suite.Require().ErrorIs(err, ErrFeatureNotAvailable)
+	})
+	suite.Run("UnfreezePlan", func() {
+		err := mgr.UnfreezePlan(indexName, nil)
+		suite.Require().ErrorIs(err, ErrFeatureNotAvailable)
+	})
+	suite.Run("AnalyzeDocument", func() {
+		_, err := mgr.AnalyzeDocument(indexName, "sample-content", nil)
+		suite.Require().ErrorIs(err, ErrFeatureNotAvailable)
+	})
 }

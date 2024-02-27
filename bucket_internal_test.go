@@ -7,7 +7,7 @@ func (suite *UnitTestSuite) TestCollectionInternal_BucketCapabilityStatus_Suppor
 	provider.On(
 		"BucketCapabilityStatus",
 		gocbcore.BucketCapabilityDurableWrites,
-	).Return(gocbcore.BucketCapabilityStatusSupported)
+	).Return(gocbcore.CapabilityStatusSupported)
 
 	cli := new(mockConnectionManager)
 	cli.On("getKvCapabilitiesProvider", "mock").Return(provider, nil)
@@ -25,7 +25,7 @@ func (suite *UnitTestSuite) TestCollectionInternal_BucketCapabilityStatus_Unsupp
 	provider.On(
 		"BucketCapabilityStatus",
 		gocbcore.BucketCapabilityDurableWrites,
-	).Return(gocbcore.BucketCapabilityStatusUnsupported)
+	).Return(gocbcore.CapabilityStatusUnsupported)
 
 	cli := new(mockConnectionManager)
 	cli.On("getKvCapabilitiesProvider", "mock").Return(provider, nil)

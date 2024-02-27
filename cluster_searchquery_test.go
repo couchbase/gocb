@@ -6,10 +6,11 @@ import (
 	"errors"
 	"time"
 
-	"github.com/couchbase/gocbcore/v10"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/couchbase/gocb/v2/search"
+	"github.com/couchbase/gocb/v2/vector"
+	"github.com/couchbase/gocbcore/v10"
 )
 
 func (suite *IntegrationTestSuite) TestSearch() {
@@ -198,6 +199,24 @@ func (suite *IntegrationTestSuite) TestSearchContext() {
 		suite.T().Fatalf("Expected error to be canceled but was %v", err)
 	}
 	suite.Require().Nil(res)
+}
+
+func (suite *IntegrationTestSuite) TestSearchVectorFeatureNotAvailable() {
+	suite.skipIfUnsupported(SearchFeature)
+	suite.skipIfSupported(ScopeSearchFeature)
+
+	request := SearchRequest{
+		VectorSearch: vector.NewSearch(
+			[]*vector.Query{
+				vector.NewQuery("field", []float32{0.9, 0.1}),
+			},
+			nil,
+		),
+	}
+	res, err := globalScope.Search("foo", request, nil)
+
+	suite.Assert().ErrorIs(err, ErrFeatureNotAvailable)
+	suite.Assert().Nil(res)
 }
 
 // We have to manually mock this because testify won't let return something which can iterate.

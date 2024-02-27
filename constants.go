@@ -322,9 +322,9 @@ const (
 type CapabilityStatus uint32
 
 const (
-	CapabilityStatusUnknown     CapabilityStatus = CapabilityStatus(gocbcore.BucketCapabilityStatusUnknown)
-	CapabilityStatusSupported   CapabilityStatus = CapabilityStatus(gocbcore.BucketCapabilityStatusSupported)
-	CapabilityStatusUnsupported CapabilityStatus = CapabilityStatus(gocbcore.BucketCapabilityStatusUnsupported)
+	CapabilityStatusUnknown     CapabilityStatus = CapabilityStatus(gocbcore.CapabilityStatusUnknown)
+	CapabilityStatusSupported   CapabilityStatus = CapabilityStatus(gocbcore.CapabilityStatusSupported)
+	CapabilityStatusUnsupported CapabilityStatus = CapabilityStatus(gocbcore.CapabilityStatusUnsupported)
 )
 
 const (

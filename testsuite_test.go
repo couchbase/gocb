@@ -297,6 +297,12 @@ func (suite *IntegrationTestSuite) skipIfUnsupported(code FeatureCode) {
 	}
 }
 
+func (suite *IntegrationTestSuite) skipIfSupported(code FeatureCode) {
+	if globalCluster.SupportsFeature(code) {
+		suite.T().Skipf("Skipping test because feature %s is supported", code)
+	}
+}
+
 func (suite *IntegrationTestSuite) dropAllIndexes() {
 	mgr := globalCluster.QueryIndexes()
 

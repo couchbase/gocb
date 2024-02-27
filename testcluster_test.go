@@ -107,6 +107,7 @@ var (
 	CollectionUpdateMaxExpiryFeature          = FeatureCode("collectionupdatemaxexpiry")
 	ScopeSearchIndexFeature                   = FeatureCode("scopesearchindex")
 	ScopeSearchFeature                        = FeatureCode("scopesearch")
+	VectorSearchFeature                       = FeatureCode("vectorsearch")
 )
 
 type TestFeatureFlag struct {
@@ -260,6 +261,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case ScopeSearchFeature:
 			supported = false
+		case VectorSearchFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -398,6 +401,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case ScopeSearchIndexFeature:
 			supported = !c.Version.Lower(srvVer760)
 		case ScopeSearchFeature:
+			supported = !c.Version.Lower(srvVer760) && !c.Version.Equal(protostellarVer)
+		case VectorSearchFeature:
 			supported = !c.Version.Lower(srvVer760) && !c.Version.Equal(protostellarVer)
 		}
 	}

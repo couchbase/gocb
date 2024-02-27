@@ -3,7 +3,7 @@ package gocb
 import "github.com/couchbase/gocbcore/v10"
 
 type kvCapabilityVerifier interface {
-	BucketCapabilityStatus(cap gocbcore.BucketCapability) gocbcore.BucketCapabilityStatus
+	BucketCapabilityStatus(cap gocbcore.BucketCapability) gocbcore.CapabilityStatus
 }
 
 // InternalBucket is used for internal functionality.
