@@ -28,7 +28,7 @@ func (i Internal) MapFacetsToPs(facets map[string]Facet) (map[string]*search_v1.
 // value won't be truncated by uint32.
 func convertUint64ToUnit32(in uint64) (uint32, error) {
 	if in > uint64(math.MaxUint32) {
-		return 0, fmt.Errorf("value: %d overflows uint32: %d", in, math.MaxUint32)
+		return 0, fmt.Errorf("value: %d overflows uint32", in)
 	}
 
 	return uint32(in), nil
