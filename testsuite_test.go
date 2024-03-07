@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 	"testing"
 	"time"
 
@@ -367,6 +368,125 @@ func (suite *IntegrationTestSuite) dropAllIndexesAtCollectionLevel() {
 
 	globalMeter.Reset()
 	globalTracer.Reset()
+}
+
+// AssertExpiry will use the expiry value and whether the server supports HLC to calculate whether the
+// document's expiry value is correct.
+func (suite *IntegrationTestSuite) AssertExpiry(key string, startedAt time.Time, expiry time.Duration,
+	epsilonLower time.Duration, epsilonUpper time.Duration) {
+	// Gocaves does some weird things with absolute expirations.
+	if globalCluster.isMock() {
+		suite.AssertHLCRelativeExpiry(key, expiry, epsilonLower, epsilonUpper)
+		return
+	}
+
+	hlcSupported := globalCluster.SupportsFeature(HLCFeature)
+	if expiry < 30*24*time.Hour {
+		if hlcSupported {
+			suite.AssertHLCRelativeExpiry(key, expiry, epsilonLower, epsilonUpper)
+		} else {
+			suite.AssertNonHLCRelativeExpiry(key, expiry, epsilonUpper)
+		}
+	} else {
+		suite.AssertAbsoluteExpiry(key, startedAt, expiry, epsilonLower, epsilonUpper)
+	}
+}
+
+// AssertAbsoluteExpiry verifies that the specified expiry has been written to the document metadata.
+func (suite *IntegrationTestSuite) AssertAbsoluteExpiry(key string, startedAt time.Time, expiry time.Duration,
+	epsilonLower time.Duration, epsilonUpper time.Duration) {
+	spec := []LookupInSpec{
+		GetSpec("$document", &GetSpecOptions{IsXattr: true}),
+	}
+	lookupRes, err := globalCollection.LookupIn(
+		key,
+		spec,
+		nil,
+	)
+	suite.Require().NoError(err, err)
+
+	exp := suite.parseExpiryOutOfResult(lookupRes, 0)
+
+	actualExpirySecs := time.Unix(exp, 0).Sub(startedAt)
+
+	suite.Assert().Greaterf(
+		expiry+epsilonUpper,
+		actualExpirySecs,
+		"Expected expiry to be less than %f but was %f", expiry.Seconds(),
+		actualExpirySecs.Seconds())
+	suite.Assert().Greaterf(
+		actualExpirySecs,
+		expiry-epsilonLower,
+		"Expected expiry to be greater than %f but was %f", expiry.Seconds(),
+		actualExpirySecs.Seconds())
+}
+
+// AssertNonHLCRelativeExpiry checks that the document exists immediately and then does not exist after the
+// expiry duration. Care should be taken not to use long expirations with this test as it will sleep for the
+// expiry duration.
+func (suite *IntegrationTestSuite) AssertNonHLCRelativeExpiry(key string, expiry time.Duration, epsilon time.Duration) {
+	_, err := globalCollection.Get(key, nil)
+	suite.Require().NoError(err, err)
+
+	time.Sleep(expiry + epsilon)
+
+	_, err = globalCollection.Get(key, nil)
+	suite.Require().ErrorIs(err, ErrDocumentNotFound)
+}
+
+// AssertHLCRelativeExpiry uses the HLC value from the server to verify that the specified expiry has been
+// written to the document metadata.
+func (suite *IntegrationTestSuite) AssertHLCRelativeExpiry(key string, expiry time.Duration,
+	epsilonLower time.Duration, epsilonUpper time.Duration) {
+	spec := []LookupInSpec{
+		GetSpec("$document", &GetSpecOptions{IsXattr: true}),
+		GetSpec("$vbucket.HLC", &GetSpecOptions{IsXattr: true}),
+	}
+	lookupRes, err := globalCollection.LookupIn(
+		key,
+		spec,
+		nil,
+	)
+	suite.Require().NoError(err, err)
+
+	exp := suite.parseExpiryOutOfResult(lookupRes, 0)
+	hlc := suite.parseHLCOutOfResult(lookupRes, 1)
+
+	actualExpiry := time.Unix(exp, 0).Sub(time.Unix(int64(hlc), 0))
+
+	suite.Assert().Greaterf(
+		expiry+epsilonUpper,
+		actualExpiry,
+		"Expected expiry to be less than %f but was %f", expiry.Seconds(),
+		actualExpiry.Seconds())
+	suite.Assert().Greaterf(
+		actualExpiry,
+		expiry-epsilonLower,
+		"Expected expiry to be greater than %f but was %f", expiry.Seconds(),
+		actualExpiry.Seconds())
+}
+
+func (suite *IntegrationTestSuite) parseExpiryOutOfResult(res *LookupInResult, index uint) int64 {
+	exp := struct {
+		Expiration int64 `json:"exptime"`
+	}{}
+	err := res.ContentAt(index, &exp)
+	suite.Require().NoError(err, err)
+
+	return exp.Expiration
+}
+
+func (suite *IntegrationTestSuite) parseHLCOutOfResult(res *LookupInResult, index uint) int {
+	hlcStr := struct {
+		Now string `json:"now"`
+	}{}
+	err := res.ContentAt(index, &hlcStr)
+	suite.Require().NoError(err, err)
+
+	hlc, err := strconv.Atoi(hlcStr.Now)
+	suite.Require().NoError(err, err)
+
+	return hlc
 }
 
 type UnitTestSuite struct {

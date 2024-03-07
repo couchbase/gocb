@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -93,78 +92,17 @@ func (suite *IntegrationTestSuite) TestExpiryConversions() {
 	}
 
 	for _, tCase := range tCases {
-		suite.T().Run(tCase.name, func(te *testing.T) {
+		suite.Run(tCase.name, func() {
+			start := time.Now()
 			res, err := globalCollection.Upsert(tCase.name, doc, &UpsertOptions{
 				Expiry: tCase.expiry,
 			})
-			if err != nil {
-				te.Fatalf("Error running Upsert: %v", err)
-			}
+			suite.Require().NoError(err, err)
+			suite.Require().NotZero(res.Cas(), "Upsert CAS was 0")
 
-			if res.Cas() == 0 {
-				te.Fatalf("Insert CAS was 0")
-			}
-
-			start := time.Now()
-			spec := []LookupInSpec{
-				GetSpec("$document", &GetSpecOptions{IsXattr: true}),
-			}
-
-			if globalCluster.SupportsFeature(HLCFeature) {
-				spec = append(spec, GetSpec("$vbucket.HLC", &GetSpecOptions{IsXattr: true}))
-			}
-
-			lookupRes, err := globalCollection.LookupIn(
-				tCase.name,
-				spec,
-				nil,
-			)
-			if err != nil {
-				te.Fatalf("Error running LookupIn: %v", err)
-				return
-			}
-
-			exp := struct {
-				Expiration int64 `json:"exptime"`
-			}{}
-			err = lookupRes.ContentAt(0, &exp)
-			if err != nil {
-				te.Fatalf("Error running ContentAt: %v", err)
-			}
-
-			var actualExpirySecs float64
-			if globalCluster.SupportsFeature(HLCFeature) {
-				hlcStr := struct {
-					Now string `json:"now"`
-				}{}
-				err = lookupRes.ContentAt(1, &hlcStr)
-				if err != nil {
-					te.Fatalf("Error running ContentAt: %v", err)
-				}
-
-				hlc, err := strconv.Atoi(hlcStr.Now)
-				if err != nil {
-					te.Fatalf("Error running Atoi: %v", err)
-				}
-
-				actualExpirySecs = time.Unix(exp.Expiration, 0).Sub(time.Unix(int64(hlc), 0)).Seconds()
-			} else {
-				actualExpirySecs = time.Unix(exp.Expiration, 0).Sub(start).Seconds()
-			}
-
-			if actualExpirySecs > (tCase.expiry + (1000 * time.Millisecond)).Seconds() {
-				te.Fatalf("Expected expiry to be less than %f but was %f", tCase.expiry.Seconds(),
-					actualExpirySecs)
-			}
-
-			if actualExpirySecs < (tCase.expiry - (2500 * time.Millisecond)).Seconds() {
-				te.Fatalf("Expected expiry to be greater than %f but was %f", tCase.expiry.Seconds(),
-					actualExpirySecs)
-			}
+			suite.AssertExpiry(tCase.name, start, tCase.expiry, 2500*time.Millisecond, 1*time.Second)
 		})
 	}
-	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 3, false)
-	suite.AssertKVMetrics(meterNameCBOperations, "lookup_in", 3, false)
 }
 
 func (suite *IntegrationTestSuite) TestPreserveExpiry() {
@@ -175,13 +113,6 @@ func (suite *IntegrationTestSuite) TestPreserveExpiry() {
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
 	suite.Require().Nil(err, err)
-
-	verifyExpiry := func(docID string, start time.Time, expiryDuration time.Duration) {
-		doc, err := globalCollection.Get(docID, &GetOptions{WithExpiry: true})
-		suite.Require().Nil(err, err)
-
-		suite.Assert().InDelta(start.Add(expiryDuration).Unix(), doc.ExpiryTime().Unix(), 5)
-	}
 
 	suite.Run("Upsert", func() {
 		start := time.Now()
@@ -196,7 +127,7 @@ func (suite *IntegrationTestSuite) TestPreserveExpiry() {
 
 		suite.Assert().NotZero(mutRes.Cas())
 
-		verifyExpiry(docID, start, 25*time.Second)
+		suite.AssertExpiry(docID, start, 25*time.Second, 2500*time.Millisecond, 1*time.Second)
 	})
 
 	suite.Run("Replace", func() {
@@ -212,7 +143,7 @@ func (suite *IntegrationTestSuite) TestPreserveExpiry() {
 			suite.T().Fatalf("Replace CAS was 0")
 		}
 
-		verifyExpiry(docID, start, 25*time.Second)
+		suite.AssertExpiry(docID, start, 25*time.Second, 2500*time.Millisecond, 1*time.Second)
 	})
 }
 

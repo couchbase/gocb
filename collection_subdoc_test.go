@@ -533,10 +533,7 @@ func (suite *IntegrationTestSuite) TestPreserveExpiryMutateIn() {
 
 	suite.Assert().NotZero(mutInRes.Cas())
 
-	mutatedDoc, err := globalCollection.Get("preservettlmutatein", &GetOptions{WithExpiry: true})
-	suite.Require().Nil(err, err)
-
-	suite.Assert().InDelta(start.Add(25*time.Second).Unix(), mutatedDoc.ExpiryTime().Unix(), 5)
+	suite.AssertExpiry("preservettlmutatein", start, 25*time.Second, 2500*time.Millisecond, 1*time.Second)
 
 	_, err = globalCollection.MutateIn("preservettlmutatein", []MutateInSpec{
 		UpsertSpec("test", "test", nil),
