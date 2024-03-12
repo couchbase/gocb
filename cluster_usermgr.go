@@ -936,7 +936,6 @@ func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error
 }
 
 // ChangePasswordOptions is the set of options available to the user manager ChangePassword operation.
-// UNCOMMITTED: This API may change in the future.
 type ChangePasswordOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
@@ -951,7 +950,6 @@ type ChangePasswordOptions struct {
 // ChangePassword changes the password for the currently authenticated user.
 // *Note*: Usage of this function will effectively invalidate the SDK instance and further requests will fail
 // due to authentication errors. After using this function the SDK must be reinitialized.
-// UNCOMMITTED: This API may change in the future.
 func (um *UserManager) ChangePassword(newPassword string, opts *ChangePasswordOptions) error {
 	if newPassword == "" {
 		return makeInvalidArgumentsError("new password cannot be empty")

@@ -1,10 +1,6 @@
 package gocb
 
 // ScopeSearchIndexManager provides methods for performing scope-level search index management operations.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 type ScopeSearchIndexManager struct {
 	getProvider func() (searchIndexProvider, error)
 
@@ -12,10 +8,6 @@ type ScopeSearchIndexManager struct {
 }
 
 // GetAllIndexes retrieves all of the search indexes for the scope.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 func (sm *ScopeSearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]SearchIndex, error) {
 	if opts == nil {
 		opts = &GetAllSearchIndexOptions{}
@@ -30,10 +22,6 @@ func (sm *ScopeSearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions)
 }
 
 // GetIndex retrieves a specific search index by name.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 func (sm *ScopeSearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOptions) (*SearchIndex, error) {
 	if opts == nil {
 		opts = &GetSearchIndexOptions{}
@@ -52,10 +40,6 @@ func (sm *ScopeSearchIndexManager) GetIndex(indexName string, opts *GetSearchInd
 }
 
 // UpsertIndex creates or updates a search index.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 func (sm *ScopeSearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *UpsertSearchIndexOptions) error {
 	if opts == nil {
 		opts = &UpsertSearchIndexOptions{}
@@ -77,10 +61,6 @@ func (sm *ScopeSearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts
 }
 
 // DropIndex removes the search index with the specific name.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 func (sm *ScopeSearchIndexManager) DropIndex(indexName string, opts *DropSearchIndexOptions) error {
 	if opts == nil {
 		opts = &DropSearchIndexOptions{}
@@ -99,10 +79,6 @@ func (sm *ScopeSearchIndexManager) DropIndex(indexName string, opts *DropSearchI
 }
 
 // AnalyzeDocument returns how a doc is analyzed against a specific index.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 func (sm *ScopeSearchIndexManager) AnalyzeDocument(indexName string, doc interface{}, opts *AnalyzeDocumentOptions) ([]interface{}, error) {
 	if opts == nil {
 		opts = &AnalyzeDocumentOptions{}
@@ -121,10 +97,6 @@ func (sm *ScopeSearchIndexManager) AnalyzeDocument(indexName string, doc interfa
 }
 
 // GetIndexedDocumentsCount retrieves the document count for a search index.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 func (sm *ScopeSearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *GetIndexedDocumentsCountOptions) (uint64, error) {
 	if opts == nil {
 		opts = &GetIndexedDocumentsCountOptions{}
@@ -143,10 +115,6 @@ func (sm *ScopeSearchIndexManager) GetIndexedDocumentsCount(indexName string, op
 }
 
 // PauseIngest pauses updates and maintenance for an index.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 func (sm *ScopeSearchIndexManager) PauseIngest(indexName string, opts *PauseIngestSearchIndexOptions) error {
 	if opts == nil {
 		opts = &PauseIngestSearchIndexOptions{}
@@ -165,10 +133,6 @@ func (sm *ScopeSearchIndexManager) PauseIngest(indexName string, opts *PauseInge
 }
 
 // ResumeIngest resumes updates and maintenance for an index.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 func (sm *ScopeSearchIndexManager) ResumeIngest(indexName string, opts *ResumeIngestSearchIndexOptions) error {
 	if opts == nil {
 		opts = &ResumeIngestSearchIndexOptions{}
@@ -187,10 +151,6 @@ func (sm *ScopeSearchIndexManager) ResumeIngest(indexName string, opts *ResumeIn
 }
 
 // AllowQuerying allows querying against an index.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 func (sm *ScopeSearchIndexManager) AllowQuerying(indexName string, opts *AllowQueryingSearchIndexOptions) error {
 	if opts == nil {
 		opts = &AllowQueryingSearchIndexOptions{}
@@ -209,10 +169,6 @@ func (sm *ScopeSearchIndexManager) AllowQuerying(indexName string, opts *AllowQu
 }
 
 // DisallowQuerying disallows querying against an index.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 func (sm *ScopeSearchIndexManager) DisallowQuerying(indexName string, opts *DisallowQueryingSearchIndexOptions) error {
 	if opts == nil {
 		opts = &DisallowQueryingSearchIndexOptions{}
@@ -231,10 +187,6 @@ func (sm *ScopeSearchIndexManager) DisallowQuerying(indexName string, opts *Disa
 }
 
 // FreezePlan freezes the assignment of index partitions to nodes.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 func (sm *ScopeSearchIndexManager) FreezePlan(indexName string, opts *FreezePlanSearchIndexOptions) error {
 	if opts == nil {
 		opts = &FreezePlanSearchIndexOptions{}
@@ -253,10 +205,6 @@ func (sm *ScopeSearchIndexManager) FreezePlan(indexName string, opts *FreezePlan
 }
 
 // UnfreezePlan unfreezes the assignment of index partitions to nodes.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 func (sm *ScopeSearchIndexManager) UnfreezePlan(indexName string, opts *UnfreezePlanSearchIndexOptions) error {
 	if opts == nil {
 		opts = &UnfreezePlanSearchIndexOptions{}

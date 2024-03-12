@@ -68,10 +68,6 @@ func (s *Scope) Collection(collectionName string) *Collection {
 }
 
 // SearchIndexes returns a ScopeSearchIndexManager for managing scope-level search indexes.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 func (s *Scope) SearchIndexes() *ScopeSearchIndexManager {
 	return &ScopeSearchIndexManager{
 		getProvider: s.getSearchIndexProvider,

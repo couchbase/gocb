@@ -8,7 +8,6 @@ import (
 )
 
 // ScanOptions are the set of options available to the Scan operation.
-// VOLATILE: This API is subject to change at any time.
 type ScanOptions struct {
 	Transcoder Transcoder
 	Timeout    time.Duration
@@ -62,7 +61,6 @@ type ScanType interface {
 
 // NewRangeScanForPrefix creates a new range scan for the given prefix, starting at the prefix and ending at the prefix
 // plus maximum.
-// VOLATILE: This API is subject to change at any time.
 func NewRangeScanForPrefix(prefix string) RangeScan {
 	return RangeScan{
 		From: &ScanTerm{
@@ -125,7 +123,9 @@ func (rs SamplingScan) toCore() (*gocbcore.RangeScanCreateRandomSamplingConfig, 
 }
 
 // Scan performs a scan across a Collection, returning a stream of documents.
-// VOLATILE: This API is subject to change at any time.
+// Use this API for low concurrency batch queries where latency is not critical as the system may have to scan
+// a lot of documents to find the matching documents.
+// For low latency range queries, it is recommended that you use SQL++ with the necessary indexes.
 func (c *Collection) Scan(scanType ScanType, opts *ScanOptions) (*ScanResult, error) {
 	if opts == nil {
 		opts = &ScanOptions{}

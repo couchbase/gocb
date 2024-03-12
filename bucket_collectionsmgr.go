@@ -20,9 +20,6 @@ type CollectionSpec struct {
 	// Value of -1 seconds (time.Duration(-1) * time.Second)  denotes 'no expiry'.
 	MaxExpiry time.Duration
 
-	// # UNCOMMITTED
-	//
-	// This API is UNCOMMITTED and may change in the future.
 	History *CollectionHistorySettings
 }
 
@@ -33,7 +30,7 @@ type ScopeSpec struct {
 }
 
 // CollectionManager provides methods for performing collections management.
-// Will be deprecated in favor of CollectionManagerV2 in the next minor release.
+// Deprecated: See CollectionsV2 and CollectionManagerV2.
 type CollectionManager struct {
 	managerV2 *CollectionManagerV2
 }

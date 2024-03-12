@@ -113,21 +113,10 @@ type BucketSettings struct {
 	MinimumDurabilityLevel DurabilityLevel
 	StorageBackend         StorageBackend
 
-	// # UNCOMMITTED
-	//
 	// Specifies whether history retention should be enabled or disabled by default on collections in the bucket.
-	// This API is UNCOMMITTED and may change in the future.
 	HistoryRetentionCollectionDefault HistoryRetentionCollectionDefault
-
-	// # UNCOMMITTED
-	//
-	// This API is UNCOMMITTED and may change in the future.
-	HistoryRetentionBytes uint64
-
-	// # UNCOMMITTED
-	//
-	// This API is UNCOMMITTED and may change in the future.
-	HistoryRetentionDuration time.Duration
+	HistoryRetentionBytes             uint64
+	HistoryRetentionDuration          time.Duration
 }
 
 // BucketManager provides methods for performing bucket management operations.

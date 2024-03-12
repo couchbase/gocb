@@ -6,9 +6,9 @@ import (
 
 // VectorQueryCombination specifies how elements in the array are combined.
 //
-// # VOLATILE
+// # UNCOMMITTED
 //
-// This API is VOLATILE and subject to change at any time.
+// This API is UNCOMMITTED and may change in the future.
 type VectorQueryCombination string
 
 const (
@@ -19,18 +19,18 @@ const (
 
 // SearchOptions specifies the options available to vector Search.
 //
-// # VOLATILE
+// # UNCOMMITTED
 //
-// This API is VOLATILE and subject to change at any time.
+// This API is UNCOMMITTED and may change in the future.
 type SearchOptions struct {
 	VectorQueryCombination VectorQueryCombination
 }
 
 // Search specifies a vector Search.
 //
-// # VOLATILE
+// # UNCOMMITTED
 //
-// This API is VOLATILE and subject to change at any time.
+// This API is UNCOMMITTED and may change in the future.
 type Search struct {
 	queries []*Query
 
@@ -39,9 +39,9 @@ type Search struct {
 
 // NewSearch constructs a new vector Search.
 //
-// # VOLATILE
+// # UNCOMMITTED
 //
-// This API is VOLATILE and subject to change at any time.
+// This API is UNCOMMITTED and may change in the future.
 func NewSearch(queries []*Query, opts *SearchOptions) *Search {
 	if opts == nil {
 		opts = &SearchOptions{}

@@ -24,10 +24,6 @@ func (c *Cluster) SearchQuery(indexName string, query cbsearch.Query, opts *Sear
 }
 
 // Search executes the search request on the server.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 func (c *Cluster) Search(indexName string, request SearchRequest, opts *SearchOptions) (*SearchResult, error) {
 	if request.VectorSearch == nil && request.SearchQuery == nil {
 		return nil, makeInvalidArgumentsError("the search request cannot be empty")

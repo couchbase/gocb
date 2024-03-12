@@ -1,10 +1,6 @@
 package gocb
 
 // Search executes the search request on the server using a scope-level FTS index.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 func (s *Scope) Search(indexName string, request SearchRequest, opts *SearchOptions) (*SearchResult, error) {
 	if request.VectorSearch == nil && request.SearchQuery == nil {
 		return nil, makeInvalidArgumentsError("the search request cannot be empty")

@@ -416,7 +416,6 @@ func (r *GetReplicaResult) IsReplica() bool {
 }
 
 // ScanResult is the return type of Scan operations.
-// VOLATILE: This API is subject to change at any time.
 type ScanResult struct {
 	resultChan chan *ScanResultItem
 	cancelFn   func(error)

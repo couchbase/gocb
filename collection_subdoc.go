@@ -40,10 +40,6 @@ func (c *Collection) LookupIn(id string, ops []LookupInSpec, opts *LookupInOptio
 }
 
 // LookupInAnyReplicaOptions are the set of options available to LookupInAnyReplica.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 type LookupInAnyReplicaOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
@@ -62,10 +58,6 @@ type LookupInAnyReplicaOptions struct {
 }
 
 // LookupInAnyReplica returns the value of a particular document from a replica server.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 func (c *Collection) LookupInAnyReplica(id string, ops []LookupInSpec, opts *LookupInAnyReplicaOptions) (*LookupInReplicaResult, error) {
 	if opts == nil {
 		opts = &LookupInAnyReplicaOptions{}
@@ -80,10 +72,6 @@ func (c *Collection) LookupInAnyReplica(id string, ops []LookupInSpec, opts *Loo
 }
 
 // LookupInAllReplicaOptions are the set of options available to LookupInAllReplicas.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 type LookupInAllReplicaOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
@@ -103,10 +91,6 @@ type LookupInAllReplicaOptions struct {
 
 // LookupInAllReplicas returns the value of a particular document from all replica servers. This will return an iterable
 // which streams results one at a time.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 func (c *Collection) LookupInAllReplicas(id string, ops []LookupInSpec, opts *LookupInAllReplicaOptions) (*LookupInAllReplicasResult, error) {
 	if opts == nil {
 		opts = &LookupInAllReplicaOptions{}
