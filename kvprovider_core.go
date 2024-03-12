@@ -27,7 +27,7 @@ func (p *kvProviderCore) Scan(c *Collection, scanType ScanType, opts *ScanOption
 	opm.SetTimeout(opts.Timeout)
 	opm.SetItemLimit(opts.BatchItemLimit)
 	opm.SetByteLimit(opts.BatchByteLimit)
-	opm.SetMaxConcurrency(1)
+	opm.SetMaxConcurrency(opts.Concurrency)
 
 	config, err := p.snapshotProvider.WaitForConfigSnapshot(opts.Context, time.Now().Add(opm.Timeout()))
 	if err != nil {
@@ -47,6 +47,22 @@ func (p *kvProviderCore) Scan(c *Collection, scanType ScanType, opts *ScanOption
 	}
 
 	opm.SetNumVbuckets(numVbuckets)
+
+	serverToVbucketMap := make(map[int][]uint16)
+	numServers, err := config.NumServers()
+	if err != nil {
+		opm.Finish()
+		return nil, err
+	}
+	for serverIndex := 0; serverIndex < numServers; serverIndex++ {
+		vbuckets, err := config.VbucketsOnServer(serverIndex)
+		if err != nil {
+			opm.Finish()
+			return nil, err
+		}
+		serverToVbucketMap[serverIndex] = vbuckets
+	}
+	opm.SetServerToVbucketMap(serverToVbucketMap)
 
 	cid, err := p.getCollectionID(opts.Context, c, opm.TraceSpan(), opm.Timeout(), opm.Impersonate())
 	if err != nil {

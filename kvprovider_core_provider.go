@@ -41,6 +41,8 @@ type coreConfigSnapshot interface {
 	RevID() int64
 	NumVbuckets() (int, error)
 	NumReplicas() (int, error)
+	NumServers() (int, error)
+	VbucketsOnServer(index int) ([]uint16, error)
 }
 
 type stdCoreConfigSnapshotProvider struct {

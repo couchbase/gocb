@@ -3,6 +3,7 @@ package gocb
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -21,9 +22,10 @@ func (p *mockConfigSnapshotProvider) WaitForConfigSnapshot(ctx context.Context, 
 }
 
 type mockConfigSnapshot struct {
-	revID       int64
-	numVbuckets int
-	numReplicas int
+	revID            int64
+	numVbuckets      int
+	numReplicas      int
+	serverToVbuckets map[int][]uint16
 }
 
 func (p *mockConfigSnapshot) RevID() int64 {
@@ -36,6 +38,38 @@ func (p *mockConfigSnapshot) NumVbuckets() (int, error) {
 
 func (p *mockConfigSnapshot) NumReplicas() (int, error) {
 	return p.numReplicas, nil
+}
+
+func (p *mockConfigSnapshot) NumServers() (int, error) {
+	return len(p.serverToVbuckets), nil
+}
+
+func (p *mockConfigSnapshot) VbucketsOnServer(index int) ([]uint16, error) {
+	vbuckets, ok := p.serverToVbuckets[index]
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("could not find server with index %d", index))
+	}
+
+	return vbuckets, nil
+}
+
+func newMockConfigSnapshot(numVbuckets int, numServers int) *mockConfigSnapshot {
+	serverToVbuckets := make(map[int][]uint16)
+
+	// Divide the vbuckets across the nodes
+	remainingVbucketCount := numVbuckets
+	for serverIndex := 0; serverIndex < numServers; serverIndex++ {
+		lowerBound := numVbuckets - remainingVbucketCount
+		upperBound := lowerBound + remainingVbucketCount/(numServers-serverIndex)
+		for vbID := uint16(lowerBound); vbID < uint16(upperBound); vbID++ {
+			remainingVbucketCount--
+			serverToVbuckets[serverIndex] = append(serverToVbuckets[serverIndex], vbID)
+		}
+	}
+	return &mockConfigSnapshot{
+		numVbuckets:      numVbuckets,
+		serverToVbuckets: serverToVbuckets,
+	}
 }
 
 func (suite *UnitTestSuite) TestScanAllScansTmpFailAtCreate() {
@@ -57,7 +91,7 @@ func (suite *UnitTestSuite) TestScanAllScansTmpFailAtCreate() {
 			cb(nil, ErrTemporaryFailure)
 		})
 
-		snap := &mockConfigSnapshot{numVbuckets: 8}
+		snap := newMockConfigSnapshot(8, 1)
 
 		agent := &kvProviderCore{agent: provider, snapshotProvider: &mockConfigSnapshotProvider{snapshot: snap}}
 		col := suite.collection("mock", "", "", agent)
@@ -109,7 +143,7 @@ func (suite *UnitTestSuite) TestScanAllScansEmpty() {
 			IDsOnly: true,
 		}
 
-		snap := &mockConfigSnapshot{numVbuckets: 8}
+		snap := newMockConfigSnapshot(8, 1)
 
 		agent := &kvProviderCore{agent: provider, snapshotProvider: &mockConfigSnapshotProvider{snapshot: snap}}
 		col := suite.collection("mock", "", "", agent)
@@ -209,7 +243,7 @@ func (suite *UnitTestSuite) TestScanFirstCreateFailsUnknownError() {
 			}, nil)
 		})
 
-		snap := &mockConfigSnapshot{numVbuckets: 4}
+		snap := newMockConfigSnapshot(4, 1)
 
 		agent := &kvProviderCore{agent: provider, snapshotProvider: &mockConfigSnapshotProvider{snapshot: snap}}
 		col := suite.collection("mock", "", "", agent)
@@ -266,7 +300,7 @@ func (suite *UnitTestSuite) TestScanSecondCreateFailsUnknownError() {
 			return
 		})
 
-		snap := &mockConfigSnapshot{numVbuckets: 4}
+		snap := newMockConfigSnapshot(4, 1)
 
 		agent := &kvProviderCore{agent: provider, snapshotProvider: &mockConfigSnapshotProvider{snapshot: snap}}
 		col := suite.collection("mock", "", "", agent)
@@ -374,7 +408,7 @@ func (suite *UnitTestSuite) TestScanNMV() {
 			return
 		})
 
-		snap := &mockConfigSnapshot{numVbuckets: 4}
+		snap := newMockConfigSnapshot(4, 1)
 
 		agent := &kvProviderCore{agent: provider, snapshotProvider: &mockConfigSnapshotProvider{snapshot: snap}}
 		col := suite.collection("mock", "", "", agent)
@@ -450,4 +484,94 @@ func makeRangeScanProvider(createCb func(args mock.Arguments)) *mockKvProviderCo
 		Return(new(mockPendingOp), nil)
 
 	return provider
+}
+
+func (suite *UnitTestSuite) TestRangeScanLoadBalancer() {
+	vbucketServers := []int{0, 0, 1, 1, 2, 2}
+	serverToVbucketMap := make(map[int][]uint16)
+	for vbucket, server := range vbucketServers {
+		serverToVbucketMap[server] = append(serverToVbucketMap[server], uint16(vbucket))
+	}
+
+	suite.Run("selecting 3 vbuckets from 3-node cluster with equal number of vbuckets in each gives one vbucket from each node", func() {
+		balancer := newRangeScanLoadBalancer(serverToVbucketMap, 0)
+
+		var selectedNodes []int
+		for i := 0; i < 3; i++ {
+			vbucket, ok := balancer.selectVbucket()
+			suite.Require().True(ok)
+			suite.Require().Equal(vbucketServers[vbucket.id], vbucket.server)
+			suite.Assert().NotContains(selectedNodes, vbucket.server)
+			selectedNodes = append(selectedNodes, vbucket.server)
+		}
+	})
+
+	suite.Run("the selected vbucket should come from the least busy node", func() {
+		balancer := newRangeScanLoadBalancer(serverToVbucketMap, 0)
+
+		// Nodes 0 and 1 have one scan in-progress each. Node 2 has no active scans
+		balancer.scanStarting(rangeScanVbucket{id: 0, server: 0})
+		balancer.scanStarting(rangeScanVbucket{id: 2, server: 1})
+
+		vbucket, ok := balancer.selectVbucket()
+		suite.Require().True(ok)
+		suite.Require().Equal(vbucketServers[vbucket.id], vbucket.server)
+		suite.Assert().Equal(vbucket.server, 2)
+	})
+
+	suite.Run("when there are no retries each vbucket should be returned once", func() {
+		balancer := newRangeScanLoadBalancer(serverToVbucketMap, 0)
+
+		// select all vbuckets
+		ch := make(chan *uint16)
+		for i := 0; i <= len(vbucketServers); i++ {
+			go func() {
+				vbucket, ok := balancer.selectVbucket()
+				if ok {
+					ch <- &vbucket.id
+				} else {
+					ch <- nil
+					close(ch)
+				}
+			}()
+		}
+
+		var selectedVbuckets []*uint16
+		for i := 0; i < len(vbucketServers); i++ {
+			v := <-ch
+			suite.Require().NotNil(v)
+			suite.Assert().NotContains(selectedVbuckets, v)
+			selectedVbuckets = append(selectedVbuckets, v)
+		}
+		v := <-ch
+		suite.Assert().Nil(v)
+		suite.Assert().Empty(ch)
+	})
+
+	suite.Run("retried vbucket id will be returned twice", func() {
+		balancer := newRangeScanLoadBalancer(serverToVbucketMap, 0)
+
+		var retriedVbucket uint16 = 3
+		var selectedVbuckets []uint16
+
+		retried := false
+		for {
+			vbucket, ok := balancer.selectVbucket()
+			if !ok {
+				break
+			}
+			if vbucket.id == retriedVbucket {
+				if retried {
+					suite.Assert().Contains(selectedVbuckets, vbucket.id)
+				} else {
+					balancer.retryScan(vbucket)
+					suite.Assert().NotContains(selectedVbuckets, vbucket.id)
+				}
+				retried = true
+			} else {
+				suite.Assert().NotContains(selectedVbuckets, vbucket.id)
+			}
+			selectedVbuckets = append(selectedVbuckets, vbucket.id)
+		}
+	})
 }

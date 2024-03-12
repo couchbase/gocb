@@ -5,7 +5,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"math"
 	"math/rand"
+	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -51,15 +53,21 @@ type rangeScanOpManager struct {
 	samplingOptions       *gocbcore.RangeScanCreateRandomSamplingConfig
 	vBucketToSnapshotOpts map[uint16]gocbcore.RangeScanCreateSnapshotRequirements
 
-	numVbuckets    int
-	keysOnly       bool
-	itemLimit      uint32
-	byteLimit      uint32
-	maxConcurrency uint16
+	numVbuckets        int
+	serverToVbucketMap map[int][]uint16
+	keysOnly           bool
+	itemLimit          uint32
+	byteLimit          uint32
+	maxConcurrency     uint16
 
 	result *ScanResult
 
 	cancelled uint32
+}
+
+type rangeScanVbucket struct {
+	id     uint16
+	server int
 }
 
 func (p *kvProviderCore) newRangeScanOpManager(c *Collection, scanType ScanType, agent kvProviderCoreProvider,
@@ -210,6 +218,10 @@ func (m *rangeScanOpManager) SetNumVbuckets(numVbuckets int) {
 	m.span.SetAttribute("num_partitions", numVbuckets)
 }
 
+func (m *rangeScanOpManager) SetServerToVbucketMap(serverVbucketMap map[int][]uint16) {
+	m.serverToVbucketMap = serverVbucketMap
+}
+
 func (m *rangeScanOpManager) SetTimeout(timeout time.Duration) {
 	m.timeout = timeout
 }
@@ -312,7 +324,7 @@ func (m *rangeScanOpManager) CheckReadyForOp() error {
 	m.deadline = time.Now().Add(timeout)
 
 	if m.numVbuckets == 0 {
-		return errors.New("range sacn op manager had no number of partitions specified")
+		return errors.New("range scan op manager had no number of partitions specified")
 	}
 
 	return nil
@@ -371,7 +383,7 @@ func (m *rangeScanOpManager) Scan(ctx context.Context) (*ScanResult, error) {
 	}
 	m.SetResult(r)
 
-	vbucketCh := m.createVbucketChannel()
+	balancer := m.createLoadBalancer()
 
 	var complete uint32
 	var seenData uint32
@@ -387,32 +399,30 @@ func (m *rangeScanOpManager) Scan(ctx context.Context) (*ScanResult, error) {
 			defer func() {
 				if atomic.AddUint32(&complete, 1) == uint32(m.maxConcurrency) {
 					m.Finish()
-					close(vbucketCh)
+					balancer.close()
 					close(resultCh)
 				}
 			}()
 
-			for vbID := range vbucketCh {
+			for vbucket, ok := balancer.selectVbucket(); ok; vbucket, ok = balancer.selectVbucket() {
 				if atomic.LoadUint32(&m.cancelled) == 1 {
 					return
 				}
 
 				deadline := time.Now().Add(m.Timeout())
-				failPoint, err := m.scanPartition(ctx, deadline, vbID, resultCh)
+				failPoint, err := m.scanPartition(ctx, deadline, vbucket.id, resultCh)
+				balancer.scanEnded(vbucket)
 				if err != nil {
 					err = m.EnhanceErr(err)
 					if failPoint == scanFailPointCreate {
 						if errors.Is(err, gocbcore.ErrDocumentNotFound) {
-							logDebugf("Ignoring vbid %d as no documents exist for that vbucket", vbID)
-							if len(vbucketCh) == 0 {
-								return
-							}
+							logDebugf("Ignoring vbid %d as no documents exist for that vbucket", vbucket.id)
 							continue
 						}
 
 						if errors.Is(err, ErrTemporaryFailure) || errors.Is(err, gocbcore.ErrBusy) {
 							// Put the vbucket back into the channel to be retried later.
-							vbucketCh <- vbID
+							balancer.retryScan(vbucket)
 
 							if errors.Is(err, gocbcore.ErrBusy) {
 								// Busy indicates that the server is reporting too many active scans.
@@ -425,18 +435,10 @@ func (m *rangeScanOpManager) Scan(ctx context.Context) (*ScanResult, error) {
 								}
 							}
 
-							if len(vbucketCh) == 0 {
-								return
-							}
-
 							continue
 						}
 
 						if !m.IsRangeScan() {
-							// We can ignore stream create errors for sampling scans.
-							if len(vbucketCh) == 0 {
-								return
-							}
 							continue
 						}
 
@@ -477,15 +479,7 @@ func (m *rangeScanOpManager) Scan(ctx context.Context) (*ScanResult, error) {
 						return
 					}
 
-					if len(vbucketCh) == 0 {
-						return
-					}
-
 					continue
-				}
-
-				if len(vbucketCh) == 0 {
-					return
 				}
 			}
 		}()
@@ -717,20 +711,111 @@ func (m *rangeScanOpManager) cancelStream(ctx context.Context, spanCtx RequestSp
 	}
 }
 
-func (m *rangeScanOpManager) createVbucketChannel() chan uint16 {
-	var vbuckets []uint16
-	for vbucket := 0; vbucket < m.numVbuckets; vbucket++ {
-		vbuckets = append(vbuckets, uint16(vbucket))
-	}
-	rand.Seed(time.Now().UnixNano())
-	rand.Shuffle(m.numVbuckets, func(i, j int) {
-		vbuckets[i], vbuckets[j] = vbuckets[j], vbuckets[i]
-	})
-
-	vbucketCh := make(chan uint16, m.numVbuckets)
-	for _, vbucket := range vbuckets {
-		vbucketCh <- vbucket
+func (m *rangeScanOpManager) createLoadBalancer() *rangeScanLoadBalancer {
+	var seed int64
+	if m.SamplingOptions() != nil && m.SamplingOptions().Seed != 0 {
+		// Using the sampling scan seed for the load balancer ensures that when concurrency is 1 the vbuckets are
+		// always scanned in the same order for a given seed
+		seed = int64(m.SamplingOptions().Seed)
+	} else {
+		seed = time.Now().UnixNano()
 	}
 
-	return vbucketCh
+	return newRangeScanLoadBalancer(m.serverToVbucketMap, seed)
+}
+
+type rangeScanLoadBalancer struct {
+	vbucketChannels    map[int]chan uint16
+	servers            []int
+	activeScansPerNode sync.Map
+	selectLock         sync.Mutex
+}
+
+func newRangeScanLoadBalancer(serverToVbucketMap map[int][]uint16, seed int64) *rangeScanLoadBalancer {
+	b := &rangeScanLoadBalancer{
+		vbucketChannels:    make(map[int]chan uint16),
+		activeScansPerNode: sync.Map{},
+	}
+
+	for server, vbuckets := range serverToVbucketMap {
+		b.servers = append(b.servers, server)
+
+		b.vbucketChannels[server] = make(chan uint16, len(vbuckets))
+
+		r := rand.New(rand.NewSource(seed)) // #nosec G404
+		r.Shuffle(len(vbuckets), func(i, j int) {
+			vbuckets[i], vbuckets[j] = vbuckets[j], vbuckets[i]
+		})
+
+		for _, vbucket := range vbuckets {
+			b.vbucketChannels[server] <- vbucket
+		}
+	}
+
+	return b
+}
+
+func (b *rangeScanLoadBalancer) retryScan(vbucket rangeScanVbucket) {
+	b.vbucketChannels[vbucket.server] <- vbucket.id
+}
+
+func (b *rangeScanLoadBalancer) scanEnded(vbucket rangeScanVbucket) {
+	zeroVal := uint32(0)
+	val, _ := b.activeScansPerNode.LoadOrStore(vbucket.server, &zeroVal)
+	atomic.AddUint32(val.(*uint32), ^uint32(0))
+}
+
+func (b *rangeScanLoadBalancer) scanStarting(vbucket rangeScanVbucket) {
+	zeroVal := uint32(0)
+	val, _ := b.activeScansPerNode.LoadOrStore(vbucket.server, &zeroVal)
+	atomic.AddUint32(val.(*uint32), uint32(1))
+}
+
+// close closes all the vbucket channels. This should only be called if no more vbucket scans will happen, i.e. selectVbucket should not be called after close.
+func (b *rangeScanLoadBalancer) close() {
+	for _, ch := range b.vbucketChannels {
+		close(ch)
+	}
+}
+
+// selectVbucket returns the vbucket id, alongside the corresponding node index for a vbucket that is on the node with
+// the smallest number of active scans. The boolean return value is false if there are no more vbuckets to scan.
+func (b *rangeScanLoadBalancer) selectVbucket() (rangeScanVbucket, bool) {
+	b.selectLock.Lock()
+	defer b.selectLock.Unlock()
+
+	var selectedServer int
+	selected := false
+	min := uint32(math.MaxUint32)
+
+	for s := range b.servers {
+		if len(b.vbucketChannels[s]) == 0 {
+			continue
+		}
+		zeroVal := uint32(0)
+		val, _ := b.activeScansPerNode.LoadOrStore(s, &zeroVal)
+		activeScans := *val.(*uint32)
+		if activeScans < min {
+			min = activeScans
+			selectedServer = s
+			selected = true
+		}
+	}
+
+	if !selected {
+		return rangeScanVbucket{}, false
+	}
+
+	selectedVbucket, ok := <-b.vbucketChannels[selectedServer]
+	if !ok {
+		// This should be unreachable. selectVbucket should not be called after close.
+		logWarnf("Vbucket channel has been closed before the range scan has finished")
+		return rangeScanVbucket{}, false
+	}
+	vbucket := rangeScanVbucket{
+		id:     selectedVbucket,
+		server: selectedServer,
+	}
+	b.scanStarting(vbucket)
+	return vbucket, true
 }
