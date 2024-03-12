@@ -121,7 +121,7 @@ func (suite *IntegrationTestSuite) TestScopeSearchIndexesUpsertFullyQualifiedInd
 		suite.T().Fatalf("Expected UpsertIndex err to be not nil but was")
 	}
 
-	var httpErr HTTPError
+	var httpErr *HTTPError
 	if !errors.As(err, &httpErr) {
 		suite.T().Fatalf("Expected error to be a generic HTTPError but was %v", err)
 	}
