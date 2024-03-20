@@ -45,7 +45,7 @@ func (c *psConnectionMgr) openBucket(bucketName string) error {
 
 func (c *psConnectionMgr) buildConfig(cluster *Cluster) error {
 	port := cluster.connSpec().Addresses[0].Port
-	if port == 0 {
+	if port == -1 {
 		port = 18098
 	}
 	c.host = fmt.Sprintf("%s:%d", cluster.connSpec().Addresses[0].Host, port)
