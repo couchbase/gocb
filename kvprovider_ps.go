@@ -609,7 +609,7 @@ func (p *kvProviderPs) GetAndLock(c *Collection, id string, lockTime time.Durati
 	return &resOut, nil
 }
 
-func (p *kvProviderPs) Exists(c *Collection, id string, opts *ExistsOptions) (*ExistsResult, error) {
+func (p *kvProviderPs) Exists(c *Collection, id string, opts *ExistsOptions) (ExistsResult, error) {
 	opm := newKvOpManagerPs(c, "exists", opts.ParentSpan)
 	defer opm.Finish(false)
 
@@ -636,8 +636,8 @@ func (p *kvProviderPs) Exists(c *Collection, id string, opts *ExistsOptions) (*E
 		return nil, err
 	}
 
-	resOut := ExistsResult{
-		Result: Result{
+	resOut := existsResult{
+		result: Result{
 			Cas(res.Cas),
 		},
 		docExists: res.Result,

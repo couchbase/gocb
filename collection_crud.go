@@ -183,7 +183,7 @@ type ExistsOptions struct {
 }
 
 // Exists checks if a document exists for the given id.
-func (c *Collection) Exists(id string, opts *ExistsOptions) (docOut *ExistsResult, errOut error) {
+func (c *Collection) Exists(id string, opts *ExistsOptions) (docOut ExistsResult, errOut error) {
 	if opts == nil {
 		opts = &ExistsOptions{}
 	}
