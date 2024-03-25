@@ -278,7 +278,8 @@ func handleRetriableRequest[ReqT any, RespT any](
 	req ReqT,
 	retryReq *retriableRequestPs,
 	sendFn func(context.Context, ReqT, ...grpc.CallOption) (RespT, error),
-	retryReasonFn func(err error) RetryReason) (RespT, error) {
+	retryReasonFn func(err error) RetryReason,
+	peekResult func(RespT) error) (RespT, error) {
 	for {
 		logSchedf("Writing request ID=%s, OP=%s", retryReq.loggerIdentifier, retryReq.operation)
 		span := tracer.RequestSpan(retryReq.rootTraceContext, "dispatch_to_server")
@@ -294,50 +295,76 @@ func handleRetriableRequest[ReqT any, RespT any](
 		logSchedf("Handling response ID=%s, OP=%s", retryReq.loggerIdentifier, retryReq.operation)
 
 		if err != nil {
-			gocbErr := mapPsErrorToGocbError(err, retryReq.Idempotent())
+			// If handleRetriableRequestError doesn't return an error then it's a signal to retry.
+			if gocbErr := handleRetriableRequestError(ctx, createdTime, err, retryReq, retryReasonFn); gocbErr != nil {
+				var emptyResp RespT
+				return emptyResp, gocbErr
+			}
 
-			var emptyResp RespT
-			if errors.Is(gocbErr, ErrTimeout) {
-				return emptyResp, &TimeoutError{
-					InnerError:    gocbErr,
-					OperationID:   retryReq.Operation(),
-					Opaque:        retryReq.Identifier(),
-					TimeObserved:  time.Since(createdTime),
-					RetryReasons:  retryReq.RetryReasons(),
-					RetryAttempts: retryReq.RetryAttempts(),
+			continue
+		}
+
+		if peekResult != nil {
+			if err := peekResult(res); err != nil {
+				if gocbErr := handleRetriableRequestError(ctx, createdTime, err, retryReq, retryReasonFn); gocbErr != nil {
+					var emptyResp RespT
+					return emptyResp, gocbErr
 				}
-			}
 
-			retryReason := retryReasonFn(gocbErr)
-			if retryReason == nil {
-				return emptyResp, gocbErr
-			}
-
-			shouldRetry, retryWait := retryOrchMaybeRetry(retryReq, retryReason)
-			if !shouldRetry {
-				return emptyResp, gocbErr
-			}
-
-			select {
-			case <-time.After(time.Until(retryWait)):
 				continue
-			case <-ctx.Done():
-				err := ctx.Err()
-				if errors.Is(err, context.DeadlineExceeded) {
-					return emptyResp, &TimeoutError{
-						InnerError:    ErrUnambiguousTimeout,
-						OperationID:   retryReq.Operation(),
-						Opaque:        retryReq.Identifier(),
-						TimeObserved:  time.Since(createdTime),
-						RetryReasons:  retryReq.RetryReasons(),
-						RetryAttempts: retryReq.RetryAttempts(),
-					}
-				} else {
-					return emptyResp, makeGenericError(ErrRequestCanceled, nil)
-				}
 			}
 		}
 
 		return res, nil
+	}
+}
+
+func handleRetriableRequestError(
+	ctx context.Context,
+	createdTime time.Time,
+	err error,
+	retryReq *retriableRequestPs,
+	retryReasonFn func(err error) RetryReason,
+) error {
+	gocbErr := mapPsErrorToGocbError(err, retryReq.Idempotent())
+
+	if errors.Is(gocbErr, ErrTimeout) {
+		return &TimeoutError{
+			InnerError:    gocbErr,
+			OperationID:   retryReq.Operation(),
+			Opaque:        retryReq.Identifier(),
+			TimeObserved:  time.Since(createdTime),
+			RetryReasons:  retryReq.RetryReasons(),
+			RetryAttempts: retryReq.RetryAttempts(),
+		}
+	}
+
+	retryReason := retryReasonFn(gocbErr)
+	if retryReason == nil {
+		return gocbErr
+	}
+
+	shouldRetry, retryWait := retryOrchMaybeRetry(retryReq, retryReason)
+	if !shouldRetry {
+		return gocbErr
+	}
+
+	select {
+	case <-time.After(time.Until(retryWait)):
+		return nil
+	case <-ctx.Done():
+		err := ctx.Err()
+		if errors.Is(err, context.DeadlineExceeded) {
+			return &TimeoutError{
+				InnerError:    ErrUnambiguousTimeout,
+				OperationID:   retryReq.Operation(),
+				Opaque:        retryReq.Identifier(),
+				TimeObserved:  time.Since(createdTime),
+				RetryReasons:  retryReq.RetryReasons(),
+				RetryAttempts: retryReq.RetryAttempts(),
+			}
+		} else {
+			return makeGenericError(ErrRequestCanceled, nil)
+		}
 	}
 }

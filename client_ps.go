@@ -371,13 +371,19 @@ func wrapPSOp[ReqT any, RespT any](m psOpManager, req ReqT,
 	return wrapPSOpCtx(ctx, m, req, fn)
 }
 
-func wrapPSOpCtx[ReqT any, RespT any](ctx context.Context, m psOpManager,
+func wrapPSOpCtx[ReqT any, RespT any](ctx context.Context, m psOpManager, req ReqT, fn func(context.Context, ReqT, ...grpc.CallOption) (RespT, error)) (RespT, error) {
+	return wrapPSOpCtxWithPeek(ctx, m, req, fn, nil)
+}
+
+func wrapPSOpCtxWithPeek[ReqT any, RespT any](ctx context.Context,
+	m psOpManager,
 	req ReqT,
-	fn func(context.Context, ReqT, ...grpc.CallOption) (RespT, error)) (RespT, error) {
+	fn func(context.Context, ReqT, ...grpc.CallOption) (RespT, error),
+	peekResult func(RespT) error) (RespT, error) {
 	retryReq := newRetriableRequestPS(m.OpName(), m.IsIdempotent(), m.TraceSpanContext(), m.OperationID(), m.RetryStrategy())
 	m.SetRetryRequest(retryReq)
 
-	res, err := handleRetriableRequest(ctx, m.CreatedAt(), m.Tracer(), req, retryReq, fn, m.RetryReasonFor)
+	res, err := handleRetriableRequest(ctx, m.CreatedAt(), m.Tracer(), req, retryReq, fn, m.RetryReasonFor, peekResult)
 	if err != nil {
 		var emptyResp RespT
 		return emptyResp, err

@@ -131,18 +131,20 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 		}
 	}()
 
-	client, err := wrapPSOpCtx(reqCtx, manager, &request, search.provider.SearchQuery)
+	var firstRows *search_v1.SearchQueryResponse
+	client, err := wrapPSOpCtxWithPeek(reqCtx, manager, &request, search.provider.SearchQuery, func(client search_v1.SearchService_SearchQueryClient) error {
+		var err error
+		firstRows, err = client.Recv()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	close(doneCh)
 	if err != nil {
 		reqCancel()
 		return nil, search.makeError(err, query, atomic.LoadUint32(&cancellationIsTimeout) == 1, manager.ElapsedTime(), manager.RetryInfo())
-	}
-
-	firstRows, err := client.Recv()
-	if err != nil {
-		reqCancel()
-		gocbErr := mapPsErrorToGocbError(err, true)
-		return nil, search.makeError(gocbErr, query, atomic.LoadUint32(&cancellationIsTimeout) == 1, manager.ElapsedTime(), manager.RetryInfo())
 	}
 
 	return newSearchResult(&psSearchRowReader{

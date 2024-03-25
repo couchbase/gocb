@@ -188,19 +188,20 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 		}
 	}()
 
-	res, err := wrapPSOpCtx(reqCtx, manager, req, qpc.provider.Query)
+	var firstRows *query_v1.QueryResponse
+	res, err := wrapPSOpCtxWithPeek(reqCtx, manager, req, qpc.provider.Query, func(client query_v1.QueryService_QueryClient) error {
+		var err error
+		firstRows, err = client.Recv()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	close(doneCh)
 	if err != nil {
 		reqCancel()
 		return nil, qpc.makeError(err, statement, opts.Readonly, atomic.LoadUint32(&cancellationIsTimeout) == 1,
-			manager.ElapsedTime(), manager.RetryInfo())
-	}
-
-	firstRows, err := res.Recv()
-	if err != nil {
-		reqCancel()
-		gocbErr := mapPsErrorToGocbError(err, opts.Readonly)
-		return nil, qpc.makeError(gocbErr, statement, opts.Readonly, atomic.LoadUint32(&cancellationIsTimeout) == 1,
 			manager.ElapsedTime(), manager.RetryInfo())
 	}
 
