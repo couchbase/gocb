@@ -8,11 +8,30 @@ import (
 	"github.com/google/uuid"
 )
 
-func (suite *IntegrationTestSuite) TestEventingManagerUpsertGetDrop() {
+type eventingManager interface {
+	UpsertFunction(function EventingFunction, opts *UpsertEventingFunctionOptions) error
+	DropFunction(name string, opts *DropEventingFunctionOptions) error
+	DeployFunction(name string, opts *DeployEventingFunctionOptions) error
+	UndeployFunction(name string, opts *UndeployEventingFunctionOptions) error
+	GetAllFunctions(opts *GetAllEventingFunctionsOptions) ([]EventingFunction, error)
+	GetFunction(name string, opts *GetEventingFunctionOptions) (*EventingFunction, error)
+	PauseFunction(name string, opts *PauseEventingFunctionOptions) error
+	ResumeFunction(name string, opts *ResumeEventingFunctionOptions) error
+	FunctionsStatus(opts *EventingFunctionsStatusOptions) (*EventingStatus, error)
+}
+
+func (suite *IntegrationTestSuite) runEventingManagerUpsertGetDropTest(scope *Scope) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(EventingFunctionManagerFeature)
 
-	mgr := globalCluster.Cluster.EventingFunctions()
+	var mgr eventingManager
+	if scope == nil {
+		mgr = globalCluster.Cluster.EventingFunctions()
+	} else {
+		suite.skipIfUnsupported(ScopeEventingFunctionManagerFeature)
+
+		mgr = scope.EventingFunctions()
+	}
 	scopeName := uuid.NewString()
 	suite.mustCreateScope(scopeName)
 	defer suite.dropScope(scopeName)
@@ -77,8 +96,11 @@ func (suite *IntegrationTestSuite) TestEventingManagerUpsertGetDrop() {
 	})
 	suite.Require().True(success, "Upsert function did not succeed in time")
 
-	suite.EnsureEveningFunctionOnAllNodes(time.Now().Add(30*time.Second), fnName)
-
+	if scope == nil {
+		suite.EnsureEveningFunctionOnAllNodes(time.Now().Add(30*time.Second), fnName, "", "")
+	} else {
+		suite.EnsureEveningFunctionOnAllNodes(time.Now().Add(30*time.Second), fnName, scope.BucketName(), scope.Name())
+	}
 	functions, err := mgr.GetAllFunctions(nil)
 	suite.Require().Nil(err, err)
 
@@ -111,12 +133,23 @@ func (suite *IntegrationTestSuite) TestEventingManagerUpsertGetDrop() {
 	suite.Require().Nil(err)
 }
 
-func (suite *IntegrationTestSuite) TestEventingManagerUnknownBucket() {
+func (suite *IntegrationTestSuite) TestEventingManagerUpsertGetDrop() {
+	suite.runEventingManagerUpsertGetDropTest(nil)
+}
+
+func (suite *IntegrationTestSuite) runEventingManagerUnknownBucketTest(scope *Scope) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(EventingFunctionManagerFeature)
 	suite.skipIfUnsupported(EventingFunctionManagerMB52572Feature)
 
-	mgr := globalCluster.Cluster.EventingFunctions()
+	var mgr eventingManager
+	if scope == nil {
+		mgr = globalCluster.Cluster.EventingFunctions()
+	} else {
+		suite.skipIfUnsupported(ScopeEventingFunctionManagerFeature)
+
+		mgr = scope.EventingFunctions()
+	}
 	fnName := uuid.New().String()
 	expectedFn := EventingFunction{
 		Name: fnName,
@@ -139,11 +172,23 @@ func (suite *IntegrationTestSuite) TestEventingManagerUnknownBucket() {
 	}
 }
 
-func (suite *IntegrationTestSuite) TestEventingManagerUnknownFunction() {
+func (suite *IntegrationTestSuite) TestEventingManagerUnknownBucket() {
+	suite.runEventingManagerUnknownBucketTest(nil)
+}
+
+func (suite *IntegrationTestSuite) runEventingManagerUnknownFunctionTest(scope *Scope) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(EventingFunctionManagerFeature)
 
-	mgr := globalCluster.Cluster.EventingFunctions()
+	var mgr eventingManager
+	if scope == nil {
+		mgr = globalCluster.Cluster.EventingFunctions()
+	} else {
+		suite.skipIfUnsupported(ScopeEventingFunctionManagerFeature)
+
+		mgr = scope.EventingFunctions()
+	}
+
 	scopeName := uuid.NewString()
 	suite.mustCreateScope(scopeName)
 	defer suite.dropScope(scopeName)
@@ -187,11 +232,23 @@ func (suite *IntegrationTestSuite) TestEventingManagerUnknownFunction() {
 	}
 }
 
-func (suite *IntegrationTestSuite) TestEventingManagerInvalidCode() {
+func (suite *IntegrationTestSuite) TestEventingManagerUnknownFunction() {
+	suite.runEventingManagerUnknownFunctionTest(nil)
+}
+
+func (suite *IntegrationTestSuite) runEventingManagerInvalidCodeTest(scope *Scope) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(EventingFunctionManagerFeature)
 
-	mgr := globalCluster.Cluster.EventingFunctions()
+	var mgr eventingManager
+	if scope == nil {
+		mgr = globalCluster.Cluster.EventingFunctions()
+	} else {
+		suite.skipIfUnsupported(ScopeEventingFunctionManagerFeature)
+
+		mgr = scope.EventingFunctions()
+	}
+
 	scopeName := uuid.NewString()
 	suite.mustCreateScope(scopeName)
 	defer suite.dropScope(scopeName)
@@ -227,11 +284,23 @@ func (suite *IntegrationTestSuite) TestEventingManagerInvalidCode() {
 	suite.Require().True(success, "Upsert function did not fail in the expected way in time")
 }
 
-func (suite *IntegrationTestSuite) TestEventingManagerCollectionNotFound() {
+func (suite *IntegrationTestSuite) TestEventingManagerInvalidCode() {
+	suite.runEventingManagerInvalidCodeTest(nil)
+}
+
+func (suite *IntegrationTestSuite) runEventingManagerCollectionNotFoundTest(scope *Scope) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(EventingFunctionManagerFeature)
 
-	mgr := globalCluster.Cluster.EventingFunctions()
+	var mgr eventingManager
+	if scope == nil {
+		mgr = globalCluster.Cluster.EventingFunctions()
+	} else {
+		suite.skipIfUnsupported(ScopeEventingFunctionManagerFeature)
+
+		mgr = scope.EventingFunctions()
+	}
+
 	scopeName := uuid.NewString()
 	suite.mustCreateScope(scopeName)
 	defer suite.dropScope(scopeName)
@@ -261,11 +330,23 @@ func (suite *IntegrationTestSuite) TestEventingManagerCollectionNotFound() {
 	}
 }
 
-func (suite *IntegrationTestSuite) TestEventingManagerSameSourceAndMetaKeyspace() {
+func (suite *IntegrationTestSuite) TestEventingManagerCollectionNotFound() {
+	suite.runEventingManagerCollectionNotFoundTest(nil)
+}
+
+func (suite *IntegrationTestSuite) runEventingManagerSameSourceAndMetaKeyspaceTest(scope *Scope) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(EventingFunctionManagerFeature)
 
-	mgr := globalCluster.Cluster.EventingFunctions()
+	var mgr eventingManager
+	if scope == nil {
+		mgr = globalCluster.Cluster.EventingFunctions()
+	} else {
+		suite.skipIfUnsupported(ScopeEventingFunctionManagerFeature)
+
+		mgr = scope.EventingFunctions()
+	}
+
 	scopeName := uuid.NewString()
 	suite.mustCreateScope(scopeName)
 	defer suite.dropScope(scopeName)
@@ -300,12 +381,24 @@ func (suite *IntegrationTestSuite) TestEventingManagerSameSourceAndMetaKeyspace(
 	suite.Require().True(success, "Upsert function did not fail in the expected way in time")
 }
 
-func (suite *IntegrationTestSuite) TestEventingManagerDeploysAndUndeploys() {
+func (suite *IntegrationTestSuite) TestEventingManagerSameSourceAndMetaKeyspace() {
+	suite.runEventingManagerSameSourceAndMetaKeyspaceTest(nil)
+}
+
+func (suite *IntegrationTestSuite) runEventingManagerDeploysAndUndeploysTest(scope *Scope) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(EventingFunctionManagerFeature)
 	suite.skipIfUnsupported(EventingFunctionManagerMB52649Feature)
 
-	mgr := globalCluster.Cluster.EventingFunctions()
+	var mgr eventingManager
+	if scope == nil {
+		mgr = globalCluster.Cluster.EventingFunctions()
+	} else {
+		suite.skipIfUnsupported(ScopeEventingFunctionManagerFeature)
+
+		mgr = scope.EventingFunctions()
+	}
+
 	scopeName := uuid.NewString()
 	suite.mustCreateScope(scopeName)
 	defer suite.dropScope(scopeName)
@@ -341,7 +434,11 @@ func (suite *IntegrationTestSuite) TestEventingManagerDeploysAndUndeploys() {
 	})
 	suite.Require().True(success, "Upsert function did not succeed in time")
 
-	suite.EnsureEveningFunctionOnAllNodes(time.Now().Add(30*time.Second), fnName)
+	if scope == nil {
+		suite.EnsureEveningFunctionOnAllNodes(time.Now().Add(30*time.Second), fnName, "", "")
+	} else {
+		suite.EnsureEveningFunctionOnAllNodes(time.Now().Add(30*time.Second), fnName, scope.BucketName(), scope.Name())
+	}
 
 	actualFn, err := mgr.GetFunction(fnName, nil)
 	suite.Require().Nil(err, err)
@@ -406,12 +503,24 @@ func (suite *IntegrationTestSuite) TestEventingManagerDeploysAndUndeploys() {
 	suite.Require().Nil(err, err)
 }
 
-func (suite *IntegrationTestSuite) TestEventingManagerPausesAndResumes() {
+func (suite *IntegrationTestSuite) TestEventingManagerDeploysAndUndeploys() {
+	suite.runEventingManagerDeploysAndUndeploysTest(nil)
+}
+
+func (suite *IntegrationTestSuite) runEventingManagerPausesAndResumesTest(scope *Scope) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(EventingFunctionManagerFeature)
 	suite.skipIfUnsupported(EventingFunctionManagerMB52649Feature)
 
-	mgr := globalCluster.Cluster.EventingFunctions()
+	var mgr eventingManager
+	if scope == nil {
+		mgr = globalCluster.Cluster.EventingFunctions()
+	} else {
+		suite.skipIfUnsupported(ScopeEventingFunctionManagerFeature)
+
+		mgr = scope.EventingFunctions()
+	}
+
 	scopeName := uuid.NewString()
 	suite.mustCreateScope(scopeName)
 	defer suite.dropScope(scopeName)
@@ -447,7 +556,11 @@ func (suite *IntegrationTestSuite) TestEventingManagerPausesAndResumes() {
 	})
 	suite.Require().True(success, "Upsert function did not succeed in time")
 
-	suite.EnsureEveningFunctionOnAllNodes(time.Now().Add(30*time.Second), fnName)
+	if scope == nil {
+		suite.EnsureEveningFunctionOnAllNodes(time.Now().Add(30*time.Second), fnName, "", "")
+	} else {
+		suite.EnsureEveningFunctionOnAllNodes(time.Now().Add(30*time.Second), fnName, scope.BucketName(), scope.Name())
+	}
 
 	actualFn, err := mgr.GetFunction(fnName, nil)
 	suite.Require().Nil(err, err)
@@ -536,6 +649,10 @@ func (suite *IntegrationTestSuite) TestEventingManagerPausesAndResumes() {
 
 	err = mgr.DropFunction(fnName, nil)
 	suite.Require().Nil(err, err)
+}
+
+func (suite *IntegrationTestSuite) TestEventingManagerPausesAndResumes() {
+	suite.runEventingManagerPausesAndResumesTest(nil)
 }
 
 func (suite *IntegrationTestSuite) mustCreateScope(scope string) {

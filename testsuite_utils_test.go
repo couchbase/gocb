@@ -179,14 +179,22 @@ func (suite *IntegrationTestSuite) EnsureCollectionOnAllIndexesAndNodes(deadline
 	})
 }
 
-func (suite *IntegrationTestSuite) EnsureEveningFunctionOnAllNodes(deadline time.Time, name string) {
+func (suite *IntegrationTestSuite) EnsureEveningFunctionOnAllNodes(deadline time.Time, name, bucket, scope string) {
 	if globalCluster.IsProtostellar() {
 		return
 	}
 
 	path := fmt.Sprintf("/api/v1/functions/%s", url.PathEscape(name))
-	suite.ensureEventingResource(deadline, path, func(closer io.ReadCloser) bool {
-		return true
+	if bucket != "" && scope != "" {
+		path += fmt.Sprintf("?bucket=%s&scope=%s", url.PathEscape(bucket), url.PathEscape(scope))
+	}
+	suite.ensureEventingResource(deadline, path, func(reader io.ReadCloser) bool {
+		function := parseEventingFunction(reader)
+		if bucket == "" && scope == "" {
+			return function.FunctionScope == nil || (function.FunctionScope.BucketName == "*" && function.FunctionScope.ScopeName == "*")
+		} else {
+			return function.FunctionScope != nil && function.FunctionScope.BucketName == bucket && function.FunctionScope.ScopeName == scope
+		}
 	})
 }
 
@@ -389,4 +397,12 @@ func parseBucket(body io.ReadCloser) *BucketSettings {
 	_ = settings.fromData(bucketData)
 
 	return &settings
+}
+
+func parseEventingFunction(body io.ReadCloser) *jsonEventingFunction {
+	var function jsonEventingFunction
+	jsonDec := json.NewDecoder(body)
+	_ = jsonDec.Decode(&function)
+
+	return &function
 }

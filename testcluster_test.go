@@ -108,6 +108,7 @@ var (
 	ScopeSearchIndexFeature                   = FeatureCode("scopesearchindex")
 	ScopeSearchFeature                        = FeatureCode("scopesearch")
 	VectorSearchFeature                       = FeatureCode("vectorsearch")
+	ScopeEventingFunctionManagerFeature       = FeatureCode("scopeeventingmanagement")
 )
 
 type TestFeatureFlag struct {
@@ -263,6 +264,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case VectorSearchFeature:
 			supported = false
+		case ScopeEventingFunctionManagerFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -404,6 +407,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer760) && !c.Version.Equal(protostellarVer)
 		case VectorSearchFeature:
 			supported = !c.Version.Lower(srvVer760) && !c.Version.Equal(protostellarVer)
+		case ScopeEventingFunctionManagerFeature:
+			supported = !c.Version.Lower(srvVer710) && !c.Version.Equal(protostellarVer)
 		}
 	}
 

@@ -15,14 +15,15 @@ type Scope struct {
 
 	useMutationTokens bool
 
-	getKvProvider          func() (kvProvider, error)
-	getKvBulkProvider      func() (kvBulkProvider, error)
-	getQueryProvider       func() (queryProvider, error)
-	getQueryIndexProvider  func() (queryIndexProvider, error)
-	getSearchProvider      func() (searchProvider, error)
-	getSearchIndexProvider func() (searchIndexProvider, error)
-	getAnalyticsProvider   func() (analyticsProvider, error)
-	getTransactions        func() *Transactions
+	getKvProvider                 func() (kvProvider, error)
+	getKvBulkProvider             func() (kvBulkProvider, error)
+	getQueryProvider              func() (queryProvider, error)
+	getQueryIndexProvider         func() (queryIndexProvider, error)
+	getSearchProvider             func() (searchProvider, error)
+	getSearchIndexProvider        func() (searchIndexProvider, error)
+	getAnalyticsProvider          func() (analyticsProvider, error)
+	getEventingManagementProvider func() (eventingManagementProvider, error)
+	getTransactions               func() *Transactions
 }
 
 func newScope(bucket *Bucket, scopeName string) *Scope {
@@ -40,14 +41,15 @@ func newScope(bucket *Bucket, scopeName string) *Scope {
 
 		useMutationTokens: bucket.useMutationTokens,
 
-		getKvProvider:          bucket.getKvProvider,
-		getKvBulkProvider:      bucket.getKvBulkProvider,
-		getQueryProvider:       bucket.getQueryProvider,
-		getQueryIndexProvider:  bucket.getQueryIndexProvider,
-		getSearchProvider:      bucket.getSearchProvider,
-		getSearchIndexProvider: bucket.getSearchIndexProvider,
-		getAnalyticsProvider:   bucket.getAnalyticsProvider,
-		getTransactions:        bucket.getTransactions,
+		getKvProvider:                 bucket.getKvProvider,
+		getKvBulkProvider:             bucket.getKvBulkProvider,
+		getQueryProvider:              bucket.getQueryProvider,
+		getQueryIndexProvider:         bucket.getQueryIndexProvider,
+		getSearchProvider:             bucket.getSearchProvider,
+		getSearchIndexProvider:        bucket.getSearchIndexProvider,
+		getAnalyticsProvider:          bucket.getAnalyticsProvider,
+		getEventingManagementProvider: bucket.getEventingManagementProvider,
+		getTransactions:               bucket.getTransactions,
 	}
 }
 
@@ -71,6 +73,19 @@ func (s *Scope) Collection(collectionName string) *Collection {
 func (s *Scope) SearchIndexes() *ScopeSearchIndexManager {
 	return &ScopeSearchIndexManager{
 		getProvider: s.getSearchIndexProvider,
+
+		scope: s,
+	}
+}
+
+// EventingFunctions returns a ScopeEventingFunctionManager for managing scope-level eventing functions.
+//
+// # UNCOMMITTED
+//
+// This API is UNCOMMITTED and may change in the future.
+func (s *Scope) EventingFunctions() *ScopeEventingFunctionManager {
+	return &ScopeEventingFunctionManager{
+		getProvider: s.getEventingManagementProvider,
 
 		scope: s,
 	}

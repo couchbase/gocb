@@ -161,6 +161,10 @@ func (c *psConnectionMgr) getWaitUntilReadyProvider(bucketName string) (waitUnti
 	}, nil
 }
 
+func (c *psConnectionMgr) getEventingManagementProvider() (eventingManagementProvider, error) {
+	return nil, ErrFeatureNotAvailable
+}
+
 func (c *psConnectionMgr) connection(bucketName string) (*gocbcore.Agent, error) {
 	return &gocbcore.Agent{}, ErrFeatureNotAvailable
 }

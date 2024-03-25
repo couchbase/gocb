@@ -142,6 +142,15 @@ func (b *Bucket) getAnalyticsProvider() (analyticsProvider, error) {
 	return agent, nil
 }
 
+func (b *Bucket) getEventingManagementProvider() (eventingManagementProvider, error) {
+	provider, err := b.connectionManager.getEventingManagementProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}
+
 // Name returns the name of the bucket.
 func (b *Bucket) Name() string {
 	return b.bucketName

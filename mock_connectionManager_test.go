@@ -216,6 +216,36 @@ func (_m *mockConnectionManager) getDiagnosticsProvider(bucketName string) (diag
 	return r0, r1
 }
 
+// getEventingManagementProvider provides a mock function with given fields:
+func (_m *mockConnectionManager) getEventingManagementProvider() (eventingManagementProvider, error) {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for getEventingManagementProvider")
+	}
+
+	var r0 eventingManagementProvider
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (eventingManagementProvider, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() eventingManagementProvider); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(eventingManagementProvider)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // getHTTPProvider provides a mock function with given fields: bucketName
 func (_m *mockConnectionManager) getHTTPProvider(bucketName string) (httpProvider, error) {
 	ret := _m.Called(bucketName)

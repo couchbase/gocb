@@ -555,6 +555,15 @@ func (c *Cluster) getbucketManagementProvider() (bucketManagementProvider, error
 	return provider, nil
 }
 
+func (c *Cluster) getEventingManagementProvider() (eventingManagementProvider, error) {
+	provider, err := c.connectionManager.getEventingManagementProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}
+
 // Users returns a UserManager for managing users.
 func (c *Cluster) Users() *UserManager {
 	return &UserManager{
@@ -597,12 +606,13 @@ func (c *Cluster) SearchIndexes() *SearchIndexManager {
 }
 
 // EventingFunctions returns a EventingFunctionManager for managing eventing functions.
-// UNCOMMITTED: This API may change in the future.
+//
+// # UNCOMMITTED
+//
+// This API is UNCOMMITTED and may change in the future.
 func (c *Cluster) EventingFunctions() *EventingFunctionManager {
 	return &EventingFunctionManager{
-		mgmtProvider: c,
-		tracer:       c.tracer,
-		meter:        c.meter,
+		getProvider: c.getEventingManagementProvider,
 	}
 }
 
