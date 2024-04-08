@@ -452,18 +452,20 @@ func (suite *IntegrationTestSuite) AssertHLCRelativeExpiry(key string, expiry ti
 	exp := suite.parseExpiryOutOfResult(lookupRes, 0)
 	hlc := suite.parseHLCOutOfResult(lookupRes, 1)
 
-	actualExpiry := time.Unix(exp, 0).Sub(time.Unix(int64(hlc), 0))
+	actualExpirySecs := float64(exp - int64(hlc))
+	expectedExpiryUpperSecs := (expiry + epsilonUpper).Seconds()
+	expectedExpiryLowerSecs := (expiry - epsilonLower).Seconds()
 
+	suite.Assert().LessOrEqual(
+		actualExpirySecs,
+		expectedExpiryUpperSecs,
+		"Expected expiry to be less than %f but was %f", expectedExpiryUpperSecs,
+		actualExpirySecs)
 	suite.Assert().Greaterf(
-		expiry+epsilonUpper,
-		actualExpiry,
-		"Expected expiry to be less than %f but was %f", expiry.Seconds(),
-		actualExpiry.Seconds())
-	suite.Assert().Greaterf(
-		actualExpiry,
-		expiry-epsilonLower,
-		"Expected expiry to be greater than %f but was %f", expiry.Seconds(),
-		actualExpiry.Seconds())
+		actualExpirySecs,
+		expectedExpiryLowerSecs,
+		"Expected expiry to be greater than %f but was %f", expectedExpiryLowerSecs,
+		actualExpirySecs)
 }
 
 func (suite *IntegrationTestSuite) parseExpiryOutOfResult(res *LookupInResult, index uint) int64 {
