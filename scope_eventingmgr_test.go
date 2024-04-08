@@ -49,6 +49,8 @@ func (suite *IntegrationTestSuite) TestScopeEventingManagerGetAllFunctionsFilter
 	scopeName := uuid.NewString()
 	suite.mustCreateScope(scopeName)
 	defer suite.dropScope(scopeName)
+	suite.EnsureScopeOnAllNodes(scopeName)
+
 	suite.mustCreateCollection(scopeName, "source")
 	suite.mustCreateCollection(scopeName, "meta")
 

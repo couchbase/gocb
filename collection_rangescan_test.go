@@ -435,6 +435,8 @@ func (suite *IntegrationTestSuite) TestRangeScanSampling() {
 	err := colMgr.CreateScope(scopeName, nil)
 	suite.Require().Nil(err, err)
 	defer colMgr.DropScope(scopeName, nil)
+	suite.EnsureScopeOnAllNodes(scopeName)
+
 	err = colMgr.CreateCollection(scopeName, scopeName, nil, nil)
 	suite.Require().Nil(err, err)
 

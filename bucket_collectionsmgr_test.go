@@ -1078,6 +1078,8 @@ func (suite *IntegrationTestSuite) runCreateCollectionWithMaxExpiryAsNoExpiryTes
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
+	suite.EnsureScopeOnAllNodes(scopeName)
+
 	if v2 {
 		err = mgrV2.CreateCollection(scopeName, collectionName, &CreateCollectionSettings{
 			MaxExpiry: -1 * time.Second,
@@ -1161,6 +1163,8 @@ func (suite *IntegrationTestSuite) runUpdateCollectionWithMaxExpiryAsNoExpiryTes
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
+
+	suite.EnsureScopeOnAllNodes(scopeName)
 
 	if v2 {
 		err = mgrV2.CreateCollection(scopeName, collectionName, &CreateCollectionSettings{

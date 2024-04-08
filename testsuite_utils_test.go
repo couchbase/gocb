@@ -220,6 +220,28 @@ func (suite *IntegrationTestSuite) EnsureBucketOnAllNodes(deadline time.Time, na
 	})
 }
 
+func (suite *IntegrationTestSuite) EnsureScopeOnAllNodes(scopeName string) {
+	if globalCluster.IsProtostellar() {
+		return
+	}
+
+	path := fmt.Sprintf("/pools/default/buckets/%s/scopes", url.PathEscape(globalBucket.Name()))
+	suite.ensureMgmtResource(time.Now().Add(30*time.Second), path, func(reader io.ReadCloser) bool {
+		var mfest gocbcore.Manifest
+		jsonDec := json.NewDecoder(reader)
+		jsonDec.Decode(&mfest)
+
+		for _, scope := range mfest.Scopes {
+			if scope.Name == scopeName {
+				return true
+			}
+		}
+		suite.T().Log("Did not find scope, will retry")
+
+		return false
+	})
+}
+
 func (suite *IntegrationTestSuite) EnsureCollectionsOnAllNodes(scopeName string, collections []string) {
 	if globalCluster.IsProtostellar() {
 		return

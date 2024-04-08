@@ -35,6 +35,8 @@ func (suite *IntegrationTestSuite) runEventingManagerUpsertGetDropTest(scope *Sc
 	scopeName := uuid.NewString()
 	suite.mustCreateScope(scopeName)
 	defer suite.dropScope(scopeName)
+	suite.EnsureScopeOnAllNodes(scopeName)
+
 	suite.mustCreateCollection(scopeName, "source")
 	suite.mustCreateCollection(scopeName, "meta")
 
@@ -192,6 +194,8 @@ func (suite *IntegrationTestSuite) runEventingManagerUnknownFunctionTest(scope *
 	scopeName := uuid.NewString()
 	suite.mustCreateScope(scopeName)
 	defer suite.dropScope(scopeName)
+	suite.EnsureScopeOnAllNodes(scopeName)
+
 	suite.mustCreateCollection(scopeName, "source")
 	suite.mustCreateCollection(scopeName, "meta")
 
@@ -252,6 +256,8 @@ func (suite *IntegrationTestSuite) runEventingManagerInvalidCodeTest(scope *Scop
 	scopeName := uuid.NewString()
 	suite.mustCreateScope(scopeName)
 	defer suite.dropScope(scopeName)
+	suite.EnsureScopeOnAllNodes(scopeName)
+
 	suite.mustCreateCollection(scopeName, "source")
 	suite.mustCreateCollection(scopeName, "meta")
 
@@ -304,6 +310,8 @@ func (suite *IntegrationTestSuite) runEventingManagerCollectionNotFoundTest(scop
 	scopeName := uuid.NewString()
 	suite.mustCreateScope(scopeName)
 	defer suite.dropScope(scopeName)
+	suite.EnsureScopeOnAllNodes(scopeName)
+
 	suite.mustCreateCollection(scopeName, "source")
 
 	suite.EnsureCollectionsOnAllNodes(scopeName, []string{"source"})
@@ -350,6 +358,8 @@ func (suite *IntegrationTestSuite) runEventingManagerSameSourceAndMetaKeyspaceTe
 	scopeName := uuid.NewString()
 	suite.mustCreateScope(scopeName)
 	defer suite.dropScope(scopeName)
+	suite.EnsureScopeOnAllNodes(scopeName)
+
 	suite.mustCreateCollection(scopeName, "source")
 
 	suite.EnsureCollectionsOnAllNodes(scopeName, []string{"source"})
@@ -402,6 +412,8 @@ func (suite *IntegrationTestSuite) runEventingManagerDeploysAndUndeploysTest(sco
 	scopeName := uuid.NewString()
 	suite.mustCreateScope(scopeName)
 	defer suite.dropScope(scopeName)
+	suite.EnsureScopeOnAllNodes(scopeName)
+
 	suite.mustCreateCollection(scopeName, "source")
 	suite.mustCreateCollection(scopeName, "meta")
 
@@ -524,6 +536,8 @@ func (suite *IntegrationTestSuite) runEventingManagerPausesAndResumesTest(scope 
 	scopeName := uuid.NewString()
 	suite.mustCreateScope(scopeName)
 	defer suite.dropScope(scopeName)
+	suite.EnsureScopeOnAllNodes(scopeName)
+
 	suite.mustCreateCollection(scopeName, "source")
 	suite.mustCreateCollection(scopeName, "meta")
 

@@ -19,6 +19,8 @@ func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrud() {
 	suite.Require().Nil(err, err)
 	defer colmgr.DropScope(scopeName, nil)
 
+	suite.EnsureScopeOnAllNodes(scopeName)
+
 	err = colmgr.CreateCollection(scopeName, colName, nil, nil)
 	suite.Require().Nil(err, err)
 
