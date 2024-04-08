@@ -523,29 +523,27 @@ func (suite *UnitTestSuite) TestRangeScanLoadBalancer() {
 		balancer := newRangeScanLoadBalancer(serverToVbucketMap, 0)
 
 		// select all vbuckets
-		ch := make(chan *uint16)
+		ch := make(chan uint16)
+		var count atomic.Uint32
 		for i := 0; i <= len(vbucketServers); i++ {
 			go func() {
 				vbucket, ok := balancer.selectVbucket()
 				if ok {
-					ch <- &vbucket.id
-				} else {
-					ch <- nil
+					ch <- vbucket.id
+				}
+
+				if count.Add(1) == uint32(len(vbucketServers)+1) {
 					close(ch)
 				}
 			}()
 		}
 
-		var selectedVbuckets []*uint16
-		for i := 0; i < len(vbucketServers); i++ {
-			v := <-ch
-			suite.Require().NotNil(v)
-			suite.Assert().NotContains(selectedVbuckets, v)
-			selectedVbuckets = append(selectedVbuckets, v)
+		var selectedVbuckets []uint16
+		for vbId := range ch {
+			suite.Assert().NotContains(selectedVbuckets, vbId)
+			selectedVbuckets = append(selectedVbuckets, vbId)
 		}
-		v := <-ch
-		suite.Assert().Nil(v)
-		suite.Assert().Empty(ch)
+		suite.Assert().Equal(len(vbucketServers), len(selectedVbuckets))
 	})
 
 	suite.Run("retried vbucket id will be returned twice", func() {
