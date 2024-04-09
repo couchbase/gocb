@@ -85,6 +85,9 @@ var (
 
 	// EventingFunctionLanguageCompatibilityVersion662 represents the eventing function language compatibility 6.6.2.
 	EventingFunctionLanguageCompatibilityVersion662 EventingFunctionLanguageCompatibility = "6.6.2"
+
+	// EventingFunctionLanguageCompatibilityVersion720 represents the eventing function language compatibility 7.2.0
+	EventingFunctionLanguageCompatibilityVersion720 EventingFunctionLanguageCompatibility = "7.2.0"
 )
 
 // EventingFunctionLogLevel represents the granularity at which to log messages for the eventing function.
