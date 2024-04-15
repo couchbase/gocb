@@ -266,6 +266,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case ScopeEventingFunctionManagerFeature:
 			supported = false
+		case WaitUntilReadyFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
