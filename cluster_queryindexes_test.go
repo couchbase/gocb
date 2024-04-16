@@ -28,7 +28,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 		suite.Require().Nil(err, err)
 		defer bucketMgr.DropBucket(bucketName, nil)
 
-		suite.EnsureBucketOnAllNodes(time.Now().Add(30*time.Second), bucketName, nil)
+		suite.EnsureBucketOnAllIndexesAndNodes(time.Now().Add(30*time.Second), bucketName)
 	} else {
 		bucketName = globalBucket.Name()
 		indexes, err := mgr.GetAllIndexes(bucketName, &GetAllQueryIndexesOptions{
@@ -484,7 +484,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesIncludesDefaultCollection() {
 		suite.Require().Nil(err, err)
 		defer bucketMgr.DropBucket(bucketName, nil)
 
-		suite.EnsureBucketOnAllNodes(time.Now().Add(30*time.Second), bucketName, nil)
+		suite.EnsureBucketOnAllIndexesAndNodes(time.Now().Add(30*time.Second), bucketName)
 	} else {
 		bucketName = globalBucket.Name()
 		indexes, err := mgr.GetAllIndexes(bucketName, &GetAllQueryIndexesOptions{

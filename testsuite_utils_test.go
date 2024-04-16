@@ -179,6 +179,43 @@ func (suite *IntegrationTestSuite) EnsureCollectionOnAllIndexesAndNodes(deadline
 	})
 }
 
+func (suite *IntegrationTestSuite) EnsureBucketOnAllIndexesAndNodes(deadline time.Time, bucket string) {
+	if globalCluster.IsProtostellar() {
+		return
+	}
+
+	payload := map[string]interface{}{
+		"statement": "SELECT COUNT(*) as count FROM system:keyspaces where `name`=$bucket",
+		"$bucket":   bucket,
+	}
+	b, _ := json.Marshal(payload)
+
+	type queryResult struct {
+		Results []struct {
+			Count int `json:"count"`
+		} `json:"results"`
+	}
+
+	suite.ensureQueryResource(deadline, b, func(reader io.ReadCloser) bool {
+		var result queryResult
+		jsonDec := json.NewDecoder(reader)
+		_ = jsonDec.Decode(&result)
+
+		if len(result.Results) != 1 {
+			suite.T().Logf("Unexpected number of results: %d", len(result.Results))
+			return false
+		}
+
+		if result.Results[0].Count > 0 {
+			return true
+		}
+
+		suite.T().Logf("Bucket keyspace was not found")
+
+		return false
+	})
+}
+
 func (suite *IntegrationTestSuite) EnsureEveningFunctionOnAllNodes(deadline time.Time, name, bucket, scope string) {
 	if globalCluster.IsProtostellar() {
 		return

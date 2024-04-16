@@ -305,6 +305,8 @@ func (suite *IntegrationTestSuite) runTestDropNonExistentCollectionTest(v2 bool)
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
 
+	suite.EnsureScopeOnAllNodes(scopeName)
+
 	if v2 {
 		err = mgrV2.CreateCollection(scopeName, generateDocId("testDropCollectionY"), nil, nil)
 	} else {
@@ -365,6 +367,9 @@ func (suite *IntegrationTestSuite) runCollectionsAreNotPresentTest(v2 bool) {
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
+
+	suite.EnsureScopeOnAllNodes(scopeName1)
+	suite.EnsureScopeOnAllNodes(scopeName2)
 
 	if v2 {
 		err = mgrV2.CreateCollection(scopeName1, collectionName1, nil, nil)
