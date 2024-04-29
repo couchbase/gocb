@@ -46,10 +46,22 @@ func (cm *collectionsManagementProviderPs) GetAllScopes(opts *GetAllScopesOption
 	for _, scope := range resp.GetScopes() {
 		var collections []CollectionSpec
 		for _, col := range scope.Collections {
+
+			var expiry int32
+			// Since protostellar does not support negative values for MaxExpirySecs no_expiry and bucket expiry inheritance are
+			// indicated with MaxExpirySecs = 0, and MaxExpirySecs = nil respectively
+			if col.MaxExpirySecs == nil {
+				expiry = 0
+			} else if col.GetMaxExpirySecs() == 0 {
+				expiry = -1
+			} else {
+				expiry = int32(col.GetMaxExpirySecs())
+			}
+
 			collections = append(collections, CollectionSpec{
 				Name:      col.Name,
 				ScopeName: scope.Name,
-				MaxExpiry: time.Duration(col.GetMaxExpirySecs()) * time.Second,
+				MaxExpiry: time.Duration(expiry) * time.Second,
 			})
 		}
 		scopes = append(scopes, ScopeSpec{
@@ -88,6 +100,11 @@ func (cm *collectionsManagementProviderPs) CreateCollection(scopeName string, co
 	if settings.MaxExpiry > 0 {
 		expiry := uint32(settings.MaxExpiry.Seconds())
 		req.MaxExpirySecs = &expiry
+	} else if settings.MaxExpiry < 0 {
+		// Since protostellar does not support negative values for MaxExpirySecs no_expiry and bucket expiry inheritance are
+		// indicated with MaxExpirySecs = 0, and MaxExpirySecs = nil respectively
+		expiry := uint32(0)
+		req.MaxExpirySecs = &expiry
 	}
 
 	_, err := wrapPSOp(manager, req, cm.provider.CreateCollection)
@@ -124,7 +141,12 @@ func (cm *collectionsManagementProviderPs) UpdateCollection(scopeName string, co
 	if settings.MaxExpiry > 0 {
 		expiry := uint32(settings.MaxExpiry.Seconds())
 		req.MaxExpirySecs = &expiry
+	} else if settings.MaxExpiry < 0 {
+		// Since protostellar does not support negative values for MaxExpirySecs no_expiry is indicated with MaxExpirySecs = 0
+		expiry := uint32(0)
+		req.MaxExpirySecs = &expiry
 	}
+
 	if settings.History != nil {
 		req.HistoryRetentionEnabled = &settings.History.Enabled
 	}
