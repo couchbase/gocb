@@ -2,7 +2,7 @@ module github.com/couchbase/gocb/v2
 
 require (
 	github.com/couchbase/gocbcore/v10 v10.4.1
-	github.com/couchbase/gocbcoreps v0.1.2
+	github.com/couchbase/gocbcoreps v0.1.3-0.20240408143129-4eb6ff9e2678
 	github.com/couchbase/goprotostellar v1.0.2
 	github.com/couchbaselabs/gocaves/client v0.0.0-20230404095311-05e3ba4f0259
 	github.com/couchbaselabs/gocbconnstr/v2 v2.0.0-20230515165046-68b522a21131
@@ -17,9 +17,15 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/go-logr/logr v1.4.1 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.49.0 // indirect
+	go.opentelemetry.io/otel v1.24.0 // indirect
+	go.opentelemetry.io/otel/metric v1.24.0 // indirect
+	go.opentelemetry.io/otel/trace v1.24.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/net v0.24.0 // indirect
 	golang.org/x/sys v0.19.0 // indirect
