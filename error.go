@@ -89,12 +89,12 @@ var (
 	// ErrUnsupportedOperation occurs when an operation that is unsupported or unknown is performed against the server.
 	ErrUnsupportedOperation = gocbcore.ErrUnsupportedOperation
 
-	// ErrAmbiguousTimeout occurs when an operation does not receive a response in a timely manner for a reason that
-	//
+	// ErrAmbiguousTimeout occurs when an operation does not receive a response in a timely manner, and it cannot be
+	// established whether the operation has mutated any data.
 	ErrAmbiguousTimeout = gocbcore.ErrAmbiguousTimeout
 
-	// ErrAmbiguousTimeout occurs when an operation does not receive a response in a timely manner for a reason that
-	// it can be safely established that
+	// ErrUnambiguousTimeout occurs when an operation does not receive a response in a timely manner, and we are
+	// confident that the operation has not mutated any data.
 	ErrUnambiguousTimeout = gocbcore.ErrUnambiguousTimeout
 
 	// ErrFeatureNotAvailable occurs when an operation is performed on a bucket which does not support it.
