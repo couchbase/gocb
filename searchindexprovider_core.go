@@ -144,6 +144,60 @@ func (sm *searchIndexProviderCore) GetIndex(scope *Scope, indexName string, opts
 	return &indexDef, nil
 }
 
+func (sm *searchIndexProviderCore) validateIndexVectorMappingsProperties(vectorMappingProperties map[string]interface{}) error {
+	for _, val := range vectorMappingProperties {
+		if v, ok := val.(map[string]interface{}); ok {
+			if fields, ok := v["fields"]; ok {
+				if f, ok := fields.([]interface{}); ok {
+					for _, field := range f {
+						if item, ok := field.(map[string]interface{}); ok {
+							if typ, ok := item["type"]; ok {
+								if t, ok := typ.(string); ok {
+									if (t == "vector" || t == "vector_base64") && sm.vectorSearchUnsupported() {
+										return wrapError(ErrFeatureNotAvailable, "indexes with vectors cannot be used with this server version")
+									}
+								}
+							}
+						}
+					}
+				}
+			} else if properties, ok := v["properties"]; ok {
+				if p, ok := properties.(map[string]interface{}); ok {
+					if err := sm.validateIndexVectorMappingsProperties(p); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (sm *searchIndexProviderCore) validateIndexVectorMappings(indexDefinition SearchIndex) error {
+	if mapping, ok := indexDefinition.Params["mapping"]; ok {
+		if m, ok := mapping.(map[string]interface{}); ok {
+			if types, ok := m["types"]; ok {
+				if t, ok := types.(map[string]interface{}); ok {
+					for _, val := range t {
+						if v, ok := val.(map[string]interface{}); ok {
+							if properties, ok := v["properties"]; ok {
+								if p, ok := properties.(map[string]interface{}); ok {
+									if err := sm.validateIndexVectorMappingsProperties(p); err != nil {
+										return err
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 func (sm *searchIndexProviderCore) UpsertIndex(scope *Scope, indexDefinition SearchIndex, opts *UpsertSearchIndexOptions) error {
 	if opts == nil {
 		opts = &UpsertSearchIndexOptions{}
@@ -151,6 +205,10 @@ func (sm *searchIndexProviderCore) UpsertIndex(scope *Scope, indexDefinition Sea
 
 	if scope != nil && sm.scopedIndexesUnsupported() {
 		return wrapError(ErrFeatureNotAvailable, "scoped indexes cannot be used with this server version")
+	}
+
+	if err := sm.validateIndexVectorMappings(indexDefinition); err != nil {
+		return err
 	}
 
 	if indexDefinition.Name == "" {
@@ -542,6 +600,10 @@ func (sm *searchIndexProviderCore) pathPrefix(scope *Scope) string {
 
 func (sm *searchIndexProviderCore) scopedIndexesUnsupported() bool {
 	return sm.searchCapVerifier.SearchCapabilityStatus(gocbcore.SearchCapabilityScopedIndexes) == gocbcore.CapabilityStatusUnsupported
+}
+
+func (sm *searchIndexProviderCore) vectorSearchUnsupported() bool {
+	return sm.searchCapVerifier.SearchCapabilityStatus(gocbcore.SearchCapabilityVectorSearch) == gocbcore.CapabilityStatusUnsupported
 }
 
 func (sm *searchIndexProviderCore) performControlRequest(
