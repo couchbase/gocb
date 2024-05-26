@@ -11,7 +11,7 @@ type kvProvider interface {
 	Remove(*Collection, string, *RemoveOptions) (*MutationResult, error)                // Done
 
 	Get(*Collection, string, *GetOptions) (*GetResult, error)                                // Done
-	Exists(*Collection, string, *ExistsOptions) (*ExistsResult, error)                       // Done
+	Exists(*Collection, string, *ExistsOptions) (ExistsResult, error)                        // Done
 	GetAndTouch(*Collection, string, time.Duration, *GetAndTouchOptions) (*GetResult, error) // Done
 	GetAndLock(*Collection, string, time.Duration, *GetAndLockOptions) (*GetResult, error)   // Done
 	Unlock(*Collection, string, Cas, *UnlockOptions) error                                   // Done
