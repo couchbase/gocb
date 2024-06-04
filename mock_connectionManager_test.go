@@ -96,6 +96,36 @@ func (_m *mockConnectionManager) connection(bucketName string) (*gocbcore.Agent,
 	return r0, r1
 }
 
+// getAnalyticsIndexProvider provides a mock function with given fields:
+func (_m *mockConnectionManager) getAnalyticsIndexProvider() (analyticsIndexProvider, error) {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for getAnalyticsIndexProvider")
+	}
+
+	var r0 analyticsIndexProvider
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (analyticsIndexProvider, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() analyticsIndexProvider); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(analyticsIndexProvider)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // getAnalyticsProvider provides a mock function with given fields:
 func (_m *mockConnectionManager) getAnalyticsProvider() (analyticsProvider, error) {
 	ret := _m.Called()

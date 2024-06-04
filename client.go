@@ -17,6 +17,7 @@ type connectionManager interface {
 	getQueryProvider() (queryProvider, error)
 	getQueryIndexProvider() (queryIndexProvider, error)
 	getAnalyticsProvider() (analyticsProvider, error)
+	getAnalyticsIndexProvider() (analyticsIndexProvider, error)
 	getSearchProvider() (searchProvider, error)
 	getHTTPProvider(bucketName string) (httpProvider, error)
 	getDiagnosticsProvider(bucketName string) (diagnosticsProvider, error)

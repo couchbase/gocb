@@ -39,6 +39,7 @@ updatemocks:
 	mockery --name=searchProviderCoreProvider --output=. --testonly --inpackage
 	mockery --name=searchCapabilityVerifier --output=. --testonly --inpackage
 	mockery --name=viewProviderCoreProvider --output=. --testonly --inpackage
+	mockery --name=analyticsProviderCoreProvider --output=. --testonly --inpackage
 	# pendingOp is manually mocked
 
 .PHONY: all test devsetup fasttest lint cover check bench updatetestcases updatemocks

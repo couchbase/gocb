@@ -13,10 +13,6 @@ type httpProvider interface {
 	DoHTTPRequest(ctx context.Context, req *gocbcore.HTTPRequest) (*gocbcore.HTTPResponse, error)
 }
 
-type analyticsProvider interface {
-	AnalyticsQuery(ctx context.Context, opts gocbcore.AnalyticsQueryOptions) (analyticsRowReader, error)
-}
-
 type diagnosticsProvider interface {
 	Diagnostics(opts gocbcore.DiagnosticsOptions) (*gocbcore.DiagnosticInfo, error)
 	Ping(ctx context.Context, opts gocbcore.PingOptions) (*gocbcore.PingResult, error)

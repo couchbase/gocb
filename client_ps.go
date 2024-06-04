@@ -139,7 +139,11 @@ func (c *psConnectionMgr) getBucketManagementProvider() (bucketManagementProvide
 }
 
 func (c *psConnectionMgr) getAnalyticsProvider() (analyticsProvider, error) {
-	return &analyticsProviderWrapper{}, ErrFeatureNotAvailable
+	return nil, ErrFeatureNotAvailable
+}
+
+func (c *psConnectionMgr) getAnalyticsIndexProvider() (analyticsIndexProvider, error) {
+	return nil, ErrFeatureNotAvailable
 }
 
 func (c *psConnectionMgr) getSearchProvider() (searchProvider, error) {

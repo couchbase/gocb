@@ -251,7 +251,51 @@ func (c *stdConnectionMgr) getAnalyticsProvider() (analyticsProvider, error) {
 		return nil, errors.New("cluster not yet connected")
 	}
 
-	return &analyticsProviderWrapper{provider: c.agentgroup}, nil
+	mgmtProvider, err := c.getHTTPProvider("")
+	if err != nil {
+		return nil, err
+	}
+
+	return &analyticsProviderCore{
+		provider: &analyticsProviderWrapper{provider: c.agentgroup},
+		mgmtProvider: &mgmtProviderCore{
+			provider:             mgmtProvider,
+			mgmtTimeout:          c.timeouts.ManagementTimeout,
+			retryStrategyWrapper: c.retryStrategyWrapper,
+		},
+
+		retryStrategyWrapper: c.retryStrategyWrapper,
+		transcoder:           c.transcoder,
+		analyticsTimeout:     c.timeouts.AnalyticsTimeout,
+		tracer:               c.tracer,
+		meter:                c.meter,
+	}, nil
+}
+
+func (c *stdConnectionMgr) getAnalyticsIndexProvider() (analyticsIndexProvider, error) {
+	if c.agentgroup == nil {
+		return nil, errors.New("cluster not yet connected")
+	}
+
+	mgmtProvider, err := c.getHTTPProvider("")
+	if err != nil {
+		return nil, err
+	}
+
+	return &analyticsProviderCore{
+		provider: &analyticsProviderWrapper{provider: c.agentgroup},
+		mgmtProvider: &mgmtProviderCore{
+			provider:             mgmtProvider,
+			mgmtTimeout:          c.timeouts.ManagementTimeout,
+			retryStrategyWrapper: c.retryStrategyWrapper,
+		},
+
+		retryStrategyWrapper: c.retryStrategyWrapper,
+		transcoder:           c.transcoder,
+		analyticsTimeout:     c.timeouts.AnalyticsTimeout,
+		tracer:               c.tracer,
+		meter:                c.meter,
+	}, nil
 }
 
 func (c *stdConnectionMgr) getSearchProvider() (searchProvider, error) {

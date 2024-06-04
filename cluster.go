@@ -519,6 +519,15 @@ func (c *Cluster) getAnalyticsProvider() (analyticsProvider, error) {
 	return provider, nil
 }
 
+func (c *Cluster) getAnalyticsIndexProvider() (analyticsIndexProvider, error) {
+	provider, err := c.connectionManager.getAnalyticsIndexProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}
+
 func (c *Cluster) getSearchProvider() (searchProvider, error) {
 	provider, err := c.connectionManager.getSearchProvider()
 	if err != nil {
@@ -583,11 +592,7 @@ func (c *Cluster) Buckets() *BucketManager {
 // AnalyticsIndexes returns an AnalyticsIndexManager for managing analytics indexes.
 func (c *Cluster) AnalyticsIndexes() *AnalyticsIndexManager {
 	return &AnalyticsIndexManager{
-		aProvider:     c,
-		mgmtProvider:  c,
-		globalTimeout: c.timeoutsConfig.ManagementTimeout,
-		tracer:        c.tracer,
-		meter:         c.meter,
+		getProvider: c.getAnalyticsIndexProvider,
 	}
 }
 

@@ -1,39 +1,10 @@
 package gocb
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"time"
-
-	gocbcore "github.com/couchbase/gocbcore/v10"
 )
-
-type jsonAnalyticsMetrics struct {
-	ElapsedTime      string `json:"elapsedTime"`
-	ExecutionTime    string `json:"executionTime"`
-	ResultCount      uint64 `json:"resultCount"`
-	ResultSize       uint64 `json:"resultSize"`
-	MutationCount    uint64 `json:"mutationCount,omitempty"`
-	SortCount        uint64 `json:"sortCount,omitempty"`
-	ErrorCount       uint64 `json:"errorCount,omitempty"`
-	WarningCount     uint64 `json:"warningCount,omitempty"`
-	ProcessedObjects uint64 `json:"processedObjects,omitempty"`
-}
-
-type jsonAnalyticsWarning struct {
-	Code    uint32 `json:"code"`
-	Message string `json:"msg"`
-}
-
-type jsonAnalyticsResponse struct {
-	RequestID       string                 `json:"requestID"`
-	ClientContextID string                 `json:"clientContextID"`
-	Status          string                 `json:"status"`
-	Warnings        []jsonAnalyticsWarning `json:"warnings"`
-	Metrics         jsonAnalyticsMetrics   `json:"metrics"`
-	Signature       interface{}            `json:"signature"`
-}
 
 // AnalyticsMetrics encapsulates various metrics gathered during a queries execution.
 type AnalyticsMetrics struct {
@@ -166,13 +137,6 @@ func newAnalyticsResult(reader analyticsRowReader) *AnalyticsResult {
 	}
 }
 
-type analyticsRowReader interface {
-	NextRow() []byte
-	Err() error
-	MetaData() ([]byte, error)
-	Close() error
-}
-
 // Raw returns a AnalyticsResult which can be used to access the raw byte data from search queries.
 // Calling this function invalidates the underlying AnalyticsResult which will no longer be able to be used.
 // VOLATILE: This API is subject to change at any time.
@@ -303,50 +267,12 @@ func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*Ana
 		opts = &AnalyticsOptions{}
 	}
 
-	start := time.Now()
-	defer c.meter.ValueRecord(meterValueServiceAnalytics, "analytics", start)
-
-	span := createSpan(c.tracer, opts.ParentSpan, "analytics", "analytics")
-	span.SetAttribute("db.statement", statement)
-	defer span.End()
-
-	timeout := opts.Timeout
-	if opts.Timeout == 0 {
-		timeout = c.timeoutsConfig.AnalyticsTimeout
-	}
-	deadline := time.Now().Add(timeout)
-
-	retryStrategy := c.retryStrategyWrapper
-	if opts.RetryStrategy != nil {
-		retryStrategy = newCoreRetryStrategyWrapper(opts.RetryStrategy)
-	}
-
-	queryOpts, err := opts.toMap()
-	if err != nil {
-		return nil, &AnalyticsError{
-			InnerError:      wrapError(err, "failed to generate query options"),
-			Statement:       statement,
-			ClientContextID: opts.ClientContextID,
-		}
-	}
-
-	var priorityInt int32
-	if opts.Priority {
-		priorityInt = -1
-	}
-
-	queryOpts["statement"] = statement
-
 	provider, err := c.getAnalyticsProvider()
 	if err != nil {
-		return nil, &AnalyticsError{
-			InnerError:      wrapError(err, "failed to get query provider"),
-			Statement:       statement,
-			ClientContextID: maybeGetAnalyticsOption(queryOpts, "client_context_id"),
-		}
+		return nil, maybeEnhanceAnalyticsError(err)
 	}
 
-	return execAnalyticsQuery(opts.Context, span, queryOpts, priorityInt, deadline, retryStrategy, provider, c.tracer, opts.Internal.User)
+	return provider.AnalyticsQuery(statement, nil, opts)
 }
 
 func maybeGetAnalyticsOption(options map[string]interface{}, name string) string {
@@ -354,41 +280,4 @@ func maybeGetAnalyticsOption(options map[string]interface{}, name string) string
 		return value
 	}
 	return ""
-}
-
-func execAnalyticsQuery(
-	ctx context.Context,
-	span RequestSpan,
-	options map[string]interface{},
-	priority int32,
-	deadline time.Time,
-	retryStrategy *coreRetryStrategyWrapper,
-	provider analyticsProvider,
-	tracer RequestTracer,
-	user string,
-) (*AnalyticsResult, error) {
-	eSpan := createSpan(tracer, span, "request_encoding", "")
-	reqBytes, err := json.Marshal(options)
-	eSpan.End()
-	if err != nil {
-		return nil, &AnalyticsError{
-			InnerError:      wrapError(err, "failed to marshall query body"),
-			Statement:       maybeGetAnalyticsOption(options, "statement"),
-			ClientContextID: maybeGetAnalyticsOption(options, "client_context_id"),
-		}
-	}
-
-	res, err := provider.AnalyticsQuery(ctx, gocbcore.AnalyticsQueryOptions{
-		Payload:       reqBytes,
-		Priority:      int(priority),
-		RetryStrategy: retryStrategy,
-		Deadline:      deadline,
-		TraceContext:  span.Context(),
-		User:          user,
-	})
-	if err != nil {
-		return nil, maybeEnhanceAnalyticsError(err)
-	}
-
-	return newAnalyticsResult(res), nil
 }
