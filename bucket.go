@@ -151,6 +151,24 @@ func (b *Bucket) getEventingManagementProvider() (eventingManagementProvider, er
 	return provider, nil
 }
 
+func (b *Bucket) getViewProvider(bucketName string) (viewProvider, error) {
+	provider, err := b.connectionManager.getViewProvider(bucketName)
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}
+
+func (b *Bucket) getViewIndexProvider(bucketName string) (viewIndexProvider, error) {
+	provider, err := b.connectionManager.getViewIndexProvider(bucketName)
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}
+
 // Name returns the name of the bucket.
 func (b *Bucket) Name() string {
 	return b.bucketName
@@ -179,10 +197,11 @@ func (b *Bucket) DefaultCollection() *Collection {
 // ViewIndexes returns a ViewIndexManager instance for managing views.
 func (b *Bucket) ViewIndexes() *ViewIndexManager {
 	return &ViewIndexManager{
-		mgmtProvider: b,
-		bucketName:   b.Name(),
-		tracer:       b.tracer,
-		meter:        b.meter,
+		getProvider: func() (viewIndexProvider, error) {
+			return b.getViewIndexProvider(b.Name())
+		},
+		tracer: b.tracer,
+		meter:  b.meter,
 	}
 }
 

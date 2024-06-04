@@ -174,10 +174,16 @@ func (suite *UnitTestSuite) TestViewIndexManagerGetDoesntExist() {
 		Return(resp, nil)
 
 	viewMgr := ViewIndexManager{
-		mgmtProvider: mockProvider,
-		bucketName:   "mock",
-		tracer:       &NoopTracer{},
-		meter:        &meterWrapper{meter: &NoopMeter{}},
+		getProvider: func() (viewIndexProvider, error) {
+			return &viewIndexProviderCore{
+				mgmtProvider: mockProvider,
+				bucketName:   "mock",
+				tracer:       &NoopTracer{},
+				meter:        &meterWrapper{meter: &NoopMeter{}, isNoopMeter: true},
+			}, nil
+		},
+		tracer: &NoopTracer{},
+		meter:  &meterWrapper{meter: &NoopMeter{}},
 	}
 
 	_, err := viewMgr.GetDesignDocument(ddocName, DesignDocumentNamespaceDevelopment, &GetDesignDocumentOptions{
@@ -213,10 +219,16 @@ func (suite *UnitTestSuite) TestViewIndexManagerPublishDoesntExist() {
 		Return(resp, nil)
 
 	viewMgr := ViewIndexManager{
-		mgmtProvider: mockProvider,
-		bucketName:   "mock",
-		tracer:       &NoopTracer{},
-		meter:        &meterWrapper{meter: &NoopMeter{}},
+		getProvider: func() (viewIndexProvider, error) {
+			return &viewIndexProviderCore{
+				mgmtProvider: mockProvider,
+				bucketName:   "mock",
+				tracer:       &NoopTracer{},
+				meter:        &meterWrapper{meter: &NoopMeter{}, isNoopMeter: true},
+			}, nil
+		},
+		tracer: &NoopTracer{},
+		meter:  &meterWrapper{meter: &NoopMeter{}},
 	}
 
 	err := viewMgr.PublishDesignDocument(ddocName, &PublishDesignDocumentOptions{
@@ -252,10 +264,16 @@ func (suite *UnitTestSuite) TestViewIndexManagerDropDoesntExist() {
 		Return(resp, nil)
 
 	viewMgr := ViewIndexManager{
-		mgmtProvider: mockProvider,
-		bucketName:   "mock",
-		tracer:       &NoopTracer{},
-		meter:        &meterWrapper{meter: &NoopMeter{}},
+		getProvider: func() (viewIndexProvider, error) {
+			return &viewIndexProviderCore{
+				mgmtProvider: mockProvider,
+				bucketName:   "mock",
+				tracer:       &NoopTracer{},
+				meter:        &meterWrapper{meter: &NoopMeter{}, isNoopMeter: true},
+			}, nil
+		},
+		tracer: &NoopTracer{},
+		meter:  &meterWrapper{meter: &NoopMeter{}},
 	}
 
 	err := viewMgr.DropDesignDocument(ddocName, DesignDocumentNamespaceProduction, &DropDesignDocumentOptions{
@@ -292,10 +310,16 @@ func (suite *UnitTestSuite) TestViewIndexManagerGetAllDesignDocumentsFiltersCorr
 		Return(resp, nil)
 
 	viewMgr := ViewIndexManager{
-		mgmtProvider: mockProvider,
-		bucketName:   "mock",
-		tracer:       &NoopTracer{},
-		meter:        &meterWrapper{meter: &NoopMeter{}},
+		getProvider: func() (viewIndexProvider, error) {
+			return &viewIndexProviderCore{
+				mgmtProvider: mockProvider,
+				bucketName:   "mock",
+				tracer:       &NoopTracer{},
+				meter:        &meterWrapper{meter: &NoopMeter{}, isNoopMeter: true},
+			}, nil
+		},
+		tracer: &NoopTracer{},
+		meter:  &meterWrapper{meter: &NoopMeter{}},
 	}
 
 	ddocs, err := viewMgr.GetAllDesignDocuments(DesignDocumentNamespaceProduction, &GetAllDesignDocumentsOptions{
@@ -333,10 +357,16 @@ func (suite *UnitTestSuite) TestViewIndexManagerGetAllDesignDocumentsFiltersCorr
 		Return(resp, nil)
 
 	viewMgr := ViewIndexManager{
-		mgmtProvider: mockProvider,
-		bucketName:   "mock",
-		tracer:       &NoopTracer{},
-		meter:        &meterWrapper{meter: &NoopMeter{}},
+		getProvider: func() (viewIndexProvider, error) {
+			return &viewIndexProviderCore{
+				mgmtProvider: mockProvider,
+				bucketName:   "mock",
+				tracer:       &NoopTracer{},
+				meter:        &meterWrapper{meter: &NoopMeter{}, isNoopMeter: true},
+			}, nil
+		},
+		tracer: &NoopTracer{},
+		meter:  &meterWrapper{meter: &NoopMeter{}},
 	}
 
 	ddocs, err := viewMgr.GetAllDesignDocuments(DesignDocumentNamespaceDevelopment, &GetAllDesignDocumentsOptions{

@@ -83,7 +83,11 @@ func (c *psConnectionMgr) getKvCapabilitiesProvider(bucketName string) (kvCapabi
 }
 
 func (c *psConnectionMgr) getViewProvider(bucketName string) (viewProvider, error) {
-	return &viewProviderWrapper{}, ErrFeatureNotAvailable
+	return nil, ErrFeatureNotAvailable
+}
+
+func (c *psConnectionMgr) getViewIndexProvider(bucketName string) (viewIndexProvider, error) {
+	return nil, ErrFeatureNotAvailable
 }
 
 func (c *psConnectionMgr) getQueryProvider() (queryProvider, error) {

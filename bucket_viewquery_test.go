@@ -200,16 +200,21 @@ type testViewDataset struct {
 }
 
 func (suite *UnitTestSuite) viewsBucket(reader viewRowReader, runFn func(args mock.Arguments)) *Bucket {
-	provider := new(mockViewProvider)
-	provider.
+	coreProvider := new(mockViewProviderCoreProvider)
+	coreProvider.
 		On("ViewQuery", nil, mock.AnythingOfType("gocbcore.ViewQueryOptions")).
 		Run(runFn).
 		Return(reader, nil)
-
+	viewProvider := &viewProviderCore{
+		provider: coreProvider,
+	}
 	cli := new(mockConnectionManager)
-	cli.On("getViewProvider", "mockBucket").Return(provider, nil)
-
+	cli.On("getViewProvider", "mockBucket").Return(viewProvider, nil)
 	cluster := suite.newCluster(cli)
+	viewProvider.meter = cluster.meter
+	viewProvider.tracer = cluster.tracer
+	viewProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
+	viewProvider.timeouts = cluster.timeoutsConfig
 	b := newBucket(cluster, "mockBucket")
 
 	return b

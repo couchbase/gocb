@@ -31,7 +31,7 @@ const (
 	ViewOrderingDescending
 )
 
-// ViewErrorMode pecifies the behaviour of the query engine should an error occur during the gathering of
+// ViewErrorMode specifies the behaviour of the query engine should an error occur during the gathering of
 // view index results which would result in only partial results being available.
 type ViewErrorMode uint
 

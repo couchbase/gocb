@@ -13,6 +13,7 @@ type connectionManager interface {
 	getKvBulkProvider(bucketName string) (kvBulkProvider, error)
 	getKvCapabilitiesProvider(bucketName string) (kvCapabilityVerifier, error)
 	getViewProvider(bucketName string) (viewProvider, error)
+	getViewIndexProvider(bucketName string) (viewIndexProvider, error)
 	getQueryProvider() (queryProvider, error)
 	getQueryIndexProvider() (queryIndexProvider, error)
 	getAnalyticsProvider() (analyticsProvider, error)

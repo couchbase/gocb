@@ -13,10 +13,6 @@ type httpProvider interface {
 	DoHTTPRequest(ctx context.Context, req *gocbcore.HTTPRequest) (*gocbcore.HTTPResponse, error)
 }
 
-type viewProvider interface {
-	ViewQuery(ctx context.Context, opts gocbcore.ViewQueryOptions) (viewRowReader, error)
-}
-
 type analyticsProvider interface {
 	AnalyticsQuery(ctx context.Context, opts gocbcore.AnalyticsQueryOptions) (analyticsRowReader, error)
 }
@@ -141,29 +137,6 @@ func (apw *queryProviderWrapper) PreparedN1QLQuery(ctx context.Context, opts goc
 		}
 
 		qOut = reader
-		opm.Resolve()
-	}))
-	if err != nil {
-		errOut = err
-	}
-
-	return
-}
-
-type viewProviderWrapper struct {
-	provider *gocbcore.Agent
-}
-
-func (apw *viewProviderWrapper) ViewQuery(ctx context.Context, opts gocbcore.ViewQueryOptions) (vOut viewRowReader, errOut error) {
-	opm := newAsyncOpManager(ctx)
-	err := opm.Wait(apw.provider.ViewQuery(opts, func(reader *gocbcore.ViewQueryRowReader, err error) {
-		if err != nil {
-			errOut = err
-			opm.Reject()
-			return
-		}
-
-		vOut = reader
 		opm.Resolve()
 	}))
 	if err != nil {

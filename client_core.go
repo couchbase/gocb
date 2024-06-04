@@ -180,7 +180,38 @@ func (c *stdConnectionMgr) getViewProvider(bucketName string) (viewProvider, err
 	if agent == nil {
 		return nil, errors.New("bucket not yet connected")
 	}
-	return &viewProviderWrapper{provider: agent}, nil
+
+	return &viewProviderCore{
+		provider:             &viewProviderWrapper{provider: agent},
+		retryStrategyWrapper: c.retryStrategyWrapper,
+		transcoder:           c.transcoder,
+		timeouts:             c.timeouts,
+		tracer:               c.tracer,
+		meter:                c.meter,
+		bucketName:           bucketName,
+	}, nil
+}
+
+func (c *stdConnectionMgr) getViewIndexProvider(bucketName string) (viewIndexProvider, error) {
+	if c.agentgroup == nil {
+		return nil, errors.New("cluster not yet connected")
+	}
+
+	provider, err := c.getHTTPProvider(bucketName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &viewIndexProviderCore{
+		mgmtProvider: &mgmtProviderCore{
+			provider:             provider,
+			mgmtTimeout:          c.timeouts.ManagementTimeout,
+			retryStrategyWrapper: c.retryStrategyWrapper,
+		},
+		bucketName: bucketName,
+		tracer:     c.tracer,
+		meter:      c.meter,
+	}, nil
 }
 
 func (c *stdConnectionMgr) getQueryProvider() (queryProvider, error) {
