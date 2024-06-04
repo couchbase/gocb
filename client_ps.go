@@ -159,7 +159,7 @@ func (c *psConnectionMgr) getHTTPProvider(bucketName string) (httpProvider, erro
 }
 
 func (c *psConnectionMgr) getDiagnosticsProvider(bucketName string) (diagnosticsProvider, error) {
-	return &diagnosticsProviderWrapper{}, ErrFeatureNotAvailable
+	return nil, ErrFeatureNotAvailable
 }
 
 func (c *psConnectionMgr) getWaitUntilReadyProvider(bucketName string) (waitUntilReadyProvider, error) {

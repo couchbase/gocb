@@ -93,16 +93,10 @@ func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
 		opts = &PingOptions{}
 	}
 
-	span := createSpan(b.tracer, opts.ParentSpan, "ping", "kv")
-	defer span.End()
-
-	startTime := time.Now()
-	defer b.meter.ValueRecord(meterValueServiceKV, "ping", startTime)
-
-	provider, err := b.connectionManager.getDiagnosticsProvider(b.bucketName)
+	provider, err := b.connectionManager.getDiagnosticsProvider(b.Name())
 	if err != nil {
 		return nil, err
 	}
 
-	return ping(opts.Context, provider, opts, b.timeoutsConfig, span)
+	return provider.Ping(opts)
 }

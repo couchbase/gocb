@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/couchbase/gocbcore/v10"
-
 	"github.com/google/uuid"
 )
 
@@ -96,33 +94,5 @@ func (c *Cluster) Diagnostics(opts *DiagnosticsOptions) (*DiagnosticsResult, err
 		return nil, err
 	}
 
-	agentReport, err := provider.Diagnostics(gocbcore.DiagnosticsOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	report := &DiagnosticsResult{
-		ID:       opts.ReportID,
-		Services: make(map[string][]EndPointDiagnostics),
-		sdk:      Identifier(),
-		State:    ClusterState(agentReport.State),
-	}
-
-	report.Services["kv"] = make([]EndPointDiagnostics, 0)
-
-	for _, conn := range agentReport.MemdConns {
-		state := EndpointState(conn.State)
-
-		report.Services["kv"] = append(report.Services["kv"], EndPointDiagnostics{
-			Type:         ServiceTypeKeyValue,
-			State:        state,
-			Local:        conn.LocalAddr,
-			Remote:       conn.RemoteAddr,
-			LastActivity: conn.LastActivity,
-			Namespace:    conn.Scope,
-			ID:           conn.ID,
-		})
-	}
-
-	return report, nil
+	return provider.Diagnostics(opts)
 }

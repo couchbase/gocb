@@ -9,6 +9,38 @@ import (
 	"github.com/couchbase/gocbcore/v10"
 )
 
+func (suite *UnitTestSuite) diagnosticsCluster(runFn func(args mock.Arguments), args ...interface{}) *Cluster {
+	diagnosticsProviderCoreProvider := new(mockDiagnosticsProviderCoreProvider)
+	call := diagnosticsProviderCoreProvider.
+		On("Diagnostics", mock.AnythingOfType("gocbcore.DiagnosticsOptions")).
+		Return(args...)
+
+	if runFn != nil {
+		call.Run(runFn)
+	}
+
+	diagnosticsProvider := &diagnosticsProviderCore{
+		provider: diagnosticsProviderCoreProvider,
+	}
+
+	cli := new(mockConnectionManager)
+	cli.On("getDiagnosticsProvider", mock.AnythingOfType("string")).Return(diagnosticsProvider, nil)
+
+	c := &Cluster{
+		timeoutsConfig: TimeoutsConfig{
+			KVTimeout:        1000 * time.Second,
+			AnalyticsTimeout: 1000 * time.Second,
+			QueryTimeout:     1000 * time.Second,
+			SearchTimeout:    1000 * time.Second,
+		},
+		connectionManager: cli,
+		tracer:            &NoopTracer{},
+		meter:             &meterWrapper{meter: &NoopMeter{}},
+	}
+
+	return c
+}
+
 func (suite *UnitTestSuite) TestDiagnostics() {
 	layout := "2006-01-02T15:04:05.000Z"
 	date1, err := time.Parse(layout, "2014-11-12T11:45:26.371Z")
@@ -41,17 +73,7 @@ func (suite *UnitTestSuite) TestDiagnostics() {
 		},
 	}
 
-	provider := new(mockDiagnosticsProvider)
-	provider.
-		On("Diagnostics", mock.AnythingOfType("gocbcore.DiagnosticsOptions")).
-		Return(info, nil)
-
-	cli := new(mockConnectionManager)
-	cli.On("getDiagnosticsProvider", "").Return(provider, nil)
-
-	c := &Cluster{
-		connectionManager: cli,
-	}
+	c := suite.diagnosticsCluster(nil, info, nil)
 
 	report, err := c.Diagnostics(nil)
 	if err != nil {
@@ -160,19 +182,9 @@ func (suite *UnitTestSuite) TestDiagnostics() {
 }
 
 func (suite *UnitTestSuite) TestDiagnosticsWithID() {
-	provider := new(mockDiagnosticsProvider)
-	provider.
-		On("Diagnostics", mock.AnythingOfType("gocbcore.DiagnosticsOptions")).
-		Return(&gocbcore.DiagnosticInfo{
-			ConfigRev: 1,
-		}, nil)
-
-	cli := new(mockConnectionManager)
-	cli.On("getDiagnosticsProvider", "").Return(provider, nil)
-
-	c := &Cluster{
-		connectionManager: cli,
-	}
+	c := suite.diagnosticsCluster(nil, &gocbcore.DiagnosticInfo{
+		ConfigRev: 1,
+	}, nil)
 
 	report, err := c.Diagnostics(&DiagnosticsOptions{ReportID: "myreportid"})
 	if err != nil {

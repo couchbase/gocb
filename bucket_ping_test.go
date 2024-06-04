@@ -79,25 +79,18 @@ func (suite *UnitTestSuite) TestPingAll() {
 		Services:  expectedResults,
 	}
 
-	pingProvider := new(mockDiagnosticsProvider)
-	pingProvider.
-		On("Ping", nil, mock.AnythingOfType("gocbcore.PingOptions")).
-		Run(func(args mock.Arguments) {
-			if len(args) != 2 {
-				suite.T().Fatalf("Expected options to contain two arguments, was: %v", args)
-			}
-			opts := args.Get(1).(gocbcore.PingOptions)
+	c := suite.pingCluster(func(args mock.Arguments) {
+		if len(args) != 2 {
+			suite.T().Fatalf("Expected options to contain two arguments, was: %v", args)
+		}
+		opts := args.Get(1).(gocbcore.PingOptions)
 
-			if len(opts.ServiceTypes) != 0 {
-				suite.T().Errorf("Expected service types to be len 0 but was %v", opts.ServiceTypes)
-			}
-		}).
-		Return(pingResult, nil)
+		if len(opts.ServiceTypes) != 0 {
+			suite.T().Errorf("Expected service types to be len 0 but was %v", opts.ServiceTypes)
+		}
+	}, pingResult, nil)
 
-	cli := new(mockConnectionManager)
-	cli.On("getDiagnosticsProvider", "mock").Return(pingProvider, nil)
-
-	b := suite.bucket("mock", suite.defaultTimeoutConfig(), cli)
+	b := suite.bucket("mock", suite.defaultTimeoutConfig(), c.connectionManager)
 
 	report, err := b.Ping(nil)
 	if err != nil {

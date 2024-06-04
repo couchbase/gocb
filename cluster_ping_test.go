@@ -52,6 +52,42 @@ func (suite *IntegrationTestSuite) TestClusterPingAll() {
 	}
 }
 
+func (suite *UnitTestSuite) pingCluster(runFn func(args mock.Arguments), args ...interface{}) *Cluster {
+	pingProviderCoreProvider := new(mockDiagnosticsProviderCoreProvider)
+	call := pingProviderCoreProvider.
+		On("Ping", nil, mock.AnythingOfType("gocbcore.PingOptions")).
+		Return(args...)
+
+	if runFn != nil {
+		call.Run(runFn)
+	}
+
+	pingProvider := &diagnosticsProviderCore{
+		provider: pingProviderCoreProvider,
+	}
+
+	cli := new(mockConnectionManager)
+	cli.On("getDiagnosticsProvider", mock.AnythingOfType("string")).Return(pingProvider, nil)
+
+	c := &Cluster{
+		timeoutsConfig: TimeoutsConfig{
+			KVTimeout:        1000 * time.Second,
+			AnalyticsTimeout: 1000 * time.Second,
+			QueryTimeout:     1000 * time.Second,
+			SearchTimeout:    1000 * time.Second,
+		},
+		connectionManager: cli,
+		tracer:            &NoopTracer{},
+		meter:             &meterWrapper{meter: &NoopMeter{}},
+	}
+
+	pingProvider.meter = c.meter
+	pingProvider.tracer = c.tracer
+	pingProvider.timeouts = c.timeoutsConfig
+
+	return c
+}
+
 func (suite *UnitTestSuite) TestClusterPingAll() {
 	expectedResults := map[gocbcore.ServiceType][]gocbcore.EndpointPingResult{
 		gocbcore.N1qlService: {
@@ -91,32 +127,13 @@ func (suite *UnitTestSuite) TestClusterPingAll() {
 		Services:  expectedResults,
 	}
 
-	pingProvider := new(mockDiagnosticsProvider)
-	pingProvider.
-		On("Ping", nil, mock.AnythingOfType("gocbcore.PingOptions")).
-		Run(func(args mock.Arguments) {
-			opts := args.Get(1).(gocbcore.PingOptions)
+	c := suite.pingCluster(func(args mock.Arguments) {
+		opts := args.Get(1).(gocbcore.PingOptions)
 
-			if len(opts.ServiceTypes) != 0 {
-				suite.T().Errorf("Expected service types to be len 0 but was %v", opts.ServiceTypes)
-			}
-		}).
-		Return(pingResult, nil)
-
-	cli := new(mockConnectionManager)
-	cli.On("getDiagnosticsProvider", "").Return(pingProvider, nil)
-
-	c := &Cluster{
-		timeoutsConfig: TimeoutsConfig{
-			KVTimeout:        1000 * time.Second,
-			AnalyticsTimeout: 1000 * time.Second,
-			QueryTimeout:     1000 * time.Second,
-			SearchTimeout:    1000 * time.Second,
-		},
-		connectionManager: cli,
-		tracer:            &NoopTracer{},
-		meter:             &meterWrapper{meter: &NoopMeter{}},
-	}
+		if len(opts.ServiceTypes) != 0 {
+			suite.T().Errorf("Expected service types to be len 0 but was %v", opts.ServiceTypes)
+		}
+	}, pingResult, nil)
 
 	report, err := c.Ping(nil)
 	if err != nil {
@@ -177,32 +194,13 @@ func (suite *UnitTestSuite) TestClusterPingOne() {
 		Services:  expectedResults,
 	}
 
-	pingProvider := new(mockDiagnosticsProvider)
-	pingProvider.
-		On("Ping", nil, mock.AnythingOfType("gocbcore.PingOptions")).
-		Run(func(args mock.Arguments) {
-			opts := args.Get(1).(gocbcore.PingOptions)
+	c := suite.pingCluster(func(args mock.Arguments) {
+		opts := args.Get(1).(gocbcore.PingOptions)
 
-			if len(opts.ServiceTypes) != 1 {
-				suite.T().Errorf("Expected service types to be len 1 but was %v", opts.ServiceTypes)
-			}
-		}).
-		Return(pingResult, nil)
-
-	cli := new(mockConnectionManager)
-	cli.On("getDiagnosticsProvider", "").Return(pingProvider, nil)
-
-	c := &Cluster{
-		timeoutsConfig: TimeoutsConfig{
-			KVTimeout:        1000 * time.Second,
-			AnalyticsTimeout: 1000 * time.Second,
-			QueryTimeout:     1000 * time.Second,
-			SearchTimeout:    1000 * time.Second,
-		},
-		connectionManager: cli,
-		tracer:            &NoopTracer{},
-		meter:             &meterWrapper{meter: &NoopMeter{}},
-	}
+		if len(opts.ServiceTypes) != 1 {
+			suite.T().Errorf("Expected service types to be len 1 but was %v", opts.ServiceTypes)
+		}
+	}, pingResult, nil)
 
 	reportID := "myreportid"
 	report, err := c.Ping(&PingOptions{

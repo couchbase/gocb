@@ -519,7 +519,7 @@ func (suite *UnitTestSuite) defaultTimeoutConfig() TimeoutsConfig {
 	}
 }
 
-func (suite *UnitTestSuite) bucket(name string, timeouts TimeoutsConfig, cli *mockConnectionManager) *Bucket {
+func (suite *UnitTestSuite) bucket(name string, timeouts TimeoutsConfig, cli connectionManager) *Bucket {
 	b := &Bucket{
 		bucketName: name,
 		timeoutsConfig: TimeoutsConfig{

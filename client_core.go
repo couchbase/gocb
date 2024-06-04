@@ -367,7 +367,12 @@ func (c *stdConnectionMgr) getDiagnosticsProvider(bucketName string) (diagnostic
 	}
 
 	if bucketName == "" {
-		return &diagnosticsProviderWrapper{provider: c.agentgroup}, nil
+		return &diagnosticsProviderCore{
+			provider: &diagnosticsProviderWrapper{provider: c.agentgroup},
+			tracer:   c.tracer,
+			meter:    c.meter,
+			timeouts: c.timeouts,
+		}, nil
 	}
 
 	agent := c.agentgroup.GetAgent(bucketName)
@@ -375,7 +380,12 @@ func (c *stdConnectionMgr) getDiagnosticsProvider(bucketName string) (diagnostic
 		return nil, errors.New("bucket not yet connected")
 	}
 
-	return &diagnosticsProviderWrapper{provider: agent}, nil
+	return &diagnosticsProviderCore{
+		provider: &diagnosticsProviderWrapper{provider: agent},
+		tracer:   c.tracer,
+		meter:    c.meter,
+		timeouts: c.timeouts,
+	}, nil
 }
 
 func (c *stdConnectionMgr) getWaitUntilReadyProvider(bucketName string) (waitUntilReadyProvider, error) {
