@@ -177,6 +177,20 @@ func (c *psConnectionMgr) getUserManagerProvider() (userManagerProvider, error) 
 	return nil, ErrFeatureNotAvailable
 }
 
+func (c *psConnectionMgr) getInternalProvider() (internalProvider, error) {
+	return nil, ErrFeatureNotAvailable
+}
+
+func (c *psConnectionMgr) initTransactions(config TransactionsConfig, cluster *Cluster) error {
+	// We don't return feature not available here as this function gets called from initTransactions which is part of
+	// cluster setup, if we returned error here then cluster setup would always fail in couchbase2 mode.
+	return nil
+}
+
+func (c *psConnectionMgr) getTransactionsProvider() transactionsProvider {
+	return &transactionsProviderPs{}
+}
+
 func (c *psConnectionMgr) connection(bucketName string) (*gocbcore.Agent, error) {
 	return &gocbcore.Agent{}, ErrFeatureNotAvailable
 }

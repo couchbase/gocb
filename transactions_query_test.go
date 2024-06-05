@@ -623,19 +623,21 @@ func (suite *UnitTestSuite) TestTransactionsQueryGocbcoreCauseError() {
 	cli.On("close").Return(nil)
 
 	cluster := suite.newCluster(cli)
+	defer cluster.Close(nil)
+
 	queryProvider.meter = cluster.meter
 	queryProvider.tracer = cluster.tracer
 	queryProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
 	queryProvider.timeouts = cluster.timeoutsConfig
 
-	cluster.transactions, err = cluster.initTransactions(TransactionsConfig{
+	txns := &transactionsProviderCore{}
+	err = txns.Init(TransactionsConfig{
 		CleanupConfig: TransactionsCleanupConfig{
 			DisableLostAttemptCleanup: true,
 		},
-	})
+	}, cluster)
 	suite.Require().Nil(err, err)
-
-	txns := cluster.Transactions()
+	defer txns.close()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {
 		_, err := ctx.Query("SELECT 1=1", nil)
@@ -644,12 +646,9 @@ func (suite *UnitTestSuite) TestTransactionsQueryGocbcoreCauseError() {
 		}
 
 		return nil
-	}, nil)
+	}, nil, false)
 	suite.Require().ErrorIs(err, ErrAttemptExpired)
 	var finalErr *TransactionExpiredError
 	suite.Assert().True(errors.As(err, &finalErr))
 	suite.Assert().Nil(txnRes)
-
-	err = cluster.Close(nil)
-	suite.Require().Nil(err, err)
 }

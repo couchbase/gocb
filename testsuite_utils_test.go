@@ -78,7 +78,7 @@ func (suite *IntegrationTestSuite) EnsureUserDroppedOnAllNodes(deadline time.Tim
 	endpoints := router.MgmtEps()
 
 	path := fmt.Sprintf("/settings/rbac/users/%s/%s", LocalDomain, url.PathEscape(name))
-	suite.ensureResource(deadline, ServiceTypeManagement, "GET", path, nil, endpoints, func(ep string, response *mgmtResponse) bool {
+	suite.ensureResource(deadline, ServiceTypeManagement, "GET", path, nil, endpoints, func(ep string, response *gocbcore.HTTPResponse) bool {
 		if response.StatusCode == 404 {
 			return true
 		}
@@ -374,7 +374,7 @@ func (suite *IntegrationTestSuite) ensureEventingResource(deadline time.Time, pa
 
 func (suite *IntegrationTestSuite) ensureResourceStatus200(deadline time.Time, service ServiceType, method, path string, body []byte, endpoints []string,
 	handleBody func(closer io.ReadCloser) bool) {
-	suite.ensureResource(deadline, service, method, path, body, endpoints, func(ep string, resp *mgmtResponse) bool {
+	suite.ensureResource(deadline, service, method, path, body, endpoints, func(ep string, resp *gocbcore.HTTPResponse) bool {
 		var success bool
 		if resp.StatusCode == 200 {
 			success = handleBody(resp.Body)
@@ -389,7 +389,7 @@ func (suite *IntegrationTestSuite) ensureResourceStatus200(deadline time.Time, s
 }
 
 func (suite *IntegrationTestSuite) ensureResource(deadline time.Time, service ServiceType, method, path string, body []byte, endpoints []string,
-	handleResp func(ep string, response *mgmtResponse) bool) {
+	handleResp func(ep string, response *gocbcore.HTTPResponse) bool) {
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
 
@@ -399,17 +399,21 @@ func (suite *IntegrationTestSuite) ensureResource(deadline time.Time, service Se
 	for _, ep := range endpoints {
 		go func(endpoint string) {
 			for {
-				req := mgmtRequest{
-					Service:      service,
+				req := &gocbcore.HTTPRequest{
+					Service:      gocbcore.ServiceType(service),
 					Path:         path,
 					Method:       method,
 					IsIdempotent: true,
 					UniqueID:     uuid.New().String(),
-					Timeout:      time.Until(deadline),
+					Deadline:     deadline,
 					Endpoint:     endpoint,
 					Body:         body,
 				}
-				resp, err := globalCluster.executeMgmtRequest(ctx, req)
+
+				provider, err := globalCluster.connectionManager.getHTTPProvider("")
+				suite.Require().NoError(err)
+
+				resp, err := provider.DoHTTPRequest(ctx, req)
 				if err != nil {
 					suite.T().Logf("Failed to execute mgmt request against %s, err: %s", endpoint, err)
 					return

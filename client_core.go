@@ -18,6 +18,7 @@ type stdConnectionMgr struct {
 	timeouts             TimeoutsConfig
 	tracer               RequestTracer
 	meter                *meterWrapper
+	txns                 *transactionsProviderCore
 }
 
 func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
@@ -486,6 +487,40 @@ func (c *stdConnectionMgr) getUserManagerProvider() (userManagerProvider, error)
 	}, nil
 }
 
+func (c *stdConnectionMgr) getInternalProvider() (internalProvider, error) {
+	provider, err := c.getHTTPProvider("")
+	if err != nil {
+		return nil, err
+	}
+
+	return &internalProviderCore{
+		provider: &mgmtProviderCore{
+			provider:             provider,
+			mgmtTimeout:          c.timeouts.ManagementTimeout,
+			retryStrategyWrapper: c.retryStrategyWrapper,
+		},
+		tracer: c.tracer,
+		meter:  c.meter,
+	}, nil
+
+}
+
+// initTransactions must only be called during cluster setup to prevent races.
+func (c *stdConnectionMgr) initTransactions(config TransactionsConfig, cluster *Cluster) error {
+	txns := &transactionsProviderCore{}
+	err := txns.Init(config, cluster)
+	if err != nil {
+		return err
+	}
+
+	c.txns = txns
+	return nil
+}
+
+func (c *stdConnectionMgr) getTransactionsProvider() transactionsProvider {
+	return c.txns
+}
+
 func (c *stdConnectionMgr) connection(bucketName string) (*gocbcore.Agent, error) {
 	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
@@ -499,11 +534,21 @@ func (c *stdConnectionMgr) connection(bucketName string) (*gocbcore.Agent, error
 }
 
 func (c *stdConnectionMgr) close() error {
+	// This needs to be closed first.
+	if c.txns != nil {
+		err := c.txns.close()
+		if err != nil {
+			logWarnf("Failed to close transactions in cluster close: %s", err)
+		}
+		c.txns = nil
+	}
+
 	c.lock.Lock()
 	if c.agentgroup == nil {
 		c.lock.Unlock()
 		return errors.New("cluster not yet connected")
 	}
 	defer c.lock.Unlock()
+
 	return c.agentgroup.Close()
 }

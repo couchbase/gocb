@@ -28,6 +28,10 @@ type connectionManager interface {
 	getSearchCapabilitiesProvider() (searchCapabilityVerifier, error)
 	getEventingManagementProvider() (eventingManagementProvider, error)
 	getUserManagerProvider() (userManagerProvider, error)
+	getInternalProvider() (internalProvider, error)
+
+	initTransactions(config TransactionsConfig, cluster *Cluster) error
+	getTransactionsProvider() transactionsProvider
 }
 
 func (c *Cluster) newConnectionMgr(protocol string) connectionManager {

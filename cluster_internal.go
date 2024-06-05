@@ -2,8 +2,6 @@ package gocb
 
 import (
 	"context"
-	"encoding/json"
-	"github.com/google/uuid"
 	"time"
 )
 
@@ -82,46 +80,10 @@ func (ic *InternalCluster) GetNodesMetadata(opts *GetNodesMetadataOptions) ([]No
 		opts = &GetNodesMetadataOptions{}
 	}
 
-	path := "/pools/default"
-	start := time.Now()
-	defer ic.cluster.meter.ValueRecord(meterValueServiceManagement, "internal_get_nodes_metadata", start)
-
-	span := createSpan(ic.cluster.tracer, opts.ParentSpan, "internal_get_nodes_metadata", "management")
-	span.SetAttribute("db.operation", "GET "+path)
-	defer span.End()
-
-	req := mgmtRequest{
-		Service:       ServiceTypeManagement,
-		Path:          path,
-		Method:        "GET",
-		IsIdempotent:  true,
-		RetryStrategy: opts.RetryStrategy,
-		UniqueID:      uuid.New().String(),
-		Timeout:       opts.Timeout,
-		parentSpanCtx: span.Context(),
-	}
-
-	resp, err := ic.cluster.executeMgmtRequest(opts.Context, req)
-	if err != nil {
-		return nil, makeGenericMgmtError(err, &req, resp, "")
-	}
-	defer ensureBodyClosed(resp.Body)
-
-	if resp.StatusCode != 200 {
-		return nil, makeMgmtBadStatusError("failed to get nodes metadata", &req, resp)
-	}
-
-	var nodesData jsonClusterCfg
-	jsonDec := json.NewDecoder(resp.Body)
-	err = jsonDec.Decode(&nodesData)
+	provider, err := ic.cluster.connectionManager.getInternalProvider()
 	if err != nil {
 		return nil, err
 	}
 
-	nodes := make([]NodeMetadata, len(nodesData.Nodes))
-	for i, nodeData := range nodesData.Nodes {
-		nodes[i] = NodeMetadata(nodeData)
-	}
-
-	return nodes, nil
+	return provider.GetNodesMetadata(opts)
 }

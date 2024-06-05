@@ -452,15 +452,6 @@ func (c *Cluster) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOpti
 func (c *Cluster) Close(opts *ClusterCloseOptions) error {
 	var overallErr error
 
-	// This needs to be closed first.
-	if c.transactions != nil && !c.transactions.unsupported {
-		err := c.transactions.close()
-		if err != nil {
-			logWarnf("Failed to close transactions in cluster close: %s", err)
-		}
-		c.transactions = nil
-	}
-
 	if c.connectionManager != nil {
 		err := c.connectionManager.close()
 		if err != nil {
@@ -539,15 +530,6 @@ func (c *Cluster) getSearchProvider() (searchProvider, error) {
 
 func (c *Cluster) getSearchIndexProvider() (searchIndexProvider, error) {
 	provider, err := c.connectionManager.getSearchIndexProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider, nil
-}
-
-func (c *Cluster) getHTTPProvider() (httpProvider, error) {
-	provider, err := c.connectionManager.getHTTPProvider("")
 	if err != nil {
 		return nil, err
 	}

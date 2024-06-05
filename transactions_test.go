@@ -732,8 +732,10 @@ func (suite *UnitTestSuite) TestTransactionsCustomMetadataAddedToCleanupLocs() {
 	defer c.Close(nil)
 	c.connectionManager = cli
 
-	txns, err := c.initTransactions(tConfig)
+	txns := &transactionsProviderCore{}
+	err := txns.Init(tConfig, c)
 	suite.Require().Nil(err, err)
+	defer txns.close()
 
 	locs, err := txns.atrLocationsProvider()
 	suite.Require().Nil(err)
@@ -777,8 +779,10 @@ func (suite *UnitTestSuite) TestTransactionsCustomMetadataAlreadyInCleanupCollec
 	defer c.Close(nil)
 	c.connectionManager = cli
 
-	txns, err := c.initTransactions(tConfig)
+	txns := &transactionsProviderCore{}
+	err := txns.Init(tConfig, c)
 	suite.Require().Nil(err, err)
+	defer txns.close()
 
 	locs, err := txns.atrLocationsProvider()
 	suite.Require().Nil(err)

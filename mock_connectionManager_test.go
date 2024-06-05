@@ -306,6 +306,36 @@ func (_m *mockConnectionManager) getHTTPProvider(bucketName string) (httpProvide
 	return r0, r1
 }
 
+// getInternalProvider provides a mock function with given fields:
+func (_m *mockConnectionManager) getInternalProvider() (internalProvider, error) {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for getInternalProvider")
+	}
+
+	var r0 internalProvider
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (internalProvider, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() internalProvider); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(internalProvider)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // getKvBulkProvider provides a mock function with given fields: bucketName
 func (_m *mockConnectionManager) getKvBulkProvider(bucketName string) (kvBulkProvider, error) {
 	ret := _m.Called(bucketName)
@@ -546,6 +576,26 @@ func (_m *mockConnectionManager) getSearchProvider() (searchProvider, error) {
 	return r0, r1
 }
 
+// getTransactionsProvider provides a mock function with given fields:
+func (_m *mockConnectionManager) getTransactionsProvider() transactionsProvider {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for getTransactionsProvider")
+	}
+
+	var r0 transactionsProvider
+	if rf, ok := ret.Get(0).(func() transactionsProvider); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(transactionsProvider)
+		}
+	}
+
+	return r0
+}
+
 // getUserManagerProvider provides a mock function with given fields:
 func (_m *mockConnectionManager) getUserManagerProvider() (userManagerProvider, error) {
 	ret := _m.Called()
@@ -664,6 +714,24 @@ func (_m *mockConnectionManager) getWaitUntilReadyProvider(bucketName string) (w
 	}
 
 	return r0, r1
+}
+
+// initTransactions provides a mock function with given fields: config, cluster
+func (_m *mockConnectionManager) initTransactions(config TransactionsConfig, cluster *Cluster) error {
+	ret := _m.Called(config, cluster)
+
+	if len(ret) == 0 {
+		panic("no return value specified for initTransactions")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(TransactionsConfig, *Cluster) error); ok {
+		r0 = rf(config, cluster)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // openBucket provides a mock function with given fields: bucketName

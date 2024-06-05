@@ -21,14 +21,19 @@ func (c *Collection) List(id string) *CouchbaseList {
 
 // Iterator returns an iterable for all items in the list.
 func (cl *CouchbaseList) Iterator() ([]interface{}, error) {
+	agent, err := cl.collection.getKvProvider()
+	if err != nil {
+		return nil, err
+	}
+
 	span := cl.collection.startKvOpTrace("list_iterator", nil, false)
 	defer span.End()
 
-	return dsListIterator(span, cl.collection, cl.id)
+	return dsListIterator(agent, span, cl.collection, cl.id)
 }
 
-func dsListIterator(span RequestSpan, collection *Collection, id string) ([]interface{}, error) {
-	content, err := collection.Get(id, &GetOptions{
+func dsListIterator(provider kvProvider, span RequestSpan, collection *Collection, id string) ([]interface{}, error) {
+	content, err := provider.Get(collection, id, &GetOptions{
 		ParentSpan: span,
 	})
 	if err != nil {
@@ -46,11 +51,16 @@ func dsListIterator(span RequestSpan, collection *Collection, id string) ([]inte
 
 // At retrieves the value specified at the given index from the list.
 func (cl *CouchbaseList) At(index int, valuePtr interface{}) error {
+	agent, err := cl.collection.getKvProvider()
+	if err != nil {
+		return err
+	}
+
 	span := cl.collection.startKvOpTrace("list_at", nil, false)
 	defer span.End()
 	ops := make([]LookupInSpec, 1)
 	ops[0] = GetSpec(fmt.Sprintf("[%d]", index), nil)
-	result, err := cl.collection.LookupIn(cl.id, ops, &LookupInOptions{
+	result, err := agent.LookupIn(cl.collection, cl.id, ops, &LookupInOptions{
 		ParentSpan: span,
 	})
 	if err != nil {
@@ -62,11 +72,16 @@ func (cl *CouchbaseList) At(index int, valuePtr interface{}) error {
 
 // RemoveAt removes the value specified at the given index from the list.
 func (cl *CouchbaseList) RemoveAt(index int) error {
+	agent, err := cl.collection.getKvProvider()
+	if err != nil {
+		return err
+	}
+
 	span := cl.collection.startKvOpTrace("list_remove_at", nil, false)
 	defer span.End()
 	ops := make([]MutateInSpec, 1)
 	ops[0] = RemoveSpec(fmt.Sprintf("[%d]", index), nil)
-	_, err := cl.collection.MutateIn(cl.id, ops, &MutateInOptions{
+	_, err = agent.MutateIn(cl.collection, cl.id, ops, &MutateInOptions{
 		ParentSpan: span,
 	})
 	if err != nil {
@@ -78,11 +93,16 @@ func (cl *CouchbaseList) RemoveAt(index int) error {
 
 // Append appends an item to the list.
 func (cl *CouchbaseList) Append(val interface{}) error {
+	agent, err := cl.collection.getKvProvider()
+	if err != nil {
+		return err
+	}
+
 	span := cl.collection.startKvOpTrace("list_append", nil, false)
 	defer span.End()
 	ops := make([]MutateInSpec, 1)
 	ops[0] = ArrayAppendSpec("", val, nil)
-	_, err := cl.collection.MutateIn(cl.id, ops, &MutateInOptions{
+	_, err = agent.MutateIn(cl.collection, cl.id, ops, &MutateInOptions{
 		StoreSemantic: StoreSemanticsUpsert,
 		ParentSpan:    span,
 	})
@@ -95,16 +115,21 @@ func (cl *CouchbaseList) Append(val interface{}) error {
 
 // Prepend prepends an item to the list.
 func (cl *CouchbaseList) Prepend(val interface{}) error {
+	agent, err := cl.collection.getKvProvider()
+	if err != nil {
+		return err
+	}
+
 	span := cl.collection.startKvOpTrace("list_prepend", nil, false)
 	defer span.End()
 
-	return dsListPrepend(span, cl.collection, cl.id, val)
+	return dsListPrepend(agent, span, cl.collection, cl.id, val)
 }
 
-func dsListPrepend(span RequestSpan, collection *Collection, id string, val interface{}) error {
+func dsListPrepend(agent kvProvider, span RequestSpan, collection *Collection, id string, val interface{}) error {
 	ops := make([]MutateInSpec, 1)
 	ops[0] = ArrayPrependSpec("", val, nil)
-	_, err := collection.MutateIn(id, ops, &MutateInOptions{
+	_, err := agent.MutateIn(collection, id, ops, &MutateInOptions{
 		StoreSemantic: StoreSemanticsUpsert,
 		ParentSpan:    span,
 	})
@@ -117,9 +142,14 @@ func dsListPrepend(span RequestSpan, collection *Collection, id string, val inte
 
 // IndexOf gets the index of the item in the list.
 func (cl *CouchbaseList) IndexOf(val interface{}) (int, error) {
+	agent, err := cl.collection.getKvProvider()
+	if err != nil {
+		return 0, err
+	}
+
 	span := cl.collection.startKvOpTrace("list_index_of", nil, false)
 	defer span.End()
-	content, err := cl.collection.Get(cl.id, &GetOptions{
+	content, err := agent.Get(cl.collection, cl.id, &GetOptions{
 		ParentSpan: span,
 	})
 	if err != nil {
@@ -143,16 +173,21 @@ func (cl *CouchbaseList) IndexOf(val interface{}) (int, error) {
 
 // Size returns the size of the list.
 func (cl *CouchbaseList) Size() (int, error) {
+	agent, err := cl.collection.getKvProvider()
+	if err != nil {
+		return 0, err
+	}
+
 	span := cl.collection.startKvOpTrace("list_size", nil, false)
 	defer span.End()
 
-	return dsListSize(span, cl.collection, cl.id)
+	return dsListSize(agent, span, cl.collection, cl.id)
 }
 
-func dsListSize(span RequestSpan, collection *Collection, id string) (int, error) {
+func dsListSize(agent kvProvider, span RequestSpan, collection *Collection, id string) (int, error) {
 	ops := make([]LookupInSpec, 1)
 	ops[0] = CountSpec("", nil)
-	result, err := collection.LookupIn(id, ops, &LookupInOptions{
+	result, err := agent.LookupIn(collection, id, ops, &LookupInOptions{
 		ParentSpan: span,
 	})
 	if err != nil {
@@ -170,14 +205,19 @@ func dsListSize(span RequestSpan, collection *Collection, id string) (int, error
 
 // Clear clears a list, also removing it.
 func (cl *CouchbaseList) Clear() error {
+	agent, err := cl.collection.getKvProvider()
+	if err != nil {
+		return err
+	}
+
 	span := cl.collection.startKvOpTrace("list_clear", nil, false)
 	defer span.End()
 
-	return dsListClear(span, cl.collection, cl.id)
+	return dsListClear(agent, span, cl.collection, cl.id)
 }
 
-func dsListClear(span RequestSpan, collection *Collection, id string) error {
-	_, err := collection.Remove(id, &RemoveOptions{
+func dsListClear(agent kvProvider, span RequestSpan, collection *Collection, id string) error {
+	_, err := agent.Remove(collection, id, &RemoveOptions{
 		ParentSpan: span,
 	})
 	if err != nil {
@@ -203,9 +243,14 @@ func (c *Collection) Map(id string) *CouchbaseMap {
 
 // Iterator returns an iterable for all items in the map.
 func (cl *CouchbaseMap) Iterator() (map[string]interface{}, error) {
+	agent, err := cl.collection.getKvProvider()
+	if err != nil {
+		return nil, err
+	}
+
 	span := cl.collection.startKvOpTrace("map_iterator", nil, false)
 	defer span.End()
-	content, err := cl.collection.Get(cl.id, &GetOptions{
+	content, err := agent.Get(cl.collection, cl.id, &GetOptions{
 		ParentSpan: span,
 	})
 	if err != nil {
@@ -223,11 +268,16 @@ func (cl *CouchbaseMap) Iterator() (map[string]interface{}, error) {
 
 // At retrieves the item for the given id from the map.
 func (cl *CouchbaseMap) At(id string, valuePtr interface{}) error {
+	agent, err := cl.collection.getKvProvider()
+	if err != nil {
+		return err
+	}
+
 	span := cl.collection.startKvOpTrace("map_at", nil, false)
 	defer span.End()
 	ops := make([]LookupInSpec, 1)
 	ops[0] = GetSpec(id, nil)
-	result, err := cl.collection.LookupIn(cl.id, ops, &LookupInOptions{
+	result, err := agent.LookupIn(cl.collection, cl.id, ops, &LookupInOptions{
 		ParentSpan: span,
 	})
 	if err != nil {
@@ -239,11 +289,16 @@ func (cl *CouchbaseMap) At(id string, valuePtr interface{}) error {
 
 // Add adds an item to the map.
 func (cl *CouchbaseMap) Add(id string, val interface{}) error {
+	agent, err := cl.collection.getKvProvider()
+	if err != nil {
+		return err
+	}
+
 	span := cl.collection.startKvOpTrace("map_add", nil, false)
 	defer span.End()
 	ops := make([]MutateInSpec, 1)
 	ops[0] = UpsertSpec(id, val, nil)
-	_, err := cl.collection.MutateIn(cl.id, ops, &MutateInOptions{
+	_, err = agent.MutateIn(cl.collection, cl.id, ops, &MutateInOptions{
 		StoreSemantic: StoreSemanticsUpsert,
 		ParentSpan:    span,
 	})
@@ -256,11 +311,16 @@ func (cl *CouchbaseMap) Add(id string, val interface{}) error {
 
 // Remove removes an item from the map.
 func (cl *CouchbaseMap) Remove(id string) error {
+	agent, err := cl.collection.getKvProvider()
+	if err != nil {
+		return err
+	}
+
 	span := cl.collection.startKvOpTrace("map_remove", nil, false)
 	defer span.End()
 	ops := make([]MutateInSpec, 1)
 	ops[0] = RemoveSpec(id, nil)
-	_, err := cl.collection.MutateIn(cl.id, ops, &MutateInOptions{
+	_, err = agent.MutateIn(cl.collection, cl.id, ops, &MutateInOptions{
 		ParentSpan: span,
 	})
 	if err != nil {
@@ -270,13 +330,20 @@ func (cl *CouchbaseMap) Remove(id string) error {
 	return nil
 }
 
-// Exists verifies whether or a id exists in the map.
+// Exists verifies whether or an id exists in the map.
 func (cl *CouchbaseMap) Exists(id string) (bool, error) {
+	agent, err := cl.collection.getKvProvider()
+	if err != nil {
+		return false, err
+	}
+
 	span := cl.collection.startKvOpTrace("map_exists", nil, false)
 	defer span.End()
 	ops := make([]LookupInSpec, 1)
 	ops[0] = ExistsSpec(id, nil)
-	result, err := cl.collection.LookupIn(cl.id, ops, nil)
+	result, err := agent.LookupIn(cl.collection, cl.id, ops, &LookupInOptions{
+		ParentSpan: span,
+	})
 	if err != nil {
 		return false, err
 	}
@@ -286,11 +353,16 @@ func (cl *CouchbaseMap) Exists(id string) (bool, error) {
 
 // Size returns the size of the map.
 func (cl *CouchbaseMap) Size() (int, error) {
+	agent, err := cl.collection.getKvProvider()
+	if err != nil {
+		return 0, err
+	}
+
 	span := cl.collection.startKvOpTrace("map_size", nil, false)
 	defer span.End()
 	ops := make([]LookupInSpec, 1)
 	ops[0] = CountSpec("", nil)
-	result, err := cl.collection.LookupIn(cl.id, ops, &LookupInOptions{
+	result, err := agent.LookupIn(cl.collection, cl.id, ops, &LookupInOptions{
 		ParentSpan: span,
 	})
 	if err != nil {
@@ -308,9 +380,14 @@ func (cl *CouchbaseMap) Size() (int, error) {
 
 // Keys returns all of the keys within the map.
 func (cl *CouchbaseMap) Keys() ([]string, error) {
+	agent, err := cl.collection.getKvProvider()
+	if err != nil {
+		return nil, err
+	}
+
 	span := cl.collection.startKvOpTrace("map_keys", nil, false)
 	defer span.End()
-	content, err := cl.collection.Get(cl.id, &GetOptions{
+	content, err := agent.Get(cl.collection, cl.id, &GetOptions{
 		ParentSpan: span,
 	})
 	if err != nil {
@@ -333,9 +410,16 @@ func (cl *CouchbaseMap) Keys() ([]string, error) {
 
 // Values returns all of the values within the map.
 func (cl *CouchbaseMap) Values() ([]interface{}, error) {
+	agent, err := cl.collection.getKvProvider()
+	if err != nil {
+		return nil, err
+	}
+
 	span := cl.collection.startKvOpTrace("map_values", nil, false)
 	defer span.End()
-	content, err := cl.collection.Get(cl.id, nil)
+	content, err := agent.Get(cl.collection, cl.id, &GetOptions{
+		ParentSpan: span,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -356,9 +440,14 @@ func (cl *CouchbaseMap) Values() ([]interface{}, error) {
 
 // Clear clears a map, also removing it.
 func (cl *CouchbaseMap) Clear() error {
+	agent, err := cl.collection.getKvProvider()
+	if err != nil {
+		return err
+	}
+
 	span := cl.collection.startKvOpTrace("map_clear", nil, false)
 	defer span.End()
-	_, err := cl.collection.Remove(cl.id, &RemoveOptions{
+	_, err = agent.Remove(cl.collection, cl.id, &RemoveOptions{
 		ParentSpan: span,
 	})
 	if err != nil {
@@ -384,18 +473,28 @@ func (c *Collection) Set(id string) *CouchbaseSet {
 
 // Iterator returns an iterable for all items in the set.
 func (cs *CouchbaseSet) Iterator() ([]interface{}, error) {
+	agent, err := cs.collection.getKvProvider()
+	if err != nil {
+		return nil, err
+	}
+
 	span := cs.collection.startKvOpTrace("set_iterator", nil, false)
 	defer span.End()
-	return dsListIterator(span, cs.collection, cs.id)
+	return dsListIterator(agent, span, cs.collection, cs.id)
 }
 
 // Add adds a value to the set.
 func (cs *CouchbaseSet) Add(val interface{}) error {
+	agent, err := cs.collection.getKvProvider()
+	if err != nil {
+		return err
+	}
+
 	span := cs.collection.startKvOpTrace("set_add", nil, false)
 	defer span.End()
 	ops := make([]MutateInSpec, 1)
 	ops[0] = ArrayAddUniqueSpec("", val, nil)
-	_, err := cs.collection.MutateIn(cs.id, ops, &MutateInOptions{
+	_, err = agent.MutateIn(cs.collection, cs.id, ops, &MutateInOptions{
 		StoreSemantic: StoreSemanticsUpsert,
 		ParentSpan:    span,
 	})
@@ -408,10 +507,15 @@ func (cs *CouchbaseSet) Add(val interface{}) error {
 
 // Remove removes an value from the set.
 func (cs *CouchbaseSet) Remove(val string) error {
+	agent, err := cs.collection.getKvProvider()
+	if err != nil {
+		return err
+	}
+
 	span := cs.collection.startKvOpTrace("set_remove", nil, false)
 	defer span.End()
 	for i := 0; i < 16; i++ {
-		content, err := cs.collection.Get(cs.id, &GetOptions{
+		content, err := agent.Get(cs.collection, cs.id, &GetOptions{
 			ParentSpan: span,
 		})
 		if err != nil {
@@ -455,9 +559,14 @@ func (cs *CouchbaseSet) Remove(val string) error {
 
 // Values returns all of the values within the set.
 func (cs *CouchbaseSet) Values() ([]interface{}, error) {
+	agent, err := cs.collection.getKvProvider()
+	if err != nil {
+		return nil, err
+	}
+
 	span := cs.collection.startKvOpTrace("set_values", nil, false)
 	defer span.End()
-	content, err := cs.collection.Get(cs.id, &GetOptions{
+	content, err := agent.Get(cs.collection, cs.id, &GetOptions{
 		ParentSpan: span,
 	})
 	if err != nil {
@@ -475,9 +584,14 @@ func (cs *CouchbaseSet) Values() ([]interface{}, error) {
 
 // Contains verifies whether or not a value exists within the set.
 func (cs *CouchbaseSet) Contains(val string) (bool, error) {
+	agent, err := cs.collection.getKvProvider()
+	if err != nil {
+		return false, err
+	}
+
 	span := cs.collection.startKvOpTrace("set_contains", nil, false)
 	defer span.End()
-	content, err := cs.collection.Get(cs.id, &GetOptions{
+	content, err := agent.Get(cs.collection, cs.id, &GetOptions{
 		ParentSpan: span,
 	})
 	if err != nil {
@@ -501,16 +615,26 @@ func (cs *CouchbaseSet) Contains(val string) (bool, error) {
 
 // Size returns the size of the set
 func (cs *CouchbaseSet) Size() (int, error) {
+	agent, err := cs.collection.getKvProvider()
+	if err != nil {
+		return 0, err
+	}
+
 	span := cs.collection.startKvOpTrace("set_size", nil, false)
 	defer span.End()
-	return dsListSize(span, cs.collection, cs.id)
+	return dsListSize(agent, span, cs.collection, cs.id)
 }
 
 // Clear clears a set, also removing it.
 func (cs *CouchbaseSet) Clear() error {
+	agent, err := cs.collection.getKvProvider()
+	if err != nil {
+		return err
+	}
+
 	span := cs.collection.startKvOpTrace("set_clear", nil, false)
 	defer span.End()
-	return dsListClear(span, cs.collection, cs.id)
+	return dsListClear(agent, span, cs.collection, cs.id)
 }
 
 // CouchbaseQueue represents a queue document.
@@ -529,26 +653,41 @@ func (c *Collection) Queue(id string) *CouchbaseQueue {
 
 // Iterator returns an iterable for all items in the queue.
 func (cs *CouchbaseQueue) Iterator() ([]interface{}, error) {
+	agent, err := cs.collection.getKvProvider()
+	if err != nil {
+		return nil, err
+	}
+
 	span := cs.collection.startKvOpTrace("queue_iterator", nil, false)
 	defer span.End()
-	return dsListIterator(span, cs.collection, cs.id)
+	return dsListIterator(agent, span, cs.collection, cs.id)
 }
 
 // Push pushes a value onto the queue.
 func (cs *CouchbaseQueue) Push(val interface{}) error {
+	agent, err := cs.collection.getKvProvider()
+	if err != nil {
+		return err
+	}
+
 	span := cs.collection.startKvOpTrace("queue_push", nil, false)
 	defer span.End()
-	return dsListPrepend(span, cs.collection, cs.id, val)
+	return dsListPrepend(agent, span, cs.collection, cs.id, val)
 }
 
 // Pop pops an items off of the queue.
 func (cs *CouchbaseQueue) Pop(valuePtr interface{}) error {
+	agent, err := cs.collection.getKvProvider()
+	if err != nil {
+		return err
+	}
+
 	span := cs.collection.startKvOpTrace("queue_pop", nil, false)
 	defer span.End()
 	for i := 0; i < 16; i++ {
 		ops := make([]LookupInSpec, 1)
 		ops[0] = GetSpec("[-1]", nil)
-		content, err := cs.collection.LookupIn(cs.id, ops, &LookupInOptions{
+		content, err := agent.LookupIn(cs.collection, cs.id, ops, &LookupInOptions{
 			ParentSpan: span,
 		})
 		if err != nil {
@@ -563,7 +702,7 @@ func (cs *CouchbaseQueue) Pop(valuePtr interface{}) error {
 
 		mutateOps := make([]MutateInSpec, 1)
 		mutateOps[0] = RemoveSpec("[-1]", nil)
-		_, err = cs.collection.MutateIn(cs.id, mutateOps, &MutateInOptions{
+		_, err = agent.MutateIn(cs.collection, cs.id, mutateOps, &MutateInOptions{
 			Cas:        cas,
 			ParentSpan: span,
 		})
@@ -581,14 +720,24 @@ func (cs *CouchbaseQueue) Pop(valuePtr interface{}) error {
 
 // Size returns the size of the queue.
 func (cs *CouchbaseQueue) Size() (int, error) {
+	agent, err := cs.collection.getKvProvider()
+	if err != nil {
+		return 0, err
+	}
+
 	span := cs.collection.startKvOpTrace("queue_size", nil, false)
 	defer span.End()
-	return dsListSize(span, cs.collection, cs.id)
+	return dsListSize(agent, span, cs.collection, cs.id)
 }
 
 // Clear clears a queue, also removing it.
 func (cs *CouchbaseQueue) Clear() error {
+	agent, err := cs.collection.getKvProvider()
+	if err != nil {
+		return err
+	}
+
 	span := cs.collection.startKvOpTrace("queue_clear", nil, false)
 	defer span.End()
-	return dsListClear(span, cs.collection, cs.id)
+	return dsListClear(agent, span, cs.collection, cs.id)
 }

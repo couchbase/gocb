@@ -343,10 +343,13 @@ func (suite *IntegrationTestSuite) TestMapCrud() {
 
 	var test3Val string
 	err = cMap.At("test3", &test3Val)
-	suite.Assert().Nil(err, err)
+	suite.Require().Nil(err, err)
 	suite.Assert().Equal("test3val", test3Val)
 
-	suite.Assert().True(cMap.Exists("test3"))
+	exists, err := cMap.Exists("test3")
+	suite.Require().Nil(err, err)
+
+	suite.Assert().True(exists)
 
 	iter, err := cMap.Iterator()
 	if err != nil {
