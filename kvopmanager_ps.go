@@ -14,7 +14,8 @@ import (
 
 // Contains information only useful to protostellar
 type kvOpManagerPs struct {
-	parent *Collection
+	parent   *Collection
+	provider *kvProviderPs
 
 	err error
 
@@ -82,7 +83,7 @@ func (m *kvOpManagerPs) SetValue(val interface{}) {
 		return
 	}
 
-	espan := m.parent.startKvOpTrace("request_encoding", m.span.Context(), true)
+	espan := m.provider.StartKvOpTrace(m.parent, "request_encoding", m.span.Context(), true)
 	defer espan.End()
 
 	bytes, flags, err := m.transcoder.Encode(val)
@@ -223,7 +224,7 @@ func (m *kvOpManagerPs) CreatedAt() time.Time {
 }
 
 func (m *kvOpManagerPs) Tracer() RequestTracer {
-	return m.parent.tracer
+	return m.provider.tracer
 }
 
 func (m *kvOpManagerPs) RetryInfo() retriedRequestInfo {
@@ -264,20 +265,20 @@ func (m *kvOpManagerPs) EnhanceErr(err error, readOnly bool) error {
 	return mapPsErrorToGocbError(err, readOnly)
 }
 
-func newKvOpManagerPs(c *Collection, opName string, parentSpan RequestSpan) *kvOpManagerPs {
+func newKvOpManagerPs(c *Collection, opName string, parentSpan RequestSpan, p *kvProviderPs) *kvOpManagerPs {
 	var tracectx RequestSpanContext
 	if parentSpan != nil {
 		tracectx = parentSpan.Context()
 	}
 
-	span := c.startKvOpTrace(opName, tracectx, false)
+	span := p.StartKvOpTrace(c, opName, tracectx, false)
 
 	return &kvOpManagerPs{
 		parent:        c,
 		span:          span,
 		operationName: opName,
 		createdTime:   time.Now(),
-		meter:         c.meter,
+		meter:         p.meter,
 		operationID:   uuid.NewString()[:6],
 		compressor:    c.compressor,
 	}

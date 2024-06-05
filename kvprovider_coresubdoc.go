@@ -39,7 +39,7 @@ func (p *kvProviderCore) LookupInAllReplicas(c *Collection, id string, ops []Loo
 		ctx = context.Background()
 	}
 
-	span := c.startKvOpTrace("lookup_in_all_replicas", tracectx, false)
+	span := p.StartKvOpTrace(c, "lookup_in_all_replicas", tracectx, false)
 
 	// Timeout needs to be adjusted here, since we use it at the bottom of this
 	// function, but the remaining options are all passed downwards and get handled
@@ -74,7 +74,7 @@ func (p *kvProviderCore) LookupInAllReplicas(c *Collection, id string, ops []Loo
 	outCh := make(chan interface{}, numServers)
 	cancelCh := make(chan struct{})
 
-	recorder, err := c.meter.ValueRecorder(meterValueServiceKV, "lookup_in_all_replicas")
+	recorder, err := p.meter.ValueRecorder(meterValueServiceKV, "lookup_in_all_replicas")
 	if err != nil {
 		logDebugf("Failed to create value recorder: %v", err)
 	}
@@ -133,14 +133,14 @@ func (p *kvProviderCore) LookupInAllReplicas(c *Collection, id string, ops []Loo
 func (p *kvProviderCore) LookupInAnyReplica(c *Collection, id string, ops []LookupInSpec,
 	opts *LookupInAnyReplicaOptions) (docOut *LookupInReplicaResult, errOut error) {
 	start := time.Now()
-	defer c.meter.ValueRecord("kv", "lookup_in_any_replica", start)
+	defer p.meter.ValueRecord("kv", "lookup_in_any_replica", start)
 
 	var tracectx RequestSpanContext
 	if opts.ParentSpan != nil {
 		tracectx = opts.ParentSpan.Context()
 	}
 
-	span := c.startKvOpTrace("lookup_in_any_replica", tracectx, false)
+	span := p.StartKvOpTrace(c, "lookup_in_any_replica", tracectx, false)
 	defer span.End()
 
 	repRes, err := p.LookupInAllReplicas(c, id, ops, &LookupInAllReplicaOptions{
@@ -280,7 +280,8 @@ func (p *kvProviderCore) internalLookupIn(
 		ReplicaIdx:     replicaIdx,
 	}, func(res *gocbcore.LookupInResult, err error) {
 		if err != nil && res == nil {
-			if kvErr, ok := err.(*gocbcore.KeyValueError); ok {
+			var kvErr *gocbcore.KeyValueError
+			if errors.As(err, &kvErr) {
 				if errors.Is(err, gocbcore.ErrMemdSubDocBadCombo) {
 					kvErr.InnerError = ErrInvalidArgument
 				}
@@ -381,7 +382,7 @@ func (p *kvProviderCore) internalMutateIn(
 			}
 		}
 
-		etrace := opm.parent.startKvOpTrace("request_encoding", opm.TraceSpanContext(), true)
+		etrace := opm.kv.StartKvOpTrace(opm.parent, "request_encoding", opm.TraceSpanContext(), true)
 		bytes, flags, err := jsonMarshalMutateSpec(op)
 		etrace.End()
 		if err != nil {
@@ -423,7 +424,8 @@ func (p *kvProviderCore) internalMutateIn(
 		PreserveExpiry:         preserveTTL,
 	}, func(res *gocbcore.MutateInResult, err error) {
 		if err != nil {
-			if kvErr, ok := err.(*gocbcore.KeyValueError); ok {
+			var kvErr *gocbcore.KeyValueError
+			if errors.As(err, &kvErr) {
 				if errors.Is(kvErr.InnerError, ErrCasMismatch) {
 					// GOCBC-1019: Due to a previous bug in gocbcore we need to convert cas mismatch back to exists.
 					kvErr.InnerError = ErrDocumentExists

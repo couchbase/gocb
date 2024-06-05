@@ -12,8 +12,6 @@ type Bucket struct {
 
 	transcoder           Transcoder
 	retryStrategyWrapper *coreRetryStrategyWrapper
-	tracer               RequestTracer
-	meter                *meterWrapper
 	compressor           *compressor
 
 	useServerDurations bool
@@ -34,8 +32,6 @@ func newBucket(c *Cluster, bucketName string) *Bucket {
 
 		retryStrategyWrapper: c.retryStrategyWrapper,
 
-		tracer:     c.tracer,
-		meter:      c.meter,
 		compressor: c.compressor,
 
 		useServerDurations: c.useServerDurations,
@@ -200,8 +196,6 @@ func (b *Bucket) ViewIndexes() *ViewIndexManager {
 		getProvider: func() (viewIndexProvider, error) {
 			return b.getViewIndexProvider(b.Name())
 		},
-		tracer: b.tracer,
-		meter:  b.meter,
 	}
 }
 

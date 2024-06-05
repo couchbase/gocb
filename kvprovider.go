@@ -31,6 +31,8 @@ type kvProvider interface {
 	Prepend(*Collection, string, []byte, *PrependOptions) (*MutationResult, error) // Done
 
 	Scan(*Collection, ScanType, *ScanOptions) (*ScanResult, error)
+
+	StartKvOpTrace(*Collection, string, RequestSpanContext, bool) RequestSpan
 }
 
 type kvBulkProvider interface {

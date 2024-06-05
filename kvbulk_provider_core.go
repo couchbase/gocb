@@ -8,6 +8,9 @@ import (
 
 type kvBulkProviderCore struct {
 	agent kvProviderCoreProvider
+
+	tracer RequestTracer
+	meter  *meterWrapper
 }
 
 func (p *kvBulkProviderCore) Do(c *Collection, ops []BulkOp, opts *BulkOpOptions) error {
@@ -16,7 +19,7 @@ func (p *kvBulkProviderCore) Do(c *Collection, ops []BulkOp, opts *BulkOpOptions
 		tracectx = opts.ParentSpan.Context()
 	}
 
-	span := c.startKvOpTrace("bulk", tracectx, false)
+	span := p.StartKvOpTrace(c, "bulk", tracectx, false)
 	defer span.End()
 
 	timeout := opts.Timeout
@@ -76,11 +79,11 @@ func (p *kvBulkProviderCore) Do(c *Collection, ops []BulkOp, opts *BulkOpOptions
 
 func (p *kvBulkProviderCore) Get(item *GetOp, tracectx RequestSpanContext, c *Collection, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := c.startKvOpTrace("get", tracectx, false)
+	span := p.StartKvOpTrace(c, "get", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "get", start)
+		p.meter.ValueRecord(meterValueServiceKV, "get", start)
 	}
 
 	_, err := p.agent.Get(gocbcore.GetOptions{
@@ -114,11 +117,11 @@ func (p *kvBulkProviderCore) Get(item *GetOp, tracectx RequestSpanContext, c *Co
 
 func (p *kvBulkProviderCore) GetAndTouch(item *GetAndTouchOp, tracectx RequestSpanContext, c *Collection, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := c.startKvOpTrace("get_and_touch", tracectx, false)
+	span := p.StartKvOpTrace(c, "get_and_touch", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "get_and_touch", start)
+		p.meter.ValueRecord(meterValueServiceKV, "get_and_touch", start)
 	}
 
 	_, err := p.agent.GetAndTouch(gocbcore.GetAndTouchOptions{
@@ -150,11 +153,11 @@ func (p *kvBulkProviderCore) GetAndTouch(item *GetAndTouchOp, tracectx RequestSp
 }
 func (p *kvBulkProviderCore) Touch(item *TouchOp, tracectx RequestSpanContext, c *Collection, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := c.startKvOpTrace("touch", tracectx, false)
+	span := p.StartKvOpTrace(c, "touch", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "touch", start)
+		p.meter.ValueRecord(meterValueServiceKV, "touch", start)
 	}
 
 	_, err := p.agent.Touch(gocbcore.TouchOptions{
@@ -191,11 +194,11 @@ func (p *kvBulkProviderCore) Touch(item *TouchOp, tracectx RequestSpanContext, c
 }
 func (p *kvBulkProviderCore) Delete(item *RemoveOp, tracectx RequestSpanContext, c *Collection, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := c.startKvOpTrace("remove", tracectx, false)
+	span := p.StartKvOpTrace(c, "remove", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "remove", start)
+		p.meter.ValueRecord(meterValueServiceKV, "remove", start)
 	}
 
 	_, err := p.agent.Delete(gocbcore.DeleteOptions{
@@ -232,14 +235,14 @@ func (p *kvBulkProviderCore) Delete(item *RemoveOp, tracectx RequestSpanContext,
 }
 func (p *kvBulkProviderCore) Set(item *UpsertOp, tracectx RequestSpanContext, c *Collection, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := c.startKvOpTrace("upsert", tracectx, false)
+	span := p.StartKvOpTrace(c, "upsert", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "upsert", start)
+		p.meter.ValueRecord(meterValueServiceKV, "upsert", start)
 	}
 
-	etrace := c.startKvOpTrace("request_encoding", span.Context(), true)
+	etrace := p.StartKvOpTrace(c, "request_encoding", span.Context(), true)
 	bytes, flags, err := transcoder.Encode(item.Value)
 	etrace.End()
 	if err != nil {
@@ -286,14 +289,14 @@ func (p *kvBulkProviderCore) Set(item *UpsertOp, tracectx RequestSpanContext, c 
 
 func (p *kvBulkProviderCore) Add(item *InsertOp, tracectx RequestSpanContext, c *Collection, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := c.startKvOpTrace("insert", tracectx, false)
+	span := p.StartKvOpTrace(c, "insert", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "insert", start)
+		p.meter.ValueRecord(meterValueServiceKV, "insert", start)
 	}
 
-	etrace := c.startKvOpTrace("request_encoding", span.Context(), true)
+	etrace := p.StartKvOpTrace(c, "request_encoding", span.Context(), true)
 	bytes, flags, err := transcoder.Encode(item.Value)
 	if err != nil {
 		etrace.End()
@@ -339,14 +342,14 @@ func (p *kvBulkProviderCore) Add(item *InsertOp, tracectx RequestSpanContext, c 
 }
 func (p *kvBulkProviderCore) Replace(item *ReplaceOp, tracectx RequestSpanContext, c *Collection, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := c.startKvOpTrace("replace", tracectx, false)
+	span := p.StartKvOpTrace(c, "replace", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "replace", start)
+		p.meter.ValueRecord(meterValueServiceKV, "replace", start)
 	}
 
-	etrace := c.startKvOpTrace("request_encoding", span.Context(), true)
+	etrace := p.StartKvOpTrace(c, "request_encoding", span.Context(), true)
 	bytes, flags, err := transcoder.Encode(item.Value)
 	if err != nil {
 		etrace.End()
@@ -393,11 +396,11 @@ func (p *kvBulkProviderCore) Replace(item *ReplaceOp, tracectx RequestSpanContex
 }
 func (p *kvBulkProviderCore) Append(item *AppendOp, tracectx RequestSpanContext, c *Collection, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := c.startKvOpTrace("append", tracectx, false)
+	span := p.StartKvOpTrace(c, "append", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "append", start)
+		p.meter.ValueRecord(meterValueServiceKV, "append", start)
 	}
 
 	_, err := p.agent.Append(gocbcore.AdjoinOptions{
@@ -434,11 +437,11 @@ func (p *kvBulkProviderCore) Append(item *AppendOp, tracectx RequestSpanContext,
 }
 func (p *kvBulkProviderCore) Prepend(item *PrependOp, tracectx RequestSpanContext, c *Collection, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := c.startKvOpTrace("prepend", tracectx, false)
+	span := p.StartKvOpTrace(c, "prepend", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "prepend", start)
+		p.meter.ValueRecord(meterValueServiceKV, "prepend", start)
 	}
 
 	_, err := p.agent.Prepend(gocbcore.AdjoinOptions{
@@ -475,11 +478,11 @@ func (p *kvBulkProviderCore) Prepend(item *PrependOp, tracectx RequestSpanContex
 }
 func (p *kvBulkProviderCore) Increment(item *IncrementOp, tracectx RequestSpanContext, c *Collection, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := c.startKvOpTrace("increment", tracectx, false)
+	span := p.StartKvOpTrace(c, "increment", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "increment", start)
+		p.meter.ValueRecord(meterValueServiceKV, "increment", start)
 	}
 
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
@@ -526,11 +529,11 @@ func (p *kvBulkProviderCore) Increment(item *IncrementOp, tracectx RequestSpanCo
 }
 func (p *kvBulkProviderCore) Decrement(item *DecrementOp, tracectx RequestSpanContext, c *Collection,
 	signal chan BulkOp, retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := c.startKvOpTrace("decrement", tracectx, false)
+	span := p.StartKvOpTrace(c, "decrement", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "decrement", start)
+		p.meter.ValueRecord(meterValueServiceKV, "decrement", start)
 	}
 
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
@@ -574,4 +577,8 @@ func (p *kvBulkProviderCore) Decrement(item *DecrementOp, tracectx RequestSpanCo
 		item.Err = err
 		signal <- item
 	}
+}
+
+func (p *kvBulkProviderCore) StartKvOpTrace(c *Collection, operationName string, tracectx RequestSpanContext, noAttributes bool) RequestSpan {
+	return c.startKvOpTrace(operationName, tracectx, p.tracer, noAttributes)
 }

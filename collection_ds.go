@@ -26,7 +26,7 @@ func (cl *CouchbaseList) Iterator() ([]interface{}, error) {
 		return nil, err
 	}
 
-	span := cl.collection.startKvOpTrace("list_iterator", nil, false)
+	span := agent.StartKvOpTrace(cl.collection, "list_iterator", nil, false)
 	defer span.End()
 
 	return dsListIterator(agent, span, cl.collection, cl.id)
@@ -56,7 +56,7 @@ func (cl *CouchbaseList) At(index int, valuePtr interface{}) error {
 		return err
 	}
 
-	span := cl.collection.startKvOpTrace("list_at", nil, false)
+	span := agent.StartKvOpTrace(cl.collection, "list_at", nil, false)
 	defer span.End()
 	ops := make([]LookupInSpec, 1)
 	ops[0] = GetSpec(fmt.Sprintf("[%d]", index), nil)
@@ -77,7 +77,7 @@ func (cl *CouchbaseList) RemoveAt(index int) error {
 		return err
 	}
 
-	span := cl.collection.startKvOpTrace("list_remove_at", nil, false)
+	span := agent.StartKvOpTrace(cl.collection, "list_remove_at", nil, false)
 	defer span.End()
 	ops := make([]MutateInSpec, 1)
 	ops[0] = RemoveSpec(fmt.Sprintf("[%d]", index), nil)
@@ -98,7 +98,7 @@ func (cl *CouchbaseList) Append(val interface{}) error {
 		return err
 	}
 
-	span := cl.collection.startKvOpTrace("list_append", nil, false)
+	span := agent.StartKvOpTrace(cl.collection, "list_append", nil, false)
 	defer span.End()
 	ops := make([]MutateInSpec, 1)
 	ops[0] = ArrayAppendSpec("", val, nil)
@@ -120,7 +120,7 @@ func (cl *CouchbaseList) Prepend(val interface{}) error {
 		return err
 	}
 
-	span := cl.collection.startKvOpTrace("list_prepend", nil, false)
+	span := agent.StartKvOpTrace(cl.collection, "list_prepend", nil, false)
 	defer span.End()
 
 	return dsListPrepend(agent, span, cl.collection, cl.id, val)
@@ -147,7 +147,7 @@ func (cl *CouchbaseList) IndexOf(val interface{}) (int, error) {
 		return 0, err
 	}
 
-	span := cl.collection.startKvOpTrace("list_index_of", nil, false)
+	span := agent.StartKvOpTrace(cl.collection, "list_index_of", nil, false)
 	defer span.End()
 	content, err := agent.Get(cl.collection, cl.id, &GetOptions{
 		ParentSpan: span,
@@ -178,7 +178,7 @@ func (cl *CouchbaseList) Size() (int, error) {
 		return 0, err
 	}
 
-	span := cl.collection.startKvOpTrace("list_size", nil, false)
+	span := agent.StartKvOpTrace(cl.collection, "list_size", nil, false)
 	defer span.End()
 
 	return dsListSize(agent, span, cl.collection, cl.id)
@@ -210,7 +210,7 @@ func (cl *CouchbaseList) Clear() error {
 		return err
 	}
 
-	span := cl.collection.startKvOpTrace("list_clear", nil, false)
+	span := agent.StartKvOpTrace(cl.collection, "list_clear", nil, false)
 	defer span.End()
 
 	return dsListClear(agent, span, cl.collection, cl.id)
@@ -248,7 +248,7 @@ func (cl *CouchbaseMap) Iterator() (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	span := cl.collection.startKvOpTrace("map_iterator", nil, false)
+	span := agent.StartKvOpTrace(cl.collection, "map_iterator", nil, false)
 	defer span.End()
 	content, err := agent.Get(cl.collection, cl.id, &GetOptions{
 		ParentSpan: span,
@@ -273,7 +273,7 @@ func (cl *CouchbaseMap) At(id string, valuePtr interface{}) error {
 		return err
 	}
 
-	span := cl.collection.startKvOpTrace("map_at", nil, false)
+	span := agent.StartKvOpTrace(cl.collection, "map_at", nil, false)
 	defer span.End()
 	ops := make([]LookupInSpec, 1)
 	ops[0] = GetSpec(id, nil)
@@ -294,7 +294,7 @@ func (cl *CouchbaseMap) Add(id string, val interface{}) error {
 		return err
 	}
 
-	span := cl.collection.startKvOpTrace("map_add", nil, false)
+	span := agent.StartKvOpTrace(cl.collection, "map_add", nil, false)
 	defer span.End()
 	ops := make([]MutateInSpec, 1)
 	ops[0] = UpsertSpec(id, val, nil)
@@ -316,7 +316,7 @@ func (cl *CouchbaseMap) Remove(id string) error {
 		return err
 	}
 
-	span := cl.collection.startKvOpTrace("map_remove", nil, false)
+	span := agent.StartKvOpTrace(cl.collection, "map_remove", nil, false)
 	defer span.End()
 	ops := make([]MutateInSpec, 1)
 	ops[0] = RemoveSpec(id, nil)
@@ -337,7 +337,7 @@ func (cl *CouchbaseMap) Exists(id string) (bool, error) {
 		return false, err
 	}
 
-	span := cl.collection.startKvOpTrace("map_exists", nil, false)
+	span := agent.StartKvOpTrace(cl.collection, "map_exists", nil, false)
 	defer span.End()
 	ops := make([]LookupInSpec, 1)
 	ops[0] = ExistsSpec(id, nil)
@@ -358,7 +358,7 @@ func (cl *CouchbaseMap) Size() (int, error) {
 		return 0, err
 	}
 
-	span := cl.collection.startKvOpTrace("map_size", nil, false)
+	span := agent.StartKvOpTrace(cl.collection, "map_size", nil, false)
 	defer span.End()
 	ops := make([]LookupInSpec, 1)
 	ops[0] = CountSpec("", nil)
@@ -385,7 +385,7 @@ func (cl *CouchbaseMap) Keys() ([]string, error) {
 		return nil, err
 	}
 
-	span := cl.collection.startKvOpTrace("map_keys", nil, false)
+	span := agent.StartKvOpTrace(cl.collection, "map_keys", nil, false)
 	defer span.End()
 	content, err := agent.Get(cl.collection, cl.id, &GetOptions{
 		ParentSpan: span,
@@ -415,7 +415,7 @@ func (cl *CouchbaseMap) Values() ([]interface{}, error) {
 		return nil, err
 	}
 
-	span := cl.collection.startKvOpTrace("map_values", nil, false)
+	span := agent.StartKvOpTrace(cl.collection, "map_values", nil, false)
 	defer span.End()
 	content, err := agent.Get(cl.collection, cl.id, &GetOptions{
 		ParentSpan: span,
@@ -445,7 +445,7 @@ func (cl *CouchbaseMap) Clear() error {
 		return err
 	}
 
-	span := cl.collection.startKvOpTrace("map_clear", nil, false)
+	span := agent.StartKvOpTrace(cl.collection, "map_clear", nil, false)
 	defer span.End()
 	_, err = agent.Remove(cl.collection, cl.id, &RemoveOptions{
 		ParentSpan: span,
@@ -478,7 +478,7 @@ func (cs *CouchbaseSet) Iterator() ([]interface{}, error) {
 		return nil, err
 	}
 
-	span := cs.collection.startKvOpTrace("set_iterator", nil, false)
+	span := agent.StartKvOpTrace(cs.collection, "set_iterator", nil, false)
 	defer span.End()
 	return dsListIterator(agent, span, cs.collection, cs.id)
 }
@@ -490,7 +490,7 @@ func (cs *CouchbaseSet) Add(val interface{}) error {
 		return err
 	}
 
-	span := cs.collection.startKvOpTrace("set_add", nil, false)
+	span := agent.StartKvOpTrace(cs.collection, "set_add", nil, false)
 	defer span.End()
 	ops := make([]MutateInSpec, 1)
 	ops[0] = ArrayAddUniqueSpec("", val, nil)
@@ -512,7 +512,7 @@ func (cs *CouchbaseSet) Remove(val string) error {
 		return err
 	}
 
-	span := cs.collection.startKvOpTrace("set_remove", nil, false)
+	span := agent.StartKvOpTrace(cs.collection, "set_remove", nil, false)
 	defer span.End()
 	for i := 0; i < 16; i++ {
 		content, err := agent.Get(cs.collection, cs.id, &GetOptions{
@@ -564,7 +564,7 @@ func (cs *CouchbaseSet) Values() ([]interface{}, error) {
 		return nil, err
 	}
 
-	span := cs.collection.startKvOpTrace("set_values", nil, false)
+	span := agent.StartKvOpTrace(cs.collection, "set_values", nil, false)
 	defer span.End()
 	content, err := agent.Get(cs.collection, cs.id, &GetOptions{
 		ParentSpan: span,
@@ -589,7 +589,7 @@ func (cs *CouchbaseSet) Contains(val string) (bool, error) {
 		return false, err
 	}
 
-	span := cs.collection.startKvOpTrace("set_contains", nil, false)
+	span := agent.StartKvOpTrace(cs.collection, "set_contains", nil, false)
 	defer span.End()
 	content, err := agent.Get(cs.collection, cs.id, &GetOptions{
 		ParentSpan: span,
@@ -620,7 +620,7 @@ func (cs *CouchbaseSet) Size() (int, error) {
 		return 0, err
 	}
 
-	span := cs.collection.startKvOpTrace("set_size", nil, false)
+	span := agent.StartKvOpTrace(cs.collection, "set_size", nil, false)
 	defer span.End()
 	return dsListSize(agent, span, cs.collection, cs.id)
 }
@@ -632,7 +632,7 @@ func (cs *CouchbaseSet) Clear() error {
 		return err
 	}
 
-	span := cs.collection.startKvOpTrace("set_clear", nil, false)
+	span := agent.StartKvOpTrace(cs.collection, "set_clear", nil, false)
 	defer span.End()
 	return dsListClear(agent, span, cs.collection, cs.id)
 }
@@ -658,7 +658,7 @@ func (cs *CouchbaseQueue) Iterator() ([]interface{}, error) {
 		return nil, err
 	}
 
-	span := cs.collection.startKvOpTrace("queue_iterator", nil, false)
+	span := agent.StartKvOpTrace(cs.collection, "queue_iterator", nil, false)
 	defer span.End()
 	return dsListIterator(agent, span, cs.collection, cs.id)
 }
@@ -670,7 +670,7 @@ func (cs *CouchbaseQueue) Push(val interface{}) error {
 		return err
 	}
 
-	span := cs.collection.startKvOpTrace("queue_push", nil, false)
+	span := agent.StartKvOpTrace(cs.collection, "queue_push", nil, false)
 	defer span.End()
 	return dsListPrepend(agent, span, cs.collection, cs.id, val)
 }
@@ -682,7 +682,7 @@ func (cs *CouchbaseQueue) Pop(valuePtr interface{}) error {
 		return err
 	}
 
-	span := cs.collection.startKvOpTrace("queue_pop", nil, false)
+	span := agent.StartKvOpTrace(cs.collection, "queue_pop", nil, false)
 	defer span.End()
 	for i := 0; i < 16; i++ {
 		ops := make([]LookupInSpec, 1)
@@ -725,7 +725,7 @@ func (cs *CouchbaseQueue) Size() (int, error) {
 		return 0, err
 	}
 
-	span := cs.collection.startKvOpTrace("queue_size", nil, false)
+	span := agent.StartKvOpTrace(cs.collection, "queue_size", nil, false)
 	defer span.End()
 	return dsListSize(agent, span, cs.collection, cs.id)
 }
@@ -737,7 +737,7 @@ func (cs *CouchbaseQueue) Clear() error {
 		return err
 	}
 
-	span := cs.collection.startKvOpTrace("queue_clear", nil, false)
+	span := agent.StartKvOpTrace(cs.collection, "queue_clear", nil, false)
 	defer span.End()
 	return dsListClear(agent, span, cs.collection, cs.id)
 }

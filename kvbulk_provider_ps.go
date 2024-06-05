@@ -9,6 +9,9 @@ import (
 
 type kvBulkProviderPs struct {
 	client kv_v1.KvServiceClient
+
+	tracer RequestTracer
+	meter  *meterWrapper
 }
 
 func (p *kvBulkProviderPs) Do(c *Collection, ops []BulkOp, opts *BulkOpOptions) error {
@@ -17,7 +20,7 @@ func (p *kvBulkProviderPs) Do(c *Collection, ops []BulkOp, opts *BulkOpOptions) 
 		tracectx = opts.ParentSpan.Context()
 	}
 
-	span := c.startKvOpTrace("bulk", tracectx, false)
+	span := p.StartKvOpTrace(c, "bulk", tracectx, false)
 	defer span.End()
 
 	timeout := opts.Timeout
@@ -80,11 +83,11 @@ func (p *kvBulkProviderPs) Do(c *Collection, ops []BulkOp, opts *BulkOpOptions) 
 
 func (p *kvBulkProviderPs) Get(ctx context.Context, item *GetOp, tracectx RequestSpanContext, c *Collection,
 	transcoder Transcoder, signal chan BulkOp) {
-	span := c.startKvOpTrace("get", tracectx, false)
+	span := p.StartKvOpTrace(c, "get", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "get", start)
+		p.meter.ValueRecord(meterValueServiceKV, "get", start)
 	}
 
 	request := &kv_v1.GetRequest{
@@ -124,11 +127,11 @@ func (p *kvBulkProviderPs) Get(ctx context.Context, item *GetOp, tracectx Reques
 
 func (p *kvBulkProviderPs) GetAndTouch(ctx context.Context, item *GetAndTouchOp, tracectx RequestSpanContext, c *Collection,
 	transcoder Transcoder, signal chan BulkOp) {
-	span := c.startKvOpTrace("get_and_touch", tracectx, false)
+	span := p.StartKvOpTrace(c, "get_and_touch", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "get_and_touch", start)
+		p.meter.ValueRecord(meterValueServiceKV, "get_and_touch", start)
 	}
 
 	reqExpiry := &kv_v1.GetAndTouchRequest_ExpirySecs{ExpirySecs: uint32(item.Expiry.Seconds())}
@@ -172,11 +175,11 @@ func (p *kvBulkProviderPs) GetAndTouch(ctx context.Context, item *GetAndTouchOp,
 
 func (p *kvBulkProviderPs) Touch(ctx context.Context, item *TouchOp, tracectx RequestSpanContext, c *Collection,
 	signal chan BulkOp) {
-	span := c.startKvOpTrace("touch", tracectx, false)
+	span := p.StartKvOpTrace(c, "touch", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "touch", start)
+		p.meter.ValueRecord(meterValueServiceKV, "touch", start)
 	}
 
 	request := &kv_v1.TouchRequest{
@@ -210,11 +213,11 @@ func (p *kvBulkProviderPs) Touch(ctx context.Context, item *TouchOp, tracectx Re
 
 func (p *kvBulkProviderPs) Remove(ctx context.Context, item *RemoveOp, tracectx RequestSpanContext, c *Collection,
 	signal chan BulkOp) {
-	span := c.startKvOpTrace("remove", tracectx, false)
+	span := p.StartKvOpTrace(c, "remove", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "remove", start)
+		p.meter.ValueRecord(meterValueServiceKV, "remove", start)
 	}
 
 	var cas *uint64
@@ -253,14 +256,14 @@ func (p *kvBulkProviderPs) Remove(ctx context.Context, item *RemoveOp, tracectx 
 
 func (p *kvBulkProviderPs) Upsert(ctx context.Context, item *UpsertOp, tracectx RequestSpanContext, c *Collection,
 	transcoder Transcoder, signal chan BulkOp) {
-	span := c.startKvOpTrace("upsert", tracectx, false)
+	span := p.StartKvOpTrace(c, "upsert", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "upsert", start)
+		p.meter.ValueRecord(meterValueServiceKV, "upsert", start)
 	}
 
-	etrace := c.startKvOpTrace("request_encoding", span.Context(), true)
+	etrace := p.StartKvOpTrace(c, "request_encoding", span.Context(), true)
 	bytes, flags, err := transcoder.Encode(item.Value)
 	etrace.End()
 	if err != nil {
@@ -308,14 +311,14 @@ func (p *kvBulkProviderPs) Upsert(ctx context.Context, item *UpsertOp, tracectx 
 
 func (p *kvBulkProviderPs) Insert(ctx context.Context, item *InsertOp, tracectx RequestSpanContext, c *Collection,
 	transcoder Transcoder, signal chan BulkOp) {
-	span := c.startKvOpTrace("insert", tracectx, false)
+	span := p.StartKvOpTrace(c, "insert", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "insert", start)
+		p.meter.ValueRecord(meterValueServiceKV, "insert", start)
 	}
 
-	etrace := c.startKvOpTrace("request_encoding", span.Context(), true)
+	etrace := p.StartKvOpTrace(c, "request_encoding", span.Context(), true)
 	bytes, flags, err := transcoder.Encode(item.Value)
 	etrace.End()
 	if err != nil {
@@ -363,14 +366,14 @@ func (p *kvBulkProviderPs) Insert(ctx context.Context, item *InsertOp, tracectx 
 
 func (p *kvBulkProviderPs) Replace(ctx context.Context, item *ReplaceOp, tracectx RequestSpanContext, c *Collection,
 	transcoder Transcoder, signal chan BulkOp) {
-	span := c.startKvOpTrace("replace", tracectx, false)
+	span := p.StartKvOpTrace(c, "replace", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "replace", start)
+		p.meter.ValueRecord(meterValueServiceKV, "replace", start)
 	}
 
-	etrace := c.startKvOpTrace("request_encoding", span.Context(), true)
+	etrace := p.StartKvOpTrace(c, "request_encoding", span.Context(), true)
 	bytes, flags, err := transcoder.Encode(item.Value)
 	etrace.End()
 	if err != nil {
@@ -424,11 +427,11 @@ func (p *kvBulkProviderPs) Replace(ctx context.Context, item *ReplaceOp, tracect
 
 func (p *kvBulkProviderPs) Append(ctx context.Context, item *AppendOp, tracectx RequestSpanContext, c *Collection,
 	signal chan BulkOp) {
-	span := c.startKvOpTrace("append", tracectx, false)
+	span := p.StartKvOpTrace(c, "append", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "append", start)
+		p.meter.ValueRecord(meterValueServiceKV, "append", start)
 	}
 
 	request := &kv_v1.AppendRequest{
@@ -460,11 +463,11 @@ func (p *kvBulkProviderPs) Append(ctx context.Context, item *AppendOp, tracectx 
 
 func (p *kvBulkProviderPs) Prepend(ctx context.Context, item *PrependOp, tracectx RequestSpanContext, c *Collection,
 	signal chan BulkOp) {
-	span := c.startKvOpTrace("prepend", tracectx, false)
+	span := p.StartKvOpTrace(c, "prepend", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "prepend", start)
+		p.meter.ValueRecord(meterValueServiceKV, "prepend", start)
 	}
 
 	request := &kv_v1.PrependRequest{
@@ -496,11 +499,11 @@ func (p *kvBulkProviderPs) Prepend(ctx context.Context, item *PrependOp, tracect
 
 func (p *kvBulkProviderPs) Increment(ctx context.Context, item *IncrementOp, tracectx RequestSpanContext, c *Collection,
 	signal chan BulkOp) {
-	span := c.startKvOpTrace("increment", tracectx, false)
+	span := p.StartKvOpTrace(c, "increment", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "increment", start)
+		p.meter.ValueRecord(meterValueServiceKV, "increment", start)
 	}
 
 	var expiry *kv_v1.IncrementRequest_ExpirySecs
@@ -537,11 +540,11 @@ func (p *kvBulkProviderPs) Increment(ctx context.Context, item *IncrementOp, tra
 
 func (p *kvBulkProviderPs) Decrement(ctx context.Context, item *DecrementOp, tracectx RequestSpanContext, c *Collection,
 	signal chan BulkOp) {
-	span := c.startKvOpTrace("decrement", tracectx, false)
+	span := p.StartKvOpTrace(c, "decrement", tracectx, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		c.meter.ValueRecord(meterValueServiceKV, "decrement", start)
+		p.meter.ValueRecord(meterValueServiceKV, "decrement", start)
 	}
 
 	var expiry *kv_v1.DecrementRequest_ExpirySecs
@@ -574,4 +577,8 @@ func (p *kvBulkProviderPs) Decrement(ctx context.Context, item *DecrementOp, tra
 	item.Result.content = uint64(res.Content)
 
 	signal <- item
+}
+
+func (p *kvBulkProviderPs) StartKvOpTrace(c *Collection, operationName string, tracectx RequestSpanContext, noAttributes bool) RequestSpan {
+	return c.startKvOpTrace(operationName, tracectx, p.tracer, noAttributes)
 }

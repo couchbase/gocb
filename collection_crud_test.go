@@ -2239,7 +2239,7 @@ func (suite *UnitTestSuite) TestGetErrorCollectionUnknown() {
 		}).
 		Return(pendingOp, nil)
 
-	agent := &kvProviderCore{agent: provider}
+	agent := suite.kvProviderCore(provider, nil)
 
 	col := suite.collection("mock", "", "", agent)
 
@@ -2344,7 +2344,7 @@ func (suite *UnitTestSuite) TestGetErrorProperties() {
 		}).
 		Return(pendingOp, nil)
 
-	agent := &kvProviderCore{agent: provider}
+	agent := suite.kvProviderCore(provider, nil)
 
 	col := suite.collection("mock", "", "", agent)
 
@@ -2395,7 +2395,7 @@ func (suite *UnitTestSuite) TestExpiryConversion5Seconds() {
 		}).
 		Return(pendingOp, nil)
 
-	agent := &kvProviderCore{agent: provider}
+	agent := suite.kvProviderCore(provider, nil)
 
 	col := suite.collection("mock", "", "", agent)
 
@@ -2425,7 +2425,7 @@ func (suite *UnitTestSuite) TestExpiryConversion500Milliseconds() {
 		}).
 		Return(pendingOp, nil)
 
-	agent := &kvProviderCore{agent: provider}
+	agent := suite.kvProviderCore(provider, nil)
 
 	col := suite.collection("mock", "", "", agent)
 
@@ -2435,6 +2435,15 @@ func (suite *UnitTestSuite) TestExpiryConversion500Milliseconds() {
 	suite.Require().Nil(err, err)
 
 	suite.Assert().Equal(Cas(123), res.Cas())
+}
+
+func (suite *UnitTestSuite) kvProviderCore(agent kvProviderCoreProvider, snapshotProvider kvProviderConfigSnapshotProvider) *kvProviderCore {
+	return &kvProviderCore{
+		agent:            agent,
+		snapshotProvider: snapshotProvider,
+		tracer:           &NoopTracer{},
+		meter:            newMeterWrapper(&NoopMeter{}),
+	}
 }
 
 func (suite *UnitTestSuite) TestExpiryConversion30Days() {
@@ -2463,7 +2472,7 @@ func (suite *UnitTestSuite) TestExpiryConversion30Days() {
 		}).
 		Return(pendingOp, nil)
 
-	agent := &kvProviderCore{agent: provider}
+	agent := suite.kvProviderCore(provider, nil)
 
 	col := suite.collection("mock", "", "", agent)
 
@@ -2501,7 +2510,7 @@ func (suite *UnitTestSuite) TestExpiryConversion31Days() {
 		}).
 		Return(pendingOp, nil)
 
-	agent := &kvProviderCore{agent: provider}
+	agent := suite.kvProviderCore(provider, nil)
 
 	col := suite.collection("mock", "", "", agent)
 

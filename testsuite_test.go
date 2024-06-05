@@ -533,8 +533,6 @@ func (suite *UnitTestSuite) bucket(name string, timeouts TimeoutsConfig, cli con
 		},
 		transcoder:           NewJSONTranscoder(),
 		retryStrategyWrapper: newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
-		tracer:               &NoopTracer{},
-		meter:                &meterWrapper{meter: &NoopMeter{}},
 		useServerDurations:   true,
 		useMutationTokens:    true,
 
@@ -590,8 +588,6 @@ func (suite *UnitTestSuite) collection(bucket, scope, collection string, provide
 			KVScanTimeout: 75000 * time.Millisecond,
 		},
 		transcoder:           NewJSONTranscoder(),
-		tracer:               &NoopTracer{},
-		meter:                &meterWrapper{meter: &NoopMeter{}},
 		retryStrategyWrapper: newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
 	}
 }

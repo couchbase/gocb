@@ -198,6 +198,8 @@ func (suite *UnitTestSuite) searchScope(reader searchRowReader, runFn func(args 
 
 	searchProvider := &searchProviderCore{
 		provider: provider,
+		tracer:   &NoopTracer{},
+		meter:    newMeterWrapper(&NoopMeter{}),
 	}
 	cli := new(mockConnectionManager)
 	cli.On("getSearchProvider").Return(searchProvider, nil)
@@ -205,8 +207,6 @@ func (suite *UnitTestSuite) searchScope(reader searchRowReader, runFn func(args 
 	bucket := suite.bucket("searchBucket", TimeoutsConfig{SearchTimeout: 75 * time.Second}, cli)
 	scope := suite.newScope(bucket, "searchScope")
 
-	searchProvider.meter = scope.meter
-	searchProvider.tracer = scope.tracer
 	searchProvider.retryStrategyWrapper = scope.retryStrategyWrapper
 	searchProvider.timeouts = scope.timeoutsConfig
 

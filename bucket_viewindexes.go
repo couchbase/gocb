@@ -82,9 +82,6 @@ func (dd *DesignDocument) toData() (jsonDesignDocument, string, error) {
 // ViewIndexManager provides methods for performing View management.
 type ViewIndexManager struct {
 	getProvider func() (viewIndexProvider, error)
-
-	tracer RequestTracer
-	meter  *meterWrapper
 }
 
 // GetDesignDocumentOptions is the set of options available to the ViewIndexManager GetDesignDocument operation.

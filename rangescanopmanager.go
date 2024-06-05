@@ -77,7 +77,7 @@ func (p *kvProviderCore) newRangeScanOpManager(c *Collection, scanType ScanType,
 		tracectx = parentSpan.Context()
 	}
 
-	span := c.tracer.RequestSpan(tracectx, "range_scan")
+	span := p.tracer.RequestSpan(tracectx, "range_scan")
 	span.SetAttribute(spanAttribDBNameKey, c.bucket.Name())
 	span.SetAttribute(spanAttribDBCollectionNameKey, c.Name())
 	span.SetAttribute(spanAttribDBScopeNameKey, c.ScopeName())
@@ -178,8 +178,8 @@ func (p *kvProviderCore) newRangeScanOpManager(c *Collection, scanType ScanType,
 
 		span:        span,
 		createdTime: time.Now(),
-		meter:       c.meter,
-		tracer:      c.tracer,
+		meter:       p.meter,
+		tracer:      p.tracer,
 
 		cancelCh: make(chan struct{}),
 

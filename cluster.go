@@ -30,9 +30,6 @@ type Cluster struct {
 	orphanLoggerInterval   time.Duration
 	orphanLoggerSampleSize uint32
 
-	tracer RequestTracer
-	meter  *meterWrapper
-
 	circuitBreakerConfig CircuitBreakerConfig
 	securityConfig       SecurityConfig
 	internalConfig       InternalConfig
@@ -216,20 +213,6 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 		useServerDurations = false
 	}
 
-	var initialTracer RequestTracer
-	if opts.Tracer != nil {
-		initialTracer = opts.Tracer
-	} else {
-		initialTracer = NewThresholdLoggingTracer(nil)
-	}
-	tracerAddRef(initialTracer)
-
-	meter := opts.Meter
-	if meter == nil {
-		agMeter := NewLoggingMeter(nil)
-		meter = agMeter
-	}
-
 	return &Cluster{
 		auth: opts.Authenticator,
 		timeoutsConfig: TimeoutsConfig{
@@ -250,8 +233,6 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 		orphanLoggerInterval:   opts.OrphanReporterConfig.ReportInterval,
 		orphanLoggerSampleSize: opts.OrphanReporterConfig.SampleSize,
 		useServerDurations:     useServerDurations,
-		tracer:                 initialTracer,
-		meter:                  newMeterWrapper(meter),
 		circuitBreakerConfig:   opts.CircuitBreakerConfig,
 		securityConfig:         opts.SecurityConfig,
 		internalConfig:         opts.InternalConfig,
@@ -285,7 +266,24 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 		return nil, err
 	}
 
-	cli := cluster.newConnectionMgr(connSpec.Scheme)
+	var initialTracer RequestTracer
+	if opts.Tracer != nil {
+		initialTracer = opts.Tracer
+	} else {
+		initialTracer = NewThresholdLoggingTracer(nil)
+	}
+	tracerAddRef(initialTracer)
+
+	meter := opts.Meter
+	if meter == nil {
+		agMeter := NewLoggingMeter(nil)
+		meter = agMeter
+	}
+
+	cli := cluster.newConnectionMgr(connSpec.Scheme, &newConnectionMgrOptions{
+		tracer: initialTracer,
+		meter:  newMeterWrapper(meter),
+	})
 	err = cli.buildConfig(cluster)
 	if err != nil {
 		return nil, err
@@ -458,17 +456,6 @@ func (c *Cluster) Close(opts *ClusterCloseOptions) error {
 			logWarnf("Failed to close cluster connectionManager in cluster close: %s", err)
 			overallErr = err
 		}
-	}
-
-	if c.tracer != nil {
-		tracerDecRef(c.tracer)
-		c.tracer = nil
-	}
-	if c.meter != nil {
-		if meter, ok := c.meter.meter.(*LoggingMeter); ok {
-			meter.close()
-		}
-		c.meter = nil
 	}
 
 	return overallErr

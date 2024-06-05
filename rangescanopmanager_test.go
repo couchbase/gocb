@@ -93,7 +93,7 @@ func (suite *UnitTestSuite) TestScanAllScansTmpFailAtCreate() {
 
 		snap := newMockConfigSnapshot(8, 1)
 
-		agent := &kvProviderCore{agent: provider, snapshotProvider: &mockConfigSnapshotProvider{snapshot: snap}}
+		agent := suite.kvProviderCore(provider, &mockConfigSnapshotProvider{snapshot: snap})
 		col := suite.collection("mock", "", "", agent)
 
 		return agent.Scan(col, scan, opts)
@@ -145,7 +145,7 @@ func (suite *UnitTestSuite) TestScanAllScansEmpty() {
 
 		snap := newMockConfigSnapshot(8, 1)
 
-		agent := &kvProviderCore{agent: provider, snapshotProvider: &mockConfigSnapshotProvider{snapshot: snap}}
+		agent := suite.kvProviderCore(provider, &mockConfigSnapshotProvider{snapshot: snap})
 		col := suite.collection("mock", "", "", agent)
 
 		res, err := agent.Scan(col, scan, opts)
@@ -245,7 +245,7 @@ func (suite *UnitTestSuite) TestScanFirstCreateFailsUnknownError() {
 
 		snap := newMockConfigSnapshot(4, 1)
 
-		agent := &kvProviderCore{agent: provider, snapshotProvider: &mockConfigSnapshotProvider{snapshot: snap}}
+		agent := suite.kvProviderCore(provider, &mockConfigSnapshotProvider{snapshot: snap})
 		col := suite.collection("mock", "", "", agent)
 
 		opts := &ScanOptions{
@@ -302,7 +302,7 @@ func (suite *UnitTestSuite) TestScanSecondCreateFailsUnknownError() {
 
 		snap := newMockConfigSnapshot(4, 1)
 
-		agent := &kvProviderCore{agent: provider, snapshotProvider: &mockConfigSnapshotProvider{snapshot: snap}}
+		agent := suite.kvProviderCore(provider, &mockConfigSnapshotProvider{snapshot: snap})
 		col := suite.collection("mock", "", "", agent)
 
 		opts := &ScanOptions{
@@ -410,7 +410,7 @@ func (suite *UnitTestSuite) TestScanNMV() {
 
 		snap := newMockConfigSnapshot(4, 1)
 
-		agent := &kvProviderCore{agent: provider, snapshotProvider: &mockConfigSnapshotProvider{snapshot: snap}}
+		agent := suite.kvProviderCore(provider, &mockConfigSnapshotProvider{snapshot: snap})
 		col := suite.collection("mock", "", "", agent)
 
 		opts := &ScanOptions{

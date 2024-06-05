@@ -11,6 +11,9 @@ import (
 type kvProviderCore struct {
 	agent            kvProviderCoreProvider
 	snapshotProvider kvProviderConfigSnapshotProvider
+
+	tracer RequestTracer
+	meter  *meterWrapper
 }
 
 var _ kvProvider = &kvProviderCore{}
@@ -780,7 +783,7 @@ func (p *kvProviderCore) GetAllReplicas(c *Collection, id string, opts *GetAllRe
 		ctx = context.Background()
 	}
 
-	span := c.startKvOpTrace("get_all_replicas", tracectx, false)
+	span := p.StartKvOpTrace(c, "get_all_replicas", tracectx, false)
 
 	// Timeout needs to be adjusted here, since we use it at the bottom of this
 	// function, but the remaining options are all passed downwards and get handled
@@ -810,7 +813,7 @@ func (p *kvProviderCore) GetAllReplicas(c *Collection, id string, opts *GetAllRe
 
 	var recorder ValueRecorder
 	if !opts.noMetrics {
-		recorder, err = c.meter.ValueRecorder(meterValueServiceKV, "get_all_replicas")
+		recorder, err = p.meter.ValueRecorder(meterValueServiceKV, "get_all_replicas")
 		if err != nil {
 			logDebugf("Failed to create value recorder: %v", err)
 		}
@@ -874,14 +877,14 @@ func (p *kvProviderCore) GetAnyReplica(c *Collection, id string, opts *GetAnyRep
 	}
 
 	start := time.Now()
-	defer c.meter.ValueRecord("kv", "get_any_replica", start)
+	defer p.meter.ValueRecord("kv", "get_any_replica", start)
 
 	var tracectx RequestSpanContext
 	if opts.ParentSpan != nil {
 		tracectx = opts.ParentSpan.Context()
 	}
 
-	span := c.startKvOpTrace("get_any_replica", tracectx, false)
+	span := p.StartKvOpTrace(c, "get_any_replica", tracectx, false)
 	defer span.End()
 
 	repRes, err := p.GetAllReplicas(c, id, &GetAllReplicaOptions{
@@ -1239,4 +1242,8 @@ func (p *kvProviderCore) Decrement(c *Collection, id string, opts *DecrementOpti
 	}
 	return countOut, errOut
 
+}
+
+func (p *kvProviderCore) StartKvOpTrace(c *Collection, operationName string, tracectx RequestSpanContext, noAttributes bool) RequestSpan {
+	return c.startKvOpTrace(operationName, tracectx, p.tracer, noAttributes)
 }

@@ -211,8 +211,8 @@ func (suite *UnitTestSuite) viewsBucket(reader viewRowReader, runFn func(args mo
 	cli := new(mockConnectionManager)
 	cli.On("getViewProvider", "mockBucket").Return(viewProvider, nil)
 	cluster := suite.newCluster(cli)
-	viewProvider.meter = cluster.meter
-	viewProvider.tracer = cluster.tracer
+	viewProvider.meter = newMeterWrapper(&NoopMeter{})
+	viewProvider.tracer = &NoopTracer{}
 	viewProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
 	viewProvider.timeouts = cluster.timeoutsConfig
 	b := newBucket(cluster, "mockBucket")

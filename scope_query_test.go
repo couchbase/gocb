@@ -87,6 +87,8 @@ func (suite *UnitTestSuite) queryScope(prepared bool, reader queryRowReader, run
 
 	queryProvider := &queryProviderCore{
 		provider: provider,
+		tracer:   &NoopTracer{},
+		meter:    newMeterWrapper(&NoopMeter{}),
 	}
 
 	cli := new(mockConnectionManager)
@@ -96,8 +98,6 @@ func (suite *UnitTestSuite) queryScope(prepared bool, reader queryRowReader, run
 
 	scope := suite.newScope(b, "queryScope")
 
-	queryProvider.meter = scope.meter
-	queryProvider.tracer = scope.tracer
 	queryProvider.retryStrategyWrapper = scope.retryStrategyWrapper
 	queryProvider.timeouts = scope.timeoutsConfig
 

@@ -77,12 +77,10 @@ func (suite *UnitTestSuite) pingCluster(runFn func(args mock.Arguments), args ..
 			SearchTimeout:    1000 * time.Second,
 		},
 		connectionManager: cli,
-		tracer:            &NoopTracer{},
-		meter:             &meterWrapper{meter: &NoopMeter{}},
 	}
 
-	pingProvider.meter = c.meter
-	pingProvider.tracer = c.tracer
+	pingProvider.meter = newMeterWrapper(&NoopMeter{})
+	pingProvider.tracer = &NoopTracer{}
 	pingProvider.timeouts = c.timeoutsConfig
 
 	return c

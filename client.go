@@ -34,13 +34,18 @@ type connectionManager interface {
 	getTransactionsProvider() transactionsProvider
 }
 
-func (c *Cluster) newConnectionMgr(protocol string) connectionManager {
+type newConnectionMgrOptions struct {
+	tracer RequestTracer
+	meter  *meterWrapper
+}
+
+func (c *Cluster) newConnectionMgr(protocol string, opts *newConnectionMgrOptions) connectionManager {
 	switch protocol {
 	case "couchbase2":
 		return &psConnectionMgr{
 			timeouts:     c.timeoutsConfig,
-			tracer:       c.tracer,
-			meter:        c.meter,
+			tracer:       opts.tracer,
+			meter:        opts.meter,
 			defaultRetry: c.retryStrategyWrapper.wrapped,
 		}
 	default:
@@ -48,8 +53,8 @@ func (c *Cluster) newConnectionMgr(protocol string) connectionManager {
 			retryStrategyWrapper: c.retryStrategyWrapper,
 			transcoder:           c.transcoder,
 			timeouts:             c.timeoutsConfig,
-			tracer:               c.tracer,
-			meter:                c.meter,
+			tracer:               opts.tracer,
+			meter:                opts.meter,
 		}
 	}
 }

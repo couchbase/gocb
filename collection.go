@@ -10,8 +10,6 @@ type Collection struct {
 
 	transcoder           Transcoder
 	retryStrategyWrapper *coreRetryStrategyWrapper
-	tracer               RequestTracer
-	meter                *meterWrapper
 	compressor           *compressor
 
 	useMutationTokens bool
@@ -32,8 +30,6 @@ func newCollection(scope *Scope, collectionName string) *Collection {
 
 		transcoder:           scope.transcoder,
 		retryStrategyWrapper: scope.retryStrategyWrapper,
-		tracer:               scope.tracer,
-		meter:                scope.meter,
 		compressor:           scope.compressor,
 
 		useMutationTokens: scope.useMutationTokens,
@@ -75,8 +71,8 @@ func (c *Collection) QueryIndexes() *CollectionQueryIndexManager {
 	}
 }
 
-func (c *Collection) startKvOpTrace(operationName string, tracectx RequestSpanContext, noAttributes bool) RequestSpan {
-	span := c.tracer.RequestSpan(tracectx, operationName)
+func (c *Collection) startKvOpTrace(operationName string, tracectx RequestSpanContext, tracer RequestTracer, noAttributes bool) RequestSpan {
+	span := tracer.RequestSpan(tracectx, operationName)
 	if !noAttributes {
 		span.SetAttribute(spanAttribDBNameKey, c.bucket.Name())
 		span.SetAttribute(spanAttribDBCollectionNameKey, c.Name())

@@ -70,12 +70,22 @@ func (c *psConnectionMgr) buildConfig(cluster *Cluster) error {
 
 func (c *psConnectionMgr) getKvProvider(bucketName string) (kvProvider, error) {
 	kv := c.agent.KvV1()
-	return &kvProviderPs{client: kv}, nil
+	return &kvProviderPs{
+		client: kv,
+
+		tracer: c.tracer,
+		meter:  c.meter,
+	}, nil
 }
 
 func (c *psConnectionMgr) getKvBulkProvider(bucketName string) (kvBulkProvider, error) {
 	kv := c.agent.KvV1()
-	return &kvBulkProviderPs{client: kv}, nil
+	return &kvBulkProviderPs{
+		client: kv,
+
+		tracer: c.tracer,
+		meter:  c.meter,
+	}, nil
 }
 
 func (c *psConnectionMgr) getKvCapabilitiesProvider(bucketName string) (kvCapabilityVerifier, error) {
@@ -196,7 +206,20 @@ func (c *psConnectionMgr) connection(bucketName string) (*gocbcore.Agent, error)
 }
 
 func (c *psConnectionMgr) close() error {
-	return c.agent.Close()
+	err := c.agent.Close()
+
+	if c.tracer != nil {
+		tracerDecRef(c.tracer)
+		c.tracer = nil
+	}
+	if c.meter != nil {
+		if meter, ok := c.meter.meter.(*LoggingMeter); ok {
+			meter.close()
+		}
+		c.meter = nil
+	}
+
+	return err
 }
 
 type psOpManagerProvider struct {

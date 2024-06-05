@@ -74,7 +74,7 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 			},
 			TracerConfig: gocbcore.TracerConfig{
 				NoRootTraceSpans: true,
-				Tracer:           &coreRequestTracerWrapper{tracer: cluster.tracer},
+				Tracer:           &coreRequestTracerWrapper{tracer: c.tracer},
 			},
 			MeterConfig: gocbcore.MeterConfig{
 				// At the moment we only support our own operations metric so there's no point in setting a meter for gocbcore.
@@ -147,6 +147,9 @@ func (c *stdConnectionMgr) getKvProvider(bucketName string) (kvProvider, error) 
 	return &kvProviderCore{
 		agent:            agent,
 		snapshotProvider: &stdCoreConfigSnapshotProvider{agent: agent},
+
+		tracer: c.tracer,
+		meter:  c.meter,
 	}, nil
 }
 
@@ -158,7 +161,12 @@ func (c *stdConnectionMgr) getKvBulkProvider(bucketName string) (kvBulkProvider,
 	if agent == nil {
 		return nil, errors.New("bucket not yet connected")
 	}
-	return &kvBulkProviderCore{agent: agent}, nil
+	return &kvBulkProviderCore{
+		agent: agent,
+
+		tracer: c.tracer,
+		meter:  c.meter,
+	}, nil
 }
 
 func (c *stdConnectionMgr) getKvCapabilitiesProvider(bucketName string) (kvCapabilityVerifier, error) {
@@ -550,5 +558,18 @@ func (c *stdConnectionMgr) close() error {
 	}
 	defer c.lock.Unlock()
 
-	return c.agentgroup.Close()
+	err := c.agentgroup.Close()
+
+	if c.tracer != nil {
+		tracerDecRef(c.tracer)
+		c.tracer = nil
+	}
+	if c.meter != nil {
+		if meter, ok := c.meter.meter.(*LoggingMeter); ok {
+			meter.close()
+		}
+		c.meter = nil
+	}
+
+	return err
 }

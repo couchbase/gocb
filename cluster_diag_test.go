@@ -34,8 +34,6 @@ func (suite *UnitTestSuite) diagnosticsCluster(runFn func(args mock.Arguments), 
 			SearchTimeout:    1000 * time.Second,
 		},
 		connectionManager: cli,
-		tracer:            &NoopTracer{},
-		meter:             &meterWrapper{meter: &NoopMeter{}},
 	}
 
 	return c
