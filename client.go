@@ -27,6 +27,7 @@ type connectionManager interface {
 	getSearchIndexProvider() (searchIndexProvider, error)
 	getSearchCapabilitiesProvider() (searchCapabilityVerifier, error)
 	getEventingManagementProvider() (eventingManagementProvider, error)
+	getUserManagerProvider() (userManagerProvider, error)
 }
 
 func (c *Cluster) newConnectionMgr(protocol string) connectionManager {

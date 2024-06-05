@@ -469,6 +469,23 @@ func (c *stdConnectionMgr) getEventingManagementProvider() (eventingManagementPr
 	}, nil
 }
 
+func (c *stdConnectionMgr) getUserManagerProvider() (userManagerProvider, error) {
+	provider, err := c.getHTTPProvider("")
+	if err != nil {
+		return nil, err
+	}
+
+	return &userManagerProviderCore{
+		provider: &mgmtProviderCore{
+			provider:             provider,
+			mgmtTimeout:          c.timeouts.ManagementTimeout,
+			retryStrategyWrapper: c.retryStrategyWrapper,
+		},
+		tracer: c.tracer,
+		meter:  c.meter,
+	}, nil
+}
+
 func (c *stdConnectionMgr) connection(bucketName string) (*gocbcore.Agent, error) {
 	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")

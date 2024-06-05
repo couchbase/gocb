@@ -546,6 +546,36 @@ func (_m *mockConnectionManager) getSearchProvider() (searchProvider, error) {
 	return r0, r1
 }
 
+// getUserManagerProvider provides a mock function with given fields:
+func (_m *mockConnectionManager) getUserManagerProvider() (userManagerProvider, error) {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for getUserManagerProvider")
+	}
+
+	var r0 userManagerProvider
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (userManagerProvider, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() userManagerProvider); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(userManagerProvider)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // getViewIndexProvider provides a mock function with given fields: bucketName
 func (_m *mockConnectionManager) getViewIndexProvider(bucketName string) (viewIndexProvider, error) {
 	ret := _m.Called(bucketName)

@@ -530,6 +530,31 @@ func assertUserAndMetadata(t *testing.T, user *UserAndMetadata, expected *UserAn
 	}
 }
 
+func (suite *UnitTestSuite) userManager(runFn func(args mock.Arguments), args ...interface{}) *UserManager {
+	mockProvider := new(mockMgmtProvider)
+	call := mockProvider.
+		On("executeMgmtRequest", nil, mock.AnythingOfType("mgmtRequest")).
+		Return(args...)
+
+	if runFn != nil {
+		call.Run(runFn)
+	}
+
+	provider := &userManagerProviderCore{
+		provider: mockProvider,
+		tracer:   &NoopTracer{},
+		meter:    &meterWrapper{meter: &NoopMeter{}, isNoopMeter: true},
+	}
+
+	usrMgr := &UserManager{
+		getProvider: func() (userManagerProvider, error) {
+			return provider, nil
+		},
+	}
+
+	return usrMgr
+}
+
 func (suite *UnitTestSuite) TestUserManagerGetUserDoesntExist() {
 	retErr := `Unknown user.`
 	resp := &mgmtResponse{
@@ -538,24 +563,15 @@ func (suite *UnitTestSuite) TestUserManagerGetUserDoesntExist() {
 	}
 
 	username := "larry"
-	mockProvider := new(mockMgmtProvider)
-	mockProvider.
-		On("executeMgmtRequest", nil, mock.AnythingOfType("mgmtRequest")).
-		Run(func(args mock.Arguments) {
-			req := args.Get(1).(mgmtRequest)
+	usrMgr := suite.userManager(func(args mock.Arguments) {
+		req := args.Get(1).(mgmtRequest)
 
-			suite.Assert().Equal("/settings/rbac/users/local/"+username, req.Path)
-			suite.Assert().True(req.IsIdempotent)
-			suite.Assert().Equal(1*time.Second, req.Timeout)
-			suite.Assert().Equal("GET", req.Method)
-		}).
-		Return(resp, nil)
+		suite.Assert().Equal("/settings/rbac/users/local/"+username, req.Path)
+		suite.Assert().True(req.IsIdempotent)
+		suite.Assert().Equal(1*time.Second, req.Timeout)
+		suite.Assert().Equal("GET", req.Method)
+	}, resp, nil)
 
-	usrMgr := &UserManager{
-		provider: mockProvider,
-		tracer:   &NoopTracer{},
-		meter:    &meterWrapper{meter: &NoopMeter{}},
-	}
 	_, err := usrMgr.GetUser(username, &GetUserOptions{
 		Timeout: 1 * time.Second,
 	})
@@ -572,24 +588,15 @@ func (suite *UnitTestSuite) TestUserManagerDropUserDoesntExist() {
 	}
 
 	username := "larry"
-	mockProvider := new(mockMgmtProvider)
-	mockProvider.
-		On("executeMgmtRequest", nil, mock.AnythingOfType("mgmtRequest")).
-		Run(func(args mock.Arguments) {
-			req := args.Get(1).(mgmtRequest)
+	usrMgr := suite.userManager(func(args mock.Arguments) {
+		req := args.Get(1).(mgmtRequest)
 
-			suite.Assert().Equal("/settings/rbac/users/local/"+username, req.Path)
-			suite.Assert().False(req.IsIdempotent)
-			suite.Assert().Equal(1*time.Second, req.Timeout)
-			suite.Assert().Equal("DELETE", req.Method)
-		}).
-		Return(resp, nil)
+		suite.Assert().Equal("/settings/rbac/users/local/"+username, req.Path)
+		suite.Assert().False(req.IsIdempotent)
+		suite.Assert().Equal(1*time.Second, req.Timeout)
+		suite.Assert().Equal("DELETE", req.Method)
+	}, resp, nil)
 
-	usrMgr := &UserManager{
-		provider: mockProvider,
-		tracer:   &NoopTracer{},
-		meter:    &meterWrapper{meter: &NoopMeter{}},
-	}
 	err := usrMgr.DropUser(username, &DropUserOptions{
 		Timeout: 1 * time.Second,
 	})
@@ -606,24 +613,16 @@ func (suite *UnitTestSuite) TestUserManagerGetGroupDoesntExist() {
 	}
 
 	name := "g"
-	mockProvider := new(mockMgmtProvider)
-	mockProvider.
-		On("executeMgmtRequest", nil, mock.AnythingOfType("mgmtRequest")).
-		Run(func(args mock.Arguments) {
-			req := args.Get(1).(mgmtRequest)
 
-			suite.Assert().Equal("/settings/rbac/groups/"+name, req.Path)
-			suite.Assert().True(req.IsIdempotent)
-			suite.Assert().Equal(1*time.Second, req.Timeout)
-			suite.Assert().Equal("GET", req.Method)
-		}).
-		Return(resp, nil)
+	usrMgr := suite.userManager(func(args mock.Arguments) {
+		req := args.Get(1).(mgmtRequest)
 
-	usrMgr := &UserManager{
-		provider: mockProvider,
-		tracer:   &NoopTracer{},
-		meter:    &meterWrapper{meter: &NoopMeter{}},
-	}
+		suite.Assert().Equal("/settings/rbac/groups/"+name, req.Path)
+		suite.Assert().True(req.IsIdempotent)
+		suite.Assert().Equal(1*time.Second, req.Timeout)
+		suite.Assert().Equal("GET", req.Method)
+	}, resp, nil)
+
 	_, err := usrMgr.GetGroup(name, &GetGroupOptions{
 		Timeout: 1 * time.Second,
 	})
@@ -640,24 +639,15 @@ func (suite *UnitTestSuite) TestUserManagerDropGroupDoesntExist() {
 	}
 
 	name := "g"
-	mockProvider := new(mockMgmtProvider)
-	mockProvider.
-		On("executeMgmtRequest", nil, mock.AnythingOfType("mgmtRequest")).
-		Run(func(args mock.Arguments) {
-			req := args.Get(1).(mgmtRequest)
+	usrMgr := suite.userManager(func(args mock.Arguments) {
+		req := args.Get(1).(mgmtRequest)
 
-			suite.Assert().Equal("/settings/rbac/groups/"+name, req.Path)
-			suite.Assert().False(req.IsIdempotent)
-			suite.Assert().Equal(1*time.Second, req.Timeout)
-			suite.Assert().Equal("DELETE", req.Method)
-		}).
-		Return(resp, nil)
+		suite.Assert().Equal("/settings/rbac/groups/"+name, req.Path)
+		suite.Assert().False(req.IsIdempotent)
+		suite.Assert().Equal(1*time.Second, req.Timeout)
+		suite.Assert().Equal("DELETE", req.Method)
+	}, resp, nil)
 
-	usrMgr := &UserManager{
-		provider: mockProvider,
-		tracer:   &NoopTracer{},
-		meter:    &meterWrapper{meter: &NoopMeter{}},
-	}
 	err := usrMgr.DropGroup(name, &DropGroupOptions{
 		Timeout: 1 * time.Second,
 	})

@@ -173,6 +173,10 @@ func (c *psConnectionMgr) getEventingManagementProvider() (eventingManagementPro
 	return nil, ErrFeatureNotAvailable
 }
 
+func (c *psConnectionMgr) getUserManagerProvider() (userManagerProvider, error) {
+	return nil, ErrFeatureNotAvailable
+}
+
 func (c *psConnectionMgr) connection(bucketName string) (*gocbcore.Agent, error) {
 	return &gocbcore.Agent{}, ErrFeatureNotAvailable
 }

@@ -573,12 +573,19 @@ func (c *Cluster) getEventingManagementProvider() (eventingManagementProvider, e
 	return provider, nil
 }
 
+func (c *Cluster) getUserManagerProvider() (userManagerProvider, error) {
+	provider, err := c.connectionManager.getUserManagerProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}
+
 // Users returns a UserManager for managing users.
 func (c *Cluster) Users() *UserManager {
 	return &UserManager{
-		provider: c,
-		tracer:   c.tracer,
-		meter:    c.meter,
+		getProvider: c.getUserManagerProvider,
 	}
 }
 
