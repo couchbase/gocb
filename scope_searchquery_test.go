@@ -203,6 +203,8 @@ func (suite *UnitTestSuite) searchScope(reader searchRowReader, runFn func(args 
 	}
 	cli := new(mockConnectionManager)
 	cli.On("getSearchProvider").Return(searchProvider, nil)
+	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpCompleted").Return()
 
 	bucket := suite.bucket("searchBucket", TimeoutsConfig{SearchTimeout: 75 * time.Second}, cli)
 	scope := suite.newScope(bucket, "searchScope")

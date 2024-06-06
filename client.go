@@ -31,7 +31,47 @@ type connectionManager interface {
 	getInternalProvider() (internalProvider, error)
 
 	initTransactions(config TransactionsConfig, cluster *Cluster) error
-	getTransactionsProvider() transactionsProvider
+	getTransactionsProvider() (transactionsProvider, error)
+
+	opController
+}
+
+type opController interface {
+	MarkOpBeginning()
+	MarkOpCompleted()
+}
+
+type providerController[P any] struct {
+	get func() (P, error)
+	opController
+}
+
+func autoOpControl[T any, P any](controller *providerController[P], opFn func(P) (T, error)) (T, error) {
+	controller.MarkOpBeginning()
+	defer controller.MarkOpCompleted()
+
+	p, err := controller.get()
+	if err != nil {
+		var emptyT T
+		return emptyT, err
+	}
+
+	retT, err := opFn(p)
+	if err != nil {
+		var emptyT T
+		return emptyT, err
+	}
+
+	return retT, nil
+}
+
+func autoOpControlErrorOnly[P any](controller *providerController[P], opFn func(P) error) error {
+	_, err := autoOpControl(controller, func(provider P) (struct{}, error) {
+		err := opFn(provider)
+		return struct{}{}, err
+	})
+
+	return err
 }
 
 type newConnectionMgrOptions struct {

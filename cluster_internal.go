@@ -76,14 +76,11 @@ type GetNodesMetadataOptions struct {
 
 // GetNodesMetadata returns a list of information about nodes in the cluster.
 func (ic *InternalCluster) GetNodesMetadata(opts *GetNodesMetadataOptions) ([]NodeMetadata, error) {
-	if opts == nil {
-		opts = &GetNodesMetadataOptions{}
-	}
+	return autoOpControl(ic.cluster.internalController(), func(provider internalProvider) ([]NodeMetadata, error) {
+		if opts == nil {
+			opts = &GetNodesMetadataOptions{}
+		}
 
-	provider, err := ic.cluster.connectionManager.getInternalProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.GetNodesMetadata(opts)
+		return provider.GetNodesMetadata(opts)
+	})
 }

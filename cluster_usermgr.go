@@ -232,7 +232,7 @@ func (g *Group) fromData(data jsonGroup) error {
 
 // UserManager provides methods for performing Couchbase user management.
 type UserManager struct {
-	getProvider func() (userManagerProvider, error)
+	controller *providerController[userManagerProvider]
 }
 
 // GetAllUsersOptions is the set of options available to the user manager GetAll operation.
@@ -251,16 +251,13 @@ type GetAllUsersOptions struct {
 
 // GetAllUsers returns a list of all the users from the cluster.
 func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata, error) {
-	if opts == nil {
-		opts = &GetAllUsersOptions{}
-	}
+	return autoOpControl(um.controller, func(provider userManagerProvider) ([]UserAndMetadata, error) {
+		if opts == nil {
+			opts = &GetAllUsersOptions{}
+		}
 
-	provider, err := um.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.GetAllUsers(opts)
+		return provider.GetAllUsers(opts)
+	})
 }
 
 // GetUserOptions is the set of options available to the user manager Get operation.
@@ -279,16 +276,13 @@ type GetUserOptions struct {
 
 // GetUser returns the data for a particular user
 func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetadata, error) {
-	if opts == nil {
-		opts = &GetUserOptions{}
-	}
+	return autoOpControl(um.controller, func(provider userManagerProvider) (*UserAndMetadata, error) {
+		if opts == nil {
+			opts = &GetUserOptions{}
+		}
 
-	provider, err := um.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.GetUser(name, opts)
+		return provider.GetUser(name, opts)
+	})
 }
 
 // UpsertUserOptions is the set of options available to the user manager Upsert operation.
@@ -307,16 +301,13 @@ type UpsertUserOptions struct {
 
 // UpsertUser updates a built-in RBAC user on the cluster.
 func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
-	if opts == nil {
-		opts = &UpsertUserOptions{}
-	}
+	return autoOpControlErrorOnly(um.controller, func(provider userManagerProvider) error {
+		if opts == nil {
+			opts = &UpsertUserOptions{}
+		}
 
-	provider, err := um.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.UpsertUser(user, opts)
+		return provider.UpsertUser(user, opts)
+	})
 }
 
 // DropUserOptions is the set of options available to the user manager Drop operation.
@@ -335,16 +326,13 @@ type DropUserOptions struct {
 
 // DropUser removes a built-in RBAC user on the cluster.
 func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
-	if opts == nil {
-		opts = &DropUserOptions{}
-	}
+	return autoOpControlErrorOnly(um.controller, func(provider userManagerProvider) error {
+		if opts == nil {
+			opts = &DropUserOptions{}
+		}
 
-	provider, err := um.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.DropUser(name, opts)
+		return provider.DropUser(name, opts)
+	})
 }
 
 // GetRolesOptions is the set of options available to the user manager GetRoles operation.
@@ -361,16 +349,13 @@ type GetRolesOptions struct {
 
 // GetRoles lists the roles supported by the cluster.
 func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, error) {
-	if opts == nil {
-		opts = &GetRolesOptions{}
-	}
+	return autoOpControl(um.controller, func(provider userManagerProvider) ([]RoleAndDescription, error) {
+		if opts == nil {
+			opts = &GetRolesOptions{}
+		}
 
-	provider, err := um.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.GetRoles(opts)
+		return provider.GetRoles(opts)
+	})
 }
 
 // GetGroupOptions is the set of options available to the group manager Get operation.
@@ -387,19 +372,16 @@ type GetGroupOptions struct {
 
 // GetGroup fetches a single group from the server.
 func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group, error) {
-	if groupName == "" {
-		return nil, makeInvalidArgumentsError("groupName cannot be empty")
-	}
-	if opts == nil {
-		opts = &GetGroupOptions{}
-	}
+	return autoOpControl(um.controller, func(provider userManagerProvider) (*Group, error) {
+		if groupName == "" {
+			return nil, makeInvalidArgumentsError("groupName cannot be empty")
+		}
+		if opts == nil {
+			opts = &GetGroupOptions{}
+		}
 
-	provider, err := um.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.GetGroup(groupName, opts)
+		return provider.GetGroup(groupName, opts)
+	})
 }
 
 // GetAllGroupsOptions is the set of options available to the group manager GetAll operation.
@@ -416,16 +398,13 @@ type GetAllGroupsOptions struct {
 
 // GetAllGroups fetches all groups from the server.
 func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) {
-	if opts == nil {
-		opts = &GetAllGroupsOptions{}
-	}
+	return autoOpControl(um.controller, func(provider userManagerProvider) ([]Group, error) {
+		if opts == nil {
+			opts = &GetAllGroupsOptions{}
+		}
 
-	provider, err := um.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.GetAllGroups(opts)
+		return provider.GetAllGroups(opts)
+	})
 }
 
 // UpsertGroupOptions is the set of options available to the group manager Upsert operation.
@@ -442,19 +421,16 @@ type UpsertGroupOptions struct {
 
 // UpsertGroup creates, or updates, a group on the server.
 func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error {
-	if group.Name == "" {
-		return makeInvalidArgumentsError("group name cannot be empty")
-	}
-	if opts == nil {
-		opts = &UpsertGroupOptions{}
-	}
+	return autoOpControlErrorOnly(um.controller, func(provider userManagerProvider) error {
+		if group.Name == "" {
+			return makeInvalidArgumentsError("group name cannot be empty")
+		}
+		if opts == nil {
+			opts = &UpsertGroupOptions{}
+		}
 
-	provider, err := um.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.UpsertGroup(group, opts)
+		return provider.UpsertGroup(group, opts)
+	})
 }
 
 // DropGroupOptions is the set of options available to the group manager Drop operation.
@@ -471,20 +447,17 @@ type DropGroupOptions struct {
 
 // DropGroup removes a group from the server.
 func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error {
-	if groupName == "" {
-		return makeInvalidArgumentsError("groupName cannot be empty")
-	}
+	return autoOpControlErrorOnly(um.controller, func(provider userManagerProvider) error {
+		if groupName == "" {
+			return makeInvalidArgumentsError("groupName cannot be empty")
+		}
 
-	if opts == nil {
-		opts = &DropGroupOptions{}
-	}
+		if opts == nil {
+			opts = &DropGroupOptions{}
+		}
 
-	provider, err := um.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.DropGroup(groupName, opts)
+		return provider.DropGroup(groupName, opts)
+	})
 }
 
 // ChangePasswordOptions is the set of options available to the user manager ChangePassword operation.
@@ -503,18 +476,15 @@ type ChangePasswordOptions struct {
 // *Note*: Usage of this function will effectively invalidate the SDK instance and further requests will fail
 // due to authentication errors. After using this function the SDK must be reinitialized.
 func (um *UserManager) ChangePassword(newPassword string, opts *ChangePasswordOptions) error {
-	if newPassword == "" {
-		return makeInvalidArgumentsError("new password cannot be empty")
-	}
+	return autoOpControlErrorOnly(um.controller, func(provider userManagerProvider) error {
+		if newPassword == "" {
+			return makeInvalidArgumentsError("new password cannot be empty")
+		}
 
-	if opts == nil {
-		opts = &ChangePasswordOptions{}
-	}
+		if opts == nil {
+			opts = &ChangePasswordOptions{}
+		}
 
-	provider, err := um.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.ChangePassword(newPassword, opts)
+		return provider.ChangePassword(newPassword, opts)
+	})
 }

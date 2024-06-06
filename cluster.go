@@ -420,30 +420,22 @@ type WaitUntilReadyOptions struct {
 // will be pinged.
 // Valid service types are: ServiceTypeManagement, ServiceTypeQuery, ServiceTypeSearch, ServiceTypeAnalytics.
 func (c *Cluster) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOptions) error {
-	if opts == nil {
-		opts = &WaitUntilReadyOptions{}
-	}
+	return autoOpControlErrorOnly(c.waitUntilReadyController(), func(provider waitUntilReadyProvider) error {
+		if opts == nil {
+			opts = &WaitUntilReadyOptions{}
+		}
 
-	cli := c.connectionManager
-	if cli == nil {
-		return errors.New("cluster is not connected")
-	}
+		err := provider.WaitUntilReady(
+			opts.Context,
+			time.Now().Add(timeout),
+			opts,
+		)
+		if err != nil {
+			return maybeEnhanceCoreErr(err)
+		}
 
-	provider, err := cli.getWaitUntilReadyProvider("")
-	if err != nil {
-		return err
-	}
-
-	err = provider.WaitUntilReady(
-		opts.Context,
-		time.Now().Add(timeout),
-		opts,
-	)
-	if err != nil {
-		return maybeEnhanceCoreErr(err)
-	}
-
-	return nil
+		return nil
+	})
 }
 
 // Close shuts down all buckets in this cluster and invalidates any references this cluster has.
@@ -461,128 +453,106 @@ func (c *Cluster) Close(opts *ClusterCloseOptions) error {
 	return overallErr
 }
 
-func (c *Cluster) getDiagnosticsProvider() (diagnosticsProvider, error) {
-	provider, err := c.connectionManager.getDiagnosticsProvider("")
-	if err != nil {
-		return nil, err
+func (c *Cluster) waitUntilReadyController() *providerController[waitUntilReadyProvider] {
+	return &providerController[waitUntilReadyProvider]{
+		get: func() (waitUntilReadyProvider, error) {
+			return c.connectionManager.getWaitUntilReadyProvider("")
+		},
+		opController: c.connectionManager,
 	}
-
-	return provider, nil
 }
 
-func (c *Cluster) getQueryProvider() (queryProvider, error) {
-	provider, err := c.connectionManager.getQueryProvider()
-	if err != nil {
-		return nil, err
+func (c *Cluster) analyticsController() *providerController[analyticsProvider] {
+	return &providerController[analyticsProvider]{
+		get:          c.connectionManager.getAnalyticsProvider,
+		opController: c.connectionManager,
 	}
-
-	return provider, nil
 }
 
-func (c *Cluster) getQueryIndexProvider() (queryIndexProvider, error) {
-	provider, err := c.connectionManager.getQueryIndexProvider()
-	if err != nil {
-		return nil, err
+func (c *Cluster) diagnosticsController() *providerController[diagnosticsProvider] {
+	return &providerController[diagnosticsProvider]{
+		get: func() (diagnosticsProvider, error) {
+			return c.connectionManager.getDiagnosticsProvider("")
+		},
+		opController: c.connectionManager,
 	}
-
-	return provider, nil
 }
 
-func (c *Cluster) getAnalyticsProvider() (analyticsProvider, error) {
-	provider, err := c.connectionManager.getAnalyticsProvider()
-	if err != nil {
-		return nil, err
+func (c *Cluster) queryController() *providerController[queryProvider] {
+	return &providerController[queryProvider]{
+		get:          c.connectionManager.getQueryProvider,
+		opController: c.connectionManager,
 	}
-
-	return provider, nil
 }
 
-func (c *Cluster) getAnalyticsIndexProvider() (analyticsIndexProvider, error) {
-	provider, err := c.connectionManager.getAnalyticsIndexProvider()
-	if err != nil {
-		return nil, err
+func (c *Cluster) searchController() *providerController[searchProvider] {
+	return &providerController[searchProvider]{
+		get:          c.connectionManager.getSearchProvider,
+		opController: c.connectionManager,
 	}
-
-	return provider, nil
 }
 
-func (c *Cluster) getSearchProvider() (searchProvider, error) {
-	provider, err := c.connectionManager.getSearchProvider()
-	if err != nil {
-		return nil, err
+func (c *Cluster) internalController() *providerController[internalProvider] {
+	return &providerController[internalProvider]{
+		get:          c.connectionManager.getInternalProvider,
+		opController: c.connectionManager,
 	}
-
-	return provider, nil
 }
 
-func (c *Cluster) getSearchIndexProvider() (searchIndexProvider, error) {
-	provider, err := c.connectionManager.getSearchIndexProvider()
-	if err != nil {
-		return nil, err
+func (c *Cluster) transactionsController() *providerController[transactionsProvider] {
+	return &providerController[transactionsProvider]{
+		get:          c.connectionManager.getTransactionsProvider,
+		opController: c.connectionManager,
 	}
-
-	return provider, nil
-}
-
-func (c *Cluster) getbucketManagementProvider() (bucketManagementProvider, error) {
-	provider, err := c.connectionManager.getBucketManagementProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider, nil
-}
-
-func (c *Cluster) getEventingManagementProvider() (eventingManagementProvider, error) {
-	provider, err := c.connectionManager.getEventingManagementProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider, nil
-}
-
-func (c *Cluster) getUserManagerProvider() (userManagerProvider, error) {
-	provider, err := c.connectionManager.getUserManagerProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider, nil
 }
 
 // Users returns a UserManager for managing users.
 func (c *Cluster) Users() *UserManager {
 	return &UserManager{
-		getProvider: c.getUserManagerProvider,
+		controller: &providerController[userManagerProvider]{
+			get:          c.connectionManager.getUserManagerProvider,
+			opController: c.connectionManager,
+		},
 	}
 }
 
 // Buckets returns a BucketManager for managing buckets.
 func (c *Cluster) Buckets() *BucketManager {
 	return &BucketManager{
-		getProvider: c.getbucketManagementProvider,
+		controller: &providerController[bucketManagementProvider]{
+			get:          c.connectionManager.getBucketManagementProvider,
+			opController: c.connectionManager,
+		},
 	}
 }
 
 // AnalyticsIndexes returns an AnalyticsIndexManager for managing analytics indexes.
 func (c *Cluster) AnalyticsIndexes() *AnalyticsIndexManager {
 	return &AnalyticsIndexManager{
-		getProvider: c.getAnalyticsIndexProvider,
+		controller: &providerController[analyticsIndexProvider]{
+			get:          c.connectionManager.getAnalyticsIndexProvider,
+			opController: c.connectionManager,
+		},
 	}
 }
 
 // QueryIndexes returns a QueryIndexManager for managing query indexes.
 func (c *Cluster) QueryIndexes() *QueryIndexManager {
 	return &QueryIndexManager{
-		getProvider: c.getQueryIndexProvider,
+		controller: &providerController[queryIndexProvider]{
+			get:          c.connectionManager.getQueryIndexProvider,
+			opController: c.connectionManager,
+		},
 	}
 }
 
 // SearchIndexes returns a SearchIndexManager for managing cluster-level search indexes.
 func (c *Cluster) SearchIndexes() *SearchIndexManager {
 	return &SearchIndexManager{
-		getProvider: c.getSearchIndexProvider,
+		controller: &providerController[searchIndexProvider]{
+			get:          c.connectionManager.getSearchIndexProvider,
+			opController: c.connectionManager,
+		},
 	}
 }
 
@@ -593,7 +563,10 @@ func (c *Cluster) SearchIndexes() *SearchIndexManager {
 // This API is UNCOMMITTED and may change in the future.
 func (c *Cluster) EventingFunctions() *EventingFunctionManager {
 	return &EventingFunctionManager{
-		getProvider: c.getEventingManagementProvider,
+		controller: &providerController[eventingManagementProvider]{
+			get:          c.connectionManager.getEventingManagementProvider,
+			opController: c.connectionManager,
+		},
 	}
 }
 

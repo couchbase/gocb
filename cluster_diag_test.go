@@ -25,6 +25,8 @@ func (suite *UnitTestSuite) diagnosticsCluster(runFn func(args mock.Arguments), 
 
 	cli := new(mockConnectionManager)
 	cli.On("getDiagnosticsProvider", mock.AnythingOfType("string")).Return(diagnosticsProvider, nil)
+	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpCompleted").Return()
 
 	c := &Cluster{
 		timeoutsConfig: TimeoutsConfig{

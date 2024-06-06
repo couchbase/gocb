@@ -149,6 +149,22 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_views_drop_design_document"), 1, false)
 }
 
+func (suite *UnitTestSuite) viewIndexManager(mockProvider *mockMgmtProvider) *ViewIndexManager {
+	return &ViewIndexManager{
+		controller: &providerController[viewIndexProvider]{
+			get: func() (viewIndexProvider, error) {
+				return &viewIndexProviderCore{
+					mgmtProvider: mockProvider,
+					bucketName:   "mock",
+					tracer:       &NoopTracer{},
+					meter:        &meterWrapper{meter: &NoopMeter{}, isNoopMeter: true},
+				}, nil
+			},
+			opController: mockOpController{},
+		},
+	}
+}
+
 func (suite *UnitTestSuite) TestViewIndexManagerGetDoesntExist() {
 	ddocName := "ddoc"
 	retErr := `{"error": "not_found", "reason": "missing}`
@@ -173,16 +189,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerGetDoesntExist() {
 		}).
 		Return(resp, nil)
 
-	viewMgr := ViewIndexManager{
-		getProvider: func() (viewIndexProvider, error) {
-			return &viewIndexProviderCore{
-				mgmtProvider: mockProvider,
-				bucketName:   "mock",
-				tracer:       &NoopTracer{},
-				meter:        &meterWrapper{meter: &NoopMeter{}, isNoopMeter: true},
-			}, nil
-		},
-	}
+	viewMgr := suite.viewIndexManager(mockProvider)
 
 	_, err := viewMgr.GetDesignDocument(ddocName, DesignDocumentNamespaceDevelopment, &GetDesignDocumentOptions{
 		Timeout: 1 * time.Second,
@@ -216,16 +223,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerPublishDoesntExist() {
 		}).
 		Return(resp, nil)
 
-	viewMgr := ViewIndexManager{
-		getProvider: func() (viewIndexProvider, error) {
-			return &viewIndexProviderCore{
-				mgmtProvider: mockProvider,
-				bucketName:   "mock",
-				tracer:       &NoopTracer{},
-				meter:        &meterWrapper{meter: &NoopMeter{}, isNoopMeter: true},
-			}, nil
-		},
-	}
+	viewMgr := suite.viewIndexManager(mockProvider)
 
 	err := viewMgr.PublishDesignDocument(ddocName, &PublishDesignDocumentOptions{
 		Timeout: 1 * time.Second,
@@ -259,16 +257,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerDropDoesntExist() {
 		}).
 		Return(resp, nil)
 
-	viewMgr := ViewIndexManager{
-		getProvider: func() (viewIndexProvider, error) {
-			return &viewIndexProviderCore{
-				mgmtProvider: mockProvider,
-				bucketName:   "mock",
-				tracer:       &NoopTracer{},
-				meter:        &meterWrapper{meter: &NoopMeter{}, isNoopMeter: true},
-			}, nil
-		},
-	}
+	viewMgr := suite.viewIndexManager(mockProvider)
 
 	err := viewMgr.DropDesignDocument(ddocName, DesignDocumentNamespaceProduction, &DropDesignDocumentOptions{
 		Timeout: 1 * time.Second,
@@ -303,16 +292,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerGetAllDesignDocumentsFiltersCorr
 		}).
 		Return(resp, nil)
 
-	viewMgr := ViewIndexManager{
-		getProvider: func() (viewIndexProvider, error) {
-			return &viewIndexProviderCore{
-				mgmtProvider: mockProvider,
-				bucketName:   "mock",
-				tracer:       &NoopTracer{},
-				meter:        &meterWrapper{meter: &NoopMeter{}, isNoopMeter: true},
-			}, nil
-		},
-	}
+	viewMgr := suite.viewIndexManager(mockProvider)
 
 	ddocs, err := viewMgr.GetAllDesignDocuments(DesignDocumentNamespaceProduction, &GetAllDesignDocumentsOptions{
 		Timeout: 1 * time.Second,
@@ -348,16 +328,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerGetAllDesignDocumentsFiltersCorr
 		}).
 		Return(resp, nil)
 
-	viewMgr := ViewIndexManager{
-		getProvider: func() (viewIndexProvider, error) {
-			return &viewIndexProviderCore{
-				mgmtProvider: mockProvider,
-				bucketName:   "mock",
-				tracer:       &NoopTracer{},
-				meter:        &meterWrapper{meter: &NoopMeter{}, isNoopMeter: true},
-			}, nil
-		},
-	}
+	viewMgr := suite.viewIndexManager(mockProvider)
 
 	ddocs, err := viewMgr.GetAllDesignDocuments(DesignDocumentNamespaceDevelopment, &GetAllDesignDocumentsOptions{
 		Timeout: 1 * time.Second,

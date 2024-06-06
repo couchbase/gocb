@@ -12,6 +12,16 @@ type mockConnectionManager struct {
 	mock.Mock
 }
 
+// MarkOpBeginning provides a mock function with given fields:
+func (_m *mockConnectionManager) MarkOpBeginning() {
+	_m.Called()
+}
+
+// MarkOpCompleted provides a mock function with given fields:
+func (_m *mockConnectionManager) MarkOpCompleted() {
+	_m.Called()
+}
+
 // buildConfig provides a mock function with given fields: cluster
 func (_m *mockConnectionManager) buildConfig(cluster *Cluster) error {
 	ret := _m.Called(cluster)
@@ -577,7 +587,7 @@ func (_m *mockConnectionManager) getSearchProvider() (searchProvider, error) {
 }
 
 // getTransactionsProvider provides a mock function with given fields:
-func (_m *mockConnectionManager) getTransactionsProvider() transactionsProvider {
+func (_m *mockConnectionManager) getTransactionsProvider() (transactionsProvider, error) {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
@@ -585,6 +595,10 @@ func (_m *mockConnectionManager) getTransactionsProvider() transactionsProvider 
 	}
 
 	var r0 transactionsProvider
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (transactionsProvider, error)); ok {
+		return rf()
+	}
 	if rf, ok := ret.Get(0).(func() transactionsProvider); ok {
 		r0 = rf()
 	} else {
@@ -593,7 +607,13 @@ func (_m *mockConnectionManager) getTransactionsProvider() transactionsProvider 
 		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // getUserManagerProvider provides a mock function with given fields:

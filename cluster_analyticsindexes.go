@@ -7,7 +7,7 @@ import (
 
 // AnalyticsIndexManager provides methods for performing Couchbase Analytics index management.
 type AnalyticsIndexManager struct {
-	getProvider func() (analyticsIndexProvider, error)
+	controller *providerController[analyticsIndexProvider]
 }
 
 // AnalyticsDataset contains information about an analytics dataset.
@@ -60,22 +60,19 @@ type CreateAnalyticsDataverseOptions struct {
 
 // CreateDataverse creates a new analytics dataset.
 func (am *AnalyticsIndexManager) CreateDataverse(dataverseName string, opts *CreateAnalyticsDataverseOptions) error {
-	if opts == nil {
-		opts = &CreateAnalyticsDataverseOptions{}
-	}
-
-	if dataverseName == "" {
-		return invalidArgumentsError{
-			message: "dataset name cannot be empty",
+	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+		if opts == nil {
+			opts = &CreateAnalyticsDataverseOptions{}
 		}
-	}
 
-	provider, err := am.getProvider()
-	if err != nil {
-		return err
-	}
+		if dataverseName == "" {
+			return invalidArgumentsError{
+				message: "dataset name cannot be empty",
+			}
+		}
 
-	return provider.CreateDataverse(dataverseName, opts)
+		return provider.CreateDataverse(dataverseName, opts)
+	})
 }
 
 // DropAnalyticsDataverseOptions is the set of options available to the AnalyticsManager DropDataverse operation.
@@ -94,16 +91,13 @@ type DropAnalyticsDataverseOptions struct {
 
 // DropDataverse drops an analytics dataset.
 func (am *AnalyticsIndexManager) DropDataverse(dataverseName string, opts *DropAnalyticsDataverseOptions) error {
-	if opts == nil {
-		opts = &DropAnalyticsDataverseOptions{}
-	}
+	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+		if opts == nil {
+			opts = &DropAnalyticsDataverseOptions{}
+		}
 
-	provider, err := am.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.DropDataverse(dataverseName, opts)
+		return provider.DropDataverse(dataverseName, opts)
+	})
 }
 
 // CreateAnalyticsDatasetOptions is the set of options available to the AnalyticsManager CreateDataset operation.
@@ -124,22 +118,19 @@ type CreateAnalyticsDatasetOptions struct {
 
 // CreateDataset creates a new analytics dataset.
 func (am *AnalyticsIndexManager) CreateDataset(datasetName, bucketName string, opts *CreateAnalyticsDatasetOptions) error {
-	if opts == nil {
-		opts = &CreateAnalyticsDatasetOptions{}
-	}
-
-	if datasetName == "" {
-		return invalidArgumentsError{
-			message: "dataset name cannot be empty",
+	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+		if opts == nil {
+			opts = &CreateAnalyticsDatasetOptions{}
 		}
-	}
 
-	provider, err := am.getProvider()
-	if err != nil {
-		return err
-	}
+		if datasetName == "" {
+			return invalidArgumentsError{
+				message: "dataset name cannot be empty",
+			}
+		}
 
-	return provider.CreateDataset(datasetName, bucketName, opts)
+		return provider.CreateDataset(datasetName, bucketName, opts)
+	})
 }
 
 // DropAnalyticsDatasetOptions is the set of options available to the AnalyticsManager DropDataset operation.
@@ -159,16 +150,13 @@ type DropAnalyticsDatasetOptions struct {
 
 // DropDataset drops an analytics dataset.
 func (am *AnalyticsIndexManager) DropDataset(datasetName string, opts *DropAnalyticsDatasetOptions) error {
-	if opts == nil {
-		opts = &DropAnalyticsDatasetOptions{}
-	}
+	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+		if opts == nil {
+			opts = &DropAnalyticsDatasetOptions{}
+		}
 
-	provider, err := am.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.DropDataset(datasetName, opts)
+		return provider.DropDataset(datasetName, opts)
+	})
 }
 
 // GetAllAnalyticsDatasetsOptions is the set of options available to the AnalyticsManager GetAllDatasets operation.
@@ -185,16 +173,13 @@ type GetAllAnalyticsDatasetsOptions struct {
 
 // GetAllDatasets gets all analytics datasets.
 func (am *AnalyticsIndexManager) GetAllDatasets(opts *GetAllAnalyticsDatasetsOptions) ([]AnalyticsDataset, error) {
-	if opts == nil {
-		opts = &GetAllAnalyticsDatasetsOptions{}
-	}
+	return autoOpControl(am.controller, func(provider analyticsIndexProvider) ([]AnalyticsDataset, error) {
+		if opts == nil {
+			opts = &GetAllAnalyticsDatasetsOptions{}
+		}
 
-	provider, err := am.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.GetAllDatasets(opts)
+		return provider.GetAllDatasets(opts)
+	})
 }
 
 // CreateAnalyticsIndexOptions is the set of options available to the AnalyticsManager CreateIndex operation.
@@ -214,27 +199,24 @@ type CreateAnalyticsIndexOptions struct {
 
 // CreateIndex creates a new analytics dataset.
 func (am *AnalyticsIndexManager) CreateIndex(datasetName, indexName string, fields map[string]string, opts *CreateAnalyticsIndexOptions) error {
-	if opts == nil {
-		opts = &CreateAnalyticsIndexOptions{}
-	}
-
-	if indexName == "" {
-		return invalidArgumentsError{
-			message: "index name cannot be empty",
+	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+		if opts == nil {
+			opts = &CreateAnalyticsIndexOptions{}
 		}
-	}
-	if len(fields) <= 0 {
-		return invalidArgumentsError{
-			message: "you must specify at least one field to index",
+
+		if indexName == "" {
+			return invalidArgumentsError{
+				message: "index name cannot be empty",
+			}
 		}
-	}
+		if len(fields) <= 0 {
+			return invalidArgumentsError{
+				message: "you must specify at least one field to index",
+			}
+		}
 
-	provider, err := am.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.CreateIndex(datasetName, indexName, fields, opts)
+		return provider.CreateIndex(datasetName, indexName, fields, opts)
+	})
 }
 
 // DropAnalyticsIndexOptions is the set of options available to the AnalyticsManager DropIndex operation.
@@ -254,16 +236,13 @@ type DropAnalyticsIndexOptions struct {
 
 // DropIndex drops an analytics index.
 func (am *AnalyticsIndexManager) DropIndex(datasetName, indexName string, opts *DropAnalyticsIndexOptions) error {
-	if opts == nil {
-		opts = &DropAnalyticsIndexOptions{}
-	}
+	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+		if opts == nil {
+			opts = &DropAnalyticsIndexOptions{}
+		}
 
-	provider, err := am.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.DropIndex(datasetName, indexName, opts)
+		return provider.DropIndex(datasetName, indexName, opts)
+	})
 }
 
 // GetAllAnalyticsIndexesOptions is the set of options available to the AnalyticsManager GetAllIndexes operation.
@@ -280,16 +259,13 @@ type GetAllAnalyticsIndexesOptions struct {
 
 // GetAllIndexes gets all analytics indexes.
 func (am *AnalyticsIndexManager) GetAllIndexes(opts *GetAllAnalyticsIndexesOptions) ([]AnalyticsIndex, error) {
-	if opts == nil {
-		opts = &GetAllAnalyticsIndexesOptions{}
-	}
+	return autoOpControl(am.controller, func(provider analyticsIndexProvider) ([]AnalyticsIndex, error) {
+		if opts == nil {
+			opts = &GetAllAnalyticsIndexesOptions{}
+		}
 
-	provider, err := am.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.GetAllIndexes(opts)
+		return provider.GetAllIndexes(opts)
+	})
 }
 
 // ConnectAnalyticsLinkOptions is the set of options available to the AnalyticsManager ConnectLink operation.
@@ -309,16 +285,13 @@ type ConnectAnalyticsLinkOptions struct {
 
 // ConnectLink connects an analytics link.
 func (am *AnalyticsIndexManager) ConnectLink(opts *ConnectAnalyticsLinkOptions) error {
-	if opts == nil {
-		opts = &ConnectAnalyticsLinkOptions{}
-	}
+	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+		if opts == nil {
+			opts = &ConnectAnalyticsLinkOptions{}
+		}
 
-	provider, err := am.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.ConnectLink(opts)
+		return provider.ConnectLink(opts)
+	})
 }
 
 // DisconnectAnalyticsLinkOptions is the set of options available to the AnalyticsManager DisconnectLink operation.
@@ -338,16 +311,13 @@ type DisconnectAnalyticsLinkOptions struct {
 
 // DisconnectLink disconnects an analytics link.
 func (am *AnalyticsIndexManager) DisconnectLink(opts *DisconnectAnalyticsLinkOptions) error {
-	if opts == nil {
-		opts = &DisconnectAnalyticsLinkOptions{}
-	}
+	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+		if opts == nil {
+			opts = &DisconnectAnalyticsLinkOptions{}
+		}
 
-	provider, err := am.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.DisconnectLink(opts)
+		return provider.DisconnectLink(opts)
+	})
 }
 
 // GetPendingMutationsAnalyticsOptions is the set of options available to the user manager GetPendingMutations operation.
@@ -364,16 +334,13 @@ type GetPendingMutationsAnalyticsOptions struct {
 
 // GetPendingMutations returns the number of pending mutations for all indexes in the form of dataverse.dataset:mutations.
 func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAnalyticsOptions) (map[string]map[string]int, error) {
-	if opts == nil {
-		opts = &GetPendingMutationsAnalyticsOptions{}
-	}
+	return autoOpControl(am.controller, func(provider analyticsIndexProvider) (map[string]map[string]int, error) {
+		if opts == nil {
+			opts = &GetPendingMutationsAnalyticsOptions{}
+		}
 
-	provider, err := am.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.GetPendingMutations(opts)
+		return provider.GetPendingMutations(opts)
+	})
 }
 
 // AnalyticsLink describes an external or remote analytics link, used to access data external to the cluster.
@@ -484,16 +451,13 @@ type CreateAnalyticsLinkOptions struct {
 
 // CreateLink creates an analytics link.
 func (am *AnalyticsIndexManager) CreateLink(link AnalyticsLink, opts *CreateAnalyticsLinkOptions) error {
-	if opts == nil {
-		opts = &CreateAnalyticsLinkOptions{}
-	}
+	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+		if opts == nil {
+			opts = &CreateAnalyticsLinkOptions{}
+		}
 
-	provider, err := am.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.CreateLink(link, opts)
+		return provider.CreateLink(link, opts)
+	})
 }
 
 // ReplaceAnalyticsLinkOptions is the set of options available to the analytics manager ReplaceLink
@@ -511,16 +475,13 @@ type ReplaceAnalyticsLinkOptions struct {
 
 // ReplaceLink modifies an existing analytics link.
 func (am *AnalyticsIndexManager) ReplaceLink(link AnalyticsLink, opts *ReplaceAnalyticsLinkOptions) error {
-	if opts == nil {
-		opts = &ReplaceAnalyticsLinkOptions{}
-	}
+	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+		if opts == nil {
+			opts = &ReplaceAnalyticsLinkOptions{}
+		}
 
-	provider, err := am.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.ReplaceLink(link, opts)
+		return provider.ReplaceLink(link, opts)
+	})
 }
 
 // DropAnalyticsLinkOptions is the set of options available to the analytics manager DropLink
@@ -540,16 +501,13 @@ type DropAnalyticsLinkOptions struct {
 // dataverseName can be given in the form of "namepart" or "namepart1/namepart2".
 // Only available against Couchbase Server 7.0+.
 func (am *AnalyticsIndexManager) DropLink(linkName, dataverseName string, opts *DropAnalyticsLinkOptions) error {
-	if opts == nil {
-		opts = &DropAnalyticsLinkOptions{}
-	}
+	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+		if opts == nil {
+			opts = &DropAnalyticsLinkOptions{}
+		}
 
-	provider, err := am.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.DropLink(linkName, dataverseName, opts)
+		return provider.DropLink(linkName, dataverseName, opts)
+	})
 }
 
 // GetAnalyticsLinksOptions are the options available to the AnalyticsManager GetLinks function.
@@ -574,18 +532,15 @@ type GetAnalyticsLinksOptions struct {
 
 // GetLinks retrieves all external or remote analytics links.
 func (am *AnalyticsIndexManager) GetLinks(opts *GetAnalyticsLinksOptions) ([]AnalyticsLink, error) {
-	if opts == nil {
-		opts = &GetAnalyticsLinksOptions{}
-	}
+	return autoOpControl(am.controller, func(provider analyticsIndexProvider) ([]AnalyticsLink, error) {
+		if opts == nil {
+			opts = &GetAnalyticsLinksOptions{}
+		}
 
-	if opts.Name != "" && opts.Dataverse == "" {
-		return nil, makeInvalidArgumentsError("when name is set then dataverse must also be set")
-	}
+		if opts.Name != "" && opts.Dataverse == "" {
+			return nil, makeInvalidArgumentsError("when name is set then dataverse must also be set")
+		}
 
-	provider, err := am.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.GetLinks(opts)
+		return provider.GetLinks(opts)
+	})
 }

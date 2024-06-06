@@ -210,6 +210,9 @@ func (suite *UnitTestSuite) viewsBucket(reader viewRowReader, runFn func(args mo
 	}
 	cli := new(mockConnectionManager)
 	cli.On("getViewProvider", "mockBucket").Return(viewProvider, nil)
+	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpCompleted").Return()
+
 	cluster := suite.newCluster(cli)
 	viewProvider.meter = newMeterWrapper(&NoopMeter{})
 	viewProvider.tracer = &NoopTracer{}

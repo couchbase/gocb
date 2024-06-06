@@ -13,6 +13,8 @@ type Scope struct {
 
 	useMutationTokens bool
 
+	opController opController
+
 	getKvProvider                 func() (kvProvider, error)
 	getKvBulkProvider             func() (kvBulkProvider, error)
 	getQueryProvider              func() (queryProvider, error)
@@ -36,6 +38,8 @@ func newScope(bucket *Bucket, scopeName string) *Scope {
 		compressor:           bucket.compressor,
 
 		useMutationTokens: bucket.useMutationTokens,
+
+		opController: bucket.connectionManager,
 
 		getKvProvider:                 bucket.getKvProvider,
 		getKvBulkProvider:             bucket.getKvBulkProvider,
@@ -68,7 +72,10 @@ func (s *Scope) Collection(collectionName string) *Collection {
 // SearchIndexes returns a ScopeSearchIndexManager for managing scope-level search indexes.
 func (s *Scope) SearchIndexes() *ScopeSearchIndexManager {
 	return &ScopeSearchIndexManager{
-		getProvider: s.getSearchIndexProvider,
+		controller: &providerController[searchIndexProvider]{
+			get:          s.getSearchIndexProvider,
+			opController: s.opController,
+		},
 
 		scope: s,
 	}
@@ -81,8 +88,32 @@ func (s *Scope) SearchIndexes() *ScopeSearchIndexManager {
 // This API is UNCOMMITTED and may change in the future.
 func (s *Scope) EventingFunctions() *ScopeEventingFunctionManager {
 	return &ScopeEventingFunctionManager{
-		getProvider: s.getEventingManagementProvider,
+		controller: &providerController[eventingManagementProvider]{
+			get:          s.getEventingManagementProvider,
+			opController: s.opController,
+		},
 
 		scope: s,
+	}
+}
+
+func (s *Scope) analyticsController() *providerController[analyticsProvider] {
+	return &providerController[analyticsProvider]{
+		get:          s.getAnalyticsProvider,
+		opController: s.opController,
+	}
+}
+
+func (s *Scope) queryController() *providerController[queryProvider] {
+	return &providerController[queryProvider]{
+		get:          s.getQueryProvider,
+		opController: s.opController,
+	}
+}
+
+func (s *Scope) searchController() *providerController[searchProvider] {
+	return &providerController[searchProvider]{
+		get:          s.getSearchProvider,
+		opController: s.opController,
 	}
 }

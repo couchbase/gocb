@@ -192,18 +192,11 @@ func (r *ViewResult) MetaData() (*ViewMetaData, error) {
 
 // ViewQuery performs a view query and returns a list of rows or an error.
 func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions) (*ViewResult, error) {
-	if opts == nil {
-		opts = &ViewOptions{}
-	}
-
-	provider, err := b.getViewProvider(b.Name())
-	if err != nil {
-		return nil, &ViewError{
-			InnerError:         wrapError(err, "failed to get view query provider"),
-			DesignDocumentName: designDoc,
-			ViewName:           viewName,
+	return autoOpControl(b.viewController(), func(provider viewProvider) (*ViewResult, error) {
+		if opts == nil {
+			opts = &ViewOptions{}
 		}
-	}
 
-	return provider.ViewQuery(designDoc, viewName, opts)
+		return provider.ViewQuery(designDoc, viewName, opts)
+	})
 }

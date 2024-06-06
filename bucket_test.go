@@ -100,3 +100,24 @@ func (suite *IntegrationTestSuite) TestBucketWaitUntilReadyFastFailConnStr() {
 		suite.T().Fatalf("Expected timeout error but was: %v", err)
 	}
 }
+
+func (suite *IntegrationTestSuite) TestBucketOpsAfterClusterClose() {
+	_, b := suite.CreateAndCloseNewClusterAndBucket()
+	suite.Run("Ping", func() {
+		_, err := b.Ping(nil)
+		suite.Require().ErrorIs(err, ErrShutdown)
+	})
+	suite.Run("WaitUntilReady", func() {
+		err := b.WaitUntilReady(5*time.Second, nil)
+		suite.Require().ErrorIs(err, ErrShutdown)
+	})
+	suite.Run("Internal.IORouter", func() {
+		_, err := b.Internal().IORouter()
+		suite.Require().ErrorIs(err, ErrShutdown)
+	})
+	suite.Run("ViewQuery", func() {
+		_, b := suite.CreateAndCloseNewClusterAndBucket()
+		_, err := b.ViewQuery("test", "test", nil)
+		suite.Require().ErrorIs(err, ErrShutdown)
+	})
+}

@@ -1254,12 +1254,15 @@ func (suite *UnitTestSuite) runGetAllScopesMgmtRequestFailsTest(v2 bool) {
 	provider.On("executeMgmtRequest", nil, mock.AnythingOfType("gocb.mgmtRequest")).Return(nil, errors.New("http send failure"))
 
 	mgrV2 := CollectionManagerV2{
-		getProvider: func() (collectionsManagementProvider, error) {
-			return &collectionsManagementProviderCore{
-				mgmtProvider: provider,
-				tracer:       &NoopTracer{},
-				meter:        &meterWrapper{meter: &NoopMeter{}, isNoopMeter: true},
-			}, nil
+		controller: &providerController[collectionsManagementProvider]{
+			get: func() (collectionsManagementProvider, error) {
+				return &collectionsManagementProviderCore{
+					mgmtProvider: provider,
+					tracer:       &NoopTracer{},
+					meter:        &meterWrapper{meter: &NoopMeter{}, isNoopMeter: true},
+				}, nil
+			},
+			opController: mockOpController{},
 		},
 	}
 

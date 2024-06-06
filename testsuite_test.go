@@ -589,5 +589,13 @@ func (suite *UnitTestSuite) collection(bucket, scope, collection string, provide
 		},
 		transcoder:           NewJSONTranscoder(),
 		retryStrategyWrapper: newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
+
+		opController: mockOpController{},
 	}
 }
+
+type mockOpController struct{}
+
+func (m mockOpController) MarkOpBeginning() {}
+
+func (m mockOpController) MarkOpCompleted() {}

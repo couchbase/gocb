@@ -352,22 +352,15 @@ func (r *QueryResultInternal) Endpoint() string {
 
 // Query executes the query statement on the server.
 func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResult, error) {
-	if opts == nil {
-		opts = &QueryOptions{}
-	}
-
-	if opts.AsTransaction != nil {
-		return c.Transactions().singleQuery(statement, nil, *opts)
-	}
-
-	provider, err := c.getQueryProvider()
-	if err != nil {
-		return nil, &QueryError{
-			InnerError:      wrapError(err, "failed to get query provider"),
-			Statement:       statement,
-			ClientContextID: opts.ClientContextID,
+	return autoOpControl(c.queryController(), func(provider queryProvider) (*QueryResult, error) {
+		if opts == nil {
+			opts = &QueryOptions{}
 		}
-	}
 
-	return provider.Query(statement, nil, opts)
+		if opts.AsTransaction != nil {
+			return c.Transactions().singleQuery(statement, nil, *opts)
+		}
+
+		return provider.Query(statement, nil, opts)
+	})
 }

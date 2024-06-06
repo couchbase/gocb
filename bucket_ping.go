@@ -89,14 +89,11 @@ type PingOptions struct {
 // Ping will ping a list of services and verify they are active and
 // responding in an acceptable period of time.
 func (b *Bucket) Ping(opts *PingOptions) (*PingResult, error) {
-	if opts == nil {
-		opts = &PingOptions{}
-	}
+	return autoOpControl(b.diagnosticsController(), func(provider diagnosticsProvider) (*PingResult, error) {
+		if opts == nil {
+			opts = &PingOptions{}
+		}
 
-	provider, err := b.connectionManager.getDiagnosticsProvider(b.Name())
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.Ping(opts)
+		return provider.Ping(opts)
+	})
 }

@@ -263,16 +263,13 @@ func (r *AnalyticsResult) MetaData() (*AnalyticsMetaData, error) {
 
 // AnalyticsQuery executes the analytics query statement on the server.
 func (c *Cluster) AnalyticsQuery(statement string, opts *AnalyticsOptions) (*AnalyticsResult, error) {
-	if opts == nil {
-		opts = &AnalyticsOptions{}
-	}
+	return autoOpControl(c.analyticsController(), func(provider analyticsProvider) (*AnalyticsResult, error) {
+		if opts == nil {
+			opts = &AnalyticsOptions{}
+		}
 
-	provider, err := c.getAnalyticsProvider()
-	if err != nil {
-		return nil, maybeEnhanceAnalyticsError(err)
-	}
-
-	return provider.AnalyticsQuery(statement, nil, opts)
+		return provider.AnalyticsQuery(statement, nil, opts)
+	})
 }
 
 func maybeGetAnalyticsOption(options map[string]interface{}, name string) string {

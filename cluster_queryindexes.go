@@ -7,7 +7,7 @@ import (
 
 // QueryIndexManager provides methods for performing Couchbase query index management.
 type QueryIndexManager struct {
-	getProvider func() (queryIndexProvider, error)
+	controller *providerController[queryIndexProvider]
 }
 
 func (qm *QueryIndexManager) validateScopeCollection(scope, collection string) error {
@@ -45,30 +45,27 @@ type CreateQueryIndexOptions struct {
 // The SDK will automatically escape the provided index keys. For more advanced use cases like index keys using keywords
 // cluster.Query or scope.Query should be used with the query directly.
 func (qm *QueryIndexManager) CreateIndex(bucketName, indexName string, keys []string, opts *CreateQueryIndexOptions) error {
-	if opts == nil {
-		opts = &CreateQueryIndexOptions{}
-	}
-
-	if indexName == "" {
-		return invalidArgumentsError{
-			message: "an invalid index name was specified",
+	return autoOpControlErrorOnly(qm.controller, func(provider queryIndexProvider) error {
+		if opts == nil {
+			opts = &CreateQueryIndexOptions{}
 		}
-	}
-	if len(keys) <= 0 {
-		return invalidArgumentsError{
-			message: "you must specify at least one index-key to index",
+
+		if indexName == "" {
+			return invalidArgumentsError{
+				message: "an invalid index name was specified",
+			}
 		}
-	}
-	if err := qm.validateScopeCollection(opts.ScopeName, opts.CollectionName); err != nil {
-		return err
-	}
+		if len(keys) <= 0 {
+			return invalidArgumentsError{
+				message: "you must specify at least one index-key to index",
+			}
+		}
+		if err := qm.validateScopeCollection(opts.ScopeName, opts.CollectionName); err != nil {
+			return err
+		}
 
-	provider, err := qm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.CreateIndex(nil, bucketName, indexName, keys, opts)
+		return provider.CreateIndex(nil, bucketName, indexName, keys, opts)
+	})
 }
 
 // CreatePrimaryQueryIndexOptions is the set of options available to the query indexes CreatePrimaryIndex operation.
@@ -95,19 +92,16 @@ type CreatePrimaryQueryIndexOptions struct {
 
 // CreatePrimaryIndex creates a primary index.  An empty customName uses the default naming.
 func (qm *QueryIndexManager) CreatePrimaryIndex(bucketName string, opts *CreatePrimaryQueryIndexOptions) error {
-	if opts == nil {
-		opts = &CreatePrimaryQueryIndexOptions{}
-	}
-	if err := qm.validateScopeCollection(opts.ScopeName, opts.CollectionName); err != nil {
-		return err
-	}
+	return autoOpControlErrorOnly(qm.controller, func(provider queryIndexProvider) error {
+		if opts == nil {
+			opts = &CreatePrimaryQueryIndexOptions{}
+		}
+		if err := qm.validateScopeCollection(opts.ScopeName, opts.CollectionName); err != nil {
+			return err
+		}
 
-	provider, err := qm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.CreatePrimaryIndex(nil, bucketName, opts)
+		return provider.CreatePrimaryIndex(nil, bucketName, opts)
+	})
 }
 
 // DropQueryIndexOptions is the set of options available to the query indexes DropIndex operation.
@@ -131,25 +125,22 @@ type DropQueryIndexOptions struct {
 
 // DropIndex drops a specific index by name.
 func (qm *QueryIndexManager) DropIndex(bucketName, indexName string, opts *DropQueryIndexOptions) error {
-	if opts == nil {
-		opts = &DropQueryIndexOptions{}
-	}
-
-	if indexName == "" {
-		return invalidArgumentsError{
-			message: "an invalid index name was specified",
+	return autoOpControlErrorOnly(qm.controller, func(provider queryIndexProvider) error {
+		if opts == nil {
+			opts = &DropQueryIndexOptions{}
 		}
-	}
-	if err := qm.validateScopeCollection(opts.ScopeName, opts.CollectionName); err != nil {
-		return err
-	}
 
-	provider, err := qm.getProvider()
-	if err != nil {
-		return err
-	}
+		if indexName == "" {
+			return invalidArgumentsError{
+				message: "an invalid index name was specified",
+			}
+		}
+		if err := qm.validateScopeCollection(opts.ScopeName, opts.CollectionName); err != nil {
+			return err
+		}
 
-	return provider.DropIndex(nil, bucketName, indexName, opts)
+		return provider.DropIndex(nil, bucketName, indexName, opts)
+	})
 }
 
 // DropPrimaryQueryIndexOptions is the set of options available to the query indexes DropPrimaryIndex operation.
@@ -174,19 +165,16 @@ type DropPrimaryQueryIndexOptions struct {
 
 // DropPrimaryIndex drops the primary index.  Pass an empty customName for unnamed primary indexes.
 func (qm *QueryIndexManager) DropPrimaryIndex(bucketName string, opts *DropPrimaryQueryIndexOptions) error {
-	if opts == nil {
-		opts = &DropPrimaryQueryIndexOptions{}
-	}
-	if err := qm.validateScopeCollection(opts.ScopeName, opts.CollectionName); err != nil {
-		return err
-	}
+	return autoOpControlErrorOnly(qm.controller, func(provider queryIndexProvider) error {
+		if opts == nil {
+			opts = &DropPrimaryQueryIndexOptions{}
+		}
+		if err := qm.validateScopeCollection(opts.ScopeName, opts.CollectionName); err != nil {
+			return err
+		}
 
-	provider, err := qm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.DropPrimaryIndex(nil, bucketName, opts)
+		return provider.DropPrimaryIndex(nil, bucketName, opts)
+	})
 }
 
 // GetAllQueryIndexesOptions is the set of options available to the query indexes GetAllIndexes operation.
@@ -208,16 +196,13 @@ type GetAllQueryIndexesOptions struct {
 
 // GetAllIndexes returns a list of all currently registered indexes.
 func (qm *QueryIndexManager) GetAllIndexes(bucketName string, opts *GetAllQueryIndexesOptions) ([]QueryIndex, error) {
-	if opts == nil {
-		opts = &GetAllQueryIndexesOptions{}
-	}
+	return autoOpControl(qm.controller, func(provider queryIndexProvider) ([]QueryIndex, error) {
+		if opts == nil {
+			opts = &GetAllQueryIndexesOptions{}
+		}
 
-	provider, err := qm.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.GetAllIndexes(nil, bucketName, opts)
+		return provider.GetAllIndexes(nil, bucketName, opts)
+	})
 }
 
 // BuildDeferredQueryIndexOptions is the set of options available to the query indexes BuildDeferredIndexes operation.
@@ -241,19 +226,16 @@ type BuildDeferredQueryIndexOptions struct {
 // If no collection and scope names are specified in the options then *only* indexes created on the bucket directly
 // will be built.
 func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *BuildDeferredQueryIndexOptions) ([]string, error) {
-	if opts == nil {
-		opts = &BuildDeferredQueryIndexOptions{}
-	}
-	if err := qm.validateScopeCollection(opts.ScopeName, opts.CollectionName); err != nil {
-		return nil, err
-	}
+	return autoOpControl(qm.controller, func(provider queryIndexProvider) ([]string, error) {
+		if opts == nil {
+			opts = &BuildDeferredQueryIndexOptions{}
+		}
+		if err := qm.validateScopeCollection(opts.ScopeName, opts.CollectionName); err != nil {
+			return nil, err
+		}
 
-	provider, err := qm.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.BuildDeferredIndexes(nil, bucketName, opts)
+		return provider.BuildDeferredIndexes(nil, bucketName, opts)
+	})
 }
 
 // WatchQueryIndexOptions is the set of options available to the query indexes Watch operation.
@@ -276,17 +258,13 @@ type WatchQueryIndexOptions struct {
 
 // WatchIndexes waits for a set of indexes to come online.
 func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string, timeout time.Duration, opts *WatchQueryIndexOptions) error {
-	if opts == nil {
-		opts = &WatchQueryIndexOptions{}
-	}
-	if err := qm.validateScopeCollection(opts.ScopeName, opts.CollectionName); err != nil {
-		return err
-	}
-
-	provider, err := qm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.WatchIndexes(nil, bucketName, watchList, timeout, opts)
+	return autoOpControlErrorOnly(qm.controller, func(provider queryIndexProvider) error {
+		if opts == nil {
+			opts = &WatchQueryIndexOptions{}
+		}
+		if err := qm.validateScopeCollection(opts.ScopeName, opts.CollectionName); err != nil {
+			return err
+		}
+		return provider.WatchIndexes(nil, bucketName, watchList, timeout, opts)
+	})
 }

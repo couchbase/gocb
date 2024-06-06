@@ -122,7 +122,7 @@ type BucketSettings struct {
 // BucketManager provides methods for performing bucket management operations.
 // See BucketManager for methods that allow creating and removing buckets themselves.
 type BucketManager struct {
-	getProvider func() (bucketManagementProvider, error)
+	controller *providerController[bucketManagementProvider]
 }
 
 // GetBucketOptions is the set of options available to the bucket manager GetBucket operation.
@@ -139,16 +139,13 @@ type GetBucketOptions struct {
 
 // GetBucket returns settings for a bucket on the cluster.
 func (bm *BucketManager) GetBucket(bucketName string, opts *GetBucketOptions) (*BucketSettings, error) {
-	if opts == nil {
-		opts = &GetBucketOptions{}
-	}
+	return autoOpControl(bm.controller, func(provider bucketManagementProvider) (*BucketSettings, error) {
+		if opts == nil {
+			opts = &GetBucketOptions{}
+		}
 
-	provider, err := bm.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.GetBucket(bucketName, opts)
+		return provider.GetBucket(bucketName, opts)
+	})
 }
 
 // GetAllBucketsOptions is the set of options available to the bucket manager GetAll operation.
@@ -165,16 +162,13 @@ type GetAllBucketsOptions struct {
 
 // GetAllBuckets returns a list of all active buckets on the cluster.
 func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]BucketSettings, error) {
-	if opts == nil {
-		opts = &GetAllBucketsOptions{}
-	}
+	return autoOpControl(bm.controller, func(provider bucketManagementProvider) (map[string]BucketSettings, error) {
+		if opts == nil {
+			opts = &GetAllBucketsOptions{}
+		}
 
-	provider, err := bm.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.GetAllBuckets(opts)
+		return provider.GetAllBuckets(opts)
+	})
 }
 
 // CreateBucketSettings are the settings available when creating a bucket.
@@ -197,16 +191,13 @@ type CreateBucketOptions struct {
 
 // CreateBucket creates a bucket on the cluster.
 func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *CreateBucketOptions) error {
-	if opts == nil {
-		opts = &CreateBucketOptions{}
-	}
+	return autoOpControlErrorOnly(bm.controller, func(provider bucketManagementProvider) error {
+		if opts == nil {
+			opts = &CreateBucketOptions{}
+		}
 
-	provider, err := bm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.CreateBucket(settings, opts)
+		return provider.CreateBucket(settings, opts)
+	})
 }
 
 // UpdateBucketOptions is the set of options available to the bucket manager UpdateBucket operation.
@@ -223,16 +214,13 @@ type UpdateBucketOptions struct {
 
 // UpdateBucket updates a bucket on the cluster.
 func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucketOptions) error {
-	if opts == nil {
-		opts = &UpdateBucketOptions{}
-	}
+	return autoOpControlErrorOnly(bm.controller, func(provider bucketManagementProvider) error {
+		if opts == nil {
+			opts = &UpdateBucketOptions{}
+		}
 
-	provider, err := bm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.UpdateBucket(settings, opts)
+		return provider.UpdateBucket(settings, opts)
+	})
 }
 
 // DropBucketOptions is the set of options available to the bucket manager DropBucket operation.
@@ -249,16 +237,13 @@ type DropBucketOptions struct {
 
 // DropBucket will delete a bucket from the cluster by name.
 func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error {
-	if opts == nil {
-		opts = &DropBucketOptions{}
-	}
+	return autoOpControlErrorOnly(bm.controller, func(provider bucketManagementProvider) error {
+		if opts == nil {
+			opts = &DropBucketOptions{}
+		}
 
-	provider, err := bm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.DropBucket(name, opts)
+		return provider.DropBucket(name, opts)
+	})
 }
 
 // FlushBucketOptions is the set of options available to the bucket manager FlushBucket operation.
@@ -276,14 +261,11 @@ type FlushBucketOptions struct {
 // FlushBucket will delete all the of the data from a bucket.
 // Keep in mind that you must have flushing enabled in the buckets configuration.
 func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) error {
-	if opts == nil {
-		opts = &FlushBucketOptions{}
-	}
+	return autoOpControlErrorOnly(bm.controller, func(provider bucketManagementProvider) error {
+		if opts == nil {
+			opts = &FlushBucketOptions{}
+		}
 
-	provider, err := bm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.FlushBucket(name, opts)
+		return provider.FlushBucket(name, opts)
+	})
 }

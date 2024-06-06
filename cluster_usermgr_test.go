@@ -547,8 +547,11 @@ func (suite *UnitTestSuite) userManager(runFn func(args mock.Arguments), args ..
 	}
 
 	usrMgr := &UserManager{
-		getProvider: func() (userManagerProvider, error) {
-			return provider, nil
+		controller: &providerController[userManagerProvider]{
+			get: func() (userManagerProvider, error) {
+				return provider, nil
+			},
+			opController: mockOpController{},
 		},
 	}
 

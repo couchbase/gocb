@@ -9,38 +9,28 @@ import (
 
 // SearchQuery executes the search query on the server.
 func (c *Cluster) SearchQuery(indexName string, query cbsearch.Query, opts *SearchOptions) (*SearchResult, error) {
-	if opts == nil {
-		opts = &SearchOptions{}
-	}
-
-	provider, err := c.getSearchProvider()
-	if err != nil {
-		return nil, &SearchError{
-			InnerError: wrapError(err, "failed to get search provider"),
-			Query:      query,
+	return autoOpControl(c.searchController(), func(provider searchProvider) (*SearchResult, error) {
+		if opts == nil {
+			opts = &SearchOptions{}
 		}
-	}
-	return provider.SearchQuery(indexName, query, opts)
+
+		return provider.SearchQuery(indexName, query, opts)
+	})
 }
 
 // Search executes the search request on the server.
 func (c *Cluster) Search(indexName string, request SearchRequest, opts *SearchOptions) (*SearchResult, error) {
-	if request.VectorSearch == nil && request.SearchQuery == nil {
-		return nil, makeInvalidArgumentsError("the search request cannot be empty")
-	}
-
-	if opts == nil {
-		opts = &SearchOptions{}
-	}
-
-	provider, err := c.getSearchProvider()
-	if err != nil {
-		return nil, &SearchError{
-			InnerError: wrapError(err, "failed to get search provider"),
-			Query:      request,
+	return autoOpControl(c.searchController(), func(provider searchProvider) (*SearchResult, error) {
+		if request.VectorSearch == nil && request.SearchQuery == nil {
+			return nil, makeInvalidArgumentsError("the search request cannot be empty")
 		}
-	}
-	return provider.Search(nil, indexName, request, opts)
+
+		if opts == nil {
+			opts = &SearchOptions{}
+		}
+
+		return provider.Search(nil, indexName, request, opts)
+	})
 }
 
 func maybeGetSearchOptionQuery(options map[string]interface{}) interface{} {

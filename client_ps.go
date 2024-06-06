@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"google.golang.org/grpc"
@@ -23,6 +24,9 @@ type psConnectionMgr struct {
 	tracer       RequestTracer
 	meter        *meterWrapper
 	defaultRetry RetryStrategy
+
+	closed      atomic.Bool
+	activeOpsWg sync.WaitGroup
 }
 
 func (c *psConnectionMgr) connect() error {
@@ -68,7 +72,27 @@ func (c *psConnectionMgr) buildConfig(cluster *Cluster) error {
 	return nil
 }
 
+func (c *psConnectionMgr) canPerformOp() error {
+	if c.closed.Load() {
+		return ErrShutdown
+	}
+
+	return nil
+}
+
+func (c *psConnectionMgr) MarkOpBeginning() {
+	c.activeOpsWg.Add(1)
+}
+
+func (c *psConnectionMgr) MarkOpCompleted() {
+	c.activeOpsWg.Done()
+}
+
 func (c *psConnectionMgr) getKvProvider(bucketName string) (kvProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	kv := c.agent.KvV1()
 	return &kvProviderPs{
 		client: kv,
@@ -79,6 +103,10 @@ func (c *psConnectionMgr) getKvProvider(bucketName string) (kvProvider, error) {
 }
 
 func (c *psConnectionMgr) getKvBulkProvider(bucketName string) (kvBulkProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	kv := c.agent.KvV1()
 	return &kvBulkProviderPs{
 		client: kv,
@@ -89,7 +117,7 @@ func (c *psConnectionMgr) getKvBulkProvider(bucketName string) (kvBulkProvider, 
 }
 
 func (c *psConnectionMgr) getKvCapabilitiesProvider(bucketName string) (kvCapabilityVerifier, error) {
-	return &gocbcore.AgentInternal{}, ErrFeatureNotAvailable
+	return nil, ErrFeatureNotAvailable
 }
 
 func (c *psConnectionMgr) getViewProvider(bucketName string) (viewProvider, error) {
@@ -101,6 +129,10 @@ func (c *psConnectionMgr) getViewIndexProvider(bucketName string) (viewIndexProv
 }
 
 func (c *psConnectionMgr) getQueryProvider() (queryProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	provider := c.agent.QueryV1()
 	return &queryProviderPs{
 		provider: provider,
@@ -110,6 +142,10 @@ func (c *psConnectionMgr) getQueryProvider() (queryProvider, error) {
 }
 
 func (c *psConnectionMgr) getQueryIndexProvider() (queryIndexProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	provider := c.agent.QueryAdminV1()
 	return &queryIndexProviderPs{
 		provider: provider,
@@ -119,6 +155,10 @@ func (c *psConnectionMgr) getQueryIndexProvider() (queryIndexProvider, error) {
 }
 
 func (c *psConnectionMgr) getSearchIndexProvider() (searchIndexProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	provider := c.agent.SearchAdminV1()
 	return &searchIndexProviderPs{
 		provider: provider,
@@ -132,6 +172,10 @@ func (c *psConnectionMgr) getSearchCapabilitiesProvider() (searchCapabilityVerif
 }
 
 func (c *psConnectionMgr) getCollectionsManagementProvider(bucketName string) (collectionsManagementProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	return &collectionsManagementProviderPs{
 		provider:   c.agent.CollectionV1(),
 		bucketName: bucketName,
@@ -141,6 +185,10 @@ func (c *psConnectionMgr) getCollectionsManagementProvider(bucketName string) (c
 }
 
 func (c *psConnectionMgr) getBucketManagementProvider() (bucketManagementProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	return &bucketManagementProviderPs{
 		provider: c.agent.BucketV1(),
 
@@ -157,6 +205,10 @@ func (c *psConnectionMgr) getAnalyticsIndexProvider() (analyticsIndexProvider, e
 }
 
 func (c *psConnectionMgr) getSearchProvider() (searchProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	return &searchProviderPs{
 		provider: c.agent.SearchV1(),
 
@@ -165,7 +217,7 @@ func (c *psConnectionMgr) getSearchProvider() (searchProvider, error) {
 }
 
 func (c *psConnectionMgr) getHTTPProvider(bucketName string) (httpProvider, error) {
-	return &httpProviderWrapper{}, ErrFeatureNotAvailable
+	return nil, ErrFeatureNotAvailable
 }
 
 func (c *psConnectionMgr) getDiagnosticsProvider(bucketName string) (diagnosticsProvider, error) {
@@ -173,6 +225,10 @@ func (c *psConnectionMgr) getDiagnosticsProvider(bucketName string) (diagnostics
 }
 
 func (c *psConnectionMgr) getWaitUntilReadyProvider(bucketName string) (waitUntilReadyProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	return &waitUntilReadyProviderPs{
 		defaultRetryStrategy: c.defaultRetry,
 		client:               c.agent,
@@ -197,15 +253,23 @@ func (c *psConnectionMgr) initTransactions(config TransactionsConfig, cluster *C
 	return nil
 }
 
-func (c *psConnectionMgr) getTransactionsProvider() transactionsProvider {
-	return &transactionsProviderPs{}
+func (c *psConnectionMgr) getTransactionsProvider() (transactionsProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
+	return &transactionsProviderPs{}, nil
 }
 
 func (c *psConnectionMgr) connection(bucketName string) (*gocbcore.Agent, error) {
-	return &gocbcore.Agent{}, ErrFeatureNotAvailable
+	return nil, ErrFeatureNotAvailable
 }
 
 func (c *psConnectionMgr) close() error {
+	if !c.closed.CompareAndSwap(false, true) {
+		return ErrShutdown
+	}
+
 	err := c.agent.Close()
 
 	if c.tracer != nil {

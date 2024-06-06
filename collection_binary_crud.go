@@ -31,22 +31,15 @@ type AppendOptions struct {
 	}
 }
 
-func (c *Collection) binaryAppend(id string, val []byte, opts *AppendOptions) (mutOut *MutationResult, errOut error) {
-	if opts == nil {
-		opts = &AppendOptions{}
-	}
-
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return agent.Append(c, id, val, opts)
-}
-
 // Append appends a byte value to a document.
 func (c *BinaryCollection) Append(id string, val []byte, opts *AppendOptions) (mutOut *MutationResult, errOut error) {
-	return c.collection.binaryAppend(id, val, opts)
+	return autoOpControl(c.collection.kvController(), func(agent kvProvider) (*MutationResult, error) {
+		if opts == nil {
+			opts = &AppendOptions{}
+		}
+
+		return agent.Append(c.collection, id, val, opts)
+	})
 }
 
 // PrependOptions are the options available to the Prepend operation.
@@ -70,22 +63,15 @@ type PrependOptions struct {
 	}
 }
 
-func (c *Collection) binaryPrepend(id string, val []byte, opts *PrependOptions) (mutOut *MutationResult, errOut error) {
-	if opts == nil {
-		opts = &PrependOptions{}
-	}
-
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return agent.Prepend(c, id, val, opts)
-}
-
 // Prepend prepends a byte value to a document.
 func (c *BinaryCollection) Prepend(id string, val []byte, opts *PrependOptions) (mutOut *MutationResult, errOut error) {
-	return c.collection.binaryPrepend(id, val, opts)
+	return autoOpControl(c.collection.kvController(), func(agent kvProvider) (*MutationResult, error) {
+		if opts == nil {
+			opts = &PrependOptions{}
+		}
+
+		return agent.Prepend(c.collection, id, val, opts)
+	})
 }
 
 // IncrementOptions are the options available to the Increment operation.
@@ -119,27 +105,20 @@ type IncrementOptions struct {
 	}
 }
 
-func (c *Collection) binaryIncrement(id string, opts *IncrementOptions) (countOut *CounterResult, errOut error) {
-	if opts == nil {
-		opts = &IncrementOptions{}
-	}
-	if opts.Cas > 0 {
-		return nil, makeInvalidArgumentsError("cas is not supported for the Increment operation")
-	}
-
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return agent.Increment(c, id, opts)
-}
-
 // Increment performs an atomic addition for an integer document. Passing a
 // non-negative `initial` value will cause the document to be created if it did not
 // already exist.
 func (c *BinaryCollection) Increment(id string, opts *IncrementOptions) (countOut *CounterResult, errOut error) {
-	return c.collection.binaryIncrement(id, opts)
+	return autoOpControl(c.collection.kvController(), func(agent kvProvider) (*CounterResult, error) {
+		if opts == nil {
+			opts = &IncrementOptions{}
+		}
+		if opts.Cas > 0 {
+			return nil, makeInvalidArgumentsError("cas is not supported for the Increment operation")
+		}
+
+		return agent.Increment(c.collection, id, opts)
+	})
 }
 
 // DecrementOptions are the options available to the Decrement operation.
@@ -173,25 +152,18 @@ type DecrementOptions struct {
 	}
 }
 
-func (c *Collection) binaryDecrement(id string, opts *DecrementOptions) (countOut *CounterResult, errOut error) {
-	if opts == nil {
-		opts = &DecrementOptions{}
-	}
-	if opts.Cas > 0 {
-		return nil, makeInvalidArgumentsError("cas is not supported for the Decrement operation")
-	}
-
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return agent.Decrement(c, id, opts)
-}
-
 // Decrement performs an atomic subtraction for an integer document. Passing a
 // non-negative `initial` value will cause the document to be created if it did not
 // already exist.
 func (c *BinaryCollection) Decrement(id string, opts *DecrementOptions) (countOut *CounterResult, errOut error) {
-	return c.collection.binaryDecrement(id, opts)
+	return autoOpControl(c.collection.kvController(), func(agent kvProvider) (*CounterResult, error) {
+		if opts == nil {
+			opts = &DecrementOptions{}
+		}
+		if opts.Cas > 0 {
+			return nil, makeInvalidArgumentsError("cas is not supported for the Decrement operation")
+		}
+
+		return agent.Decrement(c.collection, id, opts)
+	})
 }

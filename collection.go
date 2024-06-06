@@ -14,10 +14,11 @@ type Collection struct {
 
 	useMutationTokens bool
 
+	opController opController
+
 	getKvProvider         func() (kvProvider, error)
 	getKvBulkProvider     func() (kvBulkProvider, error)
 	getQueryIndexProvider func() (queryIndexProvider, error)
-	getQueryProvider      func() (queryProvider, error)
 }
 
 func newCollection(scope *Scope, collectionName string) *Collection {
@@ -34,10 +35,11 @@ func newCollection(scope *Scope, collectionName string) *Collection {
 
 		useMutationTokens: scope.useMutationTokens,
 
+		opController: scope.opController,
+
 		getKvProvider:         scope.getKvProvider,
 		getKvBulkProvider:     scope.getKvBulkProvider,
 		getQueryIndexProvider: scope.getQueryIndexProvider,
-		getQueryProvider:      scope.getQueryProvider,
 	}
 }
 
@@ -65,7 +67,10 @@ func (c *Collection) Name() string {
 // UNCOMMITTED: This API may change in the future.
 func (c *Collection) QueryIndexes() *CollectionQueryIndexManager {
 	return &CollectionQueryIndexManager{
-		getProvider: c.getQueryIndexProvider,
+		controller: &providerController[queryIndexProvider]{
+			get:          c.getQueryIndexProvider,
+			opController: c.opController,
+		},
 
 		c: c,
 	}
@@ -91,4 +96,18 @@ func (c *Collection) bucketName() string {
 
 func (c *Collection) isDefault() bool {
 	return (c.scope == "" || c.scope == "_default") && (c.collectionName == "" || c.collectionName == "_default")
+}
+
+func (c *Collection) kvController() *providerController[kvProvider] {
+	return &providerController[kvProvider]{
+		get:          c.getKvProvider,
+		opController: c.opController,
+	}
+}
+
+func (c *Collection) kvBulkController() *providerController[kvBulkProvider] {
+	return &providerController[kvBulkProvider]{
+		get:          c.getKvBulkProvider,
+		opController: c.opController,
+	}
 }

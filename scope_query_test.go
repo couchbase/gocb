@@ -93,6 +93,8 @@ func (suite *UnitTestSuite) queryScope(prepared bool, reader queryRowReader, run
 
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
+	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpCompleted").Return()
 
 	b := suite.bucket("queryBucket", TimeoutsConfig{QueryTimeout: 75 * time.Second}, cli)
 

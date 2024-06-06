@@ -13,10 +13,19 @@ type transactionsInternalCore struct {
 	parent *transactionsProviderCore
 }
 
+type agentProvider interface {
+	OpenBucket(string) error
+	GetAgent(string) *gocbcore.Agent
+}
+
 type transactionsProviderCore struct {
 	config     TransactionsConfig
 	cluster    *Cluster
 	transcoder Transcoder
+
+	// Transactions bypasses the connection manager when getting agents to allow
+	// lost cleanup to fetch agents once close has been called on the cluster.
+	getAgentProvider agentProvider
 
 	txns                *gocbcore.TransactionsManager
 	hooksWrapper        transactionHooksWrapper
@@ -376,13 +385,14 @@ func (t *transactionsInternalCore) CleanupLocations() []gocbcore.TransactionLost
 }
 
 func (t *transactionsProviderCore) agentProvider(bucketName string) (*gocbcore.Agent, string, error) {
-	b := t.cluster.Bucket(bucketName)
-	agent, err := b.Internal().IORouter()
+	err := t.getAgentProvider.OpenBucket(bucketName)
 	if err != nil {
 		return nil, "", err
 	}
 
-	return agent, "", err
+	agent := t.getAgentProvider.GetAgent(bucketName)
+
+	return agent, "", nil
 }
 
 func (t *transactionsProviderCore) atrLocationsProvider() ([]gocbcore.TransactionLostATRLocation, error) {

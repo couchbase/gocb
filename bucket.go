@@ -99,6 +99,10 @@ func (b *Bucket) getQueryProvider() (queryProvider, error) {
 }
 
 func (b *Bucket) getQueryIndexProvider() (queryIndexProvider, error) {
+	if b.bootstrapError != nil {
+		return nil, b.bootstrapError
+	}
+
 	provider, err := b.connectionManager.getQueryIndexProvider()
 	if err != nil {
 		return nil, err
@@ -108,6 +112,10 @@ func (b *Bucket) getQueryIndexProvider() (queryIndexProvider, error) {
 }
 
 func (b *Bucket) getSearchProvider() (searchProvider, error) {
+	if b.bootstrapError != nil {
+		return nil, b.bootstrapError
+	}
+
 	provider, err := b.connectionManager.getSearchProvider()
 	if err != nil {
 		return nil, err
@@ -139,6 +147,10 @@ func (b *Bucket) getAnalyticsProvider() (analyticsProvider, error) {
 }
 
 func (b *Bucket) getEventingManagementProvider() (eventingManagementProvider, error) {
+	if b.bootstrapError != nil {
+		return nil, b.bootstrapError
+	}
+
 	provider, err := b.connectionManager.getEventingManagementProvider()
 	if err != nil {
 		return nil, err
@@ -147,8 +159,12 @@ func (b *Bucket) getEventingManagementProvider() (eventingManagementProvider, er
 	return provider, nil
 }
 
-func (b *Bucket) getViewProvider(bucketName string) (viewProvider, error) {
-	provider, err := b.connectionManager.getViewProvider(bucketName)
+func (b *Bucket) getViewProvider() (viewProvider, error) {
+	if b.bootstrapError != nil {
+		return nil, b.bootstrapError
+	}
+
+	provider, err := b.connectionManager.getViewProvider(b.Name())
 	if err != nil {
 		return nil, err
 	}
@@ -156,13 +172,69 @@ func (b *Bucket) getViewProvider(bucketName string) (viewProvider, error) {
 	return provider, nil
 }
 
-func (b *Bucket) getViewIndexProvider(bucketName string) (viewIndexProvider, error) {
-	provider, err := b.connectionManager.getViewIndexProvider(bucketName)
+func (b *Bucket) getViewIndexProvider() (viewIndexProvider, error) {
+	if b.bootstrapError != nil {
+		return nil, b.bootstrapError
+	}
+
+	provider, err := b.connectionManager.getViewIndexProvider(b.Name())
 	if err != nil {
 		return nil, err
 	}
 
 	return provider, nil
+}
+
+func (b *Bucket) getCollectionsManagementProvider() (collectionsManagementProvider, error) {
+	if b.bootstrapError != nil {
+		return nil, b.bootstrapError
+	}
+
+	provider, err := b.connectionManager.getCollectionsManagementProvider(b.Name())
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}
+
+func (b *Bucket) getDiagnosticsProvider() (diagnosticsProvider, error) {
+	provider, err := b.connectionManager.getDiagnosticsProvider(b.Name())
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}
+
+func (b *Bucket) getWaitUntilReadyProvider() (waitUntilReadyProvider, error) {
+	provider, err := b.connectionManager.getWaitUntilReadyProvider(b.Name())
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}
+
+func (b *Bucket) diagnosticsController() *providerController[diagnosticsProvider] {
+	return &providerController[diagnosticsProvider]{
+		get:          b.getDiagnosticsProvider,
+		opController: b.connectionManager,
+	}
+}
+
+func (b *Bucket) viewController() *providerController[viewProvider] {
+	return &providerController[viewProvider]{
+		get:          b.getViewProvider,
+		opController: b.connectionManager,
+	}
+}
+
+func (b *Bucket) waitUntilReadyController() *providerController[waitUntilReadyProvider] {
+	return &providerController[waitUntilReadyProvider]{
+		get:          b.getWaitUntilReadyProvider,
+		opController: b.connectionManager,
+	}
 }
 
 // Name returns the name of the bucket.
@@ -193,8 +265,9 @@ func (b *Bucket) DefaultCollection() *Collection {
 // ViewIndexes returns a ViewIndexManager instance for managing views.
 func (b *Bucket) ViewIndexes() *ViewIndexManager {
 	return &ViewIndexManager{
-		getProvider: func() (viewIndexProvider, error) {
-			return b.getViewIndexProvider(b.Name())
+		controller: &providerController[viewIndexProvider]{
+			get:          b.getViewIndexProvider,
+			opController: b.connectionManager,
 		},
 	}
 }
@@ -202,8 +275,9 @@ func (b *Bucket) ViewIndexes() *ViewIndexManager {
 // CollectionsV2 provides functions for managing collections.
 func (b *Bucket) CollectionsV2() *CollectionManagerV2 {
 	return &CollectionManagerV2{
-		getProvider: func() (collectionsManagementProvider, error) {
-			return b.connectionManager.getCollectionsManagementProvider(b.Name())
+		controller: &providerController[collectionsManagementProvider]{
+			get:          b.getCollectionsManagementProvider,
+			opController: b.connectionManager,
 		},
 	}
 }
@@ -225,27 +299,19 @@ func (b *Bucket) Collections() *CollectionManager {
 // Valid service types are: ServiceTypeKeyValue, ServiceTypeManagement, ServiceTypeQuery, ServiceTypeSearch,
 // ServiceTypeAnalytics, ServiceTypeViews.
 func (b *Bucket) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOptions) error {
-	if opts == nil {
-		opts = &WaitUntilReadyOptions{}
-	}
+	return autoOpControlErrorOnly(b.waitUntilReadyController(), func(provider waitUntilReadyProvider) error {
+		if opts == nil {
+			opts = &WaitUntilReadyOptions{}
+		}
 
-	if b.bootstrapError != nil {
-		return b.bootstrapError
-	}
+		if b.bootstrapError != nil {
+			return b.bootstrapError
+		}
 
-	provider, err := b.connectionManager.getWaitUntilReadyProvider(b.bucketName)
-	if err != nil {
-		return err
-	}
-
-	err = provider.WaitUntilReady(
-		opts.Context,
-		time.Now().Add(timeout),
-		opts,
-	)
-	if err != nil {
-		return err
-	}
-
-	return nil
+		return provider.WaitUntilReady(
+			opts.Context,
+			time.Now().Add(timeout),
+			opts,
+		)
+	})
 }

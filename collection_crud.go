@@ -35,16 +35,13 @@ type InsertOptions struct {
 
 // Insert creates a new document in the Collection.
 func (c *Collection) Insert(id string, val interface{}, opts *InsertOptions) (mutOut *MutationResult, errOut error) {
-	if opts == nil {
-		opts = &InsertOptions{}
-	}
+	return autoOpControl(c.kvController(), func(agent kvProvider) (*MutationResult, error) {
+		if opts == nil {
+			opts = &InsertOptions{}
+		}
 
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return agent.Insert(c, id, val, opts)
+		return agent.Insert(c, id, val, opts)
+	})
 }
 
 // UpsertOptions are options that can be applied to an Upsert operation.
@@ -72,16 +69,13 @@ type UpsertOptions struct {
 
 // Upsert creates a new document in the Collection if it does not exist, if it does exist then it updates it.
 func (c *Collection) Upsert(id string, val interface{}, opts *UpsertOptions) (mutOut *MutationResult, errOut error) {
-	if opts == nil {
-		opts = &UpsertOptions{}
-	}
+	return autoOpControl(c.kvController(), func(agent kvProvider) (*MutationResult, error) {
+		if opts == nil {
+			opts = &UpsertOptions{}
+		}
 
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return agent.Upsert(c, id, val, opts)
+		return agent.Upsert(c, id, val, opts)
+	})
 }
 
 // ReplaceOptions are the options available to a Replace operation.
@@ -110,20 +104,17 @@ type ReplaceOptions struct {
 
 // Replace updates a document in the collection.
 func (c *Collection) Replace(id string, val interface{}, opts *ReplaceOptions) (mutOut *MutationResult, errOut error) {
-	if opts == nil {
-		opts = &ReplaceOptions{}
-	}
+	return autoOpControl(c.kvController(), func(agent kvProvider) (*MutationResult, error) {
+		if opts == nil {
+			opts = &ReplaceOptions{}
+		}
 
-	if opts.Expiry > 0 && opts.PreserveExpiry {
-		return nil, makeInvalidArgumentsError("cannot use expiry and preserve ttl together for replace")
-	}
+		if opts.Expiry > 0 && opts.PreserveExpiry {
+			return nil, makeInvalidArgumentsError("cannot use expiry and preserve ttl together for replace")
+		}
 
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return agent.Replace(c, id, val, opts)
+		return agent.Replace(c, id, val, opts)
+	})
 }
 
 // GetOptions are the options available to a Get operation.
@@ -153,16 +144,13 @@ type GetOptions struct {
 // fetch, a subdocument full document fetch also fetching document expiry (when WithExpiry is set),
 // or a subdocument fetch (when Project is used).
 func (c *Collection) Get(id string, opts *GetOptions) (docOut *GetResult, errOut error) {
-	if opts == nil {
-		opts = &GetOptions{}
-	}
+	return autoOpControl(c.kvController(), func(agent kvProvider) (*GetResult, error) {
+		if opts == nil {
+			opts = &GetOptions{}
+		}
 
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return agent.Get(c, id, opts)
+		return agent.Get(c, id, opts)
+	})
 }
 
 // ExistsOptions are the options available to the Exists command.
@@ -184,16 +172,13 @@ type ExistsOptions struct {
 
 // Exists checks if a document exists for the given id.
 func (c *Collection) Exists(id string, opts *ExistsOptions) (docOut *ExistsResult, errOut error) {
-	if opts == nil {
-		opts = &ExistsOptions{}
-	}
+	return autoOpControl(c.kvController(), func(agent kvProvider) (*ExistsResult, error) {
+		if opts == nil {
+			opts = &ExistsOptions{}
+		}
 
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return agent.Exists(c, id, opts)
+		return agent.Exists(c, id, opts)
+	})
 }
 
 // GetAllReplicaOptions are the options available to the GetAllReplicas command.
@@ -337,16 +322,13 @@ func (r *coreReplicasResult) Close() error {
 // GetAllReplicas returns the value of a particular document from all replica servers. This will return an iterable
 // which streams results one at a time.
 func (c *Collection) GetAllReplicas(id string, opts *GetAllReplicaOptions) (*GetAllReplicasResult, error) {
-	if opts == nil {
-		opts = &GetAllReplicaOptions{}
-	}
+	return autoOpControl(c.kvController(), func(agent kvProvider) (*GetAllReplicasResult, error) {
+		if opts == nil {
+			opts = &GetAllReplicaOptions{}
+		}
 
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return agent.GetAllReplicas(c, id, opts)
+		return agent.GetAllReplicas(c, id, opts)
+	})
 }
 
 // GetAnyReplicaOptions are the options available to the GetAnyReplica command.
@@ -369,16 +351,13 @@ type GetAnyReplicaOptions struct {
 
 // GetAnyReplica returns the value of a particular document from a replica server.
 func (c *Collection) GetAnyReplica(id string, opts *GetAnyReplicaOptions) (*GetReplicaResult, error) {
-	if opts == nil {
-		opts = &GetAnyReplicaOptions{}
-	}
+	return autoOpControl(c.kvController(), func(agent kvProvider) (*GetReplicaResult, error) {
+		if opts == nil {
+			opts = &GetAnyReplicaOptions{}
+		}
 
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return agent.GetAnyReplica(c, id, opts)
+		return agent.GetAnyReplica(c, id, opts)
+	})
 }
 
 // RemoveOptions are the options available to the Remove command.
@@ -404,16 +383,13 @@ type RemoveOptions struct {
 
 // Remove removes a document from the collection.
 func (c *Collection) Remove(id string, opts *RemoveOptions) (mutOut *MutationResult, errOut error) {
-	if opts == nil {
-		opts = &RemoveOptions{}
-	}
+	return autoOpControl(c.kvController(), func(agent kvProvider) (*MutationResult, error) {
+		if opts == nil {
+			opts = &RemoveOptions{}
+		}
 
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return agent.Remove(c, id, opts)
+		return agent.Remove(c, id, opts)
+	})
 }
 
 // GetAndTouchOptions are the options available to the GetAndTouch operation.
@@ -436,16 +412,13 @@ type GetAndTouchOptions struct {
 
 // GetAndTouch retrieves a document and simultaneously updates its expiry time.
 func (c *Collection) GetAndTouch(id string, expiry time.Duration, opts *GetAndTouchOptions) (docOut *GetResult, errOut error) {
-	if opts == nil {
-		opts = &GetAndTouchOptions{}
-	}
+	return autoOpControl(c.kvController(), func(agent kvProvider) (*GetResult, error) {
+		if opts == nil {
+			opts = &GetAndTouchOptions{}
+		}
 
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return agent.GetAndTouch(c, id, expiry, opts)
+		return agent.GetAndTouch(c, id, expiry, opts)
+	})
 }
 
 // GetAndLockOptions are the options available to the GetAndLock operation.
@@ -470,16 +443,13 @@ type GetAndLockOptions struct {
 // A lockTime value of over 30 seconds will be treated as 30 seconds. The resolution used to send this value to
 // the server is seconds and is calculated using uint32(lockTime/time.Second).
 func (c *Collection) GetAndLock(id string, lockTime time.Duration, opts *GetAndLockOptions) (docOut *GetResult, errOut error) {
-	if opts == nil {
-		opts = &GetAndLockOptions{}
-	}
+	return autoOpControl(c.kvController(), func(agent kvProvider) (*GetResult, error) {
+		if opts == nil {
+			opts = &GetAndLockOptions{}
+		}
 
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return agent.GetAndLock(c, id, lockTime, opts)
+		return agent.GetAndLock(c, id, lockTime, opts)
+	})
 }
 
 // UnlockOptions are the options available to the GetAndLock operation.
@@ -501,16 +471,13 @@ type UnlockOptions struct {
 
 // Unlock unlocks a document which was locked with GetAndLock.
 func (c *Collection) Unlock(id string, cas Cas, opts *UnlockOptions) (errOut error) {
-	if opts == nil {
-		opts = &UnlockOptions{}
-	}
+	return autoOpControlErrorOnly(c.kvController(), func(agent kvProvider) error {
+		if opts == nil {
+			opts = &UnlockOptions{}
+		}
 
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return err
-	}
-
-	return agent.Unlock(c, id, cas, opts)
+		return agent.Unlock(c, id, cas, opts)
+	})
 }
 
 // TouchOptions are the options available to the Touch operation.
@@ -532,16 +499,13 @@ type TouchOptions struct {
 
 // Touch touches a document, specifying a new expiry time for it.
 func (c *Collection) Touch(id string, expiry time.Duration, opts *TouchOptions) (mutOut *MutationResult, errOut error) {
-	if opts == nil {
-		opts = &TouchOptions{}
-	}
+	return autoOpControl(c.kvController(), func(agent kvProvider) (*MutationResult, error) {
+		if opts == nil {
+			opts = &TouchOptions{}
+		}
 
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return agent.Touch(c, id, expiry, opts)
+		return agent.Touch(c, id, expiry, opts)
+	})
 }
 
 // Binary creates and returns a BinaryCollection object.

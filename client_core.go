@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"sync"
+	"sync/atomic"
 
 	"github.com/couchbase/gocbcore/v10"
 )
@@ -19,6 +20,9 @@ type stdConnectionMgr struct {
 	tracer               RequestTracer
 	meter                *meterWrapper
 	txns                 *transactionsProviderCore
+
+	closed      atomic.Bool
+	activeOpsWg sync.WaitGroup
 }
 
 func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
@@ -129,6 +133,10 @@ func (c *stdConnectionMgr) connect() error {
 }
 
 func (c *stdConnectionMgr) openBucket(bucketName string) error {
+	if err := c.canPerformOp(); err != nil {
+		return err
+	}
+
 	if c.agentgroup == nil {
 		return errors.New("cluster not yet connected")
 	}
@@ -136,7 +144,27 @@ func (c *stdConnectionMgr) openBucket(bucketName string) error {
 	return c.agentgroup.OpenBucket(bucketName)
 }
 
+func (c *stdConnectionMgr) canPerformOp() error {
+	if c.closed.Load() {
+		return ErrShutdown
+	}
+
+	return nil
+}
+
+func (c *stdConnectionMgr) MarkOpBeginning() {
+	c.activeOpsWg.Add(1)
+}
+
+func (c *stdConnectionMgr) MarkOpCompleted() {
+	c.activeOpsWg.Done()
+}
+
 func (c *stdConnectionMgr) getKvProvider(bucketName string) (kvProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
@@ -154,6 +182,10 @@ func (c *stdConnectionMgr) getKvProvider(bucketName string) (kvProvider, error) 
 }
 
 func (c *stdConnectionMgr) getKvBulkProvider(bucketName string) (kvBulkProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
@@ -170,6 +202,10 @@ func (c *stdConnectionMgr) getKvBulkProvider(bucketName string) (kvBulkProvider,
 }
 
 func (c *stdConnectionMgr) getKvCapabilitiesProvider(bucketName string) (kvCapabilityVerifier, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
@@ -181,6 +217,10 @@ func (c *stdConnectionMgr) getKvCapabilitiesProvider(bucketName string) (kvCapab
 }
 
 func (c *stdConnectionMgr) getViewProvider(bucketName string) (viewProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
@@ -202,6 +242,10 @@ func (c *stdConnectionMgr) getViewProvider(bucketName string) (viewProvider, err
 }
 
 func (c *stdConnectionMgr) getViewIndexProvider(bucketName string) (viewIndexProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
@@ -224,6 +268,10 @@ func (c *stdConnectionMgr) getViewIndexProvider(bucketName string) (viewIndexPro
 }
 
 func (c *stdConnectionMgr) getQueryProvider() (queryProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
@@ -240,6 +288,10 @@ func (c *stdConnectionMgr) getQueryProvider() (queryProvider, error) {
 }
 
 func (c *stdConnectionMgr) getQueryIndexProvider() (queryIndexProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
@@ -256,6 +308,10 @@ func (c *stdConnectionMgr) getQueryIndexProvider() (queryIndexProvider, error) {
 }
 
 func (c *stdConnectionMgr) getAnalyticsProvider() (analyticsProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
@@ -282,6 +338,10 @@ func (c *stdConnectionMgr) getAnalyticsProvider() (analyticsProvider, error) {
 }
 
 func (c *stdConnectionMgr) getAnalyticsIndexProvider() (analyticsIndexProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
@@ -308,6 +368,10 @@ func (c *stdConnectionMgr) getAnalyticsIndexProvider() (analyticsIndexProvider, 
 }
 
 func (c *stdConnectionMgr) getSearchProvider() (searchProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
@@ -323,6 +387,10 @@ func (c *stdConnectionMgr) getSearchProvider() (searchProvider, error) {
 }
 
 func (c *stdConnectionMgr) getSearchIndexProvider() (searchIndexProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	provider, err := c.getHTTPProvider("")
 	if err != nil {
 		return nil, err
@@ -346,6 +414,10 @@ func (c *stdConnectionMgr) getSearchIndexProvider() (searchIndexProvider, error)
 }
 
 func (c *stdConnectionMgr) getSearchCapabilitiesProvider() (searchCapabilityVerifier, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
@@ -354,12 +426,18 @@ func (c *stdConnectionMgr) getSearchCapabilitiesProvider() (searchCapabilityVeri
 }
 
 func (c *stdConnectionMgr) getHTTPProvider(bucketName string) (httpProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
 
 	if bucketName == "" {
-		return &httpProviderWrapper{provider: c.agentgroup}, nil
+		return &httpProviderWrapper{
+			provider: c.agentgroup,
+		}, nil
 	}
 
 	agent := c.agentgroup.GetAgent(bucketName)
@@ -367,10 +445,16 @@ func (c *stdConnectionMgr) getHTTPProvider(bucketName string) (httpProvider, err
 		return nil, errors.New("bucket not yet connected")
 	}
 
-	return &httpProviderWrapper{provider: agent}, nil
+	return &httpProviderWrapper{
+		provider: agent,
+	}, nil
 }
 
 func (c *stdConnectionMgr) getDiagnosticsProvider(bucketName string) (diagnosticsProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
@@ -398,6 +482,10 @@ func (c *stdConnectionMgr) getDiagnosticsProvider(bucketName string) (diagnostic
 }
 
 func (c *stdConnectionMgr) getWaitUntilReadyProvider(bucketName string) (waitUntilReadyProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
@@ -421,6 +509,10 @@ func (c *stdConnectionMgr) getWaitUntilReadyProvider(bucketName string) (waitUnt
 }
 
 func (c *stdConnectionMgr) getCollectionsManagementProvider(bucketName string) (collectionsManagementProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	provider, err := c.getHTTPProvider(bucketName)
 	if err != nil {
 		return nil, err
@@ -445,6 +537,10 @@ func (c *stdConnectionMgr) getCollectionsManagementProvider(bucketName string) (
 }
 
 func (c *stdConnectionMgr) getBucketManagementProvider() (bucketManagementProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	provider, err := c.getHTTPProvider("")
 	if err != nil {
 		return nil, err
@@ -462,6 +558,10 @@ func (c *stdConnectionMgr) getBucketManagementProvider() (bucketManagementProvid
 }
 
 func (c *stdConnectionMgr) getEventingManagementProvider() (eventingManagementProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	provider, err := c.getHTTPProvider("")
 	if err != nil {
 		return nil, err
@@ -479,6 +579,10 @@ func (c *stdConnectionMgr) getEventingManagementProvider() (eventingManagementPr
 }
 
 func (c *stdConnectionMgr) getUserManagerProvider() (userManagerProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	provider, err := c.getHTTPProvider("")
 	if err != nil {
 		return nil, err
@@ -496,6 +600,10 @@ func (c *stdConnectionMgr) getUserManagerProvider() (userManagerProvider, error)
 }
 
 func (c *stdConnectionMgr) getInternalProvider() (internalProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	provider, err := c.getHTTPProvider("")
 	if err != nil {
 		return nil, err
@@ -515,7 +623,9 @@ func (c *stdConnectionMgr) getInternalProvider() (internalProvider, error) {
 
 // initTransactions must only be called during cluster setup to prevent races.
 func (c *stdConnectionMgr) initTransactions(config TransactionsConfig, cluster *Cluster) error {
-	txns := &transactionsProviderCore{}
+	txns := &transactionsProviderCore{
+		getAgentProvider: c.agentgroup,
+	}
 	err := txns.Init(config, cluster)
 	if err != nil {
 		return err
@@ -525,11 +635,19 @@ func (c *stdConnectionMgr) initTransactions(config TransactionsConfig, cluster *
 	return nil
 }
 
-func (c *stdConnectionMgr) getTransactionsProvider() transactionsProvider {
-	return c.txns
+func (c *stdConnectionMgr) getTransactionsProvider() (transactionsProvider, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
+	return c.txns, nil
 }
 
 func (c *stdConnectionMgr) connection(bucketName string) (*gocbcore.Agent, error) {
+	if err := c.canPerformOp(); err != nil {
+		return nil, err
+	}
+
 	if c.agentgroup == nil {
 		return nil, errors.New("cluster not yet connected")
 	}
@@ -542,7 +660,10 @@ func (c *stdConnectionMgr) connection(bucketName string) (*gocbcore.Agent, error
 }
 
 func (c *stdConnectionMgr) close() error {
-	// This needs to be closed first.
+	if !c.closed.CompareAndSwap(false, true) {
+		return ErrShutdown
+	}
+
 	if c.txns != nil {
 		err := c.txns.close()
 		if err != nil {
@@ -559,6 +680,9 @@ func (c *stdConnectionMgr) close() error {
 	defer c.lock.Unlock()
 
 	err := c.agentgroup.Close()
+
+	logDebugf("Waiting for any active requests to complete")
+	c.activeOpsWg.Wait()
 
 	if c.tracer != nil {
 		tracerDecRef(c.tracer)

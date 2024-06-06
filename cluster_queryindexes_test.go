@@ -589,12 +589,15 @@ func (suite *UnitTestSuite) TestQueryIndexesParsing() {
 	provider, _ := suite.newMockQueryProvider(false, reader)
 
 	mgr := QueryIndexManager{
-		getProvider: func() (queryIndexProvider, error) {
-			return &queryProviderCore{
-				provider: provider,
-				tracer:   &NoopTracer{},
-				meter:    &meterWrapper{meter: &NoopMeter{}},
-			}, nil
+		controller: &providerController[queryIndexProvider]{
+			get: func() (queryIndexProvider, error) {
+				return &queryProviderCore{
+					provider: provider,
+					tracer:   &NoopTracer{},
+					meter:    &meterWrapper{meter: &NoopMeter{}},
+				}, nil
+			},
+			opController: mockOpController{},
 		},
 	}
 

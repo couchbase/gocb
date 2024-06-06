@@ -341,4 +341,6 @@ var (
 	// This error occurs when couchbase2 scheme is in use and is equivalent to
 	// ErrPathTooDeep when other schemes are used.
 	ErrDocumentTooDeep = errors.New("document too deep")
+
+	ErrShutdown = errors.New("cluster closed")
 )

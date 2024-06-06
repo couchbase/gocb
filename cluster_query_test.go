@@ -573,6 +573,8 @@ func (suite *UnitTestSuite) queryCluster(prepared bool, reader queryRowReader, r
 
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
+	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)
 
@@ -791,6 +793,8 @@ func (suite *UnitTestSuite) TestQueryUntypedError() {
 	}
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
+	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)
 
@@ -825,6 +829,8 @@ func (suite *UnitTestSuite) TestQueryGocbcoreError() {
 
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
+	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)
 	queryProvider.meter = newMeterWrapper(&NoopMeter{})
@@ -874,6 +880,8 @@ func (suite *UnitTestSuite) TestQueryTimeoutOption() {
 
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
+	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpCompleted").Return()
 
 	cluster.connectionManager = cli
 

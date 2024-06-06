@@ -81,7 +81,7 @@ func (dd *DesignDocument) toData() (jsonDesignDocument, string, error) {
 
 // ViewIndexManager provides methods for performing View management.
 type ViewIndexManager struct {
-	getProvider func() (viewIndexProvider, error)
+	controller *providerController[viewIndexProvider]
 }
 
 // GetDesignDocumentOptions is the set of options available to the ViewIndexManager GetDesignDocument operation.
@@ -98,16 +98,13 @@ type GetDesignDocumentOptions struct {
 
 // GetDesignDocument retrieves a single design document for the given bucket.
 func (vm *ViewIndexManager) GetDesignDocument(name string, namespace DesignDocumentNamespace, opts *GetDesignDocumentOptions) (*DesignDocument, error) {
-	if opts == nil {
-		opts = &GetDesignDocumentOptions{}
-	}
+	return autoOpControl(vm.controller, func(provider viewIndexProvider) (*DesignDocument, error) {
+		if opts == nil {
+			opts = &GetDesignDocumentOptions{}
+		}
 
-	provider, err := vm.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.GetDesignDocument(name, namespace, opts)
+		return provider.GetDesignDocument(name, namespace, opts)
+	})
 }
 
 // GetAllDesignDocumentsOptions is the set of options available to the ViewIndexManager GetAllDesignDocuments operation.
@@ -124,16 +121,13 @@ type GetAllDesignDocumentsOptions struct {
 
 // GetAllDesignDocuments will retrieve all design documents for the given bucket.
 func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamespace, opts *GetAllDesignDocumentsOptions) ([]DesignDocument, error) {
-	if opts == nil {
-		opts = &GetAllDesignDocumentsOptions{}
-	}
+	return autoOpControl(vm.controller, func(provider viewIndexProvider) ([]DesignDocument, error) {
+		if opts == nil {
+			opts = &GetAllDesignDocumentsOptions{}
+		}
 
-	provider, err := vm.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.GetAllDesignDocuments(namespace, opts)
+		return provider.GetAllDesignDocuments(namespace, opts)
+	})
 }
 
 // UpsertDesignDocumentOptions is the set of options available to the ViewIndexManager UpsertDesignDocument operation.
@@ -151,16 +145,13 @@ type UpsertDesignDocumentOptions struct {
 // UpsertDesignDocument will insert a design document to the given bucket, or update
 // an existing design document with the same name.
 func (vm *ViewIndexManager) UpsertDesignDocument(ddoc DesignDocument, namespace DesignDocumentNamespace, opts *UpsertDesignDocumentOptions) error {
-	if opts == nil {
-		opts = &UpsertDesignDocumentOptions{}
-	}
+	return autoOpControlErrorOnly(vm.controller, func(provider viewIndexProvider) error {
+		if opts == nil {
+			opts = &UpsertDesignDocumentOptions{}
+		}
 
-	provider, err := vm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.UpsertDesignDocument(ddoc, namespace, opts)
+		return provider.UpsertDesignDocument(ddoc, namespace, opts)
+	})
 }
 
 // DropDesignDocumentOptions is the set of options available to the ViewIndexManager Upsert operation.
@@ -177,16 +168,13 @@ type DropDesignDocumentOptions struct {
 
 // DropDesignDocument will remove a design document from the given bucket.
 func (vm *ViewIndexManager) DropDesignDocument(name string, namespace DesignDocumentNamespace, opts *DropDesignDocumentOptions) error {
-	if opts == nil {
-		opts = &DropDesignDocumentOptions{}
-	}
+	return autoOpControlErrorOnly(vm.controller, func(provider viewIndexProvider) error {
+		if opts == nil {
+			opts = &DropDesignDocumentOptions{}
+		}
 
-	provider, err := vm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.DropDesignDocument(name, namespace, opts)
+		return provider.DropDesignDocument(name, namespace, opts)
+	})
 }
 
 // PublishDesignDocumentOptions is the set of options available to the ViewIndexManager PublishDesignDocument operation.
@@ -203,14 +191,11 @@ type PublishDesignDocumentOptions struct {
 
 // PublishDesignDocument publishes a design document to the given bucket.
 func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesignDocumentOptions) error {
-	if opts == nil {
-		opts = &PublishDesignDocumentOptions{}
-	}
+	return autoOpControlErrorOnly(vm.controller, func(provider viewIndexProvider) error {
+		if opts == nil {
+			opts = &PublishDesignDocumentOptions{}
+		}
 
-	provider, err := vm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.PublishDesignDocument(name, opts)
+		return provider.PublishDesignDocument(name, opts)
+	})
 }

@@ -117,3 +117,72 @@ func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyKeyValueService() {
 		suite.T().Fatalf("Expected error to be invalid argument but was %v", err)
 	}
 }
+
+func (suite *IntegrationTestSuite) CreateAndCloseNewCluster() *Cluster {
+	c, err := Connect(globalConfig.connstr, ClusterOptions{
+		Authenticator: PasswordAuthenticator{
+			Username: globalConfig.User,
+			Password: globalConfig.Password,
+		},
+		SecurityConfig: globalConfig.SecurityConfig,
+	})
+	suite.Require().NoError(err, err)
+	err = c.Close(nil)
+	suite.Require().NoError(err, err)
+	return c
+}
+
+func (suite *IntegrationTestSuite) CreateAndCloseNewClusterAndBucket() (*Cluster, *Bucket) {
+	c, err := Connect(globalConfig.connstr, ClusterOptions{
+		Authenticator: PasswordAuthenticator{
+			Username: globalConfig.User,
+			Password: globalConfig.Password,
+		},
+		SecurityConfig: globalConfig.SecurityConfig,
+	})
+	suite.Require().NoError(err, err)
+	// We need to open bucket before closing cluster otherwise we'll always just surface the error assigned on the call
+	// to Bucket().
+	b := c.Bucket(globalBucket.Name())
+	err = c.Close(nil)
+	suite.Require().NoError(err, err)
+	return c, b
+}
+
+func (suite *IntegrationTestSuite) TestClusterCloseTwice() {
+	c := suite.CreateAndCloseNewCluster()
+	err := c.Close(nil)
+	suite.Require().ErrorIs(err, ErrShutdown)
+}
+
+func (suite *IntegrationTestSuite) TestClusterOpsAfterClusterClose() {
+	c := suite.CreateAndCloseNewCluster()
+	suite.Run("Diagnostics", func() {
+		_, err := c.Diagnostics(nil)
+		suite.Require().ErrorIs(err, ErrShutdown)
+	})
+	suite.Run("Ping", func() {
+		_, err := c.Ping(nil)
+		suite.Require().ErrorIs(err, ErrShutdown)
+	})
+	suite.Run("WaitUntilReady", func() {
+		err := c.WaitUntilReady(5*time.Second, nil)
+		suite.Require().ErrorIs(err, ErrShutdown)
+	})
+	suite.Run("Bucket", func() {
+		b := c.Bucket("test")
+		suite.Require().ErrorIs(b.bootstrapError, ErrShutdown)
+	})
+	suite.Run("Query", func() {
+		_, err := c.Query("SELECT 1", nil)
+		suite.Require().ErrorIs(err, ErrShutdown)
+	})
+	suite.Run("AnalyticsQuery", func() {
+		_, err := c.AnalyticsQuery("SELECT 1", nil)
+		suite.Require().ErrorIs(err, ErrShutdown)
+	})
+	suite.Run("GetAllBuckets", func() {
+		_, err := c.Buckets().GetAllBuckets(nil)
+		suite.Require().ErrorIs(err, ErrShutdown)
+	})
+}

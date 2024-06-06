@@ -81,7 +81,7 @@ func (si *SearchIndex) toData() (jsonSearchIndex, error) {
 
 // SearchIndexManager provides methods for performing Couchbase search index management.
 type SearchIndexManager struct {
-	getProvider func() (searchIndexProvider, error)
+	controller *providerController[searchIndexProvider]
 }
 
 // GetAllSearchIndexOptions is the set of options available to the search indexes GetAllIndexes operation.
@@ -98,16 +98,13 @@ type GetAllSearchIndexOptions struct {
 
 // GetAllIndexes retrieves all of the search indexes for the cluster.
 func (sm *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]SearchIndex, error) {
-	if opts == nil {
-		opts = &GetAllSearchIndexOptions{}
-	}
+	return autoOpControl(sm.controller, func(provider searchIndexProvider) ([]SearchIndex, error) {
+		if opts == nil {
+			opts = &GetAllSearchIndexOptions{}
+		}
 
-	provider, err := sm.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.GetAllIndexes(nil, opts)
+		return provider.GetAllIndexes(nil, opts)
+	})
 }
 
 // GetSearchIndexOptions is the set of options available to the search indexes GetIndex operation.
@@ -124,20 +121,17 @@ type GetSearchIndexOptions struct {
 
 // GetIndex retrieves a specific search index by name.
 func (sm *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOptions) (*SearchIndex, error) {
-	if opts == nil {
-		opts = &GetSearchIndexOptions{}
-	}
+	return autoOpControl(sm.controller, func(provider searchIndexProvider) (*SearchIndex, error) {
+		if opts == nil {
+			opts = &GetSearchIndexOptions{}
+		}
 
-	if indexName == "" {
-		return nil, invalidArgumentsError{"indexName cannot be empty"}
-	}
+		if indexName == "" {
+			return nil, invalidArgumentsError{"indexName cannot be empty"}
+		}
 
-	provider, err := sm.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.GetIndex(nil, indexName, opts)
+		return provider.GetIndex(nil, indexName, opts)
+	})
 }
 
 // UpsertSearchIndexOptions is the set of options available to the search index manager UpsertIndex operation.
@@ -154,23 +148,20 @@ type UpsertSearchIndexOptions struct {
 
 // UpsertIndex creates or updates a search index.
 func (sm *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *UpsertSearchIndexOptions) error {
-	if opts == nil {
-		opts = &UpsertSearchIndexOptions{}
-	}
+	return autoOpControlErrorOnly(sm.controller, func(provider searchIndexProvider) error {
+		if opts == nil {
+			opts = &UpsertSearchIndexOptions{}
+		}
 
-	if indexDefinition.Name == "" {
-		return invalidArgumentsError{"index name cannot be empty"}
-	}
-	if indexDefinition.Type == "" {
-		return invalidArgumentsError{"index type cannot be empty"}
-	}
+		if indexDefinition.Name == "" {
+			return invalidArgumentsError{"index name cannot be empty"}
+		}
+		if indexDefinition.Type == "" {
+			return invalidArgumentsError{"index type cannot be empty"}
+		}
 
-	provider, err := sm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.UpsertIndex(nil, indexDefinition, opts)
+		return provider.UpsertIndex(nil, indexDefinition, opts)
+	})
 }
 
 // DropSearchIndexOptions is the set of options available to the search index DropIndex operation.
@@ -187,20 +178,17 @@ type DropSearchIndexOptions struct {
 
 // DropIndex removes the search index with the specific name.
 func (sm *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndexOptions) error {
-	if opts == nil {
-		opts = &DropSearchIndexOptions{}
-	}
+	return autoOpControlErrorOnly(sm.controller, func(provider searchIndexProvider) error {
+		if opts == nil {
+			opts = &DropSearchIndexOptions{}
+		}
 
-	if indexName == "" {
-		return invalidArgumentsError{"indexName cannot be empty"}
-	}
+		if indexName == "" {
+			return invalidArgumentsError{"indexName cannot be empty"}
+		}
 
-	provider, err := sm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.DropIndex(nil, indexName, opts)
+		return provider.DropIndex(nil, indexName, opts)
+	})
 }
 
 // AnalyzeDocumentOptions is the set of options available to the search index AnalyzeDocument operation.
@@ -217,20 +205,17 @@ type AnalyzeDocumentOptions struct {
 
 // AnalyzeDocument returns how a doc is analyzed against a specific index.
 func (sm *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{}, opts *AnalyzeDocumentOptions) ([]interface{}, error) {
-	if opts == nil {
-		opts = &AnalyzeDocumentOptions{}
-	}
+	return autoOpControl(sm.controller, func(provider searchIndexProvider) ([]interface{}, error) {
+		if opts == nil {
+			opts = &AnalyzeDocumentOptions{}
+		}
 
-	if indexName == "" {
-		return nil, invalidArgumentsError{"indexName cannot be empty"}
-	}
+		if indexName == "" {
+			return nil, invalidArgumentsError{"indexName cannot be empty"}
+		}
 
-	provider, err := sm.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.AnalyzeDocument(nil, indexName, doc, opts)
+		return provider.AnalyzeDocument(nil, indexName, doc, opts)
+	})
 }
 
 // GetIndexedDocumentsCountOptions is the set of options available to the search index GetIndexedDocumentsCount operation.
@@ -247,20 +232,17 @@ type GetIndexedDocumentsCountOptions struct {
 
 // GetIndexedDocumentsCount retrieves the document count for a search index.
 func (sm *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *GetIndexedDocumentsCountOptions) (uint64, error) {
-	if opts == nil {
-		opts = &GetIndexedDocumentsCountOptions{}
-	}
+	return autoOpControl(sm.controller, func(provider searchIndexProvider) (uint64, error) {
+		if opts == nil {
+			opts = &GetIndexedDocumentsCountOptions{}
+		}
 
-	if indexName == "" {
-		return 0, invalidArgumentsError{"indexName cannot be empty"}
-	}
+		if indexName == "" {
+			return 0, invalidArgumentsError{"indexName cannot be empty"}
+		}
 
-	provider, err := sm.getProvider()
-	if err != nil {
-		return 0, err
-	}
-
-	return provider.GetIndexedDocumentsCount(nil, indexName, opts)
+		return provider.GetIndexedDocumentsCount(nil, indexName, opts)
+	})
 }
 
 // PauseIngestSearchIndexOptions is the set of options available to the search index PauseIngest operation.
@@ -277,20 +259,17 @@ type PauseIngestSearchIndexOptions struct {
 
 // PauseIngest pauses updates and maintenance for an index.
 func (sm *SearchIndexManager) PauseIngest(indexName string, opts *PauseIngestSearchIndexOptions) error {
-	if opts == nil {
-		opts = &PauseIngestSearchIndexOptions{}
-	}
+	return autoOpControlErrorOnly(sm.controller, func(provider searchIndexProvider) error {
+		if opts == nil {
+			opts = &PauseIngestSearchIndexOptions{}
+		}
 
-	if indexName == "" {
-		return invalidArgumentsError{"indexName cannot be empty"}
-	}
+		if indexName == "" {
+			return invalidArgumentsError{"indexName cannot be empty"}
+		}
 
-	provider, err := sm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.PauseIngest(nil, indexName, opts)
+		return provider.PauseIngest(nil, indexName, opts)
+	})
 }
 
 // ResumeIngestSearchIndexOptions is the set of options available to the search index ResumeIngest operation.
@@ -307,20 +286,17 @@ type ResumeIngestSearchIndexOptions struct {
 
 // ResumeIngest resumes updates and maintenance for an index.
 func (sm *SearchIndexManager) ResumeIngest(indexName string, opts *ResumeIngestSearchIndexOptions) error {
-	if opts == nil {
-		opts = &ResumeIngestSearchIndexOptions{}
-	}
+	return autoOpControlErrorOnly(sm.controller, func(provider searchIndexProvider) error {
+		if opts == nil {
+			opts = &ResumeIngestSearchIndexOptions{}
+		}
 
-	if indexName == "" {
-		return invalidArgumentsError{"indexName cannot be empty"}
-	}
+		if indexName == "" {
+			return invalidArgumentsError{"indexName cannot be empty"}
+		}
 
-	provider, err := sm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.ResumeIngest(nil, indexName, opts)
+		return provider.ResumeIngest(nil, indexName, opts)
+	})
 }
 
 // AllowQueryingSearchIndexOptions is the set of options available to the search index AllowQuerying operation.
@@ -337,20 +313,17 @@ type AllowQueryingSearchIndexOptions struct {
 
 // AllowQuerying allows querying against an index.
 func (sm *SearchIndexManager) AllowQuerying(indexName string, opts *AllowQueryingSearchIndexOptions) error {
-	if opts == nil {
-		opts = &AllowQueryingSearchIndexOptions{}
-	}
+	return autoOpControlErrorOnly(sm.controller, func(provider searchIndexProvider) error {
+		if opts == nil {
+			opts = &AllowQueryingSearchIndexOptions{}
+		}
 
-	if indexName == "" {
-		return invalidArgumentsError{"indexName cannot be empty"}
-	}
+		if indexName == "" {
+			return invalidArgumentsError{"indexName cannot be empty"}
+		}
 
-	provider, err := sm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.AllowQuerying(nil, indexName, opts)
+		return provider.AllowQuerying(nil, indexName, opts)
+	})
 }
 
 // DisallowQueryingSearchIndexOptions is the set of options available to the search index DisallowQuerying operation.
@@ -367,24 +340,21 @@ type DisallowQueryingSearchIndexOptions struct {
 
 // DisallowQuerying disallows querying against an index.
 func (sm *SearchIndexManager) DisallowQuerying(indexName string, opts *AllowQueryingSearchIndexOptions) error {
-	if opts == nil {
-		opts = &AllowQueryingSearchIndexOptions{}
-	}
+	return autoOpControlErrorOnly(sm.controller, func(provider searchIndexProvider) error {
+		if opts == nil {
+			opts = &AllowQueryingSearchIndexOptions{}
+		}
 
-	if indexName == "" {
-		return invalidArgumentsError{"indexName cannot be empty"}
-	}
+		if indexName == "" {
+			return invalidArgumentsError{"indexName cannot be empty"}
+		}
 
-	provider, err := sm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.DisallowQuerying(nil, indexName, &DisallowQueryingSearchIndexOptions{
-		Timeout:       opts.Timeout,
-		RetryStrategy: opts.RetryStrategy,
-		ParentSpan:    opts.ParentSpan,
-		Context:       opts.Context,
+		return provider.DisallowQuerying(nil, indexName, &DisallowQueryingSearchIndexOptions{
+			Timeout:       opts.Timeout,
+			RetryStrategy: opts.RetryStrategy,
+			ParentSpan:    opts.ParentSpan,
+			Context:       opts.Context,
+		})
 	})
 }
 
@@ -402,24 +372,21 @@ type FreezePlanSearchIndexOptions struct {
 
 // FreezePlan freezes the assignment of index partitions to nodes.
 func (sm *SearchIndexManager) FreezePlan(indexName string, opts *AllowQueryingSearchIndexOptions) error {
-	if opts == nil {
-		opts = &AllowQueryingSearchIndexOptions{}
-	}
+	return autoOpControlErrorOnly(sm.controller, func(provider searchIndexProvider) error {
+		if opts == nil {
+			opts = &AllowQueryingSearchIndexOptions{}
+		}
 
-	if indexName == "" {
-		return invalidArgumentsError{"indexName cannot be empty"}
-	}
+		if indexName == "" {
+			return invalidArgumentsError{"indexName cannot be empty"}
+		}
 
-	provider, err := sm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.FreezePlan(nil, indexName, &FreezePlanSearchIndexOptions{
-		Timeout:       opts.Timeout,
-		RetryStrategy: opts.RetryStrategy,
-		ParentSpan:    opts.ParentSpan,
-		Context:       opts.Context,
+		return provider.FreezePlan(nil, indexName, &FreezePlanSearchIndexOptions{
+			Timeout:       opts.Timeout,
+			RetryStrategy: opts.RetryStrategy,
+			ParentSpan:    opts.ParentSpan,
+			Context:       opts.Context,
+		})
 	})
 }
 
@@ -437,23 +404,20 @@ type UnfreezePlanSearchIndexOptions struct {
 
 // UnfreezePlan unfreezes the assignment of index partitions to nodes.
 func (sm *SearchIndexManager) UnfreezePlan(indexName string, opts *AllowQueryingSearchIndexOptions) error {
-	if opts == nil {
-		opts = &AllowQueryingSearchIndexOptions{}
-	}
+	return autoOpControlErrorOnly(sm.controller, func(provider searchIndexProvider) error {
+		if opts == nil {
+			opts = &AllowQueryingSearchIndexOptions{}
+		}
 
-	if indexName == "" {
-		return invalidArgumentsError{"indexName cannot be empty"}
-	}
+		if indexName == "" {
+			return invalidArgumentsError{"indexName cannot be empty"}
+		}
 
-	provider, err := sm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.UnfreezePlan(nil, indexName, &UnfreezePlanSearchIndexOptions{
-		Timeout:       opts.Timeout,
-		RetryStrategy: opts.RetryStrategy,
-		ParentSpan:    opts.ParentSpan,
-		Context:       opts.Context,
+		return provider.UnfreezePlan(nil, indexName, &UnfreezePlanSearchIndexOptions{
+			Timeout:       opts.Timeout,
+			RetryStrategy: opts.RetryStrategy,
+			ParentSpan:    opts.ParentSpan,
+			Context:       opts.Context,
+		})
 	})
 }

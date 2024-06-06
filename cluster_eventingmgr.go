@@ -14,7 +14,7 @@ import (
 //
 // This API is UNCOMMITTED and may change in the future.
 type EventingFunctionManager struct {
-	getProvider func() (eventingManagementProvider, error)
+	controller *providerController[eventingManagementProvider]
 }
 
 // EventingFunctionStatus describes the current state of an eventing function.
@@ -351,16 +351,13 @@ type UpsertEventingFunctionOptions struct {
 
 // UpsertFunction inserts or updates an eventing function.
 func (efm *EventingFunctionManager) UpsertFunction(function EventingFunction, opts *UpsertEventingFunctionOptions) error {
-	if opts == nil {
-		opts = &UpsertEventingFunctionOptions{}
-	}
+	return autoOpControlErrorOnly(efm.controller, func(provider eventingManagementProvider) error {
+		if opts == nil {
+			opts = &UpsertEventingFunctionOptions{}
+		}
 
-	provider, err := efm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.UpsertFunction(nil, function, opts)
+		return provider.UpsertFunction(nil, function, opts)
+	})
 }
 
 // DropEventingFunctionOptions are the options available when using the DropFunction operation.
@@ -377,16 +374,13 @@ type DropEventingFunctionOptions struct {
 
 // DropFunction drops an eventing function.
 func (efm *EventingFunctionManager) DropFunction(name string, opts *DropEventingFunctionOptions) error {
-	if opts == nil {
-		opts = &DropEventingFunctionOptions{}
-	}
+	return autoOpControlErrorOnly(efm.controller, func(provider eventingManagementProvider) error {
+		if opts == nil {
+			opts = &DropEventingFunctionOptions{}
+		}
 
-	provider, err := efm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.DropFunction(nil, name, opts)
+		return provider.DropFunction(nil, name, opts)
+	})
 }
 
 // DeployEventingFunctionOptions are the options available when using the DeployFunction operation.
@@ -403,16 +397,13 @@ type DeployEventingFunctionOptions struct {
 
 // DeployFunction deploys an eventing function.
 func (efm *EventingFunctionManager) DeployFunction(name string, opts *DeployEventingFunctionOptions) error {
-	if opts == nil {
-		opts = &DeployEventingFunctionOptions{}
-	}
+	return autoOpControlErrorOnly(efm.controller, func(provider eventingManagementProvider) error {
+		if opts == nil {
+			opts = &DeployEventingFunctionOptions{}
+		}
 
-	provider, err := efm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.DeployFunction(nil, name, opts)
+		return provider.DeployFunction(nil, name, opts)
+	})
 }
 
 // UndeployEventingFunctionOptions are the options available when using the UndeployFunction operation.
@@ -429,16 +420,13 @@ type UndeployEventingFunctionOptions struct {
 
 // UndeployFunction undeploys an eventing function.
 func (efm *EventingFunctionManager) UndeployFunction(name string, opts *UndeployEventingFunctionOptions) error {
-	if opts == nil {
-		opts = &UndeployEventingFunctionOptions{}
-	}
+	return autoOpControlErrorOnly(efm.controller, func(provider eventingManagementProvider) error {
+		if opts == nil {
+			opts = &UndeployEventingFunctionOptions{}
+		}
 
-	provider, err := efm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.UndeployFunction(nil, name, opts)
+		return provider.UndeployFunction(nil, name, opts)
+	})
 }
 
 // GetAllEventingFunctionsOptions are the options available when using the GetAllFunctions operation.
@@ -455,16 +443,13 @@ type GetAllEventingFunctionsOptions struct {
 
 // GetAllFunctions fetches all the eventing functions.
 func (efm *EventingFunctionManager) GetAllFunctions(opts *GetAllEventingFunctionsOptions) ([]EventingFunction, error) {
-	if opts == nil {
-		opts = &GetAllEventingFunctionsOptions{}
-	}
+	return autoOpControl(efm.controller, func(provider eventingManagementProvider) ([]EventingFunction, error) {
+		if opts == nil {
+			opts = &GetAllEventingFunctionsOptions{}
+		}
 
-	provider, err := efm.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.GetAllFunctions(nil, opts)
+		return provider.GetAllFunctions(nil, opts)
+	})
 }
 
 // GetEventingFunctionOptions are the options available when using the GetFunction operation.
@@ -481,16 +466,13 @@ type GetEventingFunctionOptions struct {
 
 // GetFunction fetches an eventing function.
 func (efm *EventingFunctionManager) GetFunction(name string, opts *GetEventingFunctionOptions) (*EventingFunction, error) {
-	if opts == nil {
-		opts = &GetEventingFunctionOptions{}
-	}
+	return autoOpControl(efm.controller, func(provider eventingManagementProvider) (*EventingFunction, error) {
+		if opts == nil {
+			opts = &GetEventingFunctionOptions{}
+		}
 
-	provider, err := efm.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.GetFunction(nil, name, opts)
+		return provider.GetFunction(nil, name, opts)
+	})
 }
 
 // PauseEventingFunctionOptions are the options available when using the PauseFunction operation.
@@ -507,16 +489,13 @@ type PauseEventingFunctionOptions struct {
 
 // PauseFunction pauses an eventing function.
 func (efm *EventingFunctionManager) PauseFunction(name string, opts *PauseEventingFunctionOptions) error {
-	if opts == nil {
-		opts = &PauseEventingFunctionOptions{}
-	}
+	return autoOpControlErrorOnly(efm.controller, func(provider eventingManagementProvider) error {
+		if opts == nil {
+			opts = &PauseEventingFunctionOptions{}
+		}
 
-	provider, err := efm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.PauseFunction(nil, name, opts)
+		return provider.PauseFunction(nil, name, opts)
+	})
 }
 
 // ResumeEventingFunctionOptions are the options available when using the ResumeFunction operation.
@@ -533,16 +512,13 @@ type ResumeEventingFunctionOptions struct {
 
 // ResumeFunction resumes an eventing function.
 func (efm *EventingFunctionManager) ResumeFunction(name string, opts *ResumeEventingFunctionOptions) error {
-	if opts == nil {
-		opts = &ResumeEventingFunctionOptions{}
-	}
+	return autoOpControlErrorOnly(efm.controller, func(provider eventingManagementProvider) error {
+		if opts == nil {
+			opts = &ResumeEventingFunctionOptions{}
+		}
 
-	provider, err := efm.getProvider()
-	if err != nil {
-		return err
-	}
-
-	return provider.ResumeFunction(nil, name, opts)
+		return provider.ResumeFunction(nil, name, opts)
+	})
 }
 
 // EventingFunctionsStatusOptions are the options available when using the FunctionsStatus operation.
@@ -559,14 +535,11 @@ type EventingFunctionsStatusOptions struct {
 
 // FunctionsStatus fetches the current status of all eventing functions.
 func (efm *EventingFunctionManager) FunctionsStatus(opts *EventingFunctionsStatusOptions) (*EventingStatus, error) {
-	if opts == nil {
-		opts = &EventingFunctionsStatusOptions{}
-	}
+	return autoOpControl(efm.controller, func(provider eventingManagementProvider) (*EventingStatus, error) {
+		if opts == nil {
+			opts = &EventingFunctionsStatusOptions{}
+		}
 
-	provider, err := efm.getProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	return provider.FunctionsStatus(nil, opts)
+		return provider.FunctionsStatus(nil, opts)
+	})
 }

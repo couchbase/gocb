@@ -317,6 +317,8 @@ func (suite *UnitTestSuite) TestScopeSearchIndexesFeatureNotAvailable() {
 	cli.On("getSearchIndexProvider").Return(&searchIndexProviderCore{
 		searchCapVerifier: mockCapVerifier,
 	}, nil)
+	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpCompleted").Return()
 
 	b := suite.bucket("mock", suite.defaultTimeoutConfig(), cli)
 	s := suite.newScope(b, "test")

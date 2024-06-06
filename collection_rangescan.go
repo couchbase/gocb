@@ -135,18 +135,15 @@ func (rs SamplingScan) toCore() (*gocbcore.RangeScanCreateRandomSamplingConfig, 
 // a lot of documents to find the matching documents.
 // For low latency range queries, it is recommended that you use SQL++ with the necessary indexes.
 func (c *Collection) Scan(scanType ScanType, opts *ScanOptions) (*ScanResult, error) {
-	if opts == nil {
-		opts = &ScanOptions{}
-	}
+	return autoOpControl(c.kvController(), func(agent kvProvider) (*ScanResult, error) {
+		if opts == nil {
+			opts = &ScanOptions{}
+		}
 
-	agent, err := c.getKvProvider()
-	if err != nil {
-		return nil, err
-	}
+		if opts.Timeout == 0 {
+			opts.Timeout = c.timeoutsConfig.KVScanTimeout
+		}
 
-	if opts.Timeout == 0 {
-		opts.Timeout = c.timeoutsConfig.KVScanTimeout
-	}
-
-	return agent.Scan(c, scanType, opts)
+		return agent.Scan(c, scanType, opts)
+	})
 }

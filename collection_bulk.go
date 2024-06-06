@@ -39,16 +39,13 @@ type BulkOpOptions struct {
 // Do execute one or more `BulkOp` items in parallel.
 // UNCOMMITTED: This API may change in the future.
 func (c *Collection) Do(ops []BulkOp, opts *BulkOpOptions) error {
-	if opts == nil {
-		opts = &BulkOpOptions{}
-	}
+	return autoOpControlErrorOnly(c.kvBulkController(), func(agent kvBulkProvider) error {
+		if opts == nil {
+			opts = &BulkOpOptions{}
+		}
 
-	agent, err := c.getKvBulkProvider()
-	if err != nil {
-		return err
-	}
-
-	return agent.Do(c, ops, opts)
+		return agent.Do(c, ops, opts)
+	})
 }
 
 // GetOp represents a type of `BulkOp` used for Get operations. See BulkOp.
