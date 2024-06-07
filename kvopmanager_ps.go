@@ -275,6 +275,7 @@ func newKvOpManagerPs(c *Collection, opName string, parentSpan RequestSpan, p *k
 
 	return &kvOpManagerPs{
 		parent:        c,
+		provider:      p,
 		span:          span,
 		operationName: opName,
 		createdTime:   time.Now(),
