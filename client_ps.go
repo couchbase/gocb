@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/couchbaselabs/gocbconnstr/v2"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -48,11 +49,12 @@ func (c *psConnectionMgr) openBucket(bucketName string) error {
 }
 
 func (c *psConnectionMgr) buildConfig(cluster *Cluster) error {
-	port := cluster.connSpec().Addresses[0].Port
-	if port == -1 {
-		port = 18098
+	resolved, err := gocbconnstr.Resolve(cluster.connSpec())
+	if err != nil {
+		return err
 	}
-	c.host = fmt.Sprintf("%s:%d", cluster.connSpec().Addresses[0].Host, port)
+
+	c.host = fmt.Sprintf("%s:%d", resolved.Couchbase2Host.Host, resolved.Couchbase2Host.Port)
 
 	creds, err := cluster.authenticator().Credentials(AuthCredsRequest{})
 	if err != nil {
