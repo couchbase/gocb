@@ -77,7 +77,7 @@ func (s *Search) Internal() InternalSearch {
 // Validate verifies that settings in the search (including all queries) are valid.
 func (s InternalSearch) Validate() error {
 	if len(s.Queries) == 0 {
-		return errors.New("queries cannot be empty")
+		return errors.New("at least one vector query must be specified")
 	}
 	for _, query := range s.Queries {
 		if err := query.Validate(); err != nil {
