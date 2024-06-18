@@ -6,10 +6,6 @@ import (
 )
 
 // Query specifies a vector Query.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 type Query struct {
 	field        string
 	vector       []float32
@@ -20,10 +16,6 @@ type Query struct {
 }
 
 // NewQuery constructs a new vector Query.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 func NewQuery(vectorFieldName string, vector []float32) *Query {
 	return &Query{
 		field:  vectorFieldName,
@@ -33,10 +25,6 @@ func NewQuery(vectorFieldName string, vector []float32) *Query {
 
 // NewBase64Query constructs a new vector Query using
 // a Base64-encoded sequence of little-endian IEEE 754 floats.
-//
-// # VOLATILE
-//
-// This API is VOLATILE and subject to change at any time.
 func NewBase64Query(vectorFieldName string, base64Vector string) *Query {
 	return &Query{
 		field:        vectorFieldName,

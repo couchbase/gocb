@@ -7,10 +7,6 @@ import (
 
 // SearchRequest is used for describing a search request used with Search.
 type SearchRequest struct {
-	SearchQuery search.Query
-
-	// # UNCOMMITTED
-	//
-	// This API is UNCOMMITTED and may change in the future.
+	SearchQuery  search.Query
 	VectorSearch *vector.Search
 }
