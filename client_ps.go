@@ -274,6 +274,9 @@ func (c *psConnectionMgr) close() error {
 
 	err := c.agent.Close()
 
+	logDebugf("Waiting for any active requests to complete")
+	c.activeOpsWg.Wait()
+
 	if c.tracer != nil {
 		tracerDecRef(c.tracer)
 		c.tracer = nil
