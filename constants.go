@@ -400,3 +400,10 @@ func analyticsEncryptionLevelFromString(level string) AnalyticsEncryptionLevel {
 
 	return AnalyticsEncryptionLevelNone
 }
+
+type ReadPreference uint8
+
+const (
+	ReadPreferenceNone ReadPreference = iota + 1
+	ReadPreferenceSelectedServerGroup
+)

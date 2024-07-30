@@ -77,6 +77,8 @@ func autoOpControlErrorOnly[P any](controller *providerController[P], opFn func(
 type newConnectionMgrOptions struct {
 	tracer RequestTracer
 	meter  *meterWrapper
+
+	preferredServerGroup string
 }
 
 func (c *Cluster) newConnectionMgr(protocol string, opts *newConnectionMgrOptions) connectionManager {
@@ -95,6 +97,7 @@ func (c *Cluster) newConnectionMgr(protocol string, opts *newConnectionMgrOption
 			timeouts:             c.timeoutsConfig,
 			tracer:               opts.tracer,
 			meter:                opts.meter,
+			preferredServerGroup: opts.preferredServerGroup,
 		}
 	}
 }

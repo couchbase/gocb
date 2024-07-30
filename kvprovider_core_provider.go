@@ -43,6 +43,7 @@ type coreConfigSnapshot interface {
 	NumReplicas() (int, error)
 	NumServers() (int, error)
 	VbucketsOnServer(index int) ([]uint16, error)
+	KeyToServersByServerGroup(key []byte) (map[string][]int, error)
 }
 
 type stdCoreConfigSnapshotProvider struct {

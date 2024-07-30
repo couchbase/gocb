@@ -65,13 +65,31 @@ func (p *kvProviderCore) LookupInAllReplicas(c *Collection, id string, ops []Loo
 		return nil, ErrFeatureNotAvailable
 	}
 
-	numReplicas, err := snapshot.NumReplicas()
-	if err != nil {
-		return nil, err
+	var servers []int
+	if opts.ReadPreference == ReadPreferenceSelectedServerGroup {
+		serverGroups, err := snapshot.KeyToServersByServerGroup([]byte(id))
+		if err != nil {
+			return nil, err
+		}
+
+		for group, srvIdx := range serverGroups {
+			if group == p.preferredServerGroup {
+				servers = append(servers, srvIdx...)
+			}
+		}
+	} else {
+		numReplicas, err := snapshot.NumReplicas()
+		if err != nil {
+			return nil, err
+		}
+
+		numServers := numReplicas + 1
+		for i := 0; i < numServers; i++ {
+			servers = append(servers, i)
+		}
 	}
 
-	numServers := numReplicas + 1
-	outCh := make(chan interface{}, numServers)
+	outCh := make(chan interface{}, len(servers))
 	cancelCh := make(chan struct{})
 
 	recorder, err := p.meter.ValueRecorder(meterValueServiceKV, "lookup_in_all_replicas")
@@ -81,7 +99,7 @@ func (p *kvProviderCore) LookupInAllReplicas(c *Collection, id string, ops []Loo
 
 	repRes := &LookupInAllReplicasResult{
 		res: &coreReplicasResult{
-			totalRequests:       uint32(numServers),
+			totalRequests:       uint32(len(servers)),
 			resCh:               outCh,
 			cancelCh:            cancelCh,
 			span:                span,
@@ -92,7 +110,7 @@ func (p *kvProviderCore) LookupInAllReplicas(c *Collection, id string, ops []Loo
 	}
 
 	// Loop all the servers and populate the result object
-	for replicaIdx := 0; replicaIdx < numServers; replicaIdx++ {
+	for _, replicaIdx := range servers {
 		go func(replicaIdx int) {
 			// This timeout value will cause the getOneReplica operation to timeout after our deadline has expired,
 			// as the deadline has already begun. getOneReplica timing out before our deadline would cause inconsistent
@@ -144,11 +162,12 @@ func (p *kvProviderCore) LookupInAnyReplica(c *Collection, id string, ops []Look
 	defer span.End()
 
 	repRes, err := p.LookupInAllReplicas(c, id, ops, &LookupInAllReplicaOptions{
-		Timeout:       opts.Timeout,
-		RetryStrategy: opts.RetryStrategy,
-		Internal:      opts.Internal,
-		ParentSpan:    span,
-		Context:       opts.Context,
+		Timeout:        opts.Timeout,
+		RetryStrategy:  opts.RetryStrategy,
+		Internal:       opts.Internal,
+		ParentSpan:     span,
+		Context:        opts.Context,
+		ReadPreference: opts.ReadPreference,
 	})
 	if err != nil {
 		return nil, err

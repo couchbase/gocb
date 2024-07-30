@@ -144,6 +144,10 @@ type ClusterOptions struct {
 	// CompressionConfig specifies compression related configuration options.
 	CompressionConfig CompressionConfig
 
+	// PreferredServerGroup specifies the name of the server group to use with operations supporting ReadPreference.
+	// UNCOMMITTED: This API may change in the future.
+	PreferredServerGroup string
+
 	// Internal: This should never be used and is not supported.
 	InternalConfig InternalConfig
 }
@@ -281,8 +285,9 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 	}
 
 	cli := cluster.newConnectionMgr(connSpec.Scheme, &newConnectionMgrOptions{
-		tracer: initialTracer,
-		meter:  newMeterWrapper(meter),
+		tracer:               initialTracer,
+		meter:                newMeterWrapper(meter),
+		preferredServerGroup: opts.PreferredServerGroup,
 	})
 	err = cli.buildConfig(cluster)
 	if err != nil {

@@ -28,6 +28,10 @@ type mockConfigSnapshot struct {
 	serverToVbuckets map[int][]uint16
 }
 
+func (p *mockConfigSnapshot) KeyToServersByServerGroup(key []byte) (map[string][]int, error) {
+	return nil, nil
+}
+
 func (p *mockConfigSnapshot) RevID() int64 {
 	return p.revID
 }

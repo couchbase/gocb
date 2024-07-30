@@ -20,6 +20,7 @@ type stdConnectionMgr struct {
 	tracer               RequestTracer
 	meter                *meterWrapper
 	txns                 *transactionsProviderCore
+	preferredServerGroup string
 
 	closed      atomic.Bool
 	activeOpsWg sync.WaitGroup
@@ -176,8 +177,9 @@ func (c *stdConnectionMgr) getKvProvider(bucketName string) (kvProvider, error) 
 		agent:            agent,
 		snapshotProvider: &stdCoreConfigSnapshotProvider{agent: agent},
 
-		tracer: c.tracer,
-		meter:  c.meter,
+		tracer:               c.tracer,
+		meter:                c.meter,
+		preferredServerGroup: c.preferredServerGroup,
 	}, nil
 }
 

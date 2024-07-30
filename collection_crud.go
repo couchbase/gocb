@@ -188,6 +188,9 @@ type GetAllReplicaOptions struct {
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
 
+	// UNCOMMITTED: This API may change in the future.
+	ReadPreference ReadPreference
+
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
 	// also applies to global level timeouts.
 	// UNCOMMITTED: This API may change in the future.
@@ -337,6 +340,9 @@ type GetAnyReplicaOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 	ParentSpan    RequestSpan
+
+	// UNCOMMITTED: This API may change in the future.
+	ReadPreference ReadPreference
 
 	// Using a deadlined Context alongside a Timeout will cause the shorter of the two to cause cancellation, this
 	// also applies to global level timeouts.
