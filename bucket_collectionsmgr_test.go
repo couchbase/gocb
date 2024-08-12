@@ -625,6 +625,7 @@ func (suite *IntegrationTestSuite) runCollectionsInBucketTest(v2 bool) {
 	if err != nil {
 		suite.T().Fatalf("Failed to create scope %v", err)
 	}
+	suite.EnsureScopeOnAllNodes(scopeName)
 
 	if v2 {
 		err = mgrV2.CreateCollection(scopeName, generateDocId("testCollection1-"), nil, nil)
