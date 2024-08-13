@@ -35,6 +35,8 @@ type kvOpManagerPs struct {
 	createdTime   time.Time
 	meter         *meterWrapper
 	compressor    *compressor
+
+	req *retriableRequestPs
 }
 
 func (m *kvOpManagerPs) getTimeout() time.Duration {
@@ -134,6 +136,8 @@ func (m *kvOpManagerPs) SetIsIdempotent(idempotent bool) {
 }
 
 func (m *kvOpManagerPs) Finish(noMetrics bool) {
+	retries := m.RetryInfo().RetryAttempts()
+	m.span.SetAttribute(spanAttribRetries, retries)
 	m.span.End()
 
 	if !noMetrics {
@@ -228,11 +232,11 @@ func (m *kvOpManagerPs) Tracer() RequestTracer {
 }
 
 func (m *kvOpManagerPs) RetryInfo() retriedRequestInfo {
-	return nil
+	return m.req
 }
 
 func (m *kvOpManagerPs) SetRetryRequest(req *retriableRequestPs) {
-	// we don't store this as we don't need it.
+	m.req = req
 }
 
 func (m *kvOpManagerPs) OperationID() string {

@@ -3,6 +3,7 @@ package gocb
 import (
 	"context"
 	"errors"
+	"go.opentelemetry.io/otel/trace"
 	"time"
 
 	"google.golang.org/grpc"
@@ -214,10 +215,10 @@ type retriableRequestPs struct {
 	loggerIdentifier string
 	idempotent       bool
 	strategy         RetryStrategy
-	rootTraceContext RequestSpanContext
+	parentSpan       RequestSpan
 }
 
-func newRetriableRequestPS(operation string, idempotent bool, rootContext RequestSpanContext, traceIdentifier string,
+func newRetriableRequestPS(operation string, idempotent bool, parentSpan RequestSpan, traceIdentifier string,
 	strategy RetryStrategy) *retriableRequestPs {
 	loggerIdentifier := traceIdentifier
 	if loggerIdentifier == "" {
@@ -228,7 +229,7 @@ func newRetriableRequestPS(operation string, idempotent bool, rootContext Reques
 		traceIdentifier:  traceIdentifier,
 		loggerIdentifier: loggerIdentifier,
 		idempotent:       idempotent,
-		rootTraceContext: rootContext,
+		parentSpan:       parentSpan,
 		strategy:         strategy,
 	}
 }
@@ -282,16 +283,12 @@ func handleRetriableRequest[ReqT any, RespT any](
 	peekResult func(RespT) error) (RespT, error) {
 	for {
 		logSchedf("Writing request ID=%s, OP=%s", retryReq.loggerIdentifier, retryReq.operation)
-		span := tracer.RequestSpan(retryReq.rootTraceContext, "dispatch_to_server")
-		span.SetAttribute(spanAttribDBSystemKey, spanAttribDBSystemValue)
-		span.SetAttribute(spanAttribNumRetries, retryReq.RetryAttempts())
-		span.SetAttribute(spanAttribNetTransport, "IP.TCP")
-		if retryReq.traceIdentifier != "" {
-			span.SetAttribute(spanAttribOperationIDKey, retryReq.traceIdentifier)
+
+		if s, ok := retryReq.parentSpan.(OtelAwareRequestSpan); ok {
+			ctx = trace.ContextWithSpan(ctx, s.Wrapped())
 		}
 
 		res, err := sendFn(ctx, req)
-		span.End()
 		logSchedf("Handling response ID=%s, OP=%s", retryReq.loggerIdentifier, retryReq.operation)
 
 		if err != nil {

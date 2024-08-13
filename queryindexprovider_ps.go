@@ -1,8 +1,10 @@
 package gocb
 
 import (
+	"context"
 	"errors"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/couchbase/goprotostellar/genproto/admin_query_v1"
@@ -205,11 +207,19 @@ func (qpc *queryIndexProviderPs) GetAllIndexes(c *Collection, bucketName string,
 		return nil, err
 	}
 
-	return qpc.getAllIndexes(c, bucketName, manager, opts)
+	return qpc.getAllIndexes(c, bucketName, manager, manager.TraceSpan(), &getAllIndexesOptions{
+		ScopeName:      opts.ScopeName,
+		CollectionName: opts.CollectionName,
+	})
 }
 
-func (qpc *queryIndexProviderPs) getAllIndexes(c *Collection, bucketName string, manager *psOpManagerDefault,
-	opts *GetAllQueryIndexesOptions) ([]QueryIndex, error) {
+type getAllIndexesOptions struct {
+	ScopeName      string
+	CollectionName string
+}
+
+func (qpc *queryIndexProviderPs) getAllIndexes(c *Collection, bucketName string, manager *psOpManagerDefault, parentSpan RequestSpan,
+	opts *getAllIndexesOptions) ([]QueryIndex, error) {
 	bucket, scope, collection := qpc.makeKeyspace(c, bucketName, opts.ScopeName, opts.CollectionName)
 
 	req := &admin_query_v1.GetAllIndexesRequest{
@@ -218,7 +228,10 @@ func (qpc *queryIndexProviderPs) getAllIndexes(c *Collection, bucketName string,
 		CollectionName: collection,
 	}
 
-	resp, err := wrapPSOp(manager, req, qpc.provider.GetAllIndexes)
+	ctx, cancel := context.WithTimeout(manager.Context(), manager.Timeout())
+	defer cancel()
+
+	resp, err := wrapPSOpCtxWithPeek(ctx, manager, req, parentSpan, qpc.provider.GetAllIndexes, nil)
 	if err != nil {
 		return nil, qpc.handleError(err)
 	}
@@ -324,30 +337,42 @@ func (qpc *queryIndexProviderPs) BuildDeferredIndexes(c *Collection, bucketName 
 	return indexNames, nil
 }
 
-func checkIndexesActivePs(indexes []QueryIndex, checkList []string) (bool, error) {
-	var checkIndexes []QueryIndex
-	for i := 0; i < len(checkList); i++ {
-		indexName := checkList[i]
+type waitForIndexOnlineOptions struct {
+	ScopeName      string
+	CollectionName string
+}
 
-		for j := 0; j < len(indexes); j++ {
-			if indexes[j].Name == indexName {
-				checkIndexes = append(checkIndexes, indexes[j])
-				break
-			}
-		}
+func (qpc *queryIndexProviderPs) waitForIndexOnline(c *Collection, indexName, bucketName string, manager *psOpManagerDefault, opts *waitForIndexOnlineOptions) error {
+	span := manager.NewSpan("manager_query_wait_for_index_online")
+	span.SetAttribute("db.operation", "WaitForIndexOnline")
+	defer span.End()
+
+	bucket, scope, collection := qpc.makeKeyspace(c, bucketName, opts.ScopeName, opts.CollectionName)
+	scopeName := ""
+	if scope != nil {
+		scopeName = *scope
+	}
+	collectionName := ""
+	if collection != nil {
+		collectionName = *scope
 	}
 
-	if len(checkIndexes) != len(checkList) {
-		return false, ErrIndexNotFound
+	req := &admin_query_v1.WaitForIndexOnlineRequest{
+		BucketName:     bucket,
+		ScopeName:      scopeName,
+		CollectionName: collectionName,
+		Name:           indexName,
 	}
 
-	for i := 0; i < len(checkIndexes); i++ {
-		if checkIndexes[i].State != string(queryIndexStateOnline) {
-			logDebugf("Index not online: %s is in state %s", checkIndexes[i].Name, checkIndexes[i].State)
-			return false, nil
-		}
+	ctx, cancel := context.WithTimeout(manager.Context(), manager.Timeout())
+	defer cancel()
+
+	_, err := wrapPSOpCtxWithPeek(ctx, manager, req, span, qpc.provider.WaitForIndexOnline, nil)
+	if err != nil {
+		return qpc.handleError(err)
 	}
-	return true, nil
+
+	return nil
 }
 
 func (qpc *queryIndexProviderPs) WatchIndexes(c *Collection, bucketName string, watchList []string, timeout time.Duration, opts *WatchQueryIndexOptions,
@@ -355,7 +380,15 @@ func (qpc *queryIndexProviderPs) WatchIndexes(c *Collection, bucketName string, 
 	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_watch_indexes", map[string]interface{}{})
 	defer manager.Finish(false)
 
-	manager.SetContext(opts.Context)
+	ctx := opts.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	manager.SetContext(ctx)
 	manager.SetIsIdempotent(true)
 	manager.SetRetryStrategy(opts.RetryStrategy)
 	manager.SetTimeout(timeout)
@@ -368,63 +401,31 @@ func (qpc *queryIndexProviderPs) WatchIndexes(c *Collection, bucketName string, 
 		watchList = append(watchList, "#primary")
 	}
 
-	start := time.Now()
-	deadline := start.Add(timeout)
+	var firstErr error
+	var errLock sync.Mutex
 
-	curInterval := 50 * time.Millisecond
-	for {
-		if deadline.Before(time.Now()) {
-			return &TimeoutError{
-				InnerError:   ErrUnambiguousTimeout,
-				TimeObserved: time.Since(start),
-			}
-		}
-
-		span := manager.NewSpan("manager_query_get_all_indexes")
-
-		indexes, err := qpc.getAllIndexes(
-			c,
-			bucketName,
-			manager,
-			&GetAllQueryIndexesOptions{
-				Timeout:        time.Until(deadline),
-				RetryStrategy:  opts.RetryStrategy,
-				ParentSpan:     span,
-				ScopeName:      opts.ScopeName,
+	var wg sync.WaitGroup
+	for _, index := range watchList {
+		wg.Add(1)
+		go func(indexName string) {
+			err := qpc.waitForIndexOnline(c, indexName, bucketName, manager, &waitForIndexOnlineOptions{
 				CollectionName: opts.CollectionName,
-				Context:        opts.Context,
+				ScopeName:      opts.ScopeName,
 			})
-		span.End()
-		if err != nil {
-			return err
-		}
-
-		allOnline, err := checkIndexesActivePs(indexes, watchList)
-		if err != nil {
-			return err
-		}
-
-		if allOnline {
-			break
-		}
-
-		curInterval += 500 * time.Millisecond
-		if curInterval > 1000 {
-			curInterval = 1000
-		}
-
-		// Make sure we don't sleep past our overall deadline, if we adjust the
-		// deadline then it will be caught at the top of this loop as a timeout.
-		sleepDeadline := time.Now().Add(curInterval)
-		if sleepDeadline.After(deadline) {
-			sleepDeadline = deadline
-		}
-
-		// wait till our next poll interval
-		time.Sleep(time.Until(sleepDeadline))
+			if err != nil {
+				errLock.Lock()
+				if firstErr == nil {
+					firstErr = err
+				}
+				errLock.Unlock()
+				cancel()
+			}
+			wg.Done()
+		}(index)
 	}
+	wg.Wait()
 
-	return nil
+	return firstErr
 }
 
 func (qpc *queryIndexProviderPs) normaliseCollectionKeyspace(c *Collection) (string, string) {

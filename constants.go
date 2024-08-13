@@ -334,6 +334,7 @@ const (
 	spanAttribDBSystemValue       = "couchbase"
 	spanAttribOperationIDKey      = "db.couchbase.operation_id"
 	spanAttribOperationKey        = "db.operation"
+	spanAttribRetries             = "db.couchbase.retries"
 	spanAttribLocalIDKey          = "db.couchbase.local_id"
 	spanAttribNetTransport        = "net.transport"
 	spanAttribNetHostNameKey      = "net.host.name"

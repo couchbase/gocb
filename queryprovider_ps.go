@@ -22,7 +22,7 @@ type queryProviderPs struct {
 	managerProvider *psOpManagerProvider
 }
 
-func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions) (*QueryResult, error) {
+func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions) (resOut *QueryResult, errOut error) {
 	attribs := map[string]interface{}{
 		"db.statement": statement,
 	}
@@ -32,7 +32,14 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 	}
 
 	manager := qpc.managerProvider.NewManager(opts.ParentSpan, "query", attribs)
-	defer manager.Finish(false)
+	// Spans in couchbase2 mode need to live for the lifetime of the response body as any underlying
+	// grpc span will do so.
+	defer manager.ValueRecord()
+	defer func() {
+		if errOut != nil {
+			manager.Finish(true)
+		}
+	}()
 
 	manager.SetIsIdempotent(opts.Readonly)
 	manager.SetRetryStrategy(opts.RetryStrategy)
@@ -151,6 +158,7 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 		case QueryProfileModeTimings:
 			profileMode = query_v1.QueryRequest_PROFILE_MODE_TIMINGS
 		default:
+			manager.Finish(true)
 			return nil, makeInvalidArgumentsError("unexpected profile mode option")
 		}
 		req.ProfileMode = &profileMode
@@ -189,7 +197,7 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 	}()
 
 	var firstRows *query_v1.QueryResponse
-	res, err := wrapPSOpCtxWithPeek(reqCtx, manager, req, qpc.provider.Query, func(client query_v1.QueryService_QueryClient) error {
+	res, err := wrapPSOpCtxWithPeek(reqCtx, manager, req, manager.TraceSpan(), qpc.provider.Query, func(client query_v1.QueryService_QueryClient) error {
 		var err error
 		firstRows, err = client.Recv()
 		if err != nil {
@@ -201,6 +209,7 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 	close(doneCh)
 	if err != nil {
 		reqCancel()
+		manager.Finish(true)
 		return nil, qpc.makeError(err, statement, opts.Readonly, atomic.LoadUint32(&cancellationIsTimeout) == 1,
 			manager.ElapsedTime(), manager.RetryInfo())
 	}
@@ -214,6 +223,8 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 
 		nextRows: firstRows.Rows,
 		meta:     firstRows.MetaData,
+
+		manager: manager,
 	}
 	return newQueryResult(reader), nil
 }
@@ -262,6 +273,8 @@ type queryProviderPsRowReader struct {
 	nextRows      [][]byte
 	err           error
 	meta          *query_v1.QueryResponse_MetaData
+
+	manager *psOpManagerDefault
 }
 
 func (q *queryProviderPsRowReader) NextRow() []byte {
@@ -384,6 +397,9 @@ func (q *queryProviderPsRowReader) Close() error {
 	}
 	q.cancelFunc()
 	err := q.cli.CloseSend()
+
+	q.manager.Finish(true)
+
 	q.cli = nil
 	return err
 }
@@ -404,6 +420,8 @@ func (r *queryProviderPsRowReader) finishWithoutError() {
 		logWarnf("query stream close failed after meta-data: %s", err)
 	}
 
+	r.manager.Finish(true)
+
 	r.cli = nil
 }
 
@@ -419,6 +437,8 @@ func (r *queryProviderPsRowReader) finishWithError(err error) {
 		// error since thats the most likely reason we are in finishWithError
 		logDebugf("query stream close failed after error: %s", closeErr)
 	}
+
+	r.manager.Finish(true)
 
 	// Our client is invalidated as soon as an error occurs
 	r.cli = nil

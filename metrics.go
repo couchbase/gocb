@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"github.com/couchbase/gocbcore/v10"
+	"go.opentelemetry.io/otel/metric"
 	"sync"
 	"time"
 )
@@ -10,6 +11,11 @@ import (
 type Meter interface {
 	Counter(name string, tags map[string]string) (Counter, error)
 	ValueRecorder(name string, tags map[string]string) (ValueRecorder, error)
+}
+
+type OtelAwareMeter interface {
+	Wrapped() metric.Meter
+	Provider() metric.MeterProvider
 }
 
 // Counter is used for incrementing a synchronous count metric.

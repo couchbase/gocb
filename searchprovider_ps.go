@@ -26,7 +26,7 @@ func (search *searchProviderPs) Search(scope *Scope, indexName string, request S
 }
 
 // SearchQuery executes a search query against PS, taking care of the translation.
-func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Query, opts *SearchOptions) (*SearchResult, error) {
+func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Query, opts *SearchOptions) (resOut *SearchResult, errOut error) {
 	if opts.ConsistentWith != nil {
 		return nil, wrapError(ErrFeatureNotAvailable, "the ConsistentWith search option is not supported by the couchbase2 protocol")
 	}
@@ -37,7 +37,14 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 	manager := search.managerProvider.NewManager(opts.ParentSpan, "search", map[string]interface{}{
 		"db.operation": indexName,
 	})
-	defer manager.Finish(false)
+	// Spans in couchbase2 mode need to live for the lifetime of the response body as any underlying
+	// grpc span will do so.
+	defer manager.ValueRecord()
+	defer func() {
+		if errOut != nil {
+			manager.Finish(true)
+		}
+	}()
 
 	manager.SetIsIdempotent(true)
 	manager.SetRetryStrategy(opts.RetryStrategy)
@@ -132,7 +139,7 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 	}()
 
 	var firstRows *search_v1.SearchQueryResponse
-	client, err := wrapPSOpCtxWithPeek(reqCtx, manager, &request, search.provider.SearchQuery, func(client search_v1.SearchService_SearchQueryClient) error {
+	client, err := wrapPSOpCtxWithPeek(reqCtx, manager, &request, manager.TraceSpan(), search.provider.SearchQuery, func(client search_v1.SearchService_SearchQueryClient) error {
 		var err error
 		firstRows, err = client.Recv()
 		if err != nil {
@@ -196,6 +203,8 @@ type psSearchRowReader struct {
 	cancelFunc    context.CancelFunc
 	facets        map[string]*search_v1.SearchQueryResponse_FacetResult
 	query         cbsearch.Query
+
+	manager *psOpManagerDefault
 }
 
 // returns the next search row, either from local or fetches it from the client.
@@ -250,6 +259,9 @@ func (reader *psSearchRowReader) Close() error {
 		return nil
 	}
 	err := reader.client.CloseSend()
+
+	reader.manager.Finish(true)
+
 	reader.client = nil
 	return err
 }
@@ -299,6 +311,8 @@ func (reader *psSearchRowReader) finishWithoutError() {
 		logWarnf("query stream close failed after meta-data: %s", err)
 	}
 
+	reader.manager.Finish(true)
+
 	reader.client = nil
 }
 
@@ -314,6 +328,8 @@ func (reader *psSearchRowReader) finishWithError(err error) {
 		// error since thats the most likely reason we are in finishWithError
 		logDebugf("query stream close failed after error: %s", closeErr)
 	}
+
+	reader.manager.Finish(true)
 
 	// Our client is invalidated as soon as an error occurs
 	reader.client = nil

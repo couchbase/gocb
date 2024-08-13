@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"github.com/couchbase/gocbcore/v10"
+	"go.opentelemetry.io/otel/trace"
 	"time"
 )
 
@@ -32,6 +33,11 @@ type RequestTracer interface {
 	RequestSpan(parentContext RequestSpanContext, operationName string) RequestSpan
 }
 
+type OtelAwareRequestTracer interface {
+	Wrapped() trace.Tracer
+	Provider() trace.TracerProvider
+}
+
 // RequestSpan is the interface for spans that are created by a RequestTracer.
 type RequestSpan interface {
 	End()
@@ -40,8 +46,12 @@ type RequestSpan interface {
 	SetAttribute(key string, value interface{})
 }
 
-// RequestSpanContext is the interface for for external span contexts that can be passed in into the SDK option blocks.
+// RequestSpanContext is the interface for external span contexts that can be passed in into the SDK option blocks.
 type RequestSpanContext interface {
+}
+
+type OtelAwareRequestSpan interface {
+	Wrapped() trace.Span
 }
 
 type coreRequestTracerWrapper struct {

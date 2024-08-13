@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/couchbaselabs/gocbconnstr/v2"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/trace"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -63,12 +65,27 @@ func (c *psConnectionMgr) buildConfig(cluster *Cluster) error {
 
 	logger := newZapLogger()
 
+	var tp trace.TracerProvider
+	if c.tracer != nil {
+		if tracer, ok := c.tracer.(OtelAwareRequestTracer); ok {
+			tp = tracer.Provider()
+		}
+	}
+	var mp metric.MeterProvider
+	if c.meter != nil {
+		if meter, ok := c.meter.meter.(OtelAwareMeter); ok {
+			mp = meter.Provider()
+		}
+	}
+
 	c.config = &gocbcoreps.DialOptions{
 		Username:           creds[0].Username,
 		Password:           creds[0].Password,
 		InsecureSkipVerify: cluster.securityConfig.TLSSkipVerify,
 		ClientCertificate:  cluster.securityConfig.TLSRootCAs,
 		Logger:             logger,
+		TracerProvider:     tp,
+		MeterProvider:      mp,
 	}
 
 	return nil
@@ -332,7 +349,7 @@ func (p *psOpManagerProvider) NewManager(parentSpan RequestSpan, opName string, 
 
 type psOpManager interface {
 	IsIdempotent() bool
-	TraceSpanContext() RequestSpanContext
+	TraceSpan() RequestSpan
 	OperationID() string
 	RetryStrategy() RetryStrategy
 	OpName() string
@@ -398,6 +415,8 @@ func (m *psOpManagerDefault) NewSpan(name string) RequestSpan {
 }
 
 func (m *psOpManagerDefault) Finish(noMetrics bool) {
+	retries := m.RetryInfo().RetryAttempts()
+	m.span.SetAttribute(spanAttribRetries, retries)
 	m.span.End()
 
 	if !noMetrics {
@@ -405,8 +424,8 @@ func (m *psOpManagerDefault) Finish(noMetrics bool) {
 	}
 }
 
-func (m *psOpManagerDefault) TraceSpanContext() RequestSpanContext {
-	return m.span.Context()
+func (m *psOpManagerDefault) ValueRecord() {
+	m.meter.ValueRecord(m.service, m.opName, m.createdTime)
 }
 
 func (m *psOpManagerDefault) TraceSpan() RequestSpan {
@@ -481,6 +500,12 @@ func (m *psOpManagerDefault) Context() context.Context {
 	return m.ctx
 }
 
+func wrapPSOpCtx[ReqT any, RespT any](ctx context.Context, m psOpManager,
+	req ReqT,
+	fn func(context.Context, ReqT, ...grpc.CallOption) (RespT, error)) (RespT, error) {
+	return wrapPSOpCtxWithPeek(ctx, m, req, m.TraceSpan(), fn, nil)
+}
+
 func wrapPSOp[ReqT any, RespT any](m psOpManager, req ReqT,
 	fn func(context.Context, ReqT, ...grpc.CallOption) (RespT, error)) (RespT, error) {
 	ctx, cancel := context.WithTimeout(m.Context(), m.Timeout())
@@ -489,16 +514,13 @@ func wrapPSOp[ReqT any, RespT any](m psOpManager, req ReqT,
 	return wrapPSOpCtx(ctx, m, req, fn)
 }
 
-func wrapPSOpCtx[ReqT any, RespT any](ctx context.Context, m psOpManager, req ReqT, fn func(context.Context, ReqT, ...grpc.CallOption) (RespT, error)) (RespT, error) {
-	return wrapPSOpCtxWithPeek(ctx, m, req, fn, nil)
-}
-
 func wrapPSOpCtxWithPeek[ReqT any, RespT any](ctx context.Context,
 	m psOpManager,
 	req ReqT,
+	parentSpan RequestSpan,
 	fn func(context.Context, ReqT, ...grpc.CallOption) (RespT, error),
 	peekResult func(RespT) error) (RespT, error) {
-	retryReq := newRetriableRequestPS(m.OpName(), m.IsIdempotent(), m.TraceSpanContext(), m.OperationID(), m.RetryStrategy())
+	retryReq := newRetriableRequestPS(m.OpName(), m.IsIdempotent(), parentSpan, m.OperationID(), m.RetryStrategy())
 	m.SetRetryRequest(retryReq)
 
 	res, err := handleRetriableRequest(ctx, m.CreatedAt(), m.Tracer(), req, retryReq, fn, m.RetryReasonFor, peekResult)
