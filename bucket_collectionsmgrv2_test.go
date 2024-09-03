@@ -4,7 +4,7 @@ func (suite *IntegrationTestSuite) TestCollectionManagerCrudV2() {
 	suite.runCollectionManagerCrudTest(true)
 }
 
-func (suite *IntegrationTestSuite) TestDropNotExistentScopeV2() {
+func (suite *IntegrationTestSuite) TestDropNonExistentScopeV2() {
 	suite.runDropNonExistentScopeTest(true)
 }
 
