@@ -279,7 +279,7 @@ func (suite *IntegrationTestSuite) EnsureScopeOnAllNodes(scopeName string) {
 	})
 }
 
-func (suite *IntegrationTestSuite) EnsureCollectionsOnAllNodes(scopeName string, collections []string) {
+func (suite *IntegrationTestSuite) EnsureCollectionsSatisfyPredicateOnAllNodes(scopeName string, collections []string, predicate func(c gocbcore.ManifestCollection) bool) {
 	if globalCluster.IsProtostellar() {
 		return
 	}
@@ -297,7 +297,7 @@ func (suite *IntegrationTestSuite) EnsureCollectionsOnAllNodes(scopeName string,
 			}
 			for _, col := range scope.Collections {
 				for _, n := range collections {
-					if col.Name == n {
+					if col.Name == n && predicate(col) {
 						found++
 					}
 				}
@@ -309,6 +309,12 @@ func (suite *IntegrationTestSuite) EnsureCollectionsOnAllNodes(scopeName string,
 		suite.T().Logf("Found %d required collections, will retry", found)
 
 		return false
+	})
+}
+
+func (suite *IntegrationTestSuite) EnsureCollectionsOnAllNodes(scopeName string, collections []string) {
+	suite.EnsureCollectionsSatisfyPredicateOnAllNodes(scopeName, collections, func(c gocbcore.ManifestCollection) bool {
+		return true
 	})
 }
 

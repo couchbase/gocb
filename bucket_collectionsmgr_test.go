@@ -9,6 +9,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/stretchr/testify/mock"
+
+	"github.com/couchbase/gocbcore/v10"
 )
 
 func (suite *IntegrationTestSuite) runCollectionManagerCrudTest(v2 bool) {
@@ -1125,10 +1127,7 @@ func (suite *IntegrationTestSuite) runUpdateCollectionWithMaxExpiryAsNoExpiryTes
 	} else {
 		err = mgr.CreateScope(scopeName, nil)
 	}
-	if err != nil {
-		suite.T().Fatalf("Failed to create scope %v", err)
-	}
-
+	suite.Require().NoError(err, "Failed to create scope")
 	suite.EnsureScopeOnAllNodes(scopeName)
 
 	if v2 {
@@ -1142,10 +1141,7 @@ func (suite *IntegrationTestSuite) runUpdateCollectionWithMaxExpiryAsNoExpiryTes
 			MaxExpiry: 20 * time.Second,
 		}, nil)
 	}
-	if err != nil {
-		suite.T().Fatalf("Failed to create collection %v", err)
-	}
-
+	suite.Require().NoError(err, "Failed to create collection")
 	suite.EnsureCollectionsOnAllNodes(scopeName, []string{collectionName})
 
 	if v2 {
@@ -1159,10 +1155,10 @@ func (suite *IntegrationTestSuite) runUpdateCollectionWithMaxExpiryAsNoExpiryTes
 			MaxExpiry: -1 * time.Second,
 		}, nil)
 	}
-
-	if err != nil {
-		suite.T().Fatalf("Failed to update collection %v", err)
-	}
+	suite.Require().NoError(err, "Failed to update collection")
+	suite.EnsureCollectionsSatisfyPredicateOnAllNodes(scopeName, []string{collectionName}, func(c gocbcore.ManifestCollection) bool {
+		return c.MaxTTL == -1
+	})
 
 	var scopes []ScopeSpec
 	if v2 {
@@ -1170,10 +1166,7 @@ func (suite *IntegrationTestSuite) runUpdateCollectionWithMaxExpiryAsNoExpiryTes
 	} else {
 		scopes, err = mgr.GetAllScopes(nil)
 	}
-	if err != nil {
-		suite.T().Fatalf("Failed to GetAllScopes %v", err)
-	}
-
+	suite.Require().NoError(err, "Failed to GetAllScopes")
 	if len(scopes) < 2 {
 		suite.T().Fatalf("Expected scopes to contain at least 2 scopes but was %v", scopes)
 	}
@@ -1200,9 +1193,7 @@ func (suite *IntegrationTestSuite) runUpdateCollectionWithMaxExpiryAsNoExpiryTes
 	} else {
 		err = mgr.DropScope(scopeName, nil)
 	}
-	if err != nil {
-		suite.T().Fatalf("Expected DropScope to not error but was %v", err)
-	}
+	suite.Require().NoError(err, "Failed to drop scope")
 }
 
 func (suite *IntegrationTestSuite) TestUpdateCollectionWithMaxExpiryAsNoExpiry() {
