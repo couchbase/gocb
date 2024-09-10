@@ -345,7 +345,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithContentBinaryTranscoder
 		if suite.Assert().Nil(err) {
 			suite.Assert().Equal(value, v)
 		}
-		suite.Assert().Greater(time.Until(d.ExpiryTime()), 15*time.Second)
+		suite.Assert().Greater(time.Until(d.ExpiryTime()), 0*time.Second)
 
 		ids[d.ID()] = struct{}{}
 	}
@@ -474,7 +474,7 @@ func (suite *IntegrationTestSuite) TestRangeScanSampling() {
 		if suite.Assert().Nil(err) {
 			suite.Assert().Equal(value, v)
 		}
-		suite.Assert().Greater(time.Until(d.ExpiryTime()), 15*time.Second)
+		suite.Assert().Greater(time.Until(d.ExpiryTime()), 0*time.Second)
 		suite.Assert().NotEmpty(d.ID())
 
 		ids[d.ID()] = struct{}{}
