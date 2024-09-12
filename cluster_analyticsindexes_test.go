@@ -212,7 +212,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrud() {
 	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
 			numDispatchSpans:        1,
-			atLeastNumDispatchSpans: false,
+			atLeastNumDispatchSpans: true, // The first operation on new cluster can initially fail with temporary failure - allow that
 			hasEncoding:             true,
 			dispatchOperationID:     "any",
 			service:                 "analytics",

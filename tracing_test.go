@@ -267,7 +267,7 @@ func (suite *IntegrationTestSuite) AssertHTTPDispatchSpansEQ(parents map[Request
 
 func (suite *IntegrationTestSuite) AssertHTTPDispatchSpansGE(parents map[RequestSpanContext][]*testSpan, num int, operationID string) {
 	spans := parents["dispatch_to_server"]
-	if suite.Assert().GreaterOrEqual(num, len(spans)) {
+	if suite.Assert().GreaterOrEqual(len(spans), num) {
 		for i := 0; i < len(spans); i++ {
 			suite.AssertHTTPDispatchSpan(spans[i], operationID)
 		}
