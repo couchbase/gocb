@@ -936,7 +936,7 @@ func (suite *IntegrationTestSuite) TestUpsertReplicateToLookupInAnyReplica() {
 	// We can't reliably check the metrics for the get cmd spans, as we don't know which one will have won.
 }
 
-func (suite *IntegrationTestSuite) TestUpsertReplicateToGetAllReplicas() {
+func (suite *IntegrationTestSuite) TestUpsertReplicateToLookupInAllReplicas() {
 	suite.skipIfUnsupported(KeyValueFeature)
 	suite.skipIfUnsupported(ReplicasFeature)
 	suite.skipIfUnsupported(SubdocReplicaReadsFeature)
@@ -1017,4 +1017,52 @@ func (suite *IntegrationTestSuite) TestLookupInAnyReplicaKeyNotFound() {
 		GetSpec("name", nil),
 	}, nil)
 	suite.Require().ErrorIs(err, ErrDocumentUnretrievable)
+}
+
+func (suite *IntegrationTestSuite) TestLookupInAllReplicasPreferredGroupWithoutSettingGroup() {
+	suite.skipIfUnsupported(ZoneAwareReplicaReadsFeature)
+
+	stream, err := globalCollection.LookupInAllReplicas("nonExistentDoc",
+		[]LookupInSpec{
+			GetSpec("name", nil),
+		},
+		&LookupInAllReplicaOptions{
+			ReadPreference: ReadPreferenceSelectedServerGroup,
+			Timeout:        25 * time.Second,
+		})
+	suite.Require().NoError(err)
+	suite.Require().Nil(stream.Next())
+
+	suite.Require().Contains(globalTracer.GetSpans(), nil)
+	nilParents := globalTracer.GetSpans()[nil]
+	suite.Require().Equal(len(nilParents), 1)
+
+	span := nilParents[0]
+	suite.AssertKvSpan(span, "lookup_in_all_replicas", DurabilityLevelNone)
+	suite.Require().Empty(span.Spans)
+}
+
+func (suite *IntegrationTestSuite) TestLookupInAnyReplicaPreferredGroupWithoutSettingGroup() {
+	suite.skipIfUnsupported(ZoneAwareReplicaReadsFeature)
+
+	_, err := globalCollection.LookupInAnyReplica("nonExistentDoc",
+		[]LookupInSpec{
+			GetSpec("name", nil),
+		},
+		&LookupInAnyReplicaOptions{
+			ReadPreference: ReadPreferenceSelectedServerGroup,
+			Timeout:        25 * time.Second,
+		})
+	suite.Require().ErrorIs(err, ErrDocumentUnretrievable)
+
+	suite.Require().Contains(globalTracer.GetSpans(), nil)
+	nilParents := globalTracer.GetSpans()[nil]
+	suite.Require().Equal(len(nilParents), 1)
+
+	span := nilParents[0]
+	suite.AssertKvSpan(span, "lookup_in_any_replica", DurabilityLevelNone)
+
+	suite.Require().Equal(len(span.Spans), 1)
+	suite.Require().Contains(span.Spans, "lookup_in_all_replicas")
+	suite.Require().Empty(span.Spans["lookup_in_all_replicas"][0].Spans)
 }

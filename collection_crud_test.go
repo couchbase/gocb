@@ -2220,6 +2220,46 @@ func (suite *IntegrationTestSuite) TestDurabilityGetFromAnyReplica() {
 	}
 }
 
+func (suite *IntegrationTestSuite) TestGetAllReplicasPreferredGroupWithoutSettingGroup() {
+	suite.skipIfUnsupported(ZoneAwareReplicaReadsFeature)
+
+	stream, err := globalCollection.GetAllReplicas("nonExistentDoc", &GetAllReplicaOptions{
+		ReadPreference: ReadPreferenceSelectedServerGroup,
+		Timeout:        25 * time.Second,
+	})
+	suite.Require().NoError(err)
+	suite.Require().Nil(stream.Next())
+
+	suite.Require().Contains(globalTracer.GetSpans(), nil)
+	nilParents := globalTracer.GetSpans()[nil]
+	suite.Require().Equal(len(nilParents), 1)
+
+	span := nilParents[0]
+	suite.AssertKvSpan(span, "get_all_replicas", DurabilityLevelNone)
+	suite.Require().Empty(span.Spans)
+}
+
+func (suite *IntegrationTestSuite) TestGetAnyReplicaPreferredGroupWithoutSettingGroup() {
+	suite.skipIfUnsupported(ZoneAwareReplicaReadsFeature)
+
+	_, err := globalCollection.GetAnyReplica("nonExistentDoc", &GetAnyReplicaOptions{
+		ReadPreference: ReadPreferenceSelectedServerGroup,
+		Timeout:        25 * time.Second,
+	})
+	suite.Require().ErrorIs(err, ErrDocumentUnretrievable)
+
+	suite.Require().Contains(globalTracer.GetSpans(), nil)
+	nilParents := globalTracer.GetSpans()[nil]
+	suite.Require().Equal(len(nilParents), 1)
+
+	span := nilParents[0]
+	suite.AssertKvSpan(span, "get_any_replica", DurabilityLevelNone)
+
+	suite.Require().Equal(len(span.Spans), 1)
+	suite.Require().Contains(span.Spans, "get_all_replicas")
+	suite.Require().Empty(span.Spans["get_all_replicas"][0].Spans)
+}
+
 func (suite *UnitTestSuite) TestGetErrorCollectionUnknown() {
 	var doc testBreweryDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)

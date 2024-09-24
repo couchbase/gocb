@@ -109,6 +109,16 @@ func (p *kvProviderCore) LookupInAllReplicas(c *Collection, id string, ops []Loo
 		},
 	}
 
+	if len(servers) == 0 {
+		// This can happen when the selected server group does not exist, or has not been set
+		close(repRes.res.resCh)
+		close(repRes.res.childReqsCompleteCh)
+		close(repRes.res.cancelCh)
+		repRes.res.span.End()
+
+		return repRes, nil
+	}
+
 	// Loop all the servers and populate the result object
 	for _, replicaIdx := range servers {
 		go func(replicaIdx int) {
