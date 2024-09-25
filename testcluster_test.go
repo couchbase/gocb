@@ -416,7 +416,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case ScopeEventingFunctionManagerFeature:
 			supported = !c.Version.Lower(srvVer710) && !c.Version.Equal(protostellarVer)
 		case ZoneAwareReplicaReadsFeature:
-			supported = !c.Version.Lower(srvVer760) && !c.Version.Equal(protostellarVer)
+			supported = !c.Version.Lower(srvVer762) && !c.Version.Equal(protostellarVer)
 		}
 	}
 
