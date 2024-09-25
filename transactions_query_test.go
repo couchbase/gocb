@@ -628,7 +628,7 @@ func (suite *UnitTestSuite) TestTransactionsQueryGocbcoreCauseError() {
 	defer cluster.Close(nil)
 
 	queryProvider.meter = newMeterWrapper(&NoopMeter{})
-	queryProvider.tracer = &NoopTracer{}
+	queryProvider.tracer = newTracerWrapper(&NoopTracer{})
 	queryProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
 	queryProvider.timeouts = cluster.timeoutsConfig
 

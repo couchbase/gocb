@@ -215,7 +215,7 @@ func (suite *UnitTestSuite) viewsBucket(reader viewRowReader, runFn func(args mo
 
 	cluster := suite.newCluster(cli)
 	viewProvider.meter = newMeterWrapper(&NoopMeter{})
-	viewProvider.tracer = &NoopTracer{}
+	viewProvider.tracer = newTracerWrapper(&NoopTracer{})
 	viewProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
 	viewProvider.timeouts = cluster.timeoutsConfig
 	b := newBucket(cluster, "mockBucket")

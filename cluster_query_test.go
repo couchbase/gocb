@@ -579,7 +579,7 @@ func (suite *UnitTestSuite) queryCluster(prepared bool, reader queryRowReader, r
 	cluster := suite.newCluster(cli)
 
 	queryProvider.meter = newMeterWrapper(&NoopMeter{})
-	queryProvider.tracer = &NoopTracer{}
+	queryProvider.tracer = newTracerWrapper(&NoopTracer{})
 	queryProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
 	queryProvider.timeouts = cluster.timeoutsConfig
 
@@ -799,7 +799,7 @@ func (suite *UnitTestSuite) TestQueryUntypedError() {
 	cluster := suite.newCluster(cli)
 
 	queryProvider.meter = newMeterWrapper(&NoopMeter{})
-	queryProvider.tracer = &NoopTracer{}
+	queryProvider.tracer = newTracerWrapper(&NoopTracer{})
 	queryProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
 	queryProvider.timeouts = cluster.timeoutsConfig
 
@@ -834,7 +834,7 @@ func (suite *UnitTestSuite) TestQueryGocbcoreError() {
 
 	cluster := suite.newCluster(cli)
 	queryProvider.meter = newMeterWrapper(&NoopMeter{})
-	queryProvider.tracer = &NoopTracer{}
+	queryProvider.tracer = newTracerWrapper(&NoopTracer{})
 	queryProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
 	queryProvider.timeouts = cluster.timeoutsConfig
 
@@ -874,7 +874,7 @@ func (suite *UnitTestSuite) TestQueryTimeoutOption() {
 		provider: provider,
 	}
 	queryProvider.meter = newMeterWrapper(&NoopMeter{})
-	queryProvider.tracer = &NoopTracer{}
+	queryProvider.tracer = newTracerWrapper(&NoopTracer{})
 	queryProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
 	queryProvider.timeouts = cluster.timeoutsConfig
 

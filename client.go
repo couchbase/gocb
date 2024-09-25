@@ -75,7 +75,7 @@ func autoOpControlErrorOnly[P any](controller *providerController[P], opFn func(
 }
 
 type newConnectionMgrOptions struct {
-	tracer RequestTracer
+	tracer *tracerWrapper
 	meter  *meterWrapper
 
 	preferredServerGroup string

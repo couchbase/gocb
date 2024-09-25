@@ -593,8 +593,8 @@ func (suite *UnitTestSuite) TestQueryIndexesParsing() {
 			get: func() (queryIndexProvider, error) {
 				return &queryProviderCore{
 					provider: provider,
-					tracer:   &NoopTracer{},
-					meter:    &meterWrapper{meter: &NoopMeter{}},
+					tracer:   newTracerWrapper(&NoopTracer{}),
+					meter:    newMeterWrapper(&NoopMeter{}),
 				}, nil
 			},
 			opController: mockOpController{},

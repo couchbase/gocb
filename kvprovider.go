@@ -32,7 +32,7 @@ type kvProvider interface {
 
 	Scan(*Collection, ScanType, *ScanOptions) (*ScanResult, error)
 
-	StartKvOpTrace(*Collection, string, RequestSpanContext, bool) RequestSpan
+	StartKvOpTrace(*Collection, string, RequestSpan, bool) RequestSpan
 }
 
 type kvBulkProvider interface {

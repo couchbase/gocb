@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"context"
+	"github.com/couchbase/gocbcore/v10"
 	"time"
 )
 
@@ -83,4 +84,8 @@ func (ic *InternalCluster) GetNodesMetadata(opts *GetNodesMetadataOptions) ([]No
 
 		return provider.GetNodesMetadata(opts)
 	})
+}
+
+type clusterLabelsProvider interface {
+	ClusterLabels() gocbcore.ClusterLabels
 }

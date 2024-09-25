@@ -275,7 +275,7 @@ func (w *retriableRequestPs) recordRetryAttempt(reason RetryReason) {
 }
 
 func handleRetriableRequest[ReqT any, RespT any](
-	ctx context.Context, createdTime time.Time, tracer RequestTracer,
+	ctx context.Context, createdTime time.Time, tracer *tracerWrapper,
 	req ReqT,
 	retryReq *retriableRequestPs,
 	sendFn func(context.Context, ReqT, ...grpc.CallOption) (RespT, error),

@@ -9,7 +9,7 @@ import (
 type internalProviderCore struct {
 	provider mgmtProvider
 
-	tracer RequestTracer
+	tracer *tracerWrapper
 	meter  *meterWrapper
 }
 
@@ -18,7 +18,7 @@ func (ic *internalProviderCore) GetNodesMetadata(opts *GetNodesMetadataOptions) 
 	start := time.Now()
 	defer ic.meter.ValueRecord(meterValueServiceManagement, "internal_get_nodes_metadata", start)
 
-	span := createSpan(ic.tracer, opts.ParentSpan, "internal_get_nodes_metadata", "management")
+	span := ic.tracer.createSpan(opts.ParentSpan, "internal_get_nodes_metadata", "management")
 	span.SetAttribute("db.operation", "GET "+path)
 	defer span.End()
 

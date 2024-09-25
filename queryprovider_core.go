@@ -20,7 +20,7 @@ type queryProviderCore struct {
 	retryStrategyWrapper *coreRetryStrategyWrapper
 	transcoder           Transcoder
 	timeouts             TimeoutsConfig
-	tracer               RequestTracer
+	tracer               *tracerWrapper
 	meter                *meterWrapper
 }
 
@@ -28,7 +28,7 @@ func (qpc *queryProviderCore) Query(statement string, s *Scope, opts *QueryOptio
 	start := time.Now()
 	defer qpc.meter.ValueRecord(meterValueServiceQuery, "query", start)
 
-	span := createSpan(qpc.tracer, opts.ParentSpan, "query", "query")
+	span := qpc.tracer.createSpan(opts.ParentSpan, "query", "query")
 	span.SetAttribute("db.statement", statement)
 	if s != nil {
 		span.SetAttribute("db.name", s.BucketName())
@@ -61,8 +61,7 @@ func (qpc *queryProviderCore) Query(statement string, s *Scope, opts *QueryOptio
 		queryOpts["query_context"] = fmt.Sprintf("%s.%s", s.BucketName(), s.Name())
 	}
 
-	eSpan := qpc.tracer.RequestSpan(span.Context(), "request_encoding")
-	eSpan.SetAttribute("db.system", "couchbase")
+	eSpan := qpc.tracer.createSpan(span, "request_encoding", "")
 	reqBytes, err := json.Marshal(queryOpts)
 	eSpan.End()
 	if err != nil {

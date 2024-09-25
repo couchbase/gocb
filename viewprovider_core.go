@@ -28,7 +28,7 @@ type viewProviderCore struct {
 	retryStrategyWrapper *coreRetryStrategyWrapper
 	transcoder           Transcoder
 	timeouts             TimeoutsConfig
-	tracer               RequestTracer
+	tracer               *tracerWrapper
 	meter                *meterWrapper
 }
 
@@ -39,7 +39,7 @@ func (v *viewProviderCore) ViewQuery(designDoc string, viewName string, opts *Vi
 
 	designDoc = v.maybePrefixDevDocument(opts.Namespace, designDoc)
 
-	span := createSpan(v.tracer, opts.ParentSpan, "views", "views")
+	span := v.tracer.createSpan(opts.ParentSpan, "views", "views")
 	span.SetAttribute("db.name", v.bucketName)
 	span.SetAttribute("db.operation", designDoc+"/"+viewName)
 	defer span.End()

@@ -2481,7 +2481,7 @@ func (suite *UnitTestSuite) kvProviderCore(agent kvProviderCoreProvider, snapsho
 	return &kvProviderCore{
 		agent:            agent,
 		snapshotProvider: snapshotProvider,
-		tracer:           &NoopTracer{},
+		tracer:           newTracerWrapper(&NoopTracer{}),
 		meter:            newMeterWrapper(&NoopMeter{}),
 	}
 }

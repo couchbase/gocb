@@ -277,7 +277,7 @@ func (suite *UnitTestSuite) searchCluster(reader searchRowReader, runFn func(arg
 
 	cluster := suite.newCluster(cli)
 	searchProvider.meter = newMeterWrapper(&NoopMeter{})
-	searchProvider.tracer = &NoopTracer{}
+	searchProvider.tracer = newTracerWrapper(&NoopTracer{})
 	searchProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
 	searchProvider.timeouts = cluster.timeoutsConfig
 

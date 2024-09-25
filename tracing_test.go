@@ -130,6 +130,10 @@ func (suite *IntegrationTestSuite) RequireQueryMgmtOpSpan(span *testSpan, opName
 	suite.Assert().Equal(opName, span.Name)
 	suite.Assert().Equal("couchbase", span.Tags["db.system"])
 	suite.Assert().Equal("management", span.Tags["db.couchbase.service"])
+	if globalCluster.SupportsFeature(ClusterLabelsFeature) {
+		suite.Assert().NotEmpty(span.Tags["db.couchbase.cluster_uuid"])
+		suite.Assert().NotEmpty(span.Tags["db.couchbase.cluster_name"])
+	}
 	suite.Require().Len(span.Spans, 1)
 	suite.Require().Len(span.Spans[childType], 1)
 
@@ -149,7 +153,13 @@ func (suite *IntegrationTestSuite) AssertKvSpan(span *testSpan, expectedName str
 
 	numTags := 6
 	if durability > DurabilityLevelNone {
-		numTags = 7
+		numTags++
+	}
+
+	if globalCluster.SupportsFeature(ClusterLabelsFeature) {
+		suite.Assert().NotEmpty(span.Tags["db.couchbase.cluster_uuid"])
+		suite.Assert().NotEmpty(span.Tags["db.couchbase.cluster_name"])
+		numTags += 2
 	}
 
 	suite.Assert().Equal(numTags, len(span.Tags))
@@ -176,6 +186,11 @@ func (suite *IntegrationTestSuite) AssertHTTPSpan(span *testSpan, name, bucket, 
 	suite.Assert().Equal("couchbase", span.Tags["db.system"])
 	suite.Assert().Equal(service, span.Tags["db.couchbase.service"])
 	spans := 2
+	if globalCluster.SupportsFeature(ClusterLabelsFeature) {
+		spans += 2
+		suite.Assert().NotEmpty(span.Tags["db.couchbase.cluster_uuid"])
+		suite.Assert().NotEmpty(span.Tags["db.couchbase.cluster_name"])
+	}
 	if op == "" {
 		suite.Assert().NotContains(span.Tags, "db.operation")
 	} else {
@@ -227,8 +242,14 @@ func (suite *IntegrationTestSuite) AssertEncodingSpansEq(parents map[RequestSpan
 
 func (suite *IntegrationTestSuite) AssertEncodingSpan(span *testSpan) {
 	suite.Assert().Equal("request_encoding", span.Name)
-	suite.Assert().Equal(1, len(span.Tags))
+	spans := 1
 	suite.Assert().Equal("couchbase", span.Tags["db.system"])
+	if globalCluster.SupportsFeature(ClusterLabelsFeature) {
+		spans += 2
+		suite.Assert().NotEmpty(span.Tags["db.couchbase.cluster_uuid"])
+		suite.Assert().NotEmpty(span.Tags["db.couchbase.cluster_name"])
+	}
+	suite.Assert().Equal(spans, len(span.Tags))
 	suite.Assert().True(span.Finished)
 }
 
@@ -241,7 +262,13 @@ func (suite *IntegrationTestSuite) AssertCmdSpans(parents map[RequestSpanContext
 
 func (suite *IntegrationTestSuite) AssertCmdSpan(span *testSpan, expectedName string) {
 	suite.Assert().Equal(expectedName, span.Name)
-	suite.Assert().Equal(2, len(span.Tags))
+	spans := 2
+	if globalCluster.SupportsFeature(ClusterLabelsFeature) {
+		spans += 2
+		suite.Assert().NotEmpty(span.Tags["db.couchbase.cluster_uuid"])
+		suite.Assert().NotEmpty(span.Tags["db.couchbase.cluster_name"])
+	}
+	suite.Assert().Equal(spans, len(span.Tags))
 	suite.Assert().True(span.Finished)
 	suite.Assert().Equal("couchbase", span.Tags["db.system"])
 	suite.Assert().Contains(span.Tags, "db.couchbase.retries")
@@ -275,10 +302,15 @@ func (suite *IntegrationTestSuite) AssertHTTPDispatchSpansGE(parents map[Request
 }
 
 func (suite *IntegrationTestSuite) AssertKVDispatchSpan(span *testSpan) {
+	spans := 9
 	suite.Assert().Equal("dispatch_to_server", span.Name)
-	suite.Assert().Equal(9, len(span.Tags))
 	suite.Assert().True(span.Finished)
 	suite.Assert().Equal("couchbase", span.Tags["db.system"])
+	if globalCluster.SupportsFeature(ClusterLabelsFeature) {
+		spans += 2
+		suite.Assert().NotEmpty(span.Tags["db.couchbase.cluster_uuid"])
+		suite.Assert().NotEmpty(span.Tags["db.couchbase.cluster_name"])
+	}
 	suite.Assert().Equal("IP.TCP", span.Tags["net.transport"])
 	suite.Assert().NotEmpty(span.Tags["db.couchbase.operation_id"])
 	suite.Assert().NotEmpty(span.Tags["db.couchbase.local_id"])
@@ -287,14 +319,20 @@ func (suite *IntegrationTestSuite) AssertKVDispatchSpan(span *testSpan) {
 	suite.Assert().NotEmpty(span.Tags["net.peer.name"])
 	suite.Assert().NotEmpty(span.Tags["net.peer.port"])
 	suite.Assert().Contains(span.Tags, "db.couchbase.server_duration")
+	suite.Assert().Equal(spans, len(span.Tags))
 }
 
 func (suite *IntegrationTestSuite) AssertHTTPDispatchSpan(span *testSpan, operationID string) {
 	suite.Assert().Equal("dispatch_to_server", span.Name)
 	suite.Assert().True(span.Finished)
-	suite.Assert().Equal("couchbase", span.Tags["db.system"])
-	suite.Assert().Equal("IP.TCP", span.Tags["net.transport"])
 	spans := 3
+	suite.Assert().Equal("couchbase", span.Tags["db.system"])
+	if globalCluster.SupportsFeature(ClusterLabelsFeature) {
+		spans += 2
+		suite.Assert().NotEmpty(span.Tags["db.couchbase.cluster_uuid"])
+		suite.Assert().NotEmpty(span.Tags["db.couchbase.cluster_name"])
+	}
+	suite.Assert().Equal("IP.TCP", span.Tags["net.transport"])
 	if !globalCluster.IsProtostellar() {
 		spans += 2
 		suite.Assert().NotEmpty(span.Tags["net.peer.name"])

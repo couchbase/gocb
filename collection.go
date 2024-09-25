@@ -76,17 +76,17 @@ func (c *Collection) QueryIndexes() *CollectionQueryIndexManager {
 	}
 }
 
-func (c *Collection) startKvOpTrace(operationName string, tracectx RequestSpanContext, tracer RequestTracer, noAttributes bool) RequestSpan {
-	span := tracer.RequestSpan(tracectx, operationName)
-	if !noAttributes {
+func (c *Collection) startKvOpTrace(operationName string, parentSpan RequestSpan, tracer *tracerWrapper, noAttributes bool) RequestSpan {
+	var span RequestSpan
+	if noAttributes {
+		span = tracer.createSpan(parentSpan, operationName, "")
+	} else {
+		span = tracer.createSpan(parentSpan, operationName, "kv")
+		span.SetAttribute(spanAttribOperationKey, operationName)
 		span.SetAttribute(spanAttribDBNameKey, c.bucket.Name())
 		span.SetAttribute(spanAttribDBCollectionNameKey, c.Name())
 		span.SetAttribute(spanAttribDBScopeNameKey, c.ScopeName())
-		span.SetAttribute(spanAttribServiceKey, "kv")
-		span.SetAttribute(spanAttribOperationKey, operationName)
 	}
-	span.SetAttribute(spanAttribDBSystemKey, spanAttribDBSystemValue)
-
 	return span
 }
 

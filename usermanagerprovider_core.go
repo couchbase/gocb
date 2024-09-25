@@ -14,7 +14,7 @@ import (
 type userManagerProviderCore struct {
 	provider mgmtProvider
 
-	tracer RequestTracer
+	tracer *tracerWrapper
 	meter  *meterWrapper
 }
 
@@ -62,7 +62,7 @@ func (um *userManagerProviderCore) GetAllUsers(opts *GetAllUsersOptions) ([]User
 	defer um.meter.ValueRecord(meterValueServiceManagement, "manager_users_get_all_users", start)
 
 	path := fmt.Sprintf("/settings/rbac/users/%s", url.PathEscape(opts.DomainName))
-	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_get_all_users", "management")
+	span := um.tracer.createSpan(opts.ParentSpan, "manager_users_get_all_users", "management")
 	span.SetAttribute("db.operation", "GET "+path)
 	defer span.End()
 
@@ -122,7 +122,7 @@ func (um *userManagerProviderCore) GetUser(name string, opts *GetUserOptions) (*
 	defer um.meter.ValueRecord(meterValueServiceManagement, "manager_users_get_user", start)
 
 	path := fmt.Sprintf("/settings/rbac/users/%s/%s", url.PathEscape(opts.DomainName), url.PathEscape(name))
-	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_get_user", "management")
+	span := um.tracer.createSpan(opts.ParentSpan, "manager_users_get_user", "management")
 	span.SetAttribute("db.operation", "GET "+path)
 	defer span.End()
 
@@ -196,7 +196,7 @@ func (um *userManagerProviderCore) UpsertUser(user User, opts *UpsertUserOptions
 	}
 
 	path := fmt.Sprintf("/settings/rbac/users/%s/%s", url.PathEscape(opts.DomainName), url.PathEscape(user.Username))
-	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_upsert_user", "management")
+	span := um.tracer.createSpan(opts.ParentSpan, "manager_users_upsert_user", "management")
 	span.SetAttribute("db.operation", "PUT "+path)
 	defer span.End()
 
@@ -281,7 +281,7 @@ func (um *userManagerProviderCore) DropUser(name string, opts *DropUserOptions) 
 	defer um.meter.ValueRecord(meterValueServiceManagement, "manager_users_drop_user", start)
 
 	path := fmt.Sprintf("/settings/rbac/users/%s/%s", url.PathEscape(opts.DomainName), url.PathEscape(name))
-	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_drop_user", "management")
+	span := um.tracer.createSpan(opts.ParentSpan, "manager_users_drop_user", "management")
 	span.SetAttribute("db.operation", "DELETE "+path)
 	defer span.End()
 
@@ -320,7 +320,7 @@ func (um *userManagerProviderCore) GetRoles(opts *GetRolesOptions) ([]RoleAndDes
 	start := time.Now()
 	defer um.meter.ValueRecord(meterValueServiceManagement, "manager_users_get_roles", start)
 
-	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_get_roles", "management")
+	span := um.tracer.createSpan(opts.ParentSpan, "manager_users_get_roles", "management")
 	span.SetAttribute("db.operation", "GET /settings/rbac/roles")
 	defer span.End()
 
@@ -379,7 +379,7 @@ func (um *userManagerProviderCore) GetGroup(groupName string, opts *GetGroupOpti
 	defer um.meter.ValueRecord(meterValueServiceManagement, "manager_users_get_group", start)
 
 	path := fmt.Sprintf("/settings/rbac/groups/%s", url.PathEscape(groupName))
-	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_get_group", "management")
+	span := um.tracer.createSpan(opts.ParentSpan, "manager_users_get_group", "management")
 	span.SetAttribute("db.operation", "GET "+path)
 	defer span.End()
 
@@ -433,7 +433,7 @@ func (um *userManagerProviderCore) GetAllGroups(opts *GetAllGroupsOptions) ([]Gr
 	defer um.meter.ValueRecord(meterValueServiceManagement, "manager_users_get_all_groups", start)
 
 	path := "/settings/rbac/groups"
-	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_get_all_groups", "management")
+	span := um.tracer.createSpan(opts.ParentSpan, "manager_users_get_all_groups", "management")
 	span.SetAttribute("db.operation", "GET "+path)
 	defer span.End()
 
@@ -492,7 +492,7 @@ func (um *userManagerProviderCore) UpsertGroup(group Group, opts *UpsertGroupOpt
 	defer um.meter.ValueRecord(meterValueServiceManagement, "manager_users_upsert_group", start)
 
 	path := fmt.Sprintf("/settings/rbac/groups/%s", url.PathEscape(group.Name))
-	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_upsert_group", "management")
+	span := um.tracer.createSpan(opts.ParentSpan, "manager_users_upsert_group", "management")
 	span.SetAttribute("db.operation", "PUT "+path)
 	defer span.End()
 
@@ -552,7 +552,7 @@ func (um *userManagerProviderCore) DropGroup(groupName string, opts *DropGroupOp
 	defer um.meter.ValueRecord(meterValueServiceManagement, "manager_users_drop_group", start)
 
 	path := fmt.Sprintf("/settings/rbac/groups/%s", url.PathEscape(groupName))
-	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_drop_group", "management")
+	span := um.tracer.createSpan(opts.ParentSpan, "manager_users_drop_group", "management")
 	span.SetAttribute("db.operation", "DELETE "+path)
 	defer span.End()
 
@@ -596,7 +596,7 @@ func (um *userManagerProviderCore) ChangePassword(newPassword string, opts *Chan
 	defer um.meter.ValueRecord(meterValueServiceManagement, "manager_users_change_password", start)
 
 	path := "/controller/changePassword"
-	span := createSpan(um.tracer, opts.ParentSpan, "manager_users_change_password", "management")
+	span := um.tracer.createSpan(opts.ParentSpan, "manager_users_change_password", "management")
 	span.SetAttribute("db.operation", "POST "+path)
 	defer span.End()
 

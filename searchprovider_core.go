@@ -59,7 +59,7 @@ type searchProviderCore struct {
 	retryStrategyWrapper *coreRetryStrategyWrapper
 	transcoder           Transcoder
 	timeouts             TimeoutsConfig
-	tracer               RequestTracer
+	tracer               *tracerWrapper
 	meter                *meterWrapper
 }
 
@@ -84,7 +84,7 @@ func (search *searchProviderCore) search(scope *Scope, indexName string, sQuery 
 	start := time.Now()
 	defer search.meter.ValueRecord(meterValueServiceSearch, "search", start)
 
-	span := createSpan(search.tracer, opts.ParentSpan, "search", "search")
+	span := search.tracer.createSpan(opts.ParentSpan, "search", "search")
 	span.SetAttribute("db.operation", indexName)
 	if scope != nil {
 		span.SetAttribute("db.name", scope.BucketName())
@@ -151,7 +151,7 @@ func (search *searchProviderCore) execSearchQuery(
 	user string,
 ) (*SearchResult, error) {
 
-	eSpan := createSpan(search.tracer, span, "request_encoding", "")
+	eSpan := search.tracer.createSpan(span, "request_encoding", "")
 	reqBytes, err := json.Marshal(options)
 	eSpan.End()
 	if err != nil {

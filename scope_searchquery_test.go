@@ -198,7 +198,7 @@ func (suite *UnitTestSuite) searchScope(reader searchRowReader, runFn func(args 
 
 	searchProvider := &searchProviderCore{
 		provider: provider,
-		tracer:   &NoopTracer{},
+		tracer:   newTracerWrapper(&NoopTracer{}),
 		meter:    newMeterWrapper(&NoopMeter{}),
 	}
 	cli := new(mockConnectionManager)

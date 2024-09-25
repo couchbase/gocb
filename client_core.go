@@ -17,7 +17,7 @@ type stdConnectionMgr struct {
 	retryStrategyWrapper *coreRetryStrategyWrapper
 	transcoder           Transcoder
 	timeouts             TimeoutsConfig
-	tracer               RequestTracer
+	tracer               *tracerWrapper
 	meter                *meterWrapper
 	txns                 *transactionsProviderCore
 	preferredServerGroup string
@@ -79,7 +79,7 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 			},
 			TracerConfig: gocbcore.TracerConfig{
 				NoRootTraceSpans: true,
-				Tracer:           &coreRequestTracerWrapper{tracer: c.tracer},
+				Tracer:           &coreRequestTracerWrapper{tracer: c.tracer.tracer},
 			},
 			MeterConfig: gocbcore.MeterConfig{
 				// At the moment we only support our own operations metric so there's no point in setting a meter for gocbcore.
@@ -129,6 +129,9 @@ func (c *stdConnectionMgr) connect() error {
 	if err != nil {
 		return maybeEnhanceKVErr(err, "", "", "", "")
 	}
+
+	c.meter.clusterLabelsProvider = c.agentgroup.Internal()
+	c.tracer.clusterLabelsProvider = c.agentgroup.Internal()
 
 	return nil
 }
@@ -687,7 +690,7 @@ func (c *stdConnectionMgr) close() error {
 	c.activeOpsWg.Wait()
 
 	if c.tracer != nil {
-		tracerDecRef(c.tracer)
+		tracerDecRef(c.tracer.tracer)
 		c.tracer = nil
 	}
 	if c.meter != nil {

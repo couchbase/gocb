@@ -118,16 +118,37 @@ func (span noopSpan) SetAttribute(key string, value interface{}) {
 func (span noopSpan) AddEvent(key string, timestamp time.Time) {
 }
 
-func createSpan(tracer RequestTracer, parent RequestSpan, operationType, service string) RequestSpan {
+type tracerWrapper struct {
+	tracer                RequestTracer
+	clusterLabelsProvider clusterLabelsProvider
+}
+
+func newTracerWrapper(tracer RequestTracer) *tracerWrapper {
+	return &tracerWrapper{
+		tracer: tracer,
+	}
+}
+
+func (tw *tracerWrapper) createSpan(parent RequestSpan, operationType, service string) RequestSpan {
 	var tracectx RequestSpanContext
 	if parent != nil {
 		tracectx = parent.Context()
 	}
 
-	span := tracer.RequestSpan(tracectx, operationType)
+	span := tw.tracer.RequestSpan(tracectx, operationType)
 	span.SetAttribute(spanAttribDBSystemKey, spanAttribDBSystemValue)
 	if service != "" {
 		span.SetAttribute(spanAttribServiceKey, service)
+	}
+
+	if tw.clusterLabelsProvider != nil {
+		labels := tw.clusterLabelsProvider.ClusterLabels()
+		if labels.ClusterName != "" {
+			span.SetAttribute(spanAttribClusterNameKey, labels.ClusterName)
+		}
+		if labels.ClusterUUID != "" {
+			span.SetAttribute(spanAttribClusterUUIDKey, labels.ClusterUUID)
+		}
 	}
 
 	return span

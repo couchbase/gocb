@@ -85,7 +85,7 @@ func (m *kvOpManagerPs) SetValue(val interface{}) {
 		return
 	}
 
-	espan := m.provider.StartKvOpTrace(m.parent, "request_encoding", m.span.Context(), true)
+	espan := m.provider.StartKvOpTrace(m.parent, "request_encoding", m.span, true)
 	defer espan.End()
 
 	bytes, flags, err := m.transcoder.Encode(val)
@@ -227,7 +227,7 @@ func (m *kvOpManagerPs) CreatedAt() time.Time {
 	return m.createdTime
 }
 
-func (m *kvOpManagerPs) Tracer() RequestTracer {
+func (m *kvOpManagerPs) Tracer() *tracerWrapper {
 	return m.provider.tracer
 }
 
@@ -270,12 +270,7 @@ func (m *kvOpManagerPs) EnhanceErr(err error, readOnly bool) error {
 }
 
 func newKvOpManagerPs(c *Collection, opName string, parentSpan RequestSpan, p *kvProviderPs) *kvOpManagerPs {
-	var tracectx RequestSpanContext
-	if parentSpan != nil {
-		tracectx = parentSpan.Context()
-	}
-
-	span := p.StartKvOpTrace(c, opName, tracectx, false)
+	span := p.StartKvOpTrace(c, opName, parentSpan, false)
 
 	return &kvOpManagerPs{
 		parent:        c,

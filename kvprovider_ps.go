@@ -20,7 +20,7 @@ var _ kvProvider = &kvProviderPs{}
 type kvProviderPs struct {
 	client kv_v1.KvServiceClient
 
-	tracer RequestTracer
+	tracer *tracerWrapper
 	meter  *meterWrapper
 }
 
@@ -179,7 +179,7 @@ func (p *kvProviderPs) MutateIn(c *Collection, id string, ops []MutateInSpec, op
 			default:
 			}
 		}
-		etrace := opm.provider.StartKvOpTrace(opm.parent, "request_encoding", opm.TraceSpanContext(), true)
+		etrace := opm.provider.StartKvOpTrace(opm.parent, "request_encoding", opm.TraceSpan(), true)
 		bytes, flags, err := jsonMarshalMutateSpec(op)
 		etrace.End()
 		if err != nil {
@@ -1080,8 +1080,8 @@ func (p *kvProviderPs) Decrement(c *Collection, id string, opts *DecrementOption
 
 }
 
-func (p *kvProviderPs) StartKvOpTrace(c *Collection, operationName string, tracectx RequestSpanContext, noAttributes bool) RequestSpan {
-	return c.startKvOpTrace(operationName, tracectx, p.tracer, noAttributes)
+func (p *kvProviderPs) StartKvOpTrace(c *Collection, operationName string, parentSpan RequestSpan, noAttributes bool) RequestSpan {
+	return c.startKvOpTrace(operationName, parentSpan, p.tracer, noAttributes)
 }
 
 func psMutToGoCbMut(in *kv_v1.MutationToken) *MutationToken {

@@ -31,6 +31,7 @@ var (
 	srvVer750       = NodeVersion{7, 5, 0, 0, 0, "", false}
 	srvVer760       = NodeVersion{7, 6, 0, 0, 0, "", false}
 	srvVer762       = NodeVersion{7, 6, 2, 0, 0, "", false}
+	srvVer770       = NodeVersion{7, 7, 0, 0, 0, "", false}
 	mockVer156      = NodeVersion{1, 5, 6, 0, 0, "", true}
 	mockVer1513     = NodeVersion{1, 5, 13, 0, 0, "", true}
 	mockVer1515     = NodeVersion{1, 5, 15, 0, 0, "", true}
@@ -111,6 +112,7 @@ var (
 	VectorSearchFeature                       = FeatureCode("vectorsearch")
 	ScopeEventingFunctionManagerFeature       = FeatureCode("scopeeventingmanagement")
 	ZoneAwareReplicaReadsFeature              = FeatureCode("zoneawarereplicareads")
+	ClusterLabelsFeature                      = FeatureCode("clusterlabels")
 )
 
 type TestFeatureFlag struct {
@@ -272,6 +274,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case ZoneAwareReplicaReadsFeature:
 			supported = false
+		case ClusterLabelsFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -417,6 +421,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer710) && !c.Version.Equal(protostellarVer)
 		case ZoneAwareReplicaReadsFeature:
 			supported = !c.Version.Lower(srvVer762) && !c.Version.Equal(protostellarVer)
+		case ClusterLabelsFeature:
+			supported = !c.Version.Lower(srvVer770) && !c.Version.Equal(protostellarVer)
 		}
 	}
 

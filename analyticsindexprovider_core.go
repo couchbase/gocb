@@ -38,7 +38,7 @@ func (am *analyticsProviderCore) CreateDataverse(dataverseName string, opts *Cre
 
 	q := fmt.Sprintf("CREATE DATAVERSE %s %s", am.uncompoundName(dataverseName), ignoreStr)
 
-	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_create_dataverse", "management")
+	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_create_dataverse", "management")
 	defer span.End()
 
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
@@ -71,7 +71,7 @@ func (am *analyticsProviderCore) DropDataverse(dataverseName string, opts *DropA
 
 	q := fmt.Sprintf("DROP DATAVERSE %s %s", am.uncompoundName(dataverseName), ignoreStr)
 
-	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_drop_dataverse", "management")
+	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_drop_dataverse", "management")
 	defer span.End()
 
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
@@ -122,7 +122,7 @@ func (am *analyticsProviderCore) CreateDataset(datasetName, bucketName string, o
 
 	q := fmt.Sprintf("CREATE DATASET %s %s ON `%s` %s", ignoreStr, datasetName, bucketName, where)
 
-	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_create_dataset", "management")
+	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_create_dataset", "management")
 	defer span.End()
 
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
@@ -159,7 +159,7 @@ func (am *analyticsProviderCore) DropDataset(datasetName string, opts *DropAnaly
 
 	q := fmt.Sprintf("DROP DATASET %s %s", datasetName, ignoreStr)
 
-	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_drop_dataset", "management")
+	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_drop_dataset", "management")
 	defer span.End()
 
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
@@ -184,7 +184,7 @@ func (am *analyticsProviderCore) GetAllDatasets(opts *GetAllAnalyticsDatasetsOpt
 	defer am.meter.ValueRecord(meterValueServiceManagement, "manager_analytics_get_all_datasets", start)
 
 	q := "SELECT d.* FROM Metadata.`Dataset` d WHERE d.DataverseName <> \"Metadata\""
-	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_get_all_datasets", "management")
+	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_get_all_datasets", "management")
 	span.SetAttribute("db.statement", q)
 	defer span.End()
 
@@ -252,7 +252,7 @@ func (am *analyticsProviderCore) CreateIndex(datasetName, indexName string, fiel
 
 	q := fmt.Sprintf("CREATE INDEX `%s` %s ON %s (%s)", indexName, ignoreStr, datasetName, strings.Join(indexFields, ","))
 
-	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_create_index", "management")
+	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_create_index", "management")
 	defer span.End()
 
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
@@ -289,7 +289,7 @@ func (am *analyticsProviderCore) DropIndex(datasetName, indexName string, opts *
 
 	q := fmt.Sprintf("DROP INDEX %s.%s %s", datasetName, indexName, ignoreStr)
 
-	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_drop_index", "management")
+	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_drop_index", "management")
 	span.SetAttribute("db.statement", q)
 	defer span.End()
 
@@ -315,7 +315,7 @@ func (am *analyticsProviderCore) GetAllIndexes(opts *GetAllAnalyticsIndexesOptio
 	defer am.meter.ValueRecord(meterValueServiceManagement, "manager_analytics_get_all_indexes", start)
 
 	q := "SELECT d.* FROM Metadata.`Index` d WHERE d.DataverseName <> \"Metadata\""
-	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_get_all_indexes", "management")
+	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_get_all_indexes", "management")
 	defer span.End()
 
 	rows, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
@@ -362,7 +362,7 @@ func (am *analyticsProviderCore) ConnectLink(opts *ConnectAnalyticsLinkOptions) 
 	}
 
 	q := fmt.Sprintf("CONNECT LINK %s", linkName)
-	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_connect_link", "management")
+	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_connect_link", "management")
 	span.SetAttribute("db.statement", q)
 	defer span.End()
 
@@ -396,7 +396,7 @@ func (am *analyticsProviderCore) DisconnectLink(opts *DisconnectAnalyticsLinkOpt
 	}
 
 	q := fmt.Sprintf("DISCONNECT LINK %s", linkName)
-	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_disconnect_link", "management")
+	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_disconnect_link", "management")
 	defer span.End()
 
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
@@ -420,7 +420,7 @@ func (am *analyticsProviderCore) GetPendingMutations(opts *GetPendingMutationsAn
 	start := time.Now()
 	defer am.meter.ValueRecord(meterValueServiceManagement, "manager_analytics_get_pending_mutations", start)
 
-	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_get_pending_mutations", "management")
+	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_get_pending_mutations", "management")
 	span.SetAttribute("db.operation", "GET /analytics/node/agg/stats/remaining")
 	defer span.End()
 
@@ -470,7 +470,7 @@ func (am *analyticsProviderCore) CreateLink(link AnalyticsLink, opts *CreateAnal
 	start := time.Now()
 	defer am.meter.ValueRecord(meterValueServiceManagement, "manager_analytics_create_link", start)
 
-	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_create_link", "management")
+	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_create_link", "management")
 	defer span.End()
 
 	timeout := opts.Timeout
@@ -485,7 +485,7 @@ func (am *analyticsProviderCore) CreateLink(link AnalyticsLink, opts *CreateAnal
 	endpoint := am.endpointFromLink(link)
 	span.SetAttribute("db.operation", "POST "+endpoint)
 
-	eSpan := createSpan(am.tracer, span, "request_encoding", "")
+	eSpan := am.tracer.createSpan(span, "request_encoding", "")
 	data, err := link.FormEncode()
 	eSpan.End()
 	if err != nil {
@@ -528,7 +528,7 @@ func (am *analyticsProviderCore) ReplaceLink(link AnalyticsLink, opts *ReplaceAn
 	start := time.Now()
 	defer am.meter.ValueRecord(meterValueServiceManagement, "manager_analytics_replace_link", start)
 
-	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_replace_link", "management")
+	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_replace_link", "management")
 	defer span.End()
 
 	timeout := opts.Timeout
@@ -543,7 +543,7 @@ func (am *analyticsProviderCore) ReplaceLink(link AnalyticsLink, opts *ReplaceAn
 	endpoint := am.endpointFromLink(link)
 	span.SetAttribute("db.operation", "PUT "+endpoint)
 
-	eSpan := createSpan(am.tracer, span, "request_encoding", "")
+	eSpan := am.tracer.createSpan(span, "request_encoding", "")
 	data, err := link.FormEncode()
 	eSpan.End()
 	if err != nil {
@@ -586,7 +586,7 @@ func (am *analyticsProviderCore) DropLink(linkName, dataverseName string, opts *
 	start := time.Now()
 	defer am.meter.ValueRecord(meterValueServiceManagement, "manager_analytics_drop_link", start)
 
-	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_drop_link", "management")
+	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_drop_link", "management")
 	defer span.End()
 
 	timeout := opts.Timeout
@@ -604,7 +604,7 @@ func (am *analyticsProviderCore) DropLink(linkName, dataverseName string, opts *
 		values.Add("dataverse", dataverseName)
 		values.Add("name", linkName)
 
-		eSpan := createSpan(am.tracer, span, spanNameRequestEncoding, "management")
+		eSpan := am.tracer.createSpan(span, spanNameRequestEncoding, "management")
 		payload = []byte(values.Encode())
 		eSpan.End()
 	}
@@ -684,7 +684,7 @@ func (am *analyticsProviderCore) GetLinks(opts *GetAnalyticsLinksOptions) ([]Ana
 		endpoint = endpoint + "?" + strings.Join(querystring, "&")
 	}
 
-	span := createSpan(am.tracer, opts.ParentSpan, "manager_analytics_get_all_links", "management")
+	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_get_all_links", "management")
 	span.SetAttribute("db.operation", "GET "+endpoint)
 	defer span.End()
 

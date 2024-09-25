@@ -91,7 +91,7 @@ func (m *kvOpManagerCore) SetValue(val interface{}) {
 		return
 	}
 
-	espan := m.kv.StartKvOpTrace(m.parent, "request_encoding", m.span.Context(), true)
+	espan := m.kv.StartKvOpTrace(m.parent, "request_encoding", m.span, true)
 	defer espan.End()
 
 	bytes, flags, err := m.transcoder.Encode(val)
@@ -332,12 +332,7 @@ func (m *kvOpManagerCore) Wait(op gocbcore.PendingOp, err error) error {
 }
 
 func newKvOpManagerCore(c *Collection, opName string, parentSpan RequestSpan, kv *kvProviderCore) *kvOpManagerCore {
-	var tracectx RequestSpanContext
-	if parentSpan != nil {
-		tracectx = parentSpan.Context()
-	}
-
-	span := kv.StartKvOpTrace(c, opName, tracectx, false)
+	span := kv.StartKvOpTrace(c, opName, parentSpan, false)
 
 	return &kvOpManagerCore{
 		parent:        c,

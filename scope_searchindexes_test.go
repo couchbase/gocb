@@ -296,7 +296,7 @@ func (suite *UnitTestSuite) TestScopeSearchIndexesAnalyzeDocumentCore() {
 	mgr := &searchIndexProviderCore{
 		mgmtProvider:      mockProvider,
 		searchCapVerifier: mockCapVerifier,
-		tracer:            &NoopTracer{},
+		tracer:            newTracerWrapper(&NoopTracer{}),
 	}
 
 	res, err := mgr.AnalyzeDocument(globalScope, indexName, struct{}{}, &AnalyzeDocumentOptions{

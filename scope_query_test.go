@@ -87,7 +87,7 @@ func (suite *UnitTestSuite) queryScope(prepared bool, reader queryRowReader, run
 
 	queryProvider := &queryProviderCore{
 		provider: provider,
-		tracer:   &NoopTracer{},
+		tracer:   newTracerWrapper(&NoopTracer{}),
 		meter:    newMeterWrapper(&NoopMeter{}),
 	}
 

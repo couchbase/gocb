@@ -24,7 +24,7 @@ type psConnectionMgr struct {
 	agent  *gocbcoreps.RoutingClient
 
 	timeouts     TimeoutsConfig
-	tracer       RequestTracer
+	tracer       *tracerWrapper
 	meter        *meterWrapper
 	defaultRetry RetryStrategy
 
@@ -67,7 +67,7 @@ func (c *psConnectionMgr) buildConfig(cluster *Cluster) error {
 
 	var tp trace.TracerProvider
 	if c.tracer != nil {
-		if tracer, ok := c.tracer.(OtelAwareRequestTracer); ok {
+		if tracer, ok := c.tracer.tracer.(OtelAwareRequestTracer); ok {
 			tp = tracer.Provider()
 		}
 	}
@@ -295,7 +295,7 @@ func (c *psConnectionMgr) close() error {
 	c.activeOpsWg.Wait()
 
 	if c.tracer != nil {
-		tracerDecRef(c.tracer)
+		tracerDecRef(c.tracer.tracer)
 		c.tracer = nil
 	}
 	if c.meter != nil {
@@ -310,13 +310,13 @@ func (c *psConnectionMgr) close() error {
 
 type psOpManagerProvider struct {
 	defaultRetryStrategy RetryStrategy
-	tracer               RequestTracer
+	tracer               *tracerWrapper
 	defaultTimeout       time.Duration
 	meter                *meterWrapper
 	service              string
 }
 
-func newPsOpManagerProvider(retry RetryStrategy, tracer RequestTracer, timeout time.Duration, meter *meterWrapper,
+func newPsOpManagerProvider(retry RetryStrategy, tracer *tracerWrapper, timeout time.Duration, meter *meterWrapper,
 	service string) *psOpManagerProvider {
 	return &psOpManagerProvider{
 		defaultRetryStrategy: retry,
@@ -336,7 +336,7 @@ func (p *psOpManagerProvider) NewManager(parentSpan RequestSpan, opName string, 
 		service:              p.service,
 		createdTime:          time.Now(),
 
-		span:   createSpan(p.tracer, parentSpan, opName, p.service),
+		span:   p.tracer.createSpan(parentSpan, opName, p.service),
 		opName: opName,
 	}
 
@@ -354,7 +354,7 @@ type psOpManager interface {
 	RetryStrategy() RetryStrategy
 	OpName() string
 	CreatedAt() time.Time
-	Tracer() RequestTracer
+	Tracer() *tracerWrapper
 	RetryInfo() retriedRequestInfo
 	SetRetryRequest(ps *retriableRequestPs)
 	RetryReasonFor(error) RetryReason
@@ -364,7 +364,7 @@ type psOpManager interface {
 
 type psOpManagerDefault struct {
 	defaultRetryStrategy RetryStrategy
-	tracer               RequestTracer
+	tracer               *tracerWrapper
 	defaultTimeout       time.Duration
 	meter                *meterWrapper
 	service              string
@@ -411,7 +411,7 @@ func (m *psOpManagerDefault) SetOperationID(id string) {
 }
 
 func (m *psOpManagerDefault) NewSpan(name string) RequestSpan {
-	return createSpan(m.tracer, m.span, name, m.service)
+	return m.tracer.createSpan(m.span, name, m.service)
 }
 
 func (m *psOpManagerDefault) Finish(noMetrics bool) {
@@ -480,7 +480,7 @@ func (m *psOpManagerDefault) SetRetryRequest(req *retriableRequestPs) {
 	m.req = req
 }
 
-func (m *psOpManagerDefault) Tracer() RequestTracer {
+func (m *psOpManagerDefault) Tracer() *tracerWrapper {
 	return m.tracer
 }
 

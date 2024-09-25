@@ -26,7 +26,7 @@ type jsonDesignDocument struct {
 type viewIndexProviderCore struct {
 	mgmtProvider mgmtProvider
 	bucketName   string
-	tracer       RequestTracer
+	tracer       *tracerWrapper
 	meter        *meterWrapper
 }
 
@@ -112,7 +112,7 @@ func (vm *viewIndexProviderCore) getDesignDocument(name string, namespace Design
 
 	name = vm.ddocName(name, namespace)
 
-	span := createSpan(vm.tracer, opts.ParentSpan, "manager_views_get_design_document", "management")
+	span := vm.tracer.createSpan(opts.ParentSpan, "manager_views_get_design_document", "management")
 	span.SetAttribute("db.operation", "GET "+fmt.Sprintf("/_design/%s", name))
 	span.SetAttribute("db.name", vm.bucketName)
 	defer span.End()
@@ -170,7 +170,7 @@ func (vm *viewIndexProviderCore) GetAllDesignDocuments(namespace DesignDocumentN
 	defer vm.meter.ValueRecord(meterValueServiceManagement, "manager_views_get_all_design_documents", start)
 
 	path := fmt.Sprintf("/pools/default/buckets/%s/ddocs", vm.bucketName)
-	span := createSpan(vm.tracer, opts.ParentSpan, "manager_views_get_all_design_documents", "management")
+	span := vm.tracer.createSpan(opts.ParentSpan, "manager_views_get_all_design_documents", "management")
 	span.SetAttribute("db.operation", "GET "+path)
 	span.SetAttribute("db.name", vm.bucketName)
 	defer span.End()
@@ -276,12 +276,12 @@ func (vm *viewIndexProviderCore) upsertDesignDocument(
 
 	ddocName = vm.ddocName(ddocName, namespace)
 
-	span := createSpan(vm.tracer, opts.ParentSpan, "manager_views_upsert_design_document", "management")
+	span := vm.tracer.createSpan(opts.ParentSpan, "manager_views_upsert_design_document", "management")
 	span.SetAttribute("db.operation", "PUT "+fmt.Sprintf("/_design/%s", ddocName))
 	span.SetAttribute("db.name", vm.bucketName)
 	defer span.End()
 
-	espan := createSpan(vm.tracer, span, "request_encoding", "")
+	espan := vm.tracer.createSpan(span, "request_encoding", "")
 	data, err := json.Marshal(&ddocData)
 	espan.End()
 	if err != nil {
@@ -325,7 +325,7 @@ func (vm *viewIndexProviderCore) DropDesignDocument(name string, namespace Desig
 	start := time.Now()
 	defer vm.meter.ValueRecord(meterValueServiceManagement, "manager_views_drop_design_document", start)
 
-	span := createSpan(vm.tracer, opts.ParentSpan, "manager_views_drop_design_document", "management")
+	span := vm.tracer.createSpan(opts.ParentSpan, "manager_views_drop_design_document", "management")
 	span.SetAttribute("db.operation", "DELETE "+fmt.Sprintf("/_design/%s", name))
 	span.SetAttribute("db.name", vm.bucketName)
 	defer span.End()
@@ -375,7 +375,7 @@ func (vm *viewIndexProviderCore) PublishDesignDocument(name string, opts *Publis
 	start := time.Now()
 	defer vm.meter.ValueRecord(meterValueServiceManagement, "manager_views_publish_design_document", start)
 
-	span := createSpan(vm.tracer, opts.ParentSpan, "manager_views_publish_design_document", "management")
+	span := vm.tracer.createSpan(opts.ParentSpan, "manager_views_publish_design_document", "management")
 	span.SetAttribute("db.name", vm.bucketName)
 	defer span.End()
 

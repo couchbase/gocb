@@ -12,7 +12,7 @@ type kvProviderCore struct {
 	agent            kvProviderCoreProvider
 	snapshotProvider kvProviderConfigSnapshotProvider
 
-	tracer               RequestTracer
+	tracer               *tracerWrapper
 	meter                *meterWrapper
 	preferredServerGroup string
 }
@@ -774,17 +774,12 @@ func (p *kvProviderCore) GetAllReplicas(c *Collection, id string, opts *GetAllRe
 		opts = &GetAllReplicaOptions{}
 	}
 
-	var tracectx RequestSpanContext
-	if opts.ParentSpan != nil {
-		tracectx = opts.ParentSpan.Context()
-	}
-
 	ctx := opts.Context
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	span := p.StartKvOpTrace(c, "get_all_replicas", tracectx, false)
+	span := p.StartKvOpTrace(c, "get_all_replicas", opts.ParentSpan, false)
 
 	// Timeout needs to be adjusted here, since we use it at the bottom of this
 	// function, but the remaining options are all passed downwards and get handled
@@ -908,12 +903,7 @@ func (p *kvProviderCore) GetAnyReplica(c *Collection, id string, opts *GetAnyRep
 	start := time.Now()
 	defer p.meter.ValueRecord("kv", "get_any_replica", start)
 
-	var tracectx RequestSpanContext
-	if opts.ParentSpan != nil {
-		tracectx = opts.ParentSpan.Context()
-	}
-
-	span := p.StartKvOpTrace(c, "get_any_replica", tracectx, false)
+	span := p.StartKvOpTrace(c, "get_any_replica", opts.ParentSpan, false)
 	defer span.End()
 
 	repRes, err := p.GetAllReplicas(c, id, &GetAllReplicaOptions{
@@ -1274,6 +1264,6 @@ func (p *kvProviderCore) Decrement(c *Collection, id string, opts *DecrementOpti
 
 }
 
-func (p *kvProviderCore) StartKvOpTrace(c *Collection, operationName string, tracectx RequestSpanContext, noAttributes bool) RequestSpan {
-	return c.startKvOpTrace(operationName, tracectx, p.tracer, noAttributes)
+func (p *kvProviderCore) StartKvOpTrace(c *Collection, operationName string, parentSpan RequestSpan, noAttributes bool) RequestSpan {
+	return c.startKvOpTrace(operationName, parentSpan, p.tracer, noAttributes)
 }

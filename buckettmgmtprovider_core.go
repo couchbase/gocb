@@ -15,7 +15,7 @@ import (
 
 type bucketManagementProviderCore struct {
 	mgmtProvider mgmtProvider
-	tracer       RequestTracer
+	tracer       *tracerWrapper
 	meter        *meterWrapper
 }
 
@@ -170,7 +170,7 @@ func (bm *bucketManagementProviderCore) GetBucket(bucketName string, opts *GetBu
 	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_get_bucket", start)
 
 	path := fmt.Sprintf("/pools/default/buckets/%s", url.PathEscape(bucketName))
-	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_get_bucket", "management")
+	span := bm.tracer.createSpan(opts.ParentSpan, "manager_bucket_get_bucket", "management")
 	span.SetAttribute("db.name", bucketName)
 	span.SetAttribute("db.operation", "GET "+path)
 	defer span.End()
@@ -228,7 +228,7 @@ func (bm *bucketManagementProviderCore) GetAllBuckets(opts *GetAllBucketsOptions
 	start := time.Now()
 	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_get_all_buckets", start)
 
-	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_get_all_buckets", "management")
+	span := bm.tracer.createSpan(opts.ParentSpan, "manager_bucket_get_all_buckets", "management")
 	span.SetAttribute("db.operation", "GET /pools/default/buckets")
 	defer span.End()
 
@@ -284,7 +284,7 @@ func (bm *bucketManagementProviderCore) CreateBucket(settings CreateBucketSettin
 	start := time.Now()
 	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_create_bucket", start)
 
-	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_create_bucket", "management")
+	span := bm.tracer.createSpan(opts.ParentSpan, "manager_bucket_create_bucket", "management")
 	span.SetAttribute("db.name", settings.Name)
 	span.SetAttribute("db.operation", "POST /pools/default/buckets")
 	defer span.End()
@@ -298,7 +298,7 @@ func (bm *bucketManagementProviderCore) CreateBucket(settings CreateBucketSettin
 		posts.Add("conflictResolutionType", string(settings.ConflictResolutionType))
 	}
 
-	eSpan := createSpan(bm.tracer, span, "request_encoding", "")
+	eSpan := bm.tracer.createSpan(span, "request_encoding", "")
 	d := posts.Encode()
 	eSpan.End()
 
@@ -338,7 +338,7 @@ func (bm *bucketManagementProviderCore) UpdateBucket(settings BucketSettings, op
 	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_update_bucket", start)
 
 	path := fmt.Sprintf("/pools/default/buckets/%s", url.PathEscape(settings.Name))
-	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_update_bucket", "management")
+	span := bm.tracer.createSpan(opts.ParentSpan, "manager_bucket_update_bucket", "management")
 	span.SetAttribute("db.name", settings.Name)
 	span.SetAttribute("db.operation", "POST "+path)
 	defer span.End()
@@ -348,7 +348,7 @@ func (bm *bucketManagementProviderCore) UpdateBucket(settings BucketSettings, op
 		return err
 	}
 
-	eSpan := createSpan(bm.tracer, span, "request_encoding", "")
+	eSpan := bm.tracer.createSpan(span, "request_encoding", "")
 	d := posts.Encode()
 	eSpan.End()
 
@@ -388,7 +388,7 @@ func (bm *bucketManagementProviderCore) DropBucket(name string, opts *DropBucket
 	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_drop_bucket", start)
 
 	path := fmt.Sprintf("/pools/default/buckets/%s", url.PathEscape(name))
-	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_drop_bucket", "management")
+	span := bm.tracer.createSpan(opts.ParentSpan, "manager_bucket_drop_bucket", "management")
 	span.SetAttribute("db.name", name)
 	span.SetAttribute("db.operation", "DELETE "+path)
 	defer span.End()
@@ -428,7 +428,7 @@ func (bm *bucketManagementProviderCore) FlushBucket(name string, opts *FlushBuck
 	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_flush_bucket", start)
 
 	path := fmt.Sprintf("/pools/default/buckets/%s/controller/doFlush", url.PathEscape(name))
-	span := createSpan(bm.tracer, opts.ParentSpan, "manager_bucket_flush_bucket", "management")
+	span := bm.tracer.createSpan(opts.ParentSpan, "manager_bucket_flush_bucket", "management")
 	span.SetAttribute("db.name", name)
 	span.SetAttribute("db.operation", "POST "+path)
 	defer span.End()

@@ -29,17 +29,12 @@ func (p *kvProviderCore) LookupIn(c *Collection, id string, ops []LookupInSpec, 
 
 func (p *kvProviderCore) LookupInAllReplicas(c *Collection, id string, ops []LookupInSpec,
 	opts *LookupInAllReplicaOptions) (docOut *LookupInAllReplicasResult, errOut error) {
-	var tracectx RequestSpanContext
-	if opts.ParentSpan != nil {
-		tracectx = opts.ParentSpan.Context()
-	}
-
 	ctx := opts.Context
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	span := p.StartKvOpTrace(c, "lookup_in_all_replicas", tracectx, false)
+	span := p.StartKvOpTrace(c, "lookup_in_all_replicas", opts.ParentSpan, false)
 
 	// Timeout needs to be adjusted here, since we use it at the bottom of this
 	// function, but the remaining options are all passed downwards and get handled
@@ -163,12 +158,7 @@ func (p *kvProviderCore) LookupInAnyReplica(c *Collection, id string, ops []Look
 	start := time.Now()
 	defer p.meter.ValueRecord("kv", "lookup_in_any_replica", start)
 
-	var tracectx RequestSpanContext
-	if opts.ParentSpan != nil {
-		tracectx = opts.ParentSpan.Context()
-	}
-
-	span := p.StartKvOpTrace(c, "lookup_in_any_replica", tracectx, false)
+	span := p.StartKvOpTrace(c, "lookup_in_any_replica", opts.ParentSpan, false)
 	defer span.End()
 
 	repRes, err := p.LookupInAllReplicas(c, id, ops, &LookupInAllReplicaOptions{
@@ -411,7 +401,7 @@ func (p *kvProviderCore) internalMutateIn(
 			}
 		}
 
-		etrace := opm.kv.StartKvOpTrace(opm.parent, "request_encoding", opm.TraceSpanContext(), true)
+		etrace := opm.kv.StartKvOpTrace(opm.parent, "request_encoding", opm.TraceSpan(), true)
 		bytes, flags, err := jsonMarshalMutateSpec(op)
 		etrace.End()
 		if err != nil {

@@ -333,7 +333,7 @@ func (suite *UnitTestSuite) TestSearchIndexesAnalyzeDocumentCore() {
 	mgr := &searchIndexProviderCore{
 		mgmtProvider:      mockProvider,
 		searchCapVerifier: capVerifier,
-		tracer:            &NoopTracer{},
+		tracer:            newTracerWrapper(&NoopTracer{}),
 	}
 
 	res, err := mgr.AnalyzeDocument(nil, indexName, struct{}{}, &AnalyzeDocumentOptions{

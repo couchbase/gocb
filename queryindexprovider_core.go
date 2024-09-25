@@ -68,7 +68,7 @@ func (qpc *queryProviderCore) createIndex(c *Collection, bucketName, indexName s
 
 	defer qpc.meter.ValueRecord(meterValueServiceManagement, spanName, start)
 
-	span := createSpan(qpc.tracer, opts.ParentSpan, spanName, "management")
+	span := qpc.tracer.createSpan(opts.ParentSpan, spanName, "management")
 	defer span.End()
 
 	_, err := qpc.doQuery(c, qs, &QueryOptions{
@@ -123,7 +123,7 @@ func (qpc *queryProviderCore) dropIndex(c *Collection, bucketName, indexName str
 	}
 	defer qpc.meter.ValueRecord(meterValueServiceManagement, spanName, start)
 
-	span := createSpan(qpc.tracer, opts.ParentSpan, spanName, "management")
+	span := qpc.tracer.createSpan(opts.ParentSpan, spanName, "management")
 	defer span.End()
 
 	_, err := qpc.doQuery(c, qs, &QueryOptions{
@@ -199,7 +199,7 @@ func (qpc *queryProviderCore) GetAllIndexes(c *Collection, bucketName string, op
 func (qpc *queryProviderCore) getAllIndexes(c *Collection, bucketName string, opts *GetAllQueryIndexesOptions) ([]QueryIndex, error) {
 	whereClause, params := buildGetAllIndexesWhereClause(c, bucketName, opts.ScopeName, opts.CollectionName)
 
-	span := createSpan(qpc.tracer, opts.ParentSpan, "manager_query_get_all_indexes", "management")
+	span := qpc.tracer.createSpan(opts.ParentSpan, "manager_query_get_all_indexes", "management")
 	defer span.End()
 
 	q := "SELECT `idx`.* FROM system:indexes AS idx WHERE " + whereClause + " AND `using` = \"gsi\" " +
@@ -242,7 +242,7 @@ func (qpc *queryProviderCore) BuildDeferredIndexes(c *Collection, bucketName str
 	start := time.Now()
 	defer qpc.meter.ValueRecord(meterValueServiceManagement, "manager_query_build_deferred_indexes", start)
 
-	span := createSpan(qpc.tracer, opts.ParentSpan, "manager_query_build_deferred_indexes", "management")
+	span := qpc.tracer.createSpan(opts.ParentSpan, "manager_query_build_deferred_indexes", "management")
 	defer span.End()
 
 	var whereClause string
@@ -357,7 +357,7 @@ func (qpc *queryProviderCore) WatchIndexes(c *Collection, bucketName string, wat
 	start := time.Now()
 	defer qpc.meter.ValueRecord(meterValueServiceManagement, "manager_query_watch_indexes", start)
 
-	span := createSpan(qpc.tracer, opts.ParentSpan, "manager_query_watch_indexes", "management")
+	span := qpc.tracer.createSpan(opts.ParentSpan, "manager_query_watch_indexes", "management")
 	defer span.End()
 
 	if opts.WatchPrimary {

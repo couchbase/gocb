@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"fmt"
 	"github.com/couchbase/gocbcore/v10"
 	"go.opentelemetry.io/otel/metric"
 	"sync"
@@ -110,9 +111,10 @@ func (nm *coreValueRecorderWrapper) RecordValue(val uint64) {
 }
 
 type meterWrapper struct {
-	attribsCache sync.Map
-	meter        Meter
-	isNoopMeter  bool
+	attribsCache          sync.Map
+	meter                 Meter
+	isNoopMeter           bool
+	clusterLabelsProvider clusterLabelsProvider
 }
 
 func newMeterWrapper(meter Meter) *meterWrapper {
@@ -129,19 +131,36 @@ func (mw *meterWrapper) ValueRecorder(service, operation string) (ValueRecorder,
 		return defaultNoopValueRecorder, nil
 	}
 
-	key := service + "." + operation
+	var labels gocbcore.ClusterLabels
+	if mw.clusterLabelsProvider != nil {
+		labels = mw.clusterLabelsProvider.ClusterLabels()
+
+	}
+
+	key := fmt.Sprintf("%s.%s.%s.%s", service, operation, labels.ClusterUUID, labels.ClusterName)
 	attribs, ok := mw.attribsCache.Load(key)
+
+	var attribsMap map[string]string
+	if ok {
+		attribsMap, ok = attribs.(map[string]string)
+	}
 	if !ok {
 		// It doesn't really matter if we end up storing the attribs against the same key multiple times. We just need
 		// to have a read efficient cache that doesn't cause actual data races.
-		attribs = map[string]string{
+		attribsMap = map[string]string{
 			meterAttribServiceKey:   service,
 			meterAttribOperationKey: operation,
 		}
-		mw.attribsCache.Store(key, attribs)
+		if labels.ClusterName != "" {
+			attribsMap[meterAttribClusterNameKey] = labels.ClusterName
+		}
+		if labels.ClusterUUID != "" {
+			attribsMap[meterAttribClusterUUIDKey] = labels.ClusterUUID
+		}
+		mw.attribsCache.Store(key, attribsMap)
 	}
 
-	recorder, err := mw.meter.ValueRecorder(meterNameCBOperations, attribs.(map[string]string))
+	recorder, err := mw.meter.ValueRecorder(meterNameCBOperations, attribsMap)
 	if err != nil {
 		return nil, err
 	}

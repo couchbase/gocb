@@ -20,7 +20,7 @@ type analyticsProviderCore struct {
 	retryStrategyWrapper *coreRetryStrategyWrapper
 	transcoder           Transcoder
 	analyticsTimeout     time.Duration
-	tracer               RequestTracer
+	tracer               *tracerWrapper
 	meter                *meterWrapper
 }
 
@@ -58,7 +58,7 @@ func (ap *analyticsProviderCore) AnalyticsQuery(statement string, scope *Scope, 
 	start := time.Now()
 	defer ap.meter.ValueRecord(meterValueServiceAnalytics, "analytics", start)
 
-	span := createSpan(ap.tracer, opts.ParentSpan, "analytics", "analytics")
+	span := ap.tracer.createSpan(opts.ParentSpan, "analytics", "analytics")
 	span.SetAttribute("db.statement", statement)
 	if scope != nil {
 		span.SetAttribute("db.name", scope.BucketName())
@@ -96,7 +96,7 @@ func (ap *analyticsProviderCore) AnalyticsQuery(statement string, scope *Scope, 
 		queryOpts["query_context"] = fmt.Sprintf("default:`%s`.`%s`", scope.BucketName(), scope.Name())
 	}
 
-	eSpan := createSpan(ap.tracer, span, "request_encoding", "")
+	eSpan := ap.tracer.createSpan(span, "request_encoding", "")
 	reqBytes, err := json.Marshal(queryOpts)
 	eSpan.End()
 	if err != nil {

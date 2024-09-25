@@ -455,7 +455,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryBothParams() {
 
 	cluster := suite.newCluster(cli)
 	analyticsProvider.meter = newMeterWrapper(&NoopMeter{})
-	analyticsProvider.tracer = &NoopTracer{}
+	analyticsProvider.tracer = newTracerWrapper(&NoopTracer{})
 	analyticsProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
 	analyticsProvider.analyticsTimeout = cluster.timeoutsConfig.AnalyticsTimeout
 
@@ -613,7 +613,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyInvalid() {
 
 	cluster := suite.newCluster(cli)
 	analyticsProvider.meter = newMeterWrapper(&NoopMeter{})
-	analyticsProvider.tracer = &NoopTracer{}
+	analyticsProvider.tracer = newTracerWrapper(&NoopTracer{})
 	analyticsProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
 	analyticsProvider.analyticsTimeout = cluster.timeoutsConfig.AnalyticsTimeout
 
@@ -646,7 +646,7 @@ func (suite *UnitTestSuite) coreAnalyticsCluster(ctx context.Context, runFn func
 	cluster := suite.newCluster(cli)
 
 	analyticsProvider.meter = newMeterWrapper(&NoopMeter{})
-	analyticsProvider.tracer = &NoopTracer{}
+	analyticsProvider.tracer = newTracerWrapper(&NoopTracer{})
 	analyticsProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
 	analyticsProvider.analyticsTimeout = cluster.timeoutsConfig.AnalyticsTimeout
 

@@ -10,17 +10,12 @@ import (
 type kvBulkProviderPs struct {
 	client kv_v1.KvServiceClient
 
-	tracer RequestTracer
+	tracer *tracerWrapper
 	meter  *meterWrapper
 }
 
 func (p *kvBulkProviderPs) Do(c *Collection, ops []BulkOp, opts *BulkOpOptions) error {
-	var tracectx RequestSpanContext
-	if opts.ParentSpan != nil {
-		tracectx = opts.ParentSpan.Context()
-	}
-
-	span := p.StartKvOpTrace(c, "bulk", tracectx, false)
+	span := p.StartKvOpTrace(c, "bulk", opts.ParentSpan, false)
 	defer span.End()
 
 	timeout := opts.Timeout
@@ -48,27 +43,27 @@ func (p *kvBulkProviderPs) Do(c *Collection, ops []BulkOp, opts *BulkOpOptions) 
 	for _, item := range ops {
 		switch i := item.(type) {
 		case *GetOp:
-			go p.Get(ctx, i, span.Context(), c, transcoder, signal)
+			go p.Get(ctx, i, span, c, transcoder, signal)
 		case *GetAndTouchOp:
-			go p.GetAndTouch(ctx, i, span.Context(), c, transcoder, signal)
+			go p.GetAndTouch(ctx, i, span, c, transcoder, signal)
 		case *TouchOp:
-			go p.Touch(ctx, i, span.Context(), c, signal)
+			go p.Touch(ctx, i, span, c, signal)
 		case *RemoveOp:
-			go p.Remove(ctx, i, span.Context(), c, signal)
+			go p.Remove(ctx, i, span, c, signal)
 		case *UpsertOp:
-			go p.Upsert(ctx, i, span.Context(), c, transcoder, signal)
+			go p.Upsert(ctx, i, span, c, transcoder, signal)
 		case *InsertOp:
-			go p.Insert(ctx, i, span.Context(), c, transcoder, signal)
+			go p.Insert(ctx, i, span, c, transcoder, signal)
 		case *ReplaceOp:
-			go p.Replace(ctx, i, span.Context(), c, transcoder, signal)
+			go p.Replace(ctx, i, span, c, transcoder, signal)
 		case *AppendOp:
-			go p.Append(ctx, i, span.Context(), c, signal)
+			go p.Append(ctx, i, span, c, signal)
 		case *PrependOp:
-			go p.Prepend(ctx, i, span.Context(), c, signal)
+			go p.Prepend(ctx, i, span, c, signal)
 		case *IncrementOp:
-			go p.Increment(ctx, i, span.Context(), c, signal)
+			go p.Increment(ctx, i, span, c, signal)
 		case *DecrementOp:
-			go p.Decrement(ctx, i, span.Context(), c, signal)
+			go p.Decrement(ctx, i, span, c, signal)
 		}
 	}
 
@@ -81,9 +76,9 @@ func (p *kvBulkProviderPs) Do(c *Collection, ops []BulkOp, opts *BulkOpOptions) 
 	return nil
 }
 
-func (p *kvBulkProviderPs) Get(ctx context.Context, item *GetOp, tracectx RequestSpanContext, c *Collection,
+func (p *kvBulkProviderPs) Get(ctx context.Context, item *GetOp, parentSpan RequestSpan, c *Collection,
 	transcoder Transcoder, signal chan BulkOp) {
-	span := p.StartKvOpTrace(c, "get", tracectx, false)
+	span := p.StartKvOpTrace(c, "get", parentSpan, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
@@ -125,9 +120,9 @@ func (p *kvBulkProviderPs) Get(ctx context.Context, item *GetOp, tracectx Reques
 	signal <- item
 }
 
-func (p *kvBulkProviderPs) GetAndTouch(ctx context.Context, item *GetAndTouchOp, tracectx RequestSpanContext, c *Collection,
+func (p *kvBulkProviderPs) GetAndTouch(ctx context.Context, item *GetAndTouchOp, parentSpan RequestSpan, c *Collection,
 	transcoder Transcoder, signal chan BulkOp) {
-	span := p.StartKvOpTrace(c, "get_and_touch", tracectx, false)
+	span := p.StartKvOpTrace(c, "get_and_touch", parentSpan, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
@@ -173,9 +168,9 @@ func (p *kvBulkProviderPs) GetAndTouch(ctx context.Context, item *GetAndTouchOp,
 	signal <- item
 }
 
-func (p *kvBulkProviderPs) Touch(ctx context.Context, item *TouchOp, tracectx RequestSpanContext, c *Collection,
+func (p *kvBulkProviderPs) Touch(ctx context.Context, item *TouchOp, parentSpan RequestSpan, c *Collection,
 	signal chan BulkOp) {
-	span := p.StartKvOpTrace(c, "touch", tracectx, false)
+	span := p.StartKvOpTrace(c, "touch", parentSpan, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
@@ -211,9 +206,9 @@ func (p *kvBulkProviderPs) Touch(ctx context.Context, item *TouchOp, tracectx Re
 	signal <- item
 }
 
-func (p *kvBulkProviderPs) Remove(ctx context.Context, item *RemoveOp, tracectx RequestSpanContext, c *Collection,
+func (p *kvBulkProviderPs) Remove(ctx context.Context, item *RemoveOp, parentSpan RequestSpan, c *Collection,
 	signal chan BulkOp) {
-	span := p.StartKvOpTrace(c, "remove", tracectx, false)
+	span := p.StartKvOpTrace(c, "remove", parentSpan, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
@@ -254,16 +249,16 @@ func (p *kvBulkProviderPs) Remove(ctx context.Context, item *RemoveOp, tracectx 
 	signal <- item
 }
 
-func (p *kvBulkProviderPs) Upsert(ctx context.Context, item *UpsertOp, tracectx RequestSpanContext, c *Collection,
+func (p *kvBulkProviderPs) Upsert(ctx context.Context, item *UpsertOp, parentSpan RequestSpan, c *Collection,
 	transcoder Transcoder, signal chan BulkOp) {
-	span := p.StartKvOpTrace(c, "upsert", tracectx, false)
+	span := p.StartKvOpTrace(c, "upsert", parentSpan, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(meterValueServiceKV, "upsert", start)
 	}
 
-	etrace := p.StartKvOpTrace(c, "request_encoding", span.Context(), true)
+	etrace := p.StartKvOpTrace(c, "request_encoding", span, true)
 	bytes, flags, err := transcoder.Encode(item.Value)
 	etrace.End()
 	if err != nil {
@@ -309,16 +304,16 @@ func (p *kvBulkProviderPs) Upsert(ctx context.Context, item *UpsertOp, tracectx 
 	signal <- item
 }
 
-func (p *kvBulkProviderPs) Insert(ctx context.Context, item *InsertOp, tracectx RequestSpanContext, c *Collection,
+func (p *kvBulkProviderPs) Insert(ctx context.Context, item *InsertOp, parentSpan RequestSpan, c *Collection,
 	transcoder Transcoder, signal chan BulkOp) {
-	span := p.StartKvOpTrace(c, "insert", tracectx, false)
+	span := p.StartKvOpTrace(c, "insert", parentSpan, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(meterValueServiceKV, "insert", start)
 	}
 
-	etrace := p.StartKvOpTrace(c, "request_encoding", span.Context(), true)
+	etrace := p.StartKvOpTrace(c, "request_encoding", parentSpan, true)
 	bytes, flags, err := transcoder.Encode(item.Value)
 	etrace.End()
 	if err != nil {
@@ -364,16 +359,16 @@ func (p *kvBulkProviderPs) Insert(ctx context.Context, item *InsertOp, tracectx 
 	signal <- item
 }
 
-func (p *kvBulkProviderPs) Replace(ctx context.Context, item *ReplaceOp, tracectx RequestSpanContext, c *Collection,
+func (p *kvBulkProviderPs) Replace(ctx context.Context, item *ReplaceOp, parentSpan RequestSpan, c *Collection,
 	transcoder Transcoder, signal chan BulkOp) {
-	span := p.StartKvOpTrace(c, "replace", tracectx, false)
+	span := p.StartKvOpTrace(c, "replace", parentSpan, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(meterValueServiceKV, "replace", start)
 	}
 
-	etrace := p.StartKvOpTrace(c, "request_encoding", span.Context(), true)
+	etrace := p.StartKvOpTrace(c, "request_encoding", span, true)
 	bytes, flags, err := transcoder.Encode(item.Value)
 	etrace.End()
 	if err != nil {
@@ -425,9 +420,9 @@ func (p *kvBulkProviderPs) Replace(ctx context.Context, item *ReplaceOp, tracect
 	signal <- item
 }
 
-func (p *kvBulkProviderPs) Append(ctx context.Context, item *AppendOp, tracectx RequestSpanContext, c *Collection,
+func (p *kvBulkProviderPs) Append(ctx context.Context, item *AppendOp, parentSpan RequestSpan, c *Collection,
 	signal chan BulkOp) {
-	span := p.StartKvOpTrace(c, "append", tracectx, false)
+	span := p.StartKvOpTrace(c, "append", parentSpan, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
@@ -461,9 +456,9 @@ func (p *kvBulkProviderPs) Append(ctx context.Context, item *AppendOp, tracectx 
 	signal <- item
 }
 
-func (p *kvBulkProviderPs) Prepend(ctx context.Context, item *PrependOp, tracectx RequestSpanContext, c *Collection,
+func (p *kvBulkProviderPs) Prepend(ctx context.Context, item *PrependOp, parentSpan RequestSpan, c *Collection,
 	signal chan BulkOp) {
-	span := p.StartKvOpTrace(c, "prepend", tracectx, false)
+	span := p.StartKvOpTrace(c, "prepend", parentSpan, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
@@ -497,9 +492,9 @@ func (p *kvBulkProviderPs) Prepend(ctx context.Context, item *PrependOp, tracect
 	signal <- item
 }
 
-func (p *kvBulkProviderPs) Increment(ctx context.Context, item *IncrementOp, tracectx RequestSpanContext, c *Collection,
+func (p *kvBulkProviderPs) Increment(ctx context.Context, item *IncrementOp, parentSpan RequestSpan, c *Collection,
 	signal chan BulkOp) {
-	span := p.StartKvOpTrace(c, "increment", tracectx, false)
+	span := p.StartKvOpTrace(c, "increment", parentSpan, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
@@ -538,9 +533,9 @@ func (p *kvBulkProviderPs) Increment(ctx context.Context, item *IncrementOp, tra
 	signal <- item
 }
 
-func (p *kvBulkProviderPs) Decrement(ctx context.Context, item *DecrementOp, tracectx RequestSpanContext, c *Collection,
+func (p *kvBulkProviderPs) Decrement(ctx context.Context, item *DecrementOp, parentSpan RequestSpan, c *Collection,
 	signal chan BulkOp) {
-	span := p.StartKvOpTrace(c, "decrement", tracectx, false)
+	span := p.StartKvOpTrace(c, "decrement", parentSpan, false)
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
@@ -579,6 +574,6 @@ func (p *kvBulkProviderPs) Decrement(ctx context.Context, item *DecrementOp, tra
 	signal <- item
 }
 
-func (p *kvBulkProviderPs) StartKvOpTrace(c *Collection, operationName string, tracectx RequestSpanContext, noAttributes bool) RequestSpan {
-	return c.startKvOpTrace(operationName, tracectx, p.tracer, noAttributes)
+func (p *kvBulkProviderPs) StartKvOpTrace(c *Collection, operationName string, parentSpan RequestSpan, noAttributes bool) RequestSpan {
+	return c.startKvOpTrace(operationName, parentSpan, p.tracer, noAttributes)
 }

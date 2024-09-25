@@ -285,7 +285,7 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 	}
 
 	cli := cluster.newConnectionMgr(connSpec.Scheme, &newConnectionMgrOptions{
-		tracer:               initialTracer,
+		tracer:               newTracerWrapper(initialTracer),
 		meter:                newMeterWrapper(meter),
 		preferredServerGroup: opts.PreferredServerGroup,
 	})

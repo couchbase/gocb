@@ -87,8 +87,13 @@ func (suite *IntegrationTestSuite) numVbuckets() int {
 
 func (suite *IntegrationTestSuite) verifyRangeScanTracing(topSpan *testSpan, numPartitions int, scanType ScanType, scopeName string, colName string, opts *ScanOptions) {
 	suite.Assert().Equal("range_scan", topSpan.Name)
-
-	suite.Assert().Equal(11, len(topSpan.Tags))
+	tags := 11
+	if globalCluster.SupportsFeature(ClusterLabelsFeature) {
+		tags += 2
+		suite.Assert().NotEmpty(topSpan.Tags[spanAttribClusterUUIDKey])
+		suite.Assert().NotEmpty(topSpan.Tags[spanAttribClusterNameKey])
+	}
+	suite.Assert().Equal(tags, len(topSpan.Tags))
 	suite.Assert().Equal("couchbase", topSpan.Tags[spanAttribDBSystemKey])
 	suite.Assert().Equal(globalConfig.Bucket, topSpan.Tags[spanAttribDBNameKey])
 	suite.Assert().Equal(scopeName, topSpan.Tags[spanAttribDBScopeNameKey])
@@ -139,7 +144,13 @@ func (suite *IntegrationTestSuite) verifyRangeScanTracing(topSpan *testSpan, num
 						suite.Assert().Equal("range_scan_create", s.Name)
 						suite.Assert().True(s.Finished)
 						suite.Assert().Equal(partitionSpan.Context(), s.ParentContext)
-						numTags := 2
+						numTags := 3
+						if globalCluster.SupportsFeature(ClusterLabelsFeature) {
+							numTags += 2
+							suite.Assert().NotEmpty(s.Tags[spanAttribClusterNameKey])
+							suite.Assert().NotEmpty(s.Tags[spanAttribClusterUUIDKey])
+						}
+						suite.Assert().Equal("couchbase", s.Tags[spanAttribDBSystemKey])
 						suite.Assert().Equal(opts.IDsOnly, s.Tags["without_content"])
 						switch st := scanType.(type) {
 						case RangeScan:
@@ -167,7 +178,14 @@ func (suite *IntegrationTestSuite) verifyRangeScanTracing(topSpan *testSpan, num
 						suite.Assert().Equal("range_scan_continue", s.Name)
 						suite.Assert().True(s.Finished)
 						suite.Assert().Equal(partitionSpan.Context(), s.ParentContext)
-						suite.Assert().Len(s.Tags, 4)
+						numTags := 5
+						if globalCluster.SupportsFeature(ClusterLabelsFeature) {
+							numTags += 2
+							suite.Assert().NotEmpty(s.Tags[spanAttribClusterNameKey])
+							suite.Assert().NotEmpty(s.Tags[spanAttribClusterUUIDKey])
+						}
+						suite.Assert().Equal("couchbase", s.Tags[spanAttribDBSystemKey])
+						suite.Assert().Len(s.Tags, numTags)
 						suite.Assert().Equal(*itemLimit, s.Tags["item_limit"])
 						suite.Assert().Equal(*byteLimit, s.Tags["byte_limit"])
 						suite.Assert().Zero(s.Tags["time_limit"])
