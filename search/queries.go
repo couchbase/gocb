@@ -575,11 +575,11 @@ type DocIDQuery struct {
 // MarshalJSON marshal's this query to JSON for the search REST API.
 func (q DocIDQuery) MarshalJSON() ([]byte, error) {
 	outStruct := &struct {
-		Ids   []string `json:"ids"`
+		IDs   []string `json:"ids"`
 		Field *string  `json:"field,omitempty"`
 		Boost *float32 `json:"boost,omitempty"`
 	}{
-		Ids:   q.ids,
+		IDs:   q.ids,
 		Field: q.field,
 		Boost: q.boost,
 	}
@@ -595,6 +595,8 @@ func NewDocIDQuery(ids ...string) *DocIDQuery {
 }
 
 // AddDocIds adds addition document ids to this query.
+//
+//nolint:revive
 func (q *DocIDQuery) AddDocIds(ids ...string) *DocIDQuery {
 	q.ids = append(q.ids, ids...)
 	return q
