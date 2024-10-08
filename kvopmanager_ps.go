@@ -33,7 +33,6 @@ type kvOpManagerPs struct {
 
 	operationName string
 	createdTime   time.Time
-	meter         *meterWrapper
 	compressor    *compressor
 
 	req *retriableRequestPs
@@ -135,14 +134,10 @@ func (m *kvOpManagerPs) SetIsIdempotent(idempotent bool) {
 	m.isIdempotent = idempotent
 }
 
-func (m *kvOpManagerPs) Finish(noMetrics bool) {
+func (m *kvOpManagerPs) Finish() {
 	retries := m.RetryInfo().RetryAttempts()
 	m.span.SetAttribute(spanAttribRetries, retries)
 	m.span.End()
-
-	if !noMetrics {
-		m.meter.ValueRecord(meterValueServiceKV, m.operationName, m.createdTime)
-	}
 }
 
 func (m *kvOpManagerPs) TraceSpanContext() RequestSpanContext {
@@ -278,7 +273,6 @@ func newKvOpManagerPs(c *Collection, opName string, parentSpan RequestSpan, p *k
 		span:          span,
 		operationName: opName,
 		createdTime:   time.Now(),
-		meter:         p.meter,
 		operationID:   uuid.NewString()[:6],
 		compressor:    c.compressor,
 	}

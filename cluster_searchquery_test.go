@@ -272,11 +272,11 @@ func (suite *UnitTestSuite) searchCluster(reader searchRowReader, runFn func(arg
 	}
 	cli := new(mockConnectionManager)
 	cli.On("getSearchProvider").Return(searchProvider, nil)
+	cli.On("getMeter").Return(nil)
 	cli.On("MarkOpBeginning").Return()
 	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)
-	searchProvider.meter = newMeterWrapper(&NoopMeter{})
 	searchProvider.tracer = newTracerWrapper(&NoopTracer{})
 	searchProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
 	searchProvider.timeouts = cluster.timeoutsConfig

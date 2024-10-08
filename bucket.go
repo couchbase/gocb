@@ -17,6 +17,8 @@ type Bucket struct {
 	useServerDurations bool
 	useMutationTokens  bool
 
+	keyspace keyspace
+
 	bootstrapError    error
 	connectionManager connectionManager
 	getTransactions   func() *Transactions
@@ -36,6 +38,10 @@ func newBucket(c *Cluster, bucketName string) *Bucket {
 
 		useServerDurations: c.useServerDurations,
 		useMutationTokens:  c.useMutationTokens,
+
+		keyspace: keyspace{
+			bucketName: bucketName,
+		},
 
 		connectionManager: c.connectionManager,
 		getTransactions:   c.Transactions,
@@ -227,6 +233,10 @@ func (b *Bucket) viewController() *providerController[viewProvider] {
 	return &providerController[viewProvider]{
 		get:          b.getViewProvider,
 		opController: b.connectionManager,
+
+		meter:    b.connectionManager.getMeter(),
+		keyspace: &b.keyspace,
+		service:  serviceValueViews,
 	}
 }
 
@@ -268,6 +278,10 @@ func (b *Bucket) ViewIndexes() *ViewIndexManager {
 		controller: &providerController[viewIndexProvider]{
 			get:          b.getViewIndexProvider,
 			opController: b.connectionManager,
+
+			meter:    b.connectionManager.getMeter(),
+			keyspace: &b.keyspace,
+			service:  serviceValueManagement,
 		},
 	}
 }
@@ -278,6 +292,10 @@ func (b *Bucket) CollectionsV2() *CollectionManagerV2 {
 		controller: &providerController[collectionsManagementProvider]{
 			get:          b.getCollectionsManagementProvider,
 			opController: b.connectionManager,
+
+			meter:    b.connectionManager.getMeter(),
+			keyspace: &b.keyspace,
+			service:  serviceValueManagement,
 		},
 	}
 }
@@ -299,7 +317,7 @@ func (b *Bucket) Collections() *CollectionManager {
 // Valid service types are: ServiceTypeKeyValue, ServiceTypeManagement, ServiceTypeQuery, ServiceTypeSearch,
 // ServiceTypeAnalytics, ServiceTypeViews.
 func (b *Bucket) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOptions) error {
-	return autoOpControlErrorOnly(b.waitUntilReadyController(), func(provider waitUntilReadyProvider) error {
+	return autoOpControlErrorOnly(b.waitUntilReadyController(), "", func(provider waitUntilReadyProvider) error {
 		if opts == nil {
 			opts = &WaitUntilReadyOptions{}
 		}

@@ -2,7 +2,7 @@ package gocb
 
 // Query executes the query statement on the server, constraining the query to the bucket and scope.
 func (s *Scope) Query(statement string, opts *QueryOptions) (*QueryResult, error) {
-	return autoOpControl(s.queryController(), func(provider queryProvider) (*QueryResult, error) {
+	return autoOpControl(s.queryController(), "query", func(provider queryProvider) (*QueryResult, error) {
 		if opts == nil {
 			opts = &QueryOptions{}
 		}

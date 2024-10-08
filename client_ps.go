@@ -117,7 +117,6 @@ func (c *psConnectionMgr) getKvProvider(bucketName string) (kvProvider, error) {
 		client: kv,
 
 		tracer: c.tracer,
-		meter:  c.meter,
 	}, nil
 }
 
@@ -156,7 +155,7 @@ func (c *psConnectionMgr) getQueryProvider() (queryProvider, error) {
 	return &queryProviderPs{
 		provider: provider,
 
-		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, meterValueServiceQuery),
+		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceValueQuery),
 	}, nil
 }
 
@@ -169,7 +168,7 @@ func (c *psConnectionMgr) getQueryIndexProvider() (queryIndexProvider, error) {
 	return &queryIndexProviderPs{
 		provider: provider,
 
-		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, meterValueServiceManagement),
+		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceValueManagement),
 	}, nil
 }
 
@@ -182,7 +181,7 @@ func (c *psConnectionMgr) getSearchIndexProvider() (searchIndexProvider, error) 
 	return &searchIndexProviderPs{
 		provider: provider,
 
-		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, meterValueServiceManagement),
+		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceValueManagement),
 	}, nil
 }
 
@@ -199,7 +198,7 @@ func (c *psConnectionMgr) getCollectionsManagementProvider(bucketName string) (c
 		provider:   c.agent.CollectionV1(),
 		bucketName: bucketName,
 
-		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, meterValueServiceManagement),
+		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceValueManagement),
 	}, nil
 }
 
@@ -211,7 +210,7 @@ func (c *psConnectionMgr) getBucketManagementProvider() (bucketManagementProvide
 	return &bucketManagementProviderPs{
 		provider: c.agent.BucketV1(),
 
-		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, meterValueServiceManagement),
+		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceValueManagement),
 	}, nil
 }
 
@@ -231,7 +230,7 @@ func (c *psConnectionMgr) getSearchProvider() (searchProvider, error) {
 	return &searchProviderPs{
 		provider: c.agent.SearchV1(),
 
-		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, meterValueServiceSearch),
+		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceValueSearch),
 	}, nil
 }
 
@@ -308,6 +307,10 @@ func (c *psConnectionMgr) close() error {
 	return err
 }
 
+func (c *psConnectionMgr) getMeter() *meterWrapper {
+	return c.meter
+}
+
 type psOpManagerProvider struct {
 	defaultRetryStrategy RetryStrategy
 	tracer               *tracerWrapper
@@ -332,7 +335,6 @@ func (p *psOpManagerProvider) NewManager(parentSpan RequestSpan, opName string, 
 		defaultRetryStrategy: p.defaultRetryStrategy,
 		tracer:               p.tracer,
 		defaultTimeout:       p.defaultTimeout,
-		meter:                p.meter,
 		service:              p.service,
 		createdTime:          time.Now(),
 
@@ -366,7 +368,6 @@ type psOpManagerDefault struct {
 	defaultRetryStrategy RetryStrategy
 	tracer               *tracerWrapper
 	defaultTimeout       time.Duration
-	meter                *meterWrapper
 	service              string
 	createdTime          time.Time
 
@@ -414,18 +415,10 @@ func (m *psOpManagerDefault) NewSpan(name string) RequestSpan {
 	return m.tracer.createSpan(m.span, name, m.service)
 }
 
-func (m *psOpManagerDefault) Finish(noMetrics bool) {
+func (m *psOpManagerDefault) Finish() {
 	retries := m.RetryInfo().RetryAttempts()
 	m.span.SetAttribute(spanAttribRetries, retries)
 	m.span.End()
-
-	if !noMetrics {
-		m.meter.ValueRecord(m.service, m.opName, m.createdTime)
-	}
-}
-
-func (m *psOpManagerDefault) ValueRecord() {
-	m.meter.ValueRecord(m.service, m.opName, m.createdTime)
 }
 
 func (m *psOpManagerDefault) TraceSpan() RequestSpan {

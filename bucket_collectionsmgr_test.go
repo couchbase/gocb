@@ -1210,7 +1210,6 @@ func (suite *UnitTestSuite) runGetAllScopesMgmtRequestFailsTest(v2 bool) {
 				return &collectionsManagementProviderCore{
 					mgmtProvider: provider,
 					tracer:       newTracerWrapper(&NoopTracer{}),
-					meter:        &meterWrapper{meter: &NoopMeter{}, isNoopMeter: true},
 				}, nil
 			},
 			opController: mockOpController{},

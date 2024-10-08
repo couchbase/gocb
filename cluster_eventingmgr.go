@@ -351,7 +351,7 @@ type UpsertEventingFunctionOptions struct {
 
 // UpsertFunction inserts or updates an eventing function.
 func (efm *EventingFunctionManager) UpsertFunction(function EventingFunction, opts *UpsertEventingFunctionOptions) error {
-	return autoOpControlErrorOnly(efm.controller, func(provider eventingManagementProvider) error {
+	return autoOpControlErrorOnly(efm.controller, "manager_eventing_upsert_function", func(provider eventingManagementProvider) error {
 		if opts == nil {
 			opts = &UpsertEventingFunctionOptions{}
 		}
@@ -374,7 +374,7 @@ type DropEventingFunctionOptions struct {
 
 // DropFunction drops an eventing function.
 func (efm *EventingFunctionManager) DropFunction(name string, opts *DropEventingFunctionOptions) error {
-	return autoOpControlErrorOnly(efm.controller, func(provider eventingManagementProvider) error {
+	return autoOpControlErrorOnly(efm.controller, "manager_eventing_drop_function", func(provider eventingManagementProvider) error {
 		if opts == nil {
 			opts = &DropEventingFunctionOptions{}
 		}
@@ -397,7 +397,7 @@ type DeployEventingFunctionOptions struct {
 
 // DeployFunction deploys an eventing function.
 func (efm *EventingFunctionManager) DeployFunction(name string, opts *DeployEventingFunctionOptions) error {
-	return autoOpControlErrorOnly(efm.controller, func(provider eventingManagementProvider) error {
+	return autoOpControlErrorOnly(efm.controller, "manager_eventing_deploy_function", func(provider eventingManagementProvider) error {
 		if opts == nil {
 			opts = &DeployEventingFunctionOptions{}
 		}
@@ -420,7 +420,7 @@ type UndeployEventingFunctionOptions struct {
 
 // UndeployFunction undeploys an eventing function.
 func (efm *EventingFunctionManager) UndeployFunction(name string, opts *UndeployEventingFunctionOptions) error {
-	return autoOpControlErrorOnly(efm.controller, func(provider eventingManagementProvider) error {
+	return autoOpControlErrorOnly(efm.controller, "manager_eventing_undeploy_function", func(provider eventingManagementProvider) error {
 		if opts == nil {
 			opts = &UndeployEventingFunctionOptions{}
 		}
@@ -443,7 +443,7 @@ type GetAllEventingFunctionsOptions struct {
 
 // GetAllFunctions fetches all the eventing functions.
 func (efm *EventingFunctionManager) GetAllFunctions(opts *GetAllEventingFunctionsOptions) ([]EventingFunction, error) {
-	return autoOpControl(efm.controller, func(provider eventingManagementProvider) ([]EventingFunction, error) {
+	return autoOpControl(efm.controller, "manager_eventing_get_all_functions", func(provider eventingManagementProvider) ([]EventingFunction, error) {
 		if opts == nil {
 			opts = &GetAllEventingFunctionsOptions{}
 		}
@@ -466,7 +466,7 @@ type GetEventingFunctionOptions struct {
 
 // GetFunction fetches an eventing function.
 func (efm *EventingFunctionManager) GetFunction(name string, opts *GetEventingFunctionOptions) (*EventingFunction, error) {
-	return autoOpControl(efm.controller, func(provider eventingManagementProvider) (*EventingFunction, error) {
+	return autoOpControl(efm.controller, "manager_eventing_get_function", func(provider eventingManagementProvider) (*EventingFunction, error) {
 		if opts == nil {
 			opts = &GetEventingFunctionOptions{}
 		}
@@ -489,7 +489,7 @@ type PauseEventingFunctionOptions struct {
 
 // PauseFunction pauses an eventing function.
 func (efm *EventingFunctionManager) PauseFunction(name string, opts *PauseEventingFunctionOptions) error {
-	return autoOpControlErrorOnly(efm.controller, func(provider eventingManagementProvider) error {
+	return autoOpControlErrorOnly(efm.controller, "manager_eventing_pause_function", func(provider eventingManagementProvider) error {
 		if opts == nil {
 			opts = &PauseEventingFunctionOptions{}
 		}
@@ -512,7 +512,7 @@ type ResumeEventingFunctionOptions struct {
 
 // ResumeFunction resumes an eventing function.
 func (efm *EventingFunctionManager) ResumeFunction(name string, opts *ResumeEventingFunctionOptions) error {
-	return autoOpControlErrorOnly(efm.controller, func(provider eventingManagementProvider) error {
+	return autoOpControlErrorOnly(efm.controller, "manager_eventing_resume_function", func(provider eventingManagementProvider) error {
 		if opts == nil {
 			opts = &ResumeEventingFunctionOptions{}
 		}
@@ -535,7 +535,7 @@ type EventingFunctionsStatusOptions struct {
 
 // FunctionsStatus fetches the current status of all eventing functions.
 func (efm *EventingFunctionManager) FunctionsStatus(opts *EventingFunctionsStatusOptions) (*EventingStatus, error) {
-	return autoOpControl(efm.controller, func(provider eventingManagementProvider) (*EventingStatus, error) {
+	return autoOpControl(efm.controller, "manager_eventing_functions_status", func(provider eventingManagementProvider) (*EventingStatus, error) {
 		if opts == nil {
 			opts = &EventingFunctionsStatusOptions{}
 		}

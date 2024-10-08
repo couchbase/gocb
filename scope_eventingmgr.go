@@ -14,18 +14,18 @@ type ScopeEventingFunctionManager struct {
 
 // UpsertFunction inserts or updates an eventing function.
 func (efm *ScopeEventingFunctionManager) UpsertFunction(function EventingFunction, opts *UpsertEventingFunctionOptions) error {
-	return autoOpControlErrorOnly(efm.controller, func(provider eventingManagementProvider) error {
+	return autoOpControlErrorOnly(efm.controller, "manager_eventing_upsert_function", func(provider eventingManagementProvider) error {
 		if opts == nil {
 			opts = &UpsertEventingFunctionOptions{}
 		}
-		
+
 		return provider.UpsertFunction(efm.scope, function, opts)
 	})
 }
 
 // DropFunction drops an eventing function.
 func (efm *ScopeEventingFunctionManager) DropFunction(name string, opts *DropEventingFunctionOptions) error {
-	return autoOpControlErrorOnly(efm.controller, func(provider eventingManagementProvider) error {
+	return autoOpControlErrorOnly(efm.controller, "manager_eventing_drop_function", func(provider eventingManagementProvider) error {
 		if opts == nil {
 			opts = &DropEventingFunctionOptions{}
 		}
@@ -36,7 +36,7 @@ func (efm *ScopeEventingFunctionManager) DropFunction(name string, opts *DropEve
 
 // DeployFunction deploys an eventing function.
 func (efm *ScopeEventingFunctionManager) DeployFunction(name string, opts *DeployEventingFunctionOptions) error {
-	return autoOpControlErrorOnly(efm.controller, func(provider eventingManagementProvider) error {
+	return autoOpControlErrorOnly(efm.controller, "manager_eventing_deploy_function", func(provider eventingManagementProvider) error {
 		if opts == nil {
 			opts = &DeployEventingFunctionOptions{}
 		}
@@ -47,7 +47,7 @@ func (efm *ScopeEventingFunctionManager) DeployFunction(name string, opts *Deplo
 
 // UndeployFunction undeploys an eventing function.
 func (efm *ScopeEventingFunctionManager) UndeployFunction(name string, opts *UndeployEventingFunctionOptions) error {
-	return autoOpControlErrorOnly(efm.controller, func(provider eventingManagementProvider) error {
+	return autoOpControlErrorOnly(efm.controller, "manager_eventing_undeploy_function", func(provider eventingManagementProvider) error {
 		if opts == nil {
 			opts = &UndeployEventingFunctionOptions{}
 		}
@@ -58,7 +58,7 @@ func (efm *ScopeEventingFunctionManager) UndeployFunction(name string, opts *Und
 
 // GetAllFunctions fetches all the eventing functions that are in this scope.
 func (efm *ScopeEventingFunctionManager) GetAllFunctions(opts *GetAllEventingFunctionsOptions) ([]EventingFunction, error) {
-	return autoOpControl(efm.controller, func(provider eventingManagementProvider) ([]EventingFunction, error) {
+	return autoOpControl(efm.controller, "manager_eventing_get_all_functions", func(provider eventingManagementProvider) ([]EventingFunction, error) {
 		if opts == nil {
 			opts = &GetAllEventingFunctionsOptions{}
 		}
@@ -69,7 +69,7 @@ func (efm *ScopeEventingFunctionManager) GetAllFunctions(opts *GetAllEventingFun
 
 // GetFunction fetches an eventing function.
 func (efm *ScopeEventingFunctionManager) GetFunction(name string, opts *GetEventingFunctionOptions) (*EventingFunction, error) {
-	return autoOpControl(efm.controller, func(provider eventingManagementProvider) (*EventingFunction, error) {
+	return autoOpControl(efm.controller, "manager_eventing_get_function", func(provider eventingManagementProvider) (*EventingFunction, error) {
 		if opts == nil {
 			opts = &GetEventingFunctionOptions{}
 		}
@@ -80,7 +80,7 @@ func (efm *ScopeEventingFunctionManager) GetFunction(name string, opts *GetEvent
 
 // PauseFunction pauses an eventing function.
 func (efm *ScopeEventingFunctionManager) PauseFunction(name string, opts *PauseEventingFunctionOptions) error {
-	return autoOpControlErrorOnly(efm.controller, func(provider eventingManagementProvider) error {
+	return autoOpControlErrorOnly(efm.controller, "manager_eventing_pause_function", func(provider eventingManagementProvider) error {
 		if opts == nil {
 			opts = &PauseEventingFunctionOptions{}
 		}
@@ -91,7 +91,7 @@ func (efm *ScopeEventingFunctionManager) PauseFunction(name string, opts *PauseE
 
 // ResumeFunction resumes an eventing function.
 func (efm *ScopeEventingFunctionManager) ResumeFunction(name string, opts *ResumeEventingFunctionOptions) error {
-	return autoOpControlErrorOnly(efm.controller, func(provider eventingManagementProvider) error {
+	return autoOpControlErrorOnly(efm.controller, "manager_eventing_resume_function", func(provider eventingManagementProvider) error {
 		if opts == nil {
 			opts = &ResumeEventingFunctionOptions{}
 		}
@@ -102,7 +102,7 @@ func (efm *ScopeEventingFunctionManager) ResumeFunction(name string, opts *Resum
 
 // FunctionsStatus fetches the current status of all eventing functions.
 func (efm *ScopeEventingFunctionManager) FunctionsStatus(opts *EventingFunctionsStatusOptions) (*EventingStatus, error) {
-	return autoOpControl(efm.controller, func(provider eventingManagementProvider) (*EventingStatus, error) {
+	return autoOpControl(efm.controller, "manager_eventing_functions_status", func(provider eventingManagementProvider) (*EventingStatus, error) {
 		if opts == nil {
 			opts = &EventingFunctionsStatusOptions{}
 		}

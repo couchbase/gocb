@@ -436,6 +436,26 @@ func (_m *mockConnectionManager) getKvProvider(bucketName string) (kvProvider, e
 	return r0, r1
 }
 
+// getMeter provides a mock function with given fields:
+func (_m *mockConnectionManager) getMeter() *meterWrapper {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for getMeter")
+	}
+
+	var r0 *meterWrapper
+	if rf, ok := ret.Get(0).(func() *meterWrapper); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*meterWrapper)
+		}
+	}
+
+	return r0
+}
+
 // getQueryIndexProvider provides a mock function with given fields:
 func (_m *mockConnectionManager) getQueryIndexProvider() (queryIndexProvider, error) {
 	ret := _m.Called()

@@ -181,7 +181,6 @@ func (c *stdConnectionMgr) getKvProvider(bucketName string) (kvProvider, error) 
 		snapshotProvider: &stdCoreConfigSnapshotProvider{agent: agent},
 
 		tracer:               c.tracer,
-		meter:                c.meter,
 		preferredServerGroup: c.preferredServerGroup,
 	}, nil
 }
@@ -241,7 +240,6 @@ func (c *stdConnectionMgr) getViewProvider(bucketName string) (viewProvider, err
 		transcoder:           c.transcoder,
 		timeouts:             c.timeouts,
 		tracer:               c.tracer,
-		meter:                c.meter,
 		bucketName:           bucketName,
 	}, nil
 }
@@ -268,7 +266,6 @@ func (c *stdConnectionMgr) getViewIndexProvider(bucketName string) (viewIndexPro
 		},
 		bucketName: bucketName,
 		tracer:     c.tracer,
-		meter:      c.meter,
 	}, nil
 }
 
@@ -288,7 +285,6 @@ func (c *stdConnectionMgr) getQueryProvider() (queryProvider, error) {
 		transcoder:           c.transcoder,
 		timeouts:             c.timeouts,
 		tracer:               c.tracer,
-		meter:                c.meter,
 	}, nil
 }
 
@@ -308,7 +304,6 @@ func (c *stdConnectionMgr) getQueryIndexProvider() (queryIndexProvider, error) {
 		transcoder:           c.transcoder,
 		timeouts:             c.timeouts,
 		tracer:               c.tracer,
-		meter:                c.meter,
 	}, nil
 }
 
@@ -338,7 +333,6 @@ func (c *stdConnectionMgr) getAnalyticsProvider() (analyticsProvider, error) {
 		transcoder:           c.transcoder,
 		analyticsTimeout:     c.timeouts.AnalyticsTimeout,
 		tracer:               c.tracer,
-		meter:                c.meter,
 	}, nil
 }
 
@@ -368,7 +362,6 @@ func (c *stdConnectionMgr) getAnalyticsIndexProvider() (analyticsIndexProvider, 
 		transcoder:           c.transcoder,
 		analyticsTimeout:     c.timeouts.AnalyticsTimeout,
 		tracer:               c.tracer,
-		meter:                c.meter,
 	}, nil
 }
 
@@ -387,7 +380,6 @@ func (c *stdConnectionMgr) getSearchProvider() (searchProvider, error) {
 		transcoder:           c.transcoder,
 		timeouts:             c.timeouts,
 		tracer:               c.tracer,
-		meter:                c.meter,
 	}, nil
 }
 
@@ -414,7 +406,6 @@ func (c *stdConnectionMgr) getSearchIndexProvider() (searchIndexProvider, error)
 		},
 		searchCapVerifier: capVerifier,
 		tracer:            c.tracer,
-		meter:             c.meter,
 	}, nil
 }
 
@@ -468,7 +459,6 @@ func (c *stdConnectionMgr) getDiagnosticsProvider(bucketName string) (diagnostic
 		return &diagnosticsProviderCore{
 			provider: &diagnosticsProviderWrapper{provider: c.agentgroup},
 			tracer:   c.tracer,
-			meter:    c.meter,
 			timeouts: c.timeouts,
 		}, nil
 	}
@@ -481,7 +471,6 @@ func (c *stdConnectionMgr) getDiagnosticsProvider(bucketName string) (diagnostic
 	return &diagnosticsProviderCore{
 		provider: &diagnosticsProviderWrapper{provider: agent},
 		tracer:   c.tracer,
-		meter:    c.meter,
 		timeouts: c.timeouts,
 	}, nil
 }
@@ -537,7 +526,6 @@ func (c *stdConnectionMgr) getCollectionsManagementProvider(bucketName string) (
 		featureVerifier: capabilityProvider,
 		bucketName:      bucketName,
 		tracer:          c.tracer,
-		meter:           c.meter,
 	}, nil
 }
 
@@ -558,7 +546,6 @@ func (c *stdConnectionMgr) getBucketManagementProvider() (bucketManagementProvid
 			retryStrategyWrapper: c.retryStrategyWrapper,
 		},
 		tracer: c.tracer,
-		meter:  c.meter,
 	}, nil
 }
 
@@ -579,7 +566,6 @@ func (c *stdConnectionMgr) getEventingManagementProvider() (eventingManagementPr
 			retryStrategyWrapper: c.retryStrategyWrapper,
 		},
 		tracer: c.tracer,
-		meter:  c.meter,
 	}, nil
 }
 
@@ -600,7 +586,6 @@ func (c *stdConnectionMgr) getUserManagerProvider() (userManagerProvider, error)
 			retryStrategyWrapper: c.retryStrategyWrapper,
 		},
 		tracer: c.tracer,
-		meter:  c.meter,
 	}, nil
 }
 
@@ -701,4 +686,8 @@ func (c *stdConnectionMgr) close() error {
 	}
 
 	return err
+}
+
+func (c *stdConnectionMgr) getMeter() *meterWrapper {
+	return c.meter
 }

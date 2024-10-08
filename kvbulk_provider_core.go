@@ -78,7 +78,7 @@ func (p *kvBulkProviderCore) Get(item *GetOp, parentSpan RequestSpan, c *Collect
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "get", start)
+		p.meter.ValueRecord(serviceValueKV, "get", start, &c.keyspace, item.Err)
 	}
 
 	_, err := p.agent.Get(gocbcore.GetOptions{
@@ -116,7 +116,7 @@ func (p *kvBulkProviderCore) GetAndTouch(item *GetAndTouchOp, parentSpan Request
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "get_and_touch", start)
+		p.meter.ValueRecord(serviceValueKV, "get_and_touch", start, &c.keyspace, item.Err)
 	}
 
 	_, err := p.agent.GetAndTouch(gocbcore.GetAndTouchOptions{
@@ -152,7 +152,7 @@ func (p *kvBulkProviderCore) Touch(item *TouchOp, parentSpan RequestSpan, c *Col
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "touch", start)
+		p.meter.ValueRecord(serviceValueKV, "touch", start, &c.keyspace, item.Err)
 	}
 
 	_, err := p.agent.Touch(gocbcore.TouchOptions{
@@ -193,7 +193,7 @@ func (p *kvBulkProviderCore) Delete(item *RemoveOp, parentSpan RequestSpan, c *C
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "remove", start)
+		p.meter.ValueRecord(serviceValueKV, "remove", start, &c.keyspace, item.Err)
 	}
 
 	_, err := p.agent.Delete(gocbcore.DeleteOptions{
@@ -234,7 +234,7 @@ func (p *kvBulkProviderCore) Set(item *UpsertOp, parentSpan RequestSpan, c *Coll
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "upsert", start)
+		p.meter.ValueRecord(serviceValueKV, "upsert", start, &c.keyspace, item.Err)
 	}
 
 	etrace := p.StartKvOpTrace(c, "request_encoding", span, true)
@@ -288,7 +288,7 @@ func (p *kvBulkProviderCore) Add(item *InsertOp, parentSpan RequestSpan, c *Coll
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "insert", start)
+		p.meter.ValueRecord(serviceValueKV, "insert", start, &c.keyspace, item.Err)
 	}
 
 	etrace := p.StartKvOpTrace(c, "request_encoding", span, true)
@@ -341,7 +341,7 @@ func (p *kvBulkProviderCore) Replace(item *ReplaceOp, parentSpan RequestSpan, c 
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "replace", start)
+		p.meter.ValueRecord(serviceValueKV, "replace", start, &c.keyspace, item.Err)
 	}
 
 	etrace := p.StartKvOpTrace(c, "request_encoding", span, true)
@@ -395,7 +395,7 @@ func (p *kvBulkProviderCore) Append(item *AppendOp, parentSpan RequestSpan, c *C
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "append", start)
+		p.meter.ValueRecord(serviceValueKV, "append", start, &c.keyspace, item.Err)
 	}
 
 	_, err := p.agent.Append(gocbcore.AdjoinOptions{
@@ -436,7 +436,7 @@ func (p *kvBulkProviderCore) Prepend(item *PrependOp, parentSpan RequestSpan, c 
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "prepend", start)
+		p.meter.ValueRecord(serviceValueKV, "prepend", start, &c.keyspace, item.Err)
 	}
 
 	_, err := p.agent.Prepend(gocbcore.AdjoinOptions{
@@ -477,7 +477,7 @@ func (p *kvBulkProviderCore) Increment(item *IncrementOp, parentSpan RequestSpan
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "increment", start)
+		p.meter.ValueRecord(serviceValueKV, "increment", start, &c.keyspace, item.Err)
 	}
 
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
@@ -528,7 +528,7 @@ func (p *kvBulkProviderCore) Decrement(item *DecrementOp, parentSpan RequestSpan
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "decrement", start)
+		p.meter.ValueRecord(serviceValueKV, "decrement", start, &c.keyspace, item.Err)
 	}
 
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)

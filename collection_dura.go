@@ -20,7 +20,7 @@ func (p *kvProviderCore) observeOnceSeqNo(
 	user string,
 ) (didReplicate, didPersist bool, errOut error) {
 	observedOpm := newKvOpManagerCore(c, "observe_once", trace, p)
-	defer observedOpm.Finish(true)
+	defer observedOpm.Finish()
 
 	observedOpm.SetDocumentID(docID)
 	observedOpm.SetCancelCh(cancelCh)
@@ -124,7 +124,7 @@ func (p *kvProviderCore) waitForDurability(
 	user string,
 ) error {
 	observeOpm := newKvOpManagerCore(c, "observe", trace, p)
-	defer observeOpm.Finish(true)
+	defer observeOpm.Finish()
 
 	observeOpm.SetDocumentID(docID)
 

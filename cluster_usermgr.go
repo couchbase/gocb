@@ -251,7 +251,7 @@ type GetAllUsersOptions struct {
 
 // GetAllUsers returns a list of all the users from the cluster.
 func (um *UserManager) GetAllUsers(opts *GetAllUsersOptions) ([]UserAndMetadata, error) {
-	return autoOpControl(um.controller, func(provider userManagerProvider) ([]UserAndMetadata, error) {
+	return autoOpControl(um.controller, "manager_users_get_all_users", func(provider userManagerProvider) ([]UserAndMetadata, error) {
 		if opts == nil {
 			opts = &GetAllUsersOptions{}
 		}
@@ -276,7 +276,7 @@ type GetUserOptions struct {
 
 // GetUser returns the data for a particular user
 func (um *UserManager) GetUser(name string, opts *GetUserOptions) (*UserAndMetadata, error) {
-	return autoOpControl(um.controller, func(provider userManagerProvider) (*UserAndMetadata, error) {
+	return autoOpControl(um.controller, "manager_users_get_user", func(provider userManagerProvider) (*UserAndMetadata, error) {
 		if opts == nil {
 			opts = &GetUserOptions{}
 		}
@@ -301,7 +301,7 @@ type UpsertUserOptions struct {
 
 // UpsertUser updates a built-in RBAC user on the cluster.
 func (um *UserManager) UpsertUser(user User, opts *UpsertUserOptions) error {
-	return autoOpControlErrorOnly(um.controller, func(provider userManagerProvider) error {
+	return autoOpControlErrorOnly(um.controller, "manager_users_upsert_user", func(provider userManagerProvider) error {
 		if opts == nil {
 			opts = &UpsertUserOptions{}
 		}
@@ -326,7 +326,7 @@ type DropUserOptions struct {
 
 // DropUser removes a built-in RBAC user on the cluster.
 func (um *UserManager) DropUser(name string, opts *DropUserOptions) error {
-	return autoOpControlErrorOnly(um.controller, func(provider userManagerProvider) error {
+	return autoOpControlErrorOnly(um.controller, "manager_users_drop_user", func(provider userManagerProvider) error {
 		if opts == nil {
 			opts = &DropUserOptions{}
 		}
@@ -349,7 +349,7 @@ type GetRolesOptions struct {
 
 // GetRoles lists the roles supported by the cluster.
 func (um *UserManager) GetRoles(opts *GetRolesOptions) ([]RoleAndDescription, error) {
-	return autoOpControl(um.controller, func(provider userManagerProvider) ([]RoleAndDescription, error) {
+	return autoOpControl(um.controller, "manager_users_get_roles", func(provider userManagerProvider) ([]RoleAndDescription, error) {
 		if opts == nil {
 			opts = &GetRolesOptions{}
 		}
@@ -372,7 +372,7 @@ type GetGroupOptions struct {
 
 // GetGroup fetches a single group from the server.
 func (um *UserManager) GetGroup(groupName string, opts *GetGroupOptions) (*Group, error) {
-	return autoOpControl(um.controller, func(provider userManagerProvider) (*Group, error) {
+	return autoOpControl(um.controller, "manager_users_get_group", func(provider userManagerProvider) (*Group, error) {
 		if groupName == "" {
 			return nil, makeInvalidArgumentsError("groupName cannot be empty")
 		}
@@ -398,7 +398,7 @@ type GetAllGroupsOptions struct {
 
 // GetAllGroups fetches all groups from the server.
 func (um *UserManager) GetAllGroups(opts *GetAllGroupsOptions) ([]Group, error) {
-	return autoOpControl(um.controller, func(provider userManagerProvider) ([]Group, error) {
+	return autoOpControl(um.controller, "manager_users_get_all_groups", func(provider userManagerProvider) ([]Group, error) {
 		if opts == nil {
 			opts = &GetAllGroupsOptions{}
 		}
@@ -421,7 +421,7 @@ type UpsertGroupOptions struct {
 
 // UpsertGroup creates, or updates, a group on the server.
 func (um *UserManager) UpsertGroup(group Group, opts *UpsertGroupOptions) error {
-	return autoOpControlErrorOnly(um.controller, func(provider userManagerProvider) error {
+	return autoOpControlErrorOnly(um.controller, "manager_users_upsert_group", func(provider userManagerProvider) error {
 		if group.Name == "" {
 			return makeInvalidArgumentsError("group name cannot be empty")
 		}
@@ -447,7 +447,7 @@ type DropGroupOptions struct {
 
 // DropGroup removes a group from the server.
 func (um *UserManager) DropGroup(groupName string, opts *DropGroupOptions) error {
-	return autoOpControlErrorOnly(um.controller, func(provider userManagerProvider) error {
+	return autoOpControlErrorOnly(um.controller, "manager_users_drop_group", func(provider userManagerProvider) error {
 		if groupName == "" {
 			return makeInvalidArgumentsError("groupName cannot be empty")
 		}
@@ -476,7 +476,7 @@ type ChangePasswordOptions struct {
 // *Note*: Usage of this function will effectively invalidate the SDK instance and further requests will fail
 // due to authentication errors. After using this function the SDK must be reinitialized.
 func (um *UserManager) ChangePassword(newPassword string, opts *ChangePasswordOptions) error {
-	return autoOpControlErrorOnly(um.controller, func(provider userManagerProvider) error {
+	return autoOpControlErrorOnly(um.controller, "manager_users_change_password", func(provider userManagerProvider) error {
 		if newPassword == "" {
 			return makeInvalidArgumentsError("new password cannot be empty")
 		}

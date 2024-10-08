@@ -33,10 +33,8 @@ type rangeScanOpManager struct {
 
 	cancelCh chan struct{}
 
-	agent       kvProviderCoreProvider
-	createdTime time.Time
-	meter       *meterWrapper
-	tracer      *tracerWrapper
+	agent  kvProviderCoreProvider
+	tracer *tracerWrapper
 
 	defaultRetryStrategy *coreRetryStrategyWrapper
 	defaultTranscoder    Transcoder
@@ -170,10 +168,8 @@ func (p *kvProviderCore) newRangeScanOpManager(c *Collection, scanType ScanType,
 	m := &rangeScanOpManager{
 		err: err,
 
-		span:        span,
-		createdTime: time.Now(),
-		meter:       p.meter,
-		tracer:      p.tracer,
+		span:   span,
+		tracer: p.tracer,
 
 		cancelCh: make(chan struct{}),
 
@@ -260,8 +256,6 @@ func (m *rangeScanOpManager) SetImpersonate(user string) {
 
 func (m *rangeScanOpManager) Finish() {
 	m.span.End()
-
-	m.meter.ValueRecord(meterValueServiceKV, "range_scan", m.createdTime)
 }
 
 func (m *rangeScanOpManager) TraceSpanContext() RequestSpanContext {

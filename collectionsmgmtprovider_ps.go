@@ -22,7 +22,7 @@ func (cm *collectionsManagementProviderPs) GetAllScopes(opts *GetAllScopesOption
 		"db.name":      cm.bucketName,
 		"db.operation": "ListCollections",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(true)
@@ -81,7 +81,7 @@ func (cm *collectionsManagementProviderPs) CreateCollection(scopeName string, co
 		"db.couchbase.collection": collectionName,
 		"db.operation":            "CreateCollection",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)
@@ -122,7 +122,7 @@ func (cm *collectionsManagementProviderPs) UpdateCollection(scopeName string, co
 		"db.couchbase.collection": collectionName,
 		"db.operation":            "UpdateCollection",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)
@@ -167,7 +167,7 @@ func (cm *collectionsManagementProviderPs) DropCollection(scopeName string, coll
 		"db.couchbase.collection": collectionName,
 		"db.operation":            "DeleteCollection",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)
@@ -199,7 +199,7 @@ func (cm *collectionsManagementProviderPs) CreateScope(scopeName string, opts *C
 		"db.couchbase.scope": scopeName,
 		"db.operation":       "CreateScope",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)
@@ -230,7 +230,7 @@ func (cm *collectionsManagementProviderPs) DropScope(scopeName string, opts *Dro
 		"db.couchbase.scope": scopeName,
 		"db.operation":       "DeleteScope",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)

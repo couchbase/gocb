@@ -152,7 +152,6 @@ func (suite *IntegrationTestSuite) TestKvOpManagerTimeouts() {
 		suite.T().Run(tc.name, func(tt *testing.T) {
 			mgr := newKvOpManagerCore(globalCollection, "test", nil, &kvProviderCore{
 				tracer: newTracerWrapper(newTestTracer()),
-				meter:  newMeterWrapper(&NoopMeter{}),
 			})
 			mgr.SetTimeout(tc.timeout)
 			mgr.SetDuraOptions(0, 0, tc.durabilityLevel)

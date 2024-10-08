@@ -24,7 +24,7 @@ func (qpc *queryIndexProviderPs) CreatePrimaryIndex(c *Collection, bucketName st
 	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_create_primary_index", map[string]interface{}{
 		"db.operation": "CreatePrimaryIndex",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)
@@ -71,7 +71,7 @@ func (qpc *queryIndexProviderPs) CreateIndex(c *Collection, bucketName, indexNam
 	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_create_index", map[string]interface{}{
 		"db.operation": "CreateIndex",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)
@@ -115,7 +115,7 @@ func (qpc *queryIndexProviderPs) DropPrimaryIndex(c *Collection, bucketName stri
 	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_drop_primary_index", map[string]interface{}{
 		"db.operation": "DropPrimaryIndex",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)
@@ -158,7 +158,7 @@ func (qpc *queryIndexProviderPs) DropIndex(c *Collection, bucketName, indexName 
 	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_drop_index", map[string]interface{}{
 		"db.operation": "DropIndex",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)
@@ -196,7 +196,7 @@ func (qpc *queryIndexProviderPs) GetAllIndexes(c *Collection, bucketName string,
 	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_get_all_indexes", map[string]interface{}{
 		"db.operation": "GetAllIndexes",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(true)
@@ -289,7 +289,7 @@ func (qpc *queryIndexProviderPs) BuildDeferredIndexes(c *Collection, bucketName 
 	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_build_deferred_indexes", map[string]interface{}{
 		"db.operation": "BuildDeferredIndexes",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)
@@ -378,7 +378,7 @@ func (qpc *queryIndexProviderPs) waitForIndexOnline(c *Collection, indexName, bu
 func (qpc *queryIndexProviderPs) WatchIndexes(c *Collection, bucketName string, watchList []string, timeout time.Duration, opts *WatchQueryIndexOptions,
 ) error {
 	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_watch_indexes", map[string]interface{}{})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	ctx := opts.Context
 	if ctx == nil {

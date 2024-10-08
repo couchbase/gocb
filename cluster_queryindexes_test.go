@@ -594,7 +594,6 @@ func (suite *UnitTestSuite) TestQueryIndexesParsing() {
 				return &queryProviderCore{
 					provider: provider,
 					tracer:   newTracerWrapper(&NoopTracer{}),
-					meter:    newMeterWrapper(&NoopMeter{}),
 				}, nil
 			},
 			opController: mockOpController{},

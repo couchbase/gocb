@@ -82,7 +82,7 @@ func (p *kvBulkProviderPs) Get(ctx context.Context, item *GetOp, parentSpan Requ
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "get", start)
+		p.meter.ValueRecord(serviceValueKV, "get", start, &c.keyspace, item.Err)
 	}
 
 	request := &kv_v1.GetRequest{
@@ -126,7 +126,7 @@ func (p *kvBulkProviderPs) GetAndTouch(ctx context.Context, item *GetAndTouchOp,
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "get_and_touch", start)
+		p.meter.ValueRecord(serviceValueKV, "get_and_touch", start, &c.keyspace, item.Err)
 	}
 
 	reqExpiry := &kv_v1.GetAndTouchRequest_ExpirySecs{ExpirySecs: uint32(item.Expiry.Seconds())}
@@ -174,7 +174,7 @@ func (p *kvBulkProviderPs) Touch(ctx context.Context, item *TouchOp, parentSpan 
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "touch", start)
+		p.meter.ValueRecord(serviceValueKV, "touch", start, &c.keyspace, item.Err)
 	}
 
 	request := &kv_v1.TouchRequest{
@@ -212,7 +212,7 @@ func (p *kvBulkProviderPs) Remove(ctx context.Context, item *RemoveOp, parentSpa
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "remove", start)
+		p.meter.ValueRecord(serviceValueKV, "remove", start, &c.keyspace, item.Err)
 	}
 
 	var cas *uint64
@@ -255,7 +255,7 @@ func (p *kvBulkProviderPs) Upsert(ctx context.Context, item *UpsertOp, parentSpa
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "upsert", start)
+		p.meter.ValueRecord(serviceValueKV, "upsert", start, &c.keyspace, item.Err)
 	}
 
 	etrace := p.StartKvOpTrace(c, "request_encoding", span, true)
@@ -310,7 +310,7 @@ func (p *kvBulkProviderPs) Insert(ctx context.Context, item *InsertOp, parentSpa
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "insert", start)
+		p.meter.ValueRecord(serviceValueKV, "insert", start, &c.keyspace, item.Err)
 	}
 
 	etrace := p.StartKvOpTrace(c, "request_encoding", parentSpan, true)
@@ -365,7 +365,7 @@ func (p *kvBulkProviderPs) Replace(ctx context.Context, item *ReplaceOp, parentS
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "replace", start)
+		p.meter.ValueRecord(serviceValueKV, "replace", start, &c.keyspace, item.Err)
 	}
 
 	etrace := p.StartKvOpTrace(c, "request_encoding", span, true)
@@ -426,7 +426,7 @@ func (p *kvBulkProviderPs) Append(ctx context.Context, item *AppendOp, parentSpa
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "append", start)
+		p.meter.ValueRecord(serviceValueKV, "append", start, &c.keyspace, item.Err)
 	}
 
 	request := &kv_v1.AppendRequest{
@@ -462,7 +462,7 @@ func (p *kvBulkProviderPs) Prepend(ctx context.Context, item *PrependOp, parentS
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "prepend", start)
+		p.meter.ValueRecord(serviceValueKV, "prepend", start, &c.keyspace, item.Err)
 	}
 
 	request := &kv_v1.PrependRequest{
@@ -498,7 +498,7 @@ func (p *kvBulkProviderPs) Increment(ctx context.Context, item *IncrementOp, par
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "increment", start)
+		p.meter.ValueRecord(serviceValueKV, "increment", start, &c.keyspace, item.Err)
 	}
 
 	var expiry *kv_v1.IncrementRequest_ExpirySecs
@@ -539,7 +539,7 @@ func (p *kvBulkProviderPs) Decrement(ctx context.Context, item *DecrementOp, par
 	start := time.Now()
 	item.bulkOp.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(meterValueServiceKV, "decrement", start)
+		p.meter.ValueRecord(serviceValueKV, "decrement", start, &c.keyspace, item.Err)
 	}
 
 	var expiry *kv_v1.DecrementRequest_ExpirySecs

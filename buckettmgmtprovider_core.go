@@ -16,7 +16,6 @@ import (
 type bucketManagementProviderCore struct {
 	mgmtProvider mgmtProvider
 	tracer       *tracerWrapper
-	meter        *meterWrapper
 }
 
 type jsonBucketSettings struct {
@@ -166,9 +165,6 @@ func (bm *bucketManagementProviderCore) tryParseFlushErrorMessage(req *mgmtReque
 
 // GetBucket returns settings for a bucket on the cluster.
 func (bm *bucketManagementProviderCore) GetBucket(bucketName string, opts *GetBucketOptions) (*BucketSettings, error) {
-	start := time.Now()
-	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_get_bucket", start)
-
 	path := fmt.Sprintf("/pools/default/buckets/%s", url.PathEscape(bucketName))
 	span := bm.tracer.createSpan(opts.ParentSpan, "manager_bucket_get_bucket", "management")
 	span.SetAttribute("db.name", bucketName)
@@ -225,9 +221,6 @@ func (bm *bucketManagementProviderCore) get(ctx context.Context, tracectx Reques
 
 // GetAllBuckets returns a list of all active buckets on the cluster.
 func (bm *bucketManagementProviderCore) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]BucketSettings, error) {
-	start := time.Now()
-	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_get_all_buckets", start)
-
 	span := bm.tracer.createSpan(opts.ParentSpan, "manager_bucket_get_all_buckets", "management")
 	span.SetAttribute("db.operation", "GET /pools/default/buckets")
 	defer span.End()
@@ -281,9 +274,6 @@ func (bm *bucketManagementProviderCore) GetAllBuckets(opts *GetAllBucketsOptions
 
 // CreateBucket creates a bucket on the cluster.
 func (bm *bucketManagementProviderCore) CreateBucket(settings CreateBucketSettings, opts *CreateBucketOptions) error {
-	start := time.Now()
-	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_create_bucket", start)
-
 	span := bm.tracer.createSpan(opts.ParentSpan, "manager_bucket_create_bucket", "management")
 	span.SetAttribute("db.name", settings.Name)
 	span.SetAttribute("db.operation", "POST /pools/default/buckets")
@@ -334,9 +324,6 @@ func (bm *bucketManagementProviderCore) CreateBucket(settings CreateBucketSettin
 
 // UpdateBucket updates a bucket on the cluster.
 func (bm *bucketManagementProviderCore) UpdateBucket(settings BucketSettings, opts *UpdateBucketOptions) error {
-	start := time.Now()
-	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_update_bucket", start)
-
 	path := fmt.Sprintf("/pools/default/buckets/%s", url.PathEscape(settings.Name))
 	span := bm.tracer.createSpan(opts.ParentSpan, "manager_bucket_update_bucket", "management")
 	span.SetAttribute("db.name", settings.Name)
@@ -384,9 +371,6 @@ func (bm *bucketManagementProviderCore) UpdateBucket(settings BucketSettings, op
 
 // DropBucket will delete a bucket from the cluster by name.
 func (bm *bucketManagementProviderCore) DropBucket(name string, opts *DropBucketOptions) error {
-	start := time.Now()
-	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_drop_bucket", start)
-
 	path := fmt.Sprintf("/pools/default/buckets/%s", url.PathEscape(name))
 	span := bm.tracer.createSpan(opts.ParentSpan, "manager_bucket_drop_bucket", "management")
 	span.SetAttribute("db.name", name)
@@ -424,9 +408,6 @@ func (bm *bucketManagementProviderCore) DropBucket(name string, opts *DropBucket
 // FlushBucket will delete all the of the data from a bucket.
 // Keep in mind that you must have flushing enabled in the buckets configuration.
 func (bm *bucketManagementProviderCore) FlushBucket(name string, opts *FlushBucketOptions) error {
-	start := time.Now()
-	defer bm.meter.ValueRecord(meterValueServiceManagement, "manager_bucket_flush_bucket", start)
-
 	path := fmt.Sprintf("/pools/default/buckets/%s/controller/doFlush", url.PathEscape(name))
 	span := bm.tracer.createSpan(opts.ParentSpan, "manager_bucket_flush_bucket", "management")
 	span.SetAttribute("db.name", name)

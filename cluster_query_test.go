@@ -573,12 +573,12 @@ func (suite *UnitTestSuite) queryCluster(prepared bool, reader queryRowReader, r
 
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
+	cli.On("getMeter").Return(nil)
 	cli.On("MarkOpBeginning").Return()
 	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)
 
-	queryProvider.meter = newMeterWrapper(&NoopMeter{})
 	queryProvider.tracer = newTracerWrapper(&NoopTracer{})
 	queryProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
 	queryProvider.timeouts = cluster.timeoutsConfig
@@ -793,12 +793,12 @@ func (suite *UnitTestSuite) TestQueryUntypedError() {
 	}
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
+	cli.On("getMeter").Return(nil)
 	cli.On("MarkOpBeginning").Return()
 	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)
 
-	queryProvider.meter = newMeterWrapper(&NoopMeter{})
 	queryProvider.tracer = newTracerWrapper(&NoopTracer{})
 	queryProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
 	queryProvider.timeouts = cluster.timeoutsConfig
@@ -829,11 +829,11 @@ func (suite *UnitTestSuite) TestQueryGocbcoreError() {
 
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
+	cli.On("getMeter").Return(nil)
 	cli.On("MarkOpBeginning").Return()
 	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)
-	queryProvider.meter = newMeterWrapper(&NoopMeter{})
 	queryProvider.tracer = newTracerWrapper(&NoopTracer{})
 	queryProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
 	queryProvider.timeouts = cluster.timeoutsConfig
@@ -873,13 +873,13 @@ func (suite *UnitTestSuite) TestQueryTimeoutOption() {
 	queryProvider := &queryProviderCore{
 		provider: provider,
 	}
-	queryProvider.meter = newMeterWrapper(&NoopMeter{})
 	queryProvider.tracer = newTracerWrapper(&NoopTracer{})
 	queryProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
 	queryProvider.timeouts = cluster.timeoutsConfig
 
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
+	cli.On("getMeter").Return(nil)
 	cli.On("MarkOpBeginning").Return()
 	cli.On("MarkOpCompleted").Return()
 

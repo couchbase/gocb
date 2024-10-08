@@ -49,7 +49,7 @@ const (
 	// EvictionPolicyTypeNotRecentlyUsed specifies to use not recently used (nru) eviction for an ephemeral bucket.
 	EvictionPolicyTypeNotRecentlyUsed EvictionPolicyType = "nruEviction"
 
-	// EvictionPolicyTypeNRU specifies to use no eviction for an ephemeral bucket.
+	// EvictionPolicyTypeNoEviction specifies to use no eviction for an ephemeral bucket.
 	EvictionPolicyTypeNoEviction EvictionPolicyType = "noEviction"
 )
 
@@ -139,7 +139,7 @@ type GetBucketOptions struct {
 
 // GetBucket returns settings for a bucket on the cluster.
 func (bm *BucketManager) GetBucket(bucketName string, opts *GetBucketOptions) (*BucketSettings, error) {
-	return autoOpControl(bm.controller, func(provider bucketManagementProvider) (*BucketSettings, error) {
+	return autoOpControl(bm.controller, "manager_bucket_get_bucket", func(provider bucketManagementProvider) (*BucketSettings, error) {
 		if opts == nil {
 			opts = &GetBucketOptions{}
 		}
@@ -162,7 +162,7 @@ type GetAllBucketsOptions struct {
 
 // GetAllBuckets returns a list of all active buckets on the cluster.
 func (bm *BucketManager) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]BucketSettings, error) {
-	return autoOpControl(bm.controller, func(provider bucketManagementProvider) (map[string]BucketSettings, error) {
+	return autoOpControl(bm.controller, "manager_bucket_get_all_buckets", func(provider bucketManagementProvider) (map[string]BucketSettings, error) {
 		if opts == nil {
 			opts = &GetAllBucketsOptions{}
 		}
@@ -191,7 +191,7 @@ type CreateBucketOptions struct {
 
 // CreateBucket creates a bucket on the cluster.
 func (bm *BucketManager) CreateBucket(settings CreateBucketSettings, opts *CreateBucketOptions) error {
-	return autoOpControlErrorOnly(bm.controller, func(provider bucketManagementProvider) error {
+	return autoOpControlErrorOnly(bm.controller, "manager_bucket_create_bucket", func(provider bucketManagementProvider) error {
 		if opts == nil {
 			opts = &CreateBucketOptions{}
 		}
@@ -214,7 +214,7 @@ type UpdateBucketOptions struct {
 
 // UpdateBucket updates a bucket on the cluster.
 func (bm *BucketManager) UpdateBucket(settings BucketSettings, opts *UpdateBucketOptions) error {
-	return autoOpControlErrorOnly(bm.controller, func(provider bucketManagementProvider) error {
+	return autoOpControlErrorOnly(bm.controller, "manager_bucket_update_bucket", func(provider bucketManagementProvider) error {
 		if opts == nil {
 			opts = &UpdateBucketOptions{}
 		}
@@ -237,7 +237,7 @@ type DropBucketOptions struct {
 
 // DropBucket will delete a bucket from the cluster by name.
 func (bm *BucketManager) DropBucket(name string, opts *DropBucketOptions) error {
-	return autoOpControlErrorOnly(bm.controller, func(provider bucketManagementProvider) error {
+	return autoOpControlErrorOnly(bm.controller, "manager_bucket_drop_bucket", func(provider bucketManagementProvider) error {
 		if opts == nil {
 			opts = &DropBucketOptions{}
 		}
@@ -261,7 +261,7 @@ type FlushBucketOptions struct {
 // FlushBucket will delete all the of the data from a bucket.
 // Keep in mind that you must have flushing enabled in the buckets configuration.
 func (bm *BucketManager) FlushBucket(name string, opts *FlushBucketOptions) error {
-	return autoOpControlErrorOnly(bm.controller, func(provider bucketManagementProvider) error {
+	return autoOpControlErrorOnly(bm.controller, "manager_bucket_flush_bucket", func(provider bucketManagementProvider) error {
 		if opts == nil {
 			opts = &FlushBucketOptions{}
 		}

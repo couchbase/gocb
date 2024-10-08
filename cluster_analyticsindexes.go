@@ -60,7 +60,7 @@ type CreateAnalyticsDataverseOptions struct {
 
 // CreateDataverse creates a new analytics dataset.
 func (am *AnalyticsIndexManager) CreateDataverse(dataverseName string, opts *CreateAnalyticsDataverseOptions) error {
-	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+	return autoOpControlErrorOnly(am.controller, "manager_analytics_create_dataverse", func(provider analyticsIndexProvider) error {
 		if opts == nil {
 			opts = &CreateAnalyticsDataverseOptions{}
 		}
@@ -91,7 +91,7 @@ type DropAnalyticsDataverseOptions struct {
 
 // DropDataverse drops an analytics dataset.
 func (am *AnalyticsIndexManager) DropDataverse(dataverseName string, opts *DropAnalyticsDataverseOptions) error {
-	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+	return autoOpControlErrorOnly(am.controller, "manager_analytics_drop_dataverse", func(provider analyticsIndexProvider) error {
 		if opts == nil {
 			opts = &DropAnalyticsDataverseOptions{}
 		}
@@ -118,7 +118,7 @@ type CreateAnalyticsDatasetOptions struct {
 
 // CreateDataset creates a new analytics dataset.
 func (am *AnalyticsIndexManager) CreateDataset(datasetName, bucketName string, opts *CreateAnalyticsDatasetOptions) error {
-	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+	return autoOpControlErrorOnly(am.controller, "manager_analytics_create_dataset", func(provider analyticsIndexProvider) error {
 		if opts == nil {
 			opts = &CreateAnalyticsDatasetOptions{}
 		}
@@ -150,7 +150,7 @@ type DropAnalyticsDatasetOptions struct {
 
 // DropDataset drops an analytics dataset.
 func (am *AnalyticsIndexManager) DropDataset(datasetName string, opts *DropAnalyticsDatasetOptions) error {
-	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+	return autoOpControlErrorOnly(am.controller, "manager_analytics_drop_dataset", func(provider analyticsIndexProvider) error {
 		if opts == nil {
 			opts = &DropAnalyticsDatasetOptions{}
 		}
@@ -173,7 +173,7 @@ type GetAllAnalyticsDatasetsOptions struct {
 
 // GetAllDatasets gets all analytics datasets.
 func (am *AnalyticsIndexManager) GetAllDatasets(opts *GetAllAnalyticsDatasetsOptions) ([]AnalyticsDataset, error) {
-	return autoOpControl(am.controller, func(provider analyticsIndexProvider) ([]AnalyticsDataset, error) {
+	return autoOpControl(am.controller, "manager_analytics_get_all_datasets", func(provider analyticsIndexProvider) ([]AnalyticsDataset, error) {
 		if opts == nil {
 			opts = &GetAllAnalyticsDatasetsOptions{}
 		}
@@ -199,7 +199,7 @@ type CreateAnalyticsIndexOptions struct {
 
 // CreateIndex creates a new analytics dataset.
 func (am *AnalyticsIndexManager) CreateIndex(datasetName, indexName string, fields map[string]string, opts *CreateAnalyticsIndexOptions) error {
-	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+	return autoOpControlErrorOnly(am.controller, "manager_analytics_create_index", func(provider analyticsIndexProvider) error {
 		if opts == nil {
 			opts = &CreateAnalyticsIndexOptions{}
 		}
@@ -236,7 +236,7 @@ type DropAnalyticsIndexOptions struct {
 
 // DropIndex drops an analytics index.
 func (am *AnalyticsIndexManager) DropIndex(datasetName, indexName string, opts *DropAnalyticsIndexOptions) error {
-	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+	return autoOpControlErrorOnly(am.controller, "manager_analytics_drop_index", func(provider analyticsIndexProvider) error {
 		if opts == nil {
 			opts = &DropAnalyticsIndexOptions{}
 		}
@@ -259,7 +259,7 @@ type GetAllAnalyticsIndexesOptions struct {
 
 // GetAllIndexes gets all analytics indexes.
 func (am *AnalyticsIndexManager) GetAllIndexes(opts *GetAllAnalyticsIndexesOptions) ([]AnalyticsIndex, error) {
-	return autoOpControl(am.controller, func(provider analyticsIndexProvider) ([]AnalyticsIndex, error) {
+	return autoOpControl(am.controller, "manager_analytics_get_all_indexes", func(provider analyticsIndexProvider) ([]AnalyticsIndex, error) {
 		if opts == nil {
 			opts = &GetAllAnalyticsIndexesOptions{}
 		}
@@ -285,7 +285,7 @@ type ConnectAnalyticsLinkOptions struct {
 
 // ConnectLink connects an analytics link.
 func (am *AnalyticsIndexManager) ConnectLink(opts *ConnectAnalyticsLinkOptions) error {
-	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+	return autoOpControlErrorOnly(am.controller, "manager_analytics_connect_link", func(provider analyticsIndexProvider) error {
 		if opts == nil {
 			opts = &ConnectAnalyticsLinkOptions{}
 		}
@@ -311,7 +311,7 @@ type DisconnectAnalyticsLinkOptions struct {
 
 // DisconnectLink disconnects an analytics link.
 func (am *AnalyticsIndexManager) DisconnectLink(opts *DisconnectAnalyticsLinkOptions) error {
-	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+	return autoOpControlErrorOnly(am.controller, "manager_analytics_disconnect_link", func(provider analyticsIndexProvider) error {
 		if opts == nil {
 			opts = &DisconnectAnalyticsLinkOptions{}
 		}
@@ -334,7 +334,7 @@ type GetPendingMutationsAnalyticsOptions struct {
 
 // GetPendingMutations returns the number of pending mutations for all indexes in the form of dataverse.dataset:mutations.
 func (am *AnalyticsIndexManager) GetPendingMutations(opts *GetPendingMutationsAnalyticsOptions) (map[string]map[string]int, error) {
-	return autoOpControl(am.controller, func(provider analyticsIndexProvider) (map[string]map[string]int, error) {
+	return autoOpControl(am.controller, "manager_analytics_get_pending_mutations", func(provider analyticsIndexProvider) (map[string]map[string]int, error) {
 		if opts == nil {
 			opts = &GetPendingMutationsAnalyticsOptions{}
 		}
@@ -451,7 +451,7 @@ type CreateAnalyticsLinkOptions struct {
 
 // CreateLink creates an analytics link.
 func (am *AnalyticsIndexManager) CreateLink(link AnalyticsLink, opts *CreateAnalyticsLinkOptions) error {
-	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+	return autoOpControlErrorOnly(am.controller, "manager_analytics_create_link", func(provider analyticsIndexProvider) error {
 		if opts == nil {
 			opts = &CreateAnalyticsLinkOptions{}
 		}
@@ -475,7 +475,7 @@ type ReplaceAnalyticsLinkOptions struct {
 
 // ReplaceLink modifies an existing analytics link.
 func (am *AnalyticsIndexManager) ReplaceLink(link AnalyticsLink, opts *ReplaceAnalyticsLinkOptions) error {
-	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+	return autoOpControlErrorOnly(am.controller, "manager_analytics_replace_link", func(provider analyticsIndexProvider) error {
 		if opts == nil {
 			opts = &ReplaceAnalyticsLinkOptions{}
 		}
@@ -501,7 +501,7 @@ type DropAnalyticsLinkOptions struct {
 // dataverseName can be given in the form of "namepart" or "namepart1/namepart2".
 // Only available against Couchbase Server 7.0+.
 func (am *AnalyticsIndexManager) DropLink(linkName, dataverseName string, opts *DropAnalyticsLinkOptions) error {
-	return autoOpControlErrorOnly(am.controller, func(provider analyticsIndexProvider) error {
+	return autoOpControlErrorOnly(am.controller, "manager_analytics_drop_link", func(provider analyticsIndexProvider) error {
 		if opts == nil {
 			opts = &DropAnalyticsLinkOptions{}
 		}
@@ -532,7 +532,7 @@ type GetAnalyticsLinksOptions struct {
 
 // GetLinks retrieves all external or remote analytics links.
 func (am *AnalyticsIndexManager) GetLinks(opts *GetAnalyticsLinksOptions) ([]AnalyticsLink, error) {
-	return autoOpControl(am.controller, func(provider analyticsIndexProvider) ([]AnalyticsLink, error) {
+	return autoOpControl(am.controller, "manager_analytics_get_all_links", func(provider analyticsIndexProvider) ([]AnalyticsLink, error) {
 		if opts == nil {
 			opts = &GetAnalyticsLinksOptions{}
 		}

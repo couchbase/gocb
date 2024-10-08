@@ -34,10 +34,9 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 	manager := qpc.managerProvider.NewManager(opts.ParentSpan, "query", attribs)
 	// Spans in couchbase2 mode need to live for the lifetime of the response body as any underlying
 	// grpc span will do so.
-	defer manager.ValueRecord()
 	defer func() {
 		if errOut != nil {
-			manager.Finish(true)
+			manager.Finish()
 		}
 	}()
 
@@ -158,7 +157,7 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 		case QueryProfileModeTimings:
 			profileMode = query_v1.QueryRequest_PROFILE_MODE_TIMINGS
 		default:
-			manager.Finish(true)
+			manager.Finish()
 			return nil, makeInvalidArgumentsError("unexpected profile mode option")
 		}
 		req.ProfileMode = &profileMode
@@ -209,7 +208,7 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 	close(doneCh)
 	if err != nil {
 		reqCancel()
-		manager.Finish(true)
+		manager.Finish()
 		return nil, qpc.makeError(err, statement, opts.Readonly, atomic.LoadUint32(&cancellationIsTimeout) == 1,
 			manager.ElapsedTime(), manager.RetryInfo())
 	}
@@ -398,7 +397,7 @@ func (q *queryProviderPsRowReader) Close() error {
 	q.cancelFunc()
 	err := q.cli.CloseSend()
 
-	q.manager.Finish(true)
+	q.manager.Finish()
 
 	q.cli = nil
 	return err
@@ -420,7 +419,7 @@ func (r *queryProviderPsRowReader) finishWithoutError() {
 		logWarnf("query stream close failed after meta-data: %s", err)
 	}
 
-	r.manager.Finish(true)
+	r.manager.Finish()
 
 	r.cli = nil
 }
@@ -438,7 +437,7 @@ func (r *queryProviderPsRowReader) finishWithError(err error) {
 		logDebugf("query stream close failed after error: %s", closeErr)
 	}
 
-	r.manager.Finish(true)
+	r.manager.Finish()
 
 	// Our client is invalidated as soon as an error occurs
 	r.cli = nil

@@ -352,7 +352,7 @@ func (r *QueryResultInternal) Endpoint() string {
 
 // Query executes the query statement on the server.
 func (c *Cluster) Query(statement string, opts *QueryOptions) (*QueryResult, error) {
-	return autoOpControl(c.queryController(), func(provider queryProvider) (*QueryResult, error) {
+	return autoOpControl(c.queryController(), "query", func(provider queryProvider) (*QueryResult, error) {
 		if opts == nil {
 			opts = &QueryOptions{}
 		}

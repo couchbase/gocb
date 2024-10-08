@@ -83,22 +83,22 @@ func newAggregatingMeter(opts *LoggingMeterOptions) *LoggingMeter {
 	am := &LoggingMeter{
 		interval: interval,
 		valueRecorderGroups: map[string]*aggregatingMeterGroup{
-			meterValueServiceKV: {
+			serviceValueKV: {
 				recorders: make(map[string]*aggregatingValueRecorder),
 			},
-			meterValueServiceViews: {
+			serviceValueViews: {
 				recorders: make(map[string]*aggregatingValueRecorder),
 			},
-			meterValueServiceQuery: {
+			serviceValueQuery: {
 				recorders: make(map[string]*aggregatingValueRecorder),
 			},
-			meterValueServiceSearch: {
+			serviceValueSearch: {
 				recorders: make(map[string]*aggregatingValueRecorder),
 			},
-			meterValueServiceAnalytics: {
+			serviceValueAnalytics: {
 				recorders: make(map[string]*aggregatingValueRecorder),
 			},
-			meterValueServiceManagement: {
+			serviceValueManagement: {
 				recorders: make(map[string]*aggregatingValueRecorder),
 			},
 		},

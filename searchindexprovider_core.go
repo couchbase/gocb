@@ -18,7 +18,6 @@ type searchIndexProviderCore struct {
 	searchCapVerifier searchCapabilityVerifier
 
 	tracer *tracerWrapper
-	meter  *meterWrapper
 }
 
 var _ searchIndexProvider = (*searchIndexProviderCore)(nil)
@@ -31,9 +30,6 @@ func (sm *searchIndexProviderCore) GetAllIndexes(scope *Scope, opts *GetAllSearc
 	if scope != nil && sm.scopedIndexesUnsupported() {
 		return nil, wrapError(ErrFeatureNotAvailable, "scoped indexes cannot be used with this server version")
 	}
-
-	start := time.Now()
-	defer sm.meter.ValueRecord(meterValueServiceManagement, "manager_search_get_all_indexes", start)
 
 	path := sm.pathPrefix(scope)
 
@@ -95,9 +91,6 @@ func (sm *searchIndexProviderCore) GetIndex(scope *Scope, indexName string, opts
 	if scope != nil && sm.scopedIndexesUnsupported() {
 		return nil, wrapError(ErrFeatureNotAvailable, "scoped indexes cannot be used with this server version")
 	}
-
-	start := time.Now()
-	defer sm.meter.ValueRecord(meterValueServiceManagement, "manager_search_get_index", start)
 
 	path := fmt.Sprintf("%s/%s", sm.pathPrefix(scope), url.PathEscape(indexName))
 	span := sm.tracer.createSpan(opts.ParentSpan, "manager_search_get_index", "management")
@@ -218,9 +211,6 @@ func (sm *searchIndexProviderCore) UpsertIndex(scope *Scope, indexDefinition Sea
 		return invalidArgumentsError{"index type cannot be empty"}
 	}
 
-	start := time.Now()
-	defer sm.meter.ValueRecord(meterValueServiceManagement, "manager_search_upsert_index", start)
-
 	path := fmt.Sprintf("%s/%s", sm.pathPrefix(scope), url.PathEscape(indexDefinition.Name))
 	span := sm.tracer.createSpan(opts.ParentSpan, "manager_search_upsert_index", "management")
 	span.SetAttribute("db.operation", "PUT "+path)
@@ -278,9 +268,6 @@ func (sm *searchIndexProviderCore) DropIndex(scope *Scope, indexName string, opt
 	if indexName == "" {
 		return invalidArgumentsError{"indexName cannot be empty"}
 	}
-
-	start := time.Now()
-	defer sm.meter.ValueRecord(meterValueServiceManagement, "manager_search_drop_index", start)
 
 	path := fmt.Sprintf("%s/%s", sm.pathPrefix(scope), url.PathEscape(indexName))
 	span := sm.tracer.createSpan(opts.ParentSpan, "manager_search_drop_index", "management")

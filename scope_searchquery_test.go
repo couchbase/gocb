@@ -199,10 +199,10 @@ func (suite *UnitTestSuite) searchScope(reader searchRowReader, runFn func(args 
 	searchProvider := &searchProviderCore{
 		provider: provider,
 		tracer:   newTracerWrapper(&NoopTracer{}),
-		meter:    newMeterWrapper(&NoopMeter{}),
 	}
 	cli := new(mockConnectionManager)
 	cli.On("getSearchProvider").Return(searchProvider, nil)
+	cli.On("getMeter").Return(nil)
 	cli.On("MarkOpBeginning").Return()
 	cli.On("MarkOpCompleted").Return()
 

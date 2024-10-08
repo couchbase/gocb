@@ -21,7 +21,6 @@ type kvProviderPs struct {
 	client kv_v1.KvServiceClient
 
 	tracer *tracerWrapper
-	meter  *meterWrapper
 }
 
 // this is uint8 to int32, need to check overflows etc
@@ -45,7 +44,7 @@ var memdToPsMutateinTranslation = map[memd.SubDocOpType]kv_v1.MutateInRequest_Sp
 
 func (p *kvProviderPs) LookupIn(c *Collection, id string, ops []LookupInSpec, opts *LookupInOptions) (*LookupInResult, error) {
 	opm := newKvOpManagerPs(c, "lookup_in", opts.ParentSpan, p)
-	defer opm.Finish(opts.noMetrics)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetRetryStrategy(opts.RetryStrategy)
@@ -135,7 +134,7 @@ func (p *kvProviderPs) LookupInAllReplicas(*Collection, string, []LookupInSpec, 
 
 func (p *kvProviderPs) MutateIn(c *Collection, id string, ops []MutateInSpec, opts *MutateInOptions) (*MutateInResult, error) {
 	opm := newKvOpManagerPs(c, "mutate_in", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetRetryStrategy(opts.RetryStrategy)
@@ -268,7 +267,7 @@ func (p *kvProviderPs) Scan(c *Collection, scanType ScanType, opts *ScanOptions)
 
 func (p *kvProviderPs) Insert(c *Collection, id string, val interface{}, opts *InsertOptions) (*MutationResult, error) {
 	opm := newKvOpManagerPs(c, "insert", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -325,7 +324,7 @@ func (p *kvProviderPs) Insert(c *Collection, id string, val interface{}, opts *I
 
 func (p *kvProviderPs) Upsert(c *Collection, id string, val interface{}, opts *UpsertOptions) (*MutationResult, error) {
 	opm := newKvOpManagerPs(c, "upsert", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -391,7 +390,7 @@ func (p *kvProviderPs) Upsert(c *Collection, id string, val interface{}, opts *U
 
 func (p *kvProviderPs) Replace(c *Collection, id string, val interface{}, opts *ReplaceOptions) (*MutationResult, error) {
 	opm := newKvOpManagerPs(c, "replace", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -459,7 +458,7 @@ func (p *kvProviderPs) Replace(c *Collection, id string, val interface{}, opts *
 
 func (p *kvProviderPs) Get(c *Collection, id string, opts *GetOptions) (*GetResult, error) {
 	opm := newKvOpManagerPs(c, "get", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -512,7 +511,7 @@ func (p *kvProviderPs) Get(c *Collection, id string, opts *GetOptions) (*GetResu
 
 func (p *kvProviderPs) GetAndTouch(c *Collection, id string, expiry time.Duration, opts *GetAndTouchOptions) (*GetResult, error) {
 	opm := newKvOpManagerPs(c, "get_and_touch", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -564,7 +563,7 @@ func (p *kvProviderPs) GetAndTouch(c *Collection, id string, expiry time.Duratio
 
 func (p *kvProviderPs) GetAndLock(c *Collection, id string, lockTime time.Duration, opts *GetAndLockOptions) (*GetResult, error) {
 	opm := newKvOpManagerPs(c, "get_and_lock", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -614,7 +613,7 @@ func (p *kvProviderPs) GetAndLock(c *Collection, id string, lockTime time.Durati
 
 func (p *kvProviderPs) Exists(c *Collection, id string, opts *ExistsOptions) (*ExistsResult, error) {
 	opm := newKvOpManagerPs(c, "exists", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetTimeout(opts.Timeout)
@@ -651,7 +650,7 @@ func (p *kvProviderPs) Exists(c *Collection, id string, opts *ExistsOptions) (*E
 
 func (p *kvProviderPs) Remove(c *Collection, id string, opts *RemoveOptions) (*MutationResult, error) {
 	opm := newKvOpManagerPs(c, "remove", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.DurabilityLevel)
@@ -697,7 +696,7 @@ func (p *kvProviderPs) Remove(c *Collection, id string, opts *RemoveOptions) (*M
 
 func (p *kvProviderPs) Unlock(c *Collection, id string, cas Cas, opts *UnlockOptions) error {
 	opm := newKvOpManagerPs(c, "unlock", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetTimeout(opts.Timeout)
@@ -725,7 +724,7 @@ func (p *kvProviderPs) Unlock(c *Collection, id string, cas Cas, opts *UnlockOpt
 
 func (p *kvProviderPs) Touch(c *Collection, id string, expiry time.Duration, opts *TouchOptions) (*MutationResult, error) {
 	opm := newKvOpManagerPs(c, "touch", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetRetryStrategy(opts.RetryStrategy)
@@ -838,7 +837,7 @@ func (r *psReplicasResult) finishWithError(err error) {
 
 func (p *kvProviderPs) GetAllReplicas(c *Collection, id string, opts *GetAllReplicaOptions) (*GetAllReplicasResult, error) {
 	opm := newKvOpManagerPs(c, "get_all_replicas", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetTimeout(opts.Timeout)
@@ -876,7 +875,7 @@ func (p *kvProviderPs) GetAllReplicas(c *Collection, id string, opts *GetAllRepl
 
 func (p *kvProviderPs) GetAnyReplica(c *Collection, id string, opts *GetAnyReplicaOptions) (*GetReplicaResult, error) {
 	opm := newKvOpManagerPs(c, "get_any_replica", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	res, err := p.GetAllReplicas(c, id, &GetAllReplicaOptions{
 		Transcoder:    opts.Transcoder,
@@ -885,7 +884,6 @@ func (p *kvProviderPs) GetAnyReplica(c *Collection, id string, opts *GetAnyRepli
 		ParentSpan:    opm.TraceSpan(),
 		Context:       opts.Context,
 		Internal:      opts.Internal,
-		noMetrics:     false,
 	})
 	if err != nil {
 		return nil, opm.EnhanceErr(err, false)
@@ -901,7 +899,7 @@ func (p *kvProviderPs) GetAnyReplica(c *Collection, id string, opts *GetAnyRepli
 
 func (p *kvProviderPs) Prepend(c *Collection, id string, val []byte, opts *PrependOptions) (*MutationResult, error) {
 	opm := newKvOpManagerPs(c, "prepend", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.DurabilityLevel)
@@ -948,7 +946,7 @@ func (p *kvProviderPs) Prepend(c *Collection, id string, val []byte, opts *Prepe
 
 func (p *kvProviderPs) Append(c *Collection, id string, val []byte, opts *AppendOptions) (*MutationResult, error) {
 	opm := newKvOpManagerPs(c, "append", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.DurabilityLevel)
@@ -999,7 +997,7 @@ func (p *kvProviderPs) Increment(c *Collection, id string, opts *IncrementOption
 	}
 
 	opm := newKvOpManagerPs(c, "increment", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.DurabilityLevel)
@@ -1042,7 +1040,7 @@ func (p *kvProviderPs) Decrement(c *Collection, id string, opts *DecrementOption
 	}
 
 	opm := newKvOpManagerPs(c, "decrement", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.DurabilityLevel)

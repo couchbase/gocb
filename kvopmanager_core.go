@@ -34,8 +34,6 @@ type kvOpManagerCore struct {
 	impersonate     string
 
 	operationName string
-	createdTime   time.Time
-	meter         *meterWrapper
 	preserveTTL   bool
 
 	ctx context.Context
@@ -164,12 +162,8 @@ func (m *kvOpManagerCore) SetPreserveExpiry(preserveTTL bool) {
 	m.preserveTTL = preserveTTL
 }
 
-func (m *kvOpManagerCore) Finish(noMetrics bool) {
+func (m *kvOpManagerCore) Finish() {
 	m.span.End()
-
-	if !noMetrics {
-		m.meter.ValueRecord(meterValueServiceKV, m.operationName, m.createdTime)
-	}
 }
 
 func (m *kvOpManagerCore) TraceSpanContext() RequestSpanContext {
@@ -339,8 +333,6 @@ func newKvOpManagerCore(c *Collection, opName string, parentSpan RequestSpan, kv
 		signal:        make(chan struct{}, 1),
 		span:          span,
 		operationName: opName,
-		createdTime:   time.Now(),
-		meter:         kv.meter,
 		kv:            kv,
 	}
 }

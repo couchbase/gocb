@@ -1,6 +1,9 @@
 package gocb
 
-import gocbcore "github.com/couchbase/gocbcore/v10"
+import (
+	gocbcore "github.com/couchbase/gocbcore/v10"
+	"time"
+)
 
 type connectionManager interface {
 	connect() error
@@ -33,6 +36,8 @@ type connectionManager interface {
 	initTransactions(config TransactionsConfig, cluster *Cluster) error
 	getTransactionsProvider() (transactionsProvider, error)
 
+	getMeter() *meterWrapper
+
 	opController
 }
 
@@ -44,9 +49,14 @@ type opController interface {
 type providerController[P any] struct {
 	get func() (P, error)
 	opController
+
+	// Metrics-related fields
+	meter    *meterWrapper
+	keyspace *keyspace
+	service  string
 }
 
-func autoOpControl[T any, P any](controller *providerController[P], opFn func(P) (T, error)) (T, error) {
+func autoOpControl[T any, P any](controller *providerController[P], operation string, opFn func(P) (T, error)) (T, error) {
 	controller.MarkOpBeginning()
 	defer controller.MarkOpCompleted()
 
@@ -56,7 +66,13 @@ func autoOpControl[T any, P any](controller *providerController[P], opFn func(P)
 		return emptyT, err
 	}
 
+	start := time.Now()
 	retT, err := opFn(p)
+
+	if operation != "" && controller.meter != nil {
+		defer controller.meter.ValueRecord(controller.service, operation, start, controller.keyspace, err)
+	}
+
 	if err != nil {
 		var emptyT T
 		return emptyT, err
@@ -65,8 +81,8 @@ func autoOpControl[T any, P any](controller *providerController[P], opFn func(P)
 	return retT, nil
 }
 
-func autoOpControlErrorOnly[P any](controller *providerController[P], opFn func(P) error) error {
-	_, err := autoOpControl(controller, func(provider P) (struct{}, error) {
+func autoOpControlErrorOnly[P any](controller *providerController[P], operation string, opFn func(P) error) error {
+	_, err := autoOpControl(controller, operation, func(provider P) (struct{}, error) {
 		err := opFn(provider)
 		return struct{}{}, err
 	})

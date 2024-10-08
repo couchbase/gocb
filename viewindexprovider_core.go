@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/url"
 	"strings"
-	"time"
 )
 
 // View represents a Couchbase view within a design document.
@@ -27,7 +26,6 @@ type viewIndexProviderCore struct {
 	mgmtProvider mgmtProvider
 	bucketName   string
 	tracer       *tracerWrapper
-	meter        *meterWrapper
 }
 
 func (vm *viewIndexProviderCore) tryParseErrorMessage(req mgmtRequest, resp *mgmtResponse) error {
@@ -101,14 +99,10 @@ func (vm *viewIndexProviderCore) GetDesignDocument(name string, namespace Design
 		opts = &GetDesignDocumentOptions{}
 	}
 
-	start := time.Now()
-	defer vm.meter.ValueRecord(meterValueServiceManagement, "manager_views_get_design_document", start)
-
-	return vm.getDesignDocument(name, namespace, time.Now(), opts)
+	return vm.getDesignDocument(name, namespace, opts)
 }
 
-func (vm *viewIndexProviderCore) getDesignDocument(name string, namespace DesignDocumentNamespace,
-	startTime time.Time, opts *GetDesignDocumentOptions) (*DesignDocument, error) {
+func (vm *viewIndexProviderCore) getDesignDocument(name string, namespace DesignDocumentNamespace, opts *GetDesignDocumentOptions) (*DesignDocument, error) {
 
 	name = vm.ddocName(name, namespace)
 
@@ -165,9 +159,6 @@ func (vm *viewIndexProviderCore) GetAllDesignDocuments(namespace DesignDocumentN
 	if opts == nil {
 		opts = &GetAllDesignDocumentsOptions{}
 	}
-
-	start := time.Now()
-	defer vm.meter.ValueRecord(meterValueServiceManagement, "manager_views_get_all_design_documents", start)
 
 	path := fmt.Sprintf("/pools/default/buckets/%s/ddocs", vm.bucketName)
 	span := vm.tracer.createSpan(opts.ParentSpan, "manager_views_get_all_design_documents", "management")
@@ -257,16 +248,12 @@ func (vm *viewIndexProviderCore) UpsertDesignDocument(ddoc DesignDocument, names
 		opts = &UpsertDesignDocumentOptions{}
 	}
 
-	start := time.Now()
-	defer vm.meter.ValueRecord(meterValueServiceManagement, "manager_views_upsert_design_document", start)
-
-	return vm.upsertDesignDocument(ddoc, namespace, time.Now(), opts)
+	return vm.upsertDesignDocument(ddoc, namespace, opts)
 }
 
 func (vm *viewIndexProviderCore) upsertDesignDocument(
 	ddoc DesignDocument,
 	namespace DesignDocumentNamespace,
-	startTime time.Time,
 	opts *UpsertDesignDocumentOptions,
 ) error {
 	ddocData, ddocName, err := ddoc.toData()
@@ -322,19 +309,15 @@ func (vm *viewIndexProviderCore) DropDesignDocument(name string, namespace Desig
 		opts = &DropDesignDocumentOptions{}
 	}
 
-	start := time.Now()
-	defer vm.meter.ValueRecord(meterValueServiceManagement, "manager_views_drop_design_document", start)
-
 	span := vm.tracer.createSpan(opts.ParentSpan, "manager_views_drop_design_document", "management")
 	span.SetAttribute("db.operation", "DELETE "+fmt.Sprintf("/_design/%s", name))
 	span.SetAttribute("db.name", vm.bucketName)
 	defer span.End()
 
-	return vm.dropDesignDocument(span.Context(), name, namespace, time.Now(), opts)
+	return vm.dropDesignDocument(span.Context(), name, namespace, opts)
 }
 
-func (vm *viewIndexProviderCore) dropDesignDocument(tracectx RequestSpanContext, name string, namespace DesignDocumentNamespace,
-	startTime time.Time, opts *DropDesignDocumentOptions) error {
+func (vm *viewIndexProviderCore) dropDesignDocument(tracectx RequestSpanContext, name string, namespace DesignDocumentNamespace, opts *DropDesignDocumentOptions) error {
 
 	name = vm.ddocName(name, namespace)
 
@@ -367,13 +350,9 @@ func (vm *viewIndexProviderCore) dropDesignDocument(tracectx RequestSpanContext,
 
 // PublishDesignDocument publishes a design document to the given bucket.
 func (vm *viewIndexProviderCore) PublishDesignDocument(name string, opts *PublishDesignDocumentOptions) error {
-	startTime := time.Now()
 	if opts == nil {
 		opts = &PublishDesignDocumentOptions{}
 	}
-
-	start := time.Now()
-	defer vm.meter.ValueRecord(meterValueServiceManagement, "manager_views_publish_design_document", start)
 
 	span := vm.tracer.createSpan(opts.ParentSpan, "manager_views_publish_design_document", "management")
 	span.SetAttribute("db.name", vm.bucketName)
@@ -382,7 +361,6 @@ func (vm *viewIndexProviderCore) PublishDesignDocument(name string, opts *Publis
 	devdoc, err := vm.getDesignDocument(
 		name,
 		DesignDocumentNamespaceDevelopment,
-		startTime,
 		&GetDesignDocumentOptions{
 			RetryStrategy: opts.RetryStrategy,
 			Timeout:       opts.Timeout,
@@ -396,7 +374,6 @@ func (vm *viewIndexProviderCore) PublishDesignDocument(name string, opts *Publis
 	err = vm.upsertDesignDocument(
 		*devdoc,
 		DesignDocumentNamespaceProduction,
-		startTime,
 		&UpsertDesignDocumentOptions{
 			RetryStrategy: opts.RetryStrategy,
 			Timeout:       opts.Timeout,

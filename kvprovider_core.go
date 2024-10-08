@@ -13,7 +13,6 @@ type kvProviderCore struct {
 	snapshotProvider kvProviderConfigSnapshotProvider
 
 	tracer               *tracerWrapper
-	meter                *meterWrapper
 	preferredServerGroup string
 }
 
@@ -91,7 +90,7 @@ func (p *kvProviderCore) getCollectionID(ctx context.Context, c *Collection, par
 	}
 
 	opm := newKvOpManagerCore(c, "get_collection_id", parentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetTimeout(timeout)
 	opm.SetImpersonate(impersonate)
@@ -127,7 +126,7 @@ func (p *kvProviderCore) getCollectionID(ctx context.Context, c *Collection, par
 
 func (p *kvProviderCore) Insert(c *Collection, id string, val interface{}, opts *InsertOptions) (*MutationResult, error) {
 	opm := newKvOpManagerCore(c, "insert", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -179,7 +178,7 @@ func (p *kvProviderCore) Insert(c *Collection, id string, val interface{}, opts 
 
 func (p *kvProviderCore) Upsert(c *Collection, id string, val interface{}, opts *UpsertOptions) (*MutationResult, error) {
 	opm := newKvOpManagerCore(c, "upsert", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -232,7 +231,7 @@ func (p *kvProviderCore) Upsert(c *Collection, id string, val interface{}, opts 
 
 func (p *kvProviderCore) Replace(c *Collection, id string, val interface{}, opts *ReplaceOptions) (*MutationResult, error) {
 	opm := newKvOpManagerCore(c, "replace", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -304,7 +303,7 @@ func (p *kvProviderCore) getDirect(c *Collection, id string, opts *GetOptions) (
 	}
 
 	opm := newKvOpManagerCore(c, "get", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -360,7 +359,7 @@ func (p *kvProviderCore) getProjected(c *Collection, id string, opts *GetOptions
 	}
 
 	opm := newKvOpManagerCore(c, "get", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -410,7 +409,6 @@ func (p *kvProviderCore) getProjected(c *Collection, id string, opts *GetOptions
 
 	result, err := p.LookupIn(c, id, ops, &LookupInOptions{
 		ParentSpan: opm.TraceSpan(),
-		noMetrics:  true,
 		Context:    opts.Context,
 	})
 	if err != nil {
@@ -468,7 +466,7 @@ func (p *kvProviderCore) getProjected(c *Collection, id string, opts *GetOptions
 
 func (p *kvProviderCore) GetAndTouch(c *Collection, id string, expiry time.Duration, opts *GetAndTouchOptions) (*GetResult, error) {
 	opm := newKvOpManagerCore(c, "get_and_touch", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -522,7 +520,7 @@ func (p *kvProviderCore) GetAndTouch(c *Collection, id string, expiry time.Durat
 
 func (p *kvProviderCore) GetAndLock(c *Collection, id string, lockTime time.Duration, opts *GetAndLockOptions) (*GetResult, error) {
 	opm := newKvOpManagerCore(c, "get_and_lock", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(opts.Transcoder)
@@ -577,7 +575,7 @@ func (p *kvProviderCore) GetAndLock(c *Collection, id string, lockTime time.Dura
 
 func (p *kvProviderCore) Exists(c *Collection, id string, opts *ExistsOptions) (*ExistsResult, error) {
 	opm := newKvOpManagerCore(c, "exists", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetRetryStrategy(opts.RetryStrategy)
@@ -637,7 +635,7 @@ func (p *kvProviderCore) Exists(c *Collection, id string, opts *ExistsOptions) (
 
 func (p *kvProviderCore) Remove(c *Collection, id string, opts *RemoveOptions) (*MutationResult, error) {
 	opm := newKvOpManagerCore(c, "remove", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
@@ -685,7 +683,7 @@ func (p *kvProviderCore) Remove(c *Collection, id string, opts *RemoveOptions) (
 
 func (p *kvProviderCore) Unlock(c *Collection, id string, cas Cas, opts *UnlockOptions) error {
 	opm := newKvOpManagerCore(c, "unlock", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetRetryStrategy(opts.RetryStrategy)
@@ -725,7 +723,7 @@ func (p *kvProviderCore) Unlock(c *Collection, id string, cas Cas, opts *UnlockO
 
 func (p *kvProviderCore) Touch(c *Collection, id string, expiry time.Duration, opts *TouchOptions) (*MutationResult, error) {
 	opm := newKvOpManagerCore(c, "touch", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetRetryStrategy(opts.RetryStrategy)
@@ -825,21 +823,12 @@ func (p *kvProviderCore) GetAllReplicas(c *Collection, id string, opts *GetAllRe
 	outCh := make(chan interface{}, len(servers))
 	cancelCh := make(chan struct{})
 
-	var recorder ValueRecorder
-	if !opts.noMetrics {
-		recorder, err = p.meter.ValueRecorder(meterValueServiceKV, "get_all_replicas")
-		if err != nil {
-			logDebugf("Failed to create value recorder: %v", err)
-		}
-	}
-
 	coreRes := &coreReplicasResult{
 		totalRequests:       uint32(len(servers)),
 		resCh:               outCh,
 		cancelCh:            cancelCh,
 		span:                span,
 		childReqsCompleteCh: make(chan struct{}),
-		valueRecorder:       recorder,
 		startedTime:         time.Now(),
 	}
 	repRes := &GetAllReplicasResult{
@@ -900,9 +889,6 @@ func (p *kvProviderCore) GetAnyReplica(c *Collection, id string, opts *GetAnyRep
 		opts = &GetAnyReplicaOptions{}
 	}
 
-	start := time.Now()
-	defer p.meter.ValueRecord("kv", "get_any_replica", start)
-
 	span := p.StartKvOpTrace(c, "get_any_replica", opts.ParentSpan, false)
 	defer span.End()
 
@@ -912,7 +898,6 @@ func (p *kvProviderCore) GetAnyReplica(c *Collection, id string, opts *GetAnyRep
 		RetryStrategy:  opts.RetryStrategy,
 		Internal:       opts.Internal,
 		ParentSpan:     span,
-		noMetrics:      true,
 		Context:        opts.Context,
 		ReadPreference: opts.ReadPreference,
 	})
@@ -954,7 +939,7 @@ func (p *kvProviderCore) getOneReplica(
 	c *Collection,
 ) (*GetReplicaResult, error) {
 	opm := newKvOpManagerCore(c, "get_replica", span, p)
-	defer opm.Finish(true)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetTranscoder(transcoder)
@@ -1032,7 +1017,7 @@ func (p *kvProviderCore) getOneReplica(
 
 func (p *kvProviderCore) Prepend(c *Collection, id string, val []byte, opts *PrependOptions) (*MutationResult, error) {
 	opm := newKvOpManagerCore(c, "prepend", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
@@ -1089,7 +1074,7 @@ func (p *kvProviderCore) Prepend(c *Collection, id string, val []byte, opts *Pre
 
 func (p *kvProviderCore) Append(c *Collection, id string, val []byte, opts *AppendOptions) (*MutationResult, error) {
 	opm := newKvOpManagerCore(c, "append", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
@@ -1149,7 +1134,7 @@ func (p *kvProviderCore) Increment(c *Collection, id string, opts *IncrementOpti
 		return nil, makeInvalidArgumentsError("cas is not supported by the server for the Increment operation")
 	}
 	opm := newKvOpManagerCore(c, "increment", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)
@@ -1209,7 +1194,7 @@ func (p *kvProviderCore) Decrement(c *Collection, id string, opts *DecrementOpti
 		return nil, makeInvalidArgumentsError("cas is not supported by the server for the Decrement operation")
 	}
 	opm := newKvOpManagerCore(c, "decrement", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetDuraOptions(opts.PersistTo, opts.ReplicateTo, opts.DurabilityLevel)

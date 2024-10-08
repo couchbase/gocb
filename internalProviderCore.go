@@ -3,7 +3,6 @@ package gocb
 import (
 	"encoding/json"
 	"github.com/google/uuid"
-	"time"
 )
 
 type internalProviderCore struct {
@@ -15,8 +14,6 @@ type internalProviderCore struct {
 
 func (ic *internalProviderCore) GetNodesMetadata(opts *GetNodesMetadataOptions) ([]NodeMetadata, error) {
 	path := "/pools/default"
-	start := time.Now()
-	defer ic.meter.ValueRecord(meterValueServiceManagement, "internal_get_nodes_metadata", start)
 
 	span := ic.tracer.createSpan(opts.ParentSpan, "internal_get_nodes_metadata", "management")
 	span.SetAttribute("db.operation", "GET "+path)

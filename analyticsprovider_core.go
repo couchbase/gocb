@@ -21,7 +21,6 @@ type analyticsProviderCore struct {
 	transcoder           Transcoder
 	analyticsTimeout     time.Duration
 	tracer               *tracerWrapper
-	meter                *meterWrapper
 }
 
 type jsonAnalyticsMetrics struct {
@@ -54,9 +53,6 @@ func (ap *analyticsProviderCore) AnalyticsQuery(statement string, scope *Scope, 
 	if opts == nil {
 		opts = &AnalyticsOptions{}
 	}
-
-	start := time.Now()
-	defer ap.meter.ValueRecord(meterValueServiceAnalytics, "analytics", start)
 
 	span := ap.tracer.createSpan(opts.ParentSpan, "analytics", "analytics")
 	span.SetAttribute("db.statement", statement)

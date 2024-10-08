@@ -1118,8 +1118,8 @@ func (suite *IntegrationTestSuite) TestCollectionRetry() {
 		suite.T().Fatalf("Expected resulting doc to be %v but was %v", doc, insertedDocContent)
 	}
 
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, meterValueServiceManagement, "manager_collections_create_collection"), 2, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, meterValueServiceManagement, "manager_collections_drop_collection"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, serviceValueManagement, "manager_collections_create_collection"), 2, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, serviceValueManagement, "manager_collections_drop_collection"), 1, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "upsert", 2, true)
 	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
 }
@@ -2482,7 +2482,6 @@ func (suite *UnitTestSuite) kvProviderCore(agent kvProviderCoreProvider, snapsho
 		agent:            agent,
 		snapshotProvider: snapshotProvider,
 		tracer:           newTracerWrapper(&NoopTracer{}),
-		meter:            newMeterWrapper(&NoopMeter{}),
 	}
 }
 

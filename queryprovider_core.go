@@ -21,13 +21,9 @@ type queryProviderCore struct {
 	transcoder           Transcoder
 	timeouts             TimeoutsConfig
 	tracer               *tracerWrapper
-	meter                *meterWrapper
 }
 
 func (qpc *queryProviderCore) Query(statement string, s *Scope, opts *QueryOptions) (*QueryResult, error) {
-	start := time.Now()
-	defer qpc.meter.ValueRecord(meterValueServiceQuery, "query", start)
-
 	span := qpc.tracer.createSpan(opts.ParentSpan, "query", "query")
 	span.SetAttribute("db.statement", statement)
 	if s != nil {

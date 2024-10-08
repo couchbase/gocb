@@ -620,6 +620,7 @@ func (suite *UnitTestSuite) TestTransactionsQueryGocbcoreCauseError() {
 
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
+	cli.On("getMeter").Return(nil)
 	cli.On("close").Return(nil)
 	cli.On("MarkOpBeginning").Return()
 	cli.On("MarkOpCompleted").Return()
@@ -627,7 +628,6 @@ func (suite *UnitTestSuite) TestTransactionsQueryGocbcoreCauseError() {
 	cluster := suite.newCluster(cli)
 	defer cluster.Close(nil)
 
-	queryProvider.meter = newMeterWrapper(&NoopMeter{})
 	queryProvider.tracer = newTracerWrapper(&NoopTracer{})
 	queryProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
 	queryProvider.timeouts = cluster.timeoutsConfig

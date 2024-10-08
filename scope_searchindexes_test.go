@@ -317,6 +317,7 @@ func (suite *UnitTestSuite) TestScopeSearchIndexesFeatureNotAvailable() {
 	cli.On("getSearchIndexProvider").Return(&searchIndexProviderCore{
 		searchCapVerifier: mockCapVerifier,
 	}, nil)
+	cli.On("getMeter").Return(nil)
 	cli.On("MarkOpBeginning").Return()
 	cli.On("MarkOpCompleted").Return()
 

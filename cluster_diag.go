@@ -81,7 +81,7 @@ type DiagnosticsOptions struct {
 
 // Diagnostics returns information about the internal state of the SDK.
 func (c *Cluster) Diagnostics(opts *DiagnosticsOptions) (*DiagnosticsResult, error) {
-	return autoOpControl(c.diagnosticsController(), func(provider diagnosticsProvider) (*DiagnosticsResult, error) {
+	return autoOpControl(c.diagnosticsController(), "", func(provider diagnosticsProvider) (*DiagnosticsResult, error) {
 		if opts == nil {
 			opts = &DiagnosticsOptions{}
 		}

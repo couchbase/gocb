@@ -360,12 +360,14 @@ const (
 	meterAttribOutcomeKey        = "outcome"
 	meterAttribClusterUUIDKey    = "db.couchbase.cluster_uuid"
 	meterAttribClusterNameKey    = "db.couchbase.cluster_name"
-	meterValueServiceKV          = "kv"
-	meterValueServiceQuery       = "query"
-	meterValueServiceAnalytics   = "analytics"
-	meterValueServiceSearch      = "search"
-	meterValueServiceViews       = "views"
-	meterValueServiceManagement  = "management"
+
+	serviceValueKV         = "kv"
+	serviceValueQuery      = "query"
+	serviceValueAnalytics  = "analytics"
+	serviceValueSearch     = "search"
+	serviceValueViews      = "views"
+	serviceValueManagement = "management"
+	serviceValueEventing   = "eventing"
 )
 
 type AnalyticsLinkType string

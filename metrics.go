@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"errors"
 	"fmt"
 	"github.com/couchbase/gocbcore/v10"
 	"go.opentelemetry.io/otel/metric"
@@ -125,19 +126,32 @@ func newMeterWrapper(meter Meter) *meterWrapper {
 	}
 }
 
-func (mw *meterWrapper) ValueRecorder(service, operation string) (ValueRecorder, error) {
+type keyspace struct {
+	bucketName     string
+	scopeName      string
+	collectionName string
+}
+
+func (mw *meterWrapper) ValueRecorder(service, operation string, keyspace *keyspace, operationErr error) (ValueRecorder, error) {
 	if mw.isNoopMeter {
-		// If it's a noop meter then let's not pay the overhead of creating and caching attributes.
+		// If it's a noop meter then let's not pay the overhead of creating attributes.
 		return defaultNoopValueRecorder, nil
 	}
 
 	var labels gocbcore.ClusterLabels
 	if mw.clusterLabelsProvider != nil {
 		labels = mw.clusterLabelsProvider.ClusterLabels()
-
 	}
 
-	key := fmt.Sprintf("%s.%s.%s.%s", service, operation, labels.ClusterUUID, labels.ClusterName)
+	outcome := getStandardizedOutcome(operationErr)
+
+	key := fmt.Sprintf("%s.%s.%s.%s.%s", service, operation, labels.ClusterUUID, labels.ClusterName, outcome)
+	if keyspace == nil {
+		key += "..."
+	} else {
+		key += fmt.Sprintf(".%s.%s.%s", keyspace.bucketName, keyspace.scopeName, keyspace.collectionName)
+	}
+
 	attribs, ok := mw.attribsCache.Load(key)
 
 	var attribsMap map[string]string
@@ -150,12 +164,22 @@ func (mw *meterWrapper) ValueRecorder(service, operation string) (ValueRecorder,
 		attribsMap = map[string]string{
 			meterAttribServiceKey:   service,
 			meterAttribOperationKey: operation,
+			meterAttribOutcomeKey:   outcome,
 		}
 		if labels.ClusterName != "" {
 			attribsMap[meterAttribClusterNameKey] = labels.ClusterName
 		}
 		if labels.ClusterUUID != "" {
 			attribsMap[meterAttribClusterUUIDKey] = labels.ClusterUUID
+		}
+		if keyspace.bucketName != "" {
+			attribsMap[meterAttribBucketNameKey] = keyspace.bucketName
+		}
+		if keyspace.scopeName != "" {
+			attribsMap[meterAttribScopeNameKey] = keyspace.scopeName
+		}
+		if keyspace.collectionName != "" {
+			attribsMap[meterAttribCollectionNameKey] = keyspace.collectionName
 		}
 		mw.attribsCache.Store(key, attribsMap)
 	}
@@ -168,8 +192,8 @@ func (mw *meterWrapper) ValueRecorder(service, operation string) (ValueRecorder,
 	return recorder, nil
 }
 
-func (mw *meterWrapper) ValueRecord(service, operation string, start time.Time) {
-	recorder, err := mw.ValueRecorder(service, operation)
+func (mw *meterWrapper) ValueRecord(service, operation string, start time.Time, keyspace *keyspace, err error) {
+	recorder, err := mw.ValueRecorder(service, operation, keyspace, err)
 	if err != nil {
 		logDebugf("Failed to create value recorder: %v", err)
 		return
@@ -181,4 +205,213 @@ func (mw *meterWrapper) ValueRecord(service, operation string, start time.Time) 
 	}
 
 	recorder.RecordValue(duration)
+}
+
+// getStandardizedOutcome returns the name for each error as listed in RFC#58 (Error Handling)
+func getStandardizedOutcome(err error) string {
+	if err == nil {
+		return "Success"
+	}
+	if errors.Is(err, ErrUnambiguousTimeout) {
+		return "UnambiguousTimeout"
+	}
+	if errors.Is(err, ErrAmbiguousTimeout) {
+		return "AmbiguousTimeout"
+	}
+	if errors.Is(err, ErrTimeout) {
+		return "Timeout"
+	}
+	if errors.Is(err, ErrRequestCanceled) {
+		return "RequestCanceled"
+	}
+	if errors.Is(err, ErrInvalidArgument) {
+		return "InvalidArgument"
+	}
+	if errors.Is(err, ErrServiceNotAvailable) {
+		return "ServiceNotAvailable"
+	}
+	if errors.Is(err, ErrInternalServerFailure) {
+		return "InternalServerFailure"
+	}
+	if errors.Is(err, ErrAuthenticationFailure) {
+		return "AuthenticationFailure"
+	}
+	if errors.Is(err, ErrTemporaryFailure) {
+		return "TemporaryFailure"
+	}
+	if errors.Is(err, ErrParsingFailure) {
+		return "ParsingFailure"
+	}
+	if errors.Is(err, ErrCasMismatch) {
+		return "CasMismatch"
+	}
+	if errors.Is(err, ErrBucketNotFound) {
+		return "BucketNotFound"
+	}
+	if errors.Is(err, ErrCollectionNotFound) {
+		return "CollectionNotFound"
+	}
+	if errors.Is(err, ErrUnsupportedOperation) {
+		return "UnsupportedOperation"
+	}
+	if errors.Is(err, ErrFeatureNotAvailable) {
+		return "FeatureNotAvailable"
+	}
+	if errors.Is(err, ErrScopeNotFound) {
+		return "ScopeNotFound"
+	}
+	if errors.Is(err, ErrIndexNotFound) {
+		return "IndexNotFound"
+	}
+	if errors.Is(err, ErrIndexExists) {
+		return "IndexExists"
+	}
+	if errors.Is(err, ErrEncodingFailure) {
+		return "EncodingFailure"
+	}
+	if errors.Is(err, ErrDecodingFailure) {
+		return "DecodingFailure"
+	}
+	if errors.Is(err, ErrRateLimitedFailure) {
+		return "RateLimited"
+	}
+	if errors.Is(err, ErrQuotaLimitedFailure) {
+		return "QuotaLimited"
+	}
+	if errors.Is(err, ErrDocumentNotFound) {
+		return "DocumentNotFound"
+	}
+	if errors.Is(err, ErrDocumentUnretrievable) {
+		return "DocumentUnretrievable"
+	}
+	if errors.Is(err, ErrDocumentLocked) {
+		return "DocumentLocked"
+	}
+	if errors.Is(err, ErrValueTooLarge) {
+		return "ValueTooLarge"
+	}
+	if errors.Is(err, ErrDocumentExists) {
+		return "DocumentExists"
+	}
+	if errors.Is(err, ErrDurabilityLevelNotAvailable) {
+		return "DurabilityLevelNotAvailable"
+	}
+	if errors.Is(err, ErrDurabilityImpossible) {
+		return "DurabilityImpossible"
+	}
+	if errors.Is(err, ErrDurabilityAmbiguous) {
+		return "DurabilityAmbiguous"
+	}
+	if errors.Is(err, ErrDurableWriteInProgress) {
+		return "DurableWriteInProgress"
+	}
+	if errors.Is(err, ErrDurableWriteReCommitInProgress) {
+		return "DurableWriteReCommitInProgress"
+	}
+	if errors.Is(err, ErrPathNotFound) {
+		return "PathNotFound"
+	}
+	if errors.Is(err, ErrPathMismatch) {
+		return "PathMismatch"
+	}
+	if errors.Is(err, ErrPathInvalid) {
+		return "PathInvalid"
+	}
+	if errors.Is(err, ErrPathTooBig) {
+		return "PathTooBig"
+	}
+	if errors.Is(err, ErrPathTooDeep) {
+		return "PathTooDeep"
+	}
+	if errors.Is(err, ErrDocumentTooDeep) {
+		return "DocumentTooDeep"
+	}
+	if errors.Is(err, ErrValueTooDeep) {
+		return "ValueTooDeep"
+	}
+	if errors.Is(err, ErrValueInvalid) {
+		return "ValueInvalid"
+	}
+	if errors.Is(err, ErrDocumentNotJSON) {
+		return "DocumentNotJson"
+	}
+	if errors.Is(err, ErrNumberTooBig) {
+		return "NumberTooBig"
+	}
+	if errors.Is(err, ErrDeltaInvalid) {
+		return "DeltaInvalid"
+	}
+	if errors.Is(err, ErrPathExists) {
+		return "PathExists"
+	}
+	if errors.Is(err, ErrXattrUnknownMacro) {
+		return "XattrUnknownMacro"
+	}
+	if errors.Is(err, ErrXattrInvalidKeyCombo) {
+		return "XattrInvalidKeyCombo"
+	}
+	if errors.Is(err, ErrXattrUnknownVirtualAttribute) {
+		return "XattrUnknownVirtualAttribute"
+	}
+	if errors.Is(err, ErrXattrCannotModifyVirtualAttribute) {
+		return "XattrCannotModifyVirtualAttribute"
+	}
+	if errors.Is(err, ErrPlanningFailure) {
+		return "PlanningFailure"
+	}
+	if errors.Is(err, ErrIndexFailure) {
+		return "IndexFailure"
+	}
+	if errors.Is(err, ErrPreparedStatementFailure) {
+		return "PreparedStatementFailure"
+	}
+	if errors.Is(err, ErrCompilationFailure) {
+		return "CompilationFailure"
+	}
+	if errors.Is(err, ErrJobQueueFull) {
+		return "JobQueueFull"
+	}
+	if errors.Is(err, ErrDatasetNotFound) {
+		return "DatasetNotFound"
+	}
+	if errors.Is(err, ErrDataverseNotFound) {
+		return "DataverseNotFound"
+	}
+	if errors.Is(err, ErrDatasetExists) {
+		return "DatasetExists"
+	}
+	if errors.Is(err, ErrDataverseExists) {
+		return "DataverseExists"
+	}
+	if errors.Is(err, ErrLinkNotFound) {
+		return "LinkNotFound"
+	}
+	if errors.Is(err, ErrViewNotFound) {
+		return "ViewNotFound"
+	}
+	if errors.Is(err, ErrDesignDocumentNotFound) {
+		return "DesignDocumentNotFound"
+	}
+	if errors.Is(err, ErrCollectionExists) {
+		return "CollectionExists"
+	}
+	if errors.Is(err, ErrScopeExists) {
+		return "ScopeExists"
+	}
+	if errors.Is(err, ErrUserNotFound) {
+		return "UserNotFound"
+	}
+	if errors.Is(err, ErrGroupNotFound) {
+		return "GroupNotFound"
+	}
+	if errors.Is(err, ErrBucketExists) {
+		return "BucketExists"
+	}
+	if errors.Is(err, ErrUserExists) {
+		return "UserExists"
+	}
+	if errors.Is(err, ErrBucketNotFlushable) {
+		return "BucketNotFlushable"
+	}
+	return "CouchbaseError"
 }

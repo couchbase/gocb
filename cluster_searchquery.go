@@ -9,7 +9,7 @@ import (
 
 // SearchQuery executes the search query on the server.
 func (c *Cluster) SearchQuery(indexName string, query cbsearch.Query, opts *SearchOptions) (*SearchResult, error) {
-	return autoOpControl(c.searchController(), func(provider searchProvider) (*SearchResult, error) {
+	return autoOpControl(c.searchController(), "search", func(provider searchProvider) (*SearchResult, error) {
 		if opts == nil {
 			opts = &SearchOptions{}
 		}
@@ -20,7 +20,7 @@ func (c *Cluster) SearchQuery(indexName string, query cbsearch.Query, opts *Sear
 
 // Search executes the search request on the server.
 func (c *Cluster) Search(indexName string, request SearchRequest, opts *SearchOptions) (*SearchResult, error) {
-	return autoOpControl(c.searchController(), func(provider searchProvider) (*SearchResult, error) {
+	return autoOpControl(c.searchController(), "search", func(provider searchProvider) (*SearchResult, error) {
 		if request.VectorSearch == nil && request.SearchQuery == nil {
 			return nil, makeInvalidArgumentsError("the search request cannot be empty")
 		}

@@ -14,6 +14,8 @@ type Collection struct {
 
 	useMutationTokens bool
 
+	keyspace keyspace
+
 	opController opController
 
 	getKvProvider         func() (kvProvider, error)
@@ -34,6 +36,12 @@ func newCollection(scope *Scope, collectionName string) *Collection {
 		compressor:           scope.compressor,
 
 		useMutationTokens: scope.useMutationTokens,
+
+		keyspace: keyspace{
+			bucketName:     scope.BucketName(),
+			scopeName:      scope.Name(),
+			collectionName: collectionName,
+		},
 
 		opController: scope.opController,
 
@@ -70,6 +78,10 @@ func (c *Collection) QueryIndexes() *CollectionQueryIndexManager {
 		controller: &providerController[queryIndexProvider]{
 			get:          c.getQueryIndexProvider,
 			opController: c.opController,
+
+			meter:    c.bucket.connectionManager.getMeter(),
+			service:  serviceValueManagement,
+			keyspace: &c.keyspace,
 		},
 
 		c: c,
@@ -99,9 +111,18 @@ func (c *Collection) isDefault() bool {
 }
 
 func (c *Collection) kvController() *providerController[kvProvider] {
+	var meter *meterWrapper
+	if c.bucket.connectionManager != nil {
+		meter = c.bucket.connectionManager.getMeter()
+	}
+
 	return &providerController[kvProvider]{
 		get:          c.getKvProvider,
 		opController: c.opController,
+
+		meter:    meter,
+		service:  serviceValueKV,
+		keyspace: &c.keyspace,
 	}
 }
 

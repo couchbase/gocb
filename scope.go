@@ -13,6 +13,8 @@ type Scope struct {
 
 	useMutationTokens bool
 
+	keyspace keyspace
+
 	opController opController
 
 	getKvProvider                 func() (kvProvider, error)
@@ -38,6 +40,11 @@ func newScope(bucket *Bucket, scopeName string) *Scope {
 		compressor:           bucket.compressor,
 
 		useMutationTokens: bucket.useMutationTokens,
+
+		keyspace: keyspace{
+			bucketName: bucket.Name(),
+			scopeName:  scopeName,
+		},
 
 		opController: bucket.connectionManager,
 
@@ -75,6 +82,10 @@ func (s *Scope) SearchIndexes() *ScopeSearchIndexManager {
 		controller: &providerController[searchIndexProvider]{
 			get:          s.getSearchIndexProvider,
 			opController: s.opController,
+
+			meter:    s.bucket.connectionManager.getMeter(),
+			keyspace: &s.keyspace,
+			service:  serviceValueManagement,
 		},
 
 		scope: s,
@@ -91,6 +102,10 @@ func (s *Scope) EventingFunctions() *ScopeEventingFunctionManager {
 		controller: &providerController[eventingManagementProvider]{
 			get:          s.getEventingManagementProvider,
 			opController: s.opController,
+
+			meter:    s.bucket.connectionManager.getMeter(),
+			keyspace: &s.keyspace,
+			service:  serviceValueManagement,
 		},
 
 		scope: s,
@@ -101,6 +116,10 @@ func (s *Scope) analyticsController() *providerController[analyticsProvider] {
 	return &providerController[analyticsProvider]{
 		get:          s.getAnalyticsProvider,
 		opController: s.opController,
+
+		meter:    s.bucket.connectionManager.getMeter(),
+		keyspace: &s.keyspace,
+		service:  serviceValueAnalytics,
 	}
 }
 
@@ -108,6 +127,10 @@ func (s *Scope) queryController() *providerController[queryProvider] {
 	return &providerController[queryProvider]{
 		get:          s.getQueryProvider,
 		opController: s.opController,
+
+		meter:    s.bucket.connectionManager.getMeter(),
+		keyspace: &s.keyspace,
+		service:  serviceValueQuery,
 	}
 }
 
@@ -115,5 +138,9 @@ func (s *Scope) searchController() *providerController[searchProvider] {
 	return &providerController[searchProvider]{
 		get:          s.getSearchProvider,
 		opController: s.opController,
+
+		meter:    s.bucket.connectionManager.getMeter(),
+		keyspace: &s.keyspace,
+		service:  serviceValueSearch,
 	}
 }

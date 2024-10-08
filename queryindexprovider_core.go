@@ -28,7 +28,6 @@ func (qpc *queryProviderCore) CreateIndex(c *Collection, bucketName, indexName s
 }
 
 func (qpc *queryProviderCore) createIndex(c *Collection, bucketName, indexName string, fields []string, opts *CreateQueryIndexOptions) error {
-	start := time.Now()
 	spanName := "manager_query_create_index"
 
 	var qs string
@@ -65,8 +64,6 @@ func (qpc *queryProviderCore) createIndex(c *Collection, bucketName, indexName s
 		withStr := strings.Join(with, ",")
 		qs += " WITH {" + withStr + "}"
 	}
-
-	defer qpc.meter.ValueRecord(meterValueServiceManagement, spanName, start)
 
 	span := qpc.tracer.createSpan(opts.ParentSpan, spanName, "management")
 	defer span.End()
@@ -106,7 +103,6 @@ func (qpc *queryProviderCore) DropIndex(c *Collection, bucketName, indexName str
 }
 
 func (qpc *queryProviderCore) dropIndex(c *Collection, bucketName, indexName string, opts *DropQueryIndexOptions) error {
-	start := time.Now()
 	spanName := "manager_query_drop_index"
 	var qs string
 
@@ -121,7 +117,6 @@ func (qpc *queryProviderCore) dropIndex(c *Collection, bucketName, indexName str
 			qs += "DROP INDEX `" + indexName + "` ON " + keyspace
 		}
 	}
-	defer qpc.meter.ValueRecord(meterValueServiceManagement, spanName, start)
 
 	span := qpc.tracer.createSpan(opts.ParentSpan, spanName, "management")
 	defer span.End()
@@ -190,9 +185,6 @@ func buildGetAllIndexesWhereClause(c *Collection, bucketName, scopeName, collect
 }
 
 func (qpc *queryProviderCore) GetAllIndexes(c *Collection, bucketName string, opts *GetAllQueryIndexesOptions) ([]QueryIndex, error) {
-	start := time.Now()
-	defer qpc.meter.ValueRecord(meterValueServiceManagement, "manager_query_get_all_indexes", start)
-
 	return qpc.getAllIndexes(c, bucketName, opts)
 }
 
@@ -239,9 +231,6 @@ func (qpc *queryProviderCore) getAllIndexes(c *Collection, bucketName string, op
 }
 
 func (qpc *queryProviderCore) BuildDeferredIndexes(c *Collection, bucketName string, opts *BuildDeferredQueryIndexOptions) ([]string, error) {
-	start := time.Now()
-	defer qpc.meter.ValueRecord(meterValueServiceManagement, "manager_query_build_deferred_indexes", start)
-
 	span := qpc.tracer.createSpan(opts.ParentSpan, "manager_query_build_deferred_indexes", "management")
 	defer span.End()
 
@@ -354,9 +343,6 @@ func checkIndexesActiveCore(indexes []QueryIndex, checkList []string) (bool, err
 
 func (qpc *queryProviderCore) WatchIndexes(c *Collection, bucketName string, watchList []string, timeout time.Duration, opts *WatchQueryIndexOptions,
 ) error {
-	start := time.Now()
-	defer qpc.meter.ValueRecord(meterValueServiceManagement, "manager_query_watch_indexes", start)
-
 	span := qpc.tracer.createSpan(opts.ParentSpan, "manager_query_watch_indexes", "management")
 	defer span.End()
 

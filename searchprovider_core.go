@@ -60,7 +60,6 @@ type searchProviderCore struct {
 	transcoder           Transcoder
 	timeouts             TimeoutsConfig
 	tracer               *tracerWrapper
-	meter                *meterWrapper
 }
 
 func (search *searchProviderCore) Search(scope *Scope, indexName string, request SearchRequest, opts *SearchOptions) (*SearchResult, error) {
@@ -80,9 +79,6 @@ func (search *searchProviderCore) search(scope *Scope, indexName string, sQuery 
 	if sQuery == nil && vSearch == nil {
 		return nil, makeInvalidArgumentsError("must specify either a search query or a vector search")
 	}
-
-	start := time.Now()
-	defer search.meter.ValueRecord(meterValueServiceSearch, "search", start)
 
 	span := search.tracer.createSpan(opts.ParentSpan, "search", "search")
 	span.SetAttribute("db.operation", indexName)

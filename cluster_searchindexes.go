@@ -98,7 +98,7 @@ type GetAllSearchIndexOptions struct {
 
 // GetAllIndexes retrieves all of the search indexes for the cluster.
 func (sm *SearchIndexManager) GetAllIndexes(opts *GetAllSearchIndexOptions) ([]SearchIndex, error) {
-	return autoOpControl(sm.controller, func(provider searchIndexProvider) ([]SearchIndex, error) {
+	return autoOpControl(sm.controller, "manager_search_get_all_indexes", func(provider searchIndexProvider) ([]SearchIndex, error) {
 		if opts == nil {
 			opts = &GetAllSearchIndexOptions{}
 		}
@@ -121,7 +121,7 @@ type GetSearchIndexOptions struct {
 
 // GetIndex retrieves a specific search index by name.
 func (sm *SearchIndexManager) GetIndex(indexName string, opts *GetSearchIndexOptions) (*SearchIndex, error) {
-	return autoOpControl(sm.controller, func(provider searchIndexProvider) (*SearchIndex, error) {
+	return autoOpControl(sm.controller, "manager_search_get_index", func(provider searchIndexProvider) (*SearchIndex, error) {
 		if opts == nil {
 			opts = &GetSearchIndexOptions{}
 		}
@@ -148,7 +148,7 @@ type UpsertSearchIndexOptions struct {
 
 // UpsertIndex creates or updates a search index.
 func (sm *SearchIndexManager) UpsertIndex(indexDefinition SearchIndex, opts *UpsertSearchIndexOptions) error {
-	return autoOpControlErrorOnly(sm.controller, func(provider searchIndexProvider) error {
+	return autoOpControlErrorOnly(sm.controller, "manager_search_upsert_index", func(provider searchIndexProvider) error {
 		if opts == nil {
 			opts = &UpsertSearchIndexOptions{}
 		}
@@ -178,7 +178,7 @@ type DropSearchIndexOptions struct {
 
 // DropIndex removes the search index with the specific name.
 func (sm *SearchIndexManager) DropIndex(indexName string, opts *DropSearchIndexOptions) error {
-	return autoOpControlErrorOnly(sm.controller, func(provider searchIndexProvider) error {
+	return autoOpControlErrorOnly(sm.controller, "manager_search_drop_index", func(provider searchIndexProvider) error {
 		if opts == nil {
 			opts = &DropSearchIndexOptions{}
 		}
@@ -205,7 +205,7 @@ type AnalyzeDocumentOptions struct {
 
 // AnalyzeDocument returns how a doc is analyzed against a specific index.
 func (sm *SearchIndexManager) AnalyzeDocument(indexName string, doc interface{}, opts *AnalyzeDocumentOptions) ([]interface{}, error) {
-	return autoOpControl(sm.controller, func(provider searchIndexProvider) ([]interface{}, error) {
+	return autoOpControl(sm.controller, "manager_search_analyze_document", func(provider searchIndexProvider) ([]interface{}, error) {
 		if opts == nil {
 			opts = &AnalyzeDocumentOptions{}
 		}
@@ -232,7 +232,7 @@ type GetIndexedDocumentsCountOptions struct {
 
 // GetIndexedDocumentsCount retrieves the document count for a search index.
 func (sm *SearchIndexManager) GetIndexedDocumentsCount(indexName string, opts *GetIndexedDocumentsCountOptions) (uint64, error) {
-	return autoOpControl(sm.controller, func(provider searchIndexProvider) (uint64, error) {
+	return autoOpControl(sm.controller, "manager_search_get_indexed_documents_count", func(provider searchIndexProvider) (uint64, error) {
 		if opts == nil {
 			opts = &GetIndexedDocumentsCountOptions{}
 		}
@@ -259,7 +259,7 @@ type PauseIngestSearchIndexOptions struct {
 
 // PauseIngest pauses updates and maintenance for an index.
 func (sm *SearchIndexManager) PauseIngest(indexName string, opts *PauseIngestSearchIndexOptions) error {
-	return autoOpControlErrorOnly(sm.controller, func(provider searchIndexProvider) error {
+	return autoOpControlErrorOnly(sm.controller, "manager_search_pause_ingest", func(provider searchIndexProvider) error {
 		if opts == nil {
 			opts = &PauseIngestSearchIndexOptions{}
 		}
@@ -286,7 +286,7 @@ type ResumeIngestSearchIndexOptions struct {
 
 // ResumeIngest resumes updates and maintenance for an index.
 func (sm *SearchIndexManager) ResumeIngest(indexName string, opts *ResumeIngestSearchIndexOptions) error {
-	return autoOpControlErrorOnly(sm.controller, func(provider searchIndexProvider) error {
+	return autoOpControlErrorOnly(sm.controller, "manager_search_resume_ingest", func(provider searchIndexProvider) error {
 		if opts == nil {
 			opts = &ResumeIngestSearchIndexOptions{}
 		}
@@ -313,7 +313,7 @@ type AllowQueryingSearchIndexOptions struct {
 
 // AllowQuerying allows querying against an index.
 func (sm *SearchIndexManager) AllowQuerying(indexName string, opts *AllowQueryingSearchIndexOptions) error {
-	return autoOpControlErrorOnly(sm.controller, func(provider searchIndexProvider) error {
+	return autoOpControlErrorOnly(sm.controller, "manager_search_allow_querying", func(provider searchIndexProvider) error {
 		if opts == nil {
 			opts = &AllowQueryingSearchIndexOptions{}
 		}
@@ -340,7 +340,7 @@ type DisallowQueryingSearchIndexOptions struct {
 
 // DisallowQuerying disallows querying against an index.
 func (sm *SearchIndexManager) DisallowQuerying(indexName string, opts *AllowQueryingSearchIndexOptions) error {
-	return autoOpControlErrorOnly(sm.controller, func(provider searchIndexProvider) error {
+	return autoOpControlErrorOnly(sm.controller, "manager_search_disallow_querying", func(provider searchIndexProvider) error {
 		if opts == nil {
 			opts = &AllowQueryingSearchIndexOptions{}
 		}
@@ -372,7 +372,7 @@ type FreezePlanSearchIndexOptions struct {
 
 // FreezePlan freezes the assignment of index partitions to nodes.
 func (sm *SearchIndexManager) FreezePlan(indexName string, opts *AllowQueryingSearchIndexOptions) error {
-	return autoOpControlErrorOnly(sm.controller, func(provider searchIndexProvider) error {
+	return autoOpControlErrorOnly(sm.controller, "manager_search_freeze_plan", func(provider searchIndexProvider) error {
 		if opts == nil {
 			opts = &AllowQueryingSearchIndexOptions{}
 		}
@@ -404,7 +404,7 @@ type UnfreezePlanSearchIndexOptions struct {
 
 // UnfreezePlan unfreezes the assignment of index partitions to nodes.
 func (sm *SearchIndexManager) UnfreezePlan(indexName string, opts *AllowQueryingSearchIndexOptions) error {
-	return autoOpControlErrorOnly(sm.controller, func(provider searchIndexProvider) error {
+	return autoOpControlErrorOnly(sm.controller, "manager_search_unfreeze_plan", func(provider searchIndexProvider) error {
 		if opts == nil {
 			opts = &AllowQueryingSearchIndexOptions{}
 		}

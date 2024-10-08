@@ -22,7 +22,7 @@ func (sip *searchIndexProviderPs) GetAllIndexes(scope *Scope, opts *GetAllSearch
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_get_all_indexes", map[string]interface{}{
 		"db.operation": "ListIndexes",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(true)
@@ -82,7 +82,7 @@ func (sip *searchIndexProviderPs) GetIndex(scope *Scope, indexName string, opts 
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_get_index", map[string]interface{}{
 		"db.operation": "GetIndex",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(true)
@@ -147,7 +147,7 @@ func (sip *searchIndexProviderPs) updateIndex(scope *Scope, index SearchIndex, o
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_upsert_index", map[string]interface{}{
 		"db.operation": "UpdateIndex",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)
@@ -182,7 +182,7 @@ func (sip *searchIndexProviderPs) createIndex(scope *Scope, index SearchIndex, o
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_upsert_index", map[string]interface{}{
 		"db.operation": "CreateIndex",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)
@@ -243,7 +243,7 @@ func (sip *searchIndexProviderPs) DropIndex(scope *Scope, indexName string, opts
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_drop_index", map[string]interface{}{
 		"db.operation": "DeleteIndex",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)
@@ -275,7 +275,7 @@ func (sip *searchIndexProviderPs) AnalyzeDocument(scope *Scope, indexName string
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_analyze_document", map[string]interface{}{
 		"db.operation": "AnalyzeDocument",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(true)
@@ -319,7 +319,7 @@ func (sip *searchIndexProviderPs) GetIndexedDocumentsCount(scope *Scope, indexNa
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_get_indexed_documents_count", map[string]interface{}{
 		"db.operation": "GetIndexedDocumentsCount",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(true)
@@ -347,7 +347,7 @@ func (sip *searchIndexProviderPs) PauseIngest(scope *Scope, indexName string, op
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_pause_ingest", map[string]interface{}{
 		"db.operation": "PauseIndexIngest",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)
@@ -375,7 +375,7 @@ func (sip *searchIndexProviderPs) ResumeIngest(scope *Scope, indexName string, o
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_resume_ingest", map[string]interface{}{
 		"db.operation": "ResumeIndexIngest",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)
@@ -403,7 +403,7 @@ func (sip *searchIndexProviderPs) AllowQuerying(scope *Scope, indexName string, 
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_allow_querying", map[string]interface{}{
 		"db.operation": "AllowIndexQuerying",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)
@@ -431,7 +431,7 @@ func (sip *searchIndexProviderPs) DisallowQuerying(scope *Scope, indexName strin
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_disallow_querying", map[string]interface{}{
 		"db.operation": "DisallowIndexQuerying",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)
@@ -459,7 +459,7 @@ func (sip *searchIndexProviderPs) FreezePlan(scope *Scope, indexName string, opt
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_freeze_plan", map[string]interface{}{
 		"db.operation": "FreezeIndexPlan",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)
@@ -487,7 +487,7 @@ func (sip *searchIndexProviderPs) UnfreezePlan(scope *Scope, indexName string, o
 	manager := sip.newOpManager(opts.ParentSpan, "manager_search_unfreeze_plan", map[string]interface{}{
 		"db.operation": "UnfreezeIndexPlan",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)

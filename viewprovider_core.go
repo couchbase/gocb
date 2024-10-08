@@ -29,14 +29,10 @@ type viewProviderCore struct {
 	transcoder           Transcoder
 	timeouts             TimeoutsConfig
 	tracer               *tracerWrapper
-	meter                *meterWrapper
 }
 
 // ViewQuery performs a view query and returns a list of rows or an error.
 func (v *viewProviderCore) ViewQuery(designDoc string, viewName string, opts *ViewOptions) (*ViewResult, error) {
-	start := time.Now()
-	defer v.meter.ValueRecord(meterValueServiceViews, "views", start)
-
 	designDoc = v.maybePrefixDevDocument(opts.Namespace, designDoc)
 
 	span := v.tracer.createSpan(opts.ParentSpan, "views", "views")

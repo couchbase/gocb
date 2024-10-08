@@ -88,11 +88,11 @@ func (suite *UnitTestSuite) queryScope(prepared bool, reader queryRowReader, run
 	queryProvider := &queryProviderCore{
 		provider: provider,
 		tracer:   newTracerWrapper(&NoopTracer{}),
-		meter:    newMeterWrapper(&NoopMeter{}),
 	}
 
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
+	cli.On("getMeter").Return(nil)
 	cli.On("MarkOpBeginning").Return()
 	cli.On("MarkOpCompleted").Return()
 

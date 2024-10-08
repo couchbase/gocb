@@ -23,7 +23,7 @@ func (bm bucketManagementProviderPs) GetBucket(bucketName string, opts *GetBucke
 		"db.name":      bucketName,
 		"db.operation": "ListBuckets",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(true)
@@ -58,7 +58,7 @@ func (bm bucketManagementProviderPs) GetAllBuckets(opts *GetAllBucketsOptions) (
 	manager := bm.newOpManager(opts.ParentSpan, "manager_bucket_get_all_buckets", map[string]interface{}{
 		"db.operation": "ListBuckets",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(true)
@@ -93,7 +93,7 @@ func (bm bucketManagementProviderPs) CreateBucket(settings CreateBucketSettings,
 		"db.name":      settings.Name,
 		"db.operation": "CreateBucket",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)
@@ -122,7 +122,7 @@ func (bm bucketManagementProviderPs) UpdateBucket(settings BucketSettings, opts 
 		"db.name":      settings.Name,
 		"db.operation": "UpdateBucket",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)
@@ -151,7 +151,7 @@ func (bm bucketManagementProviderPs) DropBucket(name string, opts *DropBucketOpt
 		"db.name":      name,
 		"db.operation": "DeleteBucket",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)
@@ -177,7 +177,7 @@ func (bm bucketManagementProviderPs) FlushBucket(name string, opts *FlushBucketO
 		"db.name":      name,
 		"db.operation": "FlushBucket",
 	})
-	defer manager.Finish(false)
+	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
 	manager.SetIsIdempotent(false)

@@ -38,6 +38,8 @@ type Cluster struct {
 	compressor           *compressor
 
 	transactions *Transactions
+
+	keyspace keyspace
 }
 
 // IoConfig specifies IO related configuration options.
@@ -425,7 +427,7 @@ type WaitUntilReadyOptions struct {
 // will be pinged.
 // Valid service types are: ServiceTypeManagement, ServiceTypeQuery, ServiceTypeSearch, ServiceTypeAnalytics.
 func (c *Cluster) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOptions) error {
-	return autoOpControlErrorOnly(c.waitUntilReadyController(), func(provider waitUntilReadyProvider) error {
+	return autoOpControlErrorOnly(c.waitUntilReadyController(), "", func(provider waitUntilReadyProvider) error {
 		if opts == nil {
 			opts = &WaitUntilReadyOptions{}
 		}
@@ -471,6 +473,10 @@ func (c *Cluster) analyticsController() *providerController[analyticsProvider] {
 	return &providerController[analyticsProvider]{
 		get:          c.connectionManager.getAnalyticsProvider,
 		opController: c.connectionManager,
+
+		meter:    c.connectionManager.getMeter(),
+		keyspace: &c.keyspace,
+		service:  serviceValueAnalytics,
 	}
 }
 
@@ -487,6 +493,10 @@ func (c *Cluster) queryController() *providerController[queryProvider] {
 	return &providerController[queryProvider]{
 		get:          c.connectionManager.getQueryProvider,
 		opController: c.connectionManager,
+
+		meter:    c.connectionManager.getMeter(),
+		keyspace: &c.keyspace,
+		service:  serviceValueQuery,
 	}
 }
 
@@ -494,6 +504,10 @@ func (c *Cluster) searchController() *providerController[searchProvider] {
 	return &providerController[searchProvider]{
 		get:          c.connectionManager.getSearchProvider,
 		opController: c.connectionManager,
+
+		meter:    c.connectionManager.getMeter(),
+		keyspace: &c.keyspace,
+		service:  serviceValueSearch,
 	}
 }
 
@@ -517,6 +531,10 @@ func (c *Cluster) Users() *UserManager {
 		controller: &providerController[userManagerProvider]{
 			get:          c.connectionManager.getUserManagerProvider,
 			opController: c.connectionManager,
+
+			meter:    c.connectionManager.getMeter(),
+			keyspace: &c.keyspace,
+			service:  serviceValueManagement,
 		},
 	}
 }
@@ -527,6 +545,10 @@ func (c *Cluster) Buckets() *BucketManager {
 		controller: &providerController[bucketManagementProvider]{
 			get:          c.connectionManager.getBucketManagementProvider,
 			opController: c.connectionManager,
+
+			meter:    c.connectionManager.getMeter(),
+			keyspace: &c.keyspace,
+			service:  serviceValueManagement,
 		},
 	}
 }
@@ -537,6 +559,10 @@ func (c *Cluster) AnalyticsIndexes() *AnalyticsIndexManager {
 		controller: &providerController[analyticsIndexProvider]{
 			get:          c.connectionManager.getAnalyticsIndexProvider,
 			opController: c.connectionManager,
+
+			meter:    c.connectionManager.getMeter(),
+			keyspace: &c.keyspace,
+			service:  serviceValueManagement,
 		},
 	}
 }
@@ -547,6 +573,10 @@ func (c *Cluster) QueryIndexes() *QueryIndexManager {
 		controller: &providerController[queryIndexProvider]{
 			get:          c.connectionManager.getQueryIndexProvider,
 			opController: c.connectionManager,
+
+			meter:    c.connectionManager.getMeter(),
+			keyspace: &c.keyspace,
+			service:  serviceValueManagement,
 		},
 	}
 }
@@ -557,6 +587,10 @@ func (c *Cluster) SearchIndexes() *SearchIndexManager {
 		controller: &providerController[searchIndexProvider]{
 			get:          c.connectionManager.getSearchIndexProvider,
 			opController: c.connectionManager,
+
+			meter:    c.connectionManager.getMeter(),
+			keyspace: &c.keyspace,
+			service:  serviceValueManagement,
 		},
 	}
 }
@@ -571,6 +605,10 @@ func (c *Cluster) EventingFunctions() *EventingFunctionManager {
 		controller: &providerController[eventingManagementProvider]{
 			get:          c.connectionManager.getEventingManagementProvider,
 			opController: c.connectionManager,
+
+			meter:    c.connectionManager.getMeter(),
+			keyspace: &c.keyspace,
+			service:  serviceValueManagement,
 		},
 	}
 }

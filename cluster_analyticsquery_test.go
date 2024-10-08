@@ -450,11 +450,11 @@ func (suite *UnitTestSuite) TestAnalyticsQueryBothParams() {
 
 	cli := new(mockConnectionManager)
 	cli.On("getAnalyticsProvider").Return(analyticsProvider, nil)
+	cli.On("getMeter").Return(nil)
 	cli.On("MarkOpBeginning").Return()
 	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)
-	analyticsProvider.meter = newMeterWrapper(&NoopMeter{})
 	analyticsProvider.tracer = newTracerWrapper(&NoopTracer{})
 	analyticsProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
 	analyticsProvider.analyticsTimeout = cluster.timeoutsConfig.AnalyticsTimeout
@@ -608,11 +608,11 @@ func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyInvalid() {
 
 	cli := new(mockConnectionManager)
 	cli.On("getAnalyticsProvider").Return(analyticsProvider, nil)
+	cli.On("getMeter").Return(nil)
 	cli.On("MarkOpBeginning").Return()
 	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)
-	analyticsProvider.meter = newMeterWrapper(&NoopMeter{})
 	analyticsProvider.tracer = newTracerWrapper(&NoopTracer{})
 	analyticsProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
 	analyticsProvider.analyticsTimeout = cluster.timeoutsConfig.AnalyticsTimeout
@@ -640,12 +640,12 @@ func (suite *UnitTestSuite) coreAnalyticsCluster(ctx context.Context, runFn func
 
 	cli := new(mockConnectionManager)
 	cli.On("getAnalyticsProvider").Return(analyticsProvider, nil)
+	cli.On("getMeter").Return(nil)
 	cli.On("MarkOpBeginning").Return()
 	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)
 
-	analyticsProvider.meter = newMeterWrapper(&NoopMeter{})
 	analyticsProvider.tracer = newTracerWrapper(&NoopTracer{})
 	analyticsProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
 	analyticsProvider.analyticsTimeout = cluster.timeoutsConfig.AnalyticsTimeout

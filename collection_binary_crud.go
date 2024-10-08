@@ -33,7 +33,7 @@ type AppendOptions struct {
 
 // Append appends a byte value to a document.
 func (c *BinaryCollection) Append(id string, val []byte, opts *AppendOptions) (mutOut *MutationResult, errOut error) {
-	return autoOpControl(c.collection.kvController(), func(agent kvProvider) (*MutationResult, error) {
+	return autoOpControl(c.collection.kvController(), "append", func(agent kvProvider) (*MutationResult, error) {
 		if opts == nil {
 			opts = &AppendOptions{}
 		}
@@ -65,7 +65,7 @@ type PrependOptions struct {
 
 // Prepend prepends a byte value to a document.
 func (c *BinaryCollection) Prepend(id string, val []byte, opts *PrependOptions) (mutOut *MutationResult, errOut error) {
-	return autoOpControl(c.collection.kvController(), func(agent kvProvider) (*MutationResult, error) {
+	return autoOpControl(c.collection.kvController(), "prepend", func(agent kvProvider) (*MutationResult, error) {
 		if opts == nil {
 			opts = &PrependOptions{}
 		}
@@ -109,7 +109,7 @@ type IncrementOptions struct {
 // non-negative `initial` value will cause the document to be created if it did not
 // already exist.
 func (c *BinaryCollection) Increment(id string, opts *IncrementOptions) (countOut *CounterResult, errOut error) {
-	return autoOpControl(c.collection.kvController(), func(agent kvProvider) (*CounterResult, error) {
+	return autoOpControl(c.collection.kvController(), "increment", func(agent kvProvider) (*CounterResult, error) {
 		if opts == nil {
 			opts = &IncrementOptions{}
 		}
@@ -156,7 +156,7 @@ type DecrementOptions struct {
 // non-negative `initial` value will cause the document to be created if it did not
 // already exist.
 func (c *BinaryCollection) Decrement(id string, opts *DecrementOptions) (countOut *CounterResult, errOut error) {
-	return autoOpControl(c.collection.kvController(), func(agent kvProvider) (*CounterResult, error) {
+	return autoOpControl(c.collection.kvController(), "decrement", func(agent kvProvider) (*CounterResult, error) {
 		if opts == nil {
 			opts = &DecrementOptions{}
 		}

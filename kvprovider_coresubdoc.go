@@ -12,7 +12,7 @@ import (
 
 func (p *kvProviderCore) LookupIn(c *Collection, id string, ops []LookupInSpec, opts *LookupInOptions) (docOut *LookupInResult, errOut error) {
 	opm := newKvOpManagerCore(c, "lookup_in", opts.ParentSpan, p)
-	defer opm.Finish(opts.noMetrics)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetRetryStrategy(opts.RetryStrategy)
@@ -87,11 +87,6 @@ func (p *kvProviderCore) LookupInAllReplicas(c *Collection, id string, ops []Loo
 	outCh := make(chan interface{}, len(servers))
 	cancelCh := make(chan struct{})
 
-	recorder, err := p.meter.ValueRecorder(meterValueServiceKV, "lookup_in_all_replicas")
-	if err != nil {
-		logDebugf("Failed to create value recorder: %v", err)
-	}
-
 	repRes := &LookupInAllReplicasResult{
 		res: &coreReplicasResult{
 			totalRequests:       uint32(len(servers)),
@@ -99,7 +94,6 @@ func (p *kvProviderCore) LookupInAllReplicas(c *Collection, id string, ops []Loo
 			cancelCh:            cancelCh,
 			span:                span,
 			childReqsCompleteCh: make(chan struct{}),
-			valueRecorder:       recorder,
 			startedTime:         time.Now(),
 		},
 	}
@@ -155,8 +149,6 @@ func (p *kvProviderCore) LookupInAllReplicas(c *Collection, id string, ops []Loo
 
 func (p *kvProviderCore) LookupInAnyReplica(c *Collection, id string, ops []LookupInSpec,
 	opts *LookupInAnyReplicaOptions) (docOut *LookupInReplicaResult, errOut error) {
-	start := time.Now()
-	defer p.meter.ValueRecord("kv", "lookup_in_any_replica", start)
 
 	span := p.StartKvOpTrace(c, "lookup_in_any_replica", opts.ParentSpan, false)
 	defer span.End()
@@ -208,7 +200,7 @@ func (p *kvProviderCore) lookupInOneReplica(
 	flags memd.SubdocDocFlag,
 ) (*LookupInReplicaResult, error) {
 	opm := newKvOpManagerCore(c, "lookup_in", span, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetRetryStrategy(retryStrategy)
@@ -343,7 +335,7 @@ func (p *kvProviderCore) internalLookupIn(
 
 func (p *kvProviderCore) MutateIn(c *Collection, id string, ops []MutateInSpec, opts *MutateInOptions) (mutOut *MutateInResult, errOut error) {
 	opm := newKvOpManagerCore(c, "mutate_in", opts.ParentSpan, p)
-	defer opm.Finish(false)
+	defer opm.Finish()
 
 	opm.SetDocumentID(id)
 	opm.SetRetryStrategy(opts.RetryStrategy)

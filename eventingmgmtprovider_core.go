@@ -15,7 +15,6 @@ type eventingManagementProviderCore struct {
 	mgmtProvider mgmtProvider
 
 	tracer *tracerWrapper
-	meter  *meterWrapper
 }
 
 type eventingRequestOptions struct {
@@ -424,8 +423,6 @@ func (emp *eventingManagementProviderCore) scopedPath(path string, scope *Scope)
 
 func (emp *eventingManagementProviderCore) doRequest(scope *Scope, path string, method string, opName string, function *EventingFunction,
 	target eventingResult, opts eventingRequestOptions) error {
-	start := time.Now()
-	defer emp.meter.ValueRecord(meterValueServiceManagement, opName, start)
 
 	if opName != "get_all_functions" && opName != "functions_status" {
 		path = emp.scopedPath(path, scope)

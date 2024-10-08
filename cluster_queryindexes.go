@@ -45,7 +45,7 @@ type CreateQueryIndexOptions struct {
 // The SDK will automatically escape the provided index keys. For more advanced use cases like index keys using keywords
 // cluster.Query or scope.Query should be used with the query directly.
 func (qm *QueryIndexManager) CreateIndex(bucketName, indexName string, keys []string, opts *CreateQueryIndexOptions) error {
-	return autoOpControlErrorOnly(qm.controller, func(provider queryIndexProvider) error {
+	return autoOpControlErrorOnly(qm.controller, "manager_query_create_index", func(provider queryIndexProvider) error {
 		if opts == nil {
 			opts = &CreateQueryIndexOptions{}
 		}
@@ -92,7 +92,7 @@ type CreatePrimaryQueryIndexOptions struct {
 
 // CreatePrimaryIndex creates a primary index.  An empty customName uses the default naming.
 func (qm *QueryIndexManager) CreatePrimaryIndex(bucketName string, opts *CreatePrimaryQueryIndexOptions) error {
-	return autoOpControlErrorOnly(qm.controller, func(provider queryIndexProvider) error {
+	return autoOpControlErrorOnly(qm.controller, "manager_query_create_primary_index", func(provider queryIndexProvider) error {
 		if opts == nil {
 			opts = &CreatePrimaryQueryIndexOptions{}
 		}
@@ -125,7 +125,7 @@ type DropQueryIndexOptions struct {
 
 // DropIndex drops a specific index by name.
 func (qm *QueryIndexManager) DropIndex(bucketName, indexName string, opts *DropQueryIndexOptions) error {
-	return autoOpControlErrorOnly(qm.controller, func(provider queryIndexProvider) error {
+	return autoOpControlErrorOnly(qm.controller, "manager_query_drop_index", func(provider queryIndexProvider) error {
 		if opts == nil {
 			opts = &DropQueryIndexOptions{}
 		}
@@ -165,7 +165,7 @@ type DropPrimaryQueryIndexOptions struct {
 
 // DropPrimaryIndex drops the primary index.  Pass an empty customName for unnamed primary indexes.
 func (qm *QueryIndexManager) DropPrimaryIndex(bucketName string, opts *DropPrimaryQueryIndexOptions) error {
-	return autoOpControlErrorOnly(qm.controller, func(provider queryIndexProvider) error {
+	return autoOpControlErrorOnly(qm.controller, "manager_query_drop_primary_index", func(provider queryIndexProvider) error {
 		if opts == nil {
 			opts = &DropPrimaryQueryIndexOptions{}
 		}
@@ -196,7 +196,7 @@ type GetAllQueryIndexesOptions struct {
 
 // GetAllIndexes returns a list of all currently registered indexes.
 func (qm *QueryIndexManager) GetAllIndexes(bucketName string, opts *GetAllQueryIndexesOptions) ([]QueryIndex, error) {
-	return autoOpControl(qm.controller, func(provider queryIndexProvider) ([]QueryIndex, error) {
+	return autoOpControl(qm.controller, "manager_query_get_all_indexes", func(provider queryIndexProvider) ([]QueryIndex, error) {
 		if opts == nil {
 			opts = &GetAllQueryIndexesOptions{}
 		}
@@ -226,7 +226,7 @@ type BuildDeferredQueryIndexOptions struct {
 // If no collection and scope names are specified in the options then *only* indexes created on the bucket directly
 // will be built.
 func (qm *QueryIndexManager) BuildDeferredIndexes(bucketName string, opts *BuildDeferredQueryIndexOptions) ([]string, error) {
-	return autoOpControl(qm.controller, func(provider queryIndexProvider) ([]string, error) {
+	return autoOpControl(qm.controller, "manager_query_build_deferred_indexes", func(provider queryIndexProvider) ([]string, error) {
 		if opts == nil {
 			opts = &BuildDeferredQueryIndexOptions{}
 		}
@@ -258,7 +258,7 @@ type WatchQueryIndexOptions struct {
 
 // WatchIndexes waits for a set of indexes to come online.
 func (qm *QueryIndexManager) WatchIndexes(bucketName string, watchList []string, timeout time.Duration, opts *WatchQueryIndexOptions) error {
-	return autoOpControlErrorOnly(qm.controller, func(provider queryIndexProvider) error {
+	return autoOpControlErrorOnly(qm.controller, "manager_query_watch_indexes", func(provider queryIndexProvider) error {
 		if opts == nil {
 			opts = &WatchQueryIndexOptions{}
 		}

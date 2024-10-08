@@ -21,13 +21,11 @@ type LookupInOptions struct {
 		DocFlags SubdocDocFlag
 		User     string
 	}
-
-	noMetrics bool
 }
 
 // LookupIn performs a set of subdocument lookup operations on the document identified by id.
 func (c *Collection) LookupIn(id string, ops []LookupInSpec, opts *LookupInOptions) (docOut *LookupInResult, errOut error) {
-	return autoOpControl(c.kvController(), func(agent kvProvider) (*LookupInResult, error) {
+	return autoOpControl(c.kvController(), "lookup_in", func(agent kvProvider) (*LookupInResult, error) {
 		if opts == nil {
 			opts = &LookupInOptions{}
 		}
@@ -59,7 +57,7 @@ type LookupInAnyReplicaOptions struct {
 
 // LookupInAnyReplica returns the value of a particular document from a replica server.
 func (c *Collection) LookupInAnyReplica(id string, ops []LookupInSpec, opts *LookupInAnyReplicaOptions) (*LookupInReplicaResult, error) {
-	return autoOpControl(c.kvController(), func(agent kvProvider) (*LookupInReplicaResult, error) {
+	return autoOpControl(c.kvController(), "lookup_in_any_replica", func(agent kvProvider) (*LookupInReplicaResult, error) {
 		if opts == nil {
 			opts = &LookupInAnyReplicaOptions{}
 		}
@@ -92,7 +90,7 @@ type LookupInAllReplicaOptions struct {
 // LookupInAllReplicas returns the value of a particular document from all replica servers. This will return an iterable
 // which streams results one at a time.
 func (c *Collection) LookupInAllReplicas(id string, ops []LookupInSpec, opts *LookupInAllReplicaOptions) (*LookupInAllReplicasResult, error) {
-	return autoOpControl(c.kvController(), func(agent kvProvider) (*LookupInAllReplicasResult, error) {
+	return autoOpControl(c.kvController(), "lookup_in_all_replicas", func(agent kvProvider) (*LookupInAllReplicasResult, error) {
 		if opts == nil {
 			opts = &LookupInAllReplicaOptions{}
 		}
@@ -143,7 +141,7 @@ type MutateInOptions struct {
 
 // MutateIn performs a set of subdocument mutations on the document specified by id.
 func (c *Collection) MutateIn(id string, ops []MutateInSpec, opts *MutateInOptions) (mutOut *MutateInResult, errOut error) {
-	return autoOpControl(c.kvController(), func(agent kvProvider) (*MutateInResult, error) {
+	return autoOpControl(c.kvController(), "mutate_in", func(agent kvProvider) (*MutateInResult, error) {
 		if opts == nil {
 			opts = &MutateInOptions{}
 		}

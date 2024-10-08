@@ -17,7 +17,6 @@ type diagnosticsProviderCore struct {
 	provider diagnosticsProviderCoreProvider
 
 	tracer   *tracerWrapper
-	meter    *meterWrapper
 	timeouts TimeoutsConfig
 }
 
@@ -62,9 +61,6 @@ func (d *diagnosticsProviderCore) Diagnostics(opts *DiagnosticsOptions) (*Diagno
 }
 
 func (d *diagnosticsProviderCore) Ping(opts *PingOptions) (*PingResult, error) {
-	startTime := time.Now()
-	defer d.meter.ValueRecord(meterValueServiceKV, "ping", startTime)
-
 	span := d.tracer.createSpan(opts.ParentSpan, "ping", "kv")
 	defer span.End()
 

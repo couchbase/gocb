@@ -39,7 +39,7 @@ type BulkOpOptions struct {
 // Do execute one or more `BulkOp` items in parallel.
 // UNCOMMITTED: This API may change in the future.
 func (c *Collection) Do(ops []BulkOp, opts *BulkOpOptions) error {
-	return autoOpControlErrorOnly(c.kvBulkController(), func(agent kvBulkProvider) error {
+	return autoOpControlErrorOnly(c.kvBulkController(), "", func(agent kvBulkProvider) error {
 		if opts == nil {
 			opts = &BulkOpOptions{}
 		}

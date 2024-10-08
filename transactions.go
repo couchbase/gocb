@@ -29,13 +29,13 @@ func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, er
 // Run runs a lambda to perform a number of operations as part of a
 // singular transaction.
 func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (*TransactionResult, error) {
-	return autoOpControl(t.controller, func(provider transactionsProvider) (*TransactionResult, error) {
+	return autoOpControl(t.controller, "", func(provider transactionsProvider) (*TransactionResult, error) {
 		return provider.Run(logicFn, perConfig, false)
 	})
 }
 
 func (t *Transactions) singleQuery(statement string, scope *Scope, opts QueryOptions) (*QueryResult, error) {
-	return autoOpControl(t.controller, func(provider transactionsProvider) (*QueryResult, error) {
+	return autoOpControl(t.controller, "", func(provider transactionsProvider) (*QueryResult, error) {
 		if opts.Context != nil {
 			return nil, makeInvalidArgumentsError("cannot use context and transactions together")
 		}
@@ -125,7 +125,7 @@ func (t *Transactions) Internal() *TransactionsInternal {
 
 // ForceCleanupQueue forces the transactions client cleanup queue to drain without waiting for expirations.
 func (t *TransactionsInternal) ForceCleanupQueue() []TransactionCleanupAttempt {
-	attempts, err := autoOpControl(t.parent.controller, func(provider transactionsProvider) ([]TransactionCleanupAttempt, error) {
+	attempts, err := autoOpControl(t.parent.controller, "", func(provider transactionsProvider) ([]TransactionCleanupAttempt, error) {
 		return provider.Internal().ForceCleanupQueue(), nil
 	})
 	if err != nil {
@@ -137,7 +137,7 @@ func (t *TransactionsInternal) ForceCleanupQueue() []TransactionCleanupAttempt {
 
 // CleanupQueueLength returns the current length of the client cleanup queue.
 func (t *TransactionsInternal) CleanupQueueLength() int32 {
-	length, err := autoOpControl(t.parent.controller, func(provider transactionsProvider) (int32, error) {
+	length, err := autoOpControl(t.parent.controller, "", func(provider transactionsProvider) (int32, error) {
 		return provider.Internal().CleanupQueueLength(), nil
 	})
 	if err != nil {
@@ -149,7 +149,7 @@ func (t *TransactionsInternal) CleanupQueueLength() int32 {
 
 // ClientCleanupEnabled returns whether the client cleanup process is enabled.
 func (t *TransactionsInternal) ClientCleanupEnabled() bool {
-	enabled, err := autoOpControl(t.parent.controller, func(provider transactionsProvider) (bool, error) {
+	enabled, err := autoOpControl(t.parent.controller, "", func(provider transactionsProvider) (bool, error) {
 		return provider.Internal().ClientCleanupEnabled(), nil
 	})
 	if err != nil {
@@ -161,7 +161,7 @@ func (t *TransactionsInternal) ClientCleanupEnabled() bool {
 
 // CleanupLocations returns the set of locations currently being watched by the lost transactions process.
 func (t *TransactionsInternal) CleanupLocations() []gocbcore.TransactionLostATRLocation {
-	locs, err := autoOpControl(t.parent.controller, func(provider transactionsProvider) ([]gocbcore.TransactionLostATRLocation, error) {
+	locs, err := autoOpControl(t.parent.controller, "", func(provider transactionsProvider) ([]gocbcore.TransactionLostATRLocation, error) {
 		return provider.Internal().CleanupLocations(), nil
 	})
 	if err != nil {

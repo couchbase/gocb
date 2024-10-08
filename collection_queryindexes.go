@@ -23,7 +23,7 @@ func (qm *CollectionQueryIndexManager) validateScopeCollection(scope, collection
 // The SDK will automatically escape the provided index keys. For more advanced use cases like index keys using keywords
 // scope.Query should be used with the query directly.
 func (qm *CollectionQueryIndexManager) CreateIndex(indexName string, keys []string, opts *CreateQueryIndexOptions) error {
-	return autoOpControlErrorOnly(qm.controller, func(provider queryIndexProvider) error {
+	return autoOpControlErrorOnly(qm.controller, "manager_query_create_index", func(provider queryIndexProvider) error {
 		if opts == nil {
 			opts = &CreateQueryIndexOptions{}
 		}
@@ -48,7 +48,7 @@ func (qm *CollectionQueryIndexManager) CreateIndex(indexName string, keys []stri
 
 // CreatePrimaryIndex creates a primary index.  An empty customName uses the default naming.
 func (qm *CollectionQueryIndexManager) CreatePrimaryIndex(opts *CreatePrimaryQueryIndexOptions) error {
-	return autoOpControlErrorOnly(qm.controller, func(provider queryIndexProvider) error {
+	return autoOpControlErrorOnly(qm.controller, "manager_query_create_primary_index", func(provider queryIndexProvider) error {
 		if opts == nil {
 			opts = &CreatePrimaryQueryIndexOptions{}
 		}
@@ -62,7 +62,7 @@ func (qm *CollectionQueryIndexManager) CreatePrimaryIndex(opts *CreatePrimaryQue
 
 // DropIndex drops a specific index by name.
 func (qm *CollectionQueryIndexManager) DropIndex(indexName string, opts *DropQueryIndexOptions) error {
-	return autoOpControlErrorOnly(qm.controller, func(provider queryIndexProvider) error {
+	return autoOpControlErrorOnly(qm.controller, "manager_query_drop_index", func(provider queryIndexProvider) error {
 		if opts == nil {
 			opts = &DropQueryIndexOptions{}
 		}
@@ -82,7 +82,7 @@ func (qm *CollectionQueryIndexManager) DropIndex(indexName string, opts *DropQue
 
 // DropPrimaryIndex drops the primary index.  Pass an empty customName for unnamed primary indexes.
 func (qm *CollectionQueryIndexManager) DropPrimaryIndex(opts *DropPrimaryQueryIndexOptions) error {
-	return autoOpControlErrorOnly(qm.controller, func(provider queryIndexProvider) error {
+	return autoOpControlErrorOnly(qm.controller, "manager_query_drop_primary_index", func(provider queryIndexProvider) error {
 		if opts == nil {
 			opts = &DropPrimaryQueryIndexOptions{}
 		}
@@ -96,7 +96,7 @@ func (qm *CollectionQueryIndexManager) DropPrimaryIndex(opts *DropPrimaryQueryIn
 
 // GetAllIndexes returns a list of all currently registered indexes.
 func (qm *CollectionQueryIndexManager) GetAllIndexes(opts *GetAllQueryIndexesOptions) ([]QueryIndex, error) {
-	return autoOpControl(qm.controller, func(provider queryIndexProvider) ([]QueryIndex, error) {
+	return autoOpControl(qm.controller, "manager_query_get_all_indexes", func(provider queryIndexProvider) ([]QueryIndex, error) {
 		if opts == nil {
 			opts = &GetAllQueryIndexesOptions{}
 		}
@@ -112,7 +112,7 @@ func (qm *CollectionQueryIndexManager) GetAllIndexes(opts *GetAllQueryIndexesOpt
 // If no collection and scope names are specified in the options then *only* indexes created on the bucket directly
 // will be built.
 func (qm *CollectionQueryIndexManager) BuildDeferredIndexes(opts *BuildDeferredQueryIndexOptions) ([]string, error) {
-	return autoOpControl(qm.controller, func(provider queryIndexProvider) ([]string, error) {
+	return autoOpControl(qm.controller, "manager_query_build_deferred_indexes", func(provider queryIndexProvider) ([]string, error) {
 		if opts == nil {
 			opts = &BuildDeferredQueryIndexOptions{}
 		}
@@ -126,7 +126,7 @@ func (qm *CollectionQueryIndexManager) BuildDeferredIndexes(opts *BuildDeferredQ
 
 // WatchIndexes waits for a set of indexes to come online.
 func (qm *CollectionQueryIndexManager) WatchIndexes(watchList []string, timeout time.Duration, opts *WatchQueryIndexOptions) error {
-	return autoOpControlErrorOnly(qm.controller, func(provider queryIndexProvider) error {
+	return autoOpControlErrorOnly(qm.controller, "manager_query_watch_indexes", func(provider queryIndexProvider) error {
 		if opts == nil {
 			opts = &WatchQueryIndexOptions{}
 		}

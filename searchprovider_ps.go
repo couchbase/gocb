@@ -39,10 +39,9 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 	})
 	// Spans in couchbase2 mode need to live for the lifetime of the response body as any underlying
 	// grpc span will do so.
-	defer manager.ValueRecord()
 	defer func() {
 		if errOut != nil {
-			manager.Finish(true)
+			manager.Finish()
 		}
 	}()
 
@@ -260,7 +259,7 @@ func (reader *psSearchRowReader) Close() error {
 	}
 	err := reader.client.CloseSend()
 
-	reader.manager.Finish(true)
+	reader.manager.Finish()
 
 	reader.client = nil
 	return err
@@ -311,7 +310,7 @@ func (reader *psSearchRowReader) finishWithoutError() {
 		logWarnf("query stream close failed after meta-data: %s", err)
 	}
 
-	reader.manager.Finish(true)
+	reader.manager.Finish()
 
 	reader.client = nil
 }
@@ -329,7 +328,7 @@ func (reader *psSearchRowReader) finishWithError(err error) {
 		logDebugf("query stream close failed after error: %s", closeErr)
 	}
 
-	reader.manager.Finish(true)
+	reader.manager.Finish()
 
 	// Our client is invalidated as soon as an error occurs
 	reader.client = nil

@@ -21,7 +21,7 @@ func (c *Collection) List(id string) *CouchbaseList {
 
 // Iterator returns an iterable for all items in the list.
 func (cl *CouchbaseList) Iterator() ([]interface{}, error) {
-	return autoOpControl(cl.collection.kvController(), func(agent kvProvider) ([]interface{}, error) {
+	return autoOpControl(cl.collection.kvController(), "list_iterator", func(agent kvProvider) ([]interface{}, error) {
 		span := agent.StartKvOpTrace(cl.collection, "list_iterator", nil, false)
 		defer span.End()
 
@@ -48,7 +48,7 @@ func dsListIterator(provider kvProvider, span RequestSpan, collection *Collectio
 
 // At retrieves the value specified at the given index from the list.
 func (cl *CouchbaseList) At(index int, valuePtr interface{}) error {
-	return autoOpControlErrorOnly(cl.collection.kvController(), func(agent kvProvider) error {
+	return autoOpControlErrorOnly(cl.collection.kvController(), "list_at", func(agent kvProvider) error {
 		span := agent.StartKvOpTrace(cl.collection, "list_at", nil, false)
 		defer span.End()
 		ops := make([]LookupInSpec, 1)
@@ -66,7 +66,7 @@ func (cl *CouchbaseList) At(index int, valuePtr interface{}) error {
 
 // RemoveAt removes the value specified at the given index from the list.
 func (cl *CouchbaseList) RemoveAt(index int) error {
-	return autoOpControlErrorOnly(cl.collection.kvController(), func(agent kvProvider) error {
+	return autoOpControlErrorOnly(cl.collection.kvController(), "list_remove_at", func(agent kvProvider) error {
 		span := agent.StartKvOpTrace(cl.collection, "list_remove_at", nil, false)
 		defer span.End()
 		ops := make([]MutateInSpec, 1)
@@ -84,7 +84,7 @@ func (cl *CouchbaseList) RemoveAt(index int) error {
 
 // Append appends an item to the list.
 func (cl *CouchbaseList) Append(val interface{}) error {
-	return autoOpControlErrorOnly(cl.collection.kvController(), func(agent kvProvider) error {
+	return autoOpControlErrorOnly(cl.collection.kvController(), "list_append", func(agent kvProvider) error {
 		span := agent.StartKvOpTrace(cl.collection, "list_append", nil, false)
 		defer span.End()
 		ops := make([]MutateInSpec, 1)
@@ -103,7 +103,7 @@ func (cl *CouchbaseList) Append(val interface{}) error {
 
 // Prepend prepends an item to the list.
 func (cl *CouchbaseList) Prepend(val interface{}) error {
-	return autoOpControlErrorOnly(cl.collection.kvController(), func(agent kvProvider) error {
+	return autoOpControlErrorOnly(cl.collection.kvController(), "list_prepend", func(agent kvProvider) error {
 		span := agent.StartKvOpTrace(cl.collection, "list_prepend", nil, false)
 		defer span.End()
 
@@ -127,7 +127,7 @@ func dsListPrepend(agent kvProvider, span RequestSpan, collection *Collection, i
 
 // IndexOf gets the index of the item in the list.
 func (cl *CouchbaseList) IndexOf(val interface{}) (int, error) {
-	return autoOpControl(cl.collection.kvController(), func(agent kvProvider) (int, error) {
+	return autoOpControl(cl.collection.kvController(), "list_index_of", func(agent kvProvider) (int, error) {
 		span := agent.StartKvOpTrace(cl.collection, "list_index_of", nil, false)
 		defer span.End()
 		content, err := agent.Get(cl.collection, cl.id, &GetOptions{
@@ -155,7 +155,7 @@ func (cl *CouchbaseList) IndexOf(val interface{}) (int, error) {
 
 // Size returns the size of the list.
 func (cl *CouchbaseList) Size() (int, error) {
-	return autoOpControl(cl.collection.kvController(), func(agent kvProvider) (int, error) {
+	return autoOpControl(cl.collection.kvController(), "list_size", func(agent kvProvider) (int, error) {
 		span := agent.StartKvOpTrace(cl.collection, "list_size", nil, false)
 		defer span.End()
 
@@ -184,7 +184,7 @@ func dsListSize(agent kvProvider, span RequestSpan, collection *Collection, id s
 
 // Clear clears a list, also removing it.
 func (cl *CouchbaseList) Clear() error {
-	return autoOpControlErrorOnly(cl.collection.kvController(), func(agent kvProvider) error {
+	return autoOpControlErrorOnly(cl.collection.kvController(), "list_clear", func(agent kvProvider) error {
 		span := agent.StartKvOpTrace(cl.collection, "list_clear", nil, false)
 		defer span.End()
 
@@ -219,7 +219,7 @@ func (c *Collection) Map(id string) *CouchbaseMap {
 
 // Iterator returns an iterable for all items in the map.
 func (cl *CouchbaseMap) Iterator() (map[string]interface{}, error) {
-	return autoOpControl(cl.collection.kvController(), func(agent kvProvider) (map[string]interface{}, error) {
+	return autoOpControl(cl.collection.kvController(), "map_iterator", func(agent kvProvider) (map[string]interface{}, error) {
 		span := agent.StartKvOpTrace(cl.collection, "map_iterator", nil, false)
 		defer span.End()
 		content, err := agent.Get(cl.collection, cl.id, &GetOptions{
@@ -241,7 +241,7 @@ func (cl *CouchbaseMap) Iterator() (map[string]interface{}, error) {
 
 // At retrieves the item for the given id from the map.
 func (cl *CouchbaseMap) At(id string, valuePtr interface{}) error {
-	return autoOpControlErrorOnly(cl.collection.kvController(), func(agent kvProvider) error {
+	return autoOpControlErrorOnly(cl.collection.kvController(), "map_at", func(agent kvProvider) error {
 		span := agent.StartKvOpTrace(cl.collection, "map_at", nil, false)
 		defer span.End()
 		ops := make([]LookupInSpec, 1)
@@ -259,7 +259,7 @@ func (cl *CouchbaseMap) At(id string, valuePtr interface{}) error {
 
 // Add adds an item to the map.
 func (cl *CouchbaseMap) Add(id string, val interface{}) error {
-	return autoOpControlErrorOnly(cl.collection.kvController(), func(agent kvProvider) error {
+	return autoOpControlErrorOnly(cl.collection.kvController(), "map_add", func(agent kvProvider) error {
 		span := agent.StartKvOpTrace(cl.collection, "map_add", nil, false)
 		defer span.End()
 		ops := make([]MutateInSpec, 1)
@@ -278,7 +278,7 @@ func (cl *CouchbaseMap) Add(id string, val interface{}) error {
 
 // Remove removes an item from the map.
 func (cl *CouchbaseMap) Remove(id string) error {
-	return autoOpControlErrorOnly(cl.collection.kvController(), func(agent kvProvider) error {
+	return autoOpControlErrorOnly(cl.collection.kvController(), "map_remove", func(agent kvProvider) error {
 		span := agent.StartKvOpTrace(cl.collection, "map_remove", nil, false)
 		defer span.End()
 		ops := make([]MutateInSpec, 1)
@@ -296,7 +296,7 @@ func (cl *CouchbaseMap) Remove(id string) error {
 
 // Exists verifies whether or an id exists in the map.
 func (cl *CouchbaseMap) Exists(id string) (bool, error) {
-	return autoOpControl(cl.collection.kvController(), func(agent kvProvider) (bool, error) {
+	return autoOpControl(cl.collection.kvController(), "map_exists", func(agent kvProvider) (bool, error) {
 		span := agent.StartKvOpTrace(cl.collection, "map_exists", nil, false)
 		defer span.End()
 		ops := make([]LookupInSpec, 1)
@@ -314,7 +314,7 @@ func (cl *CouchbaseMap) Exists(id string) (bool, error) {
 
 // Size returns the size of the map.
 func (cl *CouchbaseMap) Size() (int, error) {
-	return autoOpControl(cl.collection.kvController(), func(agent kvProvider) (int, error) {
+	return autoOpControl(cl.collection.kvController(), "map_size", func(agent kvProvider) (int, error) {
 		span := agent.StartKvOpTrace(cl.collection, "map_size", nil, false)
 		defer span.End()
 		ops := make([]LookupInSpec, 1)
@@ -338,7 +338,7 @@ func (cl *CouchbaseMap) Size() (int, error) {
 
 // Keys returns all of the keys within the map.
 func (cl *CouchbaseMap) Keys() ([]string, error) {
-	return autoOpControl(cl.collection.kvController(), func(agent kvProvider) ([]string, error) {
+	return autoOpControl(cl.collection.kvController(), "map_keys", func(agent kvProvider) ([]string, error) {
 		span := agent.StartKvOpTrace(cl.collection, "map_keys", nil, false)
 		defer span.End()
 		content, err := agent.Get(cl.collection, cl.id, &GetOptions{
@@ -365,7 +365,7 @@ func (cl *CouchbaseMap) Keys() ([]string, error) {
 
 // Values returns all of the values within the map.
 func (cl *CouchbaseMap) Values() ([]interface{}, error) {
-	return autoOpControl(cl.collection.kvController(), func(agent kvProvider) ([]interface{}, error) {
+	return autoOpControl(cl.collection.kvController(), "map_values", func(agent kvProvider) ([]interface{}, error) {
 		span := agent.StartKvOpTrace(cl.collection, "map_values", nil, false)
 		defer span.End()
 		content, err := agent.Get(cl.collection, cl.id, &GetOptions{
@@ -392,7 +392,7 @@ func (cl *CouchbaseMap) Values() ([]interface{}, error) {
 
 // Clear clears a map, also removing it.
 func (cl *CouchbaseMap) Clear() error {
-	return autoOpControlErrorOnly(cl.collection.kvController(), func(agent kvProvider) error {
+	return autoOpControlErrorOnly(cl.collection.kvController(), "map_clear", func(agent kvProvider) error {
 		span := agent.StartKvOpTrace(cl.collection, "map_clear", nil, false)
 		defer span.End()
 		_, err := agent.Remove(cl.collection, cl.id, &RemoveOptions{
@@ -422,7 +422,7 @@ func (c *Collection) Set(id string) *CouchbaseSet {
 
 // Iterator returns an iterable for all items in the set.
 func (cs *CouchbaseSet) Iterator() ([]interface{}, error) {
-	return autoOpControl(cs.collection.kvController(), func(agent kvProvider) ([]interface{}, error) {
+	return autoOpControl(cs.collection.kvController(), "set_iterator", func(agent kvProvider) ([]interface{}, error) {
 		span := agent.StartKvOpTrace(cs.collection, "set_iterator", nil, false)
 		defer span.End()
 		return dsListIterator(agent, span, cs.collection, cs.id)
@@ -431,7 +431,7 @@ func (cs *CouchbaseSet) Iterator() ([]interface{}, error) {
 
 // Add adds a value to the set.
 func (cs *CouchbaseSet) Add(val interface{}) error {
-	return autoOpControlErrorOnly(cs.collection.kvController(), func(agent kvProvider) error {
+	return autoOpControlErrorOnly(cs.collection.kvController(), "set_add", func(agent kvProvider) error {
 		span := agent.StartKvOpTrace(cs.collection, "set_add", nil, false)
 		defer span.End()
 		ops := make([]MutateInSpec, 1)
@@ -450,7 +450,7 @@ func (cs *CouchbaseSet) Add(val interface{}) error {
 
 // Remove removes an value from the set.
 func (cs *CouchbaseSet) Remove(val string) error {
-	return autoOpControlErrorOnly(cs.collection.kvController(), func(agent kvProvider) error {
+	return autoOpControlErrorOnly(cs.collection.kvController(), "set_remove", func(agent kvProvider) error {
 		span := agent.StartKvOpTrace(cs.collection, "set_remove", nil, false)
 		defer span.End()
 		for i := 0; i < 16; i++ {
@@ -499,7 +499,7 @@ func (cs *CouchbaseSet) Remove(val string) error {
 
 // Values returns all of the values within the set.
 func (cs *CouchbaseSet) Values() ([]interface{}, error) {
-	return autoOpControl(cs.collection.kvController(), func(agent kvProvider) ([]interface{}, error) {
+	return autoOpControl(cs.collection.kvController(), "set_values", func(agent kvProvider) ([]interface{}, error) {
 		span := agent.StartKvOpTrace(cs.collection, "set_values", nil, false)
 		defer span.End()
 		content, err := agent.Get(cs.collection, cs.id, &GetOptions{
@@ -521,7 +521,7 @@ func (cs *CouchbaseSet) Values() ([]interface{}, error) {
 
 // Contains verifies whether or not a value exists within the set.
 func (cs *CouchbaseSet) Contains(val string) (bool, error) {
-	return autoOpControl(cs.collection.kvController(), func(agent kvProvider) (bool, error) {
+	return autoOpControl(cs.collection.kvController(), "set_contains", func(agent kvProvider) (bool, error) {
 		span := agent.StartKvOpTrace(cs.collection, "set_contains", nil, false)
 		defer span.End()
 		content, err := agent.Get(cs.collection, cs.id, &GetOptions{
@@ -549,7 +549,7 @@ func (cs *CouchbaseSet) Contains(val string) (bool, error) {
 
 // Size returns the size of the set
 func (cs *CouchbaseSet) Size() (int, error) {
-	return autoOpControl(cs.collection.kvController(), func(agent kvProvider) (int, error) {
+	return autoOpControl(cs.collection.kvController(), "set_size", func(agent kvProvider) (int, error) {
 		span := agent.StartKvOpTrace(cs.collection, "set_size", nil, false)
 		defer span.End()
 		return dsListSize(agent, span, cs.collection, cs.id)
@@ -558,7 +558,7 @@ func (cs *CouchbaseSet) Size() (int, error) {
 
 // Clear clears a set, also removing it.
 func (cs *CouchbaseSet) Clear() error {
-	return autoOpControlErrorOnly(cs.collection.kvController(), func(agent kvProvider) error {
+	return autoOpControlErrorOnly(cs.collection.kvController(), "set_clear", func(agent kvProvider) error {
 		span := agent.StartKvOpTrace(cs.collection, "set_clear", nil, false)
 		defer span.End()
 		return dsListClear(agent, span, cs.collection, cs.id)
@@ -581,7 +581,7 @@ func (c *Collection) Queue(id string) *CouchbaseQueue {
 
 // Iterator returns an iterable for all items in the queue.
 func (cs *CouchbaseQueue) Iterator() ([]interface{}, error) {
-	return autoOpControl(cs.collection.kvController(), func(agent kvProvider) ([]interface{}, error) {
+	return autoOpControl(cs.collection.kvController(), "queue_iterator", func(agent kvProvider) ([]interface{}, error) {
 		span := agent.StartKvOpTrace(cs.collection, "queue_iterator", nil, false)
 		defer span.End()
 		return dsListIterator(agent, span, cs.collection, cs.id)
@@ -590,7 +590,7 @@ func (cs *CouchbaseQueue) Iterator() ([]interface{}, error) {
 
 // Push pushes a value onto the queue.
 func (cs *CouchbaseQueue) Push(val interface{}) error {
-	return autoOpControlErrorOnly(cs.collection.kvController(), func(agent kvProvider) error {
+	return autoOpControlErrorOnly(cs.collection.kvController(), "queue_push", func(agent kvProvider) error {
 		span := agent.StartKvOpTrace(cs.collection, "queue_push", nil, false)
 		defer span.End()
 		return dsListPrepend(agent, span, cs.collection, cs.id, val)
@@ -599,7 +599,7 @@ func (cs *CouchbaseQueue) Push(val interface{}) error {
 
 // Pop pops an items off of the queue.
 func (cs *CouchbaseQueue) Pop(valuePtr interface{}) error {
-	return autoOpControlErrorOnly(cs.collection.kvController(), func(agent kvProvider) error {
+	return autoOpControlErrorOnly(cs.collection.kvController(), "queue_pop", func(agent kvProvider) error {
 		span := agent.StartKvOpTrace(cs.collection, "queue_pop", nil, false)
 		defer span.End()
 		for i := 0; i < 16; i++ {
@@ -639,7 +639,7 @@ func (cs *CouchbaseQueue) Pop(valuePtr interface{}) error {
 
 // Size returns the size of the queue.
 func (cs *CouchbaseQueue) Size() (int, error) {
-	return autoOpControl(cs.collection.kvController(), func(agent kvProvider) (int, error) {
+	return autoOpControl(cs.collection.kvController(), "queue_size", func(agent kvProvider) (int, error) {
 		span := agent.StartKvOpTrace(cs.collection, "queue_size", nil, false)
 		defer span.End()
 		return dsListSize(agent, span, cs.collection, cs.id)
@@ -648,7 +648,7 @@ func (cs *CouchbaseQueue) Size() (int, error) {
 
 // Clear clears a queue, also removing it.
 func (cs *CouchbaseQueue) Clear() error {
-	return autoOpControlErrorOnly(cs.collection.kvController(), func(agent kvProvider) error {
+	return autoOpControlErrorOnly(cs.collection.kvController(), "queue_clear", func(agent kvProvider) error {
 		span := agent.StartKvOpTrace(cs.collection, "queue_clear", nil, false)
 		defer span.End()
 		return dsListClear(agent, span, cs.collection, cs.id)

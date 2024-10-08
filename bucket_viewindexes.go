@@ -98,7 +98,7 @@ type GetDesignDocumentOptions struct {
 
 // GetDesignDocument retrieves a single design document for the given bucket.
 func (vm *ViewIndexManager) GetDesignDocument(name string, namespace DesignDocumentNamespace, opts *GetDesignDocumentOptions) (*DesignDocument, error) {
-	return autoOpControl(vm.controller, func(provider viewIndexProvider) (*DesignDocument, error) {
+	return autoOpControl(vm.controller, "manager_views_get_design_document", func(provider viewIndexProvider) (*DesignDocument, error) {
 		if opts == nil {
 			opts = &GetDesignDocumentOptions{}
 		}
@@ -121,7 +121,7 @@ type GetAllDesignDocumentsOptions struct {
 
 // GetAllDesignDocuments will retrieve all design documents for the given bucket.
 func (vm *ViewIndexManager) GetAllDesignDocuments(namespace DesignDocumentNamespace, opts *GetAllDesignDocumentsOptions) ([]DesignDocument, error) {
-	return autoOpControl(vm.controller, func(provider viewIndexProvider) ([]DesignDocument, error) {
+	return autoOpControl(vm.controller, "manager_views_get_all_design_documents", func(provider viewIndexProvider) ([]DesignDocument, error) {
 		if opts == nil {
 			opts = &GetAllDesignDocumentsOptions{}
 		}
@@ -145,7 +145,7 @@ type UpsertDesignDocumentOptions struct {
 // UpsertDesignDocument will insert a design document to the given bucket, or update
 // an existing design document with the same name.
 func (vm *ViewIndexManager) UpsertDesignDocument(ddoc DesignDocument, namespace DesignDocumentNamespace, opts *UpsertDesignDocumentOptions) error {
-	return autoOpControlErrorOnly(vm.controller, func(provider viewIndexProvider) error {
+	return autoOpControlErrorOnly(vm.controller, "manager_views_upsert_design_document", func(provider viewIndexProvider) error {
 		if opts == nil {
 			opts = &UpsertDesignDocumentOptions{}
 		}
@@ -168,7 +168,7 @@ type DropDesignDocumentOptions struct {
 
 // DropDesignDocument will remove a design document from the given bucket.
 func (vm *ViewIndexManager) DropDesignDocument(name string, namespace DesignDocumentNamespace, opts *DropDesignDocumentOptions) error {
-	return autoOpControlErrorOnly(vm.controller, func(provider viewIndexProvider) error {
+	return autoOpControlErrorOnly(vm.controller, "manager_views_drop_design_document", func(provider viewIndexProvider) error {
 		if opts == nil {
 			opts = &DropDesignDocumentOptions{}
 		}
@@ -191,7 +191,7 @@ type PublishDesignDocumentOptions struct {
 
 // PublishDesignDocument publishes a design document to the given bucket.
 func (vm *ViewIndexManager) PublishDesignDocument(name string, opts *PublishDesignDocumentOptions) error {
-	return autoOpControlErrorOnly(vm.controller, func(provider viewIndexProvider) error {
+	return autoOpControlErrorOnly(vm.controller, "manager_views_publish_design_document", func(provider viewIndexProvider) error {
 		if opts == nil {
 			opts = &PublishDesignDocumentOptions{}
 		}
