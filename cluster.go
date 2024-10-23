@@ -40,6 +40,8 @@ type Cluster struct {
 	transactions *Transactions
 
 	keyspace keyspace
+
+	preferredServerGroup string
 }
 
 // IoConfig specifies IO related configuration options.
@@ -249,6 +251,7 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 			CompressionMinSize:  opts.CompressionConfig.MinSize,
 			CompressionMinRatio: opts.CompressionConfig.MinRatio,
 		},
+		preferredServerGroup: opts.PreferredServerGroup,
 	}
 }
 

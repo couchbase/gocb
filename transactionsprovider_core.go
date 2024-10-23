@@ -232,8 +232,9 @@ func (t *transactionsProviderCore) Run(logicFn AttemptFunc, perConfig *Transacti
 			queryConfig: TransactionQueryOptions{
 				ScanConsistency: scanConsistency,
 			},
-			logger:    logger,
-			attemptID: attemptID,
+			logger:               logger,
+			attemptID:            attemptID,
+			preferredServerGroup: t.cluster.preferredServerGroup,
 		}
 
 		if hooksWrapper != nil {

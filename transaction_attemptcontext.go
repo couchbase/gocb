@@ -32,6 +32,8 @@ type TransactionAttemptContext struct {
 	queryConfig    TransactionQueryOptions
 	logger         *transactionLogger
 	attemptID      string
+
+	preferredServerGroup string
 }
 
 func (c *TransactionAttemptContext) canCommit() bool {
@@ -95,13 +97,42 @@ func (c *TransactionAttemptContext) Get(collection *Collection, id string) (*Tra
 	}
 	c.queryStateLock.Unlock()
 
-	return c.get(collection, id)
+	return c.get(collection, id, "")
 }
 
-func (c *TransactionAttemptContext) get(collection *Collection, id string) (resOut *TransactionGetResult, errOut error) {
+// GetReplicaFromPreferredServerGroup will attempt to fetch a document from the preferred server group, and fail the transaction if it does not exist.
+func (c *TransactionAttemptContext) GetReplicaFromPreferredServerGroup(collection *Collection, id string) (*TransactionGetResult, error) {
+	c.queryStateLock.Lock()
+	if c.queryModeLocked() {
+		c.queryStateLock.Unlock()
+		c.updateState(transactionQueryOperationFailedDef{
+			ShouldNotRetry:    true,
+			ShouldNotRollback: false,
+			Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
+			ErrorCause: wrapError(
+				ErrFeatureNotAvailable,
+				"the GetReplicaFromPreferredServerGroup operation is not available for queries",
+			),
+			ErrorClass:      gocbcore.TransactionErrorClassFailOther,
+			ShouldNotCommit: true,
+		})
+
+		return nil, createTransactionOperationFailedError(
+			wrapError(
+				ErrFeatureNotAvailable,
+				"the GetReplicaFromPreferredServerGroup operation is not available for queries",
+			),
+		)
+	}
+	c.queryStateLock.Unlock()
+
+	return c.get(collection, id, c.preferredServerGroup)
+}
+
+func (c *TransactionAttemptContext) get(collection *Collection, id string, serverGroup string) (resOut *TransactionGetResult, errOut error) {
 	a, err := collection.Bucket().Internal().IORouter()
 	if err != nil {
-		return nil, err
+		return nil, createTransactionOperationFailedError(err)
 	}
 
 	waitCh := make(chan struct{}, 1)
@@ -110,6 +141,7 @@ func (c *TransactionAttemptContext) get(collection *Collection, id string) (resO
 		ScopeName:      collection.ScopeName(),
 		CollectionName: collection.Name(),
 		Key:            []byte(id),
+		ServerGroup:    serverGroup,
 	}, func(res *gocbcore.TransactionGetResult, err error) {
 		if err == nil {
 			resOut = &TransactionGetResult{
@@ -127,6 +159,12 @@ func (c *TransactionAttemptContext) get(collection *Collection, id string) (resO
 			waitCh <- struct{}{}
 			return
 		}
+		if serverGroup != "" && (errors.Is(err, ErrDocumentUnretrievable) || errors.Is(err, ErrFeatureNotAvailable)) {
+			errOut = err
+			waitCh <- struct{}{}
+			return
+		}
+
 		errOut = createTransactionOperationFailedError(err)
 		waitCh <- struct{}{}
 	})
