@@ -113,6 +113,8 @@ func NewTransactionsCleaner(bucketProvider TransactionsBucketProviderFn, config 
 	}
 	corecfg.Internal.CleanUpHooks = cleanupHooksWrapper
 	corecfg.Internal.NumATRs = config.Internal.NumATRs
+	corecfg.Internal.EnableParallelUnstaging = true
+	corecfg.Internal.UnstagingParallelismLimit = transactionsUnstagingParallelismLimit
 	corecfg.KeyValueTimeout = 2500 * time.Millisecond
 
 	return &coreTransactionsCleanerWrapper{
@@ -312,6 +314,8 @@ func NewLostTransactionsCleanup(bucketProvider TransactionsBucketProviderFn, loc
 	corecfg.Internal.CleanUpHooks = cleanupHooksWrapper
 	corecfg.Internal.ClientRecordHooks = cleanupHooksWrapper
 	corecfg.Internal.NumATRs = config.Internal.NumATRs
+	corecfg.Internal.EnableParallelUnstaging = true
+	corecfg.Internal.UnstagingParallelismLimit = transactionsUnstagingParallelismLimit
 	corecfg.KeyValueTimeout = 2500 * time.Millisecond
 
 	return &coreLostTransactionsCleanerWrapper{

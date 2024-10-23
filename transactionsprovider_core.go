@@ -33,6 +33,10 @@ type transactionsProviderCore struct {
 	cleanupCollections  []gocbcore.TransactionLostATRLocation
 }
 
+const (
+	transactionsUnstagingParallelismLimit = 1000
+)
+
 func (t *transactionsProviderCore) Init(config TransactionsConfig, c *Cluster) error {
 	// Note that gocbcore will handle a lot of default values for us.
 	if config.QueryConfig.ScanConsistency == 0 {
@@ -137,6 +141,8 @@ func (t *transactionsProviderCore) Init(config TransactionsConfig, c *Cluster) e
 	corecfg.Internal.CleanUpHooks = cleanupHooksWrapper
 	corecfg.Internal.ClientRecordHooks = clientRecordHooksWrapper
 	corecfg.Internal.NumATRs = config.Internal.NumATRs
+	corecfg.Internal.EnableParallelUnstaging = true
+	corecfg.Internal.UnstagingParallelismLimit = transactionsUnstagingParallelismLimit
 	corecfg.KeyValueTimeout = c.timeoutsConfig.KVTimeout
 
 	txns, err := gocbcore.InitTransactions(corecfg)
