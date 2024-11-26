@@ -101,6 +101,8 @@ func (c *TransactionAttemptContext) Get(collection *Collection, id string) (*Tra
 }
 
 // GetReplicaFromPreferredServerGroup will attempt to fetch a document from the preferred server group, and fail the transaction if it does not exist.
+//
+// UNCOMMITTED: This API may change in the future.
 func (c *TransactionAttemptContext) GetReplicaFromPreferredServerGroup(collection *Collection, id string) (*TransactionGetResult, error) {
 	c.queryStateLock.Lock()
 	if c.queryModeLocked() {
