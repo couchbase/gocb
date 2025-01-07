@@ -217,7 +217,7 @@ func setupCluster() {
 		}
 
 		mock, err = cavescli.NewClient(cavescli.NewClientOptions{
-			Version: "v0.0.1-69",
+			Version: "v0.0.1-78",
 		})
 		if err != nil {
 			panic(err.Error())
@@ -230,7 +230,7 @@ func setupCluster() {
 		}
 
 		globalConfig.Bucket = "default"
-		globalConfig.Version = "0.0.1-53"
+		globalConfig.Version = "0.0.1-78"
 		globalConfig.Server = connStr
 		globalConfig.User = "Administrator"
 		globalConfig.Password = "password"

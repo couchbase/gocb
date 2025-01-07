@@ -1,10 +1,10 @@
 module github.com/couchbase/gocb/v2
 
 require (
-	github.com/couchbase/gocbcore/v10 v10.5.3
+	github.com/couchbase/gocbcore/v10 v10.5.4-0.20250107135314-f4c4becdca29
 	github.com/couchbase/gocbcoreps v0.1.3
 	github.com/couchbase/goprotostellar v1.0.2
-	github.com/couchbaselabs/gocaves/client v0.0.0-20230404095311-05e3ba4f0259
+	github.com/couchbaselabs/gocaves/client v0.0.0-20250107114554-f96479220ae8
 	github.com/couchbaselabs/gocbconnstr/v2 v2.0.0-20240607131231-fb385523de28
 	github.com/golang/snappy v0.0.4
 	github.com/google/uuid v1.6.0
