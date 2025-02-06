@@ -136,7 +136,7 @@ func (suite *UnitTestSuite) TestScopeQueryPrepared() {
 		suite.Require().Nil(err)
 
 		suite.Assert().Contains(actualOptions, "client_context_id")
-		suite.Assert().Equal(actualOptions["query_context"], "queryBucket.queryScope")
+		suite.Assert().Equal(actualOptions["query_context"], "default:`queryBucket`.`queryScope`")
 	})
 
 	result, err := scope.Query(statement, nil)

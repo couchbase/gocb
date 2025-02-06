@@ -54,7 +54,7 @@ func (qpc *queryProviderCore) Query(statement string, s *Scope, opts *QueryOptio
 
 	queryOpts["statement"] = statement
 	if s != nil {
-		queryOpts["query_context"] = fmt.Sprintf("%s.%s", s.BucketName(), s.Name())
+		queryOpts["query_context"] = fmt.Sprintf("default:`%s`.`%s`", s.BucketName(), s.Name())
 	}
 
 	eSpan := qpc.tracer.createSpan(span, "request_encoding", "")
