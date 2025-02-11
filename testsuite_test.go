@@ -3,7 +3,9 @@ package gocb
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/url"
 	"strconv"
 	"testing"
 	"time"
@@ -87,6 +89,8 @@ func (suite *IntegrationTestSuite) SetupSuite() {
 			suite.ensureReplicasUpLegacyDura()
 		}
 	}
+
+	suite.setClusterName()
 }
 
 func (suite *IntegrationTestSuite) generateTransactionsKeys() {
@@ -149,6 +153,51 @@ func (suite *IntegrationTestSuite) generateTransactionsKeys() {
 	transactionsTestKeys["k000tok099andkC"] = k000tok099andkC
 	transactionsTestKeys["kCandk100tok199"] = kCandk100tok199
 	transactionsTestKeys["k100tok199andkC"] = k100tok199andkC
+}
+
+func (suite *IntegrationTestSuite) setClusterName() {
+	if globalCluster.IsProtostellar() {
+		return
+	}
+	if globalCluster.NotSupportsFeature(ClusterLabelsFeature) {
+		return
+	}
+	router, err := globalBucket.Internal().IORouter()
+	suite.Require().NoError(err)
+
+	newClusterName := "test-cluster"
+
+	req := &gocbcore.HTTPRequest{
+		UniqueID:    "setClusterName",
+		Method:      "POST",
+		Path:        "/pools/default",
+		Service:     gocbcore.MgmtService,
+		ContentType: "application/x-www-form-urlencoded",
+		Body:        []byte(url.Values{"clusterName": []string{newClusterName}}.Encode()),
+		Deadline:    time.Now().Add(10 * time.Second),
+	}
+	ch := make(chan struct{})
+	_, err = router.DoHTTPRequest(req, func(resp *gocbcore.HTTPResponse, err error) {
+		suite.Require().NoError(err)
+		suite.Require().Equal(200, resp.StatusCode)
+		suite.Require().NoError(resp.Body.Close())
+		close(ch)
+	})
+	<-ch
+	suite.Require().NoError(err)
+
+	suite.ensureMgmtResource(time.Now().Add(20*time.Second), "/pools/default", func(reader io.ReadCloser) bool {
+		var respBody map[string]interface{}
+		err := json.NewDecoder(reader).Decode(&respBody)
+		if err != nil {
+			return false
+		}
+		clusterName, ok := respBody["clusterName"]
+		if !ok {
+			return false
+		}
+		return clusterName == newClusterName
+	})
 }
 
 func (suite *IntegrationTestSuite) AssertKVMetrics(metricName, op string, length int, atLeastLen bool) {
