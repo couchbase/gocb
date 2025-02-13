@@ -187,9 +187,9 @@ func (d *GetResult) set(paths []subdocPath, content interface{}, value interface
 			arr := make([]interface{}, 0)
 			arr = append(arr, value)
 			if _, ok := content.(map[string]interface{}); ok {
-				content.(map[string]interface{})[path.path] = arr
+				content.(map[string]interface{})[path.path] = arr // nolint: errcheck
 			} else if _, ok := content.([]interface{}); ok {
-				content = append(content.([]interface{}), arr)
+				content = append(content.([]interface{}), arr) // nolint: errcheck
 			} else {
 				logErrorf("Projections encountered a non-array or object content assigning an array")
 			}
@@ -197,9 +197,9 @@ func (d *GetResult) set(paths []subdocPath, content interface{}, value interface
 			if _, ok := content.([]interface{}); ok {
 				elem := make(map[string]interface{})
 				elem[path.path] = value
-				content = append(content.([]interface{}), elem)
+				content = append(content.([]interface{}), elem) // nolint: errcheck
 			} else {
-				content.(map[string]interface{})[path.path] = value
+				content.(map[string]interface{})[path.path] = value // nolint: errcheck
 			}
 		}
 		return content
@@ -208,7 +208,7 @@ func (d *GetResult) set(paths []subdocPath, content interface{}, value interface
 	if path.isArray {
 		if _, ok := content.([]interface{}); ok {
 			var m []interface{}
-			content = append(content.([]interface{}), d.set(paths[1:], m, value))
+			content = append(content.([]interface{}), d.set(paths[1:], m, value)) // nolint: errcheck
 			return content
 		} else if cMap, ok := content.(map[string]interface{}); ok {
 			cMap[path.path] = make([]interface{}, 0)
@@ -312,7 +312,7 @@ func (r *LookupInAllReplicasResult) Next() *LookupInReplicaResult {
 	if res == nil {
 		return nil
 	}
-	return res.(*LookupInReplicaResult)
+	return res.(*LookupInReplicaResult) // nolint: errcheck
 }
 
 // Close cancels all remaining get replica requests.

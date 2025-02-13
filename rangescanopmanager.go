@@ -750,13 +750,13 @@ func (b *rangeScanLoadBalancer) retryScan(vbucket rangeScanVbucket) {
 func (b *rangeScanLoadBalancer) scanEnded(vbucket rangeScanVbucket) {
 	zeroVal := uint32(0)
 	val, _ := b.activeScansPerNode.LoadOrStore(vbucket.server, &zeroVal)
-	atomic.AddUint32(val.(*uint32), ^uint32(0))
+	atomic.AddUint32(val.(*uint32), ^uint32(0)) // nolint: errcheck
 }
 
 func (b *rangeScanLoadBalancer) scanStarting(vbucket rangeScanVbucket) {
 	zeroVal := uint32(0)
 	val, _ := b.activeScansPerNode.LoadOrStore(vbucket.server, &zeroVal)
-	atomic.AddUint32(val.(*uint32), uint32(1))
+	atomic.AddUint32(val.(*uint32), uint32(1)) // nolint: errcheck
 }
 
 // close closes all the vbucket channels. This should only be called if no more vbucket scans will happen, i.e. selectVbucket should not be called after close.
@@ -782,7 +782,7 @@ func (b *rangeScanLoadBalancer) selectVbucket() (rangeScanVbucket, bool) {
 		}
 		zeroVal := uint32(0)
 		val, _ := b.activeScansPerNode.LoadOrStore(s, &zeroVal)
-		activeScans := *val.(*uint32)
+		activeScans := *val.(*uint32) // nolint: errcheck
 		if activeScans < min {
 			min = activeScans
 			selectedServer = s

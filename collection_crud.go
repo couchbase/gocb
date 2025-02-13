@@ -213,7 +213,7 @@ func (r *GetAllReplicasResult) Next() *GetReplicaResult {
 	if res == nil {
 		return nil
 	}
-	return res.(*GetReplicaResult)
+	return res.(*GetReplicaResult) // nolint: errcheck
 }
 
 // Close cancels all remaining get replica requests.
