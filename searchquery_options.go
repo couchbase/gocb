@@ -101,7 +101,11 @@ func (opts *SearchOptions) toMap(indexName string) (map[string]interface{}, erro
 	if opts.Highlight != nil {
 		highlight := make(map[string]interface{})
 		highlight["style"] = string(opts.Highlight.Style)
-		highlight["fields"] = opts.Highlight.Fields
+
+		if opts.Highlight.Fields != nil {
+			highlight["fields"] = opts.Highlight.Fields
+		}
+
 		data["highlight"] = highlight
 	}
 
