@@ -48,7 +48,6 @@ type GetAllScopesOptions struct {
 }
 
 // GetAllScopes gets all scopes from the bucket.
-// Will be deprecated in favor of CollectionManagerV2.GetAllScopes in the next minor release.
 func (cm *CollectionManager) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpec, error) {
 	return cm.managerV2.GetAllScopes(opts)
 }
@@ -66,7 +65,6 @@ type CreateCollectionOptions struct {
 }
 
 // CreateCollection creates a new collection on the bucket.
-// Will be deprecated in favor of CollectionManagerV2.CreateCollection in the next minor release.
 func (cm *CollectionManager) CreateCollection(spec CollectionSpec, opts *CreateCollectionOptions) error {
 	settings := &CreateCollectionSettings{
 		MaxExpiry: spec.MaxExpiry,
@@ -89,7 +87,6 @@ type UpdateCollectionOptions struct {
 }
 
 // UpdateCollection updates the settings of an existing collection.
-// Will be deprecated in favor of CollectionManagerV2.UpdateCollection in the next minor release.
 func (cm *CollectionManager) UpdateCollection(spec CollectionSpec, opts *UpdateCollectionOptions) error {
 	settings := UpdateCollectionSettings{
 		MaxExpiry: spec.MaxExpiry,
@@ -112,7 +109,6 @@ type DropCollectionOptions struct {
 }
 
 // DropCollection removes a collection.
-// Will be deprecated in favor of CollectionManagerV2.DropCollection in the next minor release.
 func (cm *CollectionManager) DropCollection(spec CollectionSpec, opts *DropCollectionOptions) error {
 	return cm.managerV2.DropCollection(spec.ScopeName, spec.Name, opts)
 }
@@ -130,7 +126,6 @@ type CreateScopeOptions struct {
 }
 
 // CreateScope creates a new scope on the bucket.
-// Will be deprecated in favor of CollectionManagerV2.CreateScope in the next minor release.
 func (cm *CollectionManager) CreateScope(scopeName string, opts *CreateScopeOptions) error {
 	return cm.managerV2.CreateScope(scopeName, opts)
 }
@@ -148,7 +143,6 @@ type DropScopeOptions struct {
 }
 
 // DropScope removes a scope.
-// Will be deprecated in favor of CollectionManagerV2.DropScope in the next minor release.
 func (cm *CollectionManager) DropScope(scopeName string, opts *DropScopeOptions) error {
 	return cm.managerV2.DropScope(scopeName, opts)
 }
