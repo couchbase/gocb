@@ -35,6 +35,7 @@ type Cluster struct {
 	internalConfig       InternalConfig
 	transactionsConfig   TransactionsConfig
 	compressionConfig    CompressionConfig
+	appTelemetryConfig   AppTelemetryConfig
 	compressor           *compressor
 
 	transactions *Transactions
@@ -97,6 +98,25 @@ type CompressionConfig struct {
 	MinRatio float64
 }
 
+// AppTelemetryConfig specifies options related to application telemetry capture.
+// Volatile: These options are subject to change at any time.
+type AppTelemetryConfig struct {
+	// Disabled specifies whether application telemetry capture should be disabled. Application telemetry is enabled by default.
+	Disabled bool
+
+	// ExternalEndpoint specifies an external websocket endpoint to send application telemetry data to, instead of ns_server.
+	ExternalEndpoint string
+
+	// Backoff specifies the duration to wait before reconnecting to an app telemetry endpoint.
+	Backoff time.Duration
+
+	// PingInterval specifies the duration between consecutive pings to the app telemetry endpoint.
+	PingInterval time.Duration
+
+	// PingTimeout specifies how long to wait to receive a Pong before closing the connection to the app telemetry endpoint and attempting to reconnect.
+	PingTimeout time.Duration
+}
+
 // InternalConfig specifies options for controlling various internal
 // items.
 // Internal: This should never be used and is not supported.
@@ -147,6 +167,10 @@ type ClusterOptions struct {
 
 	// CompressionConfig specifies compression related configuration options.
 	CompressionConfig CompressionConfig
+
+	// AppTelemetryConfig specifies app telemetry related configuration options.
+	// VOLATILE: This API is subject to change at any time.
+	AppTelemetryConfig AppTelemetryConfig
 
 	// PreferredServerGroup specifies the name of the server group to use with operations supporting ReadPreference.
 	// UNCOMMITTED: This API may change in the future.
@@ -251,6 +275,7 @@ func clusterFromOptions(opts ClusterOptions) *Cluster {
 			CompressionMinSize:  opts.CompressionConfig.MinSize,
 			CompressionMinRatio: opts.CompressionConfig.MinRatio,
 		},
+		appTelemetryConfig:   opts.AppTelemetryConfig,
 		preferredServerGroup: opts.PreferredServerGroup,
 	}
 }
@@ -385,6 +410,14 @@ func (c *Cluster) parseExtraConnStrOptions(spec gocbconnstr.ConnSpec) error {
 			return fmt.Errorf("management_timeout option must be a number")
 		}
 		c.timeoutsConfig.ManagementTimeout = time.Duration(val) * time.Millisecond
+	}
+
+	if valStr, ok := fetchOption("disable_app_telemetry"); ok {
+		val, err := strconv.ParseBool(valStr)
+		if err != nil {
+			return fmt.Errorf("disable_app_telemetry option must be a boolean")
+		}
+		c.appTelemetryConfig.Disabled = val
 	}
 
 	return nil

@@ -20,6 +20,7 @@ type stdConnectionMgr struct {
 	tracer               *tracerWrapper
 	meter                *meterWrapper
 	txns                 *transactionsProviderCore
+	appTelemetryReporter *gocbcore.TelemetryReporter
 	preferredServerGroup string
 
 	closed      atomic.Bool
@@ -43,6 +44,15 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 	var authMechanisms []gocbcore.AuthMechanism
 	for _, mech := range cluster.securityConfig.AllowedSaslMechanisms {
 		authMechanisms = append(authMechanisms, gocbcore.AuthMechanism(mech))
+	}
+
+	if !cluster.appTelemetryConfig.Disabled {
+		c.appTelemetryReporter = gocbcore.CreateTelemetryReporter(gocbcore.TelemetryReporterConfig{
+			ExternalEndpoint: cluster.appTelemetryConfig.ExternalEndpoint,
+			Backoff:          cluster.appTelemetryConfig.Backoff,
+			PingInterval:     cluster.appTelemetryConfig.PingInterval,
+			PingTimeout:      cluster.appTelemetryConfig.PingTimeout,
+		})
 	}
 
 	config := &gocbcore.AgentGroupConfig{
@@ -89,6 +99,9 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 				Enabled:  !cluster.compressionConfig.Disabled,
 				MinSize:  int(cluster.compressionConfig.MinSize),
 				MinRatio: cluster.compressionConfig.MinRatio,
+			},
+			TelemetryConfig: gocbcore.TelemetryConfig{
+				TelemetryReporter: c.appTelemetryReporter,
 			},
 		},
 	}
@@ -683,6 +696,10 @@ func (c *stdConnectionMgr) close() error {
 			meter.close()
 		}
 		c.meter = nil
+	}
+	if c.appTelemetryReporter != nil {
+		c.appTelemetryReporter.Close()
+		c.appTelemetryReporter = nil
 	}
 
 	return err
