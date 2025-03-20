@@ -58,7 +58,7 @@ func (c *TransactionAttemptContext) getQueryMode(collection *Collection, id stri
 			return err
 		}
 
-		return operationFailed(transactionQueryOperationFailedDef{
+		return operationFailed(transactionOperationFailedDef{
 			ShouldNotRetry: true,
 			ErrorCause:     err,
 			Reason:         gocbcore.TransactionErrorReasonTransactionFailed,
@@ -134,14 +134,14 @@ func (c *TransactionAttemptContext) replaceQueryMode(doc *TransactionGetResult, 
 		}
 
 		if errors.Is(err, ErrDocumentNotFound) {
-			return operationFailed(transactionQueryOperationFailedDef{
+			return operationFailed(transactionOperationFailedDef{
 				ErrorCause:      err,
 				Reason:          gocbcore.TransactionErrorReasonTransactionFailed,
 				ShouldNotCommit: true,
 				ErrorClass:      gocbcore.TransactionErrorClassFailDocNotFound,
 			}, c)
 		} else if errors.Is(err, ErrCasMismatch) {
-			return operationFailed(transactionQueryOperationFailedDef{
+			return operationFailed(transactionOperationFailedDef{
 				ErrorCause:      err,
 				Reason:          gocbcore.TransactionErrorReasonTransactionFailed,
 				ShouldNotCommit: true,
@@ -149,7 +149,7 @@ func (c *TransactionAttemptContext) replaceQueryMode(doc *TransactionGetResult, 
 			}, c)
 		}
 
-		return operationFailed(transactionQueryOperationFailedDef{
+		return operationFailed(transactionOperationFailedDef{
 			ShouldNotRetry:  true,
 			ErrorCause:      err,
 			Reason:          gocbcore.TransactionErrorReasonTransactionFailed,
@@ -224,7 +224,7 @@ func (c *TransactionAttemptContext) insertQueryMode(collection *Collection, id s
 			return err
 		}
 
-		return operationFailed(transactionQueryOperationFailedDef{
+		return operationFailed(transactionOperationFailedDef{
 			ShouldNotRetry:  true,
 			ErrorCause:      err,
 			Reason:          gocbcore.TransactionErrorReasonTransactionFailed,
@@ -299,14 +299,14 @@ func (c *TransactionAttemptContext) removeQueryMode(doc *TransactionGetResult) e
 		}
 
 		if errors.Is(err, ErrDocumentNotFound) {
-			return operationFailed(transactionQueryOperationFailedDef{
+			return operationFailed(transactionOperationFailedDef{
 				ErrorCause:      err,
 				Reason:          gocbcore.TransactionErrorReasonTransactionFailed,
 				ShouldNotCommit: true,
 				ErrorClass:      gocbcore.TransactionErrorClassFailDocNotFound,
 			}, c)
 		} else if errors.Is(err, ErrCasMismatch) {
-			return operationFailed(transactionQueryOperationFailedDef{
+			return operationFailed(transactionOperationFailedDef{
 				ErrorCause:      err,
 				Reason:          gocbcore.TransactionErrorReasonTransactionFailed,
 				ShouldNotCommit: true,
@@ -314,7 +314,7 @@ func (c *TransactionAttemptContext) removeQueryMode(doc *TransactionGetResult) e
 			}, c)
 		}
 
-		return operationFailed(transactionQueryOperationFailedDef{
+		return operationFailed(transactionOperationFailedDef{
 			ShouldNotRetry:  true,
 			ErrorCause:      err,
 			Reason:          gocbcore.TransactionErrorReasonTransactionFailed,
@@ -344,7 +344,7 @@ func (c *TransactionAttemptContext) commitQueryMode() error {
 		}
 
 		if errors.Is(err, ErrAttemptExpired) {
-			return operationFailed(transactionQueryOperationFailedDef{
+			return operationFailed(transactionOperationFailedDef{
 				ErrorCause:        err,
 				Reason:            gocbcore.TransactionErrorReasonTransactionCommitAmbiguous,
 				ShouldNotRollback: true,
@@ -353,7 +353,7 @@ func (c *TransactionAttemptContext) commitQueryMode() error {
 			}, c)
 		}
 
-		return operationFailed(transactionQueryOperationFailedDef{
+		return operationFailed(transactionOperationFailedDef{
 			ShouldNotRetry:    true,
 			ShouldNotRollback: true,
 			ErrorCause:        err,
@@ -392,7 +392,7 @@ func (c *TransactionAttemptContext) rollbackQueryMode() error {
 			return nil
 		}
 
-		return operationFailed(transactionQueryOperationFailedDef{
+		return operationFailed(transactionOperationFailedDef{
 			ShouldNotRetry:    true,
 			ShouldNotRollback: true,
 			ErrorCause:        err,
@@ -479,7 +479,7 @@ func (c *TransactionAttemptContext) queryWrapperWrapper(scope *Scope, statement 
 	}
 
 	if meta.Status == QueryStatusFatal {
-		return nil, operationFailed(transactionQueryOperationFailedDef{
+		return nil, operationFailed(transactionOperationFailedDef{
 			ShouldNotRetry:  true,
 			Reason:          gocbcore.TransactionErrorReasonTransactionFailed,
 			ShouldNotCommit: true,
@@ -517,7 +517,7 @@ func (c *TransactionAttemptContext) queryWrapper(scope *Scope, statement string,
 
 		if !c.txn.CanCommit() && !c.txn.ShouldRollback() {
 			c.logger.logInfof(c.attemptID, "Transaction marked cannot commit and should not rollback, failing")
-			return nil, operationFailed(transactionQueryOperationFailedDef{
+			return nil, operationFailed(transactionOperationFailedDef{
 				ShouldNotRetry:    true,
 				Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
 				ErrorCause:        ErrOther,
@@ -530,7 +530,7 @@ func (c *TransactionAttemptContext) queryWrapper(scope *Scope, statement string,
 	if existingErrorCheck {
 		if !c.txn.CanCommit() {
 			c.logger.logInfof(c.attemptID, "Transaction marked cannot commit during existing error check, failing")
-			return nil, operationFailed(transactionQueryOperationFailedDef{
+			return nil, operationFailed(transactionOperationFailedDef{
 				ShouldNotRetry: true,
 				Reason:         gocbcore.TransactionErrorReasonTransactionFailed,
 				ErrorCause:     ErrPreviousOperationFailed,
@@ -549,7 +549,7 @@ func (c *TransactionAttemptContext) queryWrapper(scope *Scope, statement string,
 	cfg := c.txn.Config()
 	if cfg.ExpirationTime < 10*time.Millisecond || expired {
 		c.logger.logInfof(c.attemptID, "Transaction expired, failing")
-		return nil, operationFailed(transactionQueryOperationFailedDef{
+		return nil, operationFailed(transactionOperationFailedDef{
 			ShouldNotRetry:    true,
 			ShouldNotRollback: true,
 			Reason:            gocbcore.TransactionErrorReasonTransactionExpired,

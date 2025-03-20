@@ -254,7 +254,7 @@ func (t *transactionsProviderCore) Run(logicFn AttemptFunc, perConfig *Transacti
 			var txnErr *TransactionOperationFailedError
 			if !errors.As(lambdaErr, &txnErr) {
 				// We wrap non-TOF errors in a TOF.
-				lambdaErr = operationFailed(transactionQueryOperationFailedDef{
+				lambdaErr = operationFailed(transactionOperationFailedDef{
 					ShouldNotRetry:    true,
 					ShouldNotRollback: false,
 					Reason:            gocbcore.TransactionErrorReasonTransactionFailed,

@@ -9,13 +9,13 @@ import (
 func queryErrorCodeToError(code uint32, c *TransactionAttemptContext) error {
 	switch code {
 	case 1065:
-		return operationFailed(transactionQueryOperationFailedDef{
+		return operationFailed(transactionOperationFailedDef{
 			ShouldNotRetry: true,
 			Reason:         gocbcore.TransactionErrorReasonTransactionFailed,
 			ErrorCause:     ErrFeatureNotAvailable,
 		}, c)
 	case 1080:
-		return operationFailed(transactionQueryOperationFailedDef{
+		return operationFailed(transactionOperationFailedDef{
 			ShouldNotRetry:    true,
 			Reason:            gocbcore.TransactionErrorReasonTransactionExpired,
 			ErrorCause:        gocbcore.ErrAttemptExpired,
@@ -25,7 +25,7 @@ func queryErrorCodeToError(code uint32, c *TransactionAttemptContext) error {
 	case 17004:
 		return ErrAttemptNotFoundOnQuery
 	case 17010:
-		return operationFailed(transactionQueryOperationFailedDef{
+		return operationFailed(transactionOperationFailedDef{
 			ShouldNotRetry:    true,
 			Reason:            gocbcore.TransactionErrorReasonTransactionExpired,
 			ErrorCause:        gocbcore.ErrAttemptExpired,
@@ -55,7 +55,7 @@ func queryCauseToOperationFailedError(queryErr *QueryError, c *TransactionAttemp
 					}
 				}
 
-				return operationFailed(transactionQueryOperationFailedDef{
+				return operationFailed(transactionOperationFailedDef{
 					ShouldNotRetry:    !operationFailedErr.Cause.Retry,
 					ShouldNotRollback: !operationFailedErr.Cause.Rollback,
 					Reason:            errorReasonFromString(operationFailedErr.Cause.Raise),
@@ -70,7 +70,7 @@ func queryCauseToOperationFailedError(queryErr *QueryError, c *TransactionAttemp
 
 func queryMaybeTranslateToTransactionsError(err error, c *TransactionAttemptContext) error {
 	if errors.Is(err, ErrTimeout) {
-		return operationFailed(transactionQueryOperationFailedDef{
+		return operationFailed(transactionOperationFailedDef{
 			ShouldNotRetry: true,
 			Reason:         gocbcore.TransactionErrorReasonTransactionExpired,
 			ErrorCause:     err,
@@ -108,7 +108,7 @@ func queryMaybeTranslateToTransactionsError(err error, c *TransactionAttemptCont
 	return queryErr
 }
 
-type transactionQueryOperationFailedDef struct {
+type transactionOperationFailedDef struct {
 	ShouldNotRetry    bool
 	ShouldNotRollback bool
 	Reason            gocbcore.TransactionErrorReason
@@ -117,7 +117,7 @@ type transactionQueryOperationFailedDef struct {
 	ShouldNotCommit   bool
 }
 
-func operationFailed(def transactionQueryOperationFailedDef, c *TransactionAttemptContext) *TransactionOperationFailedError {
+func operationFailed(def transactionOperationFailedDef, c *TransactionAttemptContext) *TransactionOperationFailedError {
 	err := &TransactionOperationFailedError{
 		shouldRetry:       !def.ShouldNotRetry,
 		shouldNotRollback: def.ShouldNotRollback,
@@ -134,7 +134,7 @@ func operationFailed(def transactionQueryOperationFailedDef, c *TransactionAttem
 	return err
 }
 
-func (c *TransactionAttemptContext) updateState(def transactionQueryOperationFailedDef) {
+func (c *TransactionAttemptContext) updateState(def transactionOperationFailedDef) {
 	opts := gocbcore.TransactionUpdateStateOptions{}
 	if def.ShouldNotRollback {
 		opts.ShouldNotRollback = true

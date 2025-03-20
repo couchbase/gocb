@@ -685,6 +685,132 @@ func (suite *IntegrationTestSuite) TestTransactionsGetOnly() {
 	suite.Require().Nil(err, err)
 }
 
+func (suite *IntegrationTestSuite) TestTransactionsBulkGet() {
+	suite.skipIfUnsupported(TransactionsFeature)
+
+	docIDs := makeDocIDs(10, "txnsbulkgettest")
+	docValues := make(map[string]map[string]int)
+	num := 0
+	for docID := range docIDs {
+		docValues[docID] = map[string]int{
+			"num": num,
+		}
+		_, err := globalCollection.Upsert(docID, docValues[docID], nil)
+		suite.Require().NoError(err)
+		num++
+	}
+
+	txns := globalCluster.Cluster.Transactions()
+
+	_, err := txns.Run(func(ctx *TransactionAttemptContext) error {
+		var specs []TransactionBulkGetSpec
+
+		for docID := range docIDs {
+			specs = append(specs, TransactionBulkGetSpec{
+				Collection: globalCollection,
+				ID:         docID,
+			})
+		}
+
+		res, err := ctx.BulkGet(specs, nil)
+		if err != nil {
+			return err
+		}
+
+		for idx, spec := range specs {
+			suite.Assert().True(res.Exists(uint(idx)), "doc %s should exist", spec.ID)
+
+			var actualDocValue map[string]int
+			err = res.ContentAt(uint(idx), &actualDocValue)
+			if err != nil {
+				if errors.Is(err, ErrDocumentNotFound) {
+					// Fail the test but continue the transaction
+					suite.T().Errorf("doc %s should have been found", spec.ID)
+				} else {
+					return err
+				}
+			}
+			suite.Assert().Equal(docValues[spec.ID], actualDocValue, "doc %s has unexpected body", spec.ID)
+		}
+
+		return nil
+	}, nil)
+	suite.Require().NoError(err)
+}
+
+func (suite *IntegrationTestSuite) TestTransactionsBulkGetDocsNotFound() {
+	suite.skipIfUnsupported(TransactionsFeature)
+
+	txns := globalCluster.Cluster.Transactions()
+
+	_, err := txns.Run(func(ctx *TransactionAttemptContext) error {
+		var specs []TransactionBulkGetSpec
+
+		for _, docID := range []string{"does-not-exist-1", "does-not-exist-2"} {
+			specs = append(specs, TransactionBulkGetSpec{
+				Collection: globalCollection,
+				ID:         docID,
+			})
+		}
+
+		res, err := ctx.BulkGet(specs, nil)
+		if err != nil {
+			return err
+		}
+
+		for idx, spec := range specs {
+			suite.Assert().False(res.Exists(uint(idx)), "doc %s should not exist", spec.ID)
+
+			var actualDocValue map[string]int
+			err = res.ContentAt(uint(idx), &actualDocValue)
+			suite.Assert().ErrorIs(err, ErrDocumentNotFound, "doc %s should not exist", spec.ID)
+		}
+
+		return nil
+	}, nil)
+	suite.Require().NoError(err)
+}
+
+func (suite *IntegrationTestSuite) TestTransactionsBulkGetReplicaServerGroupUnset() {
+	suite.skipIfUnsupported(TransactionsFeature)
+
+	docIDs := makeDocIDs(10, "txnsbulkgetreplicatest")
+	docValues := make(map[string]map[string]int)
+	num := 0
+	for docID := range docIDs {
+		docValues[docID] = map[string]int{
+			"num": num,
+		}
+		_, err := globalCollection.Upsert(docID, docValues[docID], nil)
+		suite.Require().NoError(err)
+		num++
+	}
+
+	txns := globalCluster.Cluster.Transactions()
+
+	_, err := txns.Run(func(ctx *TransactionAttemptContext) error {
+		var specs []TransactionBulkGetReplicaFromPreferredServerGroupSpec
+
+		for docID := range docIDs {
+			specs = append(specs, TransactionBulkGetReplicaFromPreferredServerGroupSpec{
+				Collection: globalCollection,
+				ID:         docID,
+			})
+		}
+
+		_, err := ctx.BulkGetReplicaFromPreferredServerGroup(specs, nil)
+		var txnOpFailedErr *TransactionOperationFailedError
+		suite.Assert().ErrorAs(err, &txnOpFailedErr)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}, nil)
+	var txnFailedErr *TransactionFailedError
+	suite.Require().ErrorAs(err, &txnFailedErr)
+}
+
 func (suite *UnitTestSuite) TestMultipleTransactionObjects() {
 	cli := new(mockConnectionManager)
 	cli.On("close").Return(nil)

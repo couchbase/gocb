@@ -107,7 +107,7 @@ func (c *TransactionAttemptContext) GetReplicaFromPreferredServerGroup(collectio
 	c.queryStateLock.Lock()
 	if c.queryModeLocked() {
 		c.queryStateLock.Unlock()
-		c.updateState(transactionQueryOperationFailedDef{
+		c.updateState(transactionOperationFailedDef{
 			ShouldNotRetry:    true,
 			ShouldNotRollback: false,
 			Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
@@ -328,6 +328,182 @@ func (c *TransactionAttemptContext) remove(doc *TransactionGetResult) (errOut er
 		Document: doc.coreRes,
 	}, func(res *gocbcore.TransactionGetResult, err error) {
 		errOut = createTransactionOperationFailedError(err)
+		waitCh <- struct{}{}
+	})
+	if err != nil {
+		errOut = createTransactionOperationFailedError(err)
+		return
+	}
+	<-waitCh
+
+	return
+}
+
+// BulkGet fetches multiple documents at once, spending a tunable level of effort to minimize read skew.
+func (c *TransactionAttemptContext) BulkGet(specs []TransactionBulkGetSpec, options *TransactionBulkGetOptions) (*TransactionBulkGetResult, error) {
+	if options == nil {
+		options = &TransactionBulkGetOptions{}
+	}
+
+	c.queryStateLock.Lock()
+	if c.queryModeLocked() {
+		c.queryStateLock.Unlock()
+		c.updateState(transactionOperationFailedDef{
+			ShouldNotRetry:    true,
+			ShouldNotRollback: false,
+			Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
+			ErrorCause: wrapError(
+				ErrFeatureNotAvailable,
+				"the BulkGet operation is not available in query mode",
+			),
+			ErrorClass:      gocbcore.TransactionErrorClassFailOther,
+			ShouldNotCommit: true,
+		})
+
+		return nil, createTransactionOperationFailedError(
+			wrapError(
+				ErrFeatureNotAvailable,
+				"the BulkGet operation is not available in query mode",
+			),
+		)
+	}
+	c.queryStateLock.Unlock()
+
+	return c.bulkGet(specs, options)
+}
+
+func (c *TransactionAttemptContext) bulkGet(specs []TransactionBulkGetSpec, options *TransactionBulkGetOptions) (resOut *TransactionBulkGetResult, errOut error) {
+	if options == nil {
+		options = &TransactionBulkGetOptions{}
+	}
+
+	coreOpts := gocbcore.TransactionGetMultiOptions{
+		Mode: gocbcore.TransactionGetMultiMode(options.Mode),
+	}
+
+	for _, spec := range specs {
+		a, err := spec.Collection.Bucket().Internal().IORouter()
+		if err != nil {
+			return nil, createTransactionOperationFailedError(err)
+		}
+
+		coreOpts.Specs = append(coreOpts.Specs, gocbcore.TransactionGetMultiSpec{
+			Agent:          a,
+			ScopeName:      spec.Collection.ScopeName(),
+			CollectionName: spec.Collection.Name(),
+			Key:            []byte(spec.ID),
+		})
+	}
+
+	waitCh := make(chan struct{}, 1)
+
+	err := c.txn.GetMulti(coreOpts, func(res *gocbcore.TransactionGetMultiResult, err error) {
+		errOut = createTransactionOperationFailedError(err)
+		resOut = &TransactionBulkGetResult{
+			transcoder: NewJSONTranscoder(),
+			flags:      2 << 24,
+			specCount:  uint(len(specs)),
+			coreRes:    res,
+		}
+		waitCh <- struct{}{}
+	})
+	if err != nil {
+		errOut = createTransactionOperationFailedError(err)
+		return
+	}
+	<-waitCh
+
+	return
+}
+
+// BulkGetReplicaFromPreferredServerGroup fetches multiple replicas from the preferred server group at once, spending a
+// tunable level of effort to minimize read skew. The preferred server group is specified via ClusterOptions.PreferredServerGroup.
+func (c *TransactionAttemptContext) BulkGetReplicaFromPreferredServerGroup(
+	specs []TransactionBulkGetReplicaFromPreferredServerGroupSpec,
+	options *TransactionBulkGetReplicaFromPreferredServerGroupOptions,
+) (*TransactionBulkGetReplicaFromPreferredServerGroupResult, error) {
+
+	if options == nil {
+		options = &TransactionBulkGetReplicaFromPreferredServerGroupOptions{}
+	}
+
+	if c.preferredServerGroup == "" {
+		err := errors.New("PreferredServerGroup must have previously been set in ClusterOptions")
+		c.updateState(transactionOperationFailedDef{
+			ShouldNotRollback: false,
+			ShouldNotRetry:    true,
+			ShouldNotCommit:   true,
+			Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
+			ErrorCause:        err,
+		})
+
+		return nil, createTransactionOperationFailedError(err)
+	}
+
+	c.queryStateLock.Lock()
+	if c.queryModeLocked() {
+		c.queryStateLock.Unlock()
+		c.updateState(transactionOperationFailedDef{
+			ShouldNotRetry:    true,
+			ShouldNotRollback: false,
+			Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
+			ErrorCause: wrapError(
+				ErrFeatureNotAvailable,
+				"the BulkGet operation is not available in query mode",
+			),
+			ErrorClass:      gocbcore.TransactionErrorClassFailOther,
+			ShouldNotCommit: true,
+		})
+
+		return nil, createTransactionOperationFailedError(
+			wrapError(
+				ErrFeatureNotAvailable,
+				"the BulkGet operation is not available in query mode",
+			),
+		)
+	}
+	c.queryStateLock.Unlock()
+
+	return c.bulkGetReplicaFromPreferredServerGroup(specs, options)
+}
+
+func (c *TransactionAttemptContext) bulkGetReplicaFromPreferredServerGroup(
+	specs []TransactionBulkGetReplicaFromPreferredServerGroupSpec,
+	options *TransactionBulkGetReplicaFromPreferredServerGroupOptions,
+) (resOut *TransactionBulkGetReplicaFromPreferredServerGroupResult, errOut error) {
+	if options == nil {
+		options = &TransactionBulkGetReplicaFromPreferredServerGroupOptions{}
+	}
+
+	coreOpts := gocbcore.TransactionGetMultiOptions{
+		ServerGroup: c.preferredServerGroup,
+		Mode:        gocbcore.TransactionGetMultiMode(options.Mode),
+	}
+
+	for _, spec := range specs {
+		a, err := spec.Collection.Bucket().Internal().IORouter()
+		if err != nil {
+			return nil, createTransactionOperationFailedError(err)
+		}
+
+		coreOpts.Specs = append(coreOpts.Specs, gocbcore.TransactionGetMultiSpec{
+			Agent:          a,
+			ScopeName:      spec.Collection.ScopeName(),
+			CollectionName: spec.Collection.Name(),
+			Key:            []byte(spec.ID),
+		})
+	}
+
+	waitCh := make(chan struct{}, 1)
+
+	err := c.txn.GetMulti(coreOpts, func(res *gocbcore.TransactionGetMultiResult, err error) {
+		errOut = createTransactionOperationFailedError(err)
+		resOut = &TransactionBulkGetReplicaFromPreferredServerGroupResult{
+			transcoder: NewJSONTranscoder(),
+			flags:      2 << 24,
+			specCount:  uint(len(specs)),
+			coreRes:    res,
+		}
 		waitCh <- struct{}{}
 	})
 	if err != nil {
