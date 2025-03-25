@@ -36,6 +36,7 @@ type jsonBucketSettings struct {
 	CompressionMode                   string `json:"compressionMode"`
 	MinimumDurabilityLevel            string `json:"durabilityMinLevel"`
 	StorageBackend                    string `json:"storageBackend"`
+	NumVBuckets                       uint16 `json:"numVBuckets"`
 	HistoryRetentionCollectionDefault *bool  `json:"historyRetentionCollectionDefault"`
 	HistoryRetentionBytes             uint64 `json:"historyRetentionBytes"`
 	HistoryRetentionSeconds           int    `json:"historyRetentionSeconds"`
@@ -53,6 +54,7 @@ func (bs *BucketSettings) fromData(data jsonBucketSettings) error {
 	bs.CompressionMode = CompressionMode(data.CompressionMode)
 	bs.MinimumDurabilityLevel = durabilityLevelFromManagementAPI(data.MinimumDurabilityLevel)
 	bs.StorageBackend = StorageBackend(data.StorageBackend)
+	bs.NumVBuckets = data.NumVBuckets
 	bs.HistoryRetentionBytes = data.HistoryRetentionBytes
 	bs.HistoryRetentionDuration = time.Duration(data.HistoryRetentionSeconds) * time.Second
 
@@ -526,6 +528,10 @@ func (bm *bucketManagementProviderCore) settingsToPostData(settings *BucketSetti
 
 	if settings.StorageBackend != "" {
 		posts.Add("storageBackend", string(settings.StorageBackend))
+	}
+
+	if settings.NumVBuckets > 0 {
+		posts.Add("numVBuckets", fmt.Sprintf("%d", settings.NumVBuckets))
 	}
 
 	if settings.HistoryRetentionCollectionDefault != HistoryRetentionCollectionDefaultUnset {

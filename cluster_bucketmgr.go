@@ -113,10 +113,14 @@ type BucketSettings struct {
 	MinimumDurabilityLevel DurabilityLevel
 	StorageBackend         StorageBackend
 
-	// Specifies whether history retention should be enabled or disabled by default on collections in the bucket.
+	// NumVBuckets specifies the number of VBuckets the bucket should have. If not set, the server default will be used.
+	NumVBuckets uint16
+
+	// HistoryRetentionCollectionDefault specifies whether history retention should be enabled or disabled by default on collections in the bucket.
 	HistoryRetentionCollectionDefault HistoryRetentionCollectionDefault
-	HistoryRetentionBytes             uint64
-	HistoryRetentionDuration          time.Duration
+
+	HistoryRetentionBytes    uint64
+	HistoryRetentionDuration time.Duration
 }
 
 // BucketManager provides methods for performing bucket management operations.
