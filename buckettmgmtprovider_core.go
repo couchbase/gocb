@@ -114,7 +114,6 @@ func (bm *bucketManagementProviderCore) tryParseErrorMessage(req *mgmtRequest, r
 		return makeGenericMgmtError(errors.New(string(b)), req, resp, string(b))
 	}
 
-	var bodyErr error
 	var firstErr string
 	for _, err := range mgrErr.Errors {
 		firstErr = strings.ToLower(err)
@@ -122,12 +121,12 @@ func (bm *bucketManagementProviderCore) tryParseErrorMessage(req *mgmtRequest, r
 	}
 
 	if strings.Contains(firstErr, "bucket with given name already exists") {
-		bodyErr = ErrBucketExists
-	} else {
-		bodyErr = errors.New(firstErr)
+		return makeGenericMgmtError(ErrBucketExists, req, resp, string(b))
 	}
-
-	return makeGenericMgmtError(bodyErr, req, resp, string(b))
+	if resp.StatusCode == 400 {
+		return makeGenericMgmtError(ErrInvalidArgument, req, resp, string(b))
+	}
+	return makeGenericMgmtError(errors.New(firstErr), req, resp, string(b))
 }
 
 // Flush doesn't use the same body format as anything else...
