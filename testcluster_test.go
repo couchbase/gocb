@@ -276,6 +276,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case ClusterLabelsFeature:
 			supported = false
+		case PingFeature:
+			supported = false
 		}
 	} else {
 		switch feature {

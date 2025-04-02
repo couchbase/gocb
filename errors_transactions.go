@@ -50,6 +50,15 @@ var (
 	ErrIllegalState = gocbcore.ErrIllegalState
 
 	ErrAttemptNotFoundOnQuery = errors.New("transactionAttempt not found on query")
+
+	// ErrCommitNotPermitted indicates that a commit is not allowed in the current transaction state.
+	ErrCommitNotPermitted = gocbcore.ErrCommitNotPermitted
+
+	// ErrRollbackNotPermitted indicates that a rollback is not allowed in the current transaction state.
+	ErrRollbackNotPermitted = gocbcore.ErrRollbackNotPermitted
+
+	// ErrConcurrentOperationsDetectedOnSameDocument indicates that concurrent Key-Value operations on the same document have been detected.
+	ErrConcurrentOperationsDetectedOnSameDocument = gocbcore.ErrConcurrentOperationsDetectedOnSameDocument
 )
 
 type TransactionFailedError struct {
