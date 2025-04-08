@@ -142,7 +142,7 @@ func (am *LoggingMeter) loggerRoutine() {
 func (am *LoggingMeter) generateOutput() map[string]interface{} {
 	output := make(map[string]interface{})
 	output["meta"] = map[string]interface{}{
-		"emit_interval_s": am.interval,
+		"emit_interval_s": int(am.interval.Seconds()),
 	}
 
 	for serviceName, group := range am.valueRecorderGroups {

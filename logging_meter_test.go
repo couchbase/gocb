@@ -73,7 +73,7 @@ func (suite *UnitTestSuite) TestAggregatingMeter() {
 
 	output := meter.generateOutput()
 	meta := output["meta"].(map[string]interface{})
-	suite.Assert().Equal(10*time.Second, meta["emit_interval_s"])
+	suite.Assert().Equal(10, meta["emit_interval_s"])
 
 	suite.Require().Contains(output, "kv")
 	kvOutput := output["kv"].(map[string]interface{})
