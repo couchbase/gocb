@@ -906,7 +906,6 @@ func (p *kvProviderPs) Prepend(c *Collection, id string, val []byte, opts *Prepe
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetContext(opts.Context)
-	opm.SetValue(val)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -922,7 +921,7 @@ func (p *kvProviderPs) Prepend(c *Collection, id string, val []byte, opts *Prepe
 		ScopeName:       opm.ScopeName(),
 		CollectionName:  opm.CollectionName(),
 		Key:             opm.DocumentID(),
-		Content:         opm.ValueBytes(),
+		Content:         val,
 		Cas:             cas,
 		DurabilityLevel: opm.DurabilityLevel(),
 	}
@@ -953,7 +952,6 @@ func (p *kvProviderPs) Append(c *Collection, id string, val []byte, opts *Append
 	opm.SetRetryStrategy(opts.RetryStrategy)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetContext(opts.Context)
-	opm.SetValue(val)
 
 	if err := opm.CheckReadyForOp(); err != nil {
 		return nil, err
@@ -969,7 +967,7 @@ func (p *kvProviderPs) Append(c *Collection, id string, val []byte, opts *Append
 		ScopeName:       opm.ScopeName(),
 		CollectionName:  opm.CollectionName(),
 		Key:             opm.DocumentID(),
-		Content:         opm.ValueBytes(),
+		Content:         val,
 		Cas:             cas,
 		DurabilityLevel: opm.DurabilityLevel(),
 	}

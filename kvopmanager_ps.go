@@ -135,7 +135,11 @@ func (m *kvOpManagerPs) SetIsIdempotent(idempotent bool) {
 }
 
 func (m *kvOpManagerPs) Finish() {
-	retries := m.RetryInfo().RetryAttempts()
+	var retries uint32
+	if m.req != nil {
+		retries = m.RetryInfo().RetryAttempts()
+	}
+
 	m.span.SetAttribute(spanAttribRetries, retries)
 	m.span.End()
 }
