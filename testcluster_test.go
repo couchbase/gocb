@@ -32,6 +32,7 @@ var (
 	srvVer760       = NodeVersion{7, 6, 0, 0, 0, "", false}
 	srvVer762       = NodeVersion{7, 6, 2, 0, 0, "", false}
 	srvVer764       = NodeVersion{7, 6, 4, 0, 0, "", false}
+	srvVer800       = NodeVersion{8, 0, 0, 0, 0, "", false}
 	mockVer156      = NodeVersion{1, 5, 6, 0, 0, "", true}
 	mockVer1513     = NodeVersion{1, 5, 13, 0, 0, "", true}
 	mockVer1515     = NodeVersion{1, 5, 15, 0, 0, "", true}
@@ -402,7 +403,7 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case FlushBucketFeature:
 			supported = !c.Version.Equal(protostellarVer)
 		case MemcachedBucketFeature:
-			supported = !c.Version.Equal(protostellarVer)
+			supported = c.Version.Lower(srvVer800) && !c.Version.Equal(protostellarVer)
 		case TransactionsCustomMetadataFeature:
 			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(protostellarVer) && !c.Version.Equal(srvVer750)
 		case UnlockMissingDocFailFeature:
