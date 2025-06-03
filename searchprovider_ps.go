@@ -162,6 +162,8 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 		nextRowsIndex: 0,
 		meta:          firstRows.MetaData,
 		facets:        firstRows.Facets,
+
+		manager: manager,
 	}), nil
 }
 
