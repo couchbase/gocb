@@ -106,13 +106,46 @@ func (c *TransactionAttemptContext) getQueryMode(collection *Collection, id stri
 	}, nil
 }
 
-func (c *TransactionAttemptContext) replaceQueryMode(doc *TransactionGetResult, valueBytes json.RawMessage) (*TransactionGetResult, error) {
+func (c *TransactionAttemptContext) replaceQueryMode(doc *TransactionGetResult, value interface{}, opts *TransactionReplaceOptions) (*TransactionGetResult, error) {
 	c.logger.logInfof(c.attemptID, "Performing query mode replace: %s", newLoggableDocKey(
 		doc.collection.bucketName(),
 		doc.collection.ScopeName(),
 		doc.collection.Name(),
 		doc.docID,
 	))
+
+	transcoder := opts.Transcoder
+	if transcoder == nil {
+		transcoder = c.transcoder
+	}
+
+	valueBytes, flags, err := transcoder.Encode(value)
+	if err != nil {
+		return nil, createTransactionOperationFailedError(err)
+	}
+
+	userFlags, _ := gocbcore.DecodeCommonFlags(flags)
+	if userFlags == gocbcore.BinaryType {
+		c.updateState(transactionOperationFailedDef{
+			ShouldNotRetry:    true,
+			ShouldNotRollback: false,
+			Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
+			ErrorCause: wrapError(
+				ErrFeatureNotAvailable,
+				"binary transactions is not available for queries",
+			),
+			ErrorClass:      gocbcore.TransactionErrorClassFailOther,
+			ShouldNotCommit: true,
+		})
+
+		return nil, createTransactionOperationFailedError(
+			wrapError(
+				ErrFeatureNotAvailable,
+				"binary transactions is not available for queries",
+			),
+		)
+	}
+
 	txdata := map[string]interface{}{
 		"kv":   true,
 		"scas": toScas(doc.coreRes.Cas),
@@ -197,13 +230,46 @@ func (c *TransactionAttemptContext) replaceQueryMode(doc *TransactionGetResult, 
 	}, nil
 }
 
-func (c *TransactionAttemptContext) insertQueryMode(collection *Collection, id string, valueBytes json.RawMessage) (*TransactionGetResult, error) {
+func (c *TransactionAttemptContext) insertQueryMode(collection *Collection, id string, value interface{}, opts *TransactionInsertOptions) (*TransactionGetResult, error) {
 	c.logger.logInfof(c.attemptID, "Performing query mode insert: %s", newLoggableDocKey(
 		collection.bucketName(),
 		collection.ScopeName(),
 		collection.Name(),
 		id,
 	))
+
+	transcoder := opts.Transcoder
+	if transcoder == nil {
+		transcoder = c.transcoder
+	}
+
+	valueBytes, flags, err := transcoder.Encode(value)
+	if err != nil {
+		return nil, createTransactionOperationFailedError(err)
+	}
+
+	userFlags, _ := gocbcore.DecodeCommonFlags(flags)
+	if userFlags == gocbcore.BinaryType {
+		c.updateState(transactionOperationFailedDef{
+			ShouldNotRetry:    true,
+			ShouldNotRollback: false,
+			Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
+			ErrorCause: wrapError(
+				ErrFeatureNotAvailable,
+				"binary transactions is not available for queries",
+			),
+			ErrorClass:      gocbcore.TransactionErrorClassFailOther,
+			ShouldNotCommit: true,
+		})
+
+		return nil, createTransactionOperationFailedError(
+			wrapError(
+				ErrFeatureNotAvailable,
+				"binary transactions is not available for queries",
+			),
+		)
+	}
+
 	txdata := map[string]interface{}{
 		"kv": true,
 	}
@@ -619,6 +685,32 @@ func (c *TransactionAttemptContext) queryWrapper(scope *Scope, statement string,
 
 func (c *TransactionAttemptContext) queryBeginWork(scope *Scope) (errOut error) {
 	c.logger.logInfof(c.attemptID, "Performing query begin work")
+
+	mutations := c.txn.GetMutations()
+	for _, mutation := range mutations {
+		datatype, _ := gocbcore.DecodeCommonFlags(mutation.StagedUserFlags)
+		if datatype == gocbcore.BinaryType {
+			c.updateState(transactionOperationFailedDef{
+				ShouldNotRetry:    true,
+				ShouldNotRollback: false,
+				Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
+				ErrorCause: wrapError(
+					ErrFeatureNotAvailable,
+					"binary transactions is not available for queries",
+				),
+				ErrorClass:      gocbcore.TransactionErrorClassFailOther,
+				ShouldNotCommit: true,
+			})
+
+			return createTransactionOperationFailedError(
+				wrapError(
+					ErrFeatureNotAvailable,
+					"binary transactions is not available for queries",
+				),
+			)
+		}
+	}
+
 	waitCh := make(chan struct{}, 1)
 	err := c.txn.SerializeAttempt(func(txdata []byte, err error) {
 		if err != nil {

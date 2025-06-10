@@ -81,6 +81,15 @@ func (iac *InternalTransactionAttemptContext) IsExpired() bool {
 
 // Get will attempt to fetch a document, and fail the transaction if it does not exist.
 func (c *TransactionAttemptContext) Get(collection *Collection, id string) (*TransactionGetResult, error) {
+	return c.GetWithOptions(collection, id, nil)
+}
+
+// GetWithOptions will attempt to fetch a document, and fail the transaction if it does not exist.
+func (c *TransactionAttemptContext) GetWithOptions(collection *Collection, id string, opts *TransactionGetOptions) (*TransactionGetResult, error) {
+	if opts == nil {
+		opts = &TransactionGetOptions{}
+	}
+
 	c.queryStateLock.Lock()
 	if c.queryModeLocked() {
 		res, err := c.getQueryMode(collection, id)
@@ -97,13 +106,24 @@ func (c *TransactionAttemptContext) Get(collection *Collection, id string) (*Tra
 	}
 	c.queryStateLock.Unlock()
 
-	return c.get(collection, id, "")
+	return c.get(collection, id, "", opts)
 }
 
 // GetReplicaFromPreferredServerGroup will attempt to fetch a document from the preferred server group, and fail the transaction if it does not exist.
 //
 // UNCOMMITTED: This API may change in the future.
 func (c *TransactionAttemptContext) GetReplicaFromPreferredServerGroup(collection *Collection, id string) (*TransactionGetResult, error) {
+	return c.GetReplicaFromPreferredServerGroupWithOptions(collection, id, nil)
+}
+
+// GetReplicaFromPreferredServerGroupWithOptions will attempt to fetch a document from the preferred server group, and fail the transaction if it does not exist.
+//
+// UNCOMMITTED: This API may change in the future.
+func (c *TransactionAttemptContext) GetReplicaFromPreferredServerGroupWithOptions(collection *Collection, id string, opts *TransactionGetReplicaFromPreferredServerGroupOptions) (*TransactionGetResult, error) {
+	if opts == nil {
+		opts = &TransactionGetReplicaFromPreferredServerGroupOptions{}
+	}
+
 	c.queryStateLock.Lock()
 	if c.queryModeLocked() {
 		c.queryStateLock.Unlock()
@@ -128,10 +148,18 @@ func (c *TransactionAttemptContext) GetReplicaFromPreferredServerGroup(collectio
 	}
 	c.queryStateLock.Unlock()
 
-	return c.get(collection, id, c.preferredServerGroup)
+	return c.get(collection, id, c.preferredServerGroup, &TransactionGetOptions{
+		Transcoder: opts.Transcoder,
+	})
+
 }
 
-func (c *TransactionAttemptContext) get(collection *Collection, id string, serverGroup string) (resOut *TransactionGetResult, errOut error) {
+func (c *TransactionAttemptContext) get(collection *Collection, id string, serverGroup string, opts *TransactionGetOptions) (resOut *TransactionGetResult, errOut error) {
+	transcoder := opts.Transcoder
+	if transcoder == nil {
+		transcoder = c.transcoder
+	}
+
 	a, err := collection.Bucket().Internal().IORouter()
 	if err != nil {
 		return nil, createTransactionOperationFailedError(err)
@@ -150,8 +178,8 @@ func (c *TransactionAttemptContext) get(collection *Collection, id string, serve
 				collection: collection,
 				docID:      id,
 
-				transcoder: NewJSONTranscoder(),
-				flags:      2 << 24,
+				transcoder: transcoder,
+				flags:      res.Flags,
 
 				coreRes: res,
 			}
@@ -182,15 +210,18 @@ func (c *TransactionAttemptContext) get(collection *Collection, id string, serve
 
 // Replace will replace the contents of a document, failing if the document does not already exist.
 func (c *TransactionAttemptContext) Replace(doc *TransactionGetResult, value interface{}) (*TransactionGetResult, error) {
-	// TODO: Use Transcoder here
-	valueBytes, _, err := c.transcoder.Encode(value)
-	if err != nil {
-		return nil, err
+	return c.ReplaceWithOptions(doc, value, nil)
+}
+
+// ReplaceWithOptions will replace the contents of a document, failing if the document does not already exist.
+func (c *TransactionAttemptContext) ReplaceWithOptions(doc *TransactionGetResult, value interface{}, opts *TransactionReplaceOptions) (*TransactionGetResult, error) {
+	if opts == nil {
+		opts = &TransactionReplaceOptions{}
 	}
 
 	c.queryStateLock.Lock()
 	if c.queryModeLocked() {
-		res, err := c.replaceQueryMode(doc, valueBytes)
+		res, err := c.replaceQueryMode(doc, value, opts)
 		c.queryStateLock.Unlock()
 		if err != nil {
 			c.logger.logInfof(c.attemptID, "Query mode replace failed")
@@ -201,25 +232,36 @@ func (c *TransactionAttemptContext) Replace(doc *TransactionGetResult, value int
 	}
 	c.queryStateLock.Unlock()
 
-	return c.replace(doc, valueBytes)
+	return c.replace(doc, value, opts)
 }
 
-func (c *TransactionAttemptContext) replace(doc *TransactionGetResult, valueBytes []byte) (resOut *TransactionGetResult, errOut error) {
+func (c *TransactionAttemptContext) replace(doc *TransactionGetResult, value interface{}, opts *TransactionReplaceOptions) (resOut *TransactionGetResult, errOut error) {
+	transcoder := opts.Transcoder
+	if transcoder == nil {
+		transcoder = c.transcoder
+	}
+
+	valueBytes, flags, err := transcoder.Encode(value)
+	if err != nil {
+		return nil, createTransactionOperationFailedError(err)
+	}
+
 	collection := doc.collection
 	id := doc.docID
 
 	waitCh := make(chan struct{}, 1)
-	err := c.txn.Replace(gocbcore.TransactionReplaceOptions{
+	err = c.txn.Replace(gocbcore.TransactionReplaceOptions{
 		Document: doc.coreRes,
 		Value:    valueBytes,
+		Flags:    flags,
 	}, func(res *gocbcore.TransactionGetResult, err error) {
 		if err == nil {
 			resOut = &TransactionGetResult{
 				collection: collection,
 				docID:      id,
 
-				transcoder: NewJSONTranscoder(),
-				flags:      2 << 24,
+				transcoder: transcoder,
+				flags:      res.Flags,
 
 				coreRes: res,
 			}
@@ -239,15 +281,18 @@ func (c *TransactionAttemptContext) replace(doc *TransactionGetResult, valueByte
 
 // Insert will insert a new document, failing if the document already exists.
 func (c *TransactionAttemptContext) Insert(collection *Collection, id string, value interface{}) (*TransactionGetResult, error) {
-	// TODO: Use Transcoder here
-	valueBytes, _, err := c.transcoder.Encode(value)
-	if err != nil {
-		return nil, err
+	return c.InsertWithOptions(collection, id, value, nil)
+}
+
+// InsertWithOptions will insert a new document, failing if the document already exists.
+func (c *TransactionAttemptContext) InsertWithOptions(collection *Collection, id string, value interface{}, opts *TransactionInsertOptions) (*TransactionGetResult, error) {
+	if opts == nil {
+		opts = &TransactionInsertOptions{}
 	}
 
 	c.queryStateLock.Lock()
 	if c.queryModeLocked() {
-		res, err := c.insertQueryMode(collection, id, valueBytes)
+		res, err := c.insertQueryMode(collection, id, value, opts)
 		c.queryStateLock.Unlock()
 		if err != nil {
 			c.logger.logInfof(c.attemptID, "Query mode insert failed")
@@ -258,10 +303,20 @@ func (c *TransactionAttemptContext) Insert(collection *Collection, id string, va
 	}
 	c.queryStateLock.Unlock()
 
-	return c.insert(collection, id, valueBytes)
+	return c.insert(collection, id, value, opts)
 }
 
-func (c *TransactionAttemptContext) insert(collection *Collection, id string, valueBytes []byte) (resOut *TransactionGetResult, errOut error) {
+func (c *TransactionAttemptContext) insert(collection *Collection, id string, value interface{}, opts *TransactionInsertOptions) (resOut *TransactionGetResult, errOut error) {
+	transcoder := opts.Transcoder
+	if transcoder == nil {
+		transcoder = c.transcoder
+	}
+
+	valueBytes, flags, err := transcoder.Encode(value)
+	if err != nil {
+		return nil, createTransactionOperationFailedError(err)
+	}
+
 	a, err := collection.Bucket().Internal().IORouter()
 	if err != nil {
 		return nil, err
@@ -274,14 +329,15 @@ func (c *TransactionAttemptContext) insert(collection *Collection, id string, va
 		CollectionName: collection.Name(),
 		Key:            []byte(id),
 		Value:          valueBytes,
+		Flags:          flags,
 	}, func(res *gocbcore.TransactionGetResult, err error) {
 		if err == nil {
 			resOut = &TransactionGetResult{
 				collection: collection,
 				docID:      id,
 
-				transcoder: NewJSONTranscoder(),
-				flags:      2 << 24,
+				transcoder: transcoder,
+				flags:      res.Flags,
 
 				coreRes: res,
 			}
@@ -306,6 +362,11 @@ func (c *TransactionAttemptContext) insert(collection *Collection, id string, va
 
 // Remove will delete a document.
 func (c *TransactionAttemptContext) Remove(doc *TransactionGetResult) error {
+	return c.RemoveWithOptions(doc, nil)
+}
+
+// RemoveWithOptions will delete a document.
+func (c *TransactionAttemptContext) RemoveWithOptions(doc *TransactionGetResult, _opts *TransactionRemoveOptions) error {
 	c.queryStateLock.Lock()
 	if c.queryModeLocked() {
 		err := c.removeQueryMode(doc)
