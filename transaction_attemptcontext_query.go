@@ -190,7 +190,7 @@ func (c *TransactionAttemptContext) replaceQueryMode(doc *TransactionGetResult, 
 		}, c)
 	}
 
-	params := []interface{}{c.keyspace(doc.collection), doc.docID, valueBytes, json.RawMessage("{}")}
+	params := []interface{}{c.keyspace(doc.collection), doc.docID, json.RawMessage(valueBytes), json.RawMessage("{}")}
 
 	res, err := c.queryWrapperWrapper(c.queryState.scope, "EXECUTE __update", QueryOptions{
 		PositionalParameters: params,
@@ -298,7 +298,7 @@ func (c *TransactionAttemptContext) insertQueryMode(collection *Collection, id s
 		}, c)
 	}
 
-	params := []interface{}{c.keyspace(collection), id, valueBytes, json.RawMessage("{}")}
+	params := []interface{}{c.keyspace(collection), id, json.RawMessage(valueBytes), json.RawMessage("{}")}
 
 	res, err := c.queryWrapperWrapper(c.queryState.scope, "EXECUTE __insert", QueryOptions{
 		PositionalParameters: params,
