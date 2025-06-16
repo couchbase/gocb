@@ -53,7 +53,7 @@ type jsonEventingFunctionSettings struct {
 	LCBInstCapacity        int                                   `json:"lcb_inst_capacity,omitempty"`
 	LCBRetryCount          int                                   `json:"lcb_retry_count,omitempty"`
 	LCBTimeout             int                                   `json:"lcb_timeout,omitempty"`
-	QueryConsistency       QueryScanConsistency                  `json:"n1ql_consistency,omitempty"`
+	QueryConsistency       string                                `json:"n1ql_consistency,omitempty"`
 	NumTimerPartitions     int                                   `json:"num_timer_partitions,omitempty"`
 	SockBatchSize          int                                   `json:"sock_batch_size,omitempty"`
 	TickDuration           int                                   `json:"tick_duration,omitempty"`
@@ -225,6 +225,13 @@ func (ef *EventingFunction) toJSONEventingFunction() jsonEventingFunction {
 		constantBindings = append(constantBindings, jsonEventingFunctionConstantBinding(b))
 	}
 
+	var n1qlConsistency string
+	if ef.Settings.QueryConsistency == QueryScanConsistencyNotBounded {
+		n1qlConsistency = "none"
+	} else if ef.Settings.QueryConsistency == QueryScanConsistencyRequestPlus {
+		n1qlConsistency = "request"
+	}
+
 	return jsonEventingFunction{
 		Name:               ef.Name,
 		Code:               ef.Code,
@@ -244,7 +251,7 @@ func (ef *EventingFunction) toJSONEventingFunction() jsonEventingFunction {
 			LCBInstCapacity:        ef.Settings.LCBInstCapacity,
 			LCBRetryCount:          ef.Settings.LCBRetryCount,
 			LCBTimeout:             int(ef.Settings.LCBTimeout.Seconds()),
-			QueryConsistency:       ef.Settings.QueryConsistency,
+			QueryConsistency:       n1qlConsistency,
 			NumTimerPartitions:     ef.Settings.NumTimerPartitions,
 			SockBatchSize:          ef.Settings.SockBatchSize,
 			TickDuration:           int(ef.Settings.TickDuration.Milliseconds()),
@@ -321,6 +328,15 @@ func (ef *EventingFunction) fromJSONEventingFunction(jf jsonEventingFunction) {
 		constantBindings = append(constantBindings, EventingFunctionConstantBinding(b))
 	}
 
+	var n1qlConsistency QueryScanConsistency
+	if jf.Settings.QueryConsistency == "none" {
+		n1qlConsistency = QueryScanConsistencyNotBounded
+	} else if jf.Settings.QueryConsistency == "request" {
+		n1qlConsistency = QueryScanConsistencyRequestPlus
+	} else {
+		logInfof("Unexpected N1QL consistency value: %s", jf.Settings.QueryConsistency)
+	}
+
 	ef.Name = jf.Name
 	ef.Code = jf.Code
 	ef.Version = jf.Version
@@ -339,7 +355,7 @@ func (ef *EventingFunction) fromJSONEventingFunction(jf jsonEventingFunction) {
 		LCBInstCapacity:        jf.Settings.LCBInstCapacity,
 		LCBRetryCount:          jf.Settings.LCBRetryCount,
 		LCBTimeout:             time.Duration(jf.Settings.LCBTimeout) * time.Second,
-		QueryConsistency:       jf.Settings.QueryConsistency,
+		QueryConsistency:       n1qlConsistency,
 		NumTimerPartitions:     jf.Settings.NumTimerPartitions,
 		SockBatchSize:          jf.Settings.SockBatchSize,
 		TickDuration:           time.Duration(jf.Settings.TickDuration) * time.Millisecond,
