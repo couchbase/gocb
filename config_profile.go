@@ -25,6 +25,10 @@ const (
 	// overwriting any properties that exist on the profile.
 	// VOLATILE: This API is subject to change at any time.
 	ClusterConfigProfileWanDevelopment ClusterConfigProfile = "wan-development"
+
+	// ClusterConfigProfileLocalDevelopment represents a local development profile that can be applied to the ClusterOptions
+	// overwriting any properties that exist on the profile.
+	ClusterConfigProfileLocalDevelopment ClusterConfigProfile = "local-development"
 )
 
 // ApplyProfile will apply a named profile to the ClusterOptions overwriting any properties that
@@ -34,6 +38,22 @@ func (opts *ClusterOptions) ApplyProfile(profile ClusterConfigProfile) error {
 	if profile == ClusterConfigProfileWanDevelopment {
 		opts.TimeoutsConfig = developmentProfile.TimeoutsConfig
 		return nil
+	}
+
+	return makeInvalidArgumentsError("unknown configuration profile")
+}
+
+// WithProfile will apply a multiples named profiles to the ClusterOptions overwriting any properties that
+// exist on the profile.
+func (opts *ClusterOptions) WithProfile(profile ClusterConfigProfile) error {
+	if profile == ClusterConfigProfileWanDevelopment {
+		opts.TimeoutsConfig = developmentProfile.TimeoutsConfig
+		return nil
+	}
+
+	if profile == ClusterConfigProfileLocalDevelopment {
+		opts.TimeoutsConfig = developmentProfile.TimeoutsConfig
+		opts.TransactionsConfig.DurabilityLevel = DurabilityLevelNone
 	}
 
 	return makeInvalidArgumentsError("unknown configuration profile")
