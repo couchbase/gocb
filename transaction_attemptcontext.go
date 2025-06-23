@@ -461,10 +461,9 @@ func (c *TransactionAttemptContext) bulkGet(specs []TransactionBulkGetSpec, opti
 	err := c.txn.GetMulti(coreOpts, func(res *gocbcore.TransactionGetMultiResult, err error) {
 		errOut = createTransactionOperationFailedError(err)
 		resOut = &TransactionBulkGetResult{
-			transcoder: NewJSONTranscoder(),
-			flags:      2 << 24,
-			specCount:  uint(len(specs)),
-			coreRes:    res,
+			specs:             specs,
+			defaultTranscoder: c.transcoder,
+			coreRes:           res,
 		}
 		waitCh <- struct{}{}
 	})
@@ -560,10 +559,9 @@ func (c *TransactionAttemptContext) bulkGetReplicaFromPreferredServerGroup(
 	err := c.txn.GetMulti(coreOpts, func(res *gocbcore.TransactionGetMultiResult, err error) {
 		errOut = createTransactionOperationFailedError(err)
 		resOut = &TransactionBulkGetReplicaFromPreferredServerGroupResult{
-			transcoder: NewJSONTranscoder(),
-			flags:      2 << 24,
-			specCount:  uint(len(specs)),
-			coreRes:    res,
+			specs:             specs,
+			defaultTranscoder: c.transcoder,
+			coreRes:           res,
 		}
 		waitCh <- struct{}{}
 	})

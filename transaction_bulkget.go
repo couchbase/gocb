@@ -8,6 +8,7 @@ import (
 type TransactionBulkGetSpec struct {
 	Collection *Collection
 	ID         string
+	Transcoder Transcoder
 }
 
 // TransactionBulkGetMode specifies the level of effort to spend on minimizing read skew for a TransactionAttemptContext.BulkGet operation.
@@ -35,23 +36,26 @@ type TransactionBulkGetOptions struct {
 
 // TransactionBulkGetResult represents the result of a TransactionAttemptContext.BulkGet operation.
 type TransactionBulkGetResult struct {
-	transcoder Transcoder
-	flags      uint32
-
-	specCount uint
-	coreRes   *gocbcore.TransactionGetMultiResult
+	specs             []TransactionBulkGetSpec
+	defaultTranscoder Transcoder
+	coreRes           *gocbcore.TransactionGetMultiResult
 }
 
 // ContentAt provides access to the contents of a document that was fetched, given the index of the corresponding TransactionBulkGetSpec.
 func (bgr *TransactionBulkGetResult) ContentAt(idx uint, valuePtr interface{}) error {
-	if idx >= bgr.specCount {
+	if idx >= uint(len(bgr.specs)) {
 		return makeInvalidArgumentsError("invalid index")
 	}
 	value, ok := bgr.coreRes.Values[int(idx)]
 	if !ok {
 		return ErrDocumentNotFound
 	}
-	return bgr.transcoder.Decode(value, bgr.flags, valuePtr)
+	flags := bgr.coreRes.Flags[int(idx)]
+	transcoder := bgr.specs[int(idx)].Transcoder
+	if transcoder == nil {
+		transcoder = bgr.defaultTranscoder
+	}
+	return transcoder.Decode(value, flags, valuePtr)
 }
 
 // Exists returns whether a document exists, given the index of the corresponding TransactionBulkGetSpec.
@@ -65,6 +69,7 @@ func (bgr *TransactionBulkGetResult) Exists(idx uint) bool {
 type TransactionBulkGetReplicaFromPreferredServerGroupSpec struct {
 	Collection *Collection
 	ID         string
+	Transcoder Transcoder
 }
 
 // TransactionBulkGetReplicaFromPreferredServerGroupMode specifies the level of effort to spend on minimizing read skew for a
@@ -93,23 +98,26 @@ type TransactionBulkGetReplicaFromPreferredServerGroupOptions struct {
 
 // TransactionBulkGetReplicaFromPreferredServerGroupResult represents the result of a TransactionAttemptContext.BulkGetReplicaFromPreferredServerGroup operation.
 type TransactionBulkGetReplicaFromPreferredServerGroupResult struct {
-	transcoder Transcoder
-	flags      uint32
-
-	specCount uint
-	coreRes   *gocbcore.TransactionGetMultiResult
+	specs             []TransactionBulkGetReplicaFromPreferredServerGroupSpec
+	defaultTranscoder Transcoder
+	coreRes           *gocbcore.TransactionGetMultiResult
 }
 
 // ContentAt provides access to the contents of a document that was fetched, given the index of the corresponding TransactionBulkGetReplicaFromPreferredServerGroupSpec.
 func (bgr *TransactionBulkGetReplicaFromPreferredServerGroupResult) ContentAt(idx uint, valuePtr interface{}) error {
-	if idx >= bgr.specCount {
+	if idx >= uint(len(bgr.specs)) {
 		return makeInvalidArgumentsError("invalid index")
 	}
 	value, ok := bgr.coreRes.Values[int(idx)]
 	if !ok {
 		return ErrDocumentNotFound
 	}
-	return bgr.transcoder.Decode(value, bgr.flags, valuePtr)
+	flags := bgr.coreRes.Flags[int(idx)]
+	transcoder := bgr.specs[int(idx)].Transcoder
+	if transcoder == nil {
+		transcoder = bgr.defaultTranscoder
+	}
+	return transcoder.Decode(value, flags, valuePtr)
 }
 
 // Exists returns whether a document exists, given the index of the corresponding TransactionBulkGetReplicaFromPreferredServerGroupSpec.
