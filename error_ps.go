@@ -8,6 +8,7 @@ import (
 
 const (
 	preconditionLocked              = "LOCKED"
+	preconditionNotLocked           = "NOT_LOCKED"
 	preconditionPathMismatch        = "PATH_MISMATCH"
 	preconditionDocNotJSON          = "DOC_NOT_JSON"
 	preconditionDocTooDeep          = "DOC_TOO_DEEP"
@@ -59,6 +60,8 @@ func mapPsErrorStatusToGocbError(st *status.Status, readOnly bool) *GenericError
 				switch violation.Type {
 				case preconditionLocked:
 					baseErr = ErrDocumentLocked
+				case preconditionNotLocked:
+					baseErr = ErrDocumentNotLocked
 				case preconditionPathMismatch:
 					baseErr = ErrPathMismatch
 				case preconditionDocNotJSON:
