@@ -3,6 +3,7 @@ package vector
 import (
 	"encoding/json"
 	"errors"
+	"github.com/couchbase/gocb/v2/search"
 )
 
 // Query specifies a vector Query.
@@ -13,6 +14,7 @@ type Query struct {
 
 	numCandidates *uint32
 	boost         *float32
+	prefilter     search.Query
 }
 
 // NewQuery constructs a new vector Query.
@@ -44,6 +46,12 @@ func (q *Query) Boost(boost float32) *Query {
 	return q
 }
 
+// Prefilter specifies a search.Query to filter by before executing the query.
+func (q *Query) Prefilter(query search.Query) *Query {
+	q.prefilter = &query
+	return q
+}
+
 // InternalQuery is used for internal functionality.
 // Internal: This should never be used and is not supported.
 type InternalQuery struct {
@@ -53,6 +61,7 @@ type InternalQuery struct {
 
 	NumCandidates *uint32
 	Boost         *float32
+	Prefilter     search.Query
 }
 
 // Internal is used for internal functionality.
@@ -64,6 +73,7 @@ func (q *Query) Internal() InternalQuery {
 		Base64Vector:  q.base64Vector,
 		NumCandidates: q.numCandidates,
 		Boost:         q.boost,
+		Prefilter:     q.prefilter,
 	}
 }
 
@@ -85,17 +95,19 @@ func (q InternalQuery) Validate() error {
 // MarshalJSON marshal's this query to JSON for the search REST API.
 func (q InternalQuery) MarshalJSON() ([]byte, error) {
 	outStruct := &struct {
-		Field         string    `json:"field"`
-		Vector        []float32 `json:"vector,omitempty"`
-		Base64Vector  string    `json:"vector_base64,omitempty"`
-		NumCandidates *uint32   `json:"k,omitempty"`
-		Boost         *float32  `json:"boost,omitempty"`
+		Field         string       `json:"field"`
+		Vector        []float32    `json:"vector,omitempty"`
+		Base64Vector  string       `json:"vector_base64,omitempty"`
+		NumCandidates *uint32      `json:"k,omitempty"`
+		Boost         *float32     `json:"boost,omitempty"`
+		PreFilter     search.Query `json:"filter,omitempty"`
 	}{
 		Field:         q.Field,
 		Vector:        q.Vector,
 		Base64Vector:  q.Base64Vector,
 		NumCandidates: q.NumCandidates,
 		Boost:         q.Boost,
+		PreFilter:     q.Prefilter,
 	}
 
 	return json.Marshal(outStruct)
