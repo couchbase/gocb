@@ -155,7 +155,7 @@ func (suite *IntegrationTestSuite) runEventingManagerUnknownBucketTest(scope *Sc
 	fnName := uuid.New().String()
 	expectedFn := EventingFunction{
 		Name: fnName,
-		Code: `feefifofum`,
+		Code: `function OnUpdate(doc, meta) {}`,
 		MetadataKeyspace: EventingFunctionKeyspace{
 			Bucket:     "immadeup",
 			Scope:      "idontexist",
@@ -168,9 +168,28 @@ func (suite *IntegrationTestSuite) runEventingManagerUnknownBucketTest(scope *Sc
 		},
 	}
 	err := mgr.UpsertFunction(expectedFn, nil)
-	if !errors.Is(err, ErrBucketNotFound) {
-		suite.T().Logf("Expected ResumeFunction to fail with bucket not found but was %v", err)
-		suite.T().Fail()
+	suite.tryUntil(time.Now().Add(30*time.Second), 500*time.Millisecond, func() bool {
+		_, err := mgr.GetFunction(fnName, nil)
+		if err != nil {
+			suite.T().Logf("Expected GetFunction to succeed: %v", err)
+			return false
+		}
+
+		return true
+	})
+
+	if globalCluster.SupportsFeature(EventingFunctionManagerResourceNotFoundAtDeploy) {
+		suite.Require().NoError(err)
+		err = mgr.DeployFunction(fnName, nil)
+		if !errors.Is(err, ErrBucketNotFound) {
+			suite.T().Logf("Expected ResumeFunction to fail with bucket not found but was %v", err)
+			suite.T().Fail()
+		}
+	} else {
+		if !errors.Is(err, ErrBucketNotFound) {
+			suite.T().Logf("Expected ResumeFunction to fail with bucket not found but was %v", err)
+			suite.T().Fail()
+		}
 	}
 }
 
@@ -319,7 +338,7 @@ func (suite *IntegrationTestSuite) runEventingManagerCollectionNotFoundTest(scop
 	fnName := uuid.New().String()
 	expectedFn := EventingFunction{
 		Name: fnName,
-		Code: `feefifofum`,
+		Code: `function OnUpdate(doc, meta) {}`,
 		MetadataKeyspace: EventingFunctionKeyspace{
 			Bucket:     globalBucket.Name(),
 			Scope:      scopeName,
@@ -332,9 +351,28 @@ func (suite *IntegrationTestSuite) runEventingManagerCollectionNotFoundTest(scop
 		},
 	}
 	err := mgr.UpsertFunction(expectedFn, nil)
-	if !errors.Is(err, ErrCollectionNotFound) {
-		suite.T().Logf("Expected ResumeFunction to fail with collection not found but was %v", err)
-		suite.T().Fail()
+	suite.tryUntil(time.Now().Add(30*time.Second), 500*time.Millisecond, func() bool {
+		_, err := mgr.GetFunction(fnName, nil)
+		if err != nil {
+			suite.T().Logf("Expected GetFunction to succeed: %v", err)
+			return false
+		}
+
+		return true
+	})
+
+	if globalCluster.SupportsFeature(EventingFunctionManagerResourceNotFoundAtDeploy) {
+		suite.Require().NoError(err)
+		err = mgr.DeployFunction(fnName, nil)
+		if !errors.Is(err, ErrCollectionNotFound) {
+			suite.T().Logf("Expected DeployFunction to fail with collection not found but was %v", err)
+			suite.T().Fail()
+		}
+	} else {
+		if !errors.Is(err, ErrCollectionNotFound) {
+			suite.T().Logf("Expected UpsertFunction to fail with collection not found but was %v", err)
+			suite.T().Fail()
+		}
 	}
 }
 
@@ -345,6 +383,7 @@ func (suite *IntegrationTestSuite) TestEventingManagerCollectionNotFound() {
 func (suite *IntegrationTestSuite) runEventingManagerSameSourceAndMetaKeyspaceTest(scope *Scope) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(EventingFunctionManagerFeature)
+	suite.skipIfUnsupported(EventingFunctionManagerMB68025Feature)
 
 	var mgr eventingManager
 	if scope == nil {
@@ -367,7 +406,7 @@ func (suite *IntegrationTestSuite) runEventingManagerSameSourceAndMetaKeyspaceTe
 	fnName := uuid.New().String()
 	expectedFn := EventingFunction{
 		Name: fnName,
-		Code: `feefifofum`,
+		Code: `function OnUpdate(doc, meta) {}`,
 		MetadataKeyspace: EventingFunctionKeyspace{
 			Bucket:     globalBucket.Name(),
 			Scope:      scopeName,
@@ -379,6 +418,7 @@ func (suite *IntegrationTestSuite) runEventingManagerSameSourceAndMetaKeyspaceTe
 			Collection: "source",
 		},
 	}
+
 	success := suite.tryUntil(time.Now().Add(2*time.Second), 100*time.Millisecond, func() bool {
 		err := mgr.UpsertFunction(expectedFn, nil)
 		if !errors.Is(err, ErrEventingFunctionIdenticalKeyspace) {
@@ -457,8 +497,12 @@ func (suite *IntegrationTestSuite) runEventingManagerDeploysAndUndeploysTest(sco
 	suite.Require().Equal(EventingFunctionDeploymentStatusUndeployed, actualFn.Settings.DeploymentStatus)
 
 	err = mgr.UndeployFunction(fnName, nil)
-	if !errors.Is(err, ErrEventingFunctionNotDeployed) {
-		suite.T().Fatalf("Expected UndeployFunction to fail with not deployed but was %v", err)
+	if globalCluster.SupportsFeature(EventingFunctionManagerAllowsSameStateTransitionFeature) {
+		suite.Require().NoError(err)
+	} else {
+		if !errors.Is(err, ErrEventingFunctionNotDeployed) {
+			suite.T().Fatalf("Expected UndeployFunction to fail with not deployed but was %v", err)
+		}
 	}
 
 	err = mgr.DeployFunction(fnName, nil)
@@ -488,6 +532,24 @@ func (suite *IntegrationTestSuite) runEventingManagerDeploysAndUndeploysTest(sco
 
 	err = mgr.UndeployFunction(fnName, nil)
 	suite.Require().Nil(err, err)
+
+	success = suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
+		funcsStatus, err := mgr.FunctionsStatus(nil)
+		suite.Require().Nil(err)
+
+		for _, fn := range funcsStatus.Functions {
+			if fn.Name == fnName {
+				if fn.Status != EventingFunctionStateUndeployed {
+					suite.T().Logf("FunctionsStatus reports function deployed: %s", fn.Status)
+				}
+				return fn.Status == EventingFunctionStateUndeployed
+			}
+		}
+
+		suite.T().Fatalf("Function not found from FunctionsStatus")
+		return false
+	})
+	suite.Require().True(success, "FunctionsStatus never reported function undeployed")
 
 	actualFn, err = mgr.GetFunction(fnName, nil)
 	suite.Require().Nil(err, err)
@@ -581,17 +643,43 @@ func (suite *IntegrationTestSuite) runEventingManagerPausesAndResumesTest(scope 
 	suite.Require().Equal(EventingFunctionProcessingStatusPaused, actualFn.Settings.ProcessingStatus)
 
 	err = mgr.PauseFunction(fnName, nil)
-	if !errors.Is(err, ErrEventingFunctionNotBootstrapped) {
-		suite.T().Fatalf("Expected UndeployFunction to fail with not bootstrapped but was %v", err)
+	if globalCluster.SupportsFeature(EventingFunctionManagerMB67773Feature) {
+		if !errors.Is(err, ErrEventingFunctionNotBootstrapped) {
+			suite.T().Fatalf("Expected UndeployFunction to fail with not bootstrapped but was %v", err)
+		}
+	} else {
+		suite.Assert().Error(err)
 	}
 
 	err = mgr.ResumeFunction(fnName, nil)
-	if !errors.Is(err, ErrEventingFunctionNotDeployed) {
-		suite.T().Fatalf("Expected UndeployFunction to fail with not deployed but was %v", err)
-	}
+	if globalCluster.SupportsFeature(EventingFunctionManagerMB67773Feature) {
+		if !errors.Is(err, ErrEventingFunctionNotDeployed) {
+			suite.T().Fatalf("Expected UndeployFunction to fail with not deployed but was %v", err)
+		}
 
-	err = mgr.DeployFunction(fnName, nil)
-	suite.Require().Nil(err, err)
+		err = mgr.DeployFunction(fnName, nil)
+		suite.Require().Nil(err, err)
+	} else {
+		suite.Require().NoError(err)
+
+		success = suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
+			funcsStatus, err := mgr.FunctionsStatus(nil)
+			suite.Require().Nil(err)
+
+			for _, fn := range funcsStatus.Functions {
+				if fn.Name == fnName {
+					if fn.ProcessingStatus != EventingFunctionProcessingStatusRunning {
+						suite.T().Logf("FunctionsStatus reports function not resumed: %s", fn.Status)
+					}
+					return fn.ProcessingStatus == EventingFunctionProcessingStatusRunning
+				}
+			}
+
+			suite.T().Fatalf("Function not found from FunctionsStatus")
+			return false
+		})
+		suite.Require().True(success, "FunctionsStatus never reported function resumed")
+	}
 
 	actualFn, err = mgr.GetFunction(fnName, nil)
 	suite.Require().Nil(err, err)

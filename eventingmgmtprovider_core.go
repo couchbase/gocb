@@ -333,7 +333,7 @@ func (ef *EventingFunction) fromJSONEventingFunction(jf jsonEventingFunction) {
 		n1qlConsistency = QueryScanConsistencyNotBounded
 	} else if jf.Settings.QueryConsistency == "request" {
 		n1qlConsistency = QueryScanConsistencyRequestPlus
-	} else {
+	} else if jf.Settings.QueryConsistency != "" {
 		logInfof("Unexpected N1QL consistency value: %s", jf.Settings.QueryConsistency)
 	}
 
