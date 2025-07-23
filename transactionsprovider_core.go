@@ -122,7 +122,8 @@ func (t *transactionsProviderCore) Init(config TransactionsConfig, c *Cluster) e
 
 	t.cluster = c
 	t.config = config
-	t.transcoder = NewJSONTranscoder()
+	// We do not use the cluster-level default transcoder, to maintain compatibility with pre-ExtBinarySupport behavior.
+	t.transcoder = newDefaultTransactionTranscoder()
 	t.hooksWrapper = hooksWrapper
 	t.cleanupHooksWrapper = cleanupHooksWrapper
 	t.cleanupCollections = cleanupLocs

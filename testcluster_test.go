@@ -92,6 +92,7 @@ var (
 	TransactionsRemoveLocationFeature         = FeatureCode("transactionsremovelocation")
 	TransactionsSingleQueryExistsErrorFeature = FeatureCode("transactionssinglequeryexists")
 	TransactionsCustomMetadataFeature         = FeatureCode("transactionscustommetadata")
+	TransactionsBinaryXattrFeature            = FeatureCode("transactionsbinaryxattr")
 	EventingFunctionManagerMB52649Feature     = FeatureCode("eventingmanagementmb52649")
 	EventingFunctionManagerMB52572Feature     = FeatureCode("eventingmanagementmb52572")
 	RangeScanFeature                          = FeatureCode("rangescan")
@@ -246,6 +247,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case TransactionsSingleQueryExistsErrorFeature:
 			supported = false
 		case TransactionsCustomMetadataFeature:
+			supported = false
+		case TransactionsBinaryXattrFeature:
 			supported = false
 		case RangeScanFeature:
 			supported = false
@@ -406,6 +409,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = c.Version.Lower(srvVer800) && !c.Version.Equal(protostellarVer)
 		case TransactionsCustomMetadataFeature:
 			supported = !c.Version.Lower(srvVer700) && !c.Version.Equal(protostellarVer) && !c.Version.Equal(srvVer750)
+		case TransactionsBinaryXattrFeature:
+			supported = !c.Version.Lower(srvVer800) && !c.Version.Equal(protostellarVer)
 		case UnlockMissingDocFailFeature:
 			supported = !c.Version.Equal(srvVer750)
 		case NotLockedFeature:

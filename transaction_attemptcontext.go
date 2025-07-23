@@ -18,6 +18,20 @@ type transactionQueryState struct {
 	scope       *Scope
 }
 
+// defaultTransactionTranscoder is identical to the JSONTranscoder, with the exception that it does not check the
+// document flags when decoding. This is to maintain compatibility with the pre-ExtBinarySupport behaviour.
+type defaultTransactionTranscoder struct {
+	JSONTranscoder
+}
+
+func newDefaultTransactionTranscoder() *defaultTransactionTranscoder {
+	return &defaultTransactionTranscoder{}
+}
+
+func (t *defaultTransactionTranscoder) Decode(bytes []byte, _ uint32, out interface{}) error {
+	return t.JSONTranscoder.Decode(bytes, 2<<24, out)
+}
+
 // TransactionAttemptContext represents a single attempt to execute a transaction.
 type TransactionAttemptContext struct {
 	txn        *gocbcore.Transaction

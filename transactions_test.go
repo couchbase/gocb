@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -1351,4 +1352,60 @@ func (suite *IntegrationTestSuite) runTranasctionLoadTest(grps []transactionTest
 			suite.Assert().Equalf(val+1, docContent["i"], "%s - expected map[i:%d] does not match actual %+v", key, val+1, docContent)
 		}
 	}
+}
+
+func (suite *IntegrationTestSuite) TestTransactionsUnsetTranscoder() {
+	suite.skipIfUnsupported(TransactionsFeature)
+	suite.skipIfUnsupported(TransactionsBinaryXattrFeature)
+
+	docId := generateDocId("binary-doc")
+
+	_, err := globalCollection.Upsert(docId, []byte(`{"num": 10}`), &UpsertOptions{
+		Transcoder: NewRawBinaryTranscoder(),
+	})
+	suite.Require().NoError(err)
+
+	_, err = globalCluster.Transactions().Run(func(ctx *TransactionAttemptContext) error {
+		// If no transcoder is set, the pre-ExtBinarySupport behaviour is used, which ignores any document flags. So,
+		// the document can be fetched even if it (incorrectly) doesn't have the right flags set.
+		{
+			res, err := ctx.Get(globalCollection, docId)
+			if err != nil {
+				return err
+			}
+			var value map[string]int
+			err = res.Content(&value)
+			suite.Assert().NoError(err)
+			suite.Assert().Equal(map[string]int{"num": 10}, value)
+		}
+
+		// If the JSONTranscoder is used, decoding will fail due to the absence of JSON flags.
+		{
+			res, err := ctx.GetWithOptions(globalCollection, docId, &TransactionGetOptions{
+				Transcoder: NewJSONTranscoder(),
+			})
+			if err != nil {
+				return err
+			}
+			var value json.RawMessage
+			err = res.Content(&value)
+			suite.Assert().Error(err)
+		}
+
+		// If the RawBinaryTranscoder is used, decoding will succeed.
+		{
+			res, err := ctx.GetWithOptions(globalCollection, docId, &TransactionGetOptions{
+				Transcoder: NewRawBinaryTranscoder(),
+			})
+			if err != nil {
+				return err
+			}
+			var value []byte
+			err = res.Content(&value)
+			suite.Assert().NoError(err)
+			suite.Assert().Equal([]byte(`{"num": 10}`), value)
+		}
+		return nil
+	}, nil)
+	suite.Require().NoError(err)
 }
