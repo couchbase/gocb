@@ -409,7 +409,7 @@ func (c *TransactionAttemptContext) BulkGet(specs []TransactionBulkGetSpec, opti
 	c.queryStateLock.Lock()
 	if c.queryModeLocked() {
 		c.queryStateLock.Unlock()
-		c.updateState(transactionOperationFailedDef{
+		return nil, operationFailed(transactionOperationFailedDef{
 			ShouldNotRetry:    true,
 			ShouldNotRollback: false,
 			Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
@@ -419,14 +419,7 @@ func (c *TransactionAttemptContext) BulkGet(specs []TransactionBulkGetSpec, opti
 			),
 			ErrorClass:      gocbcore.TransactionErrorClassFailOther,
 			ShouldNotCommit: true,
-		})
-
-		return nil, createTransactionOperationFailedError(
-			wrapError(
-				ErrFeatureNotAvailable,
-				"the BulkGet operation is not available in query mode",
-			),
-		)
+		}, c)
 	}
 	c.queryStateLock.Unlock()
 
@@ -488,39 +481,29 @@ func (c *TransactionAttemptContext) BulkGetReplicaFromPreferredServerGroup(
 	}
 
 	if c.preferredServerGroup == "" {
-		err := errors.New("PreferredServerGroup must have previously been set in ClusterOptions")
-		c.updateState(transactionOperationFailedDef{
+		return nil, operationFailed(transactionOperationFailedDef{
 			ShouldNotRollback: false,
 			ShouldNotRetry:    true,
 			ShouldNotCommit:   true,
 			Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
-			ErrorCause:        err,
-		})
-
-		return nil, createTransactionOperationFailedError(err)
+			ErrorCause:        errors.New("PreferredServerGroup must have previously been set in ClusterOptions"),
+		}, c)
 	}
 
 	c.queryStateLock.Lock()
 	if c.queryModeLocked() {
 		c.queryStateLock.Unlock()
-		c.updateState(transactionOperationFailedDef{
+		return nil, operationFailed(transactionOperationFailedDef{
 			ShouldNotRetry:    true,
 			ShouldNotRollback: false,
 			Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
 			ErrorCause: wrapError(
 				ErrFeatureNotAvailable,
-				"the BulkGet operation is not available in query mode",
+				"the BulkGetReplicaFromPreferredServerGroup operation is not available in query mode",
 			),
 			ErrorClass:      gocbcore.TransactionErrorClassFailOther,
 			ShouldNotCommit: true,
-		})
-
-		return nil, createTransactionOperationFailedError(
-			wrapError(
-				ErrFeatureNotAvailable,
-				"the BulkGet operation is not available in query mode",
-			),
-		)
+		}, c)
 	}
 	c.queryStateLock.Unlock()
 
