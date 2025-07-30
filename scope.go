@@ -85,7 +85,7 @@ func (s *Scope) SearchIndexes() *ScopeSearchIndexManager {
 
 			meter:    s.bucket.connectionManager.getMeter(),
 			keyspace: &s.keyspace,
-			service:  serviceValueManagement,
+			service:  serviceValueSearch,
 		},
 
 		scope: s,
@@ -105,7 +105,7 @@ func (s *Scope) EventingFunctions() *ScopeEventingFunctionManager {
 
 			meter:    s.bucket.connectionManager.getMeter(),
 			keyspace: &s.keyspace,
-			service:  serviceValueManagement,
+			service:  serviceValueEventing,
 		},
 
 		scope: s,

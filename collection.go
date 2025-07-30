@@ -80,7 +80,7 @@ func (c *Collection) QueryIndexes() *CollectionQueryIndexManager {
 			opController: c.opController,
 
 			meter:    c.bucket.connectionManager.getMeter(),
-			service:  serviceValueManagement,
+			service:  serviceValueQuery,
 			keyspace: &c.keyspace,
 		},
 

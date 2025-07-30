@@ -281,7 +281,7 @@ func (b *Bucket) ViewIndexes() *ViewIndexManager {
 
 			meter:    b.connectionManager.getMeter(),
 			keyspace: &b.keyspace,
-			service:  serviceValueManagement,
+			service:  serviceValueViews,
 		},
 	}
 }

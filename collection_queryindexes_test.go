@@ -119,13 +119,13 @@ func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrud() {
 
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_collections_create_scope"), 1, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_collections_create_collection"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_query_create_primary_index"), 2, true)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_query_create_index"), 3, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_query_build_deferred_indexes"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_query_watch_indexes"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_query_get_all_indexes"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_query_drop_primary_index"), 2, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_query_drop_index"), 2, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "query", "manager_query_create_primary_index"), 2, true)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "query", "manager_query_create_index"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "query", "manager_query_build_deferred_indexes"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "query", "manager_query_watch_indexes"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "query", "manager_query_get_all_indexes"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "query", "manager_query_drop_primary_index"), 2, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "query", "manager_query_drop_index"), 2, false)
 }
 
 func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrudDefaultScopeCollection() {

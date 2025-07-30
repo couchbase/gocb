@@ -208,7 +208,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrud() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(spans, len(nilParents))
-	span := suite.RequireQueryMgmtOpSpan(nilParents[0], "manager_analytics_create_dataverse", "analytics")
+	span := suite.RequireAnalyticsMgmtOpSpan(nilParents[0], "manager_analytics_create_dataverse")
 	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
 			numDispatchSpans:        1,
@@ -218,7 +218,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrud() {
 			service:                 "analytics",
 			statement:               "any",
 		})
-	span = suite.RequireQueryMgmtOpSpan(nilParents[3], "manager_analytics_create_dataset", "analytics")
+	span = suite.RequireAnalyticsMgmtOpSpan(nilParents[3], "manager_analytics_create_dataset")
 	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
 			numDispatchSpans:        1,
@@ -228,7 +228,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrud() {
 			service:                 "analytics",
 			statement:               "any",
 		})
-	span = suite.RequireQueryMgmtOpSpan(nilParents[6], "manager_analytics_create_index", "analytics")
+	span = suite.RequireAnalyticsMgmtOpSpan(nilParents[6], "manager_analytics_create_index")
 	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
 			numDispatchSpans:        1,
@@ -238,7 +238,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrud() {
 			service:                 "analytics",
 			statement:               "any",
 		})
-	span = suite.RequireQueryMgmtOpSpan(nilParents[9], "manager_analytics_connect_link", "analytics")
+	span = suite.RequireAnalyticsMgmtOpSpan(nilParents[9], "manager_analytics_connect_link")
 	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
 			numDispatchSpans:        1,
@@ -248,7 +248,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrud() {
 			service:                 "analytics",
 			statement:               "any",
 		})
-	span = suite.RequireQueryMgmtOpSpan(nilParents[10], "manager_analytics_get_all_datasets", "analytics")
+	span = suite.RequireAnalyticsMgmtOpSpan(nilParents[10], "manager_analytics_get_all_datasets")
 	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
 			numDispatchSpans:        1,
@@ -258,7 +258,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrud() {
 			service:                 "analytics",
 			statement:               "any",
 		})
-	span = suite.RequireQueryMgmtOpSpan(nilParents[11], "manager_analytics_get_all_indexes", "analytics")
+	span = suite.RequireAnalyticsMgmtOpSpan(nilParents[11], "manager_analytics_get_all_indexes")
 	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
 			numDispatchSpans:        1,
@@ -277,10 +277,10 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrud() {
 				numDispatchSpans:        1,
 				atLeastNumDispatchSpans: false,
 				hasEncoding:             false,
-				service:                 "management",
+				service:                 "analytics",
 			})
 	}
-	span = suite.RequireQueryMgmtOpSpan(nilParents[12+offset], "manager_analytics_disconnect_link", "analytics")
+	span = suite.RequireAnalyticsMgmtOpSpan(nilParents[12+offset], "manager_analytics_disconnect_link")
 	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
 			numDispatchSpans:        1,
@@ -290,7 +290,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrud() {
 			service:                 "analytics",
 			statement:               "any",
 		})
-	span = suite.RequireQueryMgmtOpSpan(nilParents[13+offset], "manager_analytics_drop_index", "analytics")
+	span = suite.RequireAnalyticsMgmtOpSpan(nilParents[13+offset], "manager_analytics_drop_index")
 	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
 			numDispatchSpans:        1,
@@ -300,7 +300,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrud() {
 			service:                 "analytics",
 			statement:               "any",
 		})
-	span = suite.RequireQueryMgmtOpSpan(nilParents[16+offset], "manager_analytics_drop_dataset", "analytics")
+	span = suite.RequireAnalyticsMgmtOpSpan(nilParents[16+offset], "manager_analytics_drop_dataset")
 	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
 			numDispatchSpans:        1,
@@ -310,7 +310,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrud() {
 			service:                 "analytics",
 			statement:               "any",
 		})
-	span = suite.RequireQueryMgmtOpSpan(nilParents[19+offset], "manager_analytics_drop_dataverse", "analytics")
+	span = suite.RequireAnalyticsMgmtOpSpan(nilParents[19+offset], "manager_analytics_drop_dataverse")
 	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
 			numDispatchSpans:        1,
@@ -322,20 +322,20 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrud() {
 		})
 
 	numResponses := 22
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_create_dataverse"), 3, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_create_dataset"), 3, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_create_index"), 3, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_connect_link"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_get_all_datasets"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_get_all_indexes"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_create_dataverse"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_create_dataset"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_create_index"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_connect_link"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_get_all_datasets"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_get_all_indexes"), 1, false)
 	if globalCluster.SupportsFeature(AnalyticsIndexPendingMutationsFeature) {
 		numResponses++
-		suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_get_pending_mutations"), 1, false)
+		suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_get_pending_mutations"), 1, false)
 	}
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_disconnect_link"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_dataverse"), 3, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_dataset"), 3, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_index"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_disconnect_link"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_drop_dataverse"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_drop_dataset"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_drop_index"), 3, false)
 }
 
 func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrudCompoundNames() {
@@ -404,7 +404,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrudCompoundNames() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(8, len(nilParents))
-	span := suite.RequireQueryMgmtOpSpan(nilParents[0], "manager_analytics_create_dataverse", "analytics")
+	span := suite.RequireAnalyticsMgmtOpSpan(nilParents[0], "manager_analytics_create_dataverse")
 	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
 			numDispatchSpans:        1,
@@ -414,7 +414,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrudCompoundNames() {
 			service:                 "analytics",
 			statement:               "any",
 		})
-	span = suite.RequireQueryMgmtOpSpan(nilParents[1], "manager_analytics_create_dataset", "analytics")
+	span = suite.RequireAnalyticsMgmtOpSpan(nilParents[1], "manager_analytics_create_dataset")
 	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
 			numDispatchSpans:        1,
@@ -424,7 +424,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrudCompoundNames() {
 			service:                 "analytics",
 			statement:               "any",
 		})
-	span = suite.RequireQueryMgmtOpSpan(nilParents[2], "manager_analytics_create_index", "analytics")
+	span = suite.RequireAnalyticsMgmtOpSpan(nilParents[2], "manager_analytics_create_index")
 	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
 			numDispatchSpans:        1,
@@ -434,7 +434,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrudCompoundNames() {
 			service:                 "analytics",
 			statement:               "any",
 		})
-	span = suite.RequireQueryMgmtOpSpan(nilParents[3], "manager_analytics_connect_link", "analytics")
+	span = suite.RequireAnalyticsMgmtOpSpan(nilParents[3], "manager_analytics_connect_link")
 	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
 			numDispatchSpans:        1,
@@ -444,7 +444,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrudCompoundNames() {
 			service:                 "analytics",
 			statement:               "any",
 		})
-	span = suite.RequireQueryMgmtOpSpan(nilParents[4], "manager_analytics_disconnect_link", "analytics")
+	span = suite.RequireAnalyticsMgmtOpSpan(nilParents[4], "manager_analytics_disconnect_link")
 	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
 			numDispatchSpans:        1,
@@ -454,7 +454,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrudCompoundNames() {
 			service:                 "analytics",
 			statement:               "any",
 		})
-	span = suite.RequireQueryMgmtOpSpan(nilParents[5], "manager_analytics_drop_index", "analytics")
+	span = suite.RequireAnalyticsMgmtOpSpan(nilParents[5], "manager_analytics_drop_index")
 	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
 			numDispatchSpans:        1,
@@ -464,7 +464,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrudCompoundNames() {
 			service:                 "analytics",
 			statement:               "any",
 		})
-	span = suite.RequireQueryMgmtOpSpan(nilParents[6], "manager_analytics_drop_dataset", "analytics")
+	span = suite.RequireAnalyticsMgmtOpSpan(nilParents[6], "manager_analytics_drop_dataset")
 	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
 			numDispatchSpans:        1,
@@ -474,7 +474,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrudCompoundNames() {
 			service:                 "analytics",
 			statement:               "any",
 		})
-	span = suite.RequireQueryMgmtOpSpan(nilParents[7], "manager_analytics_drop_dataverse", "analytics")
+	span = suite.RequireAnalyticsMgmtOpSpan(nilParents[7], "manager_analytics_drop_dataverse")
 	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
 			numDispatchSpans:        1,
@@ -485,14 +485,14 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesCrudCompoundNames() {
 			statement:               "any",
 		})
 
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_create_dataverse"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_create_dataset"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_create_index"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_connect_link"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_disconnect_link"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_dataverse"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_dataset"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_index"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_create_dataverse"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_create_dataset"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_create_index"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_connect_link"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_disconnect_link"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_drop_dataverse"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_drop_dataset"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_drop_index"), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
@@ -575,7 +575,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(10, len(nilParents))
-	span := suite.RequireQueryMgmtOpSpan(nilParents[0], "manager_analytics_create_dataverse", "analytics")
+	span := suite.RequireAnalyticsMgmtOpSpan(nilParents[0], "manager_analytics_create_dataverse")
 	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
 			numDispatchSpans:        1,
@@ -591,7 +591,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             true,
-			service:                 "management",
+			service:                 "analytics",
 		})
 	suite.AssertHTTPOpSpan(nilParents[2], "manager_analytics_create_link",
 		HTTPOpSpanExpectations{
@@ -599,7 +599,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             true,
-			service:                 "management",
+			service:                 "analytics",
 		})
 	suite.AssertHTTPOpSpan(nilParents[3], "manager_analytics_create_link",
 		HTTPOpSpanExpectations{
@@ -607,7 +607,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             true,
-			service:                 "management",
+			service:                 "analytics",
 		})
 	suite.AssertHTTPOpSpan(nilParents[4], "manager_analytics_get_all_links",
 		HTTPOpSpanExpectations{
@@ -615,7 +615,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			service:                 "management",
+			service:                 "analytics",
 		})
 	suite.AssertHTTPOpSpan(nilParents[5], "manager_analytics_get_all_links",
 		HTTPOpSpanExpectations{
@@ -623,7 +623,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			service:                 "management",
+			service:                 "analytics",
 		})
 	suite.AssertHTTPOpSpan(nilParents[6], "manager_analytics_replace_link",
 		HTTPOpSpanExpectations{
@@ -631,7 +631,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             true,
-			service:                 "management",
+			service:                 "analytics",
 		})
 	suite.AssertHTTPOpSpan(nilParents[7], "manager_analytics_get_all_links",
 		HTTPOpSpanExpectations{
@@ -639,7 +639,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			service:                 "management",
+			service:                 "analytics",
 		})
 	suite.AssertHTTPOpSpan(nilParents[8], "manager_analytics_drop_link",
 		HTTPOpSpanExpectations{
@@ -647,7 +647,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			service:                 "management",
+			service:                 "analytics",
 		})
 	suite.AssertHTTPOpSpan(nilParents[9], "manager_analytics_drop_link",
 		HTTPOpSpanExpectations{
@@ -655,14 +655,14 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			service:                 "management",
+			service:                 "analytics",
 		})
 
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_create_dataverse"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_create_link"), 3, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_replace_link"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_get_all_links"), 3, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_link"), 2, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_create_dataverse"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_create_link"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_replace_link"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_get_all_links"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_drop_link"), 2, false)
 }
 
 func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
@@ -748,7 +748,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
 	suite.Require().Equal(10, len(nilParents))
-	span := suite.RequireQueryMgmtOpSpan(nilParents[0], "manager_analytics_create_dataverse", "analytics")
+	span := suite.RequireAnalyticsMgmtOpSpan(nilParents[0], "manager_analytics_create_dataverse")
 	suite.AssertHTTPOpSpan(span, "analytics",
 		HTTPOpSpanExpectations{
 			numDispatchSpans:        1,
@@ -764,7 +764,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			service:                 "management",
+			service:                 "analytics",
 		})
 	suite.AssertHTTPOpSpan(nilParents[2], "manager_analytics_create_link",
 		HTTPOpSpanExpectations{
@@ -772,7 +772,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             true,
-			service:                 "management",
+			service:                 "analytics",
 		})
 	suite.AssertHTTPOpSpan(nilParents[3], "manager_analytics_create_link",
 		HTTPOpSpanExpectations{
@@ -780,7 +780,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             true,
-			service:                 "management",
+			service:                 "analytics",
 		})
 	suite.AssertHTTPOpSpan(nilParents[4], "manager_analytics_get_all_links",
 		HTTPOpSpanExpectations{
@@ -788,7 +788,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			service:                 "management",
+			service:                 "analytics",
 		})
 	suite.AssertHTTPOpSpan(nilParents[5], "manager_analytics_get_all_links",
 		HTTPOpSpanExpectations{
@@ -796,7 +796,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			service:                 "management",
+			service:                 "analytics",
 		})
 	suite.AssertHTTPOpSpan(nilParents[6], "manager_analytics_replace_link",
 		HTTPOpSpanExpectations{
@@ -804,7 +804,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             true,
-			service:                 "management",
+			service:                 "analytics",
 		})
 	suite.AssertHTTPOpSpan(nilParents[7], "manager_analytics_get_all_links",
 		HTTPOpSpanExpectations{
@@ -812,7 +812,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			service:                 "management",
+			service:                 "analytics",
 		})
 	suite.AssertHTTPOpSpan(nilParents[8], "manager_analytics_drop_link",
 		HTTPOpSpanExpectations{
@@ -820,7 +820,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			service:                 "management",
+			service:                 "analytics",
 		})
 	suite.AssertHTTPOpSpan(nilParents[9], "manager_analytics_drop_link",
 		HTTPOpSpanExpectations{
@@ -828,14 +828,14 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 			numDispatchSpans:        1,
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
-			service:                 "management",
+			service:                 "analytics",
 		})
 
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_create_dataverse"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_create_link"), 3, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_replace_link"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_get_all_links"), 3, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_analytics_drop_link"), 2, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_create_dataverse"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_create_link"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_replace_link"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_get_all_links"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "analytics", "manager_analytics_drop_link"), 2, false)
 }
 
 func (suite *UnitTestSuite) TestAnalyticsIndexesCouchbaseLinksFormEncode() {

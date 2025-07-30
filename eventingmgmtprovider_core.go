@@ -445,7 +445,7 @@ func (emp *eventingManagementProviderCore) doRequest(scope *Scope, path string, 
 	}
 
 	op := "manager_eventing_" + opName
-	span := emp.tracer.createSpan(opts.ParentSpan, op, "management")
+	span := emp.tracer.createSpan(opts.ParentSpan, op, serviceValueEventing)
 	span.SetAttribute("db.operation", method+" "+path)
 	if scope == nil {
 		span.SetAttribute("db.name", "*")

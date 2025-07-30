@@ -93,7 +93,7 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             true,
 			dispatchOperationID:     "any",
-			service:                 "management",
+			service:                 "views",
 		})
 	suite.AssertHTTPOpSpan(nilParents[1], "manager_views_get_design_document",
 		HTTPOpSpanExpectations{
@@ -103,7 +103,7 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
 			dispatchOperationID:     "any",
-			service:                 "management",
+			service:                 "views",
 		})
 	suite.AssertHTTPOpSpan(nilParents[numGetsStart+1], "manager_views_get_all_design_documents",
 		HTTPOpSpanExpectations{
@@ -113,12 +113,12 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
 			dispatchOperationID:     "any",
-			service:                 "management",
+			service:                 "views",
 		})
 
 	publishParents := nilParents[numGetsStart+2]
 	suite.AssertHTTPSpan(publishParents, "manager_views_publish_design_document", globalConfig.Bucket, "",
-		"", "management", "", "")
+		"", "views", "", "")
 	suite.Require().Len(publishParents.Spans, 2)
 	suite.Require().Contains(publishParents.Spans, "manager_views_get_design_document")
 	suite.Require().Contains(publishParents.Spans, "manager_views_upsert_design_document")
@@ -130,7 +130,7 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             false,
 			dispatchOperationID:     "any",
-			service:                 "management",
+			service:                 "views",
 		})
 	suite.AssertHTTPOpSpan(publishParents.Spans["manager_views_upsert_design_document"][0], "manager_views_upsert_design_document",
 		HTTPOpSpanExpectations{
@@ -140,13 +140,13 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 			atLeastNumDispatchSpans: false,
 			hasEncoding:             true,
 			dispatchOperationID:     "any",
-			service:                 "management",
+			service:                 "views",
 		})
 
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_views_upsert_design_document"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_views_get_design_document"), 2, true)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_views_get_all_design_documents"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_views_drop_design_document"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "views", "manager_views_upsert_design_document"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "views", "manager_views_get_design_document"), 2, true)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "views", "manager_views_get_all_design_documents"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "views", "manager_views_drop_design_document"), 1, false)
 }
 
 func (suite *UnitTestSuite) viewIndexManager(mockProvider *mockMgmtProvider) *ViewIndexManager {

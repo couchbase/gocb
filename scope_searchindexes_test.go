@@ -85,10 +85,10 @@ func (suite *IntegrationTestSuite) TestScopeSearchIndexesCrud() {
 		suite.T().Fatalf("Expected DropIndex err to be nil but was %v", err)
 	}
 
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_search_upsert_index"), 3, true)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_search_get_index"), 2, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_search_drop_index"), 1, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_search_get_all_indexes"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "search", "manager_search_upsert_index"), 3, true)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "search", "manager_search_get_index"), 2, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "search", "manager_search_drop_index"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "search", "manager_search_get_all_indexes"), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestScopeSearchIndexesUpsertIndexNoName() {

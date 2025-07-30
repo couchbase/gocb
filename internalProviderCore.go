@@ -15,7 +15,7 @@ type internalProviderCore struct {
 func (ic *internalProviderCore) GetNodesMetadata(opts *GetNodesMetadataOptions) ([]NodeMetadata, error) {
 	path := "/pools/default"
 
-	span := ic.tracer.createSpan(opts.ParentSpan, "internal_get_nodes_metadata", "management")
+	span := ic.tracer.createSpan(opts.ParentSpan, "internal_get_nodes_metadata", serviceValueManagement)
 	span.SetAttribute("db.operation", "GET "+path)
 	defer span.End()
 

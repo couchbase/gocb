@@ -168,7 +168,7 @@ func (c *psConnectionMgr) getQueryIndexProvider() (queryIndexProvider, error) {
 	return &queryIndexProviderPs{
 		provider: provider,
 
-		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceValueManagement),
+		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceValueQuery),
 	}, nil
 }
 
@@ -181,7 +181,7 @@ func (c *psConnectionMgr) getSearchIndexProvider() (searchIndexProvider, error) 
 	return &searchIndexProviderPs{
 		provider: provider,
 
-		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceValueManagement),
+		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceValueSearch),
 	}, nil
 }
 

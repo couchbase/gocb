@@ -65,7 +65,7 @@ func (qpc *queryProviderCore) createIndex(c *Collection, bucketName, indexName s
 		qs += " WITH {" + withStr + "}"
 	}
 
-	span := qpc.tracer.createSpan(opts.ParentSpan, spanName, "management")
+	span := qpc.tracer.createSpan(opts.ParentSpan, spanName, serviceValueQuery)
 	defer span.End()
 
 	_, err := qpc.doQuery(c, qs, &QueryOptions{
@@ -118,7 +118,7 @@ func (qpc *queryProviderCore) dropIndex(c *Collection, bucketName, indexName str
 		}
 	}
 
-	span := qpc.tracer.createSpan(opts.ParentSpan, spanName, "management")
+	span := qpc.tracer.createSpan(opts.ParentSpan, spanName, serviceValueQuery)
 	defer span.End()
 
 	_, err := qpc.doQuery(c, qs, &QueryOptions{
@@ -191,7 +191,7 @@ func (qpc *queryProviderCore) GetAllIndexes(c *Collection, bucketName string, op
 func (qpc *queryProviderCore) getAllIndexes(c *Collection, bucketName string, opts *GetAllQueryIndexesOptions) ([]QueryIndex, error) {
 	whereClause, params := buildGetAllIndexesWhereClause(c, bucketName, opts.ScopeName, opts.CollectionName)
 
-	span := qpc.tracer.createSpan(opts.ParentSpan, "manager_query_get_all_indexes", "management")
+	span := qpc.tracer.createSpan(opts.ParentSpan, "manager_query_get_all_indexes", serviceValueQuery)
 	defer span.End()
 
 	q := "SELECT `idx`.* FROM system:indexes AS idx WHERE " + whereClause + " AND `using` = \"gsi\" " +
@@ -231,7 +231,7 @@ func (qpc *queryProviderCore) getAllIndexes(c *Collection, bucketName string, op
 }
 
 func (qpc *queryProviderCore) BuildDeferredIndexes(c *Collection, bucketName string, opts *BuildDeferredQueryIndexOptions) ([]string, error) {
-	span := qpc.tracer.createSpan(opts.ParentSpan, "manager_query_build_deferred_indexes", "management")
+	span := qpc.tracer.createSpan(opts.ParentSpan, "manager_query_build_deferred_indexes", serviceValueQuery)
 	defer span.End()
 
 	var whereClause string
@@ -343,7 +343,7 @@ func checkIndexesActiveCore(indexes []QueryIndex, checkList []string) (bool, err
 
 func (qpc *queryProviderCore) WatchIndexes(c *Collection, bucketName string, watchList []string, timeout time.Duration, opts *WatchQueryIndexOptions,
 ) error {
-	span := qpc.tracer.createSpan(opts.ParentSpan, "manager_query_watch_indexes", "management")
+	span := qpc.tracer.createSpan(opts.ParentSpan, "manager_query_watch_indexes", serviceValueQuery)
 	defer span.End()
 
 	if opts.WatchPrimary {

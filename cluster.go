@@ -598,7 +598,7 @@ func (c *Cluster) AnalyticsIndexes() *AnalyticsIndexManager {
 
 			meter:    c.connectionManager.getMeter(),
 			keyspace: &c.keyspace,
-			service:  serviceValueManagement,
+			service:  serviceValueAnalytics,
 		},
 	}
 }
@@ -612,7 +612,7 @@ func (c *Cluster) QueryIndexes() *QueryIndexManager {
 
 			meter:    c.connectionManager.getMeter(),
 			keyspace: &c.keyspace,
-			service:  serviceValueManagement,
+			service:  serviceValueQuery,
 		},
 	}
 }
@@ -626,7 +626,7 @@ func (c *Cluster) SearchIndexes() *SearchIndexManager {
 
 			meter:    c.connectionManager.getMeter(),
 			keyspace: &c.keyspace,
-			service:  serviceValueManagement,
+			service:  serviceValueSearch,
 		},
 	}
 }
@@ -644,7 +644,7 @@ func (c *Cluster) EventingFunctions() *EventingFunctionManager {
 
 			meter:    c.connectionManager.getMeter(),
 			keyspace: &c.keyspace,
-			service:  serviceValueManagement,
+			service:  serviceValueEventing,
 		},
 	}
 }

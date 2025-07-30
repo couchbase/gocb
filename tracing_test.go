@@ -126,18 +126,18 @@ func (suite *IntegrationTestSuite) AssertHTTPOpSpan(span *testSpan, opName strin
 	}
 }
 
-func (suite *IntegrationTestSuite) RequireQueryMgmtOpSpan(span *testSpan, opName, childType string) *testSpan {
+func (suite *IntegrationTestSuite) RequireAnalyticsMgmtOpSpan(span *testSpan, opName string) *testSpan {
 	suite.Assert().Equal(opName, span.Name)
 	suite.Assert().Equal("couchbase", span.Tags["db.system"])
-	suite.Assert().Equal("management", span.Tags["db.couchbase.service"])
+	suite.Assert().Equal("analytics", span.Tags["db.couchbase.service"])
 	if globalCluster.SupportsFeature(ClusterLabelsFeature) {
 		suite.Assert().NotEmpty(span.Tags["db.couchbase.cluster_uuid"])
 		suite.Assert().NotEmpty(span.Tags["db.couchbase.cluster_name"])
 	}
 	suite.Require().Len(span.Spans, 1)
-	suite.Require().Len(span.Spans[childType], 1)
+	suite.Require().Len(span.Spans["analytics"], 1)
 
-	return span.Spans[childType][0]
+	return span.Spans["analytics"][0]
 }
 
 func (suite *IntegrationTestSuite) AssertKvSpan(span *testSpan, expectedName string, durability DurabilityLevel) {

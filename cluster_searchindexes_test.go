@@ -145,10 +145,10 @@ func (suite *IntegrationTestSuite) TestSearchIndexesCrud() {
 		suite.T().Fatalf("Expected GetIndex err to be not found but was %s", err)
 	}
 
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_search_upsert_index"), 5, true)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_search_get_index"), 4, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_search_drop_index"), 3, false)
-	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_search_get_all_indexes"), 1, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "search", "manager_search_upsert_index"), 5, true)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "search", "manager_search_get_index"), 4, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "search", "manager_search_drop_index"), 3, false)
+	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "search", "manager_search_get_all_indexes"), 1, false)
 }
 
 func (suite *IntegrationTestSuite) TestSearchIndexesUpsertIndexNoName() {
