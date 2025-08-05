@@ -462,41 +462,62 @@ func NewBooleanQuery() *BooleanQuery {
 	return q
 }
 
-// Must specifies a query which must match.
-func (q *BooleanQuery) Must(query Query) *BooleanQuery {
-	switch val := query.(type) {
-	case ConjunctionQuery:
-		q.data.Must = &val
-	case *ConjunctionQuery:
-		q.data.Must = val
+// Must specifies queries which must match.
+func (q *BooleanQuery) Must(queries ...Query) *BooleanQuery {
+	switch len(queries) {
+	case 0:
+		q.data.Must = nil
+	case 1:
+		switch val := queries[0].(type) {
+		case ConjunctionQuery:
+			q.data.Must = &val
+		case *ConjunctionQuery:
+			q.data.Must = val
+		default:
+			q.data.Must = NewConjunctionQuery(val)
+		}
 	default:
-		q.data.Must = NewConjunctionQuery(val)
+		q.data.Must = NewConjunctionQuery(queries...)
 	}
 	return q
 }
 
-// Should specifies a query which should match.
-func (q *BooleanQuery) Should(query Query) *BooleanQuery {
-	switch val := query.(type) {
-	case DisjunctionQuery:
-		q.data.Should = &val
-	case *DisjunctionQuery:
-		q.data.Should = val
+// Should specifies queries which should match.
+func (q *BooleanQuery) Should(queries ...Query) *BooleanQuery {
+	switch len(queries) {
+	case 0:
+		q.data.Should = nil
+	case 1:
+		switch val := queries[0].(type) {
+		case DisjunctionQuery:
+			q.data.Should = &val
+		case *DisjunctionQuery:
+			q.data.Should = val
+		default:
+			q.data.Should = NewDisjunctionQuery(val)
+		}
 	default:
-		q.data.Should = NewDisjunctionQuery(val)
+		q.data.Should = NewDisjunctionQuery(queries...)
 	}
 	return q
 }
 
-// MustNot specifies a query which must not match.
-func (q *BooleanQuery) MustNot(query Query) *BooleanQuery {
-	switch val := query.(type) {
-	case DisjunctionQuery:
-		q.data.MustNot = &val
-	case *DisjunctionQuery:
-		q.data.MustNot = val
+// MustNot specifies queries which must not match.
+func (q *BooleanQuery) MustNot(queries ...Query) *BooleanQuery {
+	switch len(queries) {
+	case 0:
+		q.data.MustNot = nil
+	case 1:
+		switch val := queries[0].(type) {
+		case DisjunctionQuery:
+			q.data.MustNot = &val
+		case *DisjunctionQuery:
+			q.data.MustNot = val
+		default:
+			q.data.MustNot = NewDisjunctionQuery(val)
+		}
 	default:
-		q.data.MustNot = NewDisjunctionQuery(val)
+		q.data.MustNot = NewDisjunctionQuery(queries...)
 	}
 	return q
 }
