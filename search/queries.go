@@ -851,7 +851,6 @@ func NewMatchNoneQuery() *MatchNoneQuery {
 
 // TermRangeQuery represents a search term range query.
 type TermRangeQuery struct {
-	term         string
 	field        *string
 	min          *string
 	inclusiveMin *bool
@@ -863,7 +862,6 @@ type TermRangeQuery struct {
 // MarshalJSON marshal's this query to JSON for the search REST API.
 func (q TermRangeQuery) MarshalJSON() ([]byte, error) {
 	outStruct := &struct {
-		Term         string   `json:"term"`
 		Field        *string  `json:"field,omitempty"`
 		Min          *string  `json:"min,omitempty"`
 		InclusiveMin *bool    `json:"inclusive_min,omitempty"`
@@ -871,7 +869,6 @@ func (q TermRangeQuery) MarshalJSON() ([]byte, error) {
 		InclusiveMax *bool    `json:"inclusive_max,omitempty"`
 		Boost        *float32 `json:"boost,omitempty"`
 	}{
-		Term:         q.term,
 		Field:        q.field,
 		Min:          q.min,
 		InclusiveMin: q.inclusiveMin,
@@ -884,8 +881,8 @@ func (q TermRangeQuery) MarshalJSON() ([]byte, error) {
 }
 
 // NewTermRangeQuery creates a new TermRangeQuery.
-func NewTermRangeQuery(term string) *TermRangeQuery {
-	q := &TermRangeQuery{term: term}
+func NewTermRangeQuery() *TermRangeQuery {
+	q := &TermRangeQuery{}
 	return q
 }
 
