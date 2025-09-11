@@ -5,7 +5,7 @@ require (
 	github.com/couchbase/gocbcoreps v0.1.4-0.20250911203224-a191c3236a6a
 	github.com/couchbase/goprotostellar v1.0.2
 	github.com/couchbaselabs/gocaves/client v0.0.0-20250107114554-f96479220ae8
-	github.com/couchbaselabs/gocbconnstr/v2 v2.0.0-20240607131231-fb385523de28
+	github.com/couchbaselabs/gocbconnstr/v2 v2.0.0-20250911204537-97364fc3580c
 	github.com/golang/snappy v1.0.0
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.10.0

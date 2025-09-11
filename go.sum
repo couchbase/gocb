@@ -12,8 +12,8 @@ github.com/couchbase/goprotostellar v1.0.2 h1:yoPbAL9sCtcyZ5e/DcU5PRMOEFaJrF9awX
 github.com/couchbase/goprotostellar v1.0.2/go.mod h1:5/yqVnZlW2/NSbAWu1hPJCFBEwjxgpe0PFFOlRixnp4=
 github.com/couchbaselabs/gocaves/client v0.0.0-20250107114554-f96479220ae8 h1:MQfvw4BiLTuyR69FuA5Kex+tXUeLkH+/ucJfVL1/hkM=
 github.com/couchbaselabs/gocaves/client v0.0.0-20250107114554-f96479220ae8/go.mod h1:AVekAZwIY2stsJOMWLAS/0uA/+qdp7pjO8EHnl61QkY=
-github.com/couchbaselabs/gocbconnstr/v2 v2.0.0-20240607131231-fb385523de28 h1:lhGOw8rNG6RAadmmaJAF3PJ7MNt7rFuWG7BHCYMgnGE=
-github.com/couchbaselabs/gocbconnstr/v2 v2.0.0-20240607131231-fb385523de28/go.mod h1:o7T431UOfFVHDNvMBUmUxpHnhivwv7BziUao/nMl81E=
+github.com/couchbaselabs/gocbconnstr/v2 v2.0.0-20250911204537-97364fc3580c h1:kvdOMeMppBGPp7WDU5Wn+pIgbDfVRBSLZrNUV9TCGCI=
+github.com/couchbaselabs/gocbconnstr/v2 v2.0.0-20250911204537-97364fc3580c/go.mod h1:o7T431UOfFVHDNvMBUmUxpHnhivwv7BziUao/nMl81E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
