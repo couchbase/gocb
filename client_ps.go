@@ -82,7 +82,7 @@ func (c *psConnectionMgr) buildConfig(cluster *Cluster) error {
 		Username:           creds[0].Username,
 		Password:           creds[0].Password,
 		InsecureSkipVerify: cluster.securityConfig.TLSSkipVerify,
-		ClientCertificate:  cluster.securityConfig.TLSRootCAs,
+		RootCAs:            cluster.securityConfig.TLSRootCAs,
 		Logger:             logger,
 		TracerProvider:     tp,
 		MeterProvider:      mp,
