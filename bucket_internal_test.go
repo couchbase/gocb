@@ -12,7 +12,7 @@ func (suite *UnitTestSuite) TestCollectionInternal_BucketCapabilityStatus_Suppor
 	cli := new(mockConnectionManager)
 	cli.On("getKvCapabilitiesProvider", "mock").Return(provider, nil)
 
-	b := suite.bucket("mock", suite.defaultTimeoutConfig(), cli)
+	b := suite.bucket("mock", cli)
 
 	ib := b.Internal()
 	status, err := ib.CapabilityStatus(CapabilityDurableWrites)
@@ -30,7 +30,7 @@ func (suite *UnitTestSuite) TestCollectionInternal_BucketCapabilityStatus_Unsupp
 	cli := new(mockConnectionManager)
 	cli.On("getKvCapabilitiesProvider", "mock").Return(provider, nil)
 
-	b := suite.bucket("mock", suite.defaultTimeoutConfig(), cli)
+	b := suite.bucket("mock", cli)
 
 	ib := b.Internal()
 	status, err := ib.CapabilityStatus(CapabilityDurableWrites)

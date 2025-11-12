@@ -114,44 +114,46 @@ func (suite *IntegrationTestSuite) TestKvOpManagerTimeouts() {
 		},
 		{
 			name:                      "no timeout",
-			timeout:                   globalCollection.timeoutsConfig.KVTimeout,
+			timeout:                   2500 * time.Millisecond,
 			expectedDurabilityTimeout: 0,
-			expectedDeadline:          globalCollection.timeoutsConfig.KVTimeout,
+			expectedDeadline:          2500 * time.Millisecond,
 		},
 		{
 			name:                      "no timeout, with durability level none",
-			timeout:                   globalCollection.timeoutsConfig.KVTimeout,
+			timeout:                   2500 * time.Millisecond,
 			durabilityLevel:           DurabilityLevelNone,
 			expectedDurabilityTimeout: 0,
-			expectedDeadline:          globalCollection.timeoutsConfig.KVTimeout,
+			expectedDeadline:          2500 * time.Millisecond,
 		},
 		{
 			name:                      "no timeout, with durability level majority",
 			timeout:                   0,
 			durabilityLevel:           DurabilityLevelMajority,
-			expectedDurabilityTimeout: time.Duration(float64(globalCollection.timeoutsConfig.KVTimeout) * 0.9),
-			expectedDeadline:          globalCollection.timeoutsConfig.KVTimeout,
+			expectedDurabilityTimeout: time.Duration(float64(2500*time.Millisecond) * 0.9),
+			expectedDeadline:          2500 * time.Millisecond,
 		},
 		{
 			name:                      "no timeout, with durability level persist to majority",
 			timeout:                   0,
 			durabilityLevel:           DurabilityLevelPersistToMajority,
-			expectedDurabilityTimeout: time.Duration(float64(globalCollection.timeoutsConfig.KVDurableTimeout) * 0.9),
-			expectedDeadline:          globalCollection.timeoutsConfig.KVDurableTimeout,
+			expectedDurabilityTimeout: time.Duration(float64(10000*time.Millisecond) * 0.9),
+			expectedDeadline:          10000 * time.Millisecond,
 		},
 		{
 			name:                      "no timeout, with durability level majority and persist master",
 			timeout:                   0,
 			durabilityLevel:           DurabilityLevelMajorityAndPersistOnMaster,
-			expectedDurabilityTimeout: time.Duration(float64(globalCollection.timeoutsConfig.KVDurableTimeout) * 0.9),
-			expectedDeadline:          globalCollection.timeoutsConfig.KVDurableTimeout,
+			expectedDurabilityTimeout: time.Duration(float64(10000*time.Millisecond) * 0.9),
+			expectedDeadline:          10000 * time.Millisecond,
 		},
 	}
 
 	for _, tc := range testCases {
 		suite.T().Run(tc.name, func(tt *testing.T) {
 			mgr := newKvOpManagerCore(globalCollection, "test", nil, &kvProviderCore{
-				tracer: newTracerWrapper(newTestTracer()),
+				tracer:           newTracerWrapper(newTestTracer()),
+				kvTimeout:        2500 * time.Millisecond,
+				kvDurableTimeout: 10000 * time.Millisecond,
 			})
 			mgr.SetTimeout(tc.timeout)
 			mgr.SetDuraOptions(0, 0, tc.durabilityLevel)

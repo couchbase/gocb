@@ -13,19 +13,6 @@ type Transactions struct {
 	controller *providerController[transactionsProvider]
 }
 
-// initTransactions will initialize the transactions library and return a Transactions
-// object which can be used to perform transactions.
-func (c *Cluster) initTransactions(config TransactionsConfig) (*Transactions, error) {
-	err := c.connectionManager.initTransactions(config, c)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Transactions{
-		controller: c.transactionsController(),
-	}, nil
-}
-
 // Run runs a lambda to perform a number of operations as part of a
 // singular transaction.
 func (t *Transactions) Run(logicFn AttemptFunc, perConfig *TransactionOptions) (*TransactionResult, error) {

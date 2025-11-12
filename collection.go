@@ -6,14 +6,6 @@ type Collection struct {
 	scope          string
 	bucket         *Bucket
 
-	timeoutsConfig TimeoutsConfig
-
-	transcoder           Transcoder
-	retryStrategyWrapper *coreRetryStrategyWrapper
-	compressor           *compressor
-
-	useMutationTokens bool
-
 	keyspace keyspace
 
 	opController opController
@@ -28,14 +20,6 @@ func newCollection(scope *Scope, collectionName string) *Collection {
 		collectionName: collectionName,
 		scope:          scope.Name(),
 		bucket:         scope.bucket,
-
-		timeoutsConfig: scope.timeoutsConfig,
-
-		transcoder:           scope.transcoder,
-		retryStrategyWrapper: scope.retryStrategyWrapper,
-		compressor:           scope.compressor,
-
-		useMutationTokens: scope.useMutationTokens,
 
 		keyspace: keyspace{
 			bucketName:     scope.BucketName(),

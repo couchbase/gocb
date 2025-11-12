@@ -140,10 +140,6 @@ func (c *Collection) Scan(scanType ScanType, opts *ScanOptions) (*ScanResult, er
 			opts = &ScanOptions{}
 		}
 
-		if opts.Timeout == 0 {
-			opts.Timeout = c.timeoutsConfig.KVScanTimeout
-		}
-
 		return agent.Scan(c, scanType, opts)
 	})
 }

@@ -64,6 +64,12 @@ func (suite *UnitTestSuite) pingCluster(runFn func(args mock.Arguments), args ..
 
 	pingProvider := &diagnosticsProviderCore{
 		provider: pingProviderCoreProvider,
+		timeouts: TimeoutsConfig{
+			KVTimeout:        1000 * time.Second,
+			AnalyticsTimeout: 1000 * time.Second,
+			QueryTimeout:     1000 * time.Second,
+			SearchTimeout:    1000 * time.Second,
+		},
 	}
 
 	cli := new(mockConnectionManager)
@@ -72,17 +78,10 @@ func (suite *UnitTestSuite) pingCluster(runFn func(args mock.Arguments), args ..
 	cli.On("MarkOpCompleted").Return()
 
 	c := &Cluster{
-		timeoutsConfig: TimeoutsConfig{
-			KVTimeout:        1000 * time.Second,
-			AnalyticsTimeout: 1000 * time.Second,
-			QueryTimeout:     1000 * time.Second,
-			SearchTimeout:    1000 * time.Second,
-		},
 		connectionManager: cli,
 	}
 
 	pingProvider.tracer = newTracerWrapper(&NoopTracer{})
-	pingProvider.timeouts = c.timeoutsConfig
 
 	return c
 }

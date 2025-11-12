@@ -629,15 +629,17 @@ func (suite *UnitTestSuite) TestTransactionsQueryGocbcoreCauseError() {
 	defer cluster.Close(nil)
 
 	queryProvider.tracer = newTracerWrapper(&NoopTracer{})
-	queryProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
-	queryProvider.timeouts = cluster.timeoutsConfig
+	queryProvider.retryStrategyWrapper = newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
+	queryProvider.timeouts.QueryTimeout = 75000 * time.Millisecond
 
-	txns := &transactionsProviderCore{}
-	err = txns.Init(TransactionsConfig{
-		CleanupConfig: TransactionsCleanupConfig{
-			DisableLostAttemptCleanup: true,
+	txns := &transactionsProviderCore{
+		config: TransactionsConfig{
+			CleanupConfig: TransactionsCleanupConfig{
+				DisableLostAttemptCleanup: true,
+			},
 		},
-	}, cluster)
+	}
+	err = txns.Init(cluster)
 	suite.Require().Nil(err, err)
 	defer txns.close()
 

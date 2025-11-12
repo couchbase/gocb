@@ -48,9 +48,9 @@ func (m *kvOpManagerCore) getTimeout() time.Duration {
 		return m.timeout
 	}
 
-	defaultTimeout := m.parent.timeoutsConfig.KVTimeout
+	defaultTimeout := m.kv.kvTimeout
 	if m.durabilityLevel > memd.DurabilityLevelMajority || m.persistTo > 0 {
-		defaultTimeout = m.parent.timeoutsConfig.KVDurableTimeout
+		defaultTimeout = m.kv.kvDurableTimeout
 	}
 
 	if m.durabilityLevel > 0 && defaultTimeout < durabilityTimeoutFloor {
@@ -75,7 +75,7 @@ func (m *kvOpManagerCore) SetTimeout(timeout time.Duration) {
 
 func (m *kvOpManagerCore) SetTranscoder(transcoder Transcoder) {
 	if transcoder == nil {
-		transcoder = m.parent.transcoder
+		transcoder = m.kv.transcoder
 	}
 	m.transcoder = transcoder
 }
@@ -104,7 +104,7 @@ func (m *kvOpManagerCore) SetValue(val interface{}) {
 
 func (m *kvOpManagerCore) SetDuraOptions(persistTo, replicateTo uint, level DurabilityLevel) {
 	if persistTo != 0 || replicateTo != 0 {
-		if !m.parent.useMutationTokens {
+		if !m.kv.useMutationTokens {
 			m.err = makeInvalidArgumentsError("cannot use observe based durability without mutation tokens")
 			return
 		}
@@ -140,7 +140,7 @@ func (m *kvOpManagerCore) SetDuraOptions(persistTo, replicateTo uint, level Dura
 }
 
 func (m *kvOpManagerCore) SetRetryStrategy(retryStrategy RetryStrategy) {
-	wrapper := m.parent.retryStrategyWrapper
+	wrapper := m.kv.retryStrategyWrapper
 	if retryStrategy != nil {
 		wrapper = newCoreRetryStrategyWrapper(retryStrategy)
 	}

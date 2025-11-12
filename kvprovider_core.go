@@ -12,6 +12,13 @@ type kvProviderCore struct {
 	agent            kvProviderCoreProvider
 	snapshotProvider kvProviderConfigSnapshotProvider
 
+	kvTimeout            time.Duration
+	kvDurableTimeout     time.Duration
+	kvScanTimeout        time.Duration
+	transcoder           Transcoder
+	useMutationTokens    bool
+	retryStrategyWrapper *coreRetryStrategyWrapper
+
 	tracer               *tracerWrapper
 	preferredServerGroup string
 }
@@ -19,6 +26,10 @@ type kvProviderCore struct {
 var _ kvProvider = &kvProviderCore{}
 
 func (p *kvProviderCore) Scan(c *Collection, scanType ScanType, opts *ScanOptions) (*ScanResult, error) {
+	if opts.Timeout == 0 {
+		opts.Timeout = p.kvScanTimeout
+	}
+
 	opm, err := p.newRangeScanOpManager(c, scanType, p.agent, opts.ParentSpan, opts.ConsistentWith,
 		opts.IDsOnly)
 	if err != nil {
@@ -784,7 +795,7 @@ func (p *kvProviderCore) GetAllReplicas(c *Collection, id string, opts *GetAllRe
 	// by those functions rather than us.
 	timeout := opts.Timeout
 	if timeout == 0 {
-		timeout = c.timeoutsConfig.KVTimeout
+		timeout = p.kvTimeout
 	}
 
 	deadline := time.Now().Add(timeout)

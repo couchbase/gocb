@@ -2482,6 +2482,10 @@ func (suite *UnitTestSuite) kvProviderCore(agent kvProviderCoreProvider, snapsho
 		agent:            agent,
 		snapshotProvider: snapshotProvider,
 		tracer:           newTracerWrapper(&NoopTracer{}),
+		transcoder:       NewJSONTranscoder(),
+		kvTimeout:        2500 * time.Millisecond,
+		kvDurableTimeout: 10000 * time.Millisecond,
+		kvScanTimeout:    10000 * time.Millisecond,
 	}
 }
 

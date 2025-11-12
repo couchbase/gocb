@@ -90,7 +90,7 @@ func (suite *UnitTestSuite) TestPingAll() {
 		}
 	}, pingResult, nil)
 
-	b := suite.bucket("mock", suite.defaultTimeoutConfig(), c.connectionManager)
+	b := suite.bucket("mock", c.connectionManager)
 
 	report, err := b.Ping(nil)
 	if err != nil {

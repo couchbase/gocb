@@ -568,23 +568,9 @@ func (suite *UnitTestSuite) defaultTimeoutConfig() TimeoutsConfig {
 	}
 }
 
-func (suite *UnitTestSuite) bucket(name string, timeouts TimeoutsConfig, cli connectionManager) *Bucket {
+func (suite *UnitTestSuite) bucket(name string, cli connectionManager) *Bucket {
 	b := &Bucket{
-		bucketName: name,
-		timeoutsConfig: TimeoutsConfig{
-			KVTimeout:         timeouts.KVTimeout,
-			KVDurableTimeout:  timeouts.KVDurableTimeout,
-			AnalyticsTimeout:  timeouts.AnalyticsTimeout,
-			QueryTimeout:      timeouts.QueryTimeout,
-			SearchTimeout:     timeouts.SearchTimeout,
-			ManagementTimeout: timeouts.ManagementTimeout,
-			ViewTimeout:       timeouts.ViewTimeout,
-		},
-		transcoder:           NewJSONTranscoder(),
-		retryStrategyWrapper: newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
-		useServerDurations:   true,
-		useMutationTokens:    true,
-
+		bucketName:        name,
 		connectionManager: cli,
 	}
 
@@ -592,11 +578,9 @@ func (suite *UnitTestSuite) bucket(name string, timeouts TimeoutsConfig, cli con
 }
 
 func (suite *UnitTestSuite) newCluster(cli connectionManager) *Cluster {
-	cluster := clusterFromOptions(ClusterOptions{
-		Tracer: &NoopTracer{},
-		Meter:  &NoopMeter{},
-	})
-	cluster.connectionManager = cli
+	cluster := &Cluster{
+		connectionManager: cli,
+	}
 
 	return cluster
 }
@@ -632,12 +616,6 @@ func (suite *UnitTestSuite) collection(bucket, scope, collection string, provide
 		scope:          scope,
 
 		getKvProvider: suite.kvProvider(provider, nil),
-		timeoutsConfig: TimeoutsConfig{
-			KVTimeout:     2500 * time.Millisecond,
-			KVScanTimeout: 75000 * time.Millisecond,
-		},
-		transcoder:           NewJSONTranscoder(),
-		retryStrategyWrapper: newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil)),
 
 		opController: mockOpController{},
 	}

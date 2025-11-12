@@ -199,14 +199,18 @@ type testViewDataset struct {
 	jsonViewResponse
 }
 
-func (suite *UnitTestSuite) viewsBucket(reader viewRowReader, runFn func(args mock.Arguments)) *Bucket {
+func (suite *UnitTestSuite) viewsBucket(reader viewRowReader, retryStrategy *coreRetryStrategyWrapper, runFn func(args mock.Arguments)) *Bucket {
 	coreProvider := new(mockViewProviderCoreProvider)
 	coreProvider.
 		On("ViewQuery", nil, mock.AnythingOfType("gocbcore.ViewQueryOptions")).
 		Run(runFn).
 		Return(reader, nil)
 	viewProvider := &viewProviderCore{
-		provider: coreProvider,
+		provider:             coreProvider,
+		retryStrategyWrapper: retryStrategy,
+		timeouts: TimeoutsConfig{
+			ViewTimeout: 75000 * time.Millisecond,
+		},
 	}
 	cli := new(mockConnectionManager)
 	cli.On("getViewProvider", "mockBucket").Return(viewProvider, nil)
@@ -214,11 +218,8 @@ func (suite *UnitTestSuite) viewsBucket(reader viewRowReader, runFn func(args mo
 	cli.On("MarkOpBeginning").Return()
 	cli.On("MarkOpCompleted").Return()
 
-	cluster := suite.newCluster(cli)
 	viewProvider.tracer = newTracerWrapper(&NoopTracer{})
-	viewProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
-	viewProvider.timeouts = cluster.timeoutsConfig
-	b := newBucket(cluster, "mockBucket")
+	b := newBucket("mockBucket", cli, nil)
 
 	return b
 }
@@ -234,10 +235,11 @@ func (suite *UnitTestSuite) TestViewQuery() {
 		Suite:   suite,
 	}
 
+	rs := newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
 	var bucket *Bucket
-	bucket = suite.viewsBucket(reader, func(args mock.Arguments) {
+	bucket = suite.viewsBucket(reader, rs, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.ViewQueryOptions)
-		suite.Assert().Equal(bucket.retryStrategyWrapper, opts.RetryStrategy)
+		suite.Assert().Equal(rs, opts.RetryStrategy)
 		now := time.Now()
 		if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {
 			suite.Fail("Deadline should have been <75s and >70s but was %s", opts.Deadline)
@@ -300,8 +302,9 @@ func (suite *UnitTestSuite) TestViewQueryRaw() {
 		Suite:   suite,
 	}
 
+	rs := newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
 	var bucket *Bucket
-	bucket = suite.viewsBucket(reader, func(args mock.Arguments) {})
+	bucket = suite.viewsBucket(reader, rs, func(args mock.Arguments) {})
 
 	result, err := bucket.ViewQuery("ddoc", "view", &ViewOptions{
 		Namespace: DesignDocumentNamespaceDevelopment,

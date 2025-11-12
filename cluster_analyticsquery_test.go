@@ -183,11 +183,12 @@ func (suite *UnitTestSuite) TestAnalyticsQuery() {
 
 	statement := "SELECT * FROM dataset"
 
+	rs := newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
 	var cluster *Cluster
-	cluster = suite.coreAnalyticsCluster(nil, func(args mock.Arguments) {
+	cluster = suite.coreAnalyticsCluster(nil, rs, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.AnalyticsQueryOptions)
 		suite.Assert().Equal(0, opts.Priority)
-		suite.Assert().Equal(cluster.retryStrategyWrapper, opts.RetryStrategy)
+		suite.Assert().Equal(rs, opts.RetryStrategy)
 		now := time.Now()
 		if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {
 			suite.Fail("Deadline should have been <75s and >70s but was %s", opts.Deadline)
@@ -295,7 +296,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryResultsCloseErr() {
 
 func (suite *UnitTestSuite) TestAnalyticsQueryUntypedError() {
 	retErr := errors.New("an error")
-	cluster := suite.coreAnalyticsCluster(nil, nil, nil, retErr)
+	cluster := suite.coreAnalyticsCluster(nil, nil, nil, nil, retErr)
 
 	result, err := cluster.AnalyticsQuery("SELECT * FROM dataset", nil)
 	suite.Require().Equal(retErr, err)
@@ -310,7 +311,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryGocbcoreError() {
 		Errors:          []gocbcore.AnalyticsErrorDesc{{Code: 24001, Message: "Compilation error:"}},
 	}
 
-	cluster := suite.coreAnalyticsCluster(nil, nil, nil, retErr)
+	cluster := suite.coreAnalyticsCluster(nil, nil, nil, nil, retErr)
 
 	result, err := cluster.AnalyticsQuery("SELECT * FROM dataset", nil)
 	suite.Require().IsType(&AnalyticsError{}, err)
@@ -328,7 +329,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryPriority() {
 
 	statement := "SELECT * FROM dataset"
 
-	cluster := suite.coreAnalyticsCluster(nil, func(args mock.Arguments) {
+	cluster := suite.coreAnalyticsCluster(nil, nil, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.AnalyticsQueryOptions)
 		suite.Assert().Equal(-1, opts.Priority)
 	}, reader, nil)
@@ -345,11 +346,12 @@ func (suite *UnitTestSuite) TestAnalyticsQueryTimeoutOption() {
 
 	statement := "SELECT * FROM dataset"
 
+	rs := newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
 	var cluster *Cluster
-	cluster = suite.coreAnalyticsCluster(nil, func(args mock.Arguments) {
+	cluster = suite.coreAnalyticsCluster(nil, rs, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.AnalyticsQueryOptions)
 		suite.Assert().Equal(0, opts.Priority)
-		suite.Assert().Equal(cluster.retryStrategyWrapper, opts.RetryStrategy)
+		suite.Assert().Equal(rs, opts.RetryStrategy)
 		now := time.Now()
 		if opts.Deadline.Before(now.Add(20*time.Second)) || opts.Deadline.After(now.Add(25*time.Second)) {
 			suite.Fail("Deadline should have been <75s and >70s but was %s", opts.Deadline)
@@ -366,7 +368,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryTimeoutOption() {
 func (suite *UnitTestSuite) TestAnalyticsQueryGCCCPUnsupported() {
 	retErr := errors.New("an error")
 
-	cluster := suite.coreAnalyticsCluster(nil, nil, nil, retErr)
+	cluster := suite.coreAnalyticsCluster(nil, nil, nil, nil, retErr)
 
 	_, err := cluster.AnalyticsQuery("SELECT * FROM dataset", nil)
 	suite.Require().NotNil(err)
@@ -382,7 +384,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryNamedParams() {
 		"$cilit":  "bang",
 	}
 
-	cluster := suite.coreAnalyticsCluster(nil, func(args mock.Arguments) {
+	cluster := suite.coreAnalyticsCluster(nil, nil, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.AnalyticsQueryOptions)
 
 		var actualOptions map[string]interface{}
@@ -409,7 +411,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryPositionalParams() {
 	statement := "SELECT * FROM dataset"
 	params := []interface{}{float64(1), "imafish"}
 
-	cluster := suite.coreAnalyticsCluster(nil, func(args mock.Arguments) {
+	cluster := suite.coreAnalyticsCluster(nil, nil, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.AnalyticsQueryOptions)
 
 		var actualOptions map[string]interface{}
@@ -456,8 +458,8 @@ func (suite *UnitTestSuite) TestAnalyticsQueryBothParams() {
 
 	cluster := suite.newCluster(cli)
 	analyticsProvider.tracer = newTracerWrapper(&NoopTracer{})
-	analyticsProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
-	analyticsProvider.analyticsTimeout = cluster.timeoutsConfig.AnalyticsTimeout
+	analyticsProvider.retryStrategyWrapper = newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
+	analyticsProvider.analyticsTimeout = 7500 * time.Millisecond
 
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		PositionalParameters: params,
@@ -476,7 +478,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryClientContextID() {
 	statement := "SELECT * FROM dataset"
 	contextID := "62d29101-0c9f-400d-af2b-9bd44a557a7c"
 
-	cluster := suite.coreAnalyticsCluster(nil, func(args mock.Arguments) {
+	cluster := suite.coreAnalyticsCluster(nil, nil, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.AnalyticsQueryOptions)
 
 		var actualOptions map[string]interface{}
@@ -502,7 +504,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryRawParam() {
 		"raw": "param",
 	}
 
-	cluster := suite.coreAnalyticsCluster(nil, func(args mock.Arguments) {
+	cluster := suite.coreAnalyticsCluster(nil, nil, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.AnalyticsQueryOptions)
 
 		var actualOptions map[string]interface{}
@@ -528,7 +530,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryReadonly() {
 
 	statement := "SELECT * FROM dataset"
 
-	cluster := suite.coreAnalyticsCluster(nil, func(args mock.Arguments) {
+	cluster := suite.coreAnalyticsCluster(nil, nil, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.AnalyticsQueryOptions)
 
 		var actualOptions map[string]interface{}
@@ -552,7 +554,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyNotBounded() {
 
 	statement := "SELECT * FROM dataset"
 
-	cluster := suite.coreAnalyticsCluster(nil, func(args mock.Arguments) {
+	cluster := suite.coreAnalyticsCluster(nil, nil, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.AnalyticsQueryOptions)
 
 		var actualOptions map[string]interface{}
@@ -576,7 +578,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyRequestPlus() {
 
 	statement := "SELECT * FROM dataset"
 
-	cluster := suite.coreAnalyticsCluster(nil, func(args mock.Arguments) {
+	cluster := suite.coreAnalyticsCluster(nil, nil, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.AnalyticsQueryOptions)
 
 		var actualOptions map[string]interface{}
@@ -614,8 +616,8 @@ func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyInvalid() {
 
 	cluster := suite.newCluster(cli)
 	analyticsProvider.tracer = newTracerWrapper(&NoopTracer{})
-	analyticsProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
-	analyticsProvider.analyticsTimeout = cluster.timeoutsConfig.AnalyticsTimeout
+	analyticsProvider.retryStrategyWrapper = newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
+	analyticsProvider.analyticsTimeout = 75000 * time.Millisecond
 
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		ScanConsistency: 5,
@@ -627,7 +629,11 @@ func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyInvalid() {
 	analyticsProviderCoreProvider.AssertNotCalled(suite.T(), "AnalyticsQuery")
 }
 
-func (suite *UnitTestSuite) coreAnalyticsCluster(ctx context.Context, runFn func(args mock.Arguments), retArgs ...interface{}) *Cluster {
+func (suite *UnitTestSuite) coreAnalyticsCluster(ctx context.Context, retryStrategy *coreRetryStrategyWrapper, runFn func(args mock.Arguments), retArgs ...interface{}) *Cluster {
+	if retryStrategy == nil {
+		retryStrategy = newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
+	}
+
 	analyticsProviderCoreProvider := new(mockAnalyticsProviderCoreProvider)
 	analyticsProviderCoreProvider.
 		On("AnalyticsQuery", ctx, mock.AnythingOfType("gocbcore.AnalyticsQueryOptions")).
@@ -647,8 +653,8 @@ func (suite *UnitTestSuite) coreAnalyticsCluster(ctx context.Context, runFn func
 	cluster := suite.newCluster(cli)
 
 	analyticsProvider.tracer = newTracerWrapper(&NoopTracer{})
-	analyticsProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
-	analyticsProvider.analyticsTimeout = cluster.timeoutsConfig.AnalyticsTimeout
+	analyticsProvider.retryStrategyWrapper = retryStrategy
+	analyticsProvider.analyticsTimeout = 75000 * time.Millisecond
 
 	return cluster
 }
@@ -666,8 +672,9 @@ func (suite *UnitTestSuite) TestAnalyticsQueryRaw() {
 
 	statement := "SELECT * FROM dataset"
 
+	rs := newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
 	var cluster *Cluster
-	cluster = suite.coreAnalyticsCluster(nil, func(args mock.Arguments) {}, reader, nil)
+	cluster = suite.coreAnalyticsCluster(nil, rs, func(args mock.Arguments) {}, reader, nil)
 
 	result, err := cluster.AnalyticsQuery(statement, nil)
 	suite.Require().Nil(err, err)

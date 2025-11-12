@@ -8,15 +8,6 @@ import (
 type Bucket struct {
 	bucketName string
 
-	timeoutsConfig TimeoutsConfig
-
-	transcoder           Transcoder
-	retryStrategyWrapper *coreRetryStrategyWrapper
-	compressor           *compressor
-
-	useServerDurations bool
-	useMutationTokens  bool
-
 	keyspace keyspace
 
 	bootstrapError    error
@@ -24,27 +15,16 @@ type Bucket struct {
 	getTransactions   func() *Transactions
 }
 
-func newBucket(c *Cluster, bucketName string) *Bucket {
+func newBucket(bucketName string, connectionManager connectionManager, getTransactions func() *Transactions) *Bucket {
 	return &Bucket{
 		bucketName: bucketName,
-
-		timeoutsConfig: c.timeoutsConfig,
-
-		transcoder: c.transcoder,
-
-		retryStrategyWrapper: c.retryStrategyWrapper,
-
-		compressor: c.compressor,
-
-		useServerDurations: c.useServerDurations,
-		useMutationTokens:  c.useMutationTokens,
 
 		keyspace: keyspace{
 			bucketName: bucketName,
 		},
 
-		connectionManager: c.connectionManager,
-		getTransactions:   c.Transactions,
+		connectionManager: connectionManager,
+		getTransactions:   getTransactions,
 	}
 }
 

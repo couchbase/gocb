@@ -31,46 +31,63 @@ type transactionsProviderCore struct {
 	hooksWrapper        transactionHooksWrapper
 	cleanupHooksWrapper transactionCleanupHooksWrapper
 	cleanupCollections  []gocbcore.TransactionLostATRLocation
+
+	timeoutsConfig       TimeoutsConfig
+	preferredServerGroup string
+}
+
+type transactionsProviderCoreOptions struct {
+	TimeoutsConfig       TimeoutsConfig
+	PreferredServerGroup string
 }
 
 const (
 	transactionsUnstagingParallelismLimit = 1000
 )
 
-func (t *transactionsProviderCore) Init(config TransactionsConfig, c *Cluster) error {
-	// Note that gocbcore will handle a lot of default values for us.
-	if config.QueryConfig.ScanConsistency == 0 {
-		config.QueryConfig.ScanConsistency = QueryScanConsistencyRequestPlus
+func newTransactionsProviderCore(config TransactionsConfig, opts transactionsProviderCoreOptions, provider agentProvider) *transactionsProviderCore {
+	return &transactionsProviderCore{
+		config:               config,
+		getAgentProvider:     provider,
+		timeoutsConfig:       opts.TimeoutsConfig,
+		preferredServerGroup: opts.PreferredServerGroup,
 	}
-	if config.DurabilityLevel == DurabilityLevelUnknown {
-		config.DurabilityLevel = DurabilityLevelMajority
+}
+
+func (t *transactionsProviderCore) Init(c *Cluster) error {
+	// Note that gocbcore will handle a lot of default values for us.
+	if t.config.QueryConfig.ScanConsistency == 0 {
+		t.config.QueryConfig.ScanConsistency = QueryScanConsistencyRequestPlus
+	}
+	if t.config.DurabilityLevel == DurabilityLevelUnknown {
+		t.config.DurabilityLevel = DurabilityLevelMajority
 	}
 
 	var hooksWrapper transactionHooksWrapper
-	if config.Internal.Hooks == nil {
+	if t.config.Internal.Hooks == nil {
 		hooksWrapper = &noopHooksWrapper{
 			TransactionDefaultHooks: gocbcore.TransactionDefaultHooks{},
 			hooks:                   transactionsDefaultHooks{},
 		}
 	} else {
 		hooksWrapper = &coreTxnsHooksWrapper{
-			hooks: config.Internal.Hooks,
+			hooks: t.config.Internal.Hooks,
 		}
 	}
 
 	var cleanupHooksWrapper transactionCleanupHooksWrapper
-	if config.Internal.CleanupHooks == nil {
+	if t.config.Internal.CleanupHooks == nil {
 		cleanupHooksWrapper = &noopCleanupHooksWrapper{
 			TransactionDefaultCleanupHooks: gocbcore.TransactionDefaultCleanupHooks{},
 		}
 	} else {
 		cleanupHooksWrapper = &coreTxnsCleanupHooksWrapper{
-			CleanupHooks: config.Internal.CleanupHooks,
+			CleanupHooks: t.config.Internal.CleanupHooks,
 		}
 	}
 
 	var clientRecordHooksWrapper clientRecordHooksWrapper
-	if config.Internal.ClientRecordHooks == nil {
+	if t.config.Internal.ClientRecordHooks == nil {
 		clientRecordHooksWrapper = &noopClientRecordHooksWrapper{
 			TransactionDefaultCleanupHooks:      gocbcore.TransactionDefaultCleanupHooks{},
 			TransactionDefaultClientRecordHooks: gocbcore.TransactionDefaultClientRecordHooks{},
@@ -78,41 +95,41 @@ func (t *transactionsProviderCore) Init(config TransactionsConfig, c *Cluster) e
 	} else {
 		clientRecordHooksWrapper = &coreTxnsClientRecordHooksWrapper{
 			coreTxnsCleanupHooksWrapper: coreTxnsCleanupHooksWrapper{
-				CleanupHooks: config.Internal.CleanupHooks,
+				CleanupHooks: t.config.Internal.CleanupHooks,
 			},
-			ClientRecordHooks: config.Internal.ClientRecordHooks,
+			ClientRecordHooks: t.config.Internal.ClientRecordHooks,
 		}
 	}
 
 	atrLocation := gocbcore.TransactionATRLocation{}
-	if config.MetadataCollection != nil {
-		customATRAgent, err := c.Bucket(config.MetadataCollection.BucketName).Internal().IORouter()
+	if t.config.MetadataCollection != nil {
+		customATRAgent, err := c.Bucket(t.config.MetadataCollection.BucketName).Internal().IORouter()
 		if err != nil {
 			return err
 		}
 
 		atrLocation.Agent = customATRAgent
-		atrLocation.CollectionName = config.MetadataCollection.CollectionName
-		atrLocation.ScopeName = config.MetadataCollection.ScopeName
+		atrLocation.CollectionName = t.config.MetadataCollection.CollectionName
+		atrLocation.ScopeName = t.config.MetadataCollection.ScopeName
 
 		// We add the custom metadata collection to the cleanup collections so that lost cleanup starts watching it
 		// immediately. Note that we don't do the same for the custom metadata on TransactionOptions, this is because
 		// we know that that collection will be used in a transaction.
 		var alreadyInCleanup bool
-		for _, keySpace := range config.CleanupConfig.CleanupCollections {
-			if keySpace == *config.MetadataCollection {
+		for _, keySpace := range t.config.CleanupConfig.CleanupCollections {
+			if keySpace == *t.config.MetadataCollection {
 				alreadyInCleanup = true
 				break
 			}
 		}
 
 		if !alreadyInCleanup {
-			config.CleanupConfig.CleanupCollections = append(config.CleanupConfig.CleanupCollections, *config.MetadataCollection)
+			t.config.CleanupConfig.CleanupCollections = append(t.config.CleanupConfig.CleanupCollections, *t.config.MetadataCollection)
 		}
 	}
 
 	var cleanupLocs []gocbcore.TransactionLostATRLocation
-	for _, keyspace := range config.CleanupConfig.CleanupCollections {
+	for _, keyspace := range t.config.CleanupConfig.CleanupCollections {
 		cleanupLocs = append(cleanupLocs, gocbcore.TransactionLostATRLocation{
 			BucketName:     keyspace.BucketName,
 			ScopeName:      keyspace.ScopeName,
@@ -121,7 +138,6 @@ func (t *transactionsProviderCore) Init(config TransactionsConfig, c *Cluster) e
 	}
 
 	t.cluster = c
-	t.config = config
 	// We do not use the cluster-level default transcoder, to maintain compatibility with pre-ExtBinarySupport behavior.
 	t.transcoder = newDefaultTransactionTranscoder()
 	t.hooksWrapper = hooksWrapper
@@ -129,22 +145,22 @@ func (t *transactionsProviderCore) Init(config TransactionsConfig, c *Cluster) e
 	t.cleanupCollections = cleanupLocs
 
 	corecfg := &gocbcore.TransactionsConfig{}
-	corecfg.DurabilityLevel = gocbcore.TransactionDurabilityLevel(config.DurabilityLevel)
+	corecfg.DurabilityLevel = gocbcore.TransactionDurabilityLevel(t.config.DurabilityLevel)
 	corecfg.BucketAgentProvider = t.agentProvider
 	corecfg.LostCleanupATRLocationProvider = t.atrLocationsProvider
-	corecfg.CleanupClientAttempts = !config.CleanupConfig.DisableClientAttemptCleanup
-	corecfg.CleanupQueueSize = config.CleanupConfig.CleanupQueueSize
-	corecfg.ExpirationTime = config.Timeout
-	corecfg.CleanupWindow = config.CleanupConfig.CleanupWindow
-	corecfg.CleanupLostAttempts = !config.CleanupConfig.DisableLostAttemptCleanup
+	corecfg.CleanupClientAttempts = !t.config.CleanupConfig.DisableClientAttemptCleanup
+	corecfg.CleanupQueueSize = t.config.CleanupConfig.CleanupQueueSize
+	corecfg.ExpirationTime = t.config.Timeout
+	corecfg.CleanupWindow = t.config.CleanupConfig.CleanupWindow
+	corecfg.CleanupLostAttempts = !t.config.CleanupConfig.DisableLostAttemptCleanup
 	corecfg.CustomATRLocation = atrLocation
 	corecfg.Internal.Hooks = hooksWrapper
 	corecfg.Internal.CleanUpHooks = cleanupHooksWrapper
 	corecfg.Internal.ClientRecordHooks = clientRecordHooksWrapper
-	corecfg.Internal.NumATRs = config.Internal.NumATRs
+	corecfg.Internal.NumATRs = t.config.Internal.NumATRs
 	corecfg.Internal.EnableParallelUnstaging = true
 	corecfg.Internal.UnstagingParallelismLimit = transactionsUnstagingParallelismLimit
-	corecfg.KeyValueTimeout = c.timeoutsConfig.KVTimeout
+	corecfg.KeyValueTimeout = t.timeoutsConfig.KVTimeout
 
 	txns, err := gocbcore.InitTransactions(corecfg)
 	if err != nil {
@@ -241,7 +257,7 @@ func (t *transactionsProviderCore) Run(logicFn AttemptFunc, perConfig *Transacti
 			},
 			logger:               logger,
 			attemptID:            attemptID,
-			preferredServerGroup: t.cluster.preferredServerGroup,
+			preferredServerGroup: t.preferredServerGroup,
 		}
 
 		if hooksWrapper != nil {

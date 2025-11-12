@@ -18,77 +18,77 @@ import (
 )
 
 type psConnectionMgr struct {
-	host   string
-	lock   sync.Mutex
-	config *gocbcoreps.DialOptions
-	agent  *gocbcoreps.RoutingClient
+	agent *gocbcoreps.RoutingClient
 
 	timeouts     TimeoutsConfig
 	tracer       *tracerWrapper
 	meter        *meterWrapper
 	defaultRetry RetryStrategy
+	transcoder   Transcoder
+	compressor   *compressor
 
 	closed      atomic.Bool
 	activeOpsWg sync.WaitGroup
-}
-
-func (c *psConnectionMgr) connect() error {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
-	client, err := gocbcoreps.Dial(c.host, c.config)
-	if err != nil {
-		return err
-	}
-
-	c.agent = client
-
-	return nil
 }
 
 func (c *psConnectionMgr) openBucket(bucketName string) error {
 	return nil
 }
 
-func (c *psConnectionMgr) buildConfig(cluster *Cluster) error {
-	resolved, err := gocbconnstr.Resolve(cluster.connSpec())
+func connectPsConnectionMgr(opts newConnectionMgrOptions) (*psConnectionMgr, error) {
+	resolved, err := gocbconnstr.Resolve(opts.cSpec)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	c.host = fmt.Sprintf("%s:%d", resolved.Couchbase2Host.Host, resolved.Couchbase2Host.Port)
+	host := fmt.Sprintf("%s:%d", resolved.Couchbase2Host.Host, resolved.Couchbase2Host.Port)
 
-	creds, err := cluster.authenticator().Credentials(AuthCredsRequest{})
+	creds, err := opts.auth.Credentials(AuthCredsRequest{})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	logger := newZapLogger()
 
 	var tp trace.TracerProvider
-	if c.tracer != nil {
-		if tracer, ok := c.tracer.tracer.(OtelAwareRequestTracer); ok {
+	if opts.tracer != nil {
+		if tracer, ok := opts.tracer.tracer.(OtelAwareRequestTracer); ok {
 			tp = tracer.Provider()
 		}
 	}
 	var mp metric.MeterProvider
-	if c.meter != nil {
-		if meter, ok := c.meter.meter.(OtelAwareMeter); ok {
+	if opts.meter != nil {
+		if meter, ok := opts.meter.meter.(OtelAwareMeter); ok {
 			mp = meter.Provider()
 		}
 	}
 
-	c.config = &gocbcoreps.DialOptions{
+	config := &gocbcoreps.DialOptions{
 		Username:           creds[0].Username,
 		Password:           creds[0].Password,
-		InsecureSkipVerify: cluster.securityConfig.TLSSkipVerify,
-		RootCAs:            cluster.securityConfig.TLSRootCAs,
+		InsecureSkipVerify: opts.securityConfig.TLSSkipVerify,
+		RootCAs:            opts.securityConfig.TLSRootCAs,
 		Logger:             logger,
 		TracerProvider:     tp,
 		MeterProvider:      mp,
 	}
 
-	return nil
+	agent, err := gocbcoreps.Dial(host, config)
+	if err != nil {
+		return nil, err
+	}
+
+	return &psConnectionMgr{
+		agent:        agent,
+		timeouts:     opts.timeoutsConfig,
+		tracer:       opts.tracer,
+		meter:        opts.meter,
+		defaultRetry: opts.retryStrategyWrapper.wrapped,
+		transcoder:   opts.transcoder,
+		compressor:   opts.compressor,
+		closed:       atomic.Bool{},
+		activeOpsWg:  sync.WaitGroup{},
+	}, nil
 }
 
 func (c *psConnectionMgr) canPerformOp() error {
@@ -114,9 +114,14 @@ func (c *psConnectionMgr) getKvProvider(bucketName string) (kvProvider, error) {
 
 	kv := c.agent.KvV1()
 	return &kvProviderPs{
-		client: kv,
-
-		tracer: c.tracer,
+		client:           kv,
+		kvTimeout:        c.timeouts.KVTimeout,
+		kvDurableTimeout: c.timeouts.KVDurableTimeout,
+		kvScanTimeout:    c.timeouts.KVScanTimeout,
+		transcoder:       c.transcoder,
+		retryStrategy:    c.defaultRetry,
+		compressor:       c.compressor,
+		tracer:           c.tracer,
 	}, nil
 }
 
@@ -127,10 +132,11 @@ func (c *psConnectionMgr) getKvBulkProvider(bucketName string) (kvBulkProvider, 
 
 	kv := c.agent.KvV1()
 	return &kvBulkProviderPs{
-		client: kv,
-
-		tracer: c.tracer,
-		meter:  c.meter,
+		client:     kv,
+		kvTimeout:  c.timeouts.KVTimeout,
+		transcoder: c.transcoder,
+		tracer:     c.tracer,
+		meter:      c.meter,
 	}, nil
 }
 
@@ -265,7 +271,7 @@ func (c *psConnectionMgr) getInternalProvider() (internalProvider, error) {
 	return nil, ErrFeatureNotAvailable
 }
 
-func (c *psConnectionMgr) initTransactions(config TransactionsConfig, cluster *Cluster) error {
+func (c *psConnectionMgr) initTransactions(cluster *Cluster) error {
 	// We don't return feature not available here as this function gets called from initTransactions which is part of
 	// cluster setup, if we returned error here then cluster setup would always fail in couchbase2 mode.
 	return nil

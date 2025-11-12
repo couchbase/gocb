@@ -21,6 +21,12 @@ func (suite *UnitTestSuite) diagnosticsCluster(runFn func(args mock.Arguments), 
 
 	diagnosticsProvider := &diagnosticsProviderCore{
 		provider: diagnosticsProviderCoreProvider,
+		timeouts: TimeoutsConfig{
+			KVTimeout:        1000 * time.Second,
+			AnalyticsTimeout: 1000 * time.Second,
+			QueryTimeout:     1000 * time.Second,
+			SearchTimeout:    1000 * time.Second,
+		},
 	}
 
 	cli := new(mockConnectionManager)
@@ -29,12 +35,6 @@ func (suite *UnitTestSuite) diagnosticsCluster(runFn func(args mock.Arguments), 
 	cli.On("MarkOpCompleted").Return()
 
 	c := &Cluster{
-		timeoutsConfig: TimeoutsConfig{
-			KVTimeout:        1000 * time.Second,
-			AnalyticsTimeout: 1000 * time.Second,
-			QueryTimeout:     1000 * time.Second,
-			SearchTimeout:    1000 * time.Second,
-		},
 		connectionManager: cli,
 	}
 

@@ -41,7 +41,7 @@ func (p *kvProviderCore) LookupInAllReplicas(c *Collection, id string, ops []Loo
 	// by those functions rather than us.
 	timeout := opts.Timeout
 	if timeout == 0 {
-		timeout = c.timeoutsConfig.KVTimeout
+		timeout = p.kvTimeout
 	}
 
 	deadline := time.Now().Add(timeout)

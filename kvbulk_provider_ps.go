@@ -10,6 +10,9 @@ import (
 type kvBulkProviderPs struct {
 	client kv_v1.KvServiceClient
 
+	kvTimeout  time.Duration
+	transcoder Transcoder
+
 	tracer *tracerWrapper
 	meter  *meterWrapper
 }
@@ -20,7 +23,7 @@ func (p *kvBulkProviderPs) Do(c *Collection, ops []BulkOp, opts *BulkOpOptions) 
 
 	timeout := opts.Timeout
 	if opts.Timeout == 0 {
-		timeout = c.timeoutsConfig.KVTimeout * time.Duration(len(ops))
+		timeout = p.kvTimeout * time.Duration(len(ops))
 	}
 
 	ctx := opts.Context
@@ -33,7 +36,7 @@ func (p *kvBulkProviderPs) Do(c *Collection, ops []BulkOp, opts *BulkOpOptions) 
 
 	transcoder := opts.Transcoder
 	if transcoder == nil {
-		transcoder = c.transcoder
+		transcoder = p.transcoder
 	}
 
 	// Make the channel big enough to hold all our ops in case

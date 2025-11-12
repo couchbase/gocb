@@ -561,7 +561,10 @@ func (suite *UnitTestSuite) newMockQueryProvider(prepared bool, reader queryRowR
 	return queryProvider, call
 }
 
-func (suite *UnitTestSuite) queryCluster(prepared bool, reader queryRowReader, runFn func(args mock.Arguments)) *Cluster {
+func (suite *UnitTestSuite) queryCluster(prepared bool, retryStrategy *coreRetryStrategyWrapper, reader queryRowReader, runFn func(args mock.Arguments)) *Cluster {
+	if retryStrategy == nil {
+		retryStrategy = newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
+	}
 	provider, call := suite.newMockQueryProvider(prepared, reader)
 	if runFn != nil {
 		call.Run(runFn)
@@ -580,8 +583,8 @@ func (suite *UnitTestSuite) queryCluster(prepared bool, reader queryRowReader, r
 	cluster := suite.newCluster(cli)
 
 	queryProvider.tracer = newTracerWrapper(&NoopTracer{})
-	queryProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
-	queryProvider.timeouts = cluster.timeoutsConfig
+	queryProvider.retryStrategyWrapper = retryStrategy
+	queryProvider.timeouts.QueryTimeout = 75000 * time.Millisecond
 
 	return cluster
 }
@@ -625,10 +628,11 @@ func (suite *UnitTestSuite) TestQueryAdhoc() {
 
 	statement := "SELECT * FROM dataset"
 
+	rs := newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
 	var cluster *Cluster
-	cluster = suite.queryCluster(false, reader, func(args mock.Arguments) {
+	cluster = suite.queryCluster(false, rs, reader, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.N1QLQueryOptions)
-		suite.Assert().Equal(cluster.retryStrategyWrapper, opts.RetryStrategy)
+		suite.Assert().Equal(rs, opts.RetryStrategy)
 		now := time.Now()
 		if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {
 			suite.Failf("Deadline should have been <75s and >70s but was %s", opts.Deadline.String())
@@ -667,10 +671,11 @@ func (suite *UnitTestSuite) TestQueryPrepared() {
 
 	statement := "SELECT * FROM dataset"
 
+	rs := newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
 	var cluster *Cluster
-	cluster = suite.queryCluster(true, reader, func(args mock.Arguments) {
+	cluster = suite.queryCluster(true, rs, reader, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.N1QLQueryOptions)
-		suite.Assert().Equal(cluster.retryStrategyWrapper, opts.RetryStrategy)
+		suite.Assert().Equal(rs, opts.RetryStrategy)
 		now := time.Now()
 		if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {
 			suite.Fail("Deadline should have been <75s and >70s but was %s", opts.Deadline)
@@ -800,8 +805,8 @@ func (suite *UnitTestSuite) TestQueryUntypedError() {
 	cluster := suite.newCluster(cli)
 
 	queryProvider.tracer = newTracerWrapper(&NoopTracer{})
-	queryProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
-	queryProvider.timeouts = cluster.timeoutsConfig
+	queryProvider.retryStrategyWrapper = newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
+	queryProvider.timeouts.QueryTimeout = 75000 * time.Millisecond
 
 	result, err := cluster.Query("SELECT * FROM dataset", &QueryOptions{
 		Adhoc: true,
@@ -835,8 +840,8 @@ func (suite *UnitTestSuite) TestQueryGocbcoreError() {
 
 	cluster := suite.newCluster(cli)
 	queryProvider.tracer = newTracerWrapper(&NoopTracer{})
-	queryProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
-	queryProvider.timeouts = cluster.timeoutsConfig
+	queryProvider.retryStrategyWrapper = newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
+	queryProvider.timeouts.QueryTimeout = 75000 * time.Millisecond
 
 	result, err := cluster.Query("SELECT * FROM dataset", &QueryOptions{
 		Adhoc: true,
@@ -857,12 +862,13 @@ func (suite *UnitTestSuite) TestQueryTimeoutOption() {
 	cluster := suite.newCluster(nil)
 	statement := "SELECT * FROM dataset"
 
+	rs := newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
 	provider := new(mockQueryProviderCoreProvider)
 	provider.
 		On("N1QLQuery", nil, mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
 		Run(func(args mock.Arguments) {
 			opts := args.Get(1).(gocbcore.N1QLQueryOptions)
-			suite.Assert().Equal(cluster.retryStrategyWrapper, opts.RetryStrategy)
+			suite.Assert().Equal(rs, opts.RetryStrategy)
 			now := time.Now()
 			if opts.Deadline.Before(now.Add(20*time.Second)) || opts.Deadline.After(now.Add(25*time.Second)) {
 				suite.Fail("Deadline should have been <75s and >70s but was %s", opts.Deadline)
@@ -874,8 +880,8 @@ func (suite *UnitTestSuite) TestQueryTimeoutOption() {
 		provider: provider,
 	}
 	queryProvider.tracer = newTracerWrapper(&NoopTracer{})
-	queryProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
-	queryProvider.timeouts = cluster.timeoutsConfig
+	queryProvider.retryStrategyWrapper = rs
+	queryProvider.timeouts.QueryTimeout = 75000 * time.Millisecond
 
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
@@ -903,7 +909,7 @@ func (suite *UnitTestSuite) TestQueryNamedParams() {
 		"$cilit":  "bang",
 	}
 
-	cluster := suite.queryCluster(false, reader, func(args mock.Arguments) {
+	cluster := suite.queryCluster(false, nil, reader, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.N1QLQueryOptions)
 
 		var actualOptions map[string]interface{}
@@ -929,7 +935,7 @@ func (suite *UnitTestSuite) TestQueryPositionalParams() {
 	statement := "SELECT * FROM dataset"
 	params := []interface{}{float64(1), "imafish"}
 
-	cluster := suite.queryCluster(false, reader, func(args mock.Arguments) {
+	cluster := suite.queryCluster(false, nil, reader, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.N1QLQueryOptions)
 
 		var actualOptions map[string]interface{}
@@ -960,7 +966,7 @@ func (suite *UnitTestSuite) TestQueryBothPositionalAndNamedParams() {
 		"$cilit":  "bang",
 	}
 
-	cluster := suite.queryCluster(false, reader, func(args mock.Arguments) {
+	cluster := suite.queryCluster(false, nil, reader, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.N1QLQueryOptions)
 
 		var actualOptions map[string]interface{}
@@ -991,7 +997,7 @@ func (suite *UnitTestSuite) TestQueryClientContextID() {
 	statement := "SELECT * FROM dataset"
 	contextID := "62d29101-0c9f-400d-af2b-9bd44a557a7c"
 
-	cluster := suite.queryCluster(false, reader, func(args mock.Arguments) {
+	cluster := suite.queryCluster(false, nil, reader, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.N1QLQueryOptions)
 
 		var actualOptions map[string]interface{}
@@ -1025,10 +1031,11 @@ func (suite *UnitTestSuite) TestQueryNoMetrics() {
 
 	statement := "SELECT * FROM dataset"
 
+	rs := newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
 	var cluster *Cluster
-	cluster = suite.queryCluster(true, reader, func(args mock.Arguments) {
+	cluster = suite.queryCluster(true, rs, reader, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.N1QLQueryOptions)
-		suite.Assert().Equal(cluster.retryStrategyWrapper, opts.RetryStrategy)
+		suite.Assert().Equal(rs, opts.RetryStrategy)
 		now := time.Now()
 		if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {
 			suite.Fail("Deadline should have been <75s and >70s but was %s", opts.Deadline)
@@ -1077,7 +1084,7 @@ func (suite *UnitTestSuite) TestQueryRaw() {
 	statement := "SELECT * FROM dataset"
 
 	var cluster *Cluster
-	cluster = suite.queryCluster(false, reader, func(args mock.Arguments) {})
+	cluster = suite.queryCluster(false, nil, reader, func(args mock.Arguments) {})
 
 	result, err := cluster.Query(statement, &QueryOptions{
 		Adhoc: true,
@@ -1116,7 +1123,7 @@ func (suite *UnitTestSuite) TestQueryPreserveExpiry() {
 
 	statement := "UPDATE default AS d SET d.comment = \"xyz\";"
 
-	cluster := suite.queryCluster(false, reader, func(args mock.Arguments) {
+	cluster := suite.queryCluster(false, nil, reader, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.N1QLQueryOptions)
 
 		var actualOptions map[string]interface{}

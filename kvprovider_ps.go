@@ -20,6 +20,13 @@ var _ kvProvider = &kvProviderPs{}
 type kvProviderPs struct {
 	client kv_v1.KvServiceClient
 
+	kvTimeout        time.Duration
+	kvDurableTimeout time.Duration
+	kvScanTimeout    time.Duration
+	transcoder       Transcoder
+	retryStrategy    RetryStrategy
+	compressor       *compressor
+
 	tracer *tracerWrapper
 }
 
@@ -487,7 +494,7 @@ func (p *kvProviderPs) Get(c *Collection, id string, opts *GetOptions) (*GetResu
 		return nil, err
 	}
 
-	content, err := c.compressor.Decompress(res)
+	content, err := p.compressor.Decompress(res)
 	if err != nil {
 		return nil, err
 	}
@@ -541,7 +548,7 @@ func (p *kvProviderPs) GetAndTouch(c *Collection, id string, expiry time.Duratio
 		return nil, err
 	}
 
-	content, err := c.compressor.Decompress(res)
+	content, err := p.compressor.Decompress(res)
 	if err != nil {
 		return nil, err
 	}
@@ -591,7 +598,7 @@ func (p *kvProviderPs) GetAndLock(c *Collection, id string, lockTime time.Durati
 		return nil, err
 	}
 
-	content, err := c.compressor.Decompress(res)
+	content, err := p.compressor.Decompress(res)
 	if err != nil {
 		return nil, err
 	}

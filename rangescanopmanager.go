@@ -174,9 +174,9 @@ func (p *kvProviderCore) newRangeScanOpManager(c *Collection, scanType ScanType,
 		cancelCh: make(chan struct{}),
 
 		agent:                agent,
-		defaultTimeout:       c.timeoutsConfig.KVScanTimeout,
-		defaultTranscoder:    c.transcoder,
-		defaultRetryStrategy: c.retryStrategyWrapper,
+		defaultTimeout:       p.kvScanTimeout,
+		defaultTranscoder:    p.transcoder,
+		defaultRetryStrategy: p.retryStrategyWrapper,
 		bucketName:           c.Bucket().Name(),
 
 		scopeName:      c.ScopeName(),

@@ -5,14 +5,6 @@ type Scope struct {
 	scopeName string
 	bucket    *Bucket
 
-	timeoutsConfig TimeoutsConfig
-
-	transcoder           Transcoder
-	retryStrategyWrapper *coreRetryStrategyWrapper
-	compressor           *compressor
-
-	useMutationTokens bool
-
 	keyspace keyspace
 
 	opController opController
@@ -32,14 +24,6 @@ func newScope(bucket *Bucket, scopeName string) *Scope {
 	return &Scope{
 		scopeName: scopeName,
 		bucket:    bucket,
-
-		timeoutsConfig: bucket.timeoutsConfig,
-
-		transcoder:           bucket.transcoder,
-		retryStrategyWrapper: bucket.retryStrategyWrapper,
-		compressor:           bucket.compressor,
-
-		useMutationTokens: bucket.useMutationTokens,
 
 		keyspace: keyspace{
 			bucketName: bucket.Name(),

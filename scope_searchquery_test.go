@@ -189,7 +189,11 @@ func (suite *IntegrationTestSuite) TestScopeSearchFeatureNotAvailable() {
 	suite.Assert().Nil(res)
 }
 
-func (suite *UnitTestSuite) searchScope(reader searchRowReader, runFn func(args mock.Arguments)) *Scope {
+func (suite *UnitTestSuite) searchScope(reader searchRowReader, retryStrategy RetryStrategy, runFn func(args mock.Arguments)) *Scope {
+	if retryStrategy == nil {
+		retryStrategy = NewBestEffortRetryStrategy(nil)
+	}
+
 	provider := new(mockSearchProviderCoreProvider)
 	provider.
 		On("SearchQuery", nil, mock.AnythingOfType("gocbcore.SearchQueryOptions")).
@@ -206,11 +210,11 @@ func (suite *UnitTestSuite) searchScope(reader searchRowReader, runFn func(args 
 	cli.On("MarkOpBeginning").Return()
 	cli.On("MarkOpCompleted").Return()
 
-	bucket := suite.bucket("searchBucket", TimeoutsConfig{SearchTimeout: 75 * time.Second}, cli)
+	bucket := suite.bucket("searchBucket", cli)
 	scope := suite.newScope(bucket, "searchScope")
 
-	searchProvider.retryStrategyWrapper = scope.retryStrategyWrapper
-	searchProvider.timeouts = scope.timeoutsConfig
+	searchProvider.retryStrategyWrapper = newCoreRetryStrategyWrapper(retryStrategy)
+	searchProvider.timeouts.SearchTimeout = 75000 * time.Millisecond
 
 	return scope
 }
@@ -227,7 +231,7 @@ func (suite *UnitTestSuite) TestScopeSearchSetsBucketAndScopeNames() {
 	}
 
 	var scope *Scope
-	scope = suite.searchScope(reader, func(args mock.Arguments) {
+	scope = suite.searchScope(reader, nil, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.SearchQueryOptions)
 
 		suite.Assert().Equal(scope.scopeName, opts.ScopeName)

@@ -260,7 +260,10 @@ type testSearchDataset struct {
 	jsonSearchResponse
 }
 
-func (suite *UnitTestSuite) searchCluster(reader searchRowReader, runFn func(args mock.Arguments)) *Cluster {
+func (suite *UnitTestSuite) searchCluster(reader searchRowReader, retryStrategy *coreRetryStrategyWrapper, runFn func(args mock.Arguments)) *Cluster {
+	if retryStrategy == nil {
+		retryStrategy = newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
+	}
 	provider := new(mockSearchProviderCoreProvider)
 	provider.
 		On("SearchQuery", nil, mock.AnythingOfType("gocbcore.SearchQueryOptions")).
@@ -278,8 +281,8 @@ func (suite *UnitTestSuite) searchCluster(reader searchRowReader, runFn func(arg
 
 	cluster := suite.newCluster(cli)
 	searchProvider.tracer = newTracerWrapper(&NoopTracer{})
-	searchProvider.retryStrategyWrapper = cluster.retryStrategyWrapper
-	searchProvider.timeouts = cluster.timeoutsConfig
+	searchProvider.retryStrategyWrapper = retryStrategy
+	searchProvider.timeouts.SearchTimeout = 75000 * time.Millisecond
 
 	return cluster
 }
@@ -297,10 +300,11 @@ func (suite *UnitTestSuite) TestSearchQuery() {
 
 	query := search.NewTermQuery("term").Field("field").Fuzziness(1).Boost(2).PrefixLength(3)
 
+	rs := newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
 	var cluster *Cluster
-	cluster = suite.searchCluster(reader, func(args mock.Arguments) {
+	cluster = suite.searchCluster(reader, rs, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.SearchQueryOptions)
-		suite.Assert().Equal(cluster.retryStrategyWrapper, opts.RetryStrategy)
+		suite.Assert().Equal(rs, opts.RetryStrategy)
 		now := time.Now()
 		if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {
 			suite.Fail("Deadline should have been <75s and >70s but was %s", opts.Deadline)
@@ -392,7 +396,7 @@ func (suite *UnitTestSuite) TestSearchQueryDisableScoring() {
 	query := search.NewMatchAllQuery()
 
 	var cluster *Cluster
-	cluster = suite.searchCluster(reader, func(args mock.Arguments) {
+	cluster = suite.searchCluster(reader, nil, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.SearchQueryOptions)
 
 		var actualOptions map[string]interface{}
@@ -420,7 +424,7 @@ func (suite *UnitTestSuite) TestSearchQueryNoScoringSet() {
 	query := search.NewMatchAllQuery()
 
 	var cluster *Cluster
-	cluster = suite.searchCluster(reader, func(args mock.Arguments) {
+	cluster = suite.searchCluster(reader, nil, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.SearchQueryOptions)
 
 		var actualOptions map[string]interface{}
@@ -444,7 +448,7 @@ func (suite *UnitTestSuite) TestSearchQueryExplicitlyEnableScoring() {
 	query := search.NewMatchAllQuery()
 
 	var cluster *Cluster
-	cluster = suite.searchCluster(reader, func(args mock.Arguments) {
+	cluster = suite.searchCluster(reader, nil, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.SearchQueryOptions)
 
 		var actualOptions map[string]interface{}
@@ -474,7 +478,7 @@ func (suite *UnitTestSuite) TestSearchQueryRaw() {
 	query := search.NewTermQuery("term").Field("field").Fuzziness(1).Boost(2).PrefixLength(3)
 
 	var cluster *Cluster
-	cluster = suite.searchCluster(reader, func(args mock.Arguments) {})
+	cluster = suite.searchCluster(reader, nil, func(args mock.Arguments) {})
 
 	result, err := cluster.SearchQuery("testindex", query, &SearchOptions{
 		Fields: []string{"name"},
@@ -521,7 +525,7 @@ func (suite *UnitTestSuite) TestSearchQueryCollections() {
 	query := search.NewMatchAllQuery()
 
 	var cluster *Cluster
-	cluster = suite.searchCluster(reader, func(args mock.Arguments) {
+	cluster = suite.searchCluster(reader, nil, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.SearchQueryOptions)
 
 		var actualOptions map[string]interface{}
@@ -553,7 +557,7 @@ func (suite *UnitTestSuite) TestClusterSearchEmptyBucketAndScopeNames() {
 	}
 
 	var cluster *Cluster
-	cluster = suite.searchCluster(reader, func(args mock.Arguments) {
+	cluster = suite.searchCluster(reader, nil, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.SearchQueryOptions)
 		suite.Assert().Empty(opts.ScopeName)
 		suite.Assert().Empty(opts.BucketName)

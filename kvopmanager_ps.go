@@ -47,9 +47,9 @@ func (m *kvOpManagerPs) getTimeout() time.Duration {
 		return m.timeout
 	}
 
-	defaultTimeout := m.parent.timeoutsConfig.KVTimeout
+	defaultTimeout := m.provider.kvTimeout
 	if m.durabilityLevel != nil && *m.durabilityLevel > kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY {
-		defaultTimeout = m.parent.timeoutsConfig.KVDurableTimeout
+		defaultTimeout = m.provider.kvDurableTimeout
 	}
 
 	if m.durabilityLevel != nil && *m.durabilityLevel > 0 && defaultTimeout < durabilityTimeoutFloor {
@@ -70,7 +70,7 @@ func (m *kvOpManagerPs) SetTimeout(timeout time.Duration) {
 
 func (m *kvOpManagerPs) SetTranscoder(transcoder Transcoder) {
 	if transcoder == nil {
-		transcoder = m.parent.transcoder
+		transcoder = m.provider.transcoder
 	}
 	m.transcoder = transcoder
 }
@@ -115,7 +115,7 @@ func (m *kvOpManagerPs) SetDuraOptions(level DurabilityLevel) {
 }
 
 func (m *kvOpManagerPs) SetRetryStrategy(retryStrategy RetryStrategy) {
-	strat := m.parent.retryStrategyWrapper.wrapped
+	strat := m.provider.retryStrategy
 	if retryStrategy != nil {
 		strat = retryStrategy
 	}
@@ -278,6 +278,6 @@ func newKvOpManagerPs(c *Collection, opName string, parentSpan RequestSpan, p *k
 		operationName: opName,
 		createdTime:   time.Now(),
 		operationID:   uuid.NewString()[:6],
-		compressor:    c.compressor,
+		compressor:    p.compressor,
 	}
 }

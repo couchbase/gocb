@@ -109,7 +109,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadata() {
 	defer collections.DropCollection(globalScope.Name(), metaCollectionName, nil)
 	suite.EnsureCollectionsOnAllNodes(globalScope.Name(), []string{metaCollectionName})
 
-	tConfig := globalCluster.transactionsConfig
+	tConfig := globalCluster.connectionManager.(*stdConnectionMgr).txns.config
 	tConfig.MetadataCollection = &TransactionKeyspace{
 		BucketName:     globalBucket.Name(),
 		ScopeName:      globalScope.Name(),
@@ -812,28 +812,6 @@ func (suite *IntegrationTestSuite) TestTransactionsBulkGetReplicaServerGroupUnse
 	suite.Require().ErrorAs(err, &txnFailedErr)
 }
 
-func (suite *UnitTestSuite) TestMultipleTransactionObjects() {
-	cli := new(mockConnectionManager)
-	cli.On("close").Return(nil)
-
-	tConfig := TransactionsConfig{}
-	tConfig.CleanupConfig.DisableLostAttemptCleanup = true
-
-	c := clusterFromOptions(ClusterOptions{
-		Tracer:             &NoopTracer{},
-		Meter:              &NoopMeter{},
-		TransactionsConfig: tConfig,
-	})
-	defer c.Close(nil)
-	c.connectionManager = cli
-
-	txns := c.Transactions()
-
-	txns2 := c.Transactions()
-
-	suite.Assert().Equal(&txns, &txns2)
-}
-
 func (suite *UnitTestSuite) TestTransactionsCustomMetadataAddedToCleanupLocs() {
 	metaCollectionName := "TestTransactionsCustomMetadataAddedToCleanupLocs"
 
@@ -851,16 +829,13 @@ func (suite *UnitTestSuite) TestTransactionsCustomMetadataAddedToCleanupLocs() {
 	}
 	tConfig.CleanupConfig.DisableLostAttemptCleanup = true
 	tConfig.CleanupConfig.DisableClientAttemptCleanup = true
-	c := clusterFromOptions(ClusterOptions{
-		Tracer:             &NoopTracer{},
-		Meter:              &NoopMeter{},
-		TransactionsConfig: tConfig,
-	})
-	defer c.Close(nil)
-	c.connectionManager = cli
 
-	txns := &transactionsProviderCore{}
-	err := txns.Init(tConfig, c)
+	c := &Cluster{connectionManager: cli}
+
+	txns := &transactionsProviderCore{
+		config: tConfig,
+	}
+	err := txns.Init(c)
 	suite.Require().Nil(err, err)
 	defer txns.close()
 
@@ -898,16 +873,12 @@ func (suite *UnitTestSuite) TestTransactionsCustomMetadataAlreadyInCleanupCollec
 	}
 	tConfig.CleanupConfig.DisableLostAttemptCleanup = true
 	tConfig.CleanupConfig.DisableClientAttemptCleanup = true
-	c := clusterFromOptions(ClusterOptions{
-		Tracer:             &NoopTracer{},
-		Meter:              &NoopMeter{},
-		TransactionsConfig: tConfig,
-	})
-	defer c.Close(nil)
-	c.connectionManager = cli
+	c := &Cluster{connectionManager: cli}
 
-	txns := &transactionsProviderCore{}
-	err := txns.Init(tConfig, c)
+	txns := &transactionsProviderCore{
+		config: tConfig,
+	}
+	err := txns.Init(c)
 	suite.Require().Nil(err, err)
 	defer txns.close()
 

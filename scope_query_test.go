@@ -81,7 +81,7 @@ func (suite *IntegrationTestSuite) runScopeQueryBothPositionalAndNamedTest(n int
 	suite.runQueryTest(n, query, globalBucket.Name(), globalScope.Name(), globalScope, withMetrics, []interface{}{"brewery"}, map[string]interface{}{"service": "query"})
 }
 
-func (suite *UnitTestSuite) queryScope(prepared bool, reader queryRowReader, runFn func(args mock.Arguments)) *Scope {
+func (suite *UnitTestSuite) queryScope(prepared bool, retryStrategy *coreRetryStrategyWrapper, reader queryRowReader, runFn func(args mock.Arguments)) *Scope {
 	provider, call := suite.newMockQueryProvider(prepared, reader)
 	call.Run(runFn)
 
@@ -96,12 +96,12 @@ func (suite *UnitTestSuite) queryScope(prepared bool, reader queryRowReader, run
 	cli.On("MarkOpBeginning").Return()
 	cli.On("MarkOpCompleted").Return()
 
-	b := suite.bucket("queryBucket", TimeoutsConfig{QueryTimeout: 75 * time.Second}, cli)
+	b := suite.bucket("queryBucket", cli)
 
 	scope := suite.newScope(b, "queryScope")
 
-	queryProvider.retryStrategyWrapper = scope.retryStrategyWrapper
-	queryProvider.timeouts = scope.timeoutsConfig
+	queryProvider.retryStrategyWrapper = retryStrategy
+	queryProvider.timeouts.QueryTimeout = 75000 * time.Millisecond
 
 	return scope
 }
@@ -122,10 +122,11 @@ func (suite *UnitTestSuite) TestScopeQueryPrepared() {
 
 	statement := "SELECT * FROM dataset"
 
+	rs := newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
 	var scope *Scope
-	scope = suite.queryScope(true, reader, func(args mock.Arguments) {
+	scope = suite.queryScope(true, rs, reader, func(args mock.Arguments) {
 		opts := args.Get(1).(gocbcore.N1QLQueryOptions)
-		suite.Assert().Equal(scope.retryStrategyWrapper, opts.RetryStrategy)
+		suite.Assert().Equal(rs, opts.RetryStrategy)
 		now := time.Now()
 		if opts.Deadline.Before(now.Add(70*time.Second)) || opts.Deadline.After(now.Add(75*time.Second)) {
 			suite.Fail("Deadline should have been <75s and >70s but was %s", opts.Deadline)

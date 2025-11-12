@@ -5,7 +5,7 @@ func (suite *UnitTestSuite) TestCollectionName() {
 	sName := "scope"
 	cName := "collection"
 
-	b := suite.bucket(bName, suite.defaultTimeoutConfig(), nil)
+	b := suite.bucket(bName, nil)
 	s := b.Scope(sName)
 	c := s.Collection(cName)
 
@@ -18,7 +18,7 @@ func (suite *UnitTestSuite) TestDefaultScopeCollectionName() {
 	bName := "bucket"
 	cName := "collection"
 
-	b := suite.bucket(bName, suite.defaultTimeoutConfig(), nil)
+	b := suite.bucket(bName, nil)
 	c := b.Collection(cName)
 
 	suite.Assert().Equal(bName, c.bucketName())
@@ -29,7 +29,7 @@ func (suite *UnitTestSuite) TestDefaultScopeCollectionName() {
 func (suite *UnitTestSuite) TestDefaultScopeDefaultCollectionName() {
 	bName := "bucket"
 
-	b := suite.bucket(bName, suite.defaultTimeoutConfig(), nil)
+	b := suite.bucket(bName, nil)
 	c := b.DefaultCollection()
 
 	suite.Assert().Equal(bName, c.bucketName())

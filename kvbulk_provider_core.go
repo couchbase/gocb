@@ -9,6 +9,10 @@ import (
 type kvBulkProviderCore struct {
 	agent kvProviderCoreProvider
 
+	kvTimeout            time.Duration
+	transcoder           Transcoder
+	retryStrategyWrapper *coreRetryStrategyWrapper
+
 	tracer *tracerWrapper
 	meter  *meterWrapper
 }
@@ -19,17 +23,17 @@ func (p *kvBulkProviderCore) Do(c *Collection, ops []BulkOp, opts *BulkOpOptions
 
 	timeout := opts.Timeout
 	if opts.Timeout == 0 {
-		timeout = c.timeoutsConfig.KVTimeout * time.Duration(len(ops))
+		timeout = p.kvTimeout * time.Duration(len(ops))
 	}
 
-	retryWrapper := c.retryStrategyWrapper
+	retryWrapper := p.retryStrategyWrapper
 	if opts.RetryStrategy != nil {
 		retryWrapper = newCoreRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
 	transcoder := opts.Transcoder
 	if transcoder == nil {
-		transcoder = c.transcoder
+		transcoder = p.transcoder
 	}
 
 	// Make the channel big enough to hold all our ops in case

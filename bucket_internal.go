@@ -23,7 +23,7 @@ func (ib *InternalBucket) IORouter() (*gocbcore.Agent, error) {
 	return ib.bucket.connectionManager.connection(ib.bucket.Name())
 }
 
-// HasCapabilityStatus verifies whether support for a server capability is in a given state.
+// CapabilityStatus verifies whether support for a server capability is in a given state.
 func (ib *InternalBucket) CapabilityStatus(cap Capability) (CapabilityStatus, error) {
 	switch cap {
 	case CapabilityCreateAsDeleted:

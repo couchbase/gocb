@@ -12,7 +12,6 @@ import (
 type stdConnectionMgr struct {
 	lock       sync.Mutex
 	agentgroup *gocbcore.AgentGroup
-	config     *gocbcore.AgentGroupConfig
 
 	retryStrategyWrapper *coreRetryStrategyWrapper
 	transcoder           Transcoder
@@ -22,16 +21,16 @@ type stdConnectionMgr struct {
 	txns                 *transactionsProviderCore
 	appTelemetryReporter *gocbcore.TelemetryReporter
 	preferredServerGroup string
+	compressor           *compressor
+	useMutationTokens    bool
+	useServerDurations   bool
 
 	closed      atomic.Bool
 	activeOpsWg sync.WaitGroup
 }
 
-func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
-	breakerCfg := cluster.circuitBreakerConfig
+func connectStdConnectionMgr(opts newConnectionMgrOptions) (*stdConnectionMgr, error) {
+	breakerCfg := opts.circuitBreakerConfig
 
 	var completionCallback func(err error) bool
 	if breakerCfg.CompletionCallback != nil {
@@ -42,16 +41,17 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 	}
 
 	var authMechanisms []gocbcore.AuthMechanism
-	for _, mech := range cluster.securityConfig.AllowedSaslMechanisms {
+	for _, mech := range opts.securityConfig.AllowedSaslMechanisms {
 		authMechanisms = append(authMechanisms, gocbcore.AuthMechanism(mech))
 	}
 
-	if !cluster.appTelemetryConfig.Disabled {
-		c.appTelemetryReporter = gocbcore.CreateTelemetryReporter(gocbcore.TelemetryReporterConfig{
-			ExternalEndpoint: cluster.appTelemetryConfig.ExternalEndpoint,
-			Backoff:          cluster.appTelemetryConfig.Backoff,
-			PingInterval:     cluster.appTelemetryConfig.PingInterval,
-			PingTimeout:      cluster.appTelemetryConfig.PingTimeout,
+	var appTelemetryReporter *gocbcore.TelemetryReporter
+	if !opts.appTelemetryConfig.Disabled {
+		appTelemetryReporter = gocbcore.CreateTelemetryReporter(gocbcore.TelemetryReporterConfig{
+			ExternalEndpoint: opts.appTelemetryConfig.ExternalEndpoint,
+			Backoff:          opts.appTelemetryConfig.Backoff,
+			PingInterval:     opts.appTelemetryConfig.PingInterval,
+			PingTimeout:      opts.appTelemetryConfig.PingTimeout,
 		})
 	}
 
@@ -63,16 +63,16 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 			},
 			IoConfig: gocbcore.IoConfig{
 				UseCollections:             true,
-				UseDurations:               cluster.useServerDurations,
-				UseMutationTokens:          cluster.useMutationTokens,
+				UseDurations:               opts.useServerDurations,
+				UseMutationTokens:          opts.useMutationTokens,
 				UseOutOfOrderResponses:     true,
 				UseClusterMapNotifications: true,
 			},
 			KVConfig: gocbcore.KVConfig{
-				ConnectTimeout:       cluster.timeoutsConfig.ConnectTimeout,
-				ConnectionBufferSize: cluster.internalConfig.ConnectionBufferSize,
+				ConnectTimeout:       opts.timeoutsConfig.ConnectTimeout,
+				ConnectionBufferSize: opts.internalConfig.ConnectionBufferSize,
 			},
-			DefaultRetryStrategy: cluster.retryStrategyWrapper,
+			DefaultRetryStrategy: opts.retryStrategyWrapper,
 			CircuitBreakerConfig: gocbcore.CircuitBreakerConfig{
 				Enabled:                  !breakerCfg.Disabled,
 				VolumeThreshold:          breakerCfg.VolumeThreshold,
@@ -83,70 +83,83 @@ func (c *stdConnectionMgr) buildConfig(cluster *Cluster) error {
 				CompletionCallback:       completionCallback,
 			},
 			OrphanReporterConfig: gocbcore.OrphanReporterConfig{
-				Enabled:        cluster.orphanLoggerEnabled,
-				ReportInterval: cluster.orphanLoggerInterval,
-				SampleSize:     int(cluster.orphanLoggerSampleSize),
+				Enabled:        opts.orphanLoggerEnabled,
+				ReportInterval: opts.orphanLoggerInterval,
+				SampleSize:     int(opts.orphanLoggerSampleSize),
 			},
 			TracerConfig: gocbcore.TracerConfig{
 				NoRootTraceSpans: true,
-				Tracer:           &coreRequestTracerWrapper{tracer: c.tracer.tracer},
+				Tracer:           &coreRequestTracerWrapper{tracer: opts.tracer.tracer},
 			},
 			MeterConfig: gocbcore.MeterConfig{
 				// At the moment we only support our own operations metric so there's no point in setting a meter for gocbcore.
 				Meter: nil,
 			},
 			CompressionConfig: gocbcore.CompressionConfig{
-				Enabled:  !cluster.compressionConfig.Disabled,
-				MinSize:  int(cluster.compressionConfig.MinSize),
-				MinRatio: cluster.compressionConfig.MinRatio,
+				Enabled:  !opts.compressionConfig.Disabled,
+				MinSize:  int(opts.compressionConfig.MinSize),
+				MinRatio: opts.compressionConfig.MinRatio,
 			},
 			TelemetryConfig: gocbcore.TelemetryConfig{
-				TelemetryReporter: c.appTelemetryReporter,
+				TelemetryReporter: appTelemetryReporter,
 			},
 		},
 	}
 
-	err := config.FromConnStr(cluster.connSpec().String())
+	err := config.FromConnStr(opts.cSpec.String())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	config.SecurityConfig.Auth = &coreAuthWrapper{
-		auth: cluster.authenticator(),
+		auth: opts.auth,
 	}
 
 	if config.SecurityConfig.UseTLS {
-		config.SecurityConfig.TLSRootCAProvider = cluster.internalConfig.TLSRootCAProvider
+		config.SecurityConfig.TLSRootCAProvider = opts.internalConfig.TLSRootCAProvider
 
-		if config.SecurityConfig.TLSRootCAProvider == nil && (cluster.securityConfig.TLSRootCAs != nil ||
-			cluster.securityConfig.TLSSkipVerify) {
+		if config.SecurityConfig.TLSRootCAProvider == nil && (opts.securityConfig.TLSRootCAs != nil ||
+			opts.securityConfig.TLSSkipVerify) {
 			config.SecurityConfig.TLSRootCAProvider = func() *x509.CertPool {
-				if cluster.securityConfig.TLSSkipVerify {
+				if opts.securityConfig.TLSSkipVerify {
 					return nil
 				}
 
-				return cluster.securityConfig.TLSRootCAs
+				return opts.securityConfig.TLSRootCAs
 			}
 		}
 	}
 
-	c.config = config
-	return nil
-}
-
-func (c *stdConnectionMgr) connect() error {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	var err error
-	c.agentgroup, err = gocbcore.CreateAgentGroup(c.config)
+	agentGroup, err := gocbcore.CreateAgentGroup(config)
 	if err != nil {
-		return maybeEnhanceKVErr(err, "", "", "", "")
+		return nil, maybeEnhanceKVErr(err, "", "", "", "")
 	}
 
-	c.meter.clusterLabelsProvider = c.agentgroup.Internal()
-	c.tracer.clusterLabelsProvider = c.agentgroup.Internal()
+	opts.meter.clusterLabelsProvider = agentGroup.Internal()
+	opts.tracer.clusterLabelsProvider = agentGroup.Internal()
 
-	return nil
+	txns := newTransactionsProviderCore(opts.transactionsConfig, transactionsProviderCoreOptions{
+		TimeoutsConfig:       opts.timeoutsConfig,
+		PreferredServerGroup: opts.preferredServerGroup,
+	}, agentGroup)
+
+	return &stdConnectionMgr{
+		lock:                 sync.Mutex{},
+		agentgroup:           agentGroup,
+		retryStrategyWrapper: opts.retryStrategyWrapper,
+		transcoder:           opts.transcoder,
+		timeouts:             opts.timeoutsConfig,
+		tracer:               opts.tracer,
+		meter:                opts.meter,
+		txns:                 txns,
+		appTelemetryReporter: appTelemetryReporter,
+		preferredServerGroup: opts.preferredServerGroup,
+		compressor:           opts.compressor,
+		useMutationTokens:    opts.useMutationTokens,
+		useServerDurations:   opts.useServerDurations,
+		closed:               atomic.Bool{},
+		activeOpsWg:          sync.WaitGroup{},
+	}, nil
 }
 
 func (c *stdConnectionMgr) openBucket(bucketName string) error {
@@ -193,6 +206,13 @@ func (c *stdConnectionMgr) getKvProvider(bucketName string) (kvProvider, error) 
 		agent:            agent,
 		snapshotProvider: &stdCoreConfigSnapshotProvider{agent: agent},
 
+		kvTimeout:            c.timeouts.KVTimeout,
+		kvDurableTimeout:     c.timeouts.KVDurableTimeout,
+		kvScanTimeout:        c.timeouts.KVScanTimeout,
+		transcoder:           c.transcoder,
+		useMutationTokens:    c.useMutationTokens,
+		retryStrategyWrapper: c.retryStrategyWrapper,
+
 		tracer:               c.tracer,
 		preferredServerGroup: c.preferredServerGroup,
 	}, nil
@@ -211,10 +231,12 @@ func (c *stdConnectionMgr) getKvBulkProvider(bucketName string) (kvBulkProvider,
 		return nil, errors.New("bucket not yet connected")
 	}
 	return &kvBulkProviderCore{
-		agent: agent,
-
-		tracer: c.tracer,
-		meter:  c.meter,
+		agent:                agent,
+		kvTimeout:            c.timeouts.KVTimeout,
+		transcoder:           c.transcoder,
+		retryStrategyWrapper: c.retryStrategyWrapper,
+		tracer:               c.tracer,
+		meter:                c.meter,
 	}, nil
 }
 
@@ -625,16 +647,12 @@ func (c *stdConnectionMgr) getInternalProvider() (internalProvider, error) {
 }
 
 // initTransactions must only be called during cluster setup to prevent races.
-func (c *stdConnectionMgr) initTransactions(config TransactionsConfig, cluster *Cluster) error {
-	txns := &transactionsProviderCore{
-		getAgentProvider: c.agentgroup,
-	}
-	err := txns.Init(config, cluster)
+func (c *stdConnectionMgr) initTransactions(cluster *Cluster) error {
+	err := c.txns.Init(cluster)
 	if err != nil {
 		return err
 	}
 
-	c.txns = txns
 	return nil
 }
 

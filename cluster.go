@@ -4,8 +4,6 @@ import (
 	"context"
 	"crypto/x509"
 	"errors"
-	"fmt"
-	"strconv"
 	"time"
 
 	gocbconnstr "github.com/couchbaselabs/gocbconnstr/v2"
@@ -13,36 +11,7 @@ import (
 
 // Cluster represents a connection to a specific Couchbase cluster.
 type Cluster struct {
-	cSpec gocbconnstr.ConnSpec
-	auth  Authenticator
-
 	connectionManager connectionManager
-
-	useServerDurations bool
-	useMutationTokens  bool
-
-	timeoutsConfig TimeoutsConfig
-
-	transcoder           Transcoder
-	retryStrategyWrapper *coreRetryStrategyWrapper
-
-	orphanLoggerEnabled    bool
-	orphanLoggerInterval   time.Duration
-	orphanLoggerSampleSize uint32
-
-	circuitBreakerConfig CircuitBreakerConfig
-	securityConfig       SecurityConfig
-	internalConfig       InternalConfig
-	transactionsConfig   TransactionsConfig
-	compressionConfig    CompressionConfig
-	appTelemetryConfig   AppTelemetryConfig
-	compressor           *compressor
-
-	transactions *Transactions
-
-	keyspace keyspace
-
-	preferredServerGroup string
 }
 
 // IoConfig specifies IO related configuration options.
@@ -185,101 +154,6 @@ type ClusterOptions struct {
 type ClusterCloseOptions struct {
 }
 
-func clusterFromOptions(opts ClusterOptions) *Cluster {
-	if opts.Authenticator == nil {
-		opts.Authenticator = PasswordAuthenticator{
-			Username: opts.Username,
-			Password: opts.Password,
-		}
-	}
-
-	connectTimeout := 10000 * time.Millisecond
-	kvTimeout := 2500 * time.Millisecond
-	kvDurableTimeout := 10000 * time.Millisecond
-	kvScanTimeout := 10000 * time.Millisecond
-	viewTimeout := 75000 * time.Millisecond
-	queryTimeout := 75000 * time.Millisecond
-	analyticsTimeout := 75000 * time.Millisecond
-	searchTimeout := 75000 * time.Millisecond
-	managementTimeout := 75000 * time.Millisecond
-	if opts.TimeoutsConfig.ConnectTimeout > 0 {
-		connectTimeout = opts.TimeoutsConfig.ConnectTimeout
-	}
-	if opts.TimeoutsConfig.KVTimeout > 0 {
-		kvTimeout = opts.TimeoutsConfig.KVTimeout
-	}
-	if opts.TimeoutsConfig.KVDurableTimeout > 0 {
-		kvDurableTimeout = opts.TimeoutsConfig.KVDurableTimeout
-	}
-	if opts.TimeoutsConfig.KVScanTimeout > 0 {
-		kvScanTimeout = opts.TimeoutsConfig.KVScanTimeout
-	}
-	if opts.TimeoutsConfig.ViewTimeout > 0 {
-		viewTimeout = opts.TimeoutsConfig.ViewTimeout
-	}
-	if opts.TimeoutsConfig.QueryTimeout > 0 {
-		queryTimeout = opts.TimeoutsConfig.QueryTimeout
-	}
-	if opts.TimeoutsConfig.AnalyticsTimeout > 0 {
-		analyticsTimeout = opts.TimeoutsConfig.AnalyticsTimeout
-	}
-	if opts.TimeoutsConfig.SearchTimeout > 0 {
-		searchTimeout = opts.TimeoutsConfig.SearchTimeout
-	}
-	if opts.TimeoutsConfig.ManagementTimeout > 0 {
-		managementTimeout = opts.TimeoutsConfig.ManagementTimeout
-	}
-	if opts.Transcoder == nil {
-		opts.Transcoder = NewJSONTranscoder()
-	}
-	if opts.RetryStrategy == nil {
-		opts.RetryStrategy = NewBestEffortRetryStrategy(nil)
-	}
-
-	useMutationTokens := true
-	useServerDurations := true
-	if opts.IoConfig.DisableMutationTokens {
-		useMutationTokens = false
-	}
-	if opts.IoConfig.DisableServerDurations {
-		useServerDurations = false
-	}
-
-	return &Cluster{
-		auth: opts.Authenticator,
-		timeoutsConfig: TimeoutsConfig{
-			ConnectTimeout:    connectTimeout,
-			QueryTimeout:      queryTimeout,
-			AnalyticsTimeout:  analyticsTimeout,
-			SearchTimeout:     searchTimeout,
-			ViewTimeout:       viewTimeout,
-			KVTimeout:         kvTimeout,
-			KVDurableTimeout:  kvDurableTimeout,
-			KVScanTimeout:     kvScanTimeout,
-			ManagementTimeout: managementTimeout,
-		},
-		transcoder:             opts.Transcoder,
-		useMutationTokens:      useMutationTokens,
-		retryStrategyWrapper:   newCoreRetryStrategyWrapper(opts.RetryStrategy),
-		orphanLoggerEnabled:    !opts.OrphanReporterConfig.Disabled,
-		orphanLoggerInterval:   opts.OrphanReporterConfig.ReportInterval,
-		orphanLoggerSampleSize: opts.OrphanReporterConfig.SampleSize,
-		useServerDurations:     useServerDurations,
-		circuitBreakerConfig:   opts.CircuitBreakerConfig,
-		securityConfig:         opts.SecurityConfig,
-		internalConfig:         opts.InternalConfig,
-		transactionsConfig:     opts.TransactionsConfig,
-		compressionConfig:      opts.CompressionConfig,
-		compressor: &compressor{
-			CompressionEnabled:  !opts.CompressionConfig.Disabled,
-			CompressionMinSize:  opts.CompressionConfig.MinSize,
-			CompressionMinRatio: opts.CompressionConfig.MinRatio,
-		},
-		appTelemetryConfig:   opts.AppTelemetryConfig,
-		preferredServerGroup: opts.PreferredServerGroup,
-	}
-}
-
 // Connect creates and returns a Cluster instance created using the
 // provided options and a connection string.
 func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
@@ -292,45 +166,24 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 		return nil, errors.New("http scheme is not supported")
 	}
 
-	cluster := clusterFromOptions(opts)
-	cluster.cSpec = connSpec
+	connectionMgrOpts := connectionMgrOptionsFromOptions(opts)
+	connectionMgrOpts.cSpec = connSpec
 
-	err = cluster.parseExtraConnStrOptions(connSpec)
+	err = connectionMgrOpts.parseExtraConnStrOptions(connSpec)
 	if err != nil {
 		return nil, err
 	}
 
-	var initialTracer RequestTracer
-	if opts.Tracer != nil {
-		initialTracer = opts.Tracer
-	} else {
-		initialTracer = NewThresholdLoggingTracer(nil)
-	}
-	tracerAddRef(initialTracer)
-
-	meter := opts.Meter
-	if meter == nil {
-		agMeter := NewLoggingMeter(nil)
-		meter = agMeter
-	}
-
-	cli := cluster.newConnectionMgr(connSpec.Scheme, &newConnectionMgrOptions{
-		tracer:               newTracerWrapper(initialTracer),
-		meter:                newMeterWrapper(meter),
-		preferredServerGroup: opts.PreferredServerGroup,
-	})
-	err = cli.buildConfig(cluster)
+	cli, err := connectConnectionMgr(connSpec.Scheme, connectionMgrOpts)
 	if err != nil {
 		return nil, err
 	}
 
-	err = cli.connect()
-	if err != nil {
-		return nil, err
+	cluster := &Cluster{
+		connectionManager: cli,
 	}
-	cluster.connectionManager = cli
 
-	cluster.transactions, err = cluster.initTransactions(cluster.transactionsConfig)
+	err = cli.initTransactions(cluster)
 	if err != nil {
 		return nil, err
 	}
@@ -338,108 +191,15 @@ func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
 	return cluster, nil
 }
 
-func (c *Cluster) parseExtraConnStrOptions(spec gocbconnstr.ConnSpec) error {
-	fetchOption := func(name string) (string, bool) {
-		optValue := spec.Options[name]
-		if len(optValue) == 0 {
-			return "", false
-		}
-		return optValue[len(optValue)-1], true
-	}
-
-	if valStr, ok := fetchOption("kv_timeout"); ok {
-		val, err := strconv.ParseInt(valStr, 10, 64)
-		if err != nil {
-			return fmt.Errorf("kv_timeout option must be a number")
-		}
-		c.timeoutsConfig.KVTimeout = time.Duration(val) * time.Millisecond
-	}
-
-	if valStr, ok := fetchOption("kv_durable_timeout"); ok {
-		val, err := strconv.ParseInt(valStr, 10, 64)
-		if err != nil {
-			return fmt.Errorf("kv_durable_timeout option must be a number")
-		}
-		c.timeoutsConfig.KVDurableTimeout = time.Duration(val) * time.Millisecond
-	}
-
-	// Volatile: This option is subject to change at any time.
-	if valStr, ok := fetchOption("kv_scan_timeout"); ok {
-		val, err := strconv.ParseInt(valStr, 10, 64)
-		if err != nil {
-			return fmt.Errorf("kv_scan_timeout option must be a number")
-		}
-		c.timeoutsConfig.KVScanTimeout = time.Duration(val) * time.Millisecond
-	}
-
-	if valStr, ok := fetchOption("query_timeout"); ok {
-		val, err := strconv.ParseInt(valStr, 10, 64)
-		if err != nil {
-			return fmt.Errorf("query_timeout option must be a number")
-		}
-		c.timeoutsConfig.QueryTimeout = time.Duration(val) * time.Millisecond
-	}
-
-	if valStr, ok := fetchOption("analytics_timeout"); ok {
-		val, err := strconv.ParseInt(valStr, 10, 64)
-		if err != nil {
-			return fmt.Errorf("analytics_timeout option must be a number")
-		}
-		c.timeoutsConfig.AnalyticsTimeout = time.Duration(val) * time.Millisecond
-	}
-
-	if valStr, ok := fetchOption("search_timeout"); ok {
-		val, err := strconv.ParseInt(valStr, 10, 64)
-		if err != nil {
-			return fmt.Errorf("search_timeout option must be a number")
-		}
-		c.timeoutsConfig.SearchTimeout = time.Duration(val) * time.Millisecond
-	}
-
-	if valStr, ok := fetchOption("view_timeout"); ok {
-		val, err := strconv.ParseInt(valStr, 10, 64)
-		if err != nil {
-			return fmt.Errorf("view_timeout option must be a number")
-		}
-		c.timeoutsConfig.ViewTimeout = time.Duration(val) * time.Millisecond
-	}
-
-	if valStr, ok := fetchOption("management_timeout"); ok {
-		val, err := strconv.ParseInt(valStr, 10, 64)
-		if err != nil {
-			return fmt.Errorf("management_timeout option must be a number")
-		}
-		c.timeoutsConfig.ManagementTimeout = time.Duration(val) * time.Millisecond
-	}
-
-	if valStr, ok := fetchOption("disable_app_telemetry"); ok {
-		val, err := strconv.ParseBool(valStr)
-		if err != nil {
-			return fmt.Errorf("disable_app_telemetry option must be a boolean")
-		}
-		c.appTelemetryConfig.Disabled = val
-	}
-
-	return nil
-}
-
 // Bucket connects the cluster to server(s) and returns a new Bucket instance.
 func (c *Cluster) Bucket(bucketName string) *Bucket {
-	b := newBucket(c, bucketName)
+	b := newBucket(bucketName, c.connectionManager, c.Transactions)
 	err := c.connectionManager.openBucket(bucketName)
 	if err != nil {
 		b.setBootstrapError(err)
 	}
 
 	return b
-}
-
-func (c *Cluster) authenticator() Authenticator {
-	return c.auth
-}
-
-func (c *Cluster) connSpec() gocbconnstr.ConnSpec {
-	return c.cSpec
 }
 
 // WaitUntilReadyOptions is the set of options available to the WaitUntilReady operations.
@@ -511,7 +271,7 @@ func (c *Cluster) analyticsController() *providerController[analyticsProvider] {
 		opController: c.connectionManager,
 
 		meter:    c.connectionManager.getMeter(),
-		keyspace: &c.keyspace,
+		keyspace: nil,
 		service:  serviceValueAnalytics,
 	}
 }
@@ -531,7 +291,7 @@ func (c *Cluster) queryController() *providerController[queryProvider] {
 		opController: c.connectionManager,
 
 		meter:    c.connectionManager.getMeter(),
-		keyspace: &c.keyspace,
+		keyspace: nil,
 		service:  serviceValueQuery,
 	}
 }
@@ -542,7 +302,7 @@ func (c *Cluster) searchController() *providerController[searchProvider] {
 		opController: c.connectionManager,
 
 		meter:    c.connectionManager.getMeter(),
-		keyspace: &c.keyspace,
+		keyspace: nil,
 		service:  serviceValueSearch,
 	}
 }
@@ -569,7 +329,7 @@ func (c *Cluster) Users() *UserManager {
 			opController: c.connectionManager,
 
 			meter:    c.connectionManager.getMeter(),
-			keyspace: &c.keyspace,
+			keyspace: nil,
 			service:  serviceValueManagement,
 		},
 	}
@@ -583,7 +343,7 @@ func (c *Cluster) Buckets() *BucketManager {
 			opController: c.connectionManager,
 
 			meter:    c.connectionManager.getMeter(),
-			keyspace: &c.keyspace,
+			keyspace: nil,
 			service:  serviceValueManagement,
 		},
 	}
@@ -597,7 +357,7 @@ func (c *Cluster) AnalyticsIndexes() *AnalyticsIndexManager {
 			opController: c.connectionManager,
 
 			meter:    c.connectionManager.getMeter(),
-			keyspace: &c.keyspace,
+			keyspace: nil,
 			service:  serviceValueAnalytics,
 		},
 	}
@@ -611,7 +371,7 @@ func (c *Cluster) QueryIndexes() *QueryIndexManager {
 			opController: c.connectionManager,
 
 			meter:    c.connectionManager.getMeter(),
-			keyspace: &c.keyspace,
+			keyspace: nil,
 			service:  serviceValueQuery,
 		},
 	}
@@ -625,7 +385,7 @@ func (c *Cluster) SearchIndexes() *SearchIndexManager {
 			opController: c.connectionManager,
 
 			meter:    c.connectionManager.getMeter(),
-			keyspace: &c.keyspace,
+			keyspace: nil,
 			service:  serviceValueSearch,
 		},
 	}
@@ -643,7 +403,7 @@ func (c *Cluster) EventingFunctions() *EventingFunctionManager {
 			opController: c.connectionManager,
 
 			meter:    c.connectionManager.getMeter(),
-			keyspace: &c.keyspace,
+			keyspace: nil,
 			service:  serviceValueEventing,
 		},
 	}
@@ -651,5 +411,7 @@ func (c *Cluster) EventingFunctions() *EventingFunctionManager {
 
 // Transactions returns a Transactions instance for performing transactions.
 func (c *Cluster) Transactions() *Transactions {
-	return c.transactions
+	return &Transactions{
+		controller: c.transactionsController(),
+	}
 }

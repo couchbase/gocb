@@ -321,7 +321,7 @@ func (suite *UnitTestSuite) TestScopeSearchIndexesFeatureNotAvailable() {
 	cli.On("MarkOpBeginning").Return()
 	cli.On("MarkOpCompleted").Return()
 
-	b := suite.bucket("mock", suite.defaultTimeoutConfig(), cli)
+	b := suite.bucket("mock", cli)
 	s := suite.newScope(b, "test")
 	mgr := s.SearchIndexes()
 

@@ -172,15 +172,18 @@ func (mw *meterWrapper) ValueRecorder(service, operation string, keyspace *keysp
 		if labels.ClusterUUID != "" {
 			attribsMap[meterAttribClusterUUIDKey] = labels.ClusterUUID
 		}
-		if keyspace.bucketName != "" {
-			attribsMap[meterAttribBucketNameKey] = keyspace.bucketName
+		if keyspace != nil {
+			if keyspace.bucketName != "" {
+				attribsMap[meterAttribBucketNameKey] = keyspace.bucketName
+			}
+			if keyspace.scopeName != "" {
+				attribsMap[meterAttribScopeNameKey] = keyspace.scopeName
+			}
+			if keyspace.collectionName != "" {
+				attribsMap[meterAttribCollectionNameKey] = keyspace.collectionName
+			}
 		}
-		if keyspace.scopeName != "" {
-			attribsMap[meterAttribScopeNameKey] = keyspace.scopeName
-		}
-		if keyspace.collectionName != "" {
-			attribsMap[meterAttribCollectionNameKey] = keyspace.collectionName
-		}
+
 		mw.attribsCache.Store(key, attribsMap)
 	}
 
