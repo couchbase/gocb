@@ -53,6 +53,8 @@ type SecurityConfig struct {
 	// Note that if you add PLAIN to the list, this will cause credential leakage on the network
 	// since PLAIN sends the credentials in cleartext. It is disabled by default to prevent downgrade attacks. We
 	// recommend using a TLS connection if using PLAIN.
+	// Any AuthMechanisms specified here must also be supported by the provided AuthProvider and will override any
+	// mechanisms that the provider specifies via AuthMechanismProvider.
 	AllowedSaslMechanisms []SaslMechanism
 }
 

@@ -4,8 +4,8 @@ github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZx
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
-github.com/couchbase/gocbcore/v10 v10.8.2-0.20251120123042-2f61d34abc3b h1:h18mVjdFwGamCZrx8/pdrpCMbm66wHInxH8Q0Fpe0oU=
-github.com/couchbase/gocbcore/v10 v10.8.2-0.20251120123042-2f61d34abc3b/go.mod h1:OWKfU9R5Nm5V3QZBtfdZl5qCfgxtxTqOgXiNr4pn9/c=
+github.com/couchbase/gocbcore/v10 v10.8.2-0.20251120173032-8a4657593ebb h1:gF5uBvnyknTh7Nopm+G7MjvB0Am/EM0/isJBPrJp/ts=
+github.com/couchbase/gocbcore/v10 v10.8.2-0.20251120173032-8a4657593ebb/go.mod h1:OWKfU9R5Nm5V3QZBtfdZl5qCfgxtxTqOgXiNr4pn9/c=
 github.com/couchbase/gocbcoreps v0.1.5-0.20251120111817-fa952f7a9e3f h1:0nVIGz+7LAzwBhigUPk7pFF6+FpDoUQpSXkXwgFCOps=
 github.com/couchbase/gocbcoreps v0.1.5-0.20251120111817-fa952f7a9e3f/go.mod h1:hBFpDNPnRno6HH5cRXExhqXYRmTsFJlFHQx7vztcXPk=
 github.com/couchbase/goprotostellar v1.0.2 h1:yoPbAL9sCtcyZ5e/DcU5PRMOEFaJrF9awXYu3VPfGls=

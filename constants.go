@@ -305,6 +305,9 @@ const (
 
 	// ScramSha512SaslMechanism represents that SCRAM SHA512 auth should be performed.
 	ScramSha512SaslMechanism SaslMechanism = SaslMechanism(gocbcore.ScramSha512AuthMechanism)
+
+	// OAuthBearerSaslMechasnism represents that OAUTHBEARER auth should be performed.
+	OAuthBearerSaslMechasnism SaslMechanism = SaslMechanism(gocbcore.OAuthBearerAuthMechanism)
 )
 
 // Capability represents a server capability.
