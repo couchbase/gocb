@@ -241,6 +241,21 @@ func (c *Cluster) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOpti
 	})
 }
 
+// SetAuthenticatorOptions is the set of options available to SetAuthenticator.
+type SetAuthenticatorOptions struct {
+	Authenticator Authenticator
+}
+
+// SetAuthenticator updates the Authenticator used by this client.
+// For KV the new Authenticator does not take effect until connections are re-established.
+// For HTTP the behaviour depends on the Authenticator type.
+// Authenticators which apply authentication per-request (such as PasswordAuthenticator) will take effect immediately
+// but transport level Authenticators (such as CertificateAuthenticator) will not take effect until new connections
+// are created.
+func (c *Cluster) SetAuthenticator(opts SetAuthenticatorOptions) error {
+	return c.connectionManager.SetAuthenticator(opts)
+}
+
 // Close shuts down all buckets in this cluster and invalidates any references this cluster has.
 func (c *Cluster) Close(opts *ClusterCloseOptions) error {
 	var overallErr error

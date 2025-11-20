@@ -39,6 +39,8 @@ type connectionManager interface {
 
 	getMeter() *meterWrapper
 
+	SetAuthenticator(opts SetAuthenticatorOptions) error
+
 	opController
 }
 

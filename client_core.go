@@ -190,6 +190,24 @@ func (c *stdConnectionMgr) MarkOpCompleted() {
 	c.activeOpsWg.Done()
 }
 
+func (c *stdConnectionMgr) SetAuthenticator(opts SetAuthenticatorOptions) error {
+	if err := c.canPerformOp(); err != nil {
+		return err
+	}
+
+	if c.agentgroup == nil {
+		return errors.New("cluster not yet connected")
+	}
+
+	c.agentgroup.ReconfigureAuthProvider(
+		gocbcore.ReconfigureAuthProviderOptions{Auth: &coreAuthWrapper{
+			auth: opts.Authenticator,
+		}},
+	)
+
+	return nil
+}
+
 func (c *stdConnectionMgr) getKvProvider(bucketName string) (kvProvider, error) {
 	if err := c.canPerformOp(); err != nil {
 		return nil, err

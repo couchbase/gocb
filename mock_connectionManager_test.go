@@ -22,17 +22,17 @@ func (_m *mockConnectionManager) MarkOpCompleted() {
 	_m.Called()
 }
 
-// close provides a mock function with no fields
-func (_m *mockConnectionManager) close() error {
-	ret := _m.Called()
+// SetAuthenticator provides a mock function with given fields: opts
+func (_m *mockConnectionManager) SetAuthenticator(opts SetAuthenticatorOptions) error {
+	ret := _m.Called(opts)
 
 	if len(ret) == 0 {
-		panic("no return value specified for close")
+		panic("no return value specified for SetAuthenticator")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func() error); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(SetAuthenticatorOptions) error); ok {
+		r0 = rf(opts)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -40,12 +40,12 @@ func (_m *mockConnectionManager) close() error {
 	return r0
 }
 
-// connect provides a mock function with no fields
-func (_m *mockConnectionManager) connect() error {
+// close provides a mock function with no fields
+func (_m *mockConnectionManager) close() error {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
-		panic("no return value specified for connect")
+		panic("no return value specified for close")
 	}
 
 	var r0 error

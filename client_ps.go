@@ -35,6 +35,24 @@ func (c *psConnectionMgr) openBucket(bucketName string) error {
 	return nil
 }
 
+func buildAuthenticator(auth Authenticator) (gocbcoreps.Authenticator, error) {
+	var authenticator gocbcoreps.Authenticator
+	switch a := auth.(type) {
+	case PasswordAuthenticator:
+		authenticator = gocbcoreps.NewBasicAuthenticator(a.Username, a.Password)
+	case *PasswordAuthenticator:
+		authenticator = gocbcoreps.NewBasicAuthenticator(a.Username, a.Password)
+	case CertificateAuthenticator:
+		authenticator = gocbcoreps.NewCertificateAuthenticator(a.ClientCertificate)
+	case *CertificateAuthenticator:
+		authenticator = gocbcoreps.NewCertificateAuthenticator(a.ClientCertificate)
+	default:
+		return nil, invalidArgumentsError{message: fmt.Sprintf("unsupported authenticator type: %T", a)}
+	}
+
+	return authenticator, nil
+}
+
 func connectPsConnectionMgr(opts newConnectionMgrOptions) (*psConnectionMgr, error) {
 	resolved, err := gocbconnstr.Resolve(opts.cSpec)
 	if err != nil {
@@ -43,7 +61,7 @@ func connectPsConnectionMgr(opts newConnectionMgrOptions) (*psConnectionMgr, err
 
 	host := fmt.Sprintf("%s:%d", resolved.Couchbase2Host.Host, resolved.Couchbase2Host.Port)
 
-	creds, err := opts.auth.Credentials(AuthCredsRequest{})
+	authenticator, err := buildAuthenticator(opts.auth)
 	if err != nil {
 		return nil, err
 	}
@@ -64,8 +82,7 @@ func connectPsConnectionMgr(opts newConnectionMgrOptions) (*psConnectionMgr, err
 	}
 
 	config := &gocbcoreps.DialOptions{
-		Username:           creds[0].Username,
-		Password:           creds[0].Password,
+		Authenticator:      authenticator,
 		InsecureSkipVerify: opts.securityConfig.TLSSkipVerify,
 		RootCAs:            opts.securityConfig.TLSRootCAs,
 		Logger:             logger,
@@ -89,6 +106,26 @@ func connectPsConnectionMgr(opts newConnectionMgrOptions) (*psConnectionMgr, err
 		closed:       atomic.Bool{},
 		activeOpsWg:  sync.WaitGroup{},
 	}, nil
+}
+
+func (c *psConnectionMgr) SetAuthenticator(opts SetAuthenticatorOptions) error {
+	authenticator, err := buildAuthenticator(opts.Authenticator)
+	if err != nil {
+		return err
+	}
+
+	err = c.agent.ReconfigureAuthenticator(gocbcoreps.ReconfigureAuthenticatorOptions{
+		Authenticator: authenticator,
+	})
+	if err != nil {
+		if errors.Is(err, gocbcoreps.ErrAuthenticatorMismatch) {
+			return invalidArgumentsError{message: err.Error()}
+		}
+
+		return err
+	}
+
+	return nil
 }
 
 func (c *psConnectionMgr) canPerformOp() error {
