@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"encoding/json"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -87,7 +88,16 @@ func (d *GetResult) fromFullProjection(ops []LookupInSpec, result *LookupInResul
 	newContent := make(map[string]interface{})
 	for _, field := range fields {
 		parts := d.pathParts(field)
-		d.set(parts, newContent, content[field])
+
+		if _, ok := content[parts[0].path]; !ok {
+			if globalLogRedactionLevel > RedactNone {
+				field = redactUserDataString(field)
+			}
+			logWarnf("Omitting %s from result as it does not exist in document", field)
+			continue
+		}
+
+		d.set(parts, newContent, d.valueFromFullProjectionPath(parts, content))
 	}
 
 	bytes, err := json.Marshal(newContent)
@@ -118,6 +128,34 @@ func (d *GetResult) fromSubDoc(ops []LookupInSpec, result *LookupInResult) error
 		return wrapError(err, "could not marshal result contents")
 	}
 	d.contents = bytes
+
+	return nil
+}
+
+func (d *GetResult) valueFromFullProjectionPath(parts []subdocPath, content interface{}) interface{} {
+	if len(parts) == 1 {
+		switch v := content.(type) {
+		case map[string]interface{}:
+			return v[parts[0].path]
+		case []interface{}:
+			value, _ := strconv.Atoi(parts[0].path) // nolint: errcheck
+			return value
+		default:
+			// Not possible
+		}
+
+		return nil
+	}
+
+	switch v := content.(type) {
+	case map[string]interface{}:
+		return d.valueFromFullProjectionPath(parts[1:], v[parts[0].path])
+	case []interface{}:
+		value, _ := strconv.Atoi(parts[0].path) // nolint: errcheck
+		return d.valueFromFullProjectionPath(parts[1:], value)
+	default:
+		// Not possible
+	}
 
 	return nil
 }
