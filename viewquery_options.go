@@ -44,6 +44,7 @@ const (
 )
 
 // ViewOptions represents the options available when executing view query.
+// Deprecated: Views are deprecated in Couchbase Server 7.0+, and will be removed from a future server version.
 type ViewOptions struct {
 	ScanConsistency ViewScanConsistency
 	Skip            uint32

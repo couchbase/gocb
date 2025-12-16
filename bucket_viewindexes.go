@@ -80,6 +80,7 @@ func (dd *DesignDocument) toData() (jsonDesignDocument, string, error) {
 }
 
 // ViewIndexManager provides methods for performing View management.
+// Deprecated: Views are deprecated in Couchbase Server 7.0+, and will be removed from a future server version.
 type ViewIndexManager struct {
 	controller *providerController[viewIndexProvider]
 }
