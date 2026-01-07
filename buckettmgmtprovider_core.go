@@ -517,7 +517,7 @@ func (bm *bucketManagementProviderCore) settingsToPostData(settings *BucketSetti
 		posts.Add("compressionMode", string(settings.CompressionMode))
 	}
 
-	if settings.MinimumDurabilityLevel > DurabilityLevelNone {
+	if settings.MinimumDurabilityLevel > DurabilityLevelUnknown {
 		level, err := settings.MinimumDurabilityLevel.toManagementAPI()
 		if err != nil {
 			return nil, err
