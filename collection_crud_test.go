@@ -2498,11 +2498,11 @@ func (suite *UnitTestSuite) TestExpiryConversion30Days() {
 			cb := args.Get(1).(gocbcore.StoreCallback)
 
 			if opts.Expiry < uint32(expectedTime.Add(-1*time.Second).Unix()) {
-				suite.T().Fatalf("Expected expiry to be %d but was %d", expectedTime.Second(), opts.Expiry)
+				suite.T().Fatalf("Expected expiry to be %d but was %d", expectedTime.Unix(), opts.Expiry)
 			}
 
 			if opts.Expiry > uint32(expectedTime.Unix()) {
-				suite.T().Fatalf("Expected expiry to be %d but was %d", expectedTime.Second(), opts.Expiry)
+				suite.T().Fatalf("Expected expiry to be %d but was %d", expectedTime.Unix(), opts.Expiry)
 			}
 
 			cb(&gocbcore.StoreResult{

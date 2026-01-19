@@ -50,6 +50,24 @@ func (c *psConnectionMgr) openBucket(bucketName string) error {
 	return nil
 }
 
+func buildAuthenticator(auth Authenticator) (gocbcoreps.Authenticator, error) {
+	var authenticator gocbcoreps.Authenticator
+	switch a := auth.(type) {
+	case PasswordAuthenticator:
+		authenticator = gocbcoreps.NewBasicAuthenticator(a.Username, a.Password)
+	case *PasswordAuthenticator:
+		authenticator = gocbcoreps.NewBasicAuthenticator(a.Username, a.Password)
+	case CertificateAuthenticator:
+		authenticator = gocbcoreps.NewCertificateAuthenticator(a.ClientCertificate)
+	case *CertificateAuthenticator:
+		authenticator = gocbcoreps.NewCertificateAuthenticator(a.ClientCertificate)
+	default:
+		return nil, invalidArgumentsError{message: fmt.Sprintf("unsupported authenticator type: %T", a)}
+	}
+
+	return authenticator, nil
+}
+
 func (c *psConnectionMgr) buildConfig(cluster *Cluster) error {
 	resolved, err := gocbconnstr.Resolve(cluster.connSpec())
 	if err != nil {
@@ -58,7 +76,7 @@ func (c *psConnectionMgr) buildConfig(cluster *Cluster) error {
 
 	c.host = fmt.Sprintf("%s:%d", resolved.Couchbase2Host.Host, resolved.Couchbase2Host.Port)
 
-	creds, err := cluster.authenticator().Credentials(AuthCredsRequest{})
+	authenticator, err := buildAuthenticator(cluster.auth)
 	if err != nil {
 		return err
 	}
@@ -79,8 +97,7 @@ func (c *psConnectionMgr) buildConfig(cluster *Cluster) error {
 	}
 
 	c.config = &gocbcoreps.DialOptions{
-		Username:           creds[0].Username,
-		Password:           creds[0].Password,
+		Authenticator:      authenticator,
 		InsecureSkipVerify: cluster.securityConfig.TLSSkipVerify,
 		RootCAs:            cluster.securityConfig.TLSRootCAs,
 		Logger:             logger,
