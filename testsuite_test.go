@@ -186,7 +186,8 @@ func (suite *IntegrationTestSuite) setClusterName() {
 	<-ch
 	suite.Require().NoError(err)
 
-	suite.ensureMgmtResource(time.Now().Add(20*time.Second), "/pools/default", func(reader io.ReadCloser) bool {
+	var rev int64
+	suite.ensureMgmtResource(time.Now().Add(20*time.Second), "/pools/default/b/"+globalBucket.Name(), func(reader io.ReadCloser) bool {
 		var respBody map[string]interface{}
 		err := json.NewDecoder(reader).Decode(&respBody)
 		if err != nil {
@@ -196,7 +197,26 @@ func (suite *IntegrationTestSuite) setClusterName() {
 		if !ok {
 			return false
 		}
+
+		rev = respBody["rev"].(int64)
 		return clusterName == newClusterName
+	})
+
+	suite.tryUntil(time.Now().Add(5*time.Second), 100*time.Millisecond, func() bool {
+		routerRevCh := make(chan int64, 1)
+		_, err := router.WaitForConfigSnapshot(time.Now().Add(1*time.Second), gocbcore.WaitForConfigSnapshotOptions{}, func(result *gocbcore.WaitForConfigSnapshotResult, err error) {
+			if err != nil {
+				return
+			}
+
+			routerRevCh <- result.Snapshot.RevID()
+		})
+		if err != nil {
+			return false
+		}
+
+		routerRevID := <-routerRevCh
+		return routerRevID >= rev
 	})
 }
 
