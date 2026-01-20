@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/url"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -186,6 +187,8 @@ func (suite *IntegrationTestSuite) setClusterName() {
 	<-ch
 	suite.Require().NoError(err)
 
+	// ensureMgmtResource fires off concurrent requests, so we need to protect rev variable
+	var revLock sync.Mutex
 	var rev int64
 	suite.ensureMgmtResource(time.Now().Add(20*time.Second), "/pools/default/b/"+globalBucket.Name(), func(reader io.ReadCloser) bool {
 		var respBody map[string]interface{}
@@ -198,7 +201,14 @@ func (suite *IntegrationTestSuite) setClusterName() {
 			return false
 		}
 
-		rev = respBody["rev"].(int64)
+		thisRev := int64(int(respBody["rev"].(float64)))
+
+		revLock.Lock()
+		if thisRev > rev {
+			rev = thisRev
+		}
+		revLock.Unlock()
+
 		return clusterName == newClusterName
 	})
 
@@ -216,7 +226,11 @@ func (suite *IntegrationTestSuite) setClusterName() {
 		}
 
 		routerRevID := <-routerRevCh
-		return routerRevID >= rev
+		revLock.Lock()
+		isGood := routerRevID >= rev
+		revLock.Unlock()
+
+		return isGood
 	})
 }
 
