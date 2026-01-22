@@ -49,6 +49,7 @@ type Authenticator interface {
 }
 
 // JWT represents a JWT token.
+// UNCOMMITTED: This API may change in the future.
 type JWT = string
 
 // PasswordAuthenticator implements an Authenticator which uses an RBAC username and password.
@@ -136,6 +137,8 @@ func (ca CertificateAuthenticator) DefaultSaslMechanisms(tlsEnabled bool) []Sasl
 	return []SaslMechanism{}
 }
 
+// JWTAuthenticator implements an Authenticator which uses a JWT token.
+// UNCOMMITTED: This API may change in the future.
 type JWTAuthenticator struct {
 	Token string
 }
