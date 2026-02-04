@@ -40,11 +40,12 @@ func (t *JSONTranscoder) Decode(bytes []byte, flags uint32, out interface{}) err
 	}
 
 	// Normal types of decoding
-	if valueType == gocbcore.BinaryType {
+	switch valueType {
+	case gocbcore.BinaryType:
 		return errors.New("binary datatype is not supported by JSONTranscoder")
-	} else if valueType == gocbcore.StringType {
+	case gocbcore.StringType:
 		return errors.New("string datatype is not supported by JSONTranscoder")
-	} else if valueType == gocbcore.JSONType {
+	case gocbcore.JSONType:
 		err := json.Unmarshal(bytes, &out)
 		if err != nil {
 			return err
@@ -112,11 +113,12 @@ func (t *RawJSONTranscoder) Decode(bytes []byte, flags uint32, out interface{}) 
 	}
 
 	// Normal types of decoding
-	if valueType == gocbcore.BinaryType {
+	switch valueType {
+	case gocbcore.BinaryType:
 		return errors.New("binary datatype is not supported by RawJSONTranscoder")
-	} else if valueType == gocbcore.StringType {
+	case gocbcore.StringType:
 		return errors.New("string datatype is not supported by RawJSONTranscoder")
-	} else if valueType == gocbcore.JSONType {
+	case gocbcore.JSONType:
 		switch typedOut := out.(type) {
 		case *[]byte:
 			*typedOut = bytes
@@ -190,9 +192,10 @@ func (t *RawStringTranscoder) Decode(bytes []byte, flags uint32, out interface{}
 	}
 
 	// Normal types of decoding
-	if valueType == gocbcore.BinaryType {
+	switch valueType {
+	case gocbcore.BinaryType:
 		return errors.New("only string datatype is supported by RawStringTranscoder")
-	} else if valueType == gocbcore.StringType {
+	case gocbcore.StringType:
 		switch typedOut := out.(type) {
 		case *string:
 			*typedOut = string(bytes)
@@ -203,7 +206,7 @@ func (t *RawStringTranscoder) Decode(bytes []byte, flags uint32, out interface{}
 		default:
 			return errors.New("you must encode a string in a string or interface")
 		}
-	} else if valueType == gocbcore.JSONType {
+	case gocbcore.JSONType:
 		return errors.New("only string datatype is supported by RawStringTranscoder")
 	}
 
@@ -256,7 +259,8 @@ func (t *RawBinaryTranscoder) Decode(bytes []byte, flags uint32, out interface{}
 	}
 
 	// Normal types of decoding
-	if valueType == gocbcore.BinaryType {
+	switch valueType {
+	case gocbcore.BinaryType:
 		switch typedOut := out.(type) {
 		case *[]byte:
 			*typedOut = bytes
@@ -267,9 +271,9 @@ func (t *RawBinaryTranscoder) Decode(bytes []byte, flags uint32, out interface{}
 		default:
 			return errors.New("you must encode binary in a byte array or interface")
 		}
-	} else if valueType == gocbcore.StringType {
+	case gocbcore.StringType:
 		return errors.New("only binary datatype is supported by RawBinaryTranscoder")
-	} else if valueType == gocbcore.JSONType {
+	case gocbcore.JSONType:
 		return errors.New("only binary datatype is supported by RawBinaryTranscoder")
 	}
 
@@ -324,7 +328,8 @@ func (t *LegacyTranscoder) Decode(bytes []byte, flags uint32, out interface{}) e
 	}
 
 	// Normal types of decoding
-	if valueType == gocbcore.BinaryType {
+	switch valueType {
+	case gocbcore.BinaryType:
 		switch typedOut := out.(type) {
 		case *[]byte:
 			*typedOut = bytes
@@ -335,7 +340,7 @@ func (t *LegacyTranscoder) Decode(bytes []byte, flags uint32, out interface{}) e
 		default:
 			return errors.New("you must encode binary in a byte array or interface")
 		}
-	} else if valueType == gocbcore.StringType {
+	case gocbcore.StringType:
 		switch typedOut := out.(type) {
 		case *string:
 			*typedOut = string(bytes)
@@ -346,7 +351,7 @@ func (t *LegacyTranscoder) Decode(bytes []byte, flags uint32, out interface{}) e
 		default:
 			return errors.New("you must encode a string in a string or interface")
 		}
-	} else if valueType == gocbcore.JSONType {
+	case gocbcore.JSONType:
 		err := json.Unmarshal(bytes, &out)
 		if err != nil {
 			return err

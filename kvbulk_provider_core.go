@@ -80,7 +80,7 @@ func (p *kvBulkProviderCore) Get(item *GetOp, parentSpan RequestSpan, c *Collect
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
 	span := p.StartKvOpTrace(c, "get", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "get", start, &c.keyspace, item.Err)
 	}
@@ -118,7 +118,7 @@ func (p *kvBulkProviderCore) GetAndTouch(item *GetAndTouchOp, parentSpan Request
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
 	span := p.StartKvOpTrace(c, "get_and_touch", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "get_and_touch", start, &c.keyspace, item.Err)
 	}
@@ -154,7 +154,7 @@ func (p *kvBulkProviderCore) Touch(item *TouchOp, parentSpan RequestSpan, c *Col
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
 	span := p.StartKvOpTrace(c, "touch", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "touch", start, &c.keyspace, item.Err)
 	}
@@ -195,7 +195,7 @@ func (p *kvBulkProviderCore) Delete(item *RemoveOp, parentSpan RequestSpan, c *C
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
 	span := p.StartKvOpTrace(c, "remove", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "remove", start, &c.keyspace, item.Err)
 	}
@@ -236,7 +236,7 @@ func (p *kvBulkProviderCore) Set(item *UpsertOp, parentSpan RequestSpan, c *Coll
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
 	span := p.StartKvOpTrace(c, "upsert", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "upsert", start, &c.keyspace, item.Err)
 	}
@@ -290,7 +290,7 @@ func (p *kvBulkProviderCore) Add(item *InsertOp, parentSpan RequestSpan, c *Coll
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
 	span := p.StartKvOpTrace(c, "insert", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "insert", start, &c.keyspace, item.Err)
 	}
@@ -343,7 +343,7 @@ func (p *kvBulkProviderCore) Replace(item *ReplaceOp, parentSpan RequestSpan, c 
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
 	span := p.StartKvOpTrace(c, "replace", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "replace", start, &c.keyspace, item.Err)
 	}
@@ -397,7 +397,7 @@ func (p *kvBulkProviderCore) Append(item *AppendOp, parentSpan RequestSpan, c *C
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
 	span := p.StartKvOpTrace(c, "append", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "append", start, &c.keyspace, item.Err)
 	}
@@ -438,7 +438,7 @@ func (p *kvBulkProviderCore) Prepend(item *PrependOp, parentSpan RequestSpan, c 
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
 	span := p.StartKvOpTrace(c, "prepend", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "prepend", start, &c.keyspace, item.Err)
 	}
@@ -479,7 +479,7 @@ func (p *kvBulkProviderCore) Increment(item *IncrementOp, parentSpan RequestSpan
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
 	span := p.StartKvOpTrace(c, "increment", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "increment", start, &c.keyspace, item.Err)
 	}
@@ -530,7 +530,7 @@ func (p *kvBulkProviderCore) Decrement(item *DecrementOp, parentSpan RequestSpan
 	signal chan BulkOp, retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
 	span := p.StartKvOpTrace(c, "decrement", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "decrement", start, &c.keyspace, item.Err)
 	}

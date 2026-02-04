@@ -361,19 +361,20 @@ func (p *kvProviderCore) internalMutateIn(
 	docFlags memd.SubdocDocFlag,
 ) (*MutateInResult, error) {
 	preserveTTL := opm.PreserveExpiry()
-	if action == StoreSemanticsReplace {
+	switch action {
+	case StoreSemanticsReplace:
 		// this is the default behaviour
 		if expiry > 0 && preserveTTL {
 			return nil, makeInvalidArgumentsError("cannot use preserve expiry with expiry for replace store semantics")
 		}
-	} else if action == StoreSemanticsUpsert {
+	case StoreSemanticsUpsert:
 		docFlags |= memd.SubdocDocFlagMkDoc
-	} else if action == StoreSemanticsInsert {
+	case StoreSemanticsInsert:
 		if preserveTTL {
 			return nil, makeInvalidArgumentsError("cannot use preserve ttl with insert store semantics")
 		}
 		docFlags |= memd.SubdocDocFlagAddDoc
-	} else {
+	default:
 		return nil, makeInvalidArgumentsError("invalid StoreSemantics value provided")
 	}
 

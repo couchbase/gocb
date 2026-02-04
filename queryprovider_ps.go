@@ -91,11 +91,12 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 
 	if opts.ScanConsistency != 0 {
 		var consistency query_v1.QueryRequest_ScanConsistency
-		if opts.ScanConsistency == QueryScanConsistencyNotBounded {
+		switch opts.ScanConsistency {
+		case QueryScanConsistencyNotBounded:
 			consistency = query_v1.QueryRequest_SCAN_CONSISTENCY_NOT_BOUNDED
-		} else if opts.ScanConsistency == QueryScanConsistencyRequestPlus {
+		case QueryScanConsistencyRequestPlus:
 			consistency = query_v1.QueryRequest_SCAN_CONSISTENCY_REQUEST_PLUS
-		} else {
+		default:
 			return nil, makeInvalidArgumentsError("unexpected consistency option")
 		}
 		req.ScanConsistency = &consistency

@@ -60,11 +60,12 @@ func (opts *AnalyticsOptions) toMap() (map[string]interface{}, error) {
 	}
 
 	if opts.ScanConsistency != 0 {
-		if opts.ScanConsistency == AnalyticsScanConsistencyNotBounded {
+		switch opts.ScanConsistency {
+		case AnalyticsScanConsistencyNotBounded:
 			execOpts["scan_consistency"] = "not_bounded"
-		} else if opts.ScanConsistency == AnalyticsScanConsistencyRequestPlus {
+		case AnalyticsScanConsistencyRequestPlus:
 			execOpts["scan_consistency"] = "request_plus"
-		} else {
+		default:
 			return nil, makeInvalidArgumentsError("unexpected consistency option")
 		}
 	}

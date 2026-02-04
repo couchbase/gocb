@@ -82,7 +82,8 @@ func mapPsErrorStatusToGocbError(st *status.Status, readOnly bool) *GenericError
 			}
 			context["resource_type"] = d.ResourceType
 
-			if code == codes.NotFound {
+			switch code {
+			case codes.NotFound:
 				switch d.ResourceType {
 				case resourceTypeDocument:
 					baseErr = ErrDocumentNotFound
@@ -99,7 +100,7 @@ func mapPsErrorStatusToGocbError(st *status.Status, readOnly bool) *GenericError
 				case resourceTypePath:
 					baseErr = ErrPathNotFound
 				}
-			} else if code == codes.AlreadyExists {
+			case codes.AlreadyExists:
 				switch d.ResourceType {
 				case resourceTypeDocument:
 					baseErr = ErrDocumentExists

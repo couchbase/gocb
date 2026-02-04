@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/couchbase/gocbcore/v10"
 )
@@ -24,6 +25,11 @@ type stdConnectionMgr struct {
 	compressor           *compressor
 	useMutationTokens    bool
 	useServerDurations   bool
+
+	securityConfigLock sync.Mutex
+	auth               *coreAuthWrapper
+	authMechanisms     []gocbcore.AuthMechanism
+	tlsRootProvider    func() *x509.CertPool
 
 	closed      atomic.Bool
 	activeOpsWg sync.WaitGroup
@@ -111,10 +117,12 @@ func connectStdConnectionMgr(opts newConnectionMgrOptions) (*stdConnectionMgr, e
 		return nil, err
 	}
 
-	config.SecurityConfig.Auth = &coreAuthWrapper{
+	auth := &coreAuthWrapper{
 		auth: opts.auth,
 	}
+	config.SecurityConfig.Auth = auth
 
+	var tlsRootProvider func() *x509.CertPool
 	if config.SecurityConfig.UseTLS {
 		config.SecurityConfig.TLSRootCAProvider = opts.internalConfig.TLSRootCAProvider
 
@@ -128,6 +136,8 @@ func connectStdConnectionMgr(opts newConnectionMgrOptions) (*stdConnectionMgr, e
 				return opts.securityConfig.TLSRootCAs
 			}
 		}
+
+		tlsRootProvider = config.SecurityConfig.TLSRootCAProvider
 	}
 
 	agentGroup, err := gocbcore.CreateAgentGroup(config)
@@ -159,6 +169,10 @@ func connectStdConnectionMgr(opts newConnectionMgrOptions) (*stdConnectionMgr, e
 		useServerDurations:   opts.useServerDurations,
 		closed:               atomic.Bool{},
 		activeOpsWg:          sync.WaitGroup{},
+
+		auth:            auth,
+		authMechanisms:  authMechanisms,
+		tlsRootProvider: tlsRootProvider,
 	}, nil
 }
 
@@ -199,11 +213,35 @@ func (c *stdConnectionMgr) SetAuthenticator(opts SetAuthenticatorOptions) error 
 		return errors.New("cluster not yet connected")
 	}
 
-	c.agentgroup.ReconfigureAuthProvider(
-		gocbcore.ReconfigureAuthProviderOptions{Auth: &coreAuthWrapper{
-			auth: opts.Authenticator,
-		}},
+	auth := &coreAuthWrapper{
+		auth: opts.Authenticator,
+	}
+
+	c.securityConfigLock.Lock()
+	c.auth = auth
+	tlsRootProvider := c.tlsRootProvider
+	authMechanisms := make([]gocbcore.AuthMechanism, len(c.authMechanisms))
+	copy(authMechanisms, c.authMechanisms)
+	c.securityConfigLock.Unlock()
+
+	err := c.agentgroup.ReconfigureSecurity(
+		gocbcore.ReconfigureSecurityOptions{
+			Auth:              auth,
+			AuthMechanisms:    authMechanisms,
+			TLSRootCAProvider: tlsRootProvider,
+			NoReconnect:       true,
+		},
 	)
+	if err != nil {
+		return maybeEnhanceCoreErr(err)
+	}
+
+	err = c.agentgroup.Reauthenticate(gocbcore.ReauthenticateOptions{
+		Deadline: time.Now().Add(c.timeouts.KVTimeout),
+	})
+	if err != nil {
+		return maybeEnhanceCoreErr(err)
+	}
 
 	return nil
 }

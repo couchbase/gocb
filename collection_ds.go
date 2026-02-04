@@ -478,7 +478,7 @@ func (cs *CouchbaseSet) Remove(val string) error {
 
 			if indexToRemove > -1 {
 				ops := make([]MutateInSpec, 1)
-				ops[0] = RemoveSpec(fmt.Sprintf("[%d]", indexToRemove), nil)
+				ops[0] = RemoveSpec(fmt.Sprintf("[%d]", indexToRemove), nil) //nolint:gosec
 				_, err = cs.collection.MutateIn(cs.id, ops, &MutateInOptions{
 					Cas:        cas,
 					ParentSpan: span,
@@ -604,7 +604,7 @@ func (cs *CouchbaseQueue) Pop(valuePtr interface{}) error {
 		defer span.End()
 		for i := 0; i < 16; i++ {
 			ops := make([]LookupInSpec, 1)
-			ops[0] = GetSpec("[-1]", nil)
+			ops[0] = GetSpec("[-1]", nil) //nolint:gosec
 			content, err := agent.LookupIn(cs.collection, cs.id, ops, &LookupInOptions{
 				ParentSpan: span,
 			})

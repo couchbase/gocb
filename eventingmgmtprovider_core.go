@@ -226,9 +226,10 @@ func (ef *EventingFunction) toJSONEventingFunction() jsonEventingFunction {
 	}
 
 	var n1qlConsistency string
-	if ef.Settings.QueryConsistency == QueryScanConsistencyNotBounded {
+	switch ef.Settings.QueryConsistency {
+	case QueryScanConsistencyNotBounded:
 		n1qlConsistency = "none"
-	} else if ef.Settings.QueryConsistency == QueryScanConsistencyRequestPlus {
+	case QueryScanConsistencyRequestPlus:
 		n1qlConsistency = "request"
 	}
 

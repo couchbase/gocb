@@ -168,9 +168,9 @@ type UserAndMetadata struct {
 }
 
 func (um *UserAndMetadata) fromData(data jsonUserMetadata) error {
-	um.User.Username = data.ID
-	um.User.DisplayName = data.Name
-	um.User.Groups = data.Groups
+	um.Username = data.ID
+	um.DisplayName = data.Name
+	um.Groups = data.Groups
 
 	um.ExternalGroups = data.ExternalGroups
 	um.Domain = data.Domain
@@ -200,7 +200,7 @@ func (um *UserAndMetadata) fromData(data jsonUserMetadata) error {
 		}
 	}
 	um.EffectiveRoles = effectiveRoles
-	um.User.Roles = roles
+	um.Roles = roles
 
 	return nil
 }

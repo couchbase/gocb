@@ -1,11 +1,8 @@
 package gocb
 
 import (
-	"fmt"
-	"log"
-	"strings"
-
 	gocbcore "github.com/couchbase/gocbcore/v10"
+	"log"
 )
 
 // LogLevel specifies the severity of a log message.
@@ -150,9 +147,4 @@ func logWarnf(format string, v ...interface{}) {
 
 func logErrorf(format string, v ...interface{}) {
 	logExf(LogError, 1, format, v...)
-}
-
-func reindentLog(indent, message string) string {
-	reindentedMessage := strings.Replace(message, "\n", "\n"+indent, -1)
-	return fmt.Sprintf("%s%s", indent, reindentedMessage)
 }

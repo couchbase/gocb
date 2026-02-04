@@ -83,7 +83,7 @@ func (p *kvBulkProviderPs) Get(ctx context.Context, item *GetOp, parentSpan Requ
 	transcoder Transcoder, signal chan BulkOp) {
 	span := p.StartKvOpTrace(c, "get", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "get", start, &c.keyspace, item.Err)
 	}
@@ -127,7 +127,7 @@ func (p *kvBulkProviderPs) GetAndTouch(ctx context.Context, item *GetAndTouchOp,
 	transcoder Transcoder, signal chan BulkOp) {
 	span := p.StartKvOpTrace(c, "get_and_touch", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "get_and_touch", start, &c.keyspace, item.Err)
 	}
@@ -175,7 +175,7 @@ func (p *kvBulkProviderPs) Touch(ctx context.Context, item *TouchOp, parentSpan 
 	signal chan BulkOp) {
 	span := p.StartKvOpTrace(c, "touch", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "touch", start, &c.keyspace, item.Err)
 	}
@@ -213,7 +213,7 @@ func (p *kvBulkProviderPs) Remove(ctx context.Context, item *RemoveOp, parentSpa
 	signal chan BulkOp) {
 	span := p.StartKvOpTrace(c, "remove", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "remove", start, &c.keyspace, item.Err)
 	}
@@ -256,7 +256,7 @@ func (p *kvBulkProviderPs) Upsert(ctx context.Context, item *UpsertOp, parentSpa
 	transcoder Transcoder, signal chan BulkOp) {
 	span := p.StartKvOpTrace(c, "upsert", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "upsert", start, &c.keyspace, item.Err)
 	}
@@ -311,7 +311,7 @@ func (p *kvBulkProviderPs) Insert(ctx context.Context, item *InsertOp, parentSpa
 	transcoder Transcoder, signal chan BulkOp) {
 	span := p.StartKvOpTrace(c, "insert", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "insert", start, &c.keyspace, item.Err)
 	}
@@ -366,7 +366,7 @@ func (p *kvBulkProviderPs) Replace(ctx context.Context, item *ReplaceOp, parentS
 	transcoder Transcoder, signal chan BulkOp) {
 	span := p.StartKvOpTrace(c, "replace", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "replace", start, &c.keyspace, item.Err)
 	}
@@ -427,7 +427,7 @@ func (p *kvBulkProviderPs) Append(ctx context.Context, item *AppendOp, parentSpa
 	signal chan BulkOp) {
 	span := p.StartKvOpTrace(c, "append", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "append", start, &c.keyspace, item.Err)
 	}
@@ -463,7 +463,7 @@ func (p *kvBulkProviderPs) Prepend(ctx context.Context, item *PrependOp, parentS
 	signal chan BulkOp) {
 	span := p.StartKvOpTrace(c, "prepend", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "prepend", start, &c.keyspace, item.Err)
 	}
@@ -499,7 +499,7 @@ func (p *kvBulkProviderPs) Increment(ctx context.Context, item *IncrementOp, par
 	signal chan BulkOp) {
 	span := p.StartKvOpTrace(c, "increment", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "increment", start, &c.keyspace, item.Err)
 	}
@@ -540,7 +540,7 @@ func (p *kvBulkProviderPs) Decrement(ctx context.Context, item *DecrementOp, par
 	signal chan BulkOp) {
 	span := p.StartKvOpTrace(c, "decrement", parentSpan, false)
 	start := time.Now()
-	item.bulkOp.finishFn = func() {
+	item.finishFn = func() {
 		span.End()
 		p.meter.ValueRecord(serviceValueKV, "decrement", start, &c.keyspace, item.Err)
 	}

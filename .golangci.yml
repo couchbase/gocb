@@ -1,23 +1,21 @@
+version: "2"
 run:
   tests: false
-  skip-files:
-    - logging.go  # Logging has some utility functions that are useful to have around which get flagged up
 linters:
   enable:
     - bodyclose
-    - revive
     - gosec
+    - revive
     - unconvert
-linters-settings:
-  revive:
-    set-exit-status: true
-    min-confidence: 0.81
-    rules:
-      - name: var-naming
-        arguments: [["URL"]]
-  errcheck:
-    check-type-assertions: true
-    check-blank: true
-  gosec:
-    excludes:
-      - G115 # Potential integer overflow when converting between integer types - TODO(GOCBC-1668): Fix all instances of this and remove the exclusion
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+    gosec:
+      excludes:
+        - G115
+    revive:
+      rules:
+        - name: var-naming
+          arguments:
+            - - URL

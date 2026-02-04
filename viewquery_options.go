@@ -87,13 +87,14 @@ func (opts *ViewOptions) toURLValues() (*url.Values, error) {
 	options := &url.Values{}
 
 	if opts.ScanConsistency != 0 {
-		if opts.ScanConsistency == ViewScanConsistencyRequestPlus {
+		switch opts.ScanConsistency {
+		case ViewScanConsistencyRequestPlus:
 			options.Set("stale", "false")
-		} else if opts.ScanConsistency == ViewScanConsistencyNotBounded {
+		case ViewScanConsistencyNotBounded:
 			options.Set("stale", "ok")
-		} else if opts.ScanConsistency == ViewScanConsistencyUpdateAfter {
+		case ViewScanConsistencyUpdateAfter:
 			options.Set("stale", "update_after")
-		} else {
+		default:
 			return nil, makeInvalidArgumentsError("unexpected stale option")
 		}
 	}
@@ -107,11 +108,12 @@ func (opts *ViewOptions) toURLValues() (*url.Values, error) {
 	}
 
 	if opts.Order != 0 {
-		if opts.Order == ViewOrderingAscending {
+		switch opts.Order {
+		case ViewOrderingAscending:
 			options.Set("descending", "false")
-		} else if opts.Order == ViewOrderingDescending {
+		case ViewOrderingDescending:
 			options.Set("descending", "true")
-		} else {
+		default:
 			return nil, makeInvalidArgumentsError("unexpected order option")
 		}
 	}
@@ -187,11 +189,12 @@ func (opts *ViewOptions) toURLValues() (*url.Values, error) {
 	}
 
 	if opts.OnError > 0 {
-		if opts.OnError == ViewErrorModeContinue {
+		switch opts.OnError {
+		case ViewErrorModeContinue:
 			options.Set("on_error", "continue")
-		} else if opts.OnError == ViewErrorModeStop {
+		case ViewErrorModeStop:
 			options.Set("on_error", "stop")
-		} else {
+		default:
 			return nil, makeInvalidArgumentsError("unexpected onerror option")
 		}
 	}

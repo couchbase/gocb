@@ -107,11 +107,12 @@ func (opts *QueryOptions) toMap() (map[string]interface{}, error) {
 	}
 
 	if opts.ScanConsistency != 0 {
-		if opts.ScanConsistency == QueryScanConsistencyNotBounded {
+		switch opts.ScanConsistency {
+		case QueryScanConsistencyNotBounded:
 			execOpts["scan_consistency"] = "not_bounded"
-		} else if opts.ScanConsistency == QueryScanConsistencyRequestPlus {
+		case QueryScanConsistencyRequestPlus:
 			execOpts["scan_consistency"] = "request_plus"
-		} else {
+		default:
 			return nil, makeInvalidArgumentsError("Unexpected consistency option")
 		}
 	}
@@ -187,11 +188,12 @@ func (opts *QueryOptions) toMap() (map[string]interface{}, error) {
 	}
 
 	if opts.UseReplica != QueryUseReplicaLevelNotSet {
-		if opts.UseReplica == QueryUseReplicaLevelOff {
+		switch opts.UseReplica {
+		case QueryUseReplicaLevelOff:
 			execOpts["use_replica"] = "off"
-		} else if opts.UseReplica == QueryUseReplicaLevelOn {
+		case QueryUseReplicaLevelOn:
 			execOpts["use_replica"] = "on"
-		} else {
+		default:
 			return nil, makeInvalidArgumentsError("Unexpected replica level option")
 		}
 	}

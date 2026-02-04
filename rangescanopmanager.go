@@ -480,7 +480,7 @@ func (m *rangeScanOpManager) Scan(ctx context.Context) (*ScanResult, error) {
 		// more could be false if no sampling scans returned any data, but that isn't an error case.
 		if more {
 			atomic.StoreUint32(&seenData, 1)
-			r.peeked = unsafe.Pointer(item)
+			r.peeked = unsafe.Pointer(item) //nolint:gosec
 		}
 	}
 

@@ -359,11 +359,12 @@ func (bm *bucketManagementProviderPs) settingsToCreateReq(settings CreateBucketS
 
 	if settings.HistoryRetentionCollectionDefault != HistoryRetentionCollectionDefaultUnset {
 		var val bool
-		if settings.HistoryRetentionCollectionDefault == HistoryRetentionCollectionDefaultEnabled {
+		switch settings.HistoryRetentionCollectionDefault {
+		case HistoryRetentionCollectionDefaultEnabled:
 			val = true
-		} else if settings.HistoryRetentionCollectionDefault == HistoryRetentionCollectionDefaultDisabled {
+		case HistoryRetentionCollectionDefaultDisabled:
 			val = false
-		} else {
+		default:
 			return nil, makeInvalidArgumentsError("unrecognized history retention collection default value")
 		}
 		request.HistoryRetentionCollectionDefault = &val
@@ -429,11 +430,12 @@ func (bm *bucketManagementProviderPs) settingsToUpdateReq(settings BucketSetting
 
 	if settings.HistoryRetentionCollectionDefault != HistoryRetentionCollectionDefaultUnset {
 		var val bool
-		if settings.HistoryRetentionCollectionDefault == HistoryRetentionCollectionDefaultEnabled {
+		switch settings.HistoryRetentionCollectionDefault {
+		case HistoryRetentionCollectionDefaultEnabled:
 			val = true
-		} else if settings.HistoryRetentionCollectionDefault == HistoryRetentionCollectionDefaultDisabled {
+		case HistoryRetentionCollectionDefaultDisabled:
 			val = false
-		} else {
+		default:
 			return nil, makeInvalidArgumentsError("unrecognized history retention collection default value")
 		}
 		request.HistoryRetentionCollectionDefault = &val
