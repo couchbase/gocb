@@ -34,8 +34,8 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 		return nil, wrapError(ErrFeatureNotAvailable, "the Raw search option is not supported by the couchbase2 protocol")
 	}
 
-	manager := search.managerProvider.NewManager(opts.ParentSpan, "search", map[string]interface{}{
-		"db.operation": indexName,
+	manager := search.managerProvider.NewManager(opts.ParentSpan, "search", psOpSpanAttributes{
+		legacyOpName: indexName,
 	})
 	// Spans in couchbase2 mode need to live for the lifetime of the response body as any underlying
 	// grpc span will do so.
@@ -138,7 +138,7 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 	}()
 
 	var firstRows *search_v1.SearchQueryResponse
-	client, err := wrapPSOpCtxWithPeek(reqCtx, manager, &request, manager.TraceSpan(), search.provider.SearchQuery, func(client search_v1.SearchService_SearchQueryClient) error {
+	client, err := wrapPSOpCtxWithPeek(reqCtx, manager, &request, manager.TraceSpan().Wrapped(), search.provider.SearchQuery, func(client search_v1.SearchService_SearchQueryClient) error {
 		var err error
 		firstRows, err = client.Recv()
 		if err != nil {

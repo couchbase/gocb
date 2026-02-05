@@ -102,6 +102,7 @@ type ThresholdLoggingOptions struct {
 	SearchThreshold     time.Duration
 	AnalyticsThreshold  time.Duration
 	ManagementThreshold time.Duration
+	EventingThreshold   time.Duration
 }
 
 // ThresholdLoggingTracer is a specialized Tracer implementation which will automatically
@@ -118,6 +119,7 @@ type ThresholdLoggingTracer struct {
 	SearchThreshold     time.Duration
 	AnalyticsThreshold  time.Duration
 	ManagementThreshold time.Duration
+	EventingThreshold   time.Duration
 
 	killCh   chan struct{}
 	refCount int32
@@ -156,6 +158,9 @@ func NewThresholdLoggingTracer(opts *ThresholdLoggingOptions) *ThresholdLoggingT
 	if opts.ManagementThreshold == 0 {
 		opts.ManagementThreshold = 1 * time.Second
 	}
+	if opts.EventingThreshold == 0 {
+		opts.EventingThreshold = 1 * time.Second
+	}
 
 	t := &ThresholdLoggingTracer{
 		Interval:            opts.Interval,
@@ -167,16 +172,18 @@ func NewThresholdLoggingTracer(opts *ThresholdLoggingOptions) *ThresholdLoggingT
 		SearchThreshold:     opts.SearchThreshold,
 		AnalyticsThreshold:  opts.AnalyticsThreshold,
 		ManagementThreshold: opts.ManagementThreshold,
+		EventingThreshold:   opts.EventingThreshold,
 	}
 
 	t.groups = map[string]*thresholdLogGroup{
-		"kv":         initThresholdLogGroup("kv", t.KVThreshold, t.SampleSize),
-		"kv_scan":    initThresholdLogGroup("kv_scan", t.KVScanThreshold, t.SampleSize),
-		"views":      initThresholdLogGroup("views", t.ViewsThreshold, t.SampleSize),
-		"query":      initThresholdLogGroup("query", t.QueryThreshold, t.SampleSize),
-		"search":     initThresholdLogGroup("search", t.SearchThreshold, t.SampleSize),
-		"analytics":  initThresholdLogGroup("analytics", t.AnalyticsThreshold, t.SampleSize),
-		"management": initThresholdLogGroup("management", t.ManagementThreshold, t.SampleSize),
+		serviceAttribValueKV:         initThresholdLogGroup(serviceAttribValueKV, t.KVThreshold, t.SampleSize),
+		serviceAttribValueKVScan:     initThresholdLogGroup(serviceAttribValueKVScan, t.KVScanThreshold, t.SampleSize),
+		serviceAttribValueViews:      initThresholdLogGroup(serviceAttribValueViews, t.ViewsThreshold, t.SampleSize),
+		serviceAttribValueQuery:      initThresholdLogGroup(serviceAttribValueQuery, t.QueryThreshold, t.SampleSize),
+		serviceAttribValueSearch:     initThresholdLogGroup(serviceAttribValueSearch, t.SearchThreshold, t.SampleSize),
+		serviceAttribValueAnalytics:  initThresholdLogGroup(serviceAttribValueAnalytics, t.AnalyticsThreshold, t.SampleSize),
+		serviceAttribValueManagement: initThresholdLogGroup(serviceAttribValueManagement, t.ManagementThreshold, t.SampleSize),
+		serviceAttribValueEventing:   initThresholdLogGroup(serviceAttribValueEventing, t.EventingThreshold, t.SampleSize),
 	}
 
 	if t.killCh == nil {
@@ -306,20 +313,20 @@ func (t *ThresholdLoggingTracer) loggerRoutine() {
 
 func (t *ThresholdLoggingTracer) recordOp(span *thresholdLogSpan) {
 	switch span.serviceName {
-	case "mgmt":
-		t.groups["management"].recordOp(span)
-	case "kv":
-		t.groups["kv"].recordOp(span)
-	case "kv_scan":
-		t.groups["kv_scan"].recordOp(span)
-	case "views":
-		t.groups["views"].recordOp(span)
-	case "query":
-		t.groups["query"].recordOp(span)
-	case "search":
-		t.groups["search"].recordOp(span)
-	case "analytics":
-		t.groups["analytics"].recordOp(span)
+	case serviceAttribValueManagement:
+		t.groups[serviceAttribValueManagement].recordOp(span)
+	case serviceAttribValueKV:
+		t.groups[serviceAttribValueKV].recordOp(span)
+	case serviceAttribValueKVScan:
+		t.groups[serviceAttribValueKVScan].recordOp(span)
+	case serviceAttribValueViews:
+		t.groups[serviceAttribValueViews].recordOp(span)
+	case serviceAttribValueQuery:
+		t.groups[serviceAttribValueQuery].recordOp(span)
+	case serviceAttribValueSearch:
+		t.groups[serviceAttribValueSearch].recordOp(span)
+	case serviceAttribValueAnalytics:
+		t.groups[serviceAttribValueAnalytics].recordOp(span)
 	}
 }
 
@@ -372,38 +379,26 @@ func (n *thresholdLogSpan) SetAttribute(key string, value interface{}) {
 	var ok bool
 
 	switch key {
-	case spanAttribServerDurationKey:
-		if n.serverDuration, ok = value.(time.Duration); !ok {
-			logDebugf("Failed to cast span db.couchbase.server_duration tag")
-		}
-	case spanAttribServiceKey:
-		if n.serviceName, ok = value.(string); !ok {
-			logDebugf("Failed to cast span db.couchbase.service tag")
-		}
-	case spanAttribNetPeerNameKey:
-		if n.peerAddress, ok = value.(string); !ok {
-			logDebugf("Failed to cast span net.peer.name tag")
-		}
-	case spanAttribNetHostNameKey:
-		if n.localAddress, ok = value.(string); !ok {
-			logDebugf("Failed to cast span net.host.local tag")
-		}
-	case spanAttribOperationIDKey:
-		if n.lastOperationID, ok = value.(string); !ok {
-			logDebugf("Failed to cast span db.couchbase.operation_id tag")
-		}
-	case spanAttribLocalIDKey:
-		if n.lastLocalID, ok = value.(string); !ok {
-			logDebugf("Failed to cast span db.couchbase.local_id tag")
-		}
-	case spanAttribNetPeerPortKey:
-		if n.peerPort, ok = value.(string); !ok {
-			logDebugf("Failed to cast span net.peer.port tag")
-		}
-	case spanAttribNetHostPortKey:
-		if n.localPort, ok = value.(string); !ok {
-			logDebugf("Failed to cast span net.host.port tag")
-		}
+	case spanLegacyAttribServerDuration, spanStableAttribServerDuration:
+		n.serverDuration, ok = value.(time.Duration)
+	case spanLegacyAttribService, spanStableAttribService:
+		n.serviceName, ok = value.(string)
+	case spanLegacyAttribNetPeerName, spanStableAttribNetPeerAddress:
+		n.peerAddress, ok = value.(string)
+	case spanLegacyAttribNetHostName:
+		n.localAddress, ok = value.(string)
+	case spanLegacyAttribOperationID, spanStableAttribOperationID:
+		n.lastOperationID, ok = value.(string)
+	case spanLegacyAttribLocalID, spanStableAttribLocalID:
+		n.lastLocalID, ok = value.(string)
+	case spanLegacyAttribNetPeerPort, spanStableAttribNetPeerPort:
+		n.peerPort, ok = value.(string)
+	case spanLegacyAttribNetHostPort:
+		n.localPort, ok = value.(string)
+	}
+
+	if !ok {
+		logDebugf("Failed to cast span %s tag", key)
 	}
 }
 

@@ -109,6 +109,7 @@ func connectStdConnectionMgr(opts newConnectionMgrOptions) (*stdConnectionMgr, e
 			TelemetryConfig: gocbcore.TelemetryConfig{
 				TelemetryReporter: appTelemetryReporter,
 			},
+			ObservabilityConfig: opts.observabilityConfig.toCore(),
 		},
 	}
 
@@ -781,4 +782,17 @@ func (c *stdConnectionMgr) close() error {
 
 func (c *stdConnectionMgr) getMeter() *meterWrapper {
 	return c.meter
+}
+
+func (cfg *ObservabilityConfig) toCore() gocbcore.ObservabilityConfig {
+	var res gocbcore.ObservabilityConfig
+	for _, convention := range cfg.SemanticConventionOptIn {
+		switch convention {
+		case ObservabilitySemanticConventionDatabase:
+			res.SemanticConventionOptIn = append(res.SemanticConventionOptIn, gocbcore.ObservabilitySemanticConventionDatabase)
+		case ObservabilitySemanticConventionDatabaseDup:
+			res.SemanticConventionOptIn = append(res.SemanticConventionOptIn, gocbcore.ObservabilitySemanticConventionDatabaseDup)
+		}
+	}
+	return res
 }

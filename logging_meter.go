@@ -83,22 +83,25 @@ func newAggregatingMeter(opts *LoggingMeterOptions) *LoggingMeter {
 	am := &LoggingMeter{
 		interval: interval,
 		valueRecorderGroups: map[string]*aggregatingMeterGroup{
-			serviceValueKV: {
+			serviceAttribValueKV: {
 				recorders: make(map[string]*aggregatingValueRecorder),
 			},
-			serviceValueViews: {
+			serviceAttribValueViews: {
 				recorders: make(map[string]*aggregatingValueRecorder),
 			},
-			serviceValueQuery: {
+			serviceAttribValueQuery: {
 				recorders: make(map[string]*aggregatingValueRecorder),
 			},
-			serviceValueSearch: {
+			serviceAttribValueSearch: {
 				recorders: make(map[string]*aggregatingValueRecorder),
 			},
-			serviceValueAnalytics: {
+			serviceAttribValueAnalytics: {
 				recorders: make(map[string]*aggregatingValueRecorder),
 			},
-			serviceValueManagement: {
+			serviceAttribValueManagement: {
+				recorders: make(map[string]*aggregatingValueRecorder),
+			},
+			serviceAttribValueEventing: {
 				recorders: make(map[string]*aggregatingValueRecorder),
 			},
 		},
@@ -172,32 +175,52 @@ func (am *LoggingMeter) Counter(_ string, _ map[string]string) (Counter, error) 
 }
 
 func (am *LoggingMeter) ValueRecorder(name string, tags map[string]string) (ValueRecorder, error) {
-	if name != meterNameCBOperations {
+	if name != meterNameCBOperations && name != meterNameDBClientOperationDuration {
 		return defaultNoopValueRecorder, nil
 	}
+	usingStableConventions := name == meterNameDBClientOperationDuration
 
-	service, ok := tags[meterAttribServiceKey]
+	var service string
+	var ok bool
+	if usingStableConventions {
+		service, ok = tags[meterStableAttribService]
+	} else {
+		service, ok = tags[meterLegacyAttribService]
+	}
 	if !ok {
 		return defaultNoopValueRecorder, nil
 	}
 
-	if _, ok := am.valueRecorderGroups[service]; !ok {
-		return defaultNoopValueRecorder, nil
+	var operationName string
+	if usingStableConventions {
+		operationName, ok = tags[meterStableAttribOperationName]
+	} else {
+		operationName, ok = tags[meterLegacyAttribOperationName]
 	}
-
-	operationName, ok := tags[meterAttribOperationKey]
 	if !ok {
 		return defaultNoopValueRecorder, nil
 	}
+
 	// We don't need to lock around accessing recorder groups itself, it must never be modified.
-	recorderGroup := am.valueRecorderGroups[service]
+	recorderGroup, ok := am.valueRecorderGroups[service]
+	if !ok {
+		return defaultNoopValueRecorder, nil
+	}
+
 	recorderGroup.lock.Lock()
+	defer recorderGroup.lock.Unlock()
+
 	recorder := recorderGroup.recorders[operationName]
 	if recorder == nil {
-		recorder = newAggregatingValueRecorder(operationName)
+		// We don't mind if the value recorder uses the stable or legacy metrics, whichever comes first.
+		// Both are reporting the same metrics.
+		recorder = newAggregatingValueRecorder(operationName, usingStableConventions)
 		recorderGroup.recorders[operationName] = recorder
+	} else if usingStableConventions != recorder.usingStableConventions {
+		// The same metrics are being reported with the recorder using the opposite conventions.
+		// Returning a noop recorder to avoid double counting.
+		return defaultNoopValueRecorder, nil
 	}
-	recorderGroup.lock.Unlock()
 
 	return recorder, nil
 }
@@ -286,14 +309,16 @@ func (lhs *cumulativeLatencyHistogram) BinAtPercentile(percentile float64) strin
 }
 
 type aggregatingValueRecorder struct {
-	operationName string
-	hist          *latencyHistogram
+	operationName          string
+	hist                   *latencyHistogram
+	usingStableConventions bool
 }
 
-func newAggregatingValueRecorder(operationName string) *aggregatingValueRecorder {
+func newAggregatingValueRecorder(operationName string, usingStableConventions bool) *aggregatingValueRecorder {
 	return &aggregatingValueRecorder{
-		operationName: operationName,
-		hist:          newLatencyHistogram(2000000, 1000, 1.5),
+		operationName:          operationName,
+		hist:                   newLatencyHistogram(2000000, 1000, 1.5),
+		usingStableConventions: usingStableConventions,
 	}
 }
 

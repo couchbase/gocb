@@ -34,6 +34,27 @@ type TimeoutsConfig struct {
 	ManagementTimeout time.Duration
 }
 
+type ObservabilitySemanticConvention uint8
+
+const (
+	// ObservabilitySemanticConventionDatabase specifies that the client should only emit the stable database
+	// semantic conventions, and stop emitting the legacy ones.
+	ObservabilitySemanticConventionDatabase ObservabilitySemanticConvention = iota + 1
+
+	// ObservabilitySemanticConventionDatabaseDup specifies that the client should emit both the stable database
+	// semantic conventions. This is intended to allow a phased transition to the stable conventions.
+	// This option has higher precedence than ObservabilitySemanticConventionDatabase if both are specified.
+	ObservabilitySemanticConventionDatabaseDup
+)
+
+// ObservabilityConfig specifies options for controlling the spans and metrics emitted to the Tracer and Meter.
+type ObservabilityConfig struct {
+	// SemanticConventionOptIn allows controlling which semantic conventions (span attribute names, metric names, etc.)
+	// the client should emit. By default, the legacy conventions are emitted for backwards compatibility. This option
+	// can be used to opt in to stable conventions and/or opt out of legacy ones.
+	SemanticConventionOptIn []ObservabilitySemanticConvention
+}
+
 // OrphanReporterConfig specifies options for controlling the orphan
 // reporter which records when the SDK receives responses for requests
 // that are no longer in the system (usually due to being timed out).
@@ -119,7 +140,11 @@ type ClusterOptions struct {
 	// Tracer specifies the tracer to use for requests.
 	Tracer RequestTracer
 
+	// Meter specifies the meter to use for metrics reporting.
 	Meter Meter
+
+	// ObservabilityConfig specifies options related to the spans and metrics emitted to the Tracer and Meter.
+	ObservabilityConfig ObservabilityConfig
 
 	// OrphanReporterConfig specifies options for the orphan reporter.
 	OrphanReporterConfig OrphanReporterConfig
@@ -289,7 +314,7 @@ func (c *Cluster) analyticsController() *providerController[analyticsProvider] {
 
 		meter:    c.connectionManager.getMeter(),
 		keyspace: nil,
-		service:  serviceValueAnalytics,
+		service:  serviceAttribValueAnalytics,
 	}
 }
 
@@ -309,7 +334,7 @@ func (c *Cluster) queryController() *providerController[queryProvider] {
 
 		meter:    c.connectionManager.getMeter(),
 		keyspace: nil,
-		service:  serviceValueQuery,
+		service:  serviceAttribValueQuery,
 	}
 }
 
@@ -320,7 +345,7 @@ func (c *Cluster) searchController() *providerController[searchProvider] {
 
 		meter:    c.connectionManager.getMeter(),
 		keyspace: nil,
-		service:  serviceValueSearch,
+		service:  serviceAttribValueSearch,
 	}
 }
 
@@ -347,7 +372,7 @@ func (c *Cluster) Users() *UserManager {
 
 			meter:    c.connectionManager.getMeter(),
 			keyspace: nil,
-			service:  serviceValueManagement,
+			service:  serviceAttribValueManagement,
 		},
 	}
 }
@@ -361,7 +386,7 @@ func (c *Cluster) Buckets() *BucketManager {
 
 			meter:    c.connectionManager.getMeter(),
 			keyspace: nil,
-			service:  serviceValueManagement,
+			service:  serviceAttribValueManagement,
 		},
 	}
 }
@@ -375,7 +400,7 @@ func (c *Cluster) AnalyticsIndexes() *AnalyticsIndexManager {
 
 			meter:    c.connectionManager.getMeter(),
 			keyspace: nil,
-			service:  serviceValueAnalytics,
+			service:  serviceAttribValueAnalytics,
 		},
 	}
 }
@@ -389,7 +414,7 @@ func (c *Cluster) QueryIndexes() *QueryIndexManager {
 
 			meter:    c.connectionManager.getMeter(),
 			keyspace: nil,
-			service:  serviceValueQuery,
+			service:  serviceAttribValueQuery,
 		},
 	}
 }
@@ -403,7 +428,7 @@ func (c *Cluster) SearchIndexes() *SearchIndexManager {
 
 			meter:    c.connectionManager.getMeter(),
 			keyspace: nil,
-			service:  serviceValueSearch,
+			service:  serviceAttribValueSearch,
 		},
 	}
 }
@@ -421,7 +446,7 @@ func (c *Cluster) EventingFunctions() *EventingFunctionManager {
 
 			meter:    c.connectionManager.getMeter(),
 			keyspace: nil,
-			service:  serviceValueEventing,
+			service:  serviceAttribValueEventing,
 		},
 	}
 }

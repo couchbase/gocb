@@ -14,14 +14,25 @@ type searchIndexProviderPs struct {
 
 var _ searchIndexProvider = (*searchIndexProviderPs)(nil)
 
-func (sip *searchIndexProviderPs) newOpManager(parentSpan RequestSpan, opName string, attribs map[string]interface{}) *psOpManagerDefault {
+func (sip *searchIndexProviderPs) newOpManager(parentSpan RequestSpan, opName string, attribs psOpSpanAttributes) *psOpManagerDefault {
 	return sip.managerProvider.NewManager(parentSpan, opName, attribs)
 }
 
+func (sip *searchIndexProviderPs) createSpanAttributes(scope *Scope, rpcName string) psOpSpanAttributes {
+	attributes := psOpSpanAttributes{
+		legacyOpName: rpcName,
+	}
+
+	if scope != nil {
+		attributes.bucketName = scope.BucketName()
+		attributes.scopeName = scope.Name()
+	}
+
+	return attributes
+}
+
 func (sip *searchIndexProviderPs) GetAllIndexes(scope *Scope, opts *GetAllSearchIndexOptions) ([]SearchIndex, error) {
-	manager := sip.newOpManager(opts.ParentSpan, "manager_search_get_all_indexes", map[string]interface{}{
-		"db.operation": "ListIndexes",
-	})
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_get_all_indexes", sip.createSpanAttributes(scope, "ListIndexes"))
 	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
@@ -79,9 +90,7 @@ func (sip *searchIndexProviderPs) GetAllIndexes(scope *Scope, opts *GetAllSearch
 }
 
 func (sip *searchIndexProviderPs) GetIndex(scope *Scope, indexName string, opts *GetSearchIndexOptions) (*SearchIndex, error) {
-	manager := sip.newOpManager(opts.ParentSpan, "manager_search_get_index", map[string]interface{}{
-		"db.operation": "GetIndex",
-	})
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_get_index", sip.createSpanAttributes(scope, "GetIndex"))
 	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
@@ -144,9 +153,7 @@ func (sip *searchIndexProviderPs) UpsertIndex(scope *Scope, indexDefinition Sear
 }
 
 func (sip *searchIndexProviderPs) updateIndex(scope *Scope, index SearchIndex, opts *UpsertSearchIndexOptions) error {
-	manager := sip.newOpManager(opts.ParentSpan, "manager_search_upsert_index", map[string]interface{}{
-		"db.operation": "UpdateIndex",
-	})
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_upsert_index", sip.createSpanAttributes(scope, "UpdateIndex"))
 	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
@@ -179,9 +186,7 @@ func (sip *searchIndexProviderPs) updateIndex(scope *Scope, index SearchIndex, o
 }
 
 func (sip *searchIndexProviderPs) createIndex(scope *Scope, index SearchIndex, opts *UpsertSearchIndexOptions) error {
-	manager := sip.newOpManager(opts.ParentSpan, "manager_search_upsert_index", map[string]interface{}{
-		"db.operation": "CreateIndex",
-	})
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_upsert_index", sip.createSpanAttributes(scope, "CreateIndex"))
 	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
@@ -240,9 +245,7 @@ func (sip *searchIndexProviderPs) createIndex(scope *Scope, index SearchIndex, o
 }
 
 func (sip *searchIndexProviderPs) DropIndex(scope *Scope, indexName string, opts *DropSearchIndexOptions) error {
-	manager := sip.newOpManager(opts.ParentSpan, "manager_search_drop_index", map[string]interface{}{
-		"db.operation": "DeleteIndex",
-	})
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_drop_index", sip.createSpanAttributes(scope, "DeleteIndex"))
 	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
@@ -272,9 +275,7 @@ func (sip *searchIndexProviderPs) DropIndex(scope *Scope, indexName string, opts
 }
 
 func (sip *searchIndexProviderPs) AnalyzeDocument(scope *Scope, indexName string, doc interface{}, opts *AnalyzeDocumentOptions) ([]interface{}, error) {
-	manager := sip.newOpManager(opts.ParentSpan, "manager_search_analyze_document", map[string]interface{}{
-		"db.operation": "AnalyzeDocument",
-	})
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_analyze_document", sip.createSpanAttributes(scope, "AnalyzeDocument"))
 	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
@@ -316,9 +317,7 @@ func (sip *searchIndexProviderPs) AnalyzeDocument(scope *Scope, indexName string
 }
 
 func (sip *searchIndexProviderPs) GetIndexedDocumentsCount(scope *Scope, indexName string, opts *GetIndexedDocumentsCountOptions) (uint64, error) {
-	manager := sip.newOpManager(opts.ParentSpan, "manager_search_get_indexed_documents_count", map[string]interface{}{
-		"db.operation": "GetIndexedDocumentsCount",
-	})
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_get_indexed_documents_count", sip.createSpanAttributes(scope, "GetIndexedDocumentsCount"))
 	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
@@ -344,9 +343,7 @@ func (sip *searchIndexProviderPs) GetIndexedDocumentsCount(scope *Scope, indexNa
 }
 
 func (sip *searchIndexProviderPs) PauseIngest(scope *Scope, indexName string, opts *PauseIngestSearchIndexOptions) error {
-	manager := sip.newOpManager(opts.ParentSpan, "manager_search_pause_ingest", map[string]interface{}{
-		"db.operation": "PauseIndexIngest",
-	})
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_pause_ingest", sip.createSpanAttributes(scope, "PauseIndexIngest"))
 	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
@@ -372,9 +369,7 @@ func (sip *searchIndexProviderPs) PauseIngest(scope *Scope, indexName string, op
 }
 
 func (sip *searchIndexProviderPs) ResumeIngest(scope *Scope, indexName string, opts *ResumeIngestSearchIndexOptions) error {
-	manager := sip.newOpManager(opts.ParentSpan, "manager_search_resume_ingest", map[string]interface{}{
-		"db.operation": "ResumeIndexIngest",
-	})
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_resume_ingest", sip.createSpanAttributes(scope, "ResumeIndexIngest"))
 	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
@@ -400,9 +395,7 @@ func (sip *searchIndexProviderPs) ResumeIngest(scope *Scope, indexName string, o
 }
 
 func (sip *searchIndexProviderPs) AllowQuerying(scope *Scope, indexName string, opts *AllowQueryingSearchIndexOptions) error {
-	manager := sip.newOpManager(opts.ParentSpan, "manager_search_allow_querying", map[string]interface{}{
-		"db.operation": "AllowIndexQuerying",
-	})
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_allow_querying", sip.createSpanAttributes(scope, "AllowIndexQuerying"))
 	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
@@ -428,9 +421,7 @@ func (sip *searchIndexProviderPs) AllowQuerying(scope *Scope, indexName string, 
 }
 
 func (sip *searchIndexProviderPs) DisallowQuerying(scope *Scope, indexName string, opts *DisallowQueryingSearchIndexOptions) error {
-	manager := sip.newOpManager(opts.ParentSpan, "manager_search_disallow_querying", map[string]interface{}{
-		"db.operation": "DisallowIndexQuerying",
-	})
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_disallow_querying", sip.createSpanAttributes(scope, "DisallowIndexQuerying"))
 	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
@@ -456,9 +447,7 @@ func (sip *searchIndexProviderPs) DisallowQuerying(scope *Scope, indexName strin
 }
 
 func (sip *searchIndexProviderPs) FreezePlan(scope *Scope, indexName string, opts *FreezePlanSearchIndexOptions) error {
-	manager := sip.newOpManager(opts.ParentSpan, "manager_search_freeze_plan", map[string]interface{}{
-		"db.operation": "FreezeIndexPlan",
-	})
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_freeze_plan", sip.createSpanAttributes(scope, "FreezeIndexPlan"))
 	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
@@ -484,9 +473,7 @@ func (sip *searchIndexProviderPs) FreezePlan(scope *Scope, indexName string, opt
 }
 
 func (sip *searchIndexProviderPs) UnfreezePlan(scope *Scope, indexName string, opts *UnfreezePlanSearchIndexOptions) error {
-	manager := sip.newOpManager(opts.ParentSpan, "manager_search_unfreeze_plan", map[string]interface{}{
-		"db.operation": "UnfreezeIndexPlan",
-	})
+	manager := sip.newOpManager(opts.ParentSpan, "manager_search_unfreeze_plan", sip.createSpanAttributes(scope, "UnfreezeIndexPlan"))
 	defer manager.Finish()
 
 	manager.SetContext(opts.Context)

@@ -5,7 +5,7 @@ import (
 )
 
 type kvProvider interface {
-	Insert(*Collection, string, interface{}, *InsertOptions) (*MutationResult, error)   // Done
+	Insert(*Collection, string, interface{}, *InsertOptions) (*MutationResult, error)
 	Upsert(*Collection, string, interface{}, *UpsertOptions) (*MutationResult, error)   // Done
 	Replace(*Collection, string, interface{}, *ReplaceOptions) (*MutationResult, error) // Done
 	Remove(*Collection, string, *RemoveOptions) (*MutationResult, error)                // Done
@@ -32,7 +32,7 @@ type kvProvider interface {
 
 	Scan(*Collection, ScanType, *ScanOptions) (*ScanResult, error)
 
-	StartKvOpTrace(*Collection, string, RequestSpan, bool) RequestSpan
+	StartKvOpTrace(*Collection, string, RequestSpan) *spanWrapper
 }
 
 type kvBulkProvider interface {

@@ -193,7 +193,7 @@ func (r *ViewResult) MetaData() (*ViewMetaData, error) {
 // ViewQuery performs a view query and returns a list of rows or an error.
 // Deprecated: Views are deprecated in Couchbase Server 7.0+, and will be removed from a future server version.
 func (b *Bucket) ViewQuery(designDoc string, viewName string, opts *ViewOptions) (*ViewResult, error) {
-	return autoOpControl(b.viewController(), serviceValueViews, func(provider viewProvider) (*ViewResult, error) {
+	return autoOpControl(b.viewController(), serviceAttribValueViews, func(provider viewProvider) (*ViewResult, error) {
 		if opts == nil {
 			opts = &ViewOptions{}
 		}

@@ -153,7 +153,7 @@ func (p *kvProviderCore) waitForDurability(
 	for replicaIdx := 0; replicaIdx < numServers; replicaIdx++ {
 		wg.Add(1)
 		go func(ridx int) {
-			p.observeOne(ctx, c, observeOpm.TraceSpan(), docID, mt, ridx, replicaCh, persistCh, subOpCancelCh,
+			p.observeOne(ctx, c, observeOpm.TraceSpan().Wrapped(), docID, mt, ridx, replicaCh, persistCh, subOpCancelCh,
 				time.Until(deadline), user)
 			wg.Done()
 		}(replicaIdx)

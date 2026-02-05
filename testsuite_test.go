@@ -234,39 +234,6 @@ func (suite *IntegrationTestSuite) setClusterName() {
 	})
 }
 
-func (suite *IntegrationTestSuite) AssertKVMetrics(metricName, op string, length int, atLeastLen bool) {
-	suite.AssertMetrics(makeMetricsKeyFromCmd(metricName, "kv", op), length, atLeastLen)
-}
-
-func makeMetricsKeyFromCmd(metricName, service, op string) string {
-	return makeMetricsKey(metricName, service, op)
-}
-
-func makeMetricsKey(metricName, service, op string) string {
-	key := metricName + ":" + service
-	if op != "" {
-		key = key + ":" + op
-	}
-
-	return key
-}
-
-func (suite *IntegrationTestSuite) AssertMetrics(key string, length int, atLeastLen bool) {
-	globalMeter.lock.Lock()
-	defer globalMeter.lock.Unlock()
-	recorders := globalMeter.recorders
-	if suite.Assert().Contains(recorders, key) {
-		if atLeastLen {
-			suite.Assert().GreaterOrEqual(len(recorders[key].values), length)
-		} else {
-			suite.Assert().Len(recorders[key].values, length)
-		}
-		for _, val := range recorders[key].values {
-			suite.Assert().NotZero(val)
-		}
-	}
-}
-
 func (suite *IntegrationTestSuite) ensureReplicasUpEnhDura() {
 	success := suite.tryUntil(time.Now().Add(30*time.Second), 50*time.Millisecond, func() bool {
 		_, err := globalCollection.Upsert("ensurereplicasup", "test", &UpsertOptions{

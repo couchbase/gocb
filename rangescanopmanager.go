@@ -25,7 +25,7 @@ const (
 type rangeScanOpManager struct {
 	err error
 
-	span        RequestSpan
+	span        *spanWrapper
 	transcoder  Transcoder
 	timeout     time.Duration
 	deadline    time.Time
@@ -71,12 +71,12 @@ type rangeScanVbucket struct {
 func (p *kvProviderCore) newRangeScanOpManager(c *Collection, scanType ScanType, agent kvProviderCoreProvider,
 	parentSpan RequestSpan, consistentWith *MutationState, keysOnly bool) (*rangeScanOpManager, error) {
 
-	span := p.tracer.createSpan(parentSpan, "range_scan", "kv_scan")
-	span.SetAttribute(spanAttribDBNameKey, c.bucket.Name())
-	span.SetAttribute(spanAttribDBCollectionNameKey, c.Name())
-	span.SetAttribute(spanAttribDBScopeNameKey, c.ScopeName())
-	span.SetAttribute(spanAttribOperationKey, "range_scan")
-	span.SetAttribute("without_content", keysOnly)
+	span := p.tracer.CreateOperationSpan(parentSpan, "range_scan", "kv_scan")
+	span.SetLegacyOperationName("range_scan")
+	span.SetBucketName(c.bucket.Name())
+	span.SetScopeName(c.ScopeName())
+	span.SetCollectionName(c.Name())
+	span.SetRawAttribute("without_content", keysOnly)
 
 	var rangeOptions *gocbcore.RangeScanCreateRangeScanConfig
 	var samplingOptions *gocbcore.RangeScanCreateRandomSamplingConfig
@@ -89,9 +89,9 @@ func (p *kvProviderCore) newRangeScanOpManager(c *Collection, scanType ScanType,
 			st.From = ScanTermMinimum()
 		}
 
-		span.SetAttribute("scan_type", "range")
-		span.SetAttribute("from_term", st.From.Term)
-		span.SetAttribute("to_term", st.To.Term)
+		span.SetRawAttribute("scan_type", "range")
+		span.SetRawAttribute("from_term", st.From.Term)
+		span.SetRawAttribute("to_term", st.To.Term)
 		var err error
 		rangeOptions, err = st.toCore()
 		if err != nil {
@@ -105,9 +105,9 @@ func (p *kvProviderCore) newRangeScanOpManager(c *Collection, scanType ScanType,
 		if st.Seed == 0 {
 			st.Seed = rand.Uint64() // #nosec G404
 		}
-		span.SetAttribute("scan_type", "sampling")
-		span.SetAttribute("limit", st.Limit)
-		span.SetAttribute("seed", st.Seed)
+		span.SetRawAttribute("scan_type", "sampling")
+		span.SetRawAttribute("limit", st.Limit)
+		span.SetRawAttribute("seed", st.Seed)
 		var err error
 		samplingOptions, err = st.toCore()
 		if err != nil {
@@ -205,7 +205,7 @@ func (m *rangeScanOpManager) SetCollectionID(cid uint32) {
 
 func (m *rangeScanOpManager) SetNumVbuckets(numVbuckets int) {
 	m.numVbuckets = numVbuckets
-	m.span.SetAttribute("num_partitions", numVbuckets)
+	m.span.SetRawAttribute("num_partitions", numVbuckets)
 }
 
 func (m *rangeScanOpManager) SetServerToVbucketMap(serverVbucketMap map[int][]uint16) {
@@ -262,7 +262,7 @@ func (m *rangeScanOpManager) TraceSpanContext() RequestSpanContext {
 	return m.span.Context()
 }
 
-func (m *rangeScanOpManager) TraceSpan() RequestSpan {
+func (m *rangeScanOpManager) TraceSpan() *spanWrapper {
 	return m.span
 }
 
@@ -495,8 +495,8 @@ const (
 )
 
 func (m *rangeScanOpManager) scanPartition(ctx context.Context, deadline time.Time, vbID uint16, resultCh chan *ScanResultItem) (scanFailPoint, error) {
-	span := m.tracer.createSpan(m.span, "range_scan_partition", "")
-	span.SetAttribute("partition_id", vbID)
+	span := m.tracer.CreateSubOperationSpan(m.span, "range_scan_partition", "")
+	span.SetRawAttribute("partition_id", vbID)
 	defer span.End()
 	var lastTermSeen []byte
 	rangeOpts := m.RangeOptions()
@@ -574,21 +574,21 @@ func (m *rangeScanOpManager) scanPartition(ctx context.Context, deadline time.Ti
 	}
 }
 
-func (m *rangeScanOpManager) createStream(ctx context.Context, parentSpan RequestSpan, deadline time.Time, vbID uint16,
+func (m *rangeScanOpManager) createStream(ctx context.Context, parentSpan *spanWrapper, deadline time.Time, vbID uint16,
 	rangeOpts *gocbcore.RangeScanCreateRangeScanConfig, samplingOpts *gocbcore.RangeScanCreateRandomSamplingConfig) (gocbcore.RangeScanCreateResult, error) {
-	span := m.tracer.createSpan(parentSpan, "range_scan_create", "")
+	span := m.tracer.CreateSubOperationSpan(parentSpan, "range_scan_create", "")
 	defer span.End()
-	span.SetAttribute("without_content", m.KeysOnly())
+	span.SetRawAttribute("without_content", m.KeysOnly())
 	if samplingOpts != nil {
-		span.SetAttribute("scan_type", "sampling")
-		span.SetAttribute("limit", samplingOpts.Samples)
-		span.SetAttribute("seed", samplingOpts.Seed)
+		span.SetRawAttribute("scan_type", "sampling")
+		span.SetRawAttribute("limit", samplingOpts.Samples)
+		span.SetRawAttribute("seed", samplingOpts.Seed)
 	} else if rangeOpts != nil {
-		span.SetAttribute("scan_type", "range")
-		span.SetAttribute("from_term", string(rangeOpts.Start))
-		span.SetAttribute("to_term", string(rangeOpts.End))
-		span.SetAttribute("from_exclusive", len(rangeOpts.ExclusiveStart) > 0)
-		span.SetAttribute("to_exclusive", len(rangeOpts.ExclusiveEnd) > 0)
+		span.SetRawAttribute("scan_type", "range")
+		span.SetRawAttribute("from_term", string(rangeOpts.Start))
+		span.SetRawAttribute("to_term", string(rangeOpts.End))
+		span.SetRawAttribute("from_exclusive", len(rangeOpts.ExclusiveStart) > 0)
+		span.SetRawAttribute("to_exclusive", len(rangeOpts.ExclusiveEnd) > 0)
 	}
 
 	opMan := newAsyncOpManager(ctx)
@@ -622,19 +622,19 @@ func (m *rangeScanOpManager) createStream(ctx context.Context, parentSpan Reques
 	return createResOut, errOut
 }
 
-func (m *rangeScanOpManager) continueStream(ctx context.Context, parentSpan RequestSpan, createRes gocbcore.RangeScanCreateResult) ([]gocbcore.RangeScanItem, bool, error) {
-	span := m.tracer.createSpan(parentSpan, "range_scan_continue", "")
+func (m *rangeScanOpManager) continueStream(ctx context.Context, parentSpan *spanWrapper, createRes gocbcore.RangeScanCreateResult) ([]gocbcore.RangeScanItem, bool, error) {
+	span := m.tracer.CreateSubOperationSpan(parentSpan, "range_scan_continue", "")
 	defer span.End()
 
-	span.SetAttribute("item_limit", m.itemLimit)
-	span.SetAttribute("byte_limit", m.byteLimit)
-	span.SetAttribute("time_limit", 0)
+	span.SetRawAttribute("item_limit", m.itemLimit)
+	span.SetRawAttribute("byte_limit", m.byteLimit)
+	span.SetRawAttribute("time_limit", 0)
 
 	opm := newAsyncOpManager(ctx)
 	opm.SetCancelCh(m.cancelCh)
 
 	var items []gocbcore.RangeScanItem
-	span.SetAttribute("range_scan_id", "0x"+hex.EncodeToString(createRes.ScanUUID()))
+	span.SetRawAttribute("range_scan_id", "0x"+hex.EncodeToString(createRes.ScanUUID()))
 
 	var itemsOut []gocbcore.RangeScanItem
 	var completeOut bool
@@ -674,12 +674,12 @@ func (m *rangeScanOpManager) continueStream(ctx context.Context, parentSpan Requ
 	return itemsOut, completeOut, errOut
 }
 
-func (m *rangeScanOpManager) cancelStream(ctx context.Context, parentSpan RequestSpan, deadline time.Time, createRes gocbcore.RangeScanCreateResult) {
+func (m *rangeScanOpManager) cancelStream(ctx context.Context, parentSpan *spanWrapper, deadline time.Time, createRes gocbcore.RangeScanCreateResult) {
 	opMan := newAsyncOpManager(ctx)
-	span := m.tracer.createSpan(parentSpan, "range_scan_cancel", "")
+	span := m.tracer.CreateSubOperationSpan(parentSpan, "range_scan_cancel", "")
 	defer span.End()
 
-	span.SetAttribute("range_scan_id", "0x"+hex.EncodeToString(createRes.ScanUUID()))
+	span.SetRawAttribute("range_scan_id", "0x"+hex.EncodeToString(createRes.ScanUUID()))
 
 	err := opMan.Wait(createRes.RangeScanCancel(gocbcore.RangeScanCancelOptions{
 		Deadline:     deadline,

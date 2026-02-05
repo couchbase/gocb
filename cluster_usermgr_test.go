@@ -681,7 +681,7 @@ func (suite *UnitTestSuite) userManager(runFn func(args mock.Arguments), args ..
 
 	provider := &userManagerProviderCore{
 		provider: mockProvider,
-		tracer:   newTracerWrapper(&NoopTracer{}),
+		tracer:   newTracerWrapper(&NoopTracer{}, ObservabilityConfig{}),
 	}
 
 	usrMgr := &UserManager{

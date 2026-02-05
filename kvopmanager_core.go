@@ -19,7 +19,7 @@ type kvOpManagerCore struct {
 	wasResolved   bool
 	mutationToken *MutationToken
 
-	span            RequestSpan
+	span            *spanWrapper
 	documentID      string
 	transcoder      Transcoder
 	timeout         time.Duration
@@ -89,7 +89,7 @@ func (m *kvOpManagerCore) SetValue(val interface{}) {
 		return
 	}
 
-	espan := m.kv.StartKvOpTrace(m.parent, "request_encoding", m.span, true)
+	espan := m.kv.tracer.CreateRequestEncodingSpan(m.span)
 	defer espan.End()
 
 	bytes, flags, err := m.transcoder.Encode(val)
@@ -128,15 +128,7 @@ func (m *kvOpManagerCore) SetDuraOptions(persistTo, replicateTo uint, level Dura
 	}
 
 	m.durabilityLevel = durabilityLevel
-
-	if level > DurabilityLevelNone {
-		levelStr, err := level.toManagementAPI()
-		if err != nil {
-			logDebugf("Could not convert durability level to string: %v", err)
-			return
-		}
-		m.span.SetAttribute(spanAttribDBDurability, levelStr)
-	}
+	m.span.SetDurabilityLevel(level)
 }
 
 func (m *kvOpManagerCore) SetRetryStrategy(retryStrategy RetryStrategy) {
@@ -170,7 +162,7 @@ func (m *kvOpManagerCore) TraceSpanContext() RequestSpanContext {
 	return m.span.Context()
 }
 
-func (m *kvOpManagerCore) TraceSpan() RequestSpan {
+func (m *kvOpManagerCore) TraceSpan() *spanWrapper {
 	return m.span
 }
 
@@ -311,7 +303,7 @@ func (m *kvOpManagerCore) Wait(op gocbcore.PendingOp, err error) error {
 		return m.kv.waitForDurability(
 			m.ctx,
 			m.parent,
-			m.span,
+			m.span.Wrapped(),
 			m.documentID,
 			m.mutationToken.token,
 			m.replicateTo,
@@ -326,7 +318,7 @@ func (m *kvOpManagerCore) Wait(op gocbcore.PendingOp, err error) error {
 }
 
 func newKvOpManagerCore(c *Collection, opName string, parentSpan RequestSpan, kv *kvProviderCore) *kvOpManagerCore {
-	span := kv.StartKvOpTrace(c, opName, parentSpan, false)
+	span := kv.StartKvOpTrace(c, opName, parentSpan)
 
 	return &kvOpManagerCore{
 		parent:        c,

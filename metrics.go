@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/couchbase/gocbcore/v10"
 	"go.opentelemetry.io/otel/metric"
+	"slices"
 	"sync"
 	"time"
 )
@@ -112,17 +113,31 @@ func (nm *coreValueRecorderWrapper) RecordValue(val uint64) {
 }
 
 type meterWrapper struct {
-	attribsCache          sync.Map
-	meter                 Meter
-	isNoopMeter           bool
-	clusterLabelsProvider clusterLabelsProvider
+	attribsCache             sync.Map
+	meter                    Meter
+	isNoopMeter              bool
+	clusterLabelsProvider    clusterLabelsProvider
+	includeLegacyConventions bool
+	includeStableConventions bool
 }
 
-func newMeterWrapper(meter Meter) *meterWrapper {
+func newMeterWrapper(meter Meter, config ObservabilityConfig) *meterWrapper {
+	var includeLegacy, includeStable bool
+	if slices.Contains(config.SemanticConventionOptIn, ObservabilitySemanticConventionDatabaseDup) {
+		includeLegacy = true
+		includeStable = true
+	} else if slices.Contains(config.SemanticConventionOptIn, ObservabilitySemanticConventionDatabase) {
+		includeStable = true
+	} else {
+		includeLegacy = true
+	}
+
 	_, ok := meter.(*NoopMeter)
 	return &meterWrapper{
-		meter:       meter,
-		isNoopMeter: ok,
+		meter:                    meter,
+		isNoopMeter:              ok,
+		includeLegacyConventions: includeLegacy,
+		includeStableConventions: includeStable,
 	}
 }
 
@@ -132,7 +147,78 @@ type keyspace struct {
 	collectionName string
 }
 
-func (mw *meterWrapper) ValueRecorder(service, operation string, keyspace *keyspace, operationErr error) (ValueRecorder, error) {
+func (mw *meterWrapper) createAttributeCacheKey(
+	service, operation string, keyspace *keyspace, outcome string, labels gocbcore.ClusterLabels, usingStableConventions bool,
+) string {
+	key := fmt.Sprintf("%t.%s.%s.%s.%s.%s", usingStableConventions, service, operation, labels.ClusterUUID, labels.ClusterName, outcome)
+	if keyspace == nil {
+		key += "..."
+	} else {
+		key += fmt.Sprintf(".%s.%s.%s", keyspace.bucketName, keyspace.scopeName, keyspace.collectionName)
+	}
+	return key
+}
+
+func (mw *meterWrapper) createAttributeMap(
+	service, operation string, keyspace *keyspace, outcome string, labels gocbcore.ClusterLabels, usingStableConventions bool,
+) map[string]string {
+	if usingStableConventions {
+		attribs := map[string]string{
+			meterStableAttribSystemName:    meterAttribSystemNameValue,
+			meterStableAttribService:       service,
+			meterStableAttribOperationName: operation,
+			meterReservedAttribUnit:        meterAttribUnitValueSeconds,
+		}
+		if outcome != "" {
+			// The error.type field is omitted if the operation was successful
+			attribs[meterStableAttribErrorType] = outcome
+		}
+		if labels.ClusterName != "" {
+			attribs[meterStableAttribClusterName] = labels.ClusterName
+		}
+		if labels.ClusterUUID != "" {
+			attribs[meterStableAttribClusterUUID] = labels.ClusterUUID
+		}
+		if keyspace != nil {
+			if keyspace.bucketName != "" {
+				attribs[meterStableAttribBucketName] = keyspace.bucketName
+			}
+			if keyspace.scopeName != "" {
+				attribs[meterStableAttribScopeName] = keyspace.scopeName
+			}
+			if keyspace.collectionName != "" {
+				attribs[meterStableAttribCollectionName] = keyspace.collectionName
+			}
+		}
+		return attribs
+	} else {
+		attribs := map[string]string{
+			meterLegacyAttribService:       service,
+			meterLegacyAttribOperationName: operation,
+			meterLegacyAttribOutcome:       outcome,
+		}
+		if labels.ClusterName != "" {
+			attribs[meterLegacyAttribClusterName] = labels.ClusterName
+		}
+		if labels.ClusterUUID != "" {
+			attribs[meterLegacyAttribClusterUUID] = labels.ClusterUUID
+		}
+		if keyspace != nil {
+			if keyspace.bucketName != "" {
+				attribs[meterLegacyAttribBucketName] = keyspace.bucketName
+			}
+			if keyspace.scopeName != "" {
+				attribs[meterLegacyAttribScopeName] = keyspace.scopeName
+			}
+			if keyspace.collectionName != "" {
+				attribs[meterLegacyAttribCollectionName] = keyspace.collectionName
+			}
+		}
+		return attribs
+	}
+}
+
+func (mw *meterWrapper) ValueRecorder(service, operation string, keyspace *keyspace, operationErr error, usingStableConventions bool) (ValueRecorder, error) {
 	if mw.isNoopMeter {
 		// If it's a noop meter then let's not pay the overhead of creating attributes.
 		return defaultNoopValueRecorder, nil
@@ -143,15 +229,9 @@ func (mw *meterWrapper) ValueRecorder(service, operation string, keyspace *keysp
 		labels = mw.clusterLabelsProvider.ClusterLabels()
 	}
 
-	outcome := getStandardizedOutcome(operationErr)
+	outcome := getStandardizedOutcome(operationErr, usingStableConventions)
 
-	key := fmt.Sprintf("%s.%s.%s.%s.%s", service, operation, labels.ClusterUUID, labels.ClusterName, outcome)
-	if keyspace == nil {
-		key += "..."
-	} else {
-		key += fmt.Sprintf(".%s.%s.%s", keyspace.bucketName, keyspace.scopeName, keyspace.collectionName)
-	}
-
+	key := mw.createAttributeCacheKey(service, operation, keyspace, outcome, labels, usingStableConventions)
 	attribs, ok := mw.attribsCache.Load(key)
 
 	var attribsMap map[string]string
@@ -161,33 +241,18 @@ func (mw *meterWrapper) ValueRecorder(service, operation string, keyspace *keysp
 	if !ok {
 		// It doesn't really matter if we end up storing the attribs against the same key multiple times. We just need
 		// to have a read efficient cache that doesn't cause actual data races.
-		attribsMap = map[string]string{
-			meterAttribServiceKey:   service,
-			meterAttribOperationKey: operation,
-			meterAttribOutcomeKey:   outcome,
-		}
-		if labels.ClusterName != "" {
-			attribsMap[meterAttribClusterNameKey] = labels.ClusterName
-		}
-		if labels.ClusterUUID != "" {
-			attribsMap[meterAttribClusterUUIDKey] = labels.ClusterUUID
-		}
-		if keyspace != nil {
-			if keyspace.bucketName != "" {
-				attribsMap[meterAttribBucketNameKey] = keyspace.bucketName
-			}
-			if keyspace.scopeName != "" {
-				attribsMap[meterAttribScopeNameKey] = keyspace.scopeName
-			}
-			if keyspace.collectionName != "" {
-				attribsMap[meterAttribCollectionNameKey] = keyspace.collectionName
-			}
-		}
-
+		attribsMap = mw.createAttributeMap(service, operation, keyspace, outcome, labels, usingStableConventions)
 		mw.attribsCache.Store(key, attribsMap)
 	}
 
-	recorder, err := mw.meter.ValueRecorder(meterNameCBOperations, attribsMap)
+	var meterName string
+	if usingStableConventions {
+		meterName = meterNameDBClientOperationDuration
+	} else {
+		meterName = meterNameCBOperations
+	}
+
+	recorder, err := mw.meter.ValueRecorder(meterName, attribsMap)
 	if err != nil {
 		return nil, err
 	}
@@ -195,24 +260,44 @@ func (mw *meterWrapper) ValueRecorder(service, operation string, keyspace *keysp
 	return recorder, nil
 }
 
-func (mw *meterWrapper) ValueRecord(service, operation string, start time.Time, keyspace *keyspace, err error) {
-	recorder, err := mw.ValueRecorder(service, operation, keyspace, err)
-	if err != nil {
-		logDebugf("Failed to create value recorder: %v", err)
-		return
+func (mw *meterWrapper) valueRecordWithDuration(service, operation string, durationMicroseconds uint64, keyspace *keyspace, err error) {
+	if mw.includeLegacyConventions {
+		recorder, err := mw.ValueRecorder(service, operation, keyspace, err, false)
+		if err != nil {
+			logDebugf("Failed to create value recorder: %v", err)
+			return
+		}
+
+		recorder.RecordValue(durationMicroseconds)
 	}
 
+	if mw.includeStableConventions {
+		recorder, err := mw.ValueRecorder(service, operation, keyspace, err, true)
+		if err != nil {
+			logDebugf("Failed to create value recorder: %v", err)
+			return
+		}
+
+		recorder.RecordValue(durationMicroseconds)
+	}
+}
+
+func (mw *meterWrapper) ValueRecord(service, operation string, start time.Time, keyspace *keyspace, err error) {
 	duration := uint64(time.Since(start).Microseconds())
 	if duration == 0 {
 		duration = uint64(1 * time.Microsecond)
 	}
 
-	recorder.RecordValue(duration)
+	mw.valueRecordWithDuration(service, operation, duration, keyspace, err)
 }
 
 // getStandardizedOutcome returns the name for each error as listed in RFC#58 (Error Handling)
-func getStandardizedOutcome(err error) string {
+func getStandardizedOutcome(err error, usingStableConventions bool) string {
 	if err == nil {
+		// No error/outcome field in the stable conventions if the operation was successful
+		if usingStableConventions {
+			return ""
+		}
 		return "Success"
 	}
 	if errors.Is(err, ErrUnambiguousTimeout) {
@@ -415,6 +500,10 @@ func getStandardizedOutcome(err error) string {
 	}
 	if errors.Is(err, ErrBucketNotFlushable) {
 		return "BucketNotFlushable"
+	}
+
+	if usingStableConventions {
+		return "_OTHER"
 	}
 	return "CouchbaseError"
 }

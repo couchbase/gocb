@@ -446,14 +446,14 @@ func (emp *eventingManagementProviderCore) doRequest(scope *Scope, path string, 
 	}
 
 	op := "manager_eventing_" + opName
-	span := emp.tracer.createSpan(opts.ParentSpan, op, serviceValueEventing)
-	span.SetAttribute("db.operation", method+" "+path)
+	span := emp.tracer.CreateOperationSpan(opts.ParentSpan, op, serviceAttribValueEventing)
+	span.SetLegacyOperationName(method + " " + path)
 	if scope == nil {
-		span.SetAttribute("db.name", "*")
-		span.SetAttribute("db.couchbase.scope", "*")
+		span.SetBucketName("*")
+		span.SetScopeName("*")
 	} else {
-		span.SetAttribute("db.name", scope.BucketName())
-		span.SetAttribute("db.couchbase.scope", scope.Name())
+		span.SetBucketName(scope.BucketName())
+		span.SetScopeName(scope.Name())
 	}
 	defer span.End()
 

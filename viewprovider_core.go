@@ -35,9 +35,9 @@ type viewProviderCore struct {
 func (v *viewProviderCore) ViewQuery(designDoc string, viewName string, opts *ViewOptions) (*ViewResult, error) {
 	designDoc = v.maybePrefixDevDocument(opts.Namespace, designDoc)
 
-	span := v.tracer.createSpan(opts.ParentSpan, "views", "views")
-	span.SetAttribute("db.name", v.bucketName)
-	span.SetAttribute("db.operation", designDoc+"/"+viewName)
+	span := v.tracer.CreateOperationSpan(opts.ParentSpan, "views", "views")
+	span.SetBucketName(v.bucketName)
+	span.SetLegacyOperationName(designDoc + "/" + viewName)
 	defer span.End()
 
 	timeout := opts.Timeout

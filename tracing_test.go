@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"github.com/couchbase/gocbcore/v10"
 	"sync"
 	"time"
 )
@@ -348,4 +349,102 @@ func (suite *IntegrationTestSuite) AssertHTTPDispatchSpan(span *testSpan, operat
 		suite.Assert().Equal(operationID, span.Tags["db.couchbase.operation_id"])
 	}
 	suite.Assert().Equal(spans, len(span.Tags))
+}
+
+type unitTestClusterLabelsProvider struct{}
+
+func (p unitTestClusterLabelsProvider) ClusterLabels() gocbcore.ClusterLabels {
+	return gocbcore.ClusterLabels{
+		ClusterName: "test-cluster-name",
+		ClusterUUID: "test-cluster-uuid",
+	}
+}
+
+func (suite *UnitTestSuite) runTracingConventionsTest(conventions []ObservabilitySemanticConvention, expectingLegacy, expectingStable bool) {
+	tracer := newTracerWrapper(newTestTracer(), ObservabilityConfig{
+		SemanticConventionOptIn: conventions,
+	})
+	tracer.clusterLabelsProvider = unitTestClusterLabelsProvider{}
+
+	sw := tracer.CreateOperationSpan(nil, "replace", "kv")
+	sw.SetLegacyOperationName("replace-legacy")
+	sw.SetDurabilityLevel(DurabilityLevelMajorityAndPersistOnMaster)
+	sw.SetRetryAttempts(2)
+	sw.SetBucketName("test-bucket")
+	sw.SetScopeName("test-scope")
+	sw.SetCollectionName("test-collection")
+	sw.End()
+
+	suite.Require().True(tracer.includeLegacyConventions || tracer.includeStableConventions, "At least one of legacy or stable conventions should be included")
+	suite.Require().Equal(expectingStable, tracer.includeStableConventions)
+	suite.Require().Equal(expectingLegacy, tracer.includeLegacyConventions)
+
+	span := tracer.tracer.(*testTracer).GetSpans()[nil][0]
+	expectedTagCount := 0
+
+	suite.Assert().Equal("replace", span.Name)
+
+	if expectingLegacy {
+		expectedTagCount += 10
+
+		suite.Assert().Equal("couchbase", span.Tags["db.system"])
+		suite.Assert().Equal("test-bucket", span.Tags["db.name"])
+		suite.Assert().Equal("test-scope", span.Tags["db.couchbase.scope"])
+		suite.Assert().Equal("test-collection", span.Tags["db.couchbase.collection"])
+		suite.Assert().Equal("kv", span.Tags["db.couchbase.service"])
+		suite.Assert().Equal("replace-legacy", span.Tags["db.operation"])
+		suite.Assert().Equal("majorityAndPersistActive", span.Tags["db.couchbase.durability"])
+		suite.Assert().Equal("test-cluster-name", span.Tags["db.couchbase.cluster_name"])
+		suite.Assert().Equal("test-cluster-uuid", span.Tags["db.couchbase.cluster_uuid"])
+		suite.Assert().Equal(uint32(2), span.Tags["db.couchbase.retries"])
+	}
+	if expectingStable {
+		expectedTagCount += 10
+
+		suite.Assert().Equal("couchbase", span.Tags["db.system.name"])
+		suite.Assert().Equal("test-cluster-name", span.Tags["couchbase.cluster.name"])
+		suite.Assert().Equal("test-cluster-uuid", span.Tags["couchbase.cluster.uuid"])
+		suite.Assert().Equal("test-bucket", span.Tags["db.namespace"])
+		suite.Assert().Equal("test-scope", span.Tags["couchbase.scope.name"])
+		suite.Assert().Equal("test-collection", span.Tags["couchbase.collection.name"])
+		suite.Assert().Equal("kv", span.Tags["couchbase.service"])
+		suite.Assert().Equal("replace", span.Tags["db.operation.name"])
+		suite.Assert().Equal("majority_and_persist_active", span.Tags["couchbase.durability"])
+
+		suite.Assert().Equal(uint32(2), span.Tags["couchbase.retries"])
+	}
+
+	suite.Assert().Len(span.Tags, expectedTagCount)
+
+}
+
+func (suite *UnitTestSuite) TestTracingConventions() {
+	suite.Run("Default", func() {
+		suite.runTracingConventionsTest(nil, true, false)
+	})
+
+	suite.Run("Database", func() {
+		suite.runTracingConventionsTest(
+			[]ObservabilitySemanticConvention{
+				ObservabilitySemanticConventionDatabase,
+			},
+			false, true)
+	})
+
+	suite.Run("DatabaseDup", func() {
+		suite.runTracingConventionsTest(
+			[]ObservabilitySemanticConvention{
+				ObservabilitySemanticConventionDatabaseDup,
+			},
+			true, true)
+	})
+
+	suite.Run("DatabaseDup & Database", func() {
+		suite.runTracingConventionsTest(
+			[]ObservabilitySemanticConvention{
+				ObservabilitySemanticConventionDatabaseDup,
+				ObservabilitySemanticConventionDatabase,
+			},
+			true, true)
+	})
 }

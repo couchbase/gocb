@@ -61,7 +61,7 @@ func (d *diagnosticsProviderCore) Diagnostics(opts *DiagnosticsOptions) (*Diagno
 }
 
 func (d *diagnosticsProviderCore) Ping(opts *PingOptions) (*PingResult, error) {
-	span := d.tracer.createSpan(opts.ParentSpan, "ping", "kv")
+	span := d.tracer.CreateOperationSpan(opts.ParentSpan, "ping", "")
 	defer span.End()
 
 	services := opts.ServiceTypes

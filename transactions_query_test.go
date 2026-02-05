@@ -628,7 +628,7 @@ func (suite *UnitTestSuite) TestTransactionsQueryGocbcoreCauseError() {
 	cluster := suite.newCluster(cli)
 	defer cluster.Close(nil)
 
-	queryProvider.tracer = newTracerWrapper(&NoopTracer{})
+	queryProvider.tracer = newTracerWrapper(&NoopTracer{}, ObservabilityConfig{})
 	queryProvider.retryStrategyWrapper = newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
 	queryProvider.timeouts.QueryTimeout = 75000 * time.Millisecond
 

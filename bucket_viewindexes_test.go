@@ -156,7 +156,7 @@ func (suite *UnitTestSuite) viewIndexManager(mockProvider *mockMgmtProvider) *Vi
 				return &viewIndexProviderCore{
 					mgmtProvider: mockProvider,
 					bucketName:   "mock",
-					tracer:       newTracerWrapper(&NoopTracer{}),
+					tracer:       newTracerWrapper(&NoopTracer{}, ObservabilityConfig{}),
 				}, nil
 			},
 			opController: mockOpController{},

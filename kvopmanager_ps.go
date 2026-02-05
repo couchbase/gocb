@@ -19,7 +19,7 @@ type kvOpManagerPs struct {
 
 	err error
 
-	span            RequestSpan
+	span            *spanWrapper
 	documentID      string
 	transcoder      Transcoder
 	timeout         time.Duration
@@ -84,7 +84,7 @@ func (m *kvOpManagerPs) SetValue(val interface{}) {
 		return
 	}
 
-	espan := m.provider.StartKvOpTrace(m.parent, "request_encoding", m.span, true)
+	espan := m.provider.tracer.CreateRequestEncodingSpan(m.span)
 	defer espan.End()
 
 	bytes, flags, err := m.transcoder.Encode(val)
@@ -101,17 +101,8 @@ func (m *kvOpManagerPs) SetDuraOptions(level DurabilityLevel) {
 	if level == DurabilityLevelUnknown {
 		level = DurabilityLevelNone
 	}
-
 	m.durabilityLevel, m.err = level.toProtostellar()
-
-	if level > DurabilityLevelNone {
-		levelStr, err := level.toManagementAPI()
-		if err != nil {
-			logDebugf("Could not convert durability level to string: %v", err)
-			return
-		}
-		m.span.SetAttribute(spanAttribDBDurability, levelStr)
-	}
+	m.span.SetDurabilityLevel(level)
 }
 
 func (m *kvOpManagerPs) SetRetryStrategy(retryStrategy RetryStrategy) {
@@ -139,8 +130,7 @@ func (m *kvOpManagerPs) Finish() {
 	if m.req != nil {
 		retries = m.RetryInfo().RetryAttempts()
 	}
-
-	m.span.SetAttribute(spanAttribRetries, retries)
+	m.span.SetRetryAttempts(retries)
 	m.span.End()
 }
 
@@ -148,7 +138,7 @@ func (m *kvOpManagerPs) TraceSpanContext() RequestSpanContext {
 	return m.span.Context()
 }
 
-func (m *kvOpManagerPs) TraceSpan() RequestSpan {
+func (m *kvOpManagerPs) TraceSpan() *spanWrapper {
 	return m.span
 }
 
@@ -269,7 +259,7 @@ func (m *kvOpManagerPs) EnhanceErr(err error, readOnly bool) error {
 }
 
 func newKvOpManagerPs(c *Collection, opName string, parentSpan RequestSpan, p *kvProviderPs) *kvOpManagerPs {
-	span := p.StartKvOpTrace(c, opName, parentSpan, false)
+	span := p.StartKvOpTrace(c, opName, parentSpan)
 
 	return &kvOpManagerPs{
 		parent:        c,

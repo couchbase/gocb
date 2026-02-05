@@ -582,7 +582,7 @@ func (suite *UnitTestSuite) queryCluster(prepared bool, retryStrategy *coreRetry
 
 	cluster := suite.newCluster(cli)
 
-	queryProvider.tracer = newTracerWrapper(&NoopTracer{})
+	queryProvider.tracer = newTracerWrapper(&NoopTracer{}, ObservabilityConfig{})
 	queryProvider.retryStrategyWrapper = retryStrategy
 	queryProvider.timeouts.QueryTimeout = 75000 * time.Millisecond
 
@@ -804,7 +804,7 @@ func (suite *UnitTestSuite) TestQueryUntypedError() {
 
 	cluster := suite.newCluster(cli)
 
-	queryProvider.tracer = newTracerWrapper(&NoopTracer{})
+	queryProvider.tracer = newTracerWrapper(&NoopTracer{}, ObservabilityConfig{})
 	queryProvider.retryStrategyWrapper = newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
 	queryProvider.timeouts.QueryTimeout = 75000 * time.Millisecond
 
@@ -839,7 +839,7 @@ func (suite *UnitTestSuite) TestQueryGocbcoreError() {
 	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)
-	queryProvider.tracer = newTracerWrapper(&NoopTracer{})
+	queryProvider.tracer = newTracerWrapper(&NoopTracer{}, ObservabilityConfig{})
 	queryProvider.retryStrategyWrapper = newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
 	queryProvider.timeouts.QueryTimeout = 75000 * time.Millisecond
 
@@ -879,7 +879,7 @@ func (suite *UnitTestSuite) TestQueryTimeoutOption() {
 	queryProvider := &queryProviderCore{
 		provider: provider,
 	}
-	queryProvider.tracer = newTracerWrapper(&NoopTracer{})
+	queryProvider.tracer = newTracerWrapper(&NoopTracer{}, ObservabilityConfig{})
 	queryProvider.retryStrategyWrapper = rs
 	queryProvider.timeouts.QueryTimeout = 75000 * time.Millisecond
 

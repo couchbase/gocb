@@ -87,7 +87,7 @@ func (suite *UnitTestSuite) queryScope(prepared bool, retryStrategy *coreRetrySt
 
 	queryProvider := &queryProviderCore{
 		provider: provider,
-		tracer:   newTracerWrapper(&NoopTracer{}),
+		tracer:   newTracerWrapper(&NoopTracer{}, ObservabilityConfig{}),
 	}
 
 	cli := new(mockConnectionManager)

@@ -198,7 +198,7 @@ func (c *psConnectionMgr) getQueryProvider() (queryProvider, error) {
 	return &queryProviderPs{
 		provider: provider,
 
-		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceValueQuery),
+		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceAttribValueQuery),
 	}, nil
 }
 
@@ -211,7 +211,7 @@ func (c *psConnectionMgr) getQueryIndexProvider() (queryIndexProvider, error) {
 	return &queryIndexProviderPs{
 		provider: provider,
 
-		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceValueQuery),
+		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceAttribValueQuery),
 	}, nil
 }
 
@@ -224,7 +224,7 @@ func (c *psConnectionMgr) getSearchIndexProvider() (searchIndexProvider, error) 
 	return &searchIndexProviderPs{
 		provider: provider,
 
-		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceValueSearch),
+		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceAttribValueSearch),
 	}, nil
 }
 
@@ -241,7 +241,7 @@ func (c *psConnectionMgr) getCollectionsManagementProvider(bucketName string) (c
 		provider:   c.agent.CollectionV1(),
 		bucketName: bucketName,
 
-		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceValueManagement),
+		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceAttribValueManagement),
 	}, nil
 }
 
@@ -253,7 +253,7 @@ func (c *psConnectionMgr) getBucketManagementProvider() (bucketManagementProvide
 	return &bucketManagementProviderPs{
 		provider: c.agent.BucketV1(),
 
-		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceValueManagement),
+		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceAttribValueManagement),
 	}, nil
 }
 
@@ -273,7 +273,7 @@ func (c *psConnectionMgr) getSearchProvider() (searchProvider, error) {
 	return &searchProviderPs{
 		provider: c.agent.SearchV1(),
 
-		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceValueSearch),
+		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, c.timeouts.QueryTimeout, c.meter, serviceAttribValueSearch),
 	}, nil
 }
 
@@ -373,7 +373,34 @@ func newPsOpManagerProvider(retry RetryStrategy, tracer *tracerWrapper, timeout 
 	}
 }
 
-func (p *psOpManagerProvider) NewManager(parentSpan RequestSpan, opName string, attribs map[string]interface{}) *psOpManagerDefault {
+type psOpSpanAttributes struct {
+	bucketName       string
+	scopeName        string
+	collectionName   string
+	legacyOpName     string
+	queryStatement   string
+	usingQueryParams bool
+}
+
+func (attrs *psOpSpanAttributes) populateSpanAttributes(span *spanWrapper) {
+	if attrs.bucketName != "" {
+		span.SetBucketName(attrs.bucketName)
+	}
+	if attrs.scopeName != "" {
+		span.SetScopeName(attrs.scopeName)
+	}
+	if attrs.collectionName != "" {
+		span.SetCollectionName(attrs.collectionName)
+	}
+	if attrs.legacyOpName != "" {
+		span.SetLegacyOperationName(attrs.legacyOpName)
+	}
+	if attrs.queryStatement != "" {
+		span.SetQueryStatement(attrs.queryStatement, attrs.usingQueryParams)
+	}
+}
+
+func (p *psOpManagerProvider) NewManager(parentSpan RequestSpan, opName string, attribs psOpSpanAttributes) *psOpManagerDefault {
 	m := &psOpManagerDefault{
 		defaultRetryStrategy: p.defaultRetryStrategy,
 		tracer:               p.tracer,
@@ -381,20 +408,18 @@ func (p *psOpManagerProvider) NewManager(parentSpan RequestSpan, opName string, 
 		service:              p.service,
 		createdTime:          time.Now(),
 
-		span:   p.tracer.createSpan(parentSpan, opName, p.service),
+		span:   p.tracer.CreateOperationSpan(parentSpan, opName, p.service),
 		opName: opName,
 	}
 
-	for key, value := range attribs {
-		m.span.SetAttribute(key, value)
-	}
+	attribs.populateSpanAttributes(m.span)
 
 	return m
 }
 
 type psOpManager interface {
 	IsIdempotent() bool
-	TraceSpan() RequestSpan
+	TraceSpan() *spanWrapper
 	OperationID() string
 	RetryStrategy() RetryStrategy
 	OpName() string
@@ -414,7 +439,7 @@ type psOpManagerDefault struct {
 	service              string
 	createdTime          time.Time
 
-	span   RequestSpan
+	span   *spanWrapper
 	opName string
 
 	operationID   string
@@ -454,17 +479,12 @@ func (m *psOpManagerDefault) SetOperationID(id string) {
 	m.operationID = id
 }
 
-func (m *psOpManagerDefault) NewSpan(name string) RequestSpan {
-	return m.tracer.createSpan(m.span, name, m.service)
-}
-
 func (m *psOpManagerDefault) Finish() {
-	retries := m.RetryInfo().RetryAttempts()
-	m.span.SetAttribute(spanAttribRetries, retries)
+	m.span.SetRetryAttempts(m.RetryInfo().RetryAttempts())
 	m.span.End()
 }
 
-func (m *psOpManagerDefault) TraceSpan() RequestSpan {
+func (m *psOpManagerDefault) TraceSpan() *spanWrapper {
 	return m.span
 }
 
@@ -539,7 +559,7 @@ func (m *psOpManagerDefault) Context() context.Context {
 func wrapPSOpCtx[ReqT any, RespT any](ctx context.Context, m psOpManager,
 	req ReqT,
 	fn func(context.Context, ReqT, ...grpc.CallOption) (RespT, error)) (RespT, error) {
-	return wrapPSOpCtxWithPeek(ctx, m, req, m.TraceSpan(), fn, nil)
+	return wrapPSOpCtxWithPeek(ctx, m, req, m.TraceSpan().Wrapped(), fn, nil)
 }
 
 func wrapPSOp[ReqT any, RespT any](m psOpManager, req ReqT,

@@ -553,20 +553,20 @@ func (_m *mockKvProvider) Scan(_a0 *Collection, _a1 ScanType, _a2 *ScanOptions) 
 	return r0, r1
 }
 
-// StartKvOpTrace provides a mock function with given fields: _a0, _a1, _a2, _a3
-func (_m *mockKvProvider) StartKvOpTrace(_a0 *Collection, _a1 string, _a2 RequestSpan, _a3 bool) RequestSpan {
-	ret := _m.Called(_a0, _a1, _a2, _a3)
+// StartKvOpTrace provides a mock function with given fields: _a0, _a1, _a2
+func (_m *mockKvProvider) StartKvOpTrace(_a0 *Collection, _a1 string, _a2 RequestSpan) *spanWrapper {
+	ret := _m.Called(_a0, _a1, _a2)
 
 	if len(ret) == 0 {
 		panic("no return value specified for StartKvOpTrace")
 	}
 
-	var r0 RequestSpan
-	if rf, ok := ret.Get(0).(func(*Collection, string, RequestSpan, bool) RequestSpan); ok {
-		r0 = rf(_a0, _a1, _a2, _a3)
+	var r0 *spanWrapper
+	if rf, ok := ret.Get(0).(func(*Collection, string, RequestSpan) *spanWrapper); ok {
+		r0 = rf(_a0, _a1, _a2)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(RequestSpan)
+			r0 = ret.Get(0).(*spanWrapper)
 		}
 	}
 

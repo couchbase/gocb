@@ -118,6 +118,7 @@ type newConnectionMgrOptions struct {
 	transactionsConfig   TransactionsConfig
 	compressionConfig    CompressionConfig
 	appTelemetryConfig   AppTelemetryConfig
+	observabilityConfig  ObservabilityConfig
 	compressor           *compressor
 
 	preferredServerGroup string
@@ -200,8 +201,8 @@ func connectionMgrOptionsFromOptions(opts ClusterOptions) newConnectionMgrOption
 	return newConnectionMgrOptions{
 		cSpec:              gocbconnstr.ConnSpec{},
 		auth:               opts.Authenticator,
-		tracer:             newTracerWrapper(initialTracer),
-		meter:              newMeterWrapper(meter),
+		tracer:             newTracerWrapper(initialTracer, opts.ObservabilityConfig),
+		meter:              newMeterWrapper(meter, opts.ObservabilityConfig),
 		useServerDurations: useServerDurations,
 		useMutationTokens:  useMutationTokens,
 		timeoutsConfig: TimeoutsConfig{
@@ -226,6 +227,7 @@ func connectionMgrOptionsFromOptions(opts ClusterOptions) newConnectionMgrOption
 		transactionsConfig:     opts.TransactionsConfig,
 		compressionConfig:      opts.CompressionConfig,
 		appTelemetryConfig:     opts.AppTelemetryConfig,
+		observabilityConfig:    opts.ObservabilityConfig,
 		compressor: &compressor{
 			CompressionEnabled:  !opts.CompressionConfig.Disabled,
 			CompressionMinSize:  opts.CompressionConfig.MinSize,

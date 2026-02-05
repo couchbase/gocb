@@ -16,14 +16,24 @@ type queryIndexProviderPs struct {
 	managerProvider *psOpManagerProvider
 }
 
-func (qpc *queryIndexProviderPs) newOpManager(parentSpan RequestSpan, opName string, attribs map[string]interface{}) *psOpManagerDefault {
+func (qpc *queryIndexProviderPs) newOpManager(parentSpan RequestSpan, opName string, attribs psOpSpanAttributes) *psOpManagerDefault {
 	return qpc.managerProvider.NewManager(parentSpan, opName, attribs)
 }
 
+func (qpc *queryIndexProviderPs) createSpanAttributes(c *Collection, rpcName string) psOpSpanAttributes {
+	attribs := psOpSpanAttributes{
+		legacyOpName: rpcName,
+	}
+	if c != nil {
+		attribs.bucketName = c.bucketName()
+		attribs.scopeName = c.ScopeName()
+		attribs.collectionName = c.Name()
+	}
+	return attribs
+}
+
 func (qpc *queryIndexProviderPs) CreatePrimaryIndex(c *Collection, bucketName string, opts *CreatePrimaryQueryIndexOptions) error {
-	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_create_primary_index", map[string]interface{}{
-		"db.operation": "CreatePrimaryIndex",
-	})
+	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_create_primary_index", qpc.createSpanAttributes(c, "CreatePrimaryIndex"))
 	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
@@ -68,9 +78,7 @@ func (qpc *queryIndexProviderPs) CreatePrimaryIndex(c *Collection, bucketName st
 }
 
 func (qpc *queryIndexProviderPs) CreateIndex(c *Collection, bucketName, indexName string, fields []string, opts *CreateQueryIndexOptions) error {
-	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_create_index", map[string]interface{}{
-		"db.operation": "CreateIndex",
-	})
+	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_create_index", qpc.createSpanAttributes(c, "CreateIndex"))
 	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
@@ -112,9 +120,7 @@ func (qpc *queryIndexProviderPs) CreateIndex(c *Collection, bucketName, indexNam
 }
 
 func (qpc *queryIndexProviderPs) DropPrimaryIndex(c *Collection, bucketName string, opts *DropPrimaryQueryIndexOptions) error {
-	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_drop_primary_index", map[string]interface{}{
-		"db.operation": "DropPrimaryIndex",
-	})
+	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_drop_primary_index", qpc.createSpanAttributes(c, "DropPrimaryIndex"))
 	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
@@ -155,9 +161,7 @@ func (qpc *queryIndexProviderPs) DropPrimaryIndex(c *Collection, bucketName stri
 }
 
 func (qpc *queryIndexProviderPs) DropIndex(c *Collection, bucketName, indexName string, opts *DropQueryIndexOptions) error {
-	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_drop_index", map[string]interface{}{
-		"db.operation": "DropIndex",
-	})
+	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_drop_index", qpc.createSpanAttributes(c, "DropIndex"))
 	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
@@ -193,9 +197,7 @@ func (qpc *queryIndexProviderPs) DropIndex(c *Collection, bucketName, indexName 
 }
 
 func (qpc *queryIndexProviderPs) GetAllIndexes(c *Collection, bucketName string, opts *GetAllQueryIndexesOptions) ([]QueryIndex, error) {
-	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_get_all_indexes", map[string]interface{}{
-		"db.operation": "GetAllIndexes",
-	})
+	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_get_all_indexes", qpc.createSpanAttributes(c, "GetAllIndexes"))
 	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
@@ -218,7 +220,7 @@ type getAllIndexesOptions struct {
 	CollectionName string
 }
 
-func (qpc *queryIndexProviderPs) getAllIndexes(c *Collection, bucketName string, manager *psOpManagerDefault, parentSpan RequestSpan,
+func (qpc *queryIndexProviderPs) getAllIndexes(c *Collection, bucketName string, manager *psOpManagerDefault, parentSpan *spanWrapper,
 	opts *getAllIndexesOptions) ([]QueryIndex, error) {
 	bucket, scope, collection := qpc.makeKeyspace(c, bucketName, opts.ScopeName, opts.CollectionName)
 
@@ -231,7 +233,7 @@ func (qpc *queryIndexProviderPs) getAllIndexes(c *Collection, bucketName string,
 	ctx, cancel := context.WithTimeout(manager.Context(), manager.Timeout())
 	defer cancel()
 
-	resp, err := wrapPSOpCtxWithPeek(ctx, manager, req, parentSpan, qpc.provider.GetAllIndexes, nil)
+	resp, err := wrapPSOpCtxWithPeek(ctx, manager, req, parentSpan.Wrapped(), qpc.provider.GetAllIndexes, nil)
 	if err != nil {
 		return nil, qpc.handleError(err)
 	}
@@ -286,9 +288,7 @@ func (qpc *queryIndexProviderPs) getAllIndexes(c *Collection, bucketName string,
 }
 
 func (qpc *queryIndexProviderPs) BuildDeferredIndexes(c *Collection, bucketName string, opts *BuildDeferredQueryIndexOptions) ([]string, error) {
-	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_build_deferred_indexes", map[string]interface{}{
-		"db.operation": "BuildDeferredIndexes",
-	})
+	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_build_deferred_indexes", qpc.createSpanAttributes(c, "BuildDeferredIndexes"))
 	defer manager.Finish()
 
 	manager.SetContext(opts.Context)
@@ -340,11 +340,12 @@ func (qpc *queryIndexProviderPs) BuildDeferredIndexes(c *Collection, bucketName 
 type waitForIndexOnlineOptions struct {
 	ScopeName      string
 	CollectionName string
+	ParentSpan     RequestSpan
 }
 
 func (qpc *queryIndexProviderPs) waitForIndexOnline(c *Collection, indexName, bucketName string, manager *psOpManagerDefault, opts *waitForIndexOnlineOptions) error {
-	span := manager.NewSpan("manager_query_wait_for_index_online")
-	span.SetAttribute("db.operation", "WaitForIndexOnline")
+	span := manager.tracer.CreateOperationSpan(opts.ParentSpan, "manager_query_wait_for_index_online", "query")
+	span.SetLegacyOperationName("WaitForIndexOnline")
 	defer span.End()
 
 	bucket, scope, collection := qpc.makeKeyspace(c, bucketName, opts.ScopeName, opts.CollectionName)
@@ -367,7 +368,7 @@ func (qpc *queryIndexProviderPs) waitForIndexOnline(c *Collection, indexName, bu
 	ctx, cancel := context.WithTimeout(manager.Context(), manager.Timeout())
 	defer cancel()
 
-	_, err := wrapPSOpCtxWithPeek(ctx, manager, req, span, qpc.provider.WaitForIndexOnline, nil)
+	_, err := wrapPSOpCtxWithPeek(ctx, manager, req, span.Wrapped(), qpc.provider.WaitForIndexOnline, nil)
 	if err != nil {
 		return qpc.handleError(err)
 	}
@@ -377,7 +378,7 @@ func (qpc *queryIndexProviderPs) waitForIndexOnline(c *Collection, indexName, bu
 
 func (qpc *queryIndexProviderPs) WatchIndexes(c *Collection, bucketName string, watchList []string, timeout time.Duration, opts *WatchQueryIndexOptions,
 ) error {
-	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_watch_indexes", map[string]interface{}{})
+	manager := qpc.newOpManager(opts.ParentSpan, "manager_query_watch_indexes", qpc.createSpanAttributes(c, ""))
 	defer manager.Finish()
 
 	ctx := opts.Context

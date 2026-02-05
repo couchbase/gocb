@@ -1209,7 +1209,7 @@ func (suite *UnitTestSuite) runGetAllScopesMgmtRequestFailsTest(v2 bool) {
 			get: func() (collectionsManagementProvider, error) {
 				return &collectionsManagementProviderCore{
 					mgmtProvider: provider,
-					tracer:       newTracerWrapper(&NoopTracer{}),
+					tracer:       newTracerWrapper(&NoopTracer{}, ObservabilityConfig{}),
 				}, nil
 			},
 			opController: mockOpController{},

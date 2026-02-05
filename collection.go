@@ -64,7 +64,7 @@ func (c *Collection) QueryIndexes() *CollectionQueryIndexManager {
 			opController: c.opController,
 
 			meter:    c.bucket.connectionManager.getMeter(),
-			service:  serviceValueQuery,
+			service:  serviceAttribValueQuery,
 			keyspace: &c.keyspace,
 		},
 
@@ -72,17 +72,12 @@ func (c *Collection) QueryIndexes() *CollectionQueryIndexManager {
 	}
 }
 
-func (c *Collection) startKvOpTrace(operationName string, parentSpan RequestSpan, tracer *tracerWrapper, noAttributes bool) RequestSpan {
-	var span RequestSpan
-	if noAttributes {
-		span = tracer.createSpan(parentSpan, operationName, "")
-	} else {
-		span = tracer.createSpan(parentSpan, operationName, "kv")
-		span.SetAttribute(spanAttribOperationKey, operationName)
-		span.SetAttribute(spanAttribDBNameKey, c.bucket.Name())
-		span.SetAttribute(spanAttribDBCollectionNameKey, c.Name())
-		span.SetAttribute(spanAttribDBScopeNameKey, c.ScopeName())
-	}
+func (c *Collection) startKvOpTrace(operationName string, parentSpan RequestSpan, tracer *tracerWrapper) *spanWrapper {
+	span := tracer.CreateOperationSpan(parentSpan, operationName, "kv")
+	span.SetLegacyOperationName(operationName)
+	span.SetBucketName(c.bucket.Name())
+	span.SetScopeName(c.ScopeName())
+	span.SetCollectionName(c.Name())
 	return span
 }
 
@@ -105,7 +100,7 @@ func (c *Collection) kvController() *providerController[kvProvider] {
 		opController: c.opController,
 
 		meter:    meter,
-		service:  serviceValueKV,
+		service:  serviceAttribValueKV,
 		keyspace: &c.keyspace,
 	}
 }

@@ -3,7 +3,7 @@ package gocb
 import (
 	"time"
 
-	gocbcore "github.com/couchbase/gocbcore/v10"
+	"github.com/couchbase/gocbcore/v10"
 )
 
 type kvBulkProviderCore struct {
@@ -18,7 +18,7 @@ type kvBulkProviderCore struct {
 }
 
 func (p *kvBulkProviderCore) Do(c *Collection, ops []BulkOp, opts *BulkOpOptions) error {
-	span := p.StartKvOpTrace(c, "bulk", opts.ParentSpan, false)
+	span := p.StartKvOpTrace(c, "bulk", opts.ParentSpan).Wrapped()
 	defer span.End()
 
 	timeout := opts.Timeout
@@ -78,11 +78,11 @@ func (p *kvBulkProviderCore) Do(c *Collection, ops []BulkOp, opts *BulkOpOptions
 
 func (p *kvBulkProviderCore) Get(item *GetOp, parentSpan RequestSpan, c *Collection, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := p.StartKvOpTrace(c, "get", parentSpan, false)
+	span := p.StartKvOpTrace(c, "get", parentSpan)
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceValueKV, "get", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "get", start, &c.keyspace, item.Err)
 	}
 
 	_, err := p.agent.Get(gocbcore.GetOptions{
@@ -116,11 +116,11 @@ func (p *kvBulkProviderCore) Get(item *GetOp, parentSpan RequestSpan, c *Collect
 
 func (p *kvBulkProviderCore) GetAndTouch(item *GetAndTouchOp, parentSpan RequestSpan, c *Collection, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := p.StartKvOpTrace(c, "get_and_touch", parentSpan, false)
+	span := p.StartKvOpTrace(c, "get_and_touch", parentSpan)
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceValueKV, "get_and_touch", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "get_and_touch", start, &c.keyspace, item.Err)
 	}
 
 	_, err := p.agent.GetAndTouch(gocbcore.GetAndTouchOptions{
@@ -152,11 +152,11 @@ func (p *kvBulkProviderCore) GetAndTouch(item *GetAndTouchOp, parentSpan Request
 }
 func (p *kvBulkProviderCore) Touch(item *TouchOp, parentSpan RequestSpan, c *Collection, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := p.StartKvOpTrace(c, "touch", parentSpan, false)
+	span := p.StartKvOpTrace(c, "touch", parentSpan)
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceValueKV, "touch", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "touch", start, &c.keyspace, item.Err)
 	}
 
 	_, err := p.agent.Touch(gocbcore.TouchOptions{
@@ -193,11 +193,11 @@ func (p *kvBulkProviderCore) Touch(item *TouchOp, parentSpan RequestSpan, c *Col
 }
 func (p *kvBulkProviderCore) Delete(item *RemoveOp, parentSpan RequestSpan, c *Collection, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := p.StartKvOpTrace(c, "remove", parentSpan, false)
+	span := p.StartKvOpTrace(c, "remove", parentSpan)
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceValueKV, "remove", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "remove", start, &c.keyspace, item.Err)
 	}
 
 	_, err := p.agent.Delete(gocbcore.DeleteOptions{
@@ -234,16 +234,16 @@ func (p *kvBulkProviderCore) Delete(item *RemoveOp, parentSpan RequestSpan, c *C
 }
 func (p *kvBulkProviderCore) Set(item *UpsertOp, parentSpan RequestSpan, c *Collection, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := p.StartKvOpTrace(c, "upsert", parentSpan, false)
+	span := p.StartKvOpTrace(c, "upsert", parentSpan)
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceValueKV, "upsert", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "upsert", start, &c.keyspace, item.Err)
 	}
 
-	etrace := p.StartKvOpTrace(c, "request_encoding", span, true)
+	encSpan := p.tracer.CreateRequestEncodingSpan(span)
 	bytes, flags, err := transcoder.Encode(item.Value)
-	etrace.End()
+	encSpan.End()
 	if err != nil {
 		item.Err = err
 		signal <- item
@@ -288,22 +288,22 @@ func (p *kvBulkProviderCore) Set(item *UpsertOp, parentSpan RequestSpan, c *Coll
 
 func (p *kvBulkProviderCore) Add(item *InsertOp, parentSpan RequestSpan, c *Collection, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := p.StartKvOpTrace(c, "insert", parentSpan, false)
+	span := p.StartKvOpTrace(c, "insert", parentSpan)
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceValueKV, "insert", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "insert", start, &c.keyspace, item.Err)
 	}
 
-	etrace := p.StartKvOpTrace(c, "request_encoding", span, true)
+	encSpan := p.tracer.CreateRequestEncodingSpan(span)
 	bytes, flags, err := transcoder.Encode(item.Value)
 	if err != nil {
-		etrace.End()
+		encSpan.End()
 		item.Err = err
 		signal <- item
 		return
 	}
-	etrace.End()
+	encSpan.End()
 
 	_, err = p.agent.Add(gocbcore.AddOptions{
 		Key:            []byte(item.ID),
@@ -341,22 +341,22 @@ func (p *kvBulkProviderCore) Add(item *InsertOp, parentSpan RequestSpan, c *Coll
 }
 func (p *kvBulkProviderCore) Replace(item *ReplaceOp, parentSpan RequestSpan, c *Collection, transcoder Transcoder, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := p.StartKvOpTrace(c, "replace", parentSpan, false)
+	span := p.StartKvOpTrace(c, "replace", parentSpan)
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceValueKV, "replace", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "replace", start, &c.keyspace, item.Err)
 	}
 
-	etrace := p.StartKvOpTrace(c, "request_encoding", span, true)
+	encSpan := p.tracer.CreateRequestEncodingSpan(span)
 	bytes, flags, err := transcoder.Encode(item.Value)
 	if err != nil {
-		etrace.End()
+		encSpan.End()
 		item.Err = err
 		signal <- item
 		return
 	}
-	etrace.End()
+	encSpan.End()
 
 	_, err = p.agent.Replace(gocbcore.ReplaceOptions{
 		Key:            []byte(item.ID),
@@ -395,11 +395,11 @@ func (p *kvBulkProviderCore) Replace(item *ReplaceOp, parentSpan RequestSpan, c 
 }
 func (p *kvBulkProviderCore) Append(item *AppendOp, parentSpan RequestSpan, c *Collection, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := p.StartKvOpTrace(c, "append", parentSpan, false)
+	span := p.StartKvOpTrace(c, "append", parentSpan)
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceValueKV, "append", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "append", start, &c.keyspace, item.Err)
 	}
 
 	_, err := p.agent.Append(gocbcore.AdjoinOptions{
@@ -436,11 +436,11 @@ func (p *kvBulkProviderCore) Append(item *AppendOp, parentSpan RequestSpan, c *C
 }
 func (p *kvBulkProviderCore) Prepend(item *PrependOp, parentSpan RequestSpan, c *Collection, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := p.StartKvOpTrace(c, "prepend", parentSpan, false)
+	span := p.StartKvOpTrace(c, "prepend", parentSpan)
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceValueKV, "prepend", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "prepend", start, &c.keyspace, item.Err)
 	}
 
 	_, err := p.agent.Prepend(gocbcore.AdjoinOptions{
@@ -477,11 +477,11 @@ func (p *kvBulkProviderCore) Prepend(item *PrependOp, parentSpan RequestSpan, c 
 }
 func (p *kvBulkProviderCore) Increment(item *IncrementOp, parentSpan RequestSpan, c *Collection, signal chan BulkOp,
 	retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := p.StartKvOpTrace(c, "increment", parentSpan, false)
+	span := p.StartKvOpTrace(c, "increment", parentSpan)
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceValueKV, "increment", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "increment", start, &c.keyspace, item.Err)
 	}
 
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
@@ -528,11 +528,11 @@ func (p *kvBulkProviderCore) Increment(item *IncrementOp, parentSpan RequestSpan
 }
 func (p *kvBulkProviderCore) Decrement(item *DecrementOp, parentSpan RequestSpan, c *Collection,
 	signal chan BulkOp, retryWrapper *coreRetryStrategyWrapper, deadline time.Time) {
-	span := p.StartKvOpTrace(c, "decrement", parentSpan, false)
+	span := p.StartKvOpTrace(c, "decrement", parentSpan)
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceValueKV, "decrement", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "decrement", start, &c.keyspace, item.Err)
 	}
 
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
@@ -578,6 +578,6 @@ func (p *kvBulkProviderCore) Decrement(item *DecrementOp, parentSpan RequestSpan
 	}
 }
 
-func (p *kvBulkProviderCore) StartKvOpTrace(c *Collection, operationName string, parentSpan RequestSpan, noAttributes bool) RequestSpan {
-	return c.startKvOpTrace(operationName, parentSpan, p.tracer, noAttributes)
+func (p *kvBulkProviderCore) StartKvOpTrace(c *Collection, operationName string, parentSpan RequestSpan) *spanWrapper {
+	return c.startKvOpTrace(operationName, parentSpan, p.tracer)
 }

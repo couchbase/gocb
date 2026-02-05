@@ -23,12 +23,13 @@ type queryProviderPs struct {
 }
 
 func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions) (resOut *QueryResult, errOut error) {
-	attribs := map[string]interface{}{
-		"db.statement": statement,
+	attribs := psOpSpanAttributes{
+		queryStatement:   statement,
+		usingQueryParams: len(opts.PositionalParameters) > 0 || len(opts.NamedParameters) > 0,
 	}
 	if s != nil {
-		attribs["db.name"] = s.BucketName()
-		attribs["db.couchbase.scope"] = s.Name()
+		attribs.bucketName = s.BucketName()
+		attribs.scopeName = s.Name()
 	}
 
 	manager := qpc.managerProvider.NewManager(opts.ParentSpan, "query", attribs)
@@ -197,7 +198,7 @@ func (qpc *queryProviderPs) Query(statement string, s *Scope, opts *QueryOptions
 	}()
 
 	var firstRows *query_v1.QueryResponse
-	res, err := wrapPSOpCtxWithPeek(reqCtx, manager, req, manager.TraceSpan(), qpc.provider.Query, func(client query_v1.QueryService_QueryClient) error {
+	res, err := wrapPSOpCtxWithPeek(reqCtx, manager, req, manager.TraceSpan().Wrapped(), qpc.provider.Query, func(client query_v1.QueryService_QueryClient) error {
 		var err error
 		firstRows, err = client.Recv()
 		if err != nil {

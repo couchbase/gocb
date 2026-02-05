@@ -90,16 +90,16 @@ func (suite *IntegrationTestSuite) verifyRangeScanTracing(topSpan *testSpan, num
 	tags := 11
 	if globalCluster.SupportsFeature(ClusterLabelsFeature) {
 		tags += 2
-		suite.Assert().NotEmpty(topSpan.Tags[spanAttribClusterUUIDKey])
-		suite.Assert().NotEmpty(topSpan.Tags[spanAttribClusterNameKey])
+		suite.Assert().NotEmpty(topSpan.Tags[spanLegacyAttribClusterUUID])
+		suite.Assert().NotEmpty(topSpan.Tags[spanLegacyAttribClusterName])
 	}
 	suite.Assert().Equal(tags, len(topSpan.Tags))
-	suite.Assert().Equal("couchbase", topSpan.Tags[spanAttribDBSystemKey])
-	suite.Assert().Equal(globalConfig.Bucket, topSpan.Tags[spanAttribDBNameKey])
-	suite.Assert().Equal(scopeName, topSpan.Tags[spanAttribDBScopeNameKey])
-	suite.Assert().Equal(colName, topSpan.Tags[spanAttribDBCollectionNameKey])
-	suite.Assert().Equal("kv_scan", topSpan.Tags[spanAttribServiceKey])
-	suite.Assert().Equal("range_scan", topSpan.Tags[spanAttribOperationKey])
+	suite.Assert().Equal("couchbase", topSpan.Tags[spanLegacyAttribSystemName])
+	suite.Assert().Equal(globalConfig.Bucket, topSpan.Tags[spanLegacyAttribBucketName])
+	suite.Assert().Equal(scopeName, topSpan.Tags[spanLegacyAttribScopeName])
+	suite.Assert().Equal(colName, topSpan.Tags[spanLegacyAttribCollectionName])
+	suite.Assert().Equal("kv_scan", topSpan.Tags[spanLegacyAttribService])
+	suite.Assert().Equal("range_scan", topSpan.Tags[spanLegacyAttribOperationName])
 	suite.Assert().Equal(numPartitions, topSpan.Tags["num_partitions"])
 	suite.Assert().Equal(opts.IDsOnly, topSpan.Tags["without_content"])
 	suite.Assert().True(topSpan.Finished)
@@ -147,10 +147,10 @@ func (suite *IntegrationTestSuite) verifyRangeScanTracing(topSpan *testSpan, num
 						numTags := 3
 						if globalCluster.SupportsFeature(ClusterLabelsFeature) {
 							numTags += 2
-							suite.Assert().NotEmpty(s.Tags[spanAttribClusterNameKey])
-							suite.Assert().NotEmpty(s.Tags[spanAttribClusterUUIDKey])
+							suite.Assert().NotEmpty(s.Tags[spanLegacyAttribClusterName])
+							suite.Assert().NotEmpty(s.Tags[spanLegacyAttribClusterUUID])
 						}
-						suite.Assert().Equal("couchbase", s.Tags[spanAttribDBSystemKey])
+						suite.Assert().Equal("couchbase", s.Tags[spanLegacyAttribSystemName])
 						suite.Assert().Equal(opts.IDsOnly, s.Tags["without_content"])
 						switch st := scanType.(type) {
 						case RangeScan:
@@ -181,10 +181,10 @@ func (suite *IntegrationTestSuite) verifyRangeScanTracing(topSpan *testSpan, num
 						numTags := 5
 						if globalCluster.SupportsFeature(ClusterLabelsFeature) {
 							numTags += 2
-							suite.Assert().NotEmpty(s.Tags[spanAttribClusterNameKey])
-							suite.Assert().NotEmpty(s.Tags[spanAttribClusterUUIDKey])
+							suite.Assert().NotEmpty(s.Tags[spanLegacyAttribClusterName])
+							suite.Assert().NotEmpty(s.Tags[spanLegacyAttribClusterUUID])
 						}
-						suite.Assert().Equal("couchbase", s.Tags[spanAttribDBSystemKey])
+						suite.Assert().Equal("couchbase", s.Tags[spanLegacyAttribSystemName])
 						suite.Assert().Len(s.Tags, numTags)
 						suite.Assert().Equal(*itemLimit, s.Tags["item_limit"])
 						suite.Assert().Equal(*byteLimit, s.Tags["byte_limit"])

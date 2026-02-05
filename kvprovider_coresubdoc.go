@@ -34,7 +34,7 @@ func (p *kvProviderCore) LookupInAllReplicas(c *Collection, id string, ops []Loo
 		ctx = context.Background()
 	}
 
-	span := p.StartKvOpTrace(c, "lookup_in_all_replicas", opts.ParentSpan, false)
+	span := p.StartKvOpTrace(c, "lookup_in_all_replicas", opts.ParentSpan)
 
 	// Timeout needs to be adjusted here, since we use it at the bottom of this
 	// function, but the remaining options are all passed downwards and get handled
@@ -114,7 +114,7 @@ func (p *kvProviderCore) LookupInAllReplicas(c *Collection, id string, ops []Loo
 			// This timeout value will cause the getOneReplica operation to timeout after our deadline has expired,
 			// as the deadline has already begun. getOneReplica timing out before our deadline would cause inconsistent
 			// behaviour.
-			res, err := p.lookupInOneReplica(ctx, span, id, ops, replicaIdx, retryStrategy, cancelCh,
+			res, err := p.lookupInOneReplica(ctx, span.Wrapped(), id, ops, replicaIdx, retryStrategy, cancelCh,
 				timeout, opts.Internal.User, c, memd.SubdocDocFlag(opts.Internal.DocFlags))
 			if err != nil {
 				repRes.res.addFailed()
@@ -150,14 +150,14 @@ func (p *kvProviderCore) LookupInAllReplicas(c *Collection, id string, ops []Loo
 func (p *kvProviderCore) LookupInAnyReplica(c *Collection, id string, ops []LookupInSpec,
 	opts *LookupInAnyReplicaOptions) (docOut *LookupInReplicaResult, errOut error) {
 
-	span := p.StartKvOpTrace(c, "lookup_in_any_replica", opts.ParentSpan, false)
+	span := p.StartKvOpTrace(c, "lookup_in_any_replica", opts.ParentSpan)
 	defer span.End()
 
 	repRes, err := p.LookupInAllReplicas(c, id, ops, &LookupInAllReplicaOptions{
 		Timeout:        opts.Timeout,
 		RetryStrategy:  opts.RetryStrategy,
 		Internal:       opts.Internal,
-		ParentSpan:     span,
+		ParentSpan:     span.Wrapped(),
 		Context:        opts.Context,
 		ReadPreference: opts.ReadPreference,
 	})
@@ -394,9 +394,9 @@ func (p *kvProviderCore) internalMutateIn(
 			}
 		}
 
-		etrace := opm.kv.StartKvOpTrace(opm.parent, "request_encoding", opm.TraceSpan(), true)
+		encSpan := opm.kv.tracer.CreateRequestEncodingSpan(opm.TraceSpan())
 		bytes, flags, err := jsonMarshalMutateSpec(op)
-		etrace.End()
+		encSpan.End()
 		if err != nil {
 			return nil, err
 		}

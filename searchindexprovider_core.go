@@ -33,8 +33,8 @@ func (sm *searchIndexProviderCore) GetAllIndexes(scope *Scope, opts *GetAllSearc
 
 	path := sm.pathPrefix(scope)
 
-	span := sm.tracer.createSpan(opts.ParentSpan, "manager_search_get_all_indexes", serviceValueSearch)
-	span.SetAttribute("db.operation", "GET "+path)
+	span := sm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_search_get_all_indexes", serviceAttribValueSearch)
+	span.SetLegacyOperationName("GET " + path)
 	defer span.End()
 
 	req := mgmtRequest{
@@ -93,8 +93,8 @@ func (sm *searchIndexProviderCore) GetIndex(scope *Scope, indexName string, opts
 	}
 
 	path := fmt.Sprintf("%s/%s", sm.pathPrefix(scope), url.PathEscape(indexName))
-	span := sm.tracer.createSpan(opts.ParentSpan, "manager_search_get_index", serviceValueSearch)
-	span.SetAttribute("db.operation", "GET "+path)
+	span := sm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_search_get_index", serviceAttribValueSearch)
+	span.SetLegacyOperationName("GET " + path)
 	defer span.End()
 
 	req := mgmtRequest{
@@ -212,8 +212,8 @@ func (sm *searchIndexProviderCore) UpsertIndex(scope *Scope, indexDefinition Sea
 	}
 
 	path := fmt.Sprintf("%s/%s", sm.pathPrefix(scope), url.PathEscape(indexDefinition.Name))
-	span := sm.tracer.createSpan(opts.ParentSpan, "manager_search_upsert_index", serviceValueSearch)
-	span.SetAttribute("db.operation", "PUT "+path)
+	span := sm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_search_upsert_index", serviceAttribValueSearch)
+	span.SetLegacyOperationName("PUT " + path)
 	defer span.End()
 
 	indexData, err := indexDefinition.toData()
@@ -270,8 +270,8 @@ func (sm *searchIndexProviderCore) DropIndex(scope *Scope, indexName string, opt
 	}
 
 	path := fmt.Sprintf("%s/%s", sm.pathPrefix(scope), url.PathEscape(indexName))
-	span := sm.tracer.createSpan(opts.ParentSpan, "manager_search_drop_index", serviceValueSearch)
-	span.SetAttribute("db.operation", "DELETE "+path)
+	span := sm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_search_drop_index", serviceAttribValueSearch)
+	span.SetLegacyOperationName("DELETE " + path)
 	defer span.End()
 
 	req := mgmtRequest{
@@ -314,8 +314,8 @@ func (sm *searchIndexProviderCore) AnalyzeDocument(scope *Scope, indexName strin
 	}
 
 	path := fmt.Sprintf("%s/%s/analyzeDoc", sm.pathPrefix(scope), url.PathEscape(indexName))
-	span := sm.tracer.createSpan(opts.ParentSpan, "manager_search_analyze_document", serviceValueSearch)
-	span.SetAttribute("db.operation", "POST "+path)
+	span := sm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_search_analyze_document", serviceAttribValueSearch)
+	span.SetLegacyOperationName("POST " + path)
 	defer span.End()
 
 	b, err := json.Marshal(doc)
@@ -375,8 +375,8 @@ func (sm *searchIndexProviderCore) GetIndexedDocumentsCount(scope *Scope, indexN
 	}
 
 	path := fmt.Sprintf("%s/%s/count", sm.pathPrefix(scope), url.PathEscape(indexName))
-	span := sm.tracer.createSpan(opts.ParentSpan, "manager_search_get_indexed_documents_count", serviceValueSearch)
-	span.SetAttribute("db.operation", "GET "+path)
+	span := sm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_search_get_indexed_documents_count", serviceAttribValueSearch)
+	span.SetLegacyOperationName("GET " + path)
 	defer span.End()
 
 	req := mgmtRequest{
@@ -429,8 +429,8 @@ func (sm *searchIndexProviderCore) PauseIngest(scope *Scope, indexName string, o
 	}
 
 	path := fmt.Sprintf("%s/%s/ingestControl/pause", sm.pathPrefix(scope), url.PathEscape(indexName))
-	span := sm.tracer.createSpan(opts.ParentSpan, "manager_search_pause_ingest", serviceValueSearch)
-	span.SetAttribute("db.operation", "POST "+path)
+	span := sm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_search_pause_ingest", serviceAttribValueSearch)
+	span.SetLegacyOperationName("POST " + path)
 	defer span.End()
 
 	return sm.performControlRequest(
@@ -456,8 +456,8 @@ func (sm *searchIndexProviderCore) ResumeIngest(scope *Scope, indexName string, 
 	}
 
 	path := fmt.Sprintf("%s/%s/ingestControl/resume", sm.pathPrefix(scope), url.PathEscape(indexName))
-	span := sm.tracer.createSpan(opts.ParentSpan, "manager_search_resume_ingest", serviceValueSearch)
-	span.SetAttribute("db.operation", "POST "+path)
+	span := sm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_search_resume_ingest", serviceAttribValueSearch)
+	span.SetLegacyOperationName("POST " + path)
 	defer span.End()
 
 	return sm.performControlRequest(
@@ -483,8 +483,8 @@ func (sm *searchIndexProviderCore) AllowQuerying(scope *Scope, indexName string,
 	}
 
 	path := fmt.Sprintf("%s/%s/queryControl/allow", sm.pathPrefix(scope), url.PathEscape(indexName))
-	span := sm.tracer.createSpan(opts.ParentSpan, "manager_search_allow_querying", serviceValueSearch)
-	span.SetAttribute("db.operation", "POST "+path)
+	span := sm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_search_allow_querying", serviceAttribValueSearch)
+	span.SetLegacyOperationName("POST " + path)
 	defer span.End()
 
 	return sm.performControlRequest(
@@ -510,8 +510,8 @@ func (sm *searchIndexProviderCore) DisallowQuerying(scope *Scope, indexName stri
 	}
 
 	path := fmt.Sprintf("%s/%s/queryControl/disallow", sm.pathPrefix(scope), url.PathEscape(indexName))
-	span := sm.tracer.createSpan(opts.ParentSpan, "manager_search_disallow_querying", serviceValueSearch)
-	span.SetAttribute("db.operation", "POST "+path)
+	span := sm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_search_disallow_querying", serviceAttribValueSearch)
+	span.SetLegacyOperationName("POST " + path)
 	defer span.End()
 
 	return sm.performControlRequest(
@@ -537,8 +537,8 @@ func (sm *searchIndexProviderCore) FreezePlan(scope *Scope, indexName string, op
 	}
 
 	path := fmt.Sprintf("%s/%s/planFreezeControl/freeze", sm.pathPrefix(scope), url.PathEscape(indexName))
-	span := sm.tracer.createSpan(opts.ParentSpan, "manager_search_freeze_plan", serviceValueSearch)
-	span.SetAttribute("db.operation", "POST "+path)
+	span := sm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_search_freeze_plan", serviceAttribValueSearch)
+	span.SetLegacyOperationName("POST " + path)
 	defer span.End()
 
 	return sm.performControlRequest(
@@ -564,8 +564,8 @@ func (sm *searchIndexProviderCore) UnfreezePlan(scope *Scope, indexName string, 
 	}
 
 	path := fmt.Sprintf("%s/%s/planFreezeControl/unfreeze", sm.pathPrefix(scope), url.PathEscape(indexName))
-	span := sm.tracer.createSpan(opts.ParentSpan, "manager_search_unfreeze_plan", serviceValueSearch)
-	span.SetAttribute("db.operation", "POST "+path)
+	span := sm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_search_unfreeze_plan", serviceAttribValueSearch)
+	span.SetLegacyOperationName("POST " + path)
 	defer span.End()
 
 	return sm.performControlRequest(

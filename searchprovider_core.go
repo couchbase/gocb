@@ -80,11 +80,11 @@ func (search *searchProviderCore) search(scope *Scope, indexName string, sQuery 
 		return nil, makeInvalidArgumentsError("must specify either a search query or a vector search")
 	}
 
-	span := search.tracer.createSpan(opts.ParentSpan, "search", "search")
-	span.SetAttribute("db.operation", indexName)
+	span := search.tracer.CreateOperationSpan(opts.ParentSpan, "search", "search")
+	span.SetLegacyOperationName(indexName)
 	if scope != nil {
-		span.SetAttribute("db.name", scope.BucketName())
-		span.SetAttribute("db.couchbase.scope", scope.Name())
+		span.SetBucketName(scope.BucketName())
+		span.SetScopeName(scope.Name())
 	}
 	defer span.End()
 
@@ -138,7 +138,7 @@ func (search *searchProviderCore) search(scope *Scope, indexName string, sQuery 
 
 func (search *searchProviderCore) execSearchQuery(
 	ctx context.Context,
-	span RequestSpan,
+	span *spanWrapper,
 	scope *Scope,
 	indexName string,
 	options map[string]interface{},
@@ -147,7 +147,7 @@ func (search *searchProviderCore) execSearchQuery(
 	user string,
 ) (*SearchResult, error) {
 
-	eSpan := search.tracer.createSpan(span, "request_encoding", "")
+	eSpan := search.tracer.CreateRequestEncodingSpan(span)
 	reqBytes, err := json.Marshal(options)
 	eSpan.End()
 	if err != nil {

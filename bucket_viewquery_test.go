@@ -218,7 +218,7 @@ func (suite *UnitTestSuite) viewsBucket(reader viewRowReader, retryStrategy *cor
 	cli.On("MarkOpBeginning").Return()
 	cli.On("MarkOpCompleted").Return()
 
-	viewProvider.tracer = newTracerWrapper(&NoopTracer{})
+	viewProvider.tracer = newTracerWrapper(&NoopTracer{}, ObservabilityConfig{})
 	b := newBucket("mockBucket", cli, nil)
 
 	return b

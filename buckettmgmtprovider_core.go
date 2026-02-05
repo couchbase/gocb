@@ -167,9 +167,9 @@ func (bm *bucketManagementProviderCore) tryParseFlushErrorMessage(req *mgmtReque
 // GetBucket returns settings for a bucket on the cluster.
 func (bm *bucketManagementProviderCore) GetBucket(bucketName string, opts *GetBucketOptions) (*BucketSettings, error) {
 	path := fmt.Sprintf("/pools/default/buckets/%s", url.PathEscape(bucketName))
-	span := bm.tracer.createSpan(opts.ParentSpan, "manager_bucket_get_bucket", serviceValueManagement)
-	span.SetAttribute("db.name", bucketName)
-	span.SetAttribute("db.operation", "GET "+path)
+	span := bm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_bucket_get_bucket", serviceAttribValueManagement)
+	span.SetBucketName(bucketName)
+	span.SetLegacyOperationName("GET " + path)
 	defer span.End()
 
 	return bm.get(opts.Context, span.Context(), path, opts.RetryStrategy, opts.Timeout)
@@ -222,8 +222,8 @@ func (bm *bucketManagementProviderCore) get(ctx context.Context, tracectx Reques
 
 // GetAllBuckets returns a list of all active buckets on the cluster.
 func (bm *bucketManagementProviderCore) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]BucketSettings, error) {
-	span := bm.tracer.createSpan(opts.ParentSpan, "manager_bucket_get_all_buckets", serviceValueManagement)
-	span.SetAttribute("db.operation", "GET /pools/default/buckets")
+	span := bm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_bucket_get_all_buckets", serviceAttribValueManagement)
+	span.SetLegacyOperationName("GET /pools/default/buckets")
 	defer span.End()
 
 	req := mgmtRequest{
@@ -275,9 +275,9 @@ func (bm *bucketManagementProviderCore) GetAllBuckets(opts *GetAllBucketsOptions
 
 // CreateBucket creates a bucket on the cluster.
 func (bm *bucketManagementProviderCore) CreateBucket(settings CreateBucketSettings, opts *CreateBucketOptions) error {
-	span := bm.tracer.createSpan(opts.ParentSpan, "manager_bucket_create_bucket", serviceValueManagement)
-	span.SetAttribute("db.name", settings.Name)
-	span.SetAttribute("db.operation", "POST /pools/default/buckets")
+	span := bm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_bucket_create_bucket", serviceAttribValueManagement)
+	span.SetBucketName(settings.Name)
+	span.SetLegacyOperationName("POST /pools/default/buckets")
 	defer span.End()
 
 	posts, err := bm.settingsToPostData(&settings.BucketSettings)
@@ -289,7 +289,7 @@ func (bm *bucketManagementProviderCore) CreateBucket(settings CreateBucketSettin
 		posts.Add("conflictResolutionType", string(settings.ConflictResolutionType))
 	}
 
-	eSpan := bm.tracer.createSpan(span, "request_encoding", "")
+	eSpan := bm.tracer.CreateRequestEncodingSpan(span)
 	d := posts.Encode()
 	eSpan.End()
 
@@ -326,9 +326,9 @@ func (bm *bucketManagementProviderCore) CreateBucket(settings CreateBucketSettin
 // UpdateBucket updates a bucket on the cluster.
 func (bm *bucketManagementProviderCore) UpdateBucket(settings BucketSettings, opts *UpdateBucketOptions) error {
 	path := fmt.Sprintf("/pools/default/buckets/%s", url.PathEscape(settings.Name))
-	span := bm.tracer.createSpan(opts.ParentSpan, "manager_bucket_update_bucket", serviceValueManagement)
-	span.SetAttribute("db.name", settings.Name)
-	span.SetAttribute("db.operation", "POST "+path)
+	span := bm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_bucket_update_bucket", serviceAttribValueManagement)
+	span.SetBucketName(settings.Name)
+	span.SetLegacyOperationName("POST " + path)
 	defer span.End()
 
 	posts, err := bm.settingsToPostData(&settings)
@@ -336,7 +336,7 @@ func (bm *bucketManagementProviderCore) UpdateBucket(settings BucketSettings, op
 		return err
 	}
 
-	eSpan := bm.tracer.createSpan(span, "request_encoding", "")
+	eSpan := bm.tracer.CreateRequestEncodingSpan(span)
 	d := posts.Encode()
 	eSpan.End()
 
@@ -373,9 +373,9 @@ func (bm *bucketManagementProviderCore) UpdateBucket(settings BucketSettings, op
 // DropBucket will delete a bucket from the cluster by name.
 func (bm *bucketManagementProviderCore) DropBucket(name string, opts *DropBucketOptions) error {
 	path := fmt.Sprintf("/pools/default/buckets/%s", url.PathEscape(name))
-	span := bm.tracer.createSpan(opts.ParentSpan, "manager_bucket_drop_bucket", serviceValueManagement)
-	span.SetAttribute("db.name", name)
-	span.SetAttribute("db.operation", "DELETE "+path)
+	span := bm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_bucket_drop_bucket", serviceAttribValueManagement)
+	span.SetBucketName(name)
+	span.SetLegacyOperationName("DELETE " + path)
 	defer span.End()
 
 	req := mgmtRequest{
@@ -410,9 +410,9 @@ func (bm *bucketManagementProviderCore) DropBucket(name string, opts *DropBucket
 // Keep in mind that you must have flushing enabled in the buckets configuration.
 func (bm *bucketManagementProviderCore) FlushBucket(name string, opts *FlushBucketOptions) error {
 	path := fmt.Sprintf("/pools/default/buckets/%s/controller/doFlush", url.PathEscape(name))
-	span := bm.tracer.createSpan(opts.ParentSpan, "manager_bucket_flush_bucket", serviceValueManagement)
-	span.SetAttribute("db.name", name)
-	span.SetAttribute("db.operation", "POST "+path)
+	span := bm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_bucket_flush_bucket", serviceAttribValueManagement)
+	span.SetBucketName(name)
+	span.SetLegacyOperationName("POST " + path)
 	defer span.End()
 
 	req := mgmtRequest{

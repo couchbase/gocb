@@ -13,14 +13,14 @@ type collectionsManagementProviderPs struct {
 	bucketName      string
 }
 
-func (cm collectionsManagementProviderPs) newOpManager(parentSpan RequestSpan, opName string, attribs map[string]interface{}) *psOpManagerDefault {
+func (cm *collectionsManagementProviderPs) newOpManager(parentSpan RequestSpan, opName string, attribs psOpSpanAttributes) *psOpManagerDefault {
 	return cm.managerProvider.NewManager(parentSpan, opName, attribs)
 }
 
 func (cm *collectionsManagementProviderPs) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpec, error) {
-	manager := cm.newOpManager(opts.ParentSpan, "manager_collections_get_all_scopes", map[string]interface{}{
-		"db.name":      cm.bucketName,
-		"db.operation": "ListCollections",
+	manager := cm.newOpManager(opts.ParentSpan, "manager_collections_get_all_scopes", psOpSpanAttributes{
+		bucketName:   cm.bucketName,
+		legacyOpName: "ListCollections",
 	})
 	defer manager.Finish()
 
@@ -75,11 +75,11 @@ func (cm *collectionsManagementProviderPs) GetAllScopes(opts *GetAllScopesOption
 
 // CreateCollection creates a new collection on the bucket.
 func (cm *collectionsManagementProviderPs) CreateCollection(scopeName string, collectionName string, settings *CreateCollectionSettings, opts *CreateCollectionOptions) error {
-	manager := cm.newOpManager(opts.ParentSpan, "manager_collections_create_collection", map[string]interface{}{
-		"db.name":                 cm.bucketName,
-		"db.couchbase.scope":      scopeName,
-		"db.couchbase.collection": collectionName,
-		"db.operation":            "CreateCollection",
+	manager := cm.newOpManager(opts.ParentSpan, "manager_collections_create_collection", psOpSpanAttributes{
+		bucketName:     cm.bucketName,
+		scopeName:      scopeName,
+		collectionName: collectionName,
+		legacyOpName:   "CreateCollection",
 	})
 	defer manager.Finish()
 
@@ -116,11 +116,11 @@ func (cm *collectionsManagementProviderPs) CreateCollection(scopeName string, co
 }
 
 func (cm *collectionsManagementProviderPs) UpdateCollection(scopeName string, collectionName string, settings UpdateCollectionSettings, opts *UpdateCollectionOptions) error {
-	manager := cm.newOpManager(opts.ParentSpan, "manager_collections_update_collection", map[string]interface{}{
-		"db.name":                 cm.bucketName,
-		"db.couchbase.scope":      scopeName,
-		"db.couchbase.collection": collectionName,
-		"db.operation":            "UpdateCollection",
+	manager := cm.newOpManager(opts.ParentSpan, "manager_collections_update_collection", psOpSpanAttributes{
+		bucketName:     cm.bucketName,
+		scopeName:      scopeName,
+		collectionName: collectionName,
+		legacyOpName:   "UpdateCollection",
 	})
 	defer manager.Finish()
 
@@ -161,11 +161,11 @@ func (cm *collectionsManagementProviderPs) UpdateCollection(scopeName string, co
 
 // DropCollection removes a collection.
 func (cm *collectionsManagementProviderPs) DropCollection(scopeName string, collectionName string, opts *DropCollectionOptions) error {
-	manager := cm.newOpManager(opts.ParentSpan, "manager_collections_drop_collection", map[string]interface{}{
-		"db.name":                 cm.bucketName,
-		"db.couchbase.scope":      scopeName,
-		"db.couchbase.collection": collectionName,
-		"db.operation":            "DeleteCollection",
+	manager := cm.newOpManager(opts.ParentSpan, "manager_collections_drop_collection", psOpSpanAttributes{
+		bucketName:     cm.bucketName,
+		scopeName:      scopeName,
+		collectionName: collectionName,
+		legacyOpName:   "DeleteCollection",
 	})
 	defer manager.Finish()
 
@@ -194,10 +194,10 @@ func (cm *collectionsManagementProviderPs) DropCollection(scopeName string, coll
 
 // CreateScope creates a new scope on the bucket.
 func (cm *collectionsManagementProviderPs) CreateScope(scopeName string, opts *CreateScopeOptions) error {
-	manager := cm.newOpManager(opts.ParentSpan, "manager_collections_create_scope", map[string]interface{}{
-		"db.name":            cm.bucketName,
-		"db.couchbase.scope": scopeName,
-		"db.operation":       "CreateScope",
+	manager := cm.newOpManager(opts.ParentSpan, "manager_collections_create_scope", psOpSpanAttributes{
+		bucketName:   cm.bucketName,
+		scopeName:    scopeName,
+		legacyOpName: "CreateScope",
 	})
 	defer manager.Finish()
 
@@ -225,10 +225,10 @@ func (cm *collectionsManagementProviderPs) CreateScope(scopeName string, opts *C
 
 // DropScope removes a scope.
 func (cm *collectionsManagementProviderPs) DropScope(scopeName string, opts *DropScopeOptions) error {
-	manager := cm.newOpManager(opts.ParentSpan, "manager_collections_drop_scope", map[string]interface{}{
-		"db.name":            cm.bucketName,
-		"db.couchbase.scope": scopeName,
-		"db.operation":       "DeleteScope",
+	manager := cm.newOpManager(opts.ParentSpan, "manager_collections_drop_scope", psOpSpanAttributes{
+		bucketName:   cm.bucketName,
+		scopeName:    scopeName,
+		legacyOpName: "DeleteScope",
 	})
 	defer manager.Finish()
 

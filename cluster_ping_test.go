@@ -81,7 +81,7 @@ func (suite *UnitTestSuite) pingCluster(runFn func(args mock.Arguments), args ..
 		connectionManager: cli,
 	}
 
-	pingProvider.tracer = newTracerWrapper(&NoopTracer{})
+	pingProvider.tracer = newTracerWrapper(&NoopTracer{}, ObservabilityConfig{})
 
 	return c
 }

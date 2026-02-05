@@ -54,11 +54,11 @@ func (ap *analyticsProviderCore) AnalyticsQuery(statement string, scope *Scope, 
 		opts = &AnalyticsOptions{}
 	}
 
-	span := ap.tracer.createSpan(opts.ParentSpan, "analytics", "analytics")
-	span.SetAttribute("db.statement", statement)
+	span := ap.tracer.CreateOperationSpan(opts.ParentSpan, "analytics", "analytics")
+	span.SetQueryStatement(statement, len(opts.PositionalParameters) > 0 || len(opts.NamedParameters) > 0)
 	if scope != nil {
-		span.SetAttribute("db.name", scope.BucketName())
-		span.SetAttribute("db.couchbase.scope", scope.Name())
+		span.SetBucketName(scope.BucketName())
+		span.SetScopeName(scope.Name())
 	}
 	defer span.End()
 
@@ -92,7 +92,7 @@ func (ap *analyticsProviderCore) AnalyticsQuery(statement string, scope *Scope, 
 		queryOpts["query_context"] = fmt.Sprintf("default:`%s`.`%s`", scope.BucketName(), scope.Name())
 	}
 
-	eSpan := ap.tracer.createSpan(span, "request_encoding", "")
+	eSpan := ap.tracer.CreateRequestEncodingSpan(span)
 	reqBytes, err := json.Marshal(queryOpts)
 	eSpan.End()
 	if err != nil {

@@ -106,9 +106,9 @@ func (vm *viewIndexProviderCore) getDesignDocument(name string, namespace Design
 
 	name = vm.ddocName(name, namespace)
 
-	span := vm.tracer.createSpan(opts.ParentSpan, "manager_views_get_design_document", serviceValueViews)
-	span.SetAttribute("db.operation", "GET "+fmt.Sprintf("/_design/%s", name))
-	span.SetAttribute("db.name", vm.bucketName)
+	span := vm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_views_get_design_document", serviceAttribValueViews)
+	span.SetLegacyOperationName("GET " + fmt.Sprintf("/_design/%s", name))
+	span.SetBucketName(vm.bucketName)
 	defer span.End()
 
 	req := mgmtRequest{
@@ -161,9 +161,9 @@ func (vm *viewIndexProviderCore) GetAllDesignDocuments(namespace DesignDocumentN
 	}
 
 	path := fmt.Sprintf("/pools/default/buckets/%s/ddocs", vm.bucketName)
-	span := vm.tracer.createSpan(opts.ParentSpan, "manager_views_get_all_design_documents", serviceValueViews)
-	span.SetAttribute("db.operation", "GET "+path)
-	span.SetAttribute("db.name", vm.bucketName)
+	span := vm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_views_get_all_design_documents", serviceAttribValueViews)
+	span.SetLegacyOperationName("GET " + path)
+	span.SetBucketName(vm.bucketName)
 	defer span.End()
 
 	req := mgmtRequest{
@@ -263,12 +263,12 @@ func (vm *viewIndexProviderCore) upsertDesignDocument(
 
 	ddocName = vm.ddocName(ddocName, namespace)
 
-	span := vm.tracer.createSpan(opts.ParentSpan, "manager_views_upsert_design_document", serviceValueViews)
-	span.SetAttribute("db.operation", "PUT "+fmt.Sprintf("/_design/%s", ddocName))
-	span.SetAttribute("db.name", vm.bucketName)
+	span := vm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_views_upsert_design_document", serviceAttribValueViews)
+	span.SetLegacyOperationName("PUT " + fmt.Sprintf("/_design/%s", ddocName))
+	span.SetBucketName(vm.bucketName)
 	defer span.End()
 
-	espan := vm.tracer.createSpan(span, "request_encoding", "")
+	espan := vm.tracer.CreateRequestEncodingSpan(span)
 	data, err := json.Marshal(&ddocData)
 	espan.End()
 	if err != nil {
@@ -309,9 +309,9 @@ func (vm *viewIndexProviderCore) DropDesignDocument(name string, namespace Desig
 		opts = &DropDesignDocumentOptions{}
 	}
 
-	span := vm.tracer.createSpan(opts.ParentSpan, "manager_views_drop_design_document", serviceValueViews)
-	span.SetAttribute("db.operation", "DELETE "+fmt.Sprintf("/_design/%s", name))
-	span.SetAttribute("db.name", vm.bucketName)
+	span := vm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_views_drop_design_document", serviceAttribValueViews)
+	span.SetLegacyOperationName("DELETE " + fmt.Sprintf("/_design/%s", name))
+	span.SetBucketName(vm.bucketName)
 	defer span.End()
 
 	return vm.dropDesignDocument(span.Context(), name, namespace, opts)
@@ -354,8 +354,8 @@ func (vm *viewIndexProviderCore) PublishDesignDocument(name string, opts *Publis
 		opts = &PublishDesignDocumentOptions{}
 	}
 
-	span := vm.tracer.createSpan(opts.ParentSpan, "manager_views_publish_design_document", serviceValueViews)
-	span.SetAttribute("db.name", vm.bucketName)
+	span := vm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_views_publish_design_document", serviceAttribValueViews)
+	span.SetBucketName(vm.bucketName)
 	defer span.End()
 
 	devdoc, err := vm.getDesignDocument(
@@ -364,7 +364,7 @@ func (vm *viewIndexProviderCore) PublishDesignDocument(name string, opts *Publis
 		&GetDesignDocumentOptions{
 			RetryStrategy: opts.RetryStrategy,
 			Timeout:       opts.Timeout,
-			ParentSpan:    span,
+			ParentSpan:    span.Wrapped(),
 			Context:       opts.Context,
 		})
 	if err != nil {
@@ -377,7 +377,7 @@ func (vm *viewIndexProviderCore) PublishDesignDocument(name string, opts *Publis
 		&UpsertDesignDocumentOptions{
 			RetryStrategy: opts.RetryStrategy,
 			Timeout:       opts.Timeout,
-			ParentSpan:    span,
+			ParentSpan:    span.Wrapped(),
 			Context:       opts.Context,
 		})
 	if err != nil {

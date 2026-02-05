@@ -23,7 +23,7 @@ func (am *analyticsProviderCore) CreateDataverse(dataverseName string, opts *Cre
 
 	if dataverseName == "" {
 		return invalidArgumentsError{
-			message: "dataset name cannot be empty",
+			message: "dataverse name cannot be empty",
 		}
 	}
 
@@ -34,13 +34,13 @@ func (am *analyticsProviderCore) CreateDataverse(dataverseName string, opts *Cre
 
 	q := fmt.Sprintf("CREATE DATAVERSE %s %s", am.uncompoundName(dataverseName), ignoreStr)
 
-	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_create_dataverse", serviceValueAnalytics)
+	span := am.tracer.CreateOperationSpan(opts.ParentSpan, "manager_analytics_create_dataverse", serviceAttribValueAnalytics)
 	defer span.End()
 
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
 		Timeout:         opts.Timeout,
 		RetryStrategy:   opts.RetryStrategy,
-		ParentSpan:      span,
+		ParentSpan:      span.Wrapped(),
 		ClientContextID: uuid.New().String(),
 		Context:         opts.Context,
 	})
@@ -64,13 +64,13 @@ func (am *analyticsProviderCore) DropDataverse(dataverseName string, opts *DropA
 
 	q := fmt.Sprintf("DROP DATAVERSE %s %s", am.uncompoundName(dataverseName), ignoreStr)
 
-	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_drop_dataverse", serviceValueAnalytics)
+	span := am.tracer.CreateOperationSpan(opts.ParentSpan, "manager_analytics_drop_dataverse", serviceAttribValueAnalytics)
 	defer span.End()
 
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
-		ParentSpan:    span,
+		ParentSpan:    span.Wrapped(),
 		Context:       opts.Context,
 	})
 	if err != nil {
@@ -112,13 +112,13 @@ func (am *analyticsProviderCore) CreateDataset(datasetName, bucketName string, o
 
 	q := fmt.Sprintf("CREATE DATASET %s %s ON `%s` %s", ignoreStr, datasetName, bucketName, where)
 
-	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_create_dataset", serviceValueAnalytics)
+	span := am.tracer.CreateOperationSpan(opts.ParentSpan, "manager_analytics_create_dataset", serviceAttribValueAnalytics)
 	defer span.End()
 
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
-		ParentSpan:    span,
+		ParentSpan:    span.Wrapped(),
 		Context:       opts.Context,
 	})
 	if err != nil {
@@ -146,13 +146,13 @@ func (am *analyticsProviderCore) DropDataset(datasetName string, opts *DropAnaly
 
 	q := fmt.Sprintf("DROP DATASET %s %s", datasetName, ignoreStr)
 
-	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_drop_dataset", serviceValueAnalytics)
+	span := am.tracer.CreateOperationSpan(opts.ParentSpan, "manager_analytics_drop_dataset", serviceAttribValueAnalytics)
 	defer span.End()
 
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
-		ParentSpan:    span,
+		ParentSpan:    span.Wrapped(),
 		Context:       opts.Context,
 	})
 	if err != nil {
@@ -168,14 +168,13 @@ func (am *analyticsProviderCore) GetAllDatasets(opts *GetAllAnalyticsDatasetsOpt
 	}
 
 	q := "SELECT d.* FROM Metadata.`Dataset` d WHERE d.DataverseName <> \"Metadata\""
-	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_get_all_datasets", serviceValueAnalytics)
-	span.SetAttribute("db.statement", q)
+	span := am.tracer.CreateOperationSpan(opts.ParentSpan, "manager_analytics_get_all_datasets", serviceAttribValueAnalytics)
 	defer span.End()
 
 	rows, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
-		ParentSpan:    span,
+		ParentSpan:    span.Wrapped(),
 		Context:       opts.Context,
 	})
 	if err != nil {
@@ -233,13 +232,13 @@ func (am *analyticsProviderCore) CreateIndex(datasetName, indexName string, fiel
 
 	q := fmt.Sprintf("CREATE INDEX `%s` %s ON %s (%s)", indexName, ignoreStr, datasetName, strings.Join(indexFields, ","))
 
-	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_create_index", serviceValueAnalytics)
+	span := am.tracer.CreateOperationSpan(opts.ParentSpan, "manager_analytics_create_index", serviceAttribValueAnalytics)
 	defer span.End()
 
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
-		ParentSpan:    span,
+		ParentSpan:    span.Wrapped(),
 		Context:       opts.Context,
 	})
 	if err != nil {
@@ -267,14 +266,13 @@ func (am *analyticsProviderCore) DropIndex(datasetName, indexName string, opts *
 
 	q := fmt.Sprintf("DROP INDEX %s.%s %s", datasetName, indexName, ignoreStr)
 
-	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_drop_index", serviceValueAnalytics)
-	span.SetAttribute("db.statement", q)
+	span := am.tracer.CreateOperationSpan(opts.ParentSpan, "manager_analytics_drop_index", serviceAttribValueAnalytics)
 	defer span.End()
 
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
-		ParentSpan:    span,
+		ParentSpan:    span.Wrapped(),
 		Context:       opts.Context,
 	})
 	if err != nil {
@@ -290,13 +288,13 @@ func (am *analyticsProviderCore) GetAllIndexes(opts *GetAllAnalyticsIndexesOptio
 	}
 
 	q := "SELECT d.* FROM Metadata.`Index` d WHERE d.DataverseName <> \"Metadata\""
-	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_get_all_indexes", serviceValueAnalytics)
+	span := am.tracer.CreateOperationSpan(opts.ParentSpan, "manager_analytics_get_all_indexes", serviceAttribValueAnalytics)
 	defer span.End()
 
 	rows, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
-		ParentSpan:    span,
+		ParentSpan:    span.Wrapped(),
 		Context:       opts.Context,
 	})
 	if err != nil {
@@ -334,14 +332,13 @@ func (am *analyticsProviderCore) ConnectLink(opts *ConnectAnalyticsLinkOptions) 
 	}
 
 	q := fmt.Sprintf("CONNECT LINK %s", linkName)
-	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_connect_link", serviceValueAnalytics)
-	span.SetAttribute("db.statement", q)
+	span := am.tracer.CreateOperationSpan(opts.ParentSpan, "manager_analytics_connect_link", serviceAttribValueAnalytics)
 	defer span.End()
 
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
-		ParentSpan:    span,
+		ParentSpan:    span.Wrapped(),
 		Context:       opts.Context,
 	})
 	if err != nil {
@@ -365,13 +362,13 @@ func (am *analyticsProviderCore) DisconnectLink(opts *DisconnectAnalyticsLinkOpt
 	}
 
 	q := fmt.Sprintf("DISCONNECT LINK %s", linkName)
-	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_disconnect_link", serviceValueAnalytics)
+	span := am.tracer.CreateOperationSpan(opts.ParentSpan, "manager_analytics_disconnect_link", serviceAttribValueAnalytics)
 	defer span.End()
 
 	_, err := am.doAnalyticsQuery(q, &AnalyticsOptions{
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
-		ParentSpan:    span,
+		ParentSpan:    span.Wrapped(),
 		Context:       opts.Context,
 	})
 	if err != nil {
@@ -386,8 +383,8 @@ func (am *analyticsProviderCore) GetPendingMutations(opts *GetPendingMutationsAn
 		opts = &GetPendingMutationsAnalyticsOptions{}
 	}
 
-	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_get_pending_mutations", serviceValueAnalytics)
-	span.SetAttribute("db.operation", "GET /analytics/node/agg/stats/remaining")
+	span := am.tracer.CreateOperationSpan(opts.ParentSpan, "manager_analytics_get_pending_mutations", serviceAttribValueAnalytics)
+	span.SetLegacyOperationName("GET /analytics/node/agg/stats/remaining")
 	defer span.End()
 
 	timeout := opts.Timeout
@@ -433,7 +430,7 @@ func (am *analyticsProviderCore) CreateLink(link AnalyticsLink, opts *CreateAnal
 		opts = &CreateAnalyticsLinkOptions{}
 	}
 
-	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_create_link", serviceValueAnalytics)
+	span := am.tracer.CreateOperationSpan(opts.ParentSpan, "manager_analytics_create_link", serviceAttribValueAnalytics)
 	defer span.End()
 
 	timeout := opts.Timeout
@@ -446,9 +443,9 @@ func (am *analyticsProviderCore) CreateLink(link AnalyticsLink, opts *CreateAnal
 	}
 
 	endpoint := am.endpointFromLink(link)
-	span.SetAttribute("db.operation", "POST "+endpoint)
+	span.SetLegacyOperationName("POST " + endpoint)
 
-	eSpan := am.tracer.createSpan(span, "request_encoding", "")
+	eSpan := am.tracer.CreateRequestEncodingSpan(span)
 	data, err := link.FormEncode()
 	eSpan.End()
 	if err != nil {
@@ -488,7 +485,7 @@ func (am *analyticsProviderCore) ReplaceLink(link AnalyticsLink, opts *ReplaceAn
 		opts = &ReplaceAnalyticsLinkOptions{}
 	}
 
-	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_replace_link", serviceValueAnalytics)
+	span := am.tracer.CreateOperationSpan(opts.ParentSpan, "manager_analytics_replace_link", serviceAttribValueAnalytics)
 	defer span.End()
 
 	timeout := opts.Timeout
@@ -501,9 +498,9 @@ func (am *analyticsProviderCore) ReplaceLink(link AnalyticsLink, opts *ReplaceAn
 	}
 
 	endpoint := am.endpointFromLink(link)
-	span.SetAttribute("db.operation", "PUT "+endpoint)
+	span.SetLegacyOperationName("PUT " + endpoint)
 
-	eSpan := am.tracer.createSpan(span, "request_encoding", "")
+	eSpan := am.tracer.CreateRequestEncodingSpan(span)
 	data, err := link.FormEncode()
 	eSpan.End()
 	if err != nil {
@@ -543,7 +540,7 @@ func (am *analyticsProviderCore) DropLink(linkName, dataverseName string, opts *
 		opts = &DropAnalyticsLinkOptions{}
 	}
 
-	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_drop_link", serviceValueAnalytics)
+	span := am.tracer.CreateOperationSpan(opts.ParentSpan, "manager_analytics_drop_link", serviceAttribValueAnalytics)
 	defer span.End()
 
 	timeout := opts.Timeout
@@ -561,11 +558,11 @@ func (am *analyticsProviderCore) DropLink(linkName, dataverseName string, opts *
 		values.Add("dataverse", dataverseName)
 		values.Add("name", linkName)
 
-		eSpan := am.tracer.createSpan(span, spanNameRequestEncoding, serviceValueAnalytics)
+		eSpan := am.tracer.CreateRequestEncodingSpan(span)
 		payload = []byte(values.Encode())
 		eSpan.End()
 	}
-	span.SetAttribute("db.operation", "DELETE "+endpoint)
+	span.SetLegacyOperationName("DELETE " + endpoint)
 
 	req := mgmtRequest{
 		Service:       ServiceTypeAnalytics,
@@ -638,8 +635,8 @@ func (am *analyticsProviderCore) GetLinks(opts *GetAnalyticsLinksOptions) ([]Ana
 		endpoint = endpoint + "?" + strings.Join(querystring, "&")
 	}
 
-	span := am.tracer.createSpan(opts.ParentSpan, "manager_analytics_get_all_links", serviceValueAnalytics)
-	span.SetAttribute("db.operation", "GET "+endpoint)
+	span := am.tracer.CreateOperationSpan(opts.ParentSpan, "manager_analytics_get_all_links", serviceAttribValueAnalytics)
+	span.SetLegacyOperationName("GET " + endpoint)
 	defer span.End()
 
 	req := mgmtRequest{

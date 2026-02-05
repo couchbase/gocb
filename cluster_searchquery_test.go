@@ -280,7 +280,7 @@ func (suite *UnitTestSuite) searchCluster(reader searchRowReader, retryStrategy 
 	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)
-	searchProvider.tracer = newTracerWrapper(&NoopTracer{})
+	searchProvider.tracer = newTracerWrapper(&NoopTracer{}, ObservabilityConfig{})
 	searchProvider.retryStrategyWrapper = retryStrategy
 	searchProvider.timeouts.SearchTimeout = 75000 * time.Millisecond
 

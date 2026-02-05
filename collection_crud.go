@@ -233,7 +233,7 @@ type coreReplicasResult struct {
 	totalResults        uint32
 	resCh               chan interface{}
 	cancelCh            chan struct{}
-	span                RequestSpan
+	span                *spanWrapper
 	childReqsCompleteCh chan struct{}
 	startedTime         time.Time
 }

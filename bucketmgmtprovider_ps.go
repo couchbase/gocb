@@ -14,14 +14,14 @@ type bucketManagementProviderPs struct {
 	managerProvider *psOpManagerProvider
 }
 
-func (bm bucketManagementProviderPs) newOpManager(parentSpan RequestSpan, opName string, attribs map[string]interface{}) *psOpManagerDefault {
+func (bm *bucketManagementProviderPs) newOpManager(parentSpan RequestSpan, opName string, attribs psOpSpanAttributes) *psOpManagerDefault {
 	return bm.managerProvider.NewManager(parentSpan, opName, attribs)
 }
 
-func (bm bucketManagementProviderPs) GetBucket(bucketName string, opts *GetBucketOptions) (*BucketSettings, error) {
-	manager := bm.newOpManager(opts.ParentSpan, "manager_bucket_get_bucket", map[string]interface{}{
-		"db.name":      bucketName,
-		"db.operation": "ListBuckets",
+func (bm *bucketManagementProviderPs) GetBucket(bucketName string, opts *GetBucketOptions) (*BucketSettings, error) {
+	manager := bm.newOpManager(opts.ParentSpan, "manager_bucket_get_bucket", psOpSpanAttributes{
+		bucketName:   bucketName,
+		legacyOpName: "ListBuckets",
 	})
 	defer manager.Finish()
 
@@ -54,9 +54,9 @@ func (bm bucketManagementProviderPs) GetBucket(bucketName string, opts *GetBucke
 	return nil, makeGenericError(ErrBucketNotFound, nil)
 }
 
-func (bm bucketManagementProviderPs) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]BucketSettings, error) {
-	manager := bm.newOpManager(opts.ParentSpan, "manager_bucket_get_all_buckets", map[string]interface{}{
-		"db.operation": "ListBuckets",
+func (bm *bucketManagementProviderPs) GetAllBuckets(opts *GetAllBucketsOptions) (map[string]BucketSettings, error) {
+	manager := bm.newOpManager(opts.ParentSpan, "manager_bucket_get_all_buckets", psOpSpanAttributes{
+		legacyOpName: "ListBuckets",
 	})
 	defer manager.Finish()
 
@@ -88,10 +88,10 @@ func (bm bucketManagementProviderPs) GetAllBuckets(opts *GetAllBucketsOptions) (
 	return buckets, nil
 }
 
-func (bm bucketManagementProviderPs) CreateBucket(settings CreateBucketSettings, opts *CreateBucketOptions) error {
-	manager := bm.newOpManager(opts.ParentSpan, "manager_bucket_create_bucket", map[string]interface{}{
-		"db.name":      settings.Name,
-		"db.operation": "CreateBucket",
+func (bm *bucketManagementProviderPs) CreateBucket(settings CreateBucketSettings, opts *CreateBucketOptions) error {
+	manager := bm.newOpManager(opts.ParentSpan, "manager_bucket_create_bucket", psOpSpanAttributes{
+		bucketName:   settings.Name,
+		legacyOpName: "CreateBucket",
 	})
 	defer manager.Finish()
 
@@ -117,10 +117,10 @@ func (bm bucketManagementProviderPs) CreateBucket(settings CreateBucketSettings,
 	return nil
 }
 
-func (bm bucketManagementProviderPs) UpdateBucket(settings BucketSettings, opts *UpdateBucketOptions) error {
-	manager := bm.newOpManager(opts.ParentSpan, "manager_bucket_update_bucket", map[string]interface{}{
-		"db.name":      settings.Name,
-		"db.operation": "UpdateBucket",
+func (bm *bucketManagementProviderPs) UpdateBucket(settings BucketSettings, opts *UpdateBucketOptions) error {
+	manager := bm.newOpManager(opts.ParentSpan, "manager_bucket_update_bucket", psOpSpanAttributes{
+		bucketName:   settings.Name,
+		legacyOpName: "UpdateBucket",
 	})
 	defer manager.Finish()
 
@@ -146,10 +146,10 @@ func (bm bucketManagementProviderPs) UpdateBucket(settings BucketSettings, opts 
 	return nil
 }
 
-func (bm bucketManagementProviderPs) DropBucket(name string, opts *DropBucketOptions) error {
-	manager := bm.newOpManager(opts.ParentSpan, "manager_bucket_drop_bucket", map[string]interface{}{
-		"db.name":      name,
-		"db.operation": "DeleteBucket",
+func (bm *bucketManagementProviderPs) DropBucket(name string, opts *DropBucketOptions) error {
+	manager := bm.newOpManager(opts.ParentSpan, "manager_bucket_drop_bucket", psOpSpanAttributes{
+		bucketName:   name,
+		legacyOpName: "DeleteBucket",
 	})
 	defer manager.Finish()
 
@@ -172,10 +172,10 @@ func (bm bucketManagementProviderPs) DropBucket(name string, opts *DropBucketOpt
 	return nil
 }
 
-func (bm bucketManagementProviderPs) FlushBucket(name string, opts *FlushBucketOptions) error {
-	manager := bm.newOpManager(opts.ParentSpan, "manager_bucket_flush_bucket", map[string]interface{}{
-		"db.name":      name,
-		"db.operation": "FlushBucket",
+func (bm *bucketManagementProviderPs) FlushBucket(name string, opts *FlushBucketOptions) error {
+	manager := bm.newOpManager(opts.ParentSpan, "manager_bucket_flush_bucket", psOpSpanAttributes{
+		bucketName:   name,
+		legacyOpName: "FlushBucket",
 	})
 	defer manager.Finish()
 
@@ -198,7 +198,7 @@ func (bm bucketManagementProviderPs) FlushBucket(name string, opts *FlushBucketO
 	return nil
 }
 
-func (bm bucketManagementProviderPs) psBucketToBucket(source *admin_bucket_v1.ListBucketsResponse_Bucket) (*BucketSettings, error) {
+func (bm *bucketManagementProviderPs) psBucketToBucket(source *admin_bucket_v1.ListBucketsResponse_Bucket) (*BucketSettings, error) {
 	bucket := &BucketSettings{
 		Name:                 source.BucketName,
 		FlushEnabled:         source.FlushEnabled,

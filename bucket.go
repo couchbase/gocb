@@ -216,7 +216,7 @@ func (b *Bucket) viewController() *providerController[viewProvider] {
 
 		meter:    b.connectionManager.getMeter(),
 		keyspace: &b.keyspace,
-		service:  serviceValueViews,
+		service:  serviceAttribValueViews,
 	}
 }
 
@@ -262,7 +262,7 @@ func (b *Bucket) ViewIndexes() *ViewIndexManager {
 
 			meter:    b.connectionManager.getMeter(),
 			keyspace: &b.keyspace,
-			service:  serviceValueViews,
+			service:  serviceAttribValueViews,
 		},
 	}
 }
@@ -276,7 +276,7 @@ func (b *Bucket) CollectionsV2() *CollectionManagerV2 {
 
 			meter:    b.connectionManager.getMeter(),
 			keyspace: &b.keyspace,
-			service:  serviceValueManagement,
+			service:  serviceAttribValueManagement,
 		},
 	}
 }

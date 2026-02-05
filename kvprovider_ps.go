@@ -185,9 +185,9 @@ func (p *kvProviderPs) MutateIn(c *Collection, id string, ops []MutateInSpec, op
 			default:
 			}
 		}
-		etrace := opm.provider.StartKvOpTrace(opm.parent, "request_encoding", opm.TraceSpan(), true)
+		encSpan := opm.provider.tracer.CreateRequestEncodingSpan(opm.TraceSpan())
 		bytes, flags, err := jsonMarshalMutateSpec(op)
-		etrace.End()
+		encSpan.End()
 		if err != nil {
 			return nil, err
 		}
@@ -888,7 +888,7 @@ func (p *kvProviderPs) GetAnyReplica(c *Collection, id string, opts *GetAnyRepli
 		Transcoder:    opts.Transcoder,
 		Timeout:       opts.Timeout,
 		RetryStrategy: opts.RetryStrategy,
-		ParentSpan:    opm.TraceSpan(),
+		ParentSpan:    opm.TraceSpan().Wrapped(),
 		Context:       opts.Context,
 		Internal:      opts.Internal,
 	})
@@ -1083,8 +1083,8 @@ func (p *kvProviderPs) Decrement(c *Collection, id string, opts *DecrementOption
 
 }
 
-func (p *kvProviderPs) StartKvOpTrace(c *Collection, operationName string, parentSpan RequestSpan, noAttributes bool) RequestSpan {
-	return c.startKvOpTrace(operationName, parentSpan, p.tracer, noAttributes)
+func (p *kvProviderPs) StartKvOpTrace(c *Collection, operationName string, parentSpan RequestSpan) *spanWrapper {
+	return c.startKvOpTrace(operationName, parentSpan, p.tracer)
 }
 
 func psMutToGoCbMut(in *kv_v1.MutationToken) *MutationToken {

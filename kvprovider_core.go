@@ -78,7 +78,7 @@ func (p *kvProviderCore) Scan(c *Collection, scanType ScanType, opts *ScanOption
 	}
 	opm.SetServerToVbucketMap(serverToVbucketMap)
 
-	cid, err := p.getCollectionID(opts.Context, c, opm.TraceSpan(), opm.Timeout(), opm.Impersonate())
+	cid, err := p.getCollectionID(opts.Context, c, opm.TraceSpan().Wrapped(), opm.Timeout(), opm.Impersonate())
 	if err != nil {
 		opm.Finish()
 		return nil, maybeEnhanceKVErr(err, c.bucketName(), c.ScopeName(), c.Name(), "scan")
@@ -419,7 +419,7 @@ func (p *kvProviderCore) getProjected(c *Collection, id string, opts *GetOptions
 	}
 
 	result, err := p.LookupIn(c, id, ops, &LookupInOptions{
-		ParentSpan: opm.TraceSpan(),
+		ParentSpan: opm.TraceSpan().Wrapped(),
 		Context:    opts.Context,
 	})
 	if err != nil {
@@ -788,7 +788,7 @@ func (p *kvProviderCore) GetAllReplicas(c *Collection, id string, opts *GetAllRe
 		ctx = context.Background()
 	}
 
-	span := p.StartKvOpTrace(c, "get_all_replicas", opts.ParentSpan, false)
+	span := p.StartKvOpTrace(c, "get_all_replicas", opts.ParentSpan)
 
 	// Timeout needs to be adjusted here, since we use it at the bottom of this
 	// function, but the remaining options are all passed downwards and get handled
@@ -862,7 +862,7 @@ func (p *kvProviderCore) GetAllReplicas(c *Collection, id string, opts *GetAllRe
 			// This timeout value will cause the getOneReplica operation to timeout after our deadline has expired,
 			// as the deadline has already begun. getOneReplica timing out before our deadline would cause inconsistent
 			// behaviour.
-			res, err := p.getOneReplica(context.Background(), span, id, replicaIdx, transcoder, retryStrategy, cancelCh,
+			res, err := p.getOneReplica(context.Background(), span.Wrapped(), id, replicaIdx, transcoder, retryStrategy, cancelCh,
 				timeout, opts.Internal.User, c)
 			if err != nil {
 				coreRes.addFailed()
@@ -900,7 +900,7 @@ func (p *kvProviderCore) GetAnyReplica(c *Collection, id string, opts *GetAnyRep
 		opts = &GetAnyReplicaOptions{}
 	}
 
-	span := p.StartKvOpTrace(c, "get_any_replica", opts.ParentSpan, false)
+	span := p.StartKvOpTrace(c, "get_any_replica", opts.ParentSpan)
 	defer span.End()
 
 	repRes, err := p.GetAllReplicas(c, id, &GetAllReplicaOptions{
@@ -908,7 +908,7 @@ func (p *kvProviderCore) GetAnyReplica(c *Collection, id string, opts *GetAnyRep
 		Transcoder:     opts.Transcoder,
 		RetryStrategy:  opts.RetryStrategy,
 		Internal:       opts.Internal,
-		ParentSpan:     span,
+		ParentSpan:     span.Wrapped(),
 		Context:        opts.Context,
 		ReadPreference: opts.ReadPreference,
 	})
@@ -1260,6 +1260,6 @@ func (p *kvProviderCore) Decrement(c *Collection, id string, opts *DecrementOpti
 
 }
 
-func (p *kvProviderCore) StartKvOpTrace(c *Collection, operationName string, parentSpan RequestSpan, noAttributes bool) RequestSpan {
-	return c.startKvOpTrace(operationName, parentSpan, p.tracer, noAttributes)
+func (p *kvProviderCore) StartKvOpTrace(c *Collection, operationName string, parentSpan RequestSpan) *spanWrapper {
+	return c.startKvOpTrace(operationName, parentSpan, p.tracer)
 }

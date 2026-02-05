@@ -22,9 +22,9 @@ type collectionsManagementProviderCore struct {
 
 func (cm *collectionsManagementProviderCore) GetAllScopes(opts *GetAllScopesOptions) ([]ScopeSpec, error) {
 	path := fmt.Sprintf("/pools/default/buckets/%s/scopes", url.PathEscape(cm.bucketName))
-	span := cm.tracer.createSpan(opts.ParentSpan, "manager_collections_get_all_scopes", serviceValueManagement)
-	span.SetAttribute("db.name", cm.bucketName)
-	span.SetAttribute("db.operation", "GET "+path)
+	span := cm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_collections_get_all_scopes", serviceAttribValueManagement)
+	span.SetBucketName(cm.bucketName)
+	span.SetLegacyOperationName("GET " + path)
 	defer span.End()
 
 	req := mgmtRequest{
@@ -123,11 +123,11 @@ func (cm *collectionsManagementProviderCore) CreateCollection(scopeName string, 
 	}
 
 	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections", url.PathEscape(cm.bucketName), url.PathEscape(scopeName))
-	span := cm.tracer.createSpan(opts.ParentSpan, "manager_collections_create_collection", serviceValueManagement)
-	span.SetAttribute("db.name", cm.bucketName)
-	span.SetAttribute("db.couchbase.scope", scopeName)
-	span.SetAttribute("db.couchbase.collection", collectionName)
-	span.SetAttribute("db.operation", "POST "+path)
+	span := cm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_collections_create_collection", serviceAttribValueManagement)
+	span.SetBucketName(cm.bucketName)
+	span.SetScopeName(scopeName)
+	span.SetCollectionName(collectionName)
+	span.SetLegacyOperationName("POST " + path)
 	defer span.End()
 
 	posts := url.Values{}
@@ -143,7 +143,7 @@ func (cm *collectionsManagementProviderCore) CreateCollection(scopeName string, 
 		posts.Add("history", fmt.Sprintf("%t", settings.History.Enabled))
 	}
 
-	eSpan := cm.tracer.createSpan(span, "request_encoding", "")
+	eSpan := cm.tracer.CreateRequestEncodingSpan(span)
 	encoded := posts.Encode()
 	eSpan.End()
 
@@ -196,11 +196,11 @@ func (cm *collectionsManagementProviderCore) UpdateCollection(scopeName string, 
 	}
 
 	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections/%s", cm.bucketName, scopeName, collectionName)
-	span := cm.tracer.createSpan(opts.ParentSpan, "manager_collections_update_collection", serviceValueManagement)
-	span.SetAttribute("db.name", cm.bucketName)
-	span.SetAttribute("db.couchbase.scope", scopeName)
-	span.SetAttribute("db.couchbase.collection", collectionName)
-	span.SetAttribute("db.operation", "POST "+path)
+	span := cm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_collections_update_collection", serviceAttribValueManagement)
+	span.SetBucketName(cm.bucketName)
+	span.SetScopeName(scopeName)
+	span.SetCollectionName(collectionName)
+	span.SetLegacyOperationName("POST " + path)
 	defer span.End()
 
 	posts := url.Values{}
@@ -215,7 +215,7 @@ func (cm *collectionsManagementProviderCore) UpdateCollection(scopeName string, 
 		posts.Add("history", fmt.Sprintf("%t", settings.History.Enabled))
 	}
 
-	eSpan := cm.tracer.createSpan(span, "request_encoding", "")
+	eSpan := cm.tracer.CreateRequestEncodingSpan(span)
 	encoded := posts.Encode()
 	eSpan.End()
 
@@ -268,11 +268,11 @@ func (cm *collectionsManagementProviderCore) DropCollection(scopeName string, co
 	}
 
 	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s/collections/%s", url.PathEscape(cm.bucketName), url.PathEscape(scopeName), url.PathEscape(collectionName))
-	span := cm.tracer.createSpan(opts.ParentSpan, "manager_collections_drop_collection", serviceValueManagement)
-	span.SetAttribute("db.name", cm.bucketName)
-	span.SetAttribute("db.couchbase.scope", scopeName)
-	span.SetAttribute("db.couchbase.collection", collectionName)
-	span.SetAttribute("db.operation", "DELETE "+path)
+	span := cm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_collections_drop_collection", serviceAttribValueManagement)
+	span.SetBucketName(cm.bucketName)
+	span.SetScopeName(scopeName)
+	span.SetCollectionName(collectionName)
+	span.SetLegacyOperationName("DELETE " + path)
 	defer span.End()
 
 	req := mgmtRequest{
@@ -318,16 +318,16 @@ func (cm *collectionsManagementProviderCore) CreateScope(scopeName string, opts 
 	}
 
 	path := fmt.Sprintf("/pools/default/buckets/%s/scopes", url.PathEscape(cm.bucketName))
-	span := cm.tracer.createSpan(opts.ParentSpan, "manager_collections_create_scope", serviceValueManagement)
-	span.SetAttribute("db.name", cm.bucketName)
-	span.SetAttribute("db.couchbase.scope", scopeName)
-	span.SetAttribute("db.operation", "POST "+path)
+	span := cm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_collections_create_scope", serviceAttribValueManagement)
+	span.SetBucketName(cm.bucketName)
+	span.SetScopeName(scopeName)
+	span.SetLegacyOperationName("POST " + path)
 	defer span.End()
 
 	posts := url.Values{}
 	posts.Add("name", scopeName)
 
-	eSpan := cm.tracer.createSpan(span, "request_encoding", "")
+	eSpan := cm.tracer.CreateRequestEncodingSpan(span)
 	encoded := posts.Encode()
 	eSpan.End()
 
@@ -372,10 +372,10 @@ func (cm *collectionsManagementProviderCore) DropScope(scopeName string, opts *D
 	}
 
 	path := fmt.Sprintf("/pools/default/buckets/%s/scopes/%s", url.PathEscape(cm.bucketName), url.PathEscape(scopeName))
-	span := cm.tracer.createSpan(opts.ParentSpan, "manager_collections_drop_scope", serviceValueManagement)
-	span.SetAttribute("db.name", cm.bucketName)
-	span.SetAttribute("db.couchbase.scope", scopeName)
-	span.SetAttribute("db.operation", "DELETE "+path)
+	span := cm.tracer.CreateOperationSpan(opts.ParentSpan, "manager_collections_drop_scope", serviceAttribValueManagement)
+	span.SetBucketName(cm.bucketName)
+	span.SetScopeName(scopeName)
+	span.SetLegacyOperationName("DELETE " + path)
 	defer span.End()
 
 	req := mgmtRequest{

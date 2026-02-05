@@ -24,11 +24,11 @@ type queryProviderCore struct {
 }
 
 func (qpc *queryProviderCore) Query(statement string, s *Scope, opts *QueryOptions) (*QueryResult, error) {
-	span := qpc.tracer.createSpan(opts.ParentSpan, "query", "query")
-	span.SetAttribute("db.statement", statement)
+	span := qpc.tracer.CreateOperationSpan(opts.ParentSpan, "query", "query")
+	span.SetQueryStatement(statement, len(opts.PositionalParameters) > 0 || len(opts.NamedParameters) > 0)
 	if s != nil {
-		span.SetAttribute("db.name", s.BucketName())
-		span.SetAttribute("db.couchbase.scope", s.Name())
+		span.SetBucketName(s.BucketName())
+		span.SetScopeName(s.Name())
 	}
 	defer span.End()
 
@@ -57,7 +57,7 @@ func (qpc *queryProviderCore) Query(statement string, s *Scope, opts *QueryOptio
 		queryOpts["query_context"] = fmt.Sprintf("default:`%s`.`%s`", s.BucketName(), s.Name())
 	}
 
-	eSpan := qpc.tracer.createSpan(span, "request_encoding", "")
+	eSpan := qpc.tracer.CreateRequestEncodingSpan(span)
 	reqBytes, err := json.Marshal(queryOpts)
 	eSpan.End()
 	if err != nil {

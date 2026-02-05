@@ -202,7 +202,7 @@ func (suite *UnitTestSuite) searchScope(reader searchRowReader, retryStrategy Re
 
 	searchProvider := &searchProviderCore{
 		provider: provider,
-		tracer:   newTracerWrapper(&NoopTracer{}),
+		tracer:   newTracerWrapper(&NoopTracer{}, ObservabilityConfig{}),
 	}
 	cli := new(mockConnectionManager)
 	cli.On("getSearchProvider").Return(searchProvider, nil)

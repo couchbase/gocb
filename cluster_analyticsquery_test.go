@@ -457,7 +457,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryBothParams() {
 	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)
-	analyticsProvider.tracer = newTracerWrapper(&NoopTracer{})
+	analyticsProvider.tracer = newTracerWrapper(&NoopTracer{}, ObservabilityConfig{})
 	analyticsProvider.retryStrategyWrapper = newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
 	analyticsProvider.analyticsTimeout = 7500 * time.Millisecond
 
@@ -615,7 +615,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyInvalid() {
 	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)
-	analyticsProvider.tracer = newTracerWrapper(&NoopTracer{})
+	analyticsProvider.tracer = newTracerWrapper(&NoopTracer{}, ObservabilityConfig{})
 	analyticsProvider.retryStrategyWrapper = newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
 	analyticsProvider.analyticsTimeout = 75000 * time.Millisecond
 
@@ -652,7 +652,7 @@ func (suite *UnitTestSuite) coreAnalyticsCluster(ctx context.Context, retryStrat
 
 	cluster := suite.newCluster(cli)
 
-	analyticsProvider.tracer = newTracerWrapper(&NoopTracer{})
+	analyticsProvider.tracer = newTracerWrapper(&NoopTracer{}, ObservabilityConfig{})
 	analyticsProvider.retryStrategyWrapper = retryStrategy
 	analyticsProvider.analyticsTimeout = 75000 * time.Millisecond
 
