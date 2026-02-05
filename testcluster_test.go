@@ -58,6 +58,7 @@ var (
 	DurabilityFeature                                       = FeatureCode("durability")
 	UserGroupFeature                                        = FeatureCode("usergroup")
 	UserManagerFeature                                      = FeatureCode("usermanager")
+	UserManagerGroupRolesFeature                            = FeatureCode("usermanagergrouproles")
 	AnalyticsIndexFeature                                   = FeatureCode("analyticsindex")
 	BucketMgrFeature                                        = FeatureCode("bucketmgr")
 	SearchAnalyzeFeature                                    = FeatureCode("searchanalyze")
@@ -288,6 +289,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case EventingFunctionManagerAllowsSameStateTransitionFeature:
 			supported = false
+		case UserManagerGroupRolesFeature:
+			supported = false
 		}
 	} else {
 		switch feature {
@@ -445,6 +448,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer800)
 		case EventingFunctionManagerMB67773Feature:
 			supported = !c.Version.Equal(srvVer800)
+		case UserManagerGroupRolesFeature:
+			supported = !c.Version.Lower(srvVer700)
 		}
 	}
 

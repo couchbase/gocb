@@ -17,8 +17,10 @@ func (suite *IntegrationTestSuite) TestUserManagerGroupCrud() {
 
 	mgr := globalCluster.Users()
 
+	firstGroupName := uuid.NewString()
+	secondGroupName := uuid.NewString()
 	err := mgr.UpsertGroup(Group{
-		Name:        "test",
+		Name:        firstGroupName,
 		Description: "this is a test",
 		Roles: []Role{
 			{
@@ -33,9 +35,9 @@ func (suite *IntegrationTestSuite) TestUserManagerGroupCrud() {
 	}, nil)
 	suite.Require().NoError(err)
 
-	suite.EnsureUserGroupOnAllNodes(time.Now().Add(20*time.Second), "test", nil)
+	suite.EnsureUserGroupOnAllNodes(time.Now().Add(20*time.Second), firstGroupName, nil)
 
-	group, err := mgr.GetGroup("test", nil)
+	group, err := mgr.GetGroup(firstGroupName, nil)
 	suite.Require().NoError(err)
 
 	group.Description = "this is still a test"
@@ -44,30 +46,37 @@ func (suite *IntegrationTestSuite) TestUserManagerGroupCrud() {
 	err = mgr.UpsertGroup(*group, nil)
 	suite.Require().NoError(err)
 
-	suite.EnsureUserGroupOnAllNodes(time.Now().Add(20*time.Second), "test", func(g jsonGroup) bool {
+	suite.EnsureUserGroupOnAllNodes(time.Now().Add(20*time.Second), firstGroupName, func(g jsonGroup) bool {
 		return g.Description == group.Description
 	})
 
-	group.Name = "test2"
+	group.Name = secondGroupName
 	err = mgr.UpsertGroup(*group, nil)
 	suite.Require().NoError(err)
 
-	suite.EnsureUserGroupOnAllNodes(time.Now().Add(20*time.Second), "test2", nil)
+	suite.EnsureUserGroupOnAllNodes(time.Now().Add(20*time.Second), secondGroupName, nil)
 
 	groups, err := mgr.GetAllGroups(nil)
 	suite.Require().NoError(err)
 
-	suite.Assert().Len(groups, 2)
+	var found int
+	for _, g := range groups {
+		if firstGroupName == g.Name || secondGroupName == g.Name {
+			found++
+		}
+	}
+
+	suite.Assert().Equal(2, found, "Expected to find both groups in GetAllGroups")
 
 	roles, err := mgr.GetRoles(nil)
 	suite.Require().NoError(err)
 
 	suite.Assert().Greater(len(roles), 0)
 
-	err = mgr.DropGroup("test", nil)
+	err = mgr.DropGroup(firstGroupName, nil)
 	suite.Require().NoError(err)
 
-	err = mgr.DropGroup("test2", nil)
+	err = mgr.DropGroup(secondGroupName, nil)
 	suite.Require().NoError(err)
 
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_users_upsert_group"), 3, false)
@@ -383,6 +392,136 @@ func (suite *IntegrationTestSuite) TestUserManagerCollectionsRoles() {
 
 		})
 	}
+}
+func (suite *IntegrationTestSuite) TestUserManagerCollectionsGroupsRoles() {
+	suite.skipIfUnsupported(UserManagerFeature)
+	suite.skipIfUnsupported(UserManagerGroupRolesFeature)
+	suite.skipIfUnsupported(CollectionsFeature)
+
+	mgr := globalCluster.Users()
+
+	type testCase struct {
+		group Group
+	}
+
+	testCases := []testCase{
+		{
+			group: Group{
+				Name:        "collectionsGroupBucket",
+				Description: "collections group bucket",
+				Roles: []Role{
+					{
+						Name:   "data_reader",
+						Bucket: globalBucket.Name(),
+					},
+				},
+				LDAPGroupReference: "",
+			},
+		},
+		{
+			group: Group{
+				Name:        "collectionsGroupScope",
+				Description: "collections group scope",
+				Roles: []Role{
+					{
+						Name:   "data_reader",
+						Bucket: globalBucket.Name(),
+						Scope:  globalScope.Name(),
+					},
+				},
+				LDAPGroupReference: "",
+			},
+		},
+		{
+			group: Group{
+				Name:        "collectionsGroupCollection",
+				Description: "collections group collection",
+				Roles: []Role{
+					{
+						Name:       "data_reader",
+						Bucket:     globalBucket.Name(),
+						Scope:      globalScope.Name(),
+						Collection: globalCollection.Name(),
+					},
+				},
+				LDAPGroupReference: "",
+			},
+		},
+	}
+	for _, tCase := range testCases {
+		suite.T().Run(tCase.group.Name, func(te *testing.T) {
+			err := mgr.UpsertGroup(tCase.group, nil)
+			if err != nil {
+				te.Logf("Expected err to be nil but was %v", err)
+				te.Fail()
+				return
+			}
+
+			suite.EnsureUserGroupOnAllNodes(time.Now().Add(20*time.Second), tCase.group.Name, nil)
+
+			group, err := mgr.GetGroup(tCase.group.Name, nil)
+			if err != nil {
+				te.Logf("Expected err to be nil but was %v", err)
+				return
+			}
+
+			if group.Name != tCase.group.Name {
+				te.Logf("Expected group Name to be %s but was %s", tCase.group.Name, group.Name)
+				te.Fail()
+			}
+
+			if group.Description != tCase.group.Description {
+				te.Logf("Expected group Description to be %s but was %s", tCase.group.Description, group.Description)
+				te.Fail()
+			}
+
+			if len(group.Roles) != len(tCase.group.Roles) {
+				te.Logf("Expected group Roles to be length %v but was %v", len(tCase.group.Roles), len(group.Roles))
+				te.Fail()
+			}
+
+		})
+	}
+}
+
+func (suite *IntegrationTestSuite) TestUserManagerGroupInvalidBucketRole() {
+	suite.skipIfUnsupported(UserGroupFeature)
+
+	mgr := globalCluster.Users()
+
+	err := mgr.UpsertGroup(Group{
+		Name:        "test",
+		Description: "this is a test",
+		Roles: []Role{
+			{
+				Name:       "data_reader",
+				Bucket:     "*",
+				Scope:      globalScope.Name(),
+				Collection: globalCollection.Name(),
+			},
+		},
+	}, nil)
+	suite.Require().ErrorIs(err, ErrInvalidArgument)
+}
+
+func (suite *IntegrationTestSuite) TestUserManagerGroupInvaliScopeRole() {
+	suite.skipIfUnsupported(UserGroupFeature)
+
+	mgr := globalCluster.Users()
+
+	err := mgr.UpsertGroup(Group{
+		Name:        "test",
+		Description: "this is a test",
+		Roles: []Role{
+			{
+				Name:       "data_reader",
+				Bucket:     globalBucket.Name(),
+				Scope:      "*",
+				Collection: globalCollection.Name(),
+			},
+		},
+	}, nil)
+	suite.Require().ErrorIs(err, ErrInvalidArgument)
 }
 
 func (suite *IntegrationTestSuite) TestUserManagerChangePassword() {
