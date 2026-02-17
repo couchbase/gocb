@@ -395,6 +395,9 @@ func (n *thresholdLogSpan) SetAttribute(key string, value interface{}) {
 		n.peerPort, ok = value.(string)
 	case spanLegacyAttribNetHostPort:
 		n.localPort, ok = value.(string)
+	default:
+		// We don't need this attribute
+		return
 	}
 
 	if !ok {
