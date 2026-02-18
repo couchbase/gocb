@@ -1,5 +1,5 @@
-github.com/couchbase/gocbcore/v10 v10.8.2-0.20260216100419-45e14f56d71f h1:IIyGZ6c1IZg2iGkbHbYRNhjUTxIMjTRzoQzHpDIC9Ro=
-github.com/couchbase/gocbcore/v10 v10.8.2-0.20260216100419-45e14f56d71f/go.mod h1:OWKfU9R5Nm5V3QZBtfdZl5qCfgxtxTqOgXiNr4pn9/c=
+github.com/couchbase/gocbcore/v10 v10.8.2 h1:LIKibHfWYOaU9mtSZiWgCf8+qILkYOgMyrq5JdY1V2Y=
+github.com/couchbase/gocbcore/v10 v10.8.2/go.mod h1:OWKfU9R5Nm5V3QZBtfdZl5qCfgxtxTqOgXiNr4pn9/c=
 github.com/couchbase/gocbcoreps v0.1.5-0.20260107140814-1c3a03f888f8 h1:WwGhY3TYn2INQo88yzEhUMYFlgjRInA1dgfEa3UhAxw=
 github.com/couchbase/gocbcoreps v0.1.5-0.20260107140814-1c3a03f888f8/go.mod h1:AUR8DPPmvM+uMkb+Q01Y0mMXINdEY/jUL/qE+kPJ67s=
 github.com/couchbase/goprotostellar v1.0.5 h1:pmR4H87zbYymIdTR1owyUZsfQ7NupkfCuNLW4FIPBhE=
