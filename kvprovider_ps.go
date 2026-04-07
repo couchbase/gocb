@@ -588,7 +588,7 @@ func (p *kvProviderPs) GetAndLock(c *Collection, id string, lockTime time.Durati
 		BucketName:     opm.BucketName(),
 		ScopeName:      opm.ScopeName(),
 		CollectionName: opm.CollectionName(),
-		LockTime:       uint32(lockTime.Seconds()),
+		LockTimeSecs:   uint32(lockTime.Seconds()),
 
 		Compression: opm.CompressionEnabled(),
 	}
