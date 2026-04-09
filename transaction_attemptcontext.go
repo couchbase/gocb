@@ -3,6 +3,7 @@ package gocb
 import (
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/couchbase/gocbcore/v10"
 )
@@ -252,6 +253,15 @@ func (c *TransactionAttemptContext) ReplaceWithOptions(doc *TransactionGetResult
 	return c.replace(doc, value, opts)
 }
 
+func durationToExpiryTime(dur time.Duration) time.Time {
+	if dur == 0 {
+		return time.Time{} // Expiry is not set
+	}
+
+	res := time.Now().Add(dur)
+	return res
+}
+
 func (c *TransactionAttemptContext) replace(doc *TransactionGetResult, value interface{}, opts *TransactionReplaceOptions) (resOut *TransactionGetResult, errOut error) {
 	transcoder := opts.Transcoder
 	if transcoder == nil {
@@ -271,6 +281,7 @@ func (c *TransactionAttemptContext) replace(doc *TransactionGetResult, value int
 		Document: doc.coreRes,
 		Value:    valueBytes,
 		Flags:    flags,
+		Expiry:   durationToExpiryTime(opts.Expiry),
 	}, func(res *gocbcore.TransactionGetResult, err error) {
 		if err == nil {
 			resOut = &TransactionGetResult{
@@ -347,6 +358,7 @@ func (c *TransactionAttemptContext) insert(collection *Collection, id string, va
 		Key:            []byte(id),
 		Value:          valueBytes,
 		Flags:          flags,
+		Expiry:         durationToExpiryTime(opts.Expiry),
 	}, func(res *gocbcore.TransactionGetResult, err error) {
 		if err == nil {
 			resOut = &TransactionGetResult{

@@ -114,6 +114,17 @@ func (c *TransactionAttemptContext) replaceQueryMode(doc *TransactionGetResult, 
 		doc.docID,
 	))
 
+	if opts.Expiry > 0 {
+		return nil, operationFailed(transactionOperationFailedDef{
+			ShouldNotRetry:    true,
+			ShouldNotRollback: false,
+			Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
+			ErrorCause:        wrapError(ErrFeatureNotAvailable, "expiry is not available for queries"),
+			ErrorClass:        gocbcore.TransactionErrorClassFailOther,
+			ShouldNotCommit:   true,
+		}, c)
+	}
+
 	transcoder := opts.Transcoder
 	if transcoder == nil {
 		transcoder = c.transcoder
@@ -126,24 +137,14 @@ func (c *TransactionAttemptContext) replaceQueryMode(doc *TransactionGetResult, 
 
 	userFlags, _ := gocbcore.DecodeCommonFlags(flags)
 	if userFlags == gocbcore.BinaryType {
-		c.updateState(transactionOperationFailedDef{
+		return nil, operationFailed(transactionOperationFailedDef{
 			ShouldNotRetry:    true,
 			ShouldNotRollback: false,
 			Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
-			ErrorCause: wrapError(
-				ErrFeatureNotAvailable,
-				"binary transactions is not available for queries",
-			),
-			ErrorClass:      gocbcore.TransactionErrorClassFailOther,
-			ShouldNotCommit: true,
-		})
-
-		return nil, createTransactionOperationFailedError(
-			wrapError(
-				ErrFeatureNotAvailable,
-				"binary transactions is not available for queries",
-			),
-		)
+			ErrorCause:        wrapError(ErrFeatureNotAvailable, "binary transactions is not available for queries"),
+			ErrorClass:        gocbcore.TransactionErrorClassFailOther,
+			ShouldNotCommit:   true,
+		}, c)
 	}
 
 	txdata := map[string]interface{}{
@@ -238,6 +239,17 @@ func (c *TransactionAttemptContext) insertQueryMode(collection *Collection, id s
 		id,
 	))
 
+	if opts.Expiry > 0 {
+		return nil, operationFailed(transactionOperationFailedDef{
+			ShouldNotRetry:    true,
+			ShouldNotRollback: false,
+			Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
+			ErrorCause:        wrapError(ErrFeatureNotAvailable, "expiry is not available for queries"),
+			ErrorClass:        gocbcore.TransactionErrorClassFailOther,
+			ShouldNotCommit:   true,
+		}, c)
+	}
+
 	transcoder := opts.Transcoder
 	if transcoder == nil {
 		transcoder = c.transcoder
@@ -250,7 +262,7 @@ func (c *TransactionAttemptContext) insertQueryMode(collection *Collection, id s
 
 	userFlags, _ := gocbcore.DecodeCommonFlags(flags)
 	if userFlags == gocbcore.BinaryType {
-		c.updateState(transactionOperationFailedDef{
+		return nil, operationFailed(transactionOperationFailedDef{
 			ShouldNotRetry:    true,
 			ShouldNotRollback: false,
 			Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
@@ -260,14 +272,7 @@ func (c *TransactionAttemptContext) insertQueryMode(collection *Collection, id s
 			),
 			ErrorClass:      gocbcore.TransactionErrorClassFailOther,
 			ShouldNotCommit: true,
-		})
-
-		return nil, createTransactionOperationFailedError(
-			wrapError(
-				ErrFeatureNotAvailable,
-				"binary transactions is not available for queries",
-			),
-		)
+		}, c)
 	}
 
 	txdata := map[string]interface{}{
@@ -688,9 +693,20 @@ func (c *TransactionAttemptContext) queryBeginWork(scope *Scope) (errOut error) 
 
 	mutations := c.txn.GetMutations()
 	for _, mutation := range mutations {
+		if mutation.Expiry > 0 {
+			return operationFailed(transactionOperationFailedDef{
+				ShouldNotRetry:    true,
+				ShouldNotRollback: false,
+				Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
+				ErrorCause:        wrapError(ErrFeatureNotAvailable, "expiry is not available for queries"),
+				ErrorClass:        gocbcore.TransactionErrorClassFailOther,
+				ShouldNotCommit:   true,
+			}, c)
+		}
+
 		datatype, _ := gocbcore.DecodeCommonFlags(mutation.StagedUserFlags)
 		if datatype == gocbcore.BinaryType {
-			c.updateState(transactionOperationFailedDef{
+			return operationFailed(transactionOperationFailedDef{
 				ShouldNotRetry:    true,
 				ShouldNotRollback: false,
 				Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
@@ -700,14 +716,7 @@ func (c *TransactionAttemptContext) queryBeginWork(scope *Scope) (errOut error) 
 				),
 				ErrorClass:      gocbcore.TransactionErrorClassFailOther,
 				ShouldNotCommit: true,
-			})
-
-			return createTransactionOperationFailedError(
-				wrapError(
-					ErrFeatureNotAvailable,
-					"binary transactions is not available for queries",
-				),
-			)
+			}, c)
 		}
 	}
 

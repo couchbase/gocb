@@ -1,5 +1,7 @@
 package gocb
 
+import "time"
+
 // TransactionGetOptions are the options available to the Get operation.
 type TransactionGetOptions struct {
 	Transcoder Transcoder
@@ -14,11 +16,13 @@ type TransactionGetReplicaFromPreferredServerGroupOptions struct {
 // TransactionInsertOptions are the options available to the Insert operation.
 type TransactionInsertOptions struct {
 	Transcoder Transcoder
+	Expiry     time.Duration
 }
 
 // TransactionReplaceOptions are the options available to the Replace operation.
 type TransactionReplaceOptions struct {
 	Transcoder Transcoder
+	Expiry     time.Duration
 }
 
 // TransactionRemoveOptions are the options available to the Remove operation.
