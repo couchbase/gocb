@@ -38,6 +38,10 @@ var (
 
 	// EventingFunctionStatePausing represents that the eventing function is pausing.
 	EventingFunctionStatePausing EventingFunctionStatus = "pausing"
+
+	// EventingFunctionStateResuming represents that the eventing function is resuming
+	// i.e. the transition from EventingFunctionStatePaused to EventingFunctionStateDeployed.
+	EventingFunctionStateResuming EventingFunctionStatus = "resuming"
 )
 
 // EventingFunctionDCPBoundary sets what data mutations to deploy the eventing function for.
