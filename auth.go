@@ -220,6 +220,11 @@ func (auth *coreAuthWrapper) JWT(req gocbcore.AuthCredsRequest) (gocbcore.JWT, e
 	})
 }
 
+func (auth *coreAuthWrapper) ContainsJWT() bool {
+	_, ok := auth.auth.(*JWTAuthenticator)
+	return ok
+}
+
 func (auth *coreAuthWrapper) DefaultAuthMechanisms(tlsEnabled bool) []gocbcore.AuthMechanism {
 	mechs := auth.auth.DefaultSaslMechanisms(tlsEnabled)
 	var coreMechs []gocbcore.AuthMechanism

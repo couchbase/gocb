@@ -229,6 +229,7 @@ func (c *stdConnectionMgr) SetAuthenticator(opts SetAuthenticatorOptions) error 
 		gocbcore.ReconfigureSecurityOptions{
 			Auth:              auth,
 			AuthMechanisms:    authMechanisms,
+			UseTLS:            tlsRootProvider != nil,
 			TLSRootCAProvider: tlsRootProvider,
 			NoReconnect:       true,
 		},
