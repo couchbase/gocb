@@ -686,6 +686,35 @@ func (suite *IntegrationTestSuite) TestTransactionsGetOnly() {
 	suite.Require().Nil(err, err)
 }
 
+func (suite *IntegrationTestSuite) TestTransactionsGetReplicaServerGroupUnset() {
+	suite.skipIfUnsupported(TransactionsFeature)
+
+	docID := "txns-get-replica-unset-group"
+	docValue := map[string]interface{}{
+		"foo": "bar",
+	}
+	_, err := globalCollection.Upsert(docID, docValue, nil)
+	suite.Require().NoError(err)
+
+	txns := globalCluster.Cluster.Transactions()
+
+	_, err = txns.Run(func(ctx *TransactionAttemptContext) error {
+		suite.Assert().Empty(ctx.preferredServerGroup)
+
+		_, err := ctx.GetReplicaFromPreferredServerGroup(globalCollection, docID)
+		suite.Assert().Error(err)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}, nil)
+
+	suite.Require().Error(err)
+	var txnFailedErr *TransactionFailedError
+	suite.Require().ErrorAs(err, &txnFailedErr)
+}
+
 func (suite *IntegrationTestSuite) TestTransactionsBulkGet() {
 	suite.skipIfUnsupported(TransactionsFeature)
 

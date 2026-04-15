@@ -138,10 +138,20 @@ func (c *TransactionAttemptContext) GetReplicaFromPreferredServerGroupWithOption
 		opts = &TransactionGetReplicaFromPreferredServerGroupOptions{}
 	}
 
+	if c.preferredServerGroup == "" {
+		return nil, operationFailed(transactionOperationFailedDef{
+			ShouldNotRollback: false,
+			ShouldNotRetry:    true,
+			ShouldNotCommit:   true,
+			Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
+			ErrorCause:        errors.New("PreferredServerGroup must have previously been set in ClusterOptions"),
+		}, c)
+	}
+
 	c.queryStateLock.Lock()
 	if c.queryModeLocked() {
 		c.queryStateLock.Unlock()
-		c.updateState(transactionOperationFailedDef{
+		return nil, operationFailed(transactionOperationFailedDef{
 			ShouldNotRetry:    true,
 			ShouldNotRollback: false,
 			Reason:            gocbcore.TransactionErrorReasonTransactionFailed,
@@ -151,14 +161,7 @@ func (c *TransactionAttemptContext) GetReplicaFromPreferredServerGroupWithOption
 			),
 			ErrorClass:      gocbcore.TransactionErrorClassFailOther,
 			ShouldNotCommit: true,
-		})
-
-		return nil, createTransactionOperationFailedError(
-			wrapError(
-				ErrFeatureNotAvailable,
-				"the GetReplicaFromPreferredServerGroup operation is not available for queries",
-			),
-		)
+		}, c)
 	}
 	c.queryStateLock.Unlock()
 
