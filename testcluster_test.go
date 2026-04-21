@@ -237,6 +237,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = false
 		case StorageBackendFeature:
 			supported = false
+		case TransactionsFeature:
+			supported = false
 		case TransactionsBulkFeature:
 			supported = false
 		case CustomConflictResolutionFeature:
