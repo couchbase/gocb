@@ -1,7 +1,7 @@
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
-github.com/couchbase/gocbcore/v10 v10.9.2-0.20260415140645-b8c539e2ec2c h1:PRIQBUiXqd6kwL1Kcq76Axk8PeYBrJS1sEiVDOfXYIQ=
-github.com/couchbase/gocbcore/v10 v10.9.2-0.20260415140645-b8c539e2ec2c/go.mod h1:OWKfU9R5Nm5V3QZBtfdZl5qCfgxtxTqOgXiNr4pn9/c=
+github.com/couchbase/gocbcore/v10 v10.9.2 h1:opEbtZPnXFUDA7Pp+q2ekLStzLMSP5HDDjxZPAhCqLM=
+github.com/couchbase/gocbcore/v10 v10.9.2/go.mod h1:OWKfU9R5Nm5V3QZBtfdZl5qCfgxtxTqOgXiNr4pn9/c=
 github.com/couchbase/gocbcoreps v0.1.5-0.20260107140814-1c3a03f888f8 h1:WwGhY3TYn2INQo88yzEhUMYFlgjRInA1dgfEa3UhAxw=
 github.com/couchbase/gocbcoreps v0.1.5-0.20260107140814-1c3a03f888f8/go.mod h1:AUR8DPPmvM+uMkb+Q01Y0mMXINdEY/jUL/qE+kPJ67s=
 github.com/couchbase/goprotostellar v1.0.6-0.20260407143512-d7af25156dcc h1:wQfvYGOutMCo9be0xnHtM1FqnwKcmPVGRPx6xXw5wOo=
