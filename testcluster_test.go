@@ -33,6 +33,7 @@ var (
 	srvVer762       = NodeVersion{7, 6, 2, 0, 0, "", false}
 	srvVer764       = NodeVersion{7, 6, 4, 0, 0, "", false}
 	srvVer800       = NodeVersion{8, 0, 0, 0, 0, "", false}
+	srvVer801       = NodeVersion{8, 0, 1, 0, 0, "", false}
 	mockVer156      = NodeVersion{1, 5, 6, 0, 0, "", true}
 	mockVer1513     = NodeVersion{1, 5, 13, 0, 0, "", true}
 	mockVer1515     = NodeVersion{1, 5, 15, 0, 0, "", true}
@@ -120,6 +121,7 @@ var (
 	EventingFunctionManagerResourceNotFoundAtDeploy         = FeatureCode("eventingmanagementcollectionnotfoundatdeploy")
 	EventingFunctionManagerMB68025Feature                   = FeatureCode("eventingmanagementmb68025")
 	EventingFunctionManagerMB67773Feature                   = FeatureCode("eventingmanagementmb67773")
+	EventingFunctionManagerMB71748Feature                   = FeatureCode("eventingmanagementmb71748")
 )
 
 type TestFeatureFlag struct {
@@ -443,15 +445,17 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 		case ClusterLabelsFeature:
 			supported = !c.Version.Lower(srvVer764) && !c.Version.Equal(protostellarVer)
 		case EventingFunctionManagerAllowsSameStateTransitionFeature:
-			supported = !c.Version.Lower(srvVer800)
+			supported = c.Version.Equal(srvVer800)
 		case EventingFunctionManagerMB68025Feature:
-			supported = !c.Version.Equal(srvVer800)
+			supported = !c.Version.Lower(srvVer800)
 		case EventingFunctionManagerResourceNotFoundAtDeploy:
 			supported = !c.Version.Lower(srvVer800)
 		case EventingFunctionManagerMB67773Feature:
-			supported = !c.Version.Equal(srvVer800)
+			supported = !c.Version.Lower(srvVer800)
 		case UserManagerGroupRolesFeature:
 			supported = !c.Version.Lower(srvVer700)
+		case EventingFunctionManagerMB71748Feature:
+			supported = !c.Version.Lower(srvVer801)
 		}
 	}
 

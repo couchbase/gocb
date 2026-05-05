@@ -200,6 +200,7 @@ func (suite *IntegrationTestSuite) TestEventingManagerUnknownBucket() {
 func (suite *IntegrationTestSuite) runEventingManagerUnknownFunctionTest(scope *Scope) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(EventingFunctionManagerFeature)
+	suite.skipIfSupported(EventingFunctionManagerMB71748Feature) // Remove once MB-71748 is fixed
 
 	var mgr eventingManager
 	if scope == nil {
@@ -383,7 +384,6 @@ func (suite *IntegrationTestSuite) TestEventingManagerCollectionNotFound() {
 func (suite *IntegrationTestSuite) runEventingManagerSameSourceAndMetaKeyspaceTest(scope *Scope) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(EventingFunctionManagerFeature)
-	suite.skipIfUnsupported(EventingFunctionManagerMB68025Feature)
 
 	var mgr eventingManager
 	if scope == nil {
@@ -421,9 +421,17 @@ func (suite *IntegrationTestSuite) runEventingManagerSameSourceAndMetaKeyspaceTe
 
 	success := suite.tryUntil(time.Now().Add(2*time.Second), 100*time.Millisecond, func() bool {
 		err := mgr.UpsertFunction(expectedFn, nil)
-		if !errors.Is(err, ErrEventingFunctionIdenticalKeyspace) {
-			suite.T().Logf("Expected ResumeFunction to fail with identical keyspace but was %v", err)
-			return false
+		if globalCluster.SupportsFeature(EventingFunctionManagerMB68025Feature) {
+			// After 8.0 eventing responds with ERR_INVALID_REQUEST
+			if err == nil {
+				suite.T().Logf("Expected ResumeFunction to fail")
+				return false
+			}
+		} else {
+			if !errors.Is(err, ErrEventingFunctionIdenticalKeyspace) {
+				suite.T().Logf("Expected ResumeFunction to fail with identical keyspace but was %v", err)
+				return false
+			}
 		}
 
 		return true
@@ -644,22 +652,15 @@ func (suite *IntegrationTestSuite) runEventingManagerPausesAndResumesTest(scope 
 
 	err = mgr.PauseFunction(fnName, nil)
 	if globalCluster.SupportsFeature(EventingFunctionManagerMB67773Feature) {
+		suite.Assert().Error(err)
+	} else {
 		if !errors.Is(err, ErrEventingFunctionNotBootstrapped) {
 			suite.T().Fatalf("Expected UndeployFunction to fail with not bootstrapped but was %v", err)
 		}
-	} else {
-		suite.Assert().Error(err)
 	}
 
 	err = mgr.ResumeFunction(fnName, nil)
 	if globalCluster.SupportsFeature(EventingFunctionManagerMB67773Feature) {
-		if !errors.Is(err, ErrEventingFunctionNotDeployed) {
-			suite.T().Fatalf("Expected UndeployFunction to fail with not deployed but was %v", err)
-		}
-
-		err = mgr.DeployFunction(fnName, nil)
-		suite.Require().Nil(err, err)
-	} else {
 		suite.Require().NoError(err)
 
 		success = suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
@@ -679,6 +680,13 @@ func (suite *IntegrationTestSuite) runEventingManagerPausesAndResumesTest(scope 
 			return false
 		})
 		suite.Require().True(success, "FunctionsStatus never reported function resumed")
+	} else {
+		if !errors.Is(err, ErrEventingFunctionNotDeployed) {
+			suite.T().Fatalf("Expected UndeployFunction to fail with not deployed but was %v", err)
+		}
+
+		err = mgr.DeployFunction(fnName, nil)
+		suite.Require().Nil(err, err)
 	}
 
 	actualFn, err = mgr.GetFunction(fnName, nil)
