@@ -4,6 +4,7 @@ devsetup:
 
 test:
 	go test ./
+
 fasttest:
 	go test -short ./
 
