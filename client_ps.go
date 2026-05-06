@@ -4,17 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/couchbaselabs/gocbconnstr/v2"
-	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/trace"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcoreps"
+	"github.com/couchbaselabs/gocbconnstr/v2"
 )
 
 type psConnectionMgr struct {

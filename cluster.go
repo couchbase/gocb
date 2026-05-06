@@ -312,7 +312,7 @@ func (c *Cluster) analyticsController() *providerController[analyticsProvider] {
 		get:          c.connectionManager.getAnalyticsProvider,
 		opController: c.connectionManager,
 
-		meter:    c.connectionManager.getMeter(),
+		getMeter: c.connectionManager.getMeter,
 		keyspace: nil,
 		service:  serviceAttribValueAnalytics,
 	}
@@ -332,7 +332,7 @@ func (c *Cluster) queryController() *providerController[queryProvider] {
 		get:          c.connectionManager.getQueryProvider,
 		opController: c.connectionManager,
 
-		meter:    c.connectionManager.getMeter(),
+		getMeter: c.connectionManager.getMeter,
 		keyspace: nil,
 		service:  serviceAttribValueQuery,
 	}
@@ -343,7 +343,7 @@ func (c *Cluster) searchController() *providerController[searchProvider] {
 		get:          c.connectionManager.getSearchProvider,
 		opController: c.connectionManager,
 
-		meter:    c.connectionManager.getMeter(),
+		getMeter: c.connectionManager.getMeter,
 		keyspace: nil,
 		service:  serviceAttribValueSearch,
 	}
@@ -370,7 +370,7 @@ func (c *Cluster) Users() *UserManager {
 			get:          c.connectionManager.getUserManagerProvider,
 			opController: c.connectionManager,
 
-			meter:    c.connectionManager.getMeter(),
+			getMeter: c.connectionManager.getMeter,
 			keyspace: nil,
 			service:  serviceAttribValueManagement,
 		},
@@ -384,7 +384,7 @@ func (c *Cluster) Buckets() *BucketManager {
 			get:          c.connectionManager.getBucketManagementProvider,
 			opController: c.connectionManager,
 
-			meter:    c.connectionManager.getMeter(),
+			getMeter: c.connectionManager.getMeter,
 			keyspace: nil,
 			service:  serviceAttribValueManagement,
 		},
@@ -398,7 +398,7 @@ func (c *Cluster) AnalyticsIndexes() *AnalyticsIndexManager {
 			get:          c.connectionManager.getAnalyticsIndexProvider,
 			opController: c.connectionManager,
 
-			meter:    c.connectionManager.getMeter(),
+			getMeter: c.connectionManager.getMeter,
 			keyspace: nil,
 			service:  serviceAttribValueAnalytics,
 		},
@@ -412,7 +412,7 @@ func (c *Cluster) QueryIndexes() *QueryIndexManager {
 			get:          c.connectionManager.getQueryIndexProvider,
 			opController: c.connectionManager,
 
-			meter:    c.connectionManager.getMeter(),
+			getMeter: c.connectionManager.getMeter,
 			keyspace: nil,
 			service:  serviceAttribValueQuery,
 		},
@@ -426,7 +426,7 @@ func (c *Cluster) SearchIndexes() *SearchIndexManager {
 			get:          c.connectionManager.getSearchIndexProvider,
 			opController: c.connectionManager,
 
-			meter:    c.connectionManager.getMeter(),
+			getMeter: c.connectionManager.getMeter,
 			keyspace: nil,
 			service:  serviceAttribValueSearch,
 		},
@@ -444,7 +444,7 @@ func (c *Cluster) EventingFunctions() *EventingFunctionManager {
 			get:          c.connectionManager.getEventingManagementProvider,
 			opController: c.connectionManager,
 
-			meter:    c.connectionManager.getMeter(),
+			getMeter: c.connectionManager.getMeter,
 			keyspace: nil,
 			service:  serviceAttribValueEventing,
 		},

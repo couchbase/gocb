@@ -2,10 +2,11 @@ package gocb
 
 import (
 	"fmt"
-	gocbcore "github.com/couchbase/gocbcore/v10"
-	"github.com/couchbaselabs/gocbconnstr/v2"
 	"strconv"
 	"time"
+
+	"github.com/couchbase/gocbcore/v10"
+	"github.com/couchbaselabs/gocbconnstr/v2"
 )
 
 type connectionManager interface {
@@ -54,28 +55,44 @@ type providerController[P any] struct {
 	opController
 
 	// Metrics-related fields
-	meter    *meterWrapper
+	getMeter func() *meterWrapper
 	keyspace *keyspace
 	service  string
 }
 
-func autoOpControl[T any, P any](controller *providerController[P], operation string, opFn func(P) (T, error)) (T, error) {
-	controller.MarkOpBeginning()
-	defer controller.MarkOpCompleted()
+func (c *providerController[P]) beginOp() (P, error) {
+	c.MarkOpBeginning()
 
-	p, err := controller.get()
+	provider, err := c.get()
+	if err != nil {
+		var emptyP P
+		c.MarkOpCompleted()
+		return emptyP, err
+	}
+	return provider, nil
+}
+
+func (c *providerController[P]) endOp(opName string, startTime time.Time, opErr error) {
+	defer c.MarkOpCompleted()
+
+	if c.getMeter != nil {
+		if meter := c.getMeter(); meter != nil && opName != "" {
+			meter.ValueRecord(c.service, opName, startTime, c.keyspace, opErr)
+		}
+	}
+}
+
+func autoOpControl[T any, P any](controller *providerController[P], operation string, opFn func(P) (T, error)) (T, error) {
+	provider, err := controller.beginOp()
 	if err != nil {
 		var emptyT T
 		return emptyT, err
 	}
 
-	start := time.Now()
-	retT, err := opFn(p)
+	startTime := time.Now()
 
-	if operation != "" && controller.meter != nil {
-		defer controller.meter.ValueRecord(controller.service, operation, start, controller.keyspace, err)
-	}
-
+	retT, err := opFn(provider)
+	controller.endOp(operation, startTime, err)
 	if err != nil {
 		var emptyT T
 		return emptyT, err

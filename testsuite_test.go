@@ -610,8 +610,14 @@ func (suite *UnitTestSuite) kvCapabilityProvider(provider kvCapabilityVerifier, 
 }
 
 func (suite *UnitTestSuite) collection(bucket, scope, collection string, provider kvProvider) *Collection {
+	connMgr := new(mockConnectionManager)
+	connMgr.On("getMeter").Return(nil)
+
 	return &Collection{
-		bucket: &Bucket{bucketName: bucket},
+		bucket: &Bucket{
+			bucketName:        bucket,
+			connectionManager: connMgr,
+		},
 
 		collectionName: collection,
 		scope:          scope,

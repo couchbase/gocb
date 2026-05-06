@@ -63,7 +63,7 @@ func (c *Collection) QueryIndexes() *CollectionQueryIndexManager {
 			get:          c.getQueryIndexProvider,
 			opController: c.opController,
 
-			meter:    c.bucket.connectionManager.getMeter(),
+			getMeter: c.bucket.connectionManager.getMeter,
 			service:  serviceAttribValueQuery,
 			keyspace: &c.keyspace,
 		},
@@ -90,16 +90,11 @@ func (c *Collection) isDefault() bool {
 }
 
 func (c *Collection) kvController() *providerController[kvProvider] {
-	var meter *meterWrapper
-	if c.bucket.connectionManager != nil {
-		meter = c.bucket.connectionManager.getMeter()
-	}
-
 	return &providerController[kvProvider]{
 		get:          c.getKvProvider,
 		opController: c.opController,
 
-		meter:    meter,
+		getMeter: c.bucket.connectionManager.getMeter,
 		service:  serviceAttribValueKV,
 		keyspace: &c.keyspace,
 	}
