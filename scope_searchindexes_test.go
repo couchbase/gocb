@@ -269,7 +269,10 @@ func (suite *UnitTestSuite) TestScopeSearchIndexesAnalyzeDocumentCore() {
 		Body:       io.NopCloser(bytes.NewReader(analyzeResp)),
 	}
 
-	indexName := "searchy"
+	cli := new(mockConnectionManager)
+	bucket := suite.bucket("mock", cli)
+	scope := suite.newScope(bucket, "test")
+	indexName := "test-index"
 
 	mockProvider := new(mockMgmtProvider)
 	mockProvider.
@@ -277,7 +280,7 @@ func (suite *UnitTestSuite) TestScopeSearchIndexesAnalyzeDocumentCore() {
 		Run(func(args mock.Arguments) {
 			req := args.Get(1).(mgmtRequest)
 
-			expectedPath := fmt.Sprintf("/api/bucket/%s/scope/%s/index/%s/analyzeDoc", globalScope.bucket.bucketName, globalScope.scopeName, indexName)
+			expectedPath := fmt.Sprintf("/api/bucket/%s/scope/%s/index/%s/analyzeDoc", bucket.Name(), scope.Name(), indexName)
 
 			suite.Assert().Equal(expectedPath, req.Path)
 			suite.Assert().Equal(ServiceTypeSearch, req.Service)
@@ -299,11 +302,10 @@ func (suite *UnitTestSuite) TestScopeSearchIndexesAnalyzeDocumentCore() {
 		tracer:            newTracerWrapper(&NoopTracer{}, ObservabilityConfig{}),
 	}
 
-	res, err := mgr.AnalyzeDocument(globalScope, indexName, struct{}{}, &AnalyzeDocumentOptions{
+	res, err := mgr.AnalyzeDocument(scope, indexName, struct{}{}, &AnalyzeDocumentOptions{
 		Timeout: 1 * time.Second,
 	})
-	suite.Require().Nil(err, err)
-
+	suite.Require().NoError(err)
 	suite.Require().NotNil(res)
 }
 

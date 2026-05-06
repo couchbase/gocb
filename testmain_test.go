@@ -138,7 +138,7 @@ func TestMain(m *testing.M) {
 		setupCluster()
 	}
 
-	if !globalCluster.IsProtostellar() {
+	if globalCluster != nil && !globalCluster.IsProtostellar() {
 		gocbcore.EnableHttpResponseTracking()
 	}
 
@@ -177,7 +177,7 @@ func TestMain(m *testing.M) {
 		log.Printf("No goroutines appear to have leaked (%d before == %d after)", initialGoroutineCount, finalGoroutineCount)
 	}
 
-	if !globalCluster.IsProtostellar() && !gocbcore.ReportLeakedHttpResponses() {
+	if globalCluster != nil && !globalCluster.IsProtostellar() && !gocbcore.ReportLeakedHttpResponses() {
 		result = 1
 	}
 
