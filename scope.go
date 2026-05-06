@@ -67,7 +67,7 @@ func (s *Scope) SearchIndexes() *ScopeSearchIndexManager {
 			get:          s.getSearchIndexProvider,
 			opController: s.opController,
 
-			meter:    s.bucket.connectionManager.getMeter(),
+			getMeter: s.bucket.connectionManager.getMeter,
 			keyspace: &s.keyspace,
 			service:  serviceAttribValueSearch,
 		},
@@ -87,7 +87,7 @@ func (s *Scope) EventingFunctions() *ScopeEventingFunctionManager {
 			get:          s.getEventingManagementProvider,
 			opController: s.opController,
 
-			meter:    s.bucket.connectionManager.getMeter(),
+			getMeter: s.bucket.connectionManager.getMeter,
 			keyspace: &s.keyspace,
 			service:  serviceAttribValueEventing,
 		},
@@ -101,7 +101,7 @@ func (s *Scope) analyticsController() *providerController[analyticsProvider] {
 		get:          s.getAnalyticsProvider,
 		opController: s.opController,
 
-		meter:    s.bucket.connectionManager.getMeter(),
+		getMeter: s.bucket.connectionManager.getMeter,
 		keyspace: &s.keyspace,
 		service:  serviceAttribValueAnalytics,
 	}
@@ -112,7 +112,7 @@ func (s *Scope) queryController() *providerController[queryProvider] {
 		get:          s.getQueryProvider,
 		opController: s.opController,
 
-		meter:    s.bucket.connectionManager.getMeter(),
+		getMeter: s.bucket.connectionManager.getMeter,
 		keyspace: &s.keyspace,
 		service:  serviceAttribValueQuery,
 	}
@@ -123,7 +123,7 @@ func (s *Scope) searchController() *providerController[searchProvider] {
 		get:          s.getSearchProvider,
 		opController: s.opController,
 
-		meter:    s.bucket.connectionManager.getMeter(),
+		getMeter: s.bucket.connectionManager.getMeter,
 		keyspace: &s.keyspace,
 		service:  serviceAttribValueSearch,
 	}
