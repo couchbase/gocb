@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	goCbVersionStr = "v2.12.2"
+	goCbVersionStr = "v2.12.3"
 
 	durabilityTimeoutFloor = 1500 * time.Millisecond
 )
