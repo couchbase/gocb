@@ -592,7 +592,7 @@ func (suite *UnitTestSuite) newScope(b *Bucket, name string) *Scope {
 
 func (suite *UnitTestSuite) mustConvertToBytes(val interface{}) []byte {
 	b, err := json.Marshal(val)
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	return b
 }

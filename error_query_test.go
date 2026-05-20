@@ -17,7 +17,7 @@ func (suite *UnitTestSuite) TestQueryError() {
 	}
 
 	b, err := json.Marshal(aErr)
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(
 		"{\"msg\":\"index failure\",\"statement\":\"select * from dataset\",\"client_context_id\":\"12345\",\"errors\":[{\"code\":1000,\"message\":\"error 1000\"}],\"endpoint\":\"http://127.0.0.1:8093\",\"retry_reasons\":[\"QUERY_INDEX_NOT_FOUND\"],\"retry_attempts\":3}",
@@ -48,7 +48,7 @@ func (suite *UnitTestSuite) TestQueryErrorImproved() {
 	}
 
 	b, err := json.Marshal(aErr)
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(
 		"{\"msg\":\"index failure\",\"statement\":\"select * from dataset\",\"client_context_id\":\"12345\",\"errors\":[{\"code\":1000,\"message\":\"error 1000\",\"retry\":true,\"reason\":{\"code\":17029}}],\"endpoint\":\"http://127.0.0.1:8093\",\"retry_reasons\":[\"QUERY_INDEX_NOT_FOUND\"],\"retry_attempts\":3}",

@@ -15,7 +15,7 @@ func (suite *UnitTestSuite) TestHTTPError() {
 	}
 
 	b, err := json.Marshal(aErr)
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(
 		[]byte("{\"msg\":\"uh oh\",\"unique_id\":\"123445\",\"endpoint\":\"http://127.0.0.1:8091\"}"),

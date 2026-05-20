@@ -301,7 +301,7 @@ func (suite *IntegrationTestSuite) TestSearchIndexNotFound() {
 
 func (suite *UnitTestSuite) TestSearchIndexesAnalyzeDocumentCore() {
 	analyzeResp, err := loadRawTestDataset("search_analyzedoc")
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	resp := &mgmtResponse{
 		StatusCode: 200,
@@ -339,7 +339,7 @@ func (suite *UnitTestSuite) TestSearchIndexesAnalyzeDocumentCore() {
 	res, err := mgr.AnalyzeDocument(nil, indexName, struct{}{}, &AnalyzeDocumentOptions{
 		Timeout: 1 * time.Second,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Require().NotNil(res)
 }

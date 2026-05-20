@@ -505,7 +505,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 	err := mgr.CreateDataverse(dataverse, &CreateAnalyticsDataverseOptions{
 		IgnoreIfExists: true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer mgr.DropDataverse(dataverse, nil)
 
 	link := NewS3ExternalAnalyticsLink("s3Link", dataverse, "accesskey",
@@ -515,9 +515,9 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 		"secretKey2", "us-east-1", &NewS3ExternalAnalyticsLinkOptions{ServiceEndpoint: "end"})
 
 	err = mgr.CreateLink(link, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	err = mgr.CreateLink(link2, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	err = mgr.CreateLink(link, nil)
 	if !errors.Is(err, ErrAnalyticsLinkExists) {
@@ -525,7 +525,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 	}
 
 	links, err := mgr.GetLinks(nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	resultLink1 := &S3ExternalAnalyticsLink{
 		Dataverse:       link.Dataverse,
@@ -551,7 +551,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 		Name:      link.Name(),
 		LinkType:  AnalyticsLinkTypeS3External,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Require().Len(links, 1)
 	suite.Assert().Contains(links, resultLink1)
@@ -560,17 +560,17 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3Links() {
 		"secretKey", "us-east-1", nil)
 
 	err = mgr.ReplaceLink(rLink, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	links, err = mgr.GetLinks(nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Require().Len(links, 2)
 
 	err = mgr.DropLink("s3Link", dataverse, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	err = mgr.DropLink("s3Link2", dataverse, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
@@ -676,7 +676,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 	err := mgr.CreateDataverse(dataverse, &CreateAnalyticsDataverseOptions{
 		IgnoreIfExists: true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer mgr.DropDataverse(dataverse, nil)
 
 	link := NewS3ExternalAnalyticsLink("s3LinkScope", dataverse, "accesskey",
@@ -686,9 +686,9 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 		"secretKey2", "us-east-1", &NewS3ExternalAnalyticsLinkOptions{ServiceEndpoint: "end"})
 
 	err = mgr.CreateLink(link, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	err = mgr.CreateLink(link2, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	err = mgr.CreateLink(link, nil)
 	if !errors.Is(err, ErrAnalyticsLinkExists) {
@@ -696,7 +696,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 	}
 
 	links, err := mgr.GetLinks(nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	resultLink1 := &S3ExternalAnalyticsLink{
 		Dataverse:       link.Dataverse,
@@ -722,7 +722,7 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 		Name:      link.Name(),
 		LinkType:  AnalyticsLinkTypeS3External,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Require().Len(links, 1)
 	suite.Assert().Contains(links, resultLink1)
@@ -731,17 +731,17 @@ func (suite *IntegrationTestSuite) TestAnalyticsIndexesS3LinksScopes() {
 		"secretKey", "us-east-1", nil)
 
 	err = mgr.ReplaceLink(rLink, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	links, err = mgr.GetLinks(nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Require().Len(links, 2)
 
 	err = mgr.DropLink("s3LinkScope", dataverse, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	err = mgr.DropLink("s3LinkScope2", dataverse, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	escapedScope := url.PathEscape(dataverse)
 
@@ -846,10 +846,10 @@ func (suite *UnitTestSuite) TestAnalyticsIndexesCouchbaseLinksFormEncode() {
 		})
 
 	body, err := link.FormEncode()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	data := string(body)
 	q, err := url.ParseQuery(data)
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal("host", q.Get("hostname"))
 	suite.Assert().Equal(string(AnalyticsLinkTypeCouchbaseRemote), q.Get("type"))
@@ -868,10 +868,10 @@ func (suite *UnitTestSuite) TestAnalyticsIndexesCouchbaseLinksFormEncode() {
 		})
 
 	body, err = link.FormEncode()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	data = string(body)
 	q, err = url.ParseQuery(data)
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal("host", q.Get("hostname"))
 	suite.Assert().Equal(string(AnalyticsLinkTypeCouchbaseRemote), q.Get("type"))

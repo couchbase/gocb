@@ -12,17 +12,17 @@ func (suite *IntegrationTestSuite) TestBucketWaitUntilReady() {
 		Authenticator:  globalConfig.Auth,
 		SecurityConfig: globalConfig.SecurityConfig,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer c.Close(nil)
 
 	b := c.Bucket(globalConfig.Bucket)
 
 	err = b.WaitUntilReady(globalCluster.waitUntilReadyTimeout(), nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	// Just test that we can use the bucket.
 	_, err = b.DefaultCollection().Upsert(generateDocId("TestBucketWaitUntilReady"), "test", nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 }
 
 func (suite *IntegrationTestSuite) TestBucketWaitUntilReadyInvalidAuth() {
@@ -36,7 +36,7 @@ func (suite *IntegrationTestSuite) TestBucketWaitUntilReadyInvalidAuth() {
 		},
 		SecurityConfig: globalConfig.SecurityConfig,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer c.Close(nil)
 
 	b := c.Bucket(globalConfig.Bucket)
@@ -63,7 +63,7 @@ func (suite *IntegrationTestSuite) TestBucketWaitUntilReadyFastFailAuth() {
 		},
 		SecurityConfig: globalConfig.SecurityConfig,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer c.Close(nil)
 
 	b := c.Bucket(globalConfig.Bucket)
@@ -88,7 +88,7 @@ func (suite *IntegrationTestSuite) TestBucketWaitUntilReadyFastFailConnStr() {
 		},
 		SecurityConfig: globalConfig.SecurityConfig,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer c.Close(nil)
 
 	b := c.Bucket(globalConfig.Bucket)

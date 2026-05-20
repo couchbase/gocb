@@ -76,7 +76,7 @@ func (suite *IntegrationTestSuite) runSearchTest(n int) {
 		}
 
 		err = result.Err()
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 
 		if n == len(thisRows) {
 			rows = thisRows
@@ -107,14 +107,14 @@ func (suite *IntegrationTestSuite) runSearchTest(n int) {
 	}
 
 	metadata, err := result.MetaData()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().NotEmpty(metadata.Metrics.TotalRows)
 	suite.Assert().NotEmpty(metadata.Metrics.Took)
 	suite.Assert().NotEmpty(metadata.Metrics.MaxScore)
 
 	facets, err := result.Facets()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	if suite.Assert().Contains(facets, "type") {
 		f := facets["type"]
 		suite.Assert().Equal("country", f.Field)
@@ -161,7 +161,7 @@ func (suite *IntegrationTestSuite) runSearchTest(n int) {
 
 func (suite *IntegrationTestSuite) setupSearch() int {
 	n, err := suite.createBreweryDataset("beer_sample_brewery_five", "search", "", "")
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	mgr := globalCluster.SearchIndexes()
 	err = mgr.UpsertIndex(SearchIndex{
@@ -170,7 +170,7 @@ func (suite *IntegrationTestSuite) setupSearch() int {
 		SourceType: "couchbase",
 		Type:       "fulltext-index",
 	}, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	return n
 }
@@ -290,7 +290,7 @@ func (suite *UnitTestSuite) searchCluster(reader searchRowReader, retryStrategy 
 func (suite *UnitTestSuite) TestSearchQuery() {
 	var dataset testSearchDataset
 	err := loadJSONTestDataset("beer_sample_search_dataset", &dataset)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	reader := &mockSearchRowReader{
 		Dataset: dataset.Hits,
@@ -312,7 +312,7 @@ func (suite *UnitTestSuite) TestSearchQuery() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		if suite.Assert().Contains(actualOptions, "fields") {
 			suite.Assert().Equal([]interface{}{"name"}, actualOptions["fields"])
@@ -343,7 +343,7 @@ func (suite *UnitTestSuite) TestSearchQuery() {
 		},
 		Sort: []search.Sort{search.NewSearchSortID().Descending(true)},
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 
 	var hits []SearchRow
@@ -354,17 +354,17 @@ func (suite *UnitTestSuite) TestSearchQuery() {
 			Name string
 		}
 		err := hit.Fields(&field)
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 		suite.Assert().NotEmpty(field.Name)
 	}
 
 	err = result.Err()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Len(hits, len(dataset.Hits))
 
 	metadata, err := result.MetaData()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Nil(metadata.Errors)
 	suite.Assert().Equal(uint64(809), metadata.Metrics.TotalRows)
@@ -372,13 +372,13 @@ func (suite *UnitTestSuite) TestSearchQuery() {
 	suite.Assert().Equal(time.Duration(62511375), metadata.Metrics.Took)
 
 	facets, err := result.Facets()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	expectedFacets := make(map[string]SearchFacetResult)
 	for facetName, facetData := range dataset.Facets {
 		var facet SearchFacetResult
 		err := facet.fromData(facetData)
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 
 		expectedFacets[facetName] = facet
 	}
@@ -401,7 +401,7 @@ func (suite *UnitTestSuite) TestSearchQueryDisableScoring() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		if suite.Assert().Contains(actualOptions, "score") {
 			suite.Assert().Equal("none", actualOptions["score"])
@@ -411,7 +411,7 @@ func (suite *UnitTestSuite) TestSearchQueryDisableScoring() {
 	_, err := cluster.SearchQuery("testindex", query, &SearchOptions{
 		DisableScoring: true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 }
 
 func (suite *UnitTestSuite) TestSearchQueryNoScoringSet() {
@@ -429,13 +429,13 @@ func (suite *UnitTestSuite) TestSearchQueryNoScoringSet() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		suite.Assert().NotContains(actualOptions, "score")
 	})
 
 	_, err := cluster.SearchQuery("testindex", query, &SearchOptions{})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 }
 
 func (suite *UnitTestSuite) TestSearchQueryExplicitlyEnableScoring() {
@@ -453,7 +453,7 @@ func (suite *UnitTestSuite) TestSearchQueryExplicitlyEnableScoring() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		suite.Assert().NotContains(actualOptions, "score")
 	})
@@ -461,13 +461,13 @@ func (suite *UnitTestSuite) TestSearchQueryExplicitlyEnableScoring() {
 	_, err := cluster.SearchQuery("testindex", query, &SearchOptions{
 		DisableScoring: false,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 }
 
 func (suite *UnitTestSuite) TestSearchQueryRaw() {
 	var dataset testSearchDataset
 	err := loadJSONTestDataset("beer_sample_search_dataset", &dataset)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	reader := &mockSearchRowReader{
 		Dataset: dataset.Hits,
@@ -487,7 +487,7 @@ func (suite *UnitTestSuite) TestSearchQueryRaw() {
 		},
 		Sort: []search.Sort{search.NewSearchSortID().Descending(true)},
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 
 	raw := result.Raw()
@@ -507,10 +507,10 @@ func (suite *UnitTestSuite) TestSearchQueryRaw() {
 	}
 
 	err = raw.Err()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	metadata, err := raw.MetaData()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(reader.Meta, metadata)
 }
@@ -530,7 +530,7 @@ func (suite *UnitTestSuite) TestSearchQueryCollections() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		suite.Require().Contains(actualOptions, "collections")
 		collections := actualOptions["collections"].([]interface{})
@@ -542,7 +542,7 @@ func (suite *UnitTestSuite) TestSearchQueryCollections() {
 	_, err := cluster.SearchQuery("testindex", query, &SearchOptions{
 		Collections: []string{"collection1", "collection2"},
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 }
 
 func (suite *UnitTestSuite) TestClusterSearchEmptyBucketAndScopeNames() {
@@ -564,5 +564,5 @@ func (suite *UnitTestSuite) TestClusterSearchEmptyBucketAndScopeNames() {
 	})
 
 	_, err := cluster.Search("testindex", request, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 }

@@ -16,13 +16,13 @@ func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrud() {
 
 	colmgr := globalBucket.CollectionsV2()
 	err := colmgr.CreateScope(scopeName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer colmgr.DropScope(scopeName, nil)
 
 	suite.EnsureScopeOnAllNodes(scopeName)
 
 	err = colmgr.CreateCollection(scopeName, colName, nil, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.EnsureCollectionsOnAllNodes(scopeName, []string{colName})
 	suite.EnsureCollectionOnAllIndexesAndNodes(time.Now().Add(30*time.Second), bucketName, scopeName, colName)
@@ -37,41 +37,35 @@ func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrud() {
 	err = mgr.CreatePrimaryIndex(&CreatePrimaryQueryIndexOptions{
 		IgnoreIfExists: false,
 	})
-	suite.Require().NotNil(err, err)
-	if !errors.Is(err, ErrIndexExists) {
-		suite.T().Fatalf("Expected index exists error but was %s", err)
-	}
+	suite.Require().ErrorIs(err, ErrIndexExists)
 
 	err = mgr.CreateIndex("testIndex", []string{"field"}, &CreateQueryIndexOptions{
 		IgnoreIfExists: true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	err = mgr.CreateIndex("testIndex", []string{"field"}, &CreateQueryIndexOptions{
 		IgnoreIfExists: false,
 	})
-	suite.Require().NotNil(err, err)
-	if !errors.Is(err, ErrIndexExists) {
-		suite.T().Fatalf("Expected index exists error but was %s", err)
-	}
+	suite.Require().ErrorIs(err, ErrIndexExists)
 
 	// We create this first to give it a chance to be created by the time we need it.
 	err = mgr.CreateIndex("testIndexDeferred", []string{"field"}, &CreateQueryIndexOptions{
 		IgnoreIfExists: false,
 		Deferred:       true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	indexNames, err := mgr.BuildDeferredIndexes(&BuildDeferredQueryIndexOptions{})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Len(indexNames, 1)
 
 	err = mgr.WatchIndexes([]string{"testIndexDeferred"}, 30*time.Second, &WatchQueryIndexOptions{})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	indexes, err := mgr.GetAllIndexes(&GetAllQueryIndexesOptions{})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Len(indexes, 3)
 	var index QueryIndex
@@ -100,22 +94,16 @@ func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrud() {
 	suite.Assert().Empty(index.Partition)
 
 	err = mgr.DropIndex("testIndex", &DropQueryIndexOptions{})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	err = mgr.DropIndex("testIndex", &DropQueryIndexOptions{})
-	suite.Require().NotNil(err, err)
-	if !errors.Is(err, ErrIndexNotFound) {
-		suite.T().Fatalf("Expected index not found error but was %s", err)
-	}
+	suite.Require().ErrorIs(err, ErrIndexNotFound)
 
 	err = mgr.DropPrimaryIndex(&DropPrimaryQueryIndexOptions{})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	err = mgr.DropPrimaryIndex(&DropPrimaryQueryIndexOptions{})
-	suite.Require().NotNil(err, err)
-	if !errors.Is(err, ErrIndexNotFound) {
-		suite.T().Fatalf("Expected index not found error but was %s", err)
-	}
+	suite.Require().ErrorIs(err, ErrIndexNotFound)
 
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_collections_create_scope"), 1, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_collections_create_collection"), 1, false)
@@ -151,33 +139,30 @@ func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrudDefaultSco
 	err = mgr.CreateIndex("testIndex", []string{"field"}, &CreateQueryIndexOptions{
 		IgnoreIfExists: true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	err = mgr.CreateIndex("testIndex", []string{"field"}, &CreateQueryIndexOptions{
 		IgnoreIfExists: false,
 	})
-	suite.Require().NotNil(err, err)
-	if !errors.Is(err, ErrIndexExists) {
-		suite.T().Fatalf("Expected index exists error but was %s", err)
-	}
+	suite.Require().Error(err, ErrIndexExists)
 
 	// We create this first to give it a chance to be created by the time we need it.
 	err = mgr.CreateIndex("testIndexDeferred", []string{"field"}, &CreateQueryIndexOptions{
 		IgnoreIfExists: false,
 		Deferred:       true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	indexNames, err := mgr.BuildDeferredIndexes(&BuildDeferredQueryIndexOptions{})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Len(indexNames, 1)
 
 	err = mgr.WatchIndexes([]string{"testIndexDeferred"}, 30*time.Second, &WatchQueryIndexOptions{})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	indexes, err := mgr.GetAllIndexes(&GetAllQueryIndexesOptions{})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Len(indexes, 3)
 	var index QueryIndex
@@ -211,20 +196,14 @@ func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrudDefaultSco
 	suite.Assert().Empty(index.Partition)
 
 	err = mgr.DropIndex("testIndex", &DropQueryIndexOptions{})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	err = mgr.DropIndex("testIndex", &DropQueryIndexOptions{})
-	suite.Require().NotNil(err, err)
-	if !errors.Is(err, ErrIndexNotFound) {
-		suite.T().Fatalf("Expected index not found error but was %s", err)
-	}
+	suite.Require().ErrorIs(err, ErrIndexNotFound)
 
 	err = mgr.DropPrimaryIndex(&DropPrimaryQueryIndexOptions{})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	err = mgr.DropPrimaryIndex(&DropPrimaryQueryIndexOptions{})
-	suite.Require().NotNil(err, err)
-	if !errors.Is(err, ErrIndexNotFound) {
-		suite.T().Fatalf("Expected index not found error but was %s", err)
-	}
+	suite.Require().ErrorIs(err, ErrIndexNotFound)
 }

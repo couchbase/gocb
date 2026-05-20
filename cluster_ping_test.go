@@ -13,7 +13,7 @@ func (suite *IntegrationTestSuite) TestClusterPingAll() {
 	suite.skipIfUnsupported(PingFeature)
 
 	report, err := globalCluster.Ping(nil)
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	suite.Assert().NotEmpty(report.ID)
 
@@ -205,7 +205,7 @@ func (suite *UnitTestSuite) TestClusterPingOne() {
 		ServiceTypes: []ServiceType{ServiceTypeQuery},
 		ReportID:     reportID,
 	})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(reportID, report.ID)
 

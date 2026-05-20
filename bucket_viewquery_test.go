@@ -51,12 +51,12 @@ func (suite *IntegrationTestSuite) runViewsTest(n int) {
 
 			var val testBreweryDocument
 			err := row.Value(&val)
-			suite.Require().Nil(err, err)
+			suite.Require().NoError(err)
 			suite.Assert().NotNil(val)
 
 			var key string
 			err = row.Key(&key)
-			suite.Require().Nil(err, err)
+			suite.Require().NoError(err)
 			suite.Assert().NotEmpty(key)
 
 			samples[key] = val
@@ -106,7 +106,7 @@ func (suite *IntegrationTestSuite) runViewsTest(n int) {
 
 func (suite *IntegrationTestSuite) setupViews() int {
 	n, err := suite.createBreweryDataset("beer_sample_brewery_five", "views", "", "")
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	mgr := globalBucket.ViewIndexes()
 	err = mgr.UpsertDesignDocument(DesignDocument{
@@ -125,7 +125,7 @@ function (doc, meta) {
 	}, DesignDocumentNamespaceDevelopment, &UpsertDesignDocumentOptions{
 		Timeout: 1 * time.Second,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	return n
 }
@@ -227,7 +227,7 @@ func (suite *UnitTestSuite) viewsBucket(reader viewRowReader, retryStrategy *cor
 func (suite *UnitTestSuite) TestViewQuery() {
 	var dataset testViewDataset
 	err := loadJSONTestDataset("beer_sample_views_dataset", &dataset)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	reader := &mockViewRowReader{
 		Dataset: dataset.Rows,
@@ -259,7 +259,7 @@ func (suite *UnitTestSuite) TestViewQuery() {
 		Limit:     10,
 		Debug:     true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 
 	expectedBreweries := make(map[string]testBreweryDocument)
@@ -285,7 +285,7 @@ func (suite *UnitTestSuite) TestViewQuery() {
 	suite.Assert().Equal(expectedBreweries, actualBreweries)
 
 	meta, err := result.MetaData()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(dataset.TotalRows, meta.TotalRows)
 	suite.Assert().Equal(dataset.DebugInfo, meta.Debug)
@@ -294,7 +294,7 @@ func (suite *UnitTestSuite) TestViewQuery() {
 func (suite *UnitTestSuite) TestViewQueryRaw() {
 	var dataset testViewDataset
 	err := loadJSONTestDataset("beer_sample_views_dataset", &dataset)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	reader := &mockViewRowReader{
 		Dataset: dataset.Rows,
@@ -312,7 +312,7 @@ func (suite *UnitTestSuite) TestViewQueryRaw() {
 		Limit:     10,
 		Debug:     true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 
 	raw := result.Raw()
@@ -332,10 +332,10 @@ func (suite *UnitTestSuite) TestViewQueryRaw() {
 	}
 
 	err = raw.Err()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	metadata, err := raw.MetaData()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(reader.Meta, metadata)
 }

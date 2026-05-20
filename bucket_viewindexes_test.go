@@ -28,7 +28,7 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 			},
 		},
 	}, DesignDocumentNamespaceDevelopment, &UpsertDesignDocumentOptions{})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	var designdoc *DesignDocument
 	numGetsStart := 0
@@ -54,12 +54,12 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 	suite.Assert().NotEmpty(view.Reduce)
 
 	designdocs, err := mgr.GetAllDesignDocuments(DesignDocumentNamespaceDevelopment, &GetAllDesignDocumentsOptions{})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Require().GreaterOrEqual(len(designdocs), 1)
 
 	err = mgr.PublishDesignDocument("test", &PublishDesignDocumentOptions{})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	// It can take time for the published doc to come online
 	numGetsPublished := 0
@@ -80,7 +80,7 @@ func (suite *IntegrationTestSuite) TestViewIndexManagerCrud() {
 	suite.Require().Equal(1, len(designdoc.Views))
 
 	err = mgr.DropDesignDocument("test", DesignDocumentNamespaceProduction, &DropDesignDocumentOptions{})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Require().Contains(globalTracer.GetSpans(), nil)
 	nilParents := globalTracer.GetSpans()[nil]
@@ -268,7 +268,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerDropDoesntExist() {
 
 func (suite *UnitTestSuite) TestViewIndexManagerGetAllDesignDocumentsFiltersCorrectlyProduction() {
 	payload, err := loadRawTestDataset("views_response_70")
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	resp := &mgmtResponse{
 		Endpoint:   "http://localhost:8092/default",
@@ -296,7 +296,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerGetAllDesignDocumentsFiltersCorr
 	ddocs, err := viewMgr.GetAllDesignDocuments(DesignDocumentNamespaceProduction, &GetAllDesignDocumentsOptions{
 		Timeout: 1 * time.Second,
 	})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	suite.Require().Len(ddocs, 1)
 	suite.Assert().Equal("aaa", ddocs[0].Name)
@@ -304,7 +304,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerGetAllDesignDocumentsFiltersCorr
 
 func (suite *UnitTestSuite) TestViewIndexManagerGetAllDesignDocumentsFiltersCorrectlyDevelopment() {
 	payload, err := loadRawTestDataset("views_response_70")
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	resp := &mgmtResponse{
 		Endpoint:   "http://localhost:8092/default",
@@ -332,7 +332,7 @@ func (suite *UnitTestSuite) TestViewIndexManagerGetAllDesignDocumentsFiltersCorr
 	ddocs, err := viewMgr.GetAllDesignDocuments(DesignDocumentNamespaceDevelopment, &GetAllDesignDocumentsOptions{
 		Timeout: 1 * time.Second,
 	})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	suite.Require().Len(ddocs, 3)
 	suite.Assert().Equal("aaa", ddocs[0].Name)

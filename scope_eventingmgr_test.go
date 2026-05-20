@@ -2,8 +2,9 @@ package gocb
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func (suite *IntegrationTestSuite) TestScopeEventingManagerUpsertGetDrop() {
@@ -116,7 +117,7 @@ func (suite *IntegrationTestSuite) TestScopeEventingManagerGetAllFunctionsFilter
 	suite.EnsureEveningFunctionOnAllNodes(time.Now().Add(30*time.Second), clusterFnName, "", "")
 
 	scopeFunctions, err := scopeMgr.GetAllFunctions(nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	var found bool
 	for _, fn := range scopeFunctions {
@@ -131,7 +132,7 @@ func (suite *IntegrationTestSuite) TestScopeEventingManagerGetAllFunctionsFilter
 	suite.Assert().True(found, fmt.Sprintf("Eventing function %s not found in GetAllFunctions", scopeFnName))
 
 	clusterFunctions, err := clusterMgr.GetAllFunctions(nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	found = false
 	for _, fn := range clusterFunctions {

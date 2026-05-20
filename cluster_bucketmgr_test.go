@@ -451,13 +451,13 @@ func (suite *IntegrationTestSuite) TestBucketMgrStorageBackendCouchstore() {
 	err := mgr.CreateBucket(CreateBucketSettings{
 		BucketSettings: settings,
 	}, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer mgr.DropBucket(bName, nil)
 
 	suite.EnsureBucketOnAllNodes(time.Now().Add(30*time.Second), bName, nil)
 
 	b, err := mgr.GetBucket(bName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(StorageBackendCouchstore, b.StorageBackend)
 }
@@ -480,7 +480,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrStorageBackendMagma() {
 	err := mgr.CreateBucket(CreateBucketSettings{
 		BucketSettings: settings,
 	}, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer mgr.DropBucket(bName, nil)
 
 	suite.EnsureBucketOnAllNodes(time.Now().Add(30*time.Second), bName, nil)
@@ -493,14 +493,14 @@ func (suite *IntegrationTestSuite) TestBucketMgrStorageBackendMagma() {
 
 	bucket.RAMQuotaMB = 1124
 	err = mgr.UpdateBucket(*bucket, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.EnsureBucketOnAllNodes(time.Now().Add(30*time.Second), bName, func(bucket *BucketSettings) bool {
 		return bucket.RAMQuotaMB == 1124
 	})
 
 	bucket, err = mgr.GetBucket(bName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(StorageBackendMagma, bucket.StorageBackend)
 	suite.Assert().Equal(1124, int(bucket.RAMQuotaMB))
@@ -525,14 +525,14 @@ func (suite *IntegrationTestSuite) TestBucketMgrCustomConflictResolution() {
 		BucketSettings:         settings,
 		ConflictResolutionType: ConflictResolutionTypeCustom,
 	}, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer mgr.DropBucket(bName, nil)
 
 	suite.EnsureBucketOnAllNodes(time.Now().Add(30*time.Second), bName, nil)
 
 	// Can't check Conflict resolution of bucket
 	b, err := mgr.GetBucket(bName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Assert().Equal(bName, b.Name)
 }
 
@@ -558,13 +558,13 @@ func (suite *IntegrationTestSuite) TestBucketMgrHistoryRetention() {
 		BucketSettings:         settings,
 		ConflictResolutionType: ConflictResolutionTypeSequenceNumber,
 	}, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer mgr.DropBucket(bName, nil)
 
 	suite.EnsureBucketOnAllNodes(time.Now().Add(30*time.Second), bName, nil)
 
 	b, err := mgr.GetBucket(bName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Assert().Equal(bName, b.Name)
 
 	suite.Assert().Equal(HistoryRetentionCollectionDefaultEnabled, b.HistoryRetentionCollectionDefault)
@@ -574,14 +574,14 @@ func (suite *IntegrationTestSuite) TestBucketMgrHistoryRetention() {
 	b.HistoryRetentionCollectionDefault = HistoryRetentionCollectionDefaultDisabled
 
 	err = mgr.UpdateBucket(*b, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.EnsureBucketOnAllNodes(time.Now().Add(30*time.Second), bName, func(bucket *BucketSettings) bool {
 		return bucket.HistoryRetentionCollectionDefault != HistoryRetentionCollectionDefaultUnset
 	})
 
 	b, err = mgr.GetBucket(bName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Assert().Equal(bName, b.Name)
 
 	suite.Assert().Equal(HistoryRetentionCollectionDefaultDisabled, b.HistoryRetentionCollectionDefault)

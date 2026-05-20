@@ -262,7 +262,7 @@ func (suite *IntegrationTestSuite) TestScopeSearchIndexesIndexNotFound() {
 
 func (suite *UnitTestSuite) TestScopeSearchIndexesAnalyzeDocumentCore() {
 	analyzeResp, err := loadRawTestDataset("search_analyzedoc")
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	resp := &mgmtResponse{
 		StatusCode: 200,

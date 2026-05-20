@@ -6,7 +6,7 @@ func (suite *IntegrationTestSuite) TestInternalClusterGetNodesMetadata() {
 	ic := globalCluster.Internal()
 
 	nodes, err := ic.GetNodesMetadata(nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().GreaterOrEqual(len(nodes), 1)
 }

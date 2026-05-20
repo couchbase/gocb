@@ -153,7 +153,7 @@ func (suite *UnitTestSuite) TestScanAllScansEmpty() {
 		col := suite.collection("mock", "", "", agent)
 
 		res, err := agent.Scan(col, scan, opts)
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 
 		ids := make(map[string]struct{})
 		for {

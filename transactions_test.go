@@ -13,11 +13,11 @@ import (
 
 func (suite *IntegrationTestSuite) verifyDocument(key string, val interface{}) {
 	res, err := globalCollection.Get(key, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	var actualVal interface{}
 	err = res.Content(&actualVal)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(actualVal, val)
 }
@@ -90,7 +90,7 @@ func (suite *IntegrationTestSuite) TestTransactionsInsert() {
 
 		return nil
 	}, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().True(txnRes.UnstagingComplete)
 	suite.Assert().NotEmpty(txnRes.TransactionID)
@@ -105,7 +105,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadata() {
 	metaCollectionName := "txnsCustomMetadata"
 	collections := globalBucket.CollectionsV2()
 	err := collections.CreateCollection(globalScope.Name(), metaCollectionName, nil, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer collections.DropCollection(globalScope.Name(), metaCollectionName, nil)
 	suite.EnsureCollectionsOnAllNodes(globalScope.Name(), []string{metaCollectionName})
 
@@ -123,7 +123,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadata() {
 		},
 		TransactionsConfig: tConfig,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer c.Close(nil)
 
 	docID := "txnsCustomMetadata"
@@ -157,7 +157,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadata() {
 
 		return nil
 	}, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().True(txnRes.UnstagingComplete)
 	suite.Assert().NotEmpty(txnRes.TransactionID)
@@ -171,7 +171,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadata() {
 				User     string
 			}{DocFlags: SubdocDocFlagAccessDeleted},
 		})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().True(res.Exists(0))
 
@@ -184,7 +184,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadataTransactionOpti
 	metaCollectionName := generateDocId("txnsCustomMetadataTxnOption")
 	collections := globalBucket.CollectionsV2()
 	err := collections.CreateCollection(globalScope.Name(), metaCollectionName, nil, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer collections.DropCollection(globalScope.Name(), metaCollectionName, nil)
 	suite.EnsureCollectionsOnAllNodes(globalScope.Name(), []string{metaCollectionName})
 
@@ -223,7 +223,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadataTransactionOpti
 
 		return nil
 	}, perConfig)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().True(txnRes.UnstagingComplete)
 	suite.Assert().NotEmpty(txnRes.TransactionID)
@@ -237,7 +237,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadataTransactionOpti
 				User     string
 			}{DocFlags: SubdocDocFlagAccessDeleted},
 		})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().True(res.Exists(0))
 
@@ -251,7 +251,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadataLocationRemoved
 	metaCollectionName := uuid.NewString()
 	collections := globalBucket.CollectionsV2()
 	err := collections.CreateCollection(globalScope.Name(), metaCollectionName, nil, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.EnsureCollectionsOnAllNodes(globalScope.Name(), []string{metaCollectionName})
 
 	perConfig := &TransactionOptions{
@@ -273,7 +273,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadataLocationRemoved
 
 		return nil
 	}, perConfig)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().True(txnRes.UnstagingComplete)
 	suite.Assert().NotEmpty(txnRes.TransactionID)
@@ -287,7 +287,7 @@ func (suite *IntegrationTestSuite) TestTransactionsCustomMetadataLocationRemoved
 	suite.Require().Contains(txns.Internal().CleanupLocations(), location)
 
 	err = collections.DropCollection(globalScope.Name(), metaCollectionName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Eventually(func() bool {
 		locations := txns.Internal().CleanupLocations()
@@ -312,7 +312,7 @@ func (suite *IntegrationTestSuite) TestTransactionsRollback() {
 	}
 
 	_, err := globalCollection.Upsert(docID, docValue, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	txns := globalCluster.Cluster.Transactions()
 
@@ -355,7 +355,7 @@ func (suite *IntegrationTestSuite) TestTransactionsReadExternalToTxn() {
 	}
 
 	_, err := globalCollection.Upsert(docID, docValue, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	txns := globalCluster.Cluster.Transactions()
 
@@ -398,7 +398,7 @@ func (suite *IntegrationTestSuite) TestTransactionsReadExternalToTxn() {
 
 			return nil
 		}, nil)
-		suite.Assert().Nil(err, err)
+		suite.Assert().NoError(err)
 		suite.Assert().NotNil(txnRes)
 
 		interceptCh <- struct{}{}
@@ -423,7 +423,7 @@ func (suite *IntegrationTestSuite) TestTransactionsReplace() {
 	}
 
 	_, err := globalCollection.Upsert(docID, docValue, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	txns := globalCluster.Cluster.Transactions()
 
@@ -461,7 +461,7 @@ func (suite *IntegrationTestSuite) TestTransactionsReplace() {
 
 		return nil
 	}, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().True(txnRes.UnstagingComplete)
 	suite.Assert().NotEmpty(txnRes.TransactionID)
@@ -478,7 +478,7 @@ func (suite *IntegrationTestSuite) TestTransactionsRemove() {
 	}
 
 	_, err := globalCollection.Upsert(docID, docValue, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	txns := globalCluster.Cluster.Transactions()
 
@@ -508,7 +508,7 @@ func (suite *IntegrationTestSuite) TestTransactionsRemove() {
 
 		return nil
 	}, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().True(txnRes.UnstagingComplete)
 	suite.Assert().NotEmpty(txnRes.TransactionID)
@@ -553,7 +553,7 @@ func (suite *IntegrationTestSuite) TestTransactionsInsertReplace() {
 
 		return nil
 	}, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().True(txnRes.UnstagingComplete)
 	suite.Assert().NotEmpty(txnRes.TransactionID)
@@ -589,7 +589,7 @@ func (suite *IntegrationTestSuite) TestTransactionsInsertRemove() {
 
 		return nil
 	}, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().True(txnRes.UnstagingComplete)
 	suite.Assert().NotEmpty(txnRes.TransactionID)
@@ -646,7 +646,7 @@ func (suite *IntegrationTestSuite) TestTransactionsGetDocNotFoundAllowsContinue(
 
 		return nil
 	}, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().True(txnRes.UnstagingComplete)
 	suite.Assert().NotEmpty(txnRes.TransactionID)
@@ -663,7 +663,7 @@ func (suite *IntegrationTestSuite) TestTransactionsGetOnly() {
 	}
 
 	_, err := globalCollection.Upsert(docID, docValue, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	txns := globalCluster.Cluster.Transactions()
 
@@ -683,7 +683,7 @@ func (suite *IntegrationTestSuite) TestTransactionsGetOnly() {
 
 		return nil
 	}, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 }
 
 func (suite *IntegrationTestSuite) TestTransactionsGetReplicaServerGroupUnset() {
@@ -865,11 +865,11 @@ func (suite *UnitTestSuite) TestTransactionsCustomMetadataAddedToCleanupLocs() {
 		config: tConfig,
 	}
 	err := txns.Init(c)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer txns.close()
 
 	locs, err := txns.atrLocationsProvider()
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	suite.Require().Len(locs, 1)
 	suite.Require().Contains(locs, gocbcore.TransactionLostATRLocation{
@@ -908,11 +908,11 @@ func (suite *UnitTestSuite) TestTransactionsCustomMetadataAlreadyInCleanupCollec
 		config: tConfig,
 	}
 	err := txns.Init(c)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer txns.close()
 
 	locs, err := txns.atrLocationsProvider()
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	suite.Require().Len(locs, 1)
 	suite.Require().Contains(locs, gocbcore.TransactionLostATRLocation{
@@ -1247,9 +1247,9 @@ func (suite *IntegrationTestSuite) transactionPrepDocs(allKeys []string) {
 
 	// Flush and wait for it to finish...
 	_, err := globalCollection.Upsert("flush-watch", nil, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	err = globalCluster.Buckets().FlushBucket("default", nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.tryTimes(512, 100*time.Millisecond, func() bool {
 		_, err := globalCollection.Get("flush-watch", nil)
@@ -1258,7 +1258,7 @@ func (suite *IntegrationTestSuite) transactionPrepDocs(allKeys []string) {
 
 	for _, k := range allKeys {
 		_, err := globalCollection.Insert(k, testDummy, nil)
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 	}
 }
 

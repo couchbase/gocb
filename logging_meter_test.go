@@ -127,17 +127,17 @@ func (suite *UnitTestSuite) TestLoggingMeter() {
 		meterLegacyAttribService:       "kv",
 		meterLegacyAttribOperationName: "get",
 	})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 	r2, err := meter.ValueRecorder(meterNameCBOperations, map[string]string{
 		meterLegacyAttribService:       "kv",
 		meterLegacyAttribOperationName: "replace",
 	})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 	r3, err := meter.ValueRecorder(meterNameCBOperations, map[string]string{
 		meterLegacyAttribService:       "query",
 		meterLegacyAttribOperationName: "query",
 	})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	r1.RecordValue(1000)
 	r1.RecordValue(1000)

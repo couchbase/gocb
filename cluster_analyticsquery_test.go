@@ -173,7 +173,7 @@ func (suite *IntegrationTestSuite) TestClusterAnalyticsQueryContext() {
 func (suite *UnitTestSuite) TestAnalyticsQuery() {
 	var dataset testAnalyticsDataset
 	err := loadJSONTestDataset("beer_sample_analytics_dataset", &dataset)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	reader := &mockAnalyticsRowReader{
 		Dataset: dataset.Results,
@@ -196,7 +196,7 @@ func (suite *UnitTestSuite) TestAnalyticsQuery() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		suite.Assert().Contains(actualOptions, "statement")
 		suite.Assert().Contains(actualOptions, "client_context_id")
@@ -204,35 +204,35 @@ func (suite *UnitTestSuite) TestAnalyticsQuery() {
 	}, reader, nil)
 
 	result, err := cluster.AnalyticsQuery(statement, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 
 	var breweries []testBreweryDocument
 	for result.Next() {
 		var doc testBreweryDocument
 		err := result.Row(&doc)
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 		breweries = append(breweries, doc)
 	}
 
 	suite.Assert().Len(breweries, len(dataset.Results))
 
 	err = result.Err()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	metadata, err := result.MetaData()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	var aMeta AnalyticsMetaData
 	err = aMeta.fromData(dataset.jsonAnalyticsResponse)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Assert().Equal(&aMeta, metadata)
 }
 
 func (suite *UnitTestSuite) TestAnalyticsQueryResultsOne() {
 	var dataset testAnalyticsDataset
 	err := loadJSONTestDataset("beer_sample_analytics_dataset", &dataset)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	reader := &mockAnalyticsRowReader{
 		Dataset: dataset.Results,
@@ -245,7 +245,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryResultsOne() {
 
 	var doc testBreweryDocument
 	err = result.One(&doc)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(dataset.Results[0], doc)
 
@@ -257,14 +257,14 @@ func (suite *UnitTestSuite) TestAnalyticsQueryResultsOne() {
 	suite.Assert().Zero(count)
 
 	err = result.Err()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	metadata, err := result.MetaData()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	var aMeta AnalyticsMetaData
 	err = aMeta.fromData(dataset.jsonAnalyticsResponse)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Assert().Equal(&aMeta, metadata)
 }
 
@@ -278,7 +278,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryResultsErr() {
 	}
 
 	err := result.Err()
-	suite.Require().NotNil(err, err)
+	suite.Require().Error(err)
 }
 
 func (suite *UnitTestSuite) TestAnalyticsQueryResultsCloseErr() {
@@ -291,7 +291,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryResultsCloseErr() {
 	}
 
 	err := result.Close()
-	suite.Require().NotNil(err, err)
+	suite.Require().Error(err)
 }
 
 func (suite *UnitTestSuite) TestAnalyticsQueryUntypedError() {
@@ -337,7 +337,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryPriority() {
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		Priority: true,
 	})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 }
 
@@ -361,7 +361,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryTimeoutOption() {
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		Timeout: 25 * time.Second,
 	})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 }
 
@@ -389,7 +389,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryNamedParams() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		suite.Assert().Equal(statement, actualOptions["statement"])
 		suite.Assert().NotEmpty(actualOptions["client_context_id"])
@@ -401,7 +401,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryNamedParams() {
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		NamedParameters: params,
 	})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 }
 
@@ -416,7 +416,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryPositionalParams() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		suite.Assert().Equal(statement, actualOptions["statement"])
 		suite.Assert().NotEmpty(actualOptions["client_context_id"])
@@ -428,7 +428,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryPositionalParams() {
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		PositionalParameters: params,
 	})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 }
 
@@ -483,7 +483,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryClientContextID() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		suite.Assert().Equal(statement, actualOptions["statement"])
 		suite.Assert().Equal(contextID, actualOptions["client_context_id"])
@@ -492,7 +492,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryClientContextID() {
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		ClientContextID: contextID,
 	})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 }
 
@@ -509,7 +509,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryRawParam() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		suite.Assert().Equal(statement, actualOptions["statement"])
 		suite.Assert().NotEmpty(actualOptions["client_context_id"])
@@ -521,7 +521,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryRawParam() {
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		Raw: params,
 	})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 }
 
@@ -535,7 +535,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryReadonly() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		suite.Assert().Equal(statement, actualOptions["statement"])
 		suite.Assert().NotEmpty(actualOptions["client_context_id"])
@@ -545,7 +545,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryReadonly() {
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		Readonly: true,
 	})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 }
 
@@ -559,7 +559,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyNotBounded() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		suite.Assert().Equal(statement, actualOptions["statement"])
 		suite.Assert().NotEmpty(actualOptions["client_context_id"])
@@ -569,7 +569,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyNotBounded() {
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		ScanConsistency: AnalyticsScanConsistencyNotBounded,
 	})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 }
 
@@ -583,7 +583,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyRequestPlus() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		suite.Assert().Equal(statement, actualOptions["statement"])
 		suite.Assert().NotEmpty(actualOptions["client_context_id"])
@@ -593,7 +593,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyRequestPlus() {
 	result, err := cluster.AnalyticsQuery(statement, &AnalyticsOptions{
 		ScanConsistency: AnalyticsScanConsistencyRequestPlus,
 	})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 }
 
@@ -662,7 +662,7 @@ func (suite *UnitTestSuite) coreAnalyticsCluster(ctx context.Context, retryStrat
 func (suite *UnitTestSuite) TestAnalyticsQueryRaw() {
 	var dataset testAnalyticsDataset
 	err := loadJSONTestDataset("beer_sample_analytics_dataset", &dataset)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	reader := &mockAnalyticsRowReader{
 		Dataset: dataset.Results,
@@ -677,7 +677,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryRaw() {
 	cluster = suite.coreAnalyticsCluster(nil, rs, func(args mock.Arguments) {}, reader, nil)
 
 	result, err := cluster.AnalyticsQuery(statement, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 
 	raw := result.Raw()
@@ -698,10 +698,10 @@ func (suite *UnitTestSuite) TestAnalyticsQueryRaw() {
 	}
 
 	err = raw.Err()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	metadata, err := raw.MetaData()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(reader.Meta, metadata)
 }

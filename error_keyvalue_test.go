@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"encoding/json"
+
 	"github.com/couchbase/gocbcore/v10/memd"
 )
 
@@ -25,7 +26,7 @@ func (suite *UnitTestSuite) TestKeyValueError() {
 	}
 
 	b, err := json.Marshal(aErr)
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(
 		[]byte("{\"msg\":\"path not found\",\"status_code\":133,\"document_id\":\"key\",\"bucket\":\"bucket\",\"scope\":\"scope\",\"collection\":\"collection\",\"collection_id\":9,\"error_name\":\"barry\",\"error_description\":\"sheen\",\"opaque\":161,\"retry_reasons\":[\"CIRCUIT_BREAKER_OPEN\"],\"retry_attempts\":3,\"last_dispatched_to\":\"10.112.210.101\",\"last_dispatched_from\":\"10.112.210.1\",\"last_connection_id\":\"123456\"}"),

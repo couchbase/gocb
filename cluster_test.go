@@ -13,15 +13,15 @@ func (suite *IntegrationTestSuite) TestClusterWaitUntilReady() {
 		Authenticator:  globalConfig.Auth,
 		SecurityConfig: globalConfig.SecurityConfig,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer c.Close(nil)
 
 	err = c.WaitUntilReady(7*time.Second, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	// Just test that we can use the cluster.
 	_, err = c.Bucket(globalBucket.Name()).DefaultCollection().Upsert("test", "test", nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 }
 
 func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyInvalidAuth() {
@@ -36,7 +36,7 @@ func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyInvalidAuth() {
 		},
 		SecurityConfig: globalConfig.SecurityConfig,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer c.Close(nil)
 
 	start := time.Now()
@@ -62,7 +62,7 @@ func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyFastFailAuth() {
 		},
 		SecurityConfig: globalConfig.SecurityConfig,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer c.Close(nil)
 
 	err = c.WaitUntilReady(7*time.Second, &WaitUntilReadyOptions{
@@ -85,7 +85,7 @@ func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyFastFailConnStr() {
 		},
 		SecurityConfig: globalConfig.SecurityConfig,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer c.Close(nil)
 
 	err = c.WaitUntilReady(7*time.Second, &WaitUntilReadyOptions{
@@ -107,7 +107,7 @@ func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyKeyValueService() {
 		},
 		SecurityConfig: globalConfig.SecurityConfig,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer c.Close(nil)
 
 	err = c.WaitUntilReady(7*time.Second, &WaitUntilReadyOptions{

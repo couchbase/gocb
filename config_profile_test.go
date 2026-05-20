@@ -29,7 +29,7 @@ func (suite *UnitTestSuite) TestDevelopmentConfigProfile() {
 	options := defaultConfig
 	options.Authenticator = auth
 	err := options.ApplyProfile(ClusterConfigProfileWanDevelopment)
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(20*time.Second, options.TimeoutsConfig.KVTimeout)
 	suite.Assert().Equal(20*time.Second, options.TimeoutsConfig.ConnectTimeout)

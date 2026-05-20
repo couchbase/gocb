@@ -104,7 +104,7 @@ func (suite *IntegrationTestSuite) runEventingManagerUpsertGetDropTest(scope *Sc
 		suite.EnsureEveningFunctionOnAllNodes(time.Now().Add(30*time.Second), fnName, scope.BucketName(), scope.Name())
 	}
 	functions, err := mgr.GetAllFunctions(nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	var found bool
 	for _, fn := range functions {
@@ -116,7 +116,7 @@ func (suite *IntegrationTestSuite) runEventingManagerUpsertGetDropTest(scope *Sc
 	suite.Assert().True(found, fmt.Sprintf("Eventing function %s not found in GetAllFunctions", fnName))
 
 	funcsStatus, err := mgr.FunctionsStatus(nil)
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	var foundStatus *EventingFunctionState
 	for _, fn := range funcsStatus.Functions {
@@ -128,11 +128,11 @@ func (suite *IntegrationTestSuite) runEventingManagerUpsertGetDropTest(scope *Sc
 	suite.Assert().NotEmpty(foundStatus.Status)
 
 	actualFn, err := mgr.GetFunction(fnName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Assert().Equal(expectedFn.Code, actualFn.Code)
 
 	err = mgr.DropFunction(fnName, nil)
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 }
 
 func (suite *IntegrationTestSuite) TestEventingManagerUpsertGetDrop() {
@@ -501,7 +501,7 @@ func (suite *IntegrationTestSuite) runEventingManagerDeploysAndUndeploysTest(sco
 	}
 
 	actualFn, err := mgr.GetFunction(fnName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Require().Equal(EventingFunctionDeploymentStatusUndeployed, actualFn.Settings.DeploymentStatus)
 
 	err = mgr.UndeployFunction(fnName, nil)
@@ -514,15 +514,15 @@ func (suite *IntegrationTestSuite) runEventingManagerDeploysAndUndeploysTest(sco
 	}
 
 	err = mgr.DeployFunction(fnName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	actualFn, err = mgr.GetFunction(fnName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Require().Equal(EventingFunctionDeploymentStatusDeployed, actualFn.Settings.DeploymentStatus)
 
 	success = suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
 		funcsStatus, err := mgr.FunctionsStatus(nil)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		for _, fn := range funcsStatus.Functions {
 			if fn.Name == fnName {
@@ -539,11 +539,11 @@ func (suite *IntegrationTestSuite) runEventingManagerDeploysAndUndeploysTest(sco
 	suite.Require().True(success, "FunctionsStatus never reported function deployed")
 
 	err = mgr.UndeployFunction(fnName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	success = suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
 		funcsStatus, err := mgr.FunctionsStatus(nil)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		for _, fn := range funcsStatus.Functions {
 			if fn.Name == fnName {
@@ -560,12 +560,12 @@ func (suite *IntegrationTestSuite) runEventingManagerDeploysAndUndeploysTest(sco
 	suite.Require().True(success, "FunctionsStatus never reported function undeployed")
 
 	actualFn, err = mgr.GetFunction(fnName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Assert().Equal(EventingFunctionDeploymentStatusUndeployed, actualFn.Settings.DeploymentStatus)
 
 	success = suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
 		funcsStatus, err := mgr.FunctionsStatus(nil)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		for _, fn := range funcsStatus.Functions {
 			if fn.Name == fnName {
@@ -582,7 +582,7 @@ func (suite *IntegrationTestSuite) runEventingManagerDeploysAndUndeploysTest(sco
 	suite.Require().True(success, "FunctionsStatus never reported function undeployed")
 
 	err = mgr.DropFunction(fnName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 }
 
 func (suite *IntegrationTestSuite) TestEventingManagerDeploysAndUndeploys() {
@@ -647,7 +647,7 @@ func (suite *IntegrationTestSuite) runEventingManagerPausesAndResumesTest(scope 
 	}
 
 	actualFn, err := mgr.GetFunction(fnName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Require().Equal(EventingFunctionProcessingStatusPaused, actualFn.Settings.ProcessingStatus)
 
 	err = mgr.PauseFunction(fnName, nil)
@@ -665,7 +665,7 @@ func (suite *IntegrationTestSuite) runEventingManagerPausesAndResumesTest(scope 
 
 		success = suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
 			funcsStatus, err := mgr.FunctionsStatus(nil)
-			suite.Require().Nil(err)
+			suite.Require().NoError(err)
 
 			for _, fn := range funcsStatus.Functions {
 				if fn.Name == fnName {
@@ -686,16 +686,16 @@ func (suite *IntegrationTestSuite) runEventingManagerPausesAndResumesTest(scope 
 		}
 
 		err = mgr.DeployFunction(fnName, nil)
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 	}
 
 	actualFn, err = mgr.GetFunction(fnName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Require().Equal(EventingFunctionProcessingStatusRunning, actualFn.Settings.ProcessingStatus)
 
 	success = suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
 		funcsStatus, err := mgr.FunctionsStatus(nil)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		for _, fn := range funcsStatus.Functions {
 			if fn.Name == fnName {
@@ -712,15 +712,15 @@ func (suite *IntegrationTestSuite) runEventingManagerPausesAndResumesTest(scope 
 	suite.Require().True(success, "FunctionsStatus never reported function deployed")
 
 	err = mgr.PauseFunction(fnName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	actualFn, err = mgr.GetFunction(fnName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Assert().Equal(EventingFunctionProcessingStatusPaused, actualFn.Settings.ProcessingStatus)
 
 	success = suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
 		funcsStatus, err := mgr.FunctionsStatus(nil)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		for _, fn := range funcsStatus.Functions {
 			if fn.Name == fnName {
@@ -737,11 +737,11 @@ func (suite *IntegrationTestSuite) runEventingManagerPausesAndResumesTest(scope 
 	suite.Require().True(success, "FunctionsStatus never reported function paused")
 
 	err = mgr.UndeployFunction(fnName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	success = suite.tryUntil(time.Now().Add(30*time.Second), 500*time.Millisecond, func() bool {
 		funcsStatus, err := mgr.FunctionsStatus(nil)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		for _, fn := range funcsStatus.Functions {
 			if fn.Name == fnName {
@@ -758,7 +758,7 @@ func (suite *IntegrationTestSuite) runEventingManagerPausesAndResumesTest(scope 
 	suite.Require().True(success, "FunctionsStatus never reported function undeployed")
 
 	err = mgr.DropFunction(fnName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 }
 
 func (suite *IntegrationTestSuite) TestEventingManagerPausesAndResumes() {
@@ -768,23 +768,23 @@ func (suite *IntegrationTestSuite) TestEventingManagerPausesAndResumes() {
 func (suite *IntegrationTestSuite) mustCreateScope(scope string) {
 	cmgr := globalBucket.CollectionsV2()
 	err := cmgr.CreateScope(scope, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 }
 
 func (suite *IntegrationTestSuite) dropScope(scope string) {
 	cmgr := globalBucket.CollectionsV2()
 	err := cmgr.DropScope(scope, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 }
 
 func (suite *IntegrationTestSuite) mustCreateCollection(scope, collection string) {
 	cmgr := globalBucket.CollectionsV2()
 	err := cmgr.CreateCollection(scope, collection, nil, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 }
 
 func (suite *IntegrationTestSuite) dropCollection(scope, collection string) {
 	cmgr := globalBucket.CollectionsV2()
 	err := cmgr.DropCollection(scope, collection, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 }

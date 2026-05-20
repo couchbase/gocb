@@ -171,7 +171,7 @@ func (suite *IntegrationTestSuite) TestClusterQueryImprovedErrorsDocNotFound() {
 	suite.Require().True(success, "Timed out waiting for query to succeed")
 
 	res, err := globalCluster.Query(query, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	for res.Next() {
 	}
@@ -343,7 +343,7 @@ func (suite *IntegrationTestSuite) TestClusterQueryTransaction() {
 	err := mgr.CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
 		IgnoreIfExists: true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Eventually(func() bool {
 		res, err := globalCluster.Query(fmt.Sprintf("SELECT 1 FROM %s", globalBucket.Name()), &QueryOptions{
@@ -366,16 +366,16 @@ func (suite *IntegrationTestSuite) TestClusterQueryTransaction() {
 		},
 		Adhoc: true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	for res.Next() {
 	}
 
 	err = res.Err()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	meta, err := res.MetaData()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(uint64(1), meta.Metrics.MutationCount)
 }
@@ -389,7 +389,7 @@ func (suite *IntegrationTestSuite) TestClusterQueryTransactionDoubleInsert() {
 	err := mgr.CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
 		IgnoreIfExists: true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Eventually(func() bool {
 		res, err := globalCluster.Query(fmt.Sprintf("SELECT 1 FROM %s", globalBucket.Name()), &QueryOptions{
@@ -413,16 +413,16 @@ func (suite *IntegrationTestSuite) TestClusterQueryTransactionDoubleInsert() {
 		},
 		Adhoc: true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	for res.Next() {
 	}
 
 	err = res.Err()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	meta, err := res.MetaData()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(uint64(1), meta.Metrics.MutationCount)
 
@@ -457,7 +457,7 @@ func (suite *IntegrationTestSuite) TestClusterQueryTransactionOne() {
 	err := mgr.CreatePrimaryIndex(globalBucket.Name(), &CreatePrimaryQueryIndexOptions{
 		IgnoreIfExists: true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Eventually(func() bool {
 		res, err := globalCluster.Query(fmt.Sprintf("SELECT 1 FROM %s", globalBucket.Name()), &QueryOptions{
@@ -481,7 +481,7 @@ func (suite *IntegrationTestSuite) TestClusterQueryTransactionOne() {
 		},
 		Adhoc: true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	var something interface{}
 	err = res.One(&something)
@@ -490,10 +490,10 @@ func (suite *IntegrationTestSuite) TestClusterQueryTransactionOne() {
 	suite.Assert().Equal(map[string]interface{}{"id": docID}, something)
 
 	err = res.Err()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	meta, err := res.MetaData()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(uint64(1), meta.Metrics.MutationCount)
 }
@@ -594,28 +594,28 @@ func (suite *UnitTestSuite) assertQueryBeerResult(dataset testQueryDataset, resu
 	for result.Next() {
 		var doc testBreweryDocument
 		err := result.Row(&doc)
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 		breweries = append(breweries, doc)
 	}
 
 	suite.Assert().Len(breweries, len(dataset.Results))
 
 	err := result.Err()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	metadata, err := result.MetaData()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	var aMeta QueryMetaData
 	err = aMeta.fromData(dataset.jsonQueryResponse)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Assert().Equal(&aMeta, metadata)
 }
 
 func (suite *UnitTestSuite) TestQueryAdhoc() {
 	var dataset testQueryDataset
 	err := loadJSONTestDataset("beer_sample_query_dataset", &dataset)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	reader := &mockQueryRowReader{
 		Dataset: dataset.Results,
@@ -640,7 +640,7 @@ func (suite *UnitTestSuite) TestQueryAdhoc() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		suite.Assert().Contains(actualOptions, "client_context_id")
 		suite.Assert().Equal(statement, actualOptions["statement"])
@@ -649,7 +649,7 @@ func (suite *UnitTestSuite) TestQueryAdhoc() {
 	result, err := cluster.Query(statement, &QueryOptions{
 		Adhoc: true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 
 	suite.assertQueryBeerResult(dataset, result)
@@ -658,7 +658,7 @@ func (suite *UnitTestSuite) TestQueryAdhoc() {
 func (suite *UnitTestSuite) TestQueryPrepared() {
 	var dataset testQueryDataset
 	err := loadJSONTestDataset("beer_sample_query_dataset", &dataset)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	reader := &mockQueryRowReader{
 		Dataset: dataset.Results,
@@ -683,13 +683,13 @@ func (suite *UnitTestSuite) TestQueryPrepared() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		suite.Assert().Contains(actualOptions, "client_context_id")
 	})
 
 	result, err := cluster.Query(statement, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 
 	suite.assertQueryBeerResult(dataset, result)
@@ -698,7 +698,7 @@ func (suite *UnitTestSuite) TestQueryPrepared() {
 func (suite *UnitTestSuite) TestQueryResultsOne() {
 	var dataset testQueryDataset
 	err := loadJSONTestDataset("beer_sample_query_dataset", &dataset)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	reader := &mockQueryRowReader{
 		Dataset: dataset.Results,
@@ -711,7 +711,7 @@ func (suite *UnitTestSuite) TestQueryResultsOne() {
 
 	var doc testBreweryDocument
 	err = result.One(&doc)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(dataset.Results[0], doc)
 
@@ -725,14 +725,14 @@ func (suite *UnitTestSuite) TestQueryResultsOne() {
 	suite.Assert().Nil(result.reader.NextRow())
 
 	err = result.Err()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	metadata, err := result.MetaData()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	var aMeta QueryMetaData
 	err = aMeta.fromData(dataset.jsonQueryResponse)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Assert().Equal(&aMeta, metadata)
 }
 
@@ -746,7 +746,7 @@ func (suite *UnitTestSuite) TestQueryResultsErr() {
 	result := newQueryResult(reader)
 
 	err := result.Err()
-	suite.Require().NotNil(err, err)
+	suite.Require().Error(err)
 }
 
 func (suite *UnitTestSuite) TestQueryResultsCloseErr() {
@@ -767,7 +767,7 @@ func (suite *UnitTestSuite) TestQueryResultsOneErr() {
 	retErr := errors.New("some error")
 	var dataset testQueryDataset
 	err := loadJSONTestDataset("beer_sample_query_dataset", &dataset)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	reader := &mockQueryRowReader{
 		Dataset: dataset.Results,
@@ -895,7 +895,7 @@ func (suite *UnitTestSuite) TestQueryTimeoutOption() {
 		Timeout: 25 * time.Second,
 		Adhoc:   true,
 	})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 }
 
@@ -914,7 +914,7 @@ func (suite *UnitTestSuite) TestQueryNamedParams() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		suite.Assert().Equal(float64(1), actualOptions["$num"])
 		suite.Assert().Equal("namedbarry", actualOptions["$imafish"])
@@ -925,7 +925,7 @@ func (suite *UnitTestSuite) TestQueryNamedParams() {
 		NamedParameters: params,
 		Adhoc:           true,
 	})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 }
 
@@ -940,7 +940,7 @@ func (suite *UnitTestSuite) TestQueryPositionalParams() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		if suite.Assert().Contains(actualOptions, "args") {
 			suite.Require().Equal(params, actualOptions["args"])
@@ -951,7 +951,7 @@ func (suite *UnitTestSuite) TestQueryPositionalParams() {
 		PositionalParameters: params,
 		Adhoc:                true,
 	})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 }
 
@@ -971,7 +971,7 @@ func (suite *UnitTestSuite) TestQueryBothPositionalAndNamedParams() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		if suite.Assert().Contains(actualOptions, "args") {
 			suite.Require().Equal(positionalParams, actualOptions["args"])
@@ -987,7 +987,7 @@ func (suite *UnitTestSuite) TestQueryBothPositionalAndNamedParams() {
 		NamedParameters:      namedParams,
 		Adhoc:                true,
 	})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 }
 
@@ -1002,7 +1002,7 @@ func (suite *UnitTestSuite) TestQueryClientContextID() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		suite.Assert().Equal(contextID, actualOptions["client_context_id"])
 	})
@@ -1011,14 +1011,14 @@ func (suite *UnitTestSuite) TestQueryClientContextID() {
 		ClientContextID: contextID,
 		Adhoc:           true,
 	})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 }
 
 func (suite *UnitTestSuite) TestQueryNoMetrics() {
 	var dataset testQueryDataset
 	err := loadJSONTestDataset("beer_sample_query_dataset_no_metrics", &dataset)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	reader := &mockQueryRowReader{
 		Dataset: dataset.Results,
@@ -1043,19 +1043,19 @@ func (suite *UnitTestSuite) TestQueryNoMetrics() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		suite.Assert().Contains(actualOptions, "client_context_id")
 	})
 
 	result, err := cluster.Query(statement, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 
 	suite.assertQueryBeerResult(dataset, result)
 
 	metadata, err := result.MetaData()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Zero(metadata.Metrics.ElapsedTime)
 	suite.Assert().Zero(metadata.Metrics.ErrorCount)
@@ -1070,7 +1070,7 @@ func (suite *UnitTestSuite) TestQueryNoMetrics() {
 func (suite *UnitTestSuite) TestQueryRaw() {
 	var dataset testQueryDataset
 	err := loadJSONTestDataset("beer_sample_query_dataset", &dataset)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	reader := &mockQueryRowReader{
 		Dataset: dataset.Results,
@@ -1089,7 +1089,7 @@ func (suite *UnitTestSuite) TestQueryRaw() {
 	result, err := cluster.Query(statement, &QueryOptions{
 		Adhoc: true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 
 	raw := result.Raw()
@@ -1110,10 +1110,10 @@ func (suite *UnitTestSuite) TestQueryRaw() {
 	}
 
 	err = raw.Err()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	metadata, err := raw.MetaData()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(reader.Meta, metadata)
 }
@@ -1128,7 +1128,7 @@ func (suite *UnitTestSuite) TestQueryPreserveExpiry() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		suite.Assert().Equal(true, actualOptions["preserve_expiry"])
 	})
@@ -1137,6 +1137,6 @@ func (suite *UnitTestSuite) TestQueryPreserveExpiry() {
 		PreserveExpiry: true,
 		Adhoc:          true,
 	})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 }

@@ -74,13 +74,13 @@ func (suite *IntegrationTestSuite) upsertAndCreateMutationState(collection *Coll
 
 func (suite *IntegrationTestSuite) numVbuckets() int {
 	a, err := globalBucket.Internal().IORouter()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	snap, err := a.ConfigSnapshot()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	numVbuckets, err := snap.NumVbuckets()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	return numVbuckets
 }
@@ -221,7 +221,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithContent() {
 	}
 
 	res, err := globalCollection.Scan(scan, opts)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	ids := make(map[string]struct{})
 	for {
@@ -233,7 +233,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithContent() {
 		suite.Assert().NotZero(d.Cas())
 		var v string
 		err := d.Content(&v)
-		if suite.Assert().Nil(err) {
+		if suite.Assert().NoError(err) {
 			suite.Assert().Equal(value, v)
 		}
 		suite.Assert().Greater(time.Until(d.ExpiryTime()), 0*time.Second)
@@ -247,7 +247,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithContent() {
 	}
 
 	err = res.Err()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	numVbuckets := suite.numVbuckets()
 
@@ -285,7 +285,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithoutContent() {
 	}
 
 	res, err := globalCollection.Scan(scan, opts)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	ids := make(map[string]struct{})
 	for {
@@ -309,7 +309,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithoutContent() {
 	}
 
 	err = res.Err()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	numVbuckets := suite.numVbuckets()
 
@@ -348,7 +348,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithContentBinaryTranscoder
 	}
 
 	res, err := globalCollection.Scan(scan, opts)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	ids := make(map[string]struct{})
 	for {
@@ -360,7 +360,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithContentBinaryTranscoder
 		suite.Assert().NotZero(d.Cas())
 		var v []byte
 		err := d.Content(&v)
-		if suite.Assert().Nil(err) {
+		if suite.Assert().NoError(err) {
 			suite.Assert().Equal(value, v)
 		}
 		suite.Assert().Greater(time.Until(d.ExpiryTime()), 0*time.Second)
@@ -374,7 +374,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeWithContentBinaryTranscoder
 	}
 
 	err = res.Err()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	numVbuckets := suite.numVbuckets()
 
@@ -419,7 +419,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeCancellation() {
 	}
 
 	res, err := globalCollection.Scan(scan, opts)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	stopAt := 5
 	ids := make(map[string]struct{})
@@ -432,7 +432,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeCancellation() {
 		if len(ids) == stopAt {
 			// At the point of close there should be no errors on the stream.
 			err := res.Close()
-			suite.Assert().Nil(err, err)
+			suite.Assert().NoError(err)
 		}
 
 		ids[d.ID()] = struct{}{}
@@ -451,12 +451,12 @@ func (suite *IntegrationTestSuite) TestRangeScanSampling() {
 	scopeName := generateDocId("samplingrangescan")
 	colMgr := globalBucket.CollectionsV2()
 	err := colMgr.CreateScope(scopeName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer colMgr.DropScope(scopeName, nil)
 	suite.EnsureScopeOnAllNodes(scopeName)
 
 	err = colMgr.CreateCollection(scopeName, scopeName, nil, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.EnsureCollectionsOnAllNodes(scopeName, []string{scopeName})
 
@@ -477,7 +477,7 @@ func (suite *IntegrationTestSuite) TestRangeScanSampling() {
 	}
 
 	res, err := col.Scan(scan, opts)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	ids := make(map[string]struct{})
 	for {
@@ -489,7 +489,7 @@ func (suite *IntegrationTestSuite) TestRangeScanSampling() {
 		suite.Assert().NotZero(d.Cas())
 		var v string
 		err := d.Content(&v)
-		if suite.Assert().Nil(err) {
+		if suite.Assert().NoError(err) {
 			suite.Assert().Equal(value, v)
 		}
 		suite.Assert().Greater(time.Until(d.ExpiryTime()), 0*time.Second)
@@ -504,7 +504,7 @@ func (suite *IntegrationTestSuite) TestRangeScanSampling() {
 	}
 
 	err = res.Err()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	numVbuckets := suite.numVbuckets()
 
@@ -543,7 +543,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRange() {
 	}
 
 	res, err := globalCollection.Scan(scan, opts)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	ids := make(map[string]struct{})
 	for {
@@ -567,7 +567,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRange() {
 	}
 
 	err = res.Err()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	numVbuckets := suite.numVbuckets()
 
@@ -595,7 +595,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeCtxCancelBeforeResults() {
 	}
 
 	_, err := globalCollection.Scan(scan, opts)
-	suite.Require().NotNil(err, err)
+	suite.Require().Error(err)
 }
 
 func (suite *IntegrationTestSuite) TestRangeScanRangeTimeoutBeforeResults() {
@@ -612,8 +612,6 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeTimeoutBeforeResults() {
 	}
 
 	_, err := globalCollection.Scan(scan, opts)
-	suite.Require().NotNil(err, err)
-
 	suite.Require().ErrorIs(err, ErrTimeout)
 }
 
@@ -637,7 +635,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeEmoji() {
 	}
 
 	res, err := globalCollection.Scan(scan, opts)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	ids := make(map[string]struct{})
 	for {
@@ -661,7 +659,7 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeEmoji() {
 	}
 
 	err = res.Err()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	numVbuckets := suite.numVbuckets()
 

@@ -1,7 +1,6 @@
 package gocb
 
 import (
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,7 +24,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 				BucketType:  CouchbaseBucketType,
 			},
 		}, nil)
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 		defer bucketMgr.DropBucket(bucketName, nil)
 
 		suite.EnsureBucketOnAllIndexesAndNodes(time.Now().Add(30*time.Second), bucketName)
@@ -34,7 +33,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 		indexes, err := mgr.GetAllIndexes(bucketName, &GetAllQueryIndexesOptions{
 			ScopeName: "_default",
 		})
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 
 		for _, index := range indexes {
 			if index.IsPrimary {
@@ -73,7 +72,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 	err = mgr.CreateIndex(bucketName, "testIndex", []string{"field"}, &CreateQueryIndexOptions{
 		IgnoreIfExists: true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.EnsureIndexOnAllNodes(time.Now().Add(20*time.Second), "testIndex", bucketName, "", "", func(row queryRow) bool {
 		return row.State == "online"
@@ -89,20 +88,20 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 		IgnoreIfExists: false,
 		Deferred:       true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.EnsureIndexOnAllNodes(time.Now().Add(20*time.Second), "testIndexDeferred", bucketName, "", "", nil)
 
 	indexNames, err := mgr.BuildDeferredIndexes(bucketName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Len(indexNames, 1)
 
 	err = mgr.WatchIndexes(bucketName, []string{"testIndexDeferred"}, 60*time.Second, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	indexes, err := mgr.GetAllIndexes(bucketName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Len(indexes, 3)
 	var index QueryIndex
@@ -136,22 +135,16 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 	suite.Assert().Empty(index.Partition)
 
 	err = mgr.DropIndex(bucketName, "testIndex", nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	err = mgr.DropIndex(bucketName, "testIndex", nil)
-	suite.Require().NotNil(err, err)
-	if !errors.Is(err, ErrIndexNotFound) {
-		suite.T().Fatalf("Expected index not found error but was %s", err)
-	}
+	suite.Require().ErrorIs(err, ErrIndexNotFound)
 
 	err = mgr.DropPrimaryIndex(bucketName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	err = mgr.DropPrimaryIndex(bucketName, nil)
-	suite.Require().NotNil(err, err)
-	if !errors.Is(err, ErrIndexNotFound) {
-		suite.T().Fatalf("Expected index not found error but was %s", err)
-	}
+	suite.Require().ErrorIs(err, ErrIndexNotFound)
 
 	if globalCluster.SupportsFeature(BucketMgrFeature) {
 		suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_bucket_create_bucket"), 1, false)
@@ -179,13 +172,13 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 
 	colmgr := globalBucket.CollectionsV2()
 	err := colmgr.CreateScope(scopeName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer colmgr.DropScope(scopeName, nil)
 
 	suite.EnsureScopeOnAllNodes(scopeName)
 
 	err = colmgr.CreateCollection(scopeName, colName, nil, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.EnsureCollectionsOnAllNodes(scopeName, []string{colName})
 	suite.EnsureCollectionOnAllIndexesAndNodes(time.Now().Add(30*time.Second), globalBucket.Name(), scopeName, colName)
@@ -208,17 +201,14 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 		ScopeName:      scopeName,
 		CollectionName: colName,
 	})
-	suite.Require().NotNil(err, err)
-	if !errors.Is(err, ErrIndexExists) {
-		suite.T().Fatalf("Expected index exists error but was %s", err)
-	}
+	suite.Require().ErrorIs(err, ErrIndexExists)
 
 	err = mgr.CreateIndex(bucketName, "testIndex", []string{"field"}, &CreateQueryIndexOptions{
 		IgnoreIfExists: true,
 		ScopeName:      scopeName,
 		CollectionName: colName,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.EnsureIndexOnAllNodes(time.Now().Add(20*time.Second), "testIndex", bucketName, scopeName, colName, func(row queryRow) bool {
 		return row.State == "online"
@@ -229,10 +219,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 		ScopeName:      scopeName,
 		CollectionName: colName,
 	})
-	suite.Require().NotNil(err, err)
-	if !errors.Is(err, ErrIndexExists) {
-		suite.T().Fatalf("Expected index exists error but was %s", err)
-	}
+	suite.Require().ErrorIs(err, ErrIndexExists)
 
 	// We create this first to give it a chance to be created by the time we need it.
 	err = mgr.CreateIndex(bucketName, "testIndexDeferred", []string{"field"}, &CreateQueryIndexOptions{
@@ -241,7 +228,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 		ScopeName:      scopeName,
 		CollectionName: colName,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.EnsureIndexOnAllNodes(time.Now().Add(20*time.Second), "testIndexDeferred", bucketName, scopeName, colName, nil)
 
@@ -249,7 +236,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 		ScopeName:      scopeName,
 		CollectionName: colName,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Len(indexNames, 1)
 
@@ -257,13 +244,13 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 		ScopeName:      scopeName,
 		CollectionName: colName,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	indexes, err := mgr.GetAllIndexes(bucketName, &GetAllQueryIndexesOptions{
 		ScopeName:      scopeName,
 		CollectionName: colName,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Len(indexes, 3)
 	var index QueryIndex
@@ -294,31 +281,25 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 		ScopeName:      scopeName,
 		CollectionName: colName,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	err = mgr.DropIndex(bucketName, "testIndex", &DropQueryIndexOptions{
 		ScopeName:      scopeName,
 		CollectionName: colName,
 	})
-	suite.Require().NotNil(err, err)
-	if !errors.Is(err, ErrIndexNotFound) {
-		suite.T().Fatalf("Expected index not found error but was %s", err)
-	}
+	suite.Require().ErrorIs(err, ErrIndexNotFound)
 
 	err = mgr.DropPrimaryIndex(bucketName, &DropPrimaryQueryIndexOptions{
 		ScopeName:      scopeName,
 		CollectionName: colName,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	err = mgr.DropPrimaryIndex(bucketName, &DropPrimaryQueryIndexOptions{
 		ScopeName:      scopeName,
 		CollectionName: colName,
 	})
-	suite.Require().NotNil(err, err)
-	if !errors.Is(err, ErrIndexNotFound) {
-		suite.T().Fatalf("Expected index not found error but was %s", err)
-	}
+	suite.Require().ErrorIs(err, ErrIndexNotFound)
 
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_collections_create_scope"), 1, false)
 	suite.AssertMetrics(makeMetricsKey(meterNameCBOperations, "management", "manager_collections_create_collection"), 1, false)
@@ -343,7 +324,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 	colName := uuid.NewString()[:6]
 	collections := globalBucket.CollectionsV2()
 	err := collections.CreateCollection("_default", colName, nil, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.EnsureCollectionOnAllIndexesAndNodes(time.Now().Add(20*time.Second), bucketName, "_default", colName)
 
@@ -367,7 +348,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 	suite.EnsureIndexOnAllNodes(time.Now().Add(20*time.Second), "#primary", bucketName, "_default", colName, nil)
 
 	names, err := mgr.BuildDeferredIndexes(bucketName, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	// Protostellar builds all indexes on the bucket, classic only builds the default collection.
 	if globalCluster.IsProtostellar() {
@@ -378,7 +359,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 
 	suite.Eventually(func() bool {
 		indexes, err := mgr.GetAllIndexes(bucketName, nil)
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 
 		suite.Assert().Len(indexes, 2)
 
@@ -408,7 +389,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 
 	collections := globalBucket.CollectionsV2()
 	err := collections.CreateCollection("_default", collectionName, nil, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.EnsureCollectionOnAllIndexesAndNodes(time.Now().Add(20*time.Second), bucketName, "_default", collectionName)
 
@@ -435,7 +416,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 		ScopeName:      "_default",
 		CollectionName: collectionName,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	name := "#primary"
 	if globalCluster.IsProtostellar() {
@@ -445,7 +426,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 
 	suite.Eventually(func() bool {
 		indexes, err := mgr.GetAllIndexes(bucketName, nil)
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 
 		suite.Assert().Len(indexes, 2)
 
@@ -481,7 +462,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesIncludesDefaultCollection() {
 				BucketType:  CouchbaseBucketType,
 			},
 		}, nil)
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 		defer bucketMgr.DropBucket(bucketName, nil)
 
 		suite.EnsureBucketOnAllIndexesAndNodes(time.Now().Add(30*time.Second), bucketName)
@@ -490,7 +471,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesIncludesDefaultCollection() {
 		indexes, err := mgr.GetAllIndexes(bucketName, &GetAllQueryIndexesOptions{
 			ScopeName: "_default",
 		})
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 
 		for _, index := range indexes {
 			if index.IsPrimary {
@@ -519,7 +500,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesIncludesDefaultCollection() {
 	indexes, err := mgr.GetAllIndexes(bucketName, &GetAllQueryIndexesOptions{
 		ScopeName: "_default",
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Require().Len(indexes, 1)
 	var index QueryIndex
@@ -577,7 +558,7 @@ func (arr *mockQueryIndexRowReader) NextRow() []byte {
 func (suite *UnitTestSuite) TestQueryIndexesParsing() {
 	var dataset testQueryIndexDataset
 	err := loadJSONTestDataset("query_index_response", &dataset)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	reader := &mockQueryIndexRowReader{
 		Dataset: dataset.Results,
@@ -601,7 +582,7 @@ func (suite *UnitTestSuite) TestQueryIndexesParsing() {
 	}
 
 	res, err := mgr.GetAllIndexes("mybucket", nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Require().Len(res, 1)
 	index := res[0]

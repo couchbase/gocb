@@ -109,7 +109,7 @@ func (suite *UnitTestSuite) queryScope(prepared bool, retryStrategy *coreRetrySt
 func (suite *UnitTestSuite) TestScopeQueryPrepared() {
 	var dataset testQueryDataset
 	err := loadJSONTestDataset("beer_sample_query_dataset", &dataset)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	reader := &mockQueryRowReader{
 		Dataset: dataset.Results,
@@ -134,14 +134,14 @@ func (suite *UnitTestSuite) TestScopeQueryPrepared() {
 
 		var actualOptions map[string]interface{}
 		err := json.Unmarshal(opts.Payload, &actualOptions)
-		suite.Require().Nil(err)
+		suite.Require().NoError(err)
 
 		suite.Assert().Contains(actualOptions, "client_context_id")
 		suite.Assert().Equal(actualOptions["query_context"], "default:`queryBucket`.`queryScope`")
 	})
 
 	result, err := scope.Query(statement, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(result)
 
 	suite.assertQueryBeerResult(dataset, result)
@@ -155,7 +155,7 @@ func (suite *IntegrationTestSuite) TestScopeQueryTransaction() {
 	err := mgr.CreatePrimaryIndex(&CreatePrimaryQueryIndexOptions{
 		IgnoreIfExists: true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	// Ensure the index is online
 	suite.Eventually(func() bool {
@@ -180,16 +180,16 @@ func (suite *IntegrationTestSuite) TestScopeQueryTransaction() {
 		},
 		Adhoc: true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	for res.Next() {
 	}
 
 	err = res.Err()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	meta, err := res.MetaData()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(uint64(1), meta.Metrics.MutationCount)
 
@@ -197,11 +197,11 @@ func (suite *IntegrationTestSuite) TestScopeQueryTransaction() {
 	getRes, err := globalCollection.Get(docID, &GetOptions{
 		Transcoder: NewRawJSONTranscoder(),
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	var getResBytes []byte
 	err = getRes.Content(&getResBytes)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal([]byte("{}"), getResBytes)
 }
@@ -214,7 +214,7 @@ func (suite *IntegrationTestSuite) TestScopeQueryTransactionDoubleInsert() {
 	err := mgr.CreatePrimaryIndex(&CreatePrimaryQueryIndexOptions{
 		IgnoreIfExists: true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Eventually(func() bool {
 		res, err := globalScope.Query(fmt.Sprintf("SELECT 1 FROM %s", globalCollection.Name()), &QueryOptions{
@@ -228,7 +228,7 @@ func (suite *IntegrationTestSuite) TestScopeQueryTransactionDoubleInsert() {
 		}
 
 		err = res.Err()
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 		return err == nil
 	}, 30*time.Second, 500*time.Millisecond)
 
@@ -239,16 +239,16 @@ func (suite *IntegrationTestSuite) TestScopeQueryTransactionDoubleInsert() {
 		},
 		Adhoc: true,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	for res.Next() {
 	}
 
 	err = res.Err()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	meta, err := res.MetaData()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(uint64(1), meta.Metrics.MutationCount)
 

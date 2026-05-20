@@ -19,7 +19,7 @@ func (suite *UnitTestSuite) TestAnalyticsError() {
 	}
 
 	b, err := json.Marshal(aErr)
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(
 		[]byte("{\"msg\":\"dataset not found\",\"statement\":\"select * from dataset\",\"client_context_id\":\"12345\",\"errors\":[{\"Code\":1000,\"Message\":\"error 1000\"}],\"endpoint\":\"http://127.0.0.1:8095\",\"retry_reasons\":[\"ANALYTICS_TEMPORARY_FAILURE\"],\"retry_attempts\":3}"),

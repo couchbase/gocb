@@ -78,7 +78,7 @@ func (suite *IntegrationTestSuite) runScopeSearchTest(n int) {
 		}
 
 		err = result.Err()
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 
 		if n == len(thisRows) {
 			rows = thisRows
@@ -109,14 +109,14 @@ func (suite *IntegrationTestSuite) runScopeSearchTest(n int) {
 	}
 
 	metadata, err := result.MetaData()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().NotEmpty(metadata.Metrics.TotalRows)
 	suite.Assert().NotEmpty(metadata.Metrics.Took)
 	suite.Assert().NotEmpty(metadata.Metrics.MaxScore)
 
 	facets, err := result.Facets()
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	if suite.Assert().Contains(facets, "type") {
 		f := facets["type"]
 		suite.Assert().Equal("country", f.Field)
@@ -163,7 +163,7 @@ func (suite *IntegrationTestSuite) runScopeSearchTest(n int) {
 
 func (suite *IntegrationTestSuite) setupScopeSearch() int {
 	n, err := suite.createBreweryDataset("beer_sample_brewery_five", "search", globalScope.scopeName, "")
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	mgr := globalScope.SearchIndexes()
 	err = mgr.UpsertIndex(SearchIndex{
@@ -172,7 +172,7 @@ func (suite *IntegrationTestSuite) setupScopeSearch() int {
 		SourceType: "couchbase",
 		Type:       "fulltext-index",
 	}, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	return n
 }
 
@@ -239,5 +239,5 @@ func (suite *UnitTestSuite) TestScopeSearchSetsBucketAndScopeNames() {
 	})
 
 	_, err := scope.Search("testindex", request, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 }

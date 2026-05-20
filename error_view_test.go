@@ -19,7 +19,7 @@ func (suite *UnitTestSuite) TestViewError() {
 	}
 
 	b, err := json.Marshal(aErr)
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(
 		[]byte("{\"msg\":\"view not found\",\"design_document_name\":\"designdoc\",\"view_name\":\"viewname\",\"errors\":[{\"SourceNode\":\"http://127.0.0.1:8092\",\"Message\":\"error message\"}],\"endpoint\":\"http://127.0.0.1:8092\"}"),

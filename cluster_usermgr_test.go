@@ -541,7 +541,7 @@ func (suite *IntegrationTestSuite) TestUserManagerChangePassword() {
 			},
 		},
 	}, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.EnsureUserOnAllNodes(time.Now().Add(20*time.Second), username, nil)
 
@@ -549,7 +549,7 @@ func (suite *IntegrationTestSuite) TestUserManagerChangePassword() {
 		Username: username,
 		Password: password,
 	}})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	closed := false
 	defer func() {
 		if !closed {
@@ -559,49 +559,49 @@ func (suite *IntegrationTestSuite) TestUserManagerChangePassword() {
 
 	if globalCluster.SupportsFeature(WaitUntilReadyClusterFeature) {
 		err = c.WaitUntilReady(20*time.Second, nil)
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 	} else {
 		err = c.Bucket(globalConfig.Bucket).WaitUntilReady(20*time.Second, nil)
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 	}
 
 	mgr = c.Users()
 	newPassword := "newpassword"
 	err = mgr.ChangePassword(newPassword, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	err = c.Close(nil)
 	closed = true
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	c, err = Connect(globalConfig.connstr, ClusterOptions{Authenticator: PasswordAuthenticator{
 		Username: username,
 		Password: newPassword,
 	}})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer c.Close(nil)
 
 	if globalCluster.SupportsFeature(WaitUntilReadyClusterFeature) {
 		err = c.WaitUntilReady(20*time.Second, nil)
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 	} else {
 		err = c.Bucket(globalConfig.Bucket).WaitUntilReady(20*time.Second, nil)
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 	}
 
 	c, err = Connect(globalConfig.connstr, ClusterOptions{Authenticator: PasswordAuthenticator{
 		Username: username,
 		Password: password,
 	}})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer c.Close(nil)
 
 	if globalCluster.SupportsFeature(WaitUntilReadyClusterFeature) {
 		err = c.WaitUntilReady(10*time.Second, nil)
-		suite.Require().NotNil(err, err)
+		suite.Require().Error(err)
 	} else {
 		err = c.Bucket(globalConfig.Bucket).WaitUntilReady(10*time.Second, nil)
-		suite.Require().NotNil(err, err)
+		suite.Require().Error(err)
 	}
 }
 

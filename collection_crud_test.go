@@ -112,18 +112,18 @@ func (suite *IntegrationTestSuite) TestPreserveExpiry() {
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Run("Upsert", func() {
 		start := time.Now()
 		docID := uuid.NewString()[:6]
 		mutRes, err := globalCollection.Upsert(docID, doc, &UpsertOptions{Expiry: 25 * time.Second})
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 
 		suite.Assert().NotZero(mutRes.Cas())
 
 		mutRes, err = globalCollection.Upsert(docID, doc, &UpsertOptions{PreserveExpiry: true, Expiry: 50 * time.Second})
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 
 		suite.Assert().NotZero(mutRes.Cas())
 
@@ -134,10 +134,10 @@ func (suite *IntegrationTestSuite) TestPreserveExpiry() {
 		start := time.Now()
 		docID := uuid.NewString()[:6]
 		mutRes, err := globalCollection.Upsert(docID, doc, &UpsertOptions{Expiry: 25 * time.Second})
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 
 		mutRes, err = globalCollection.Replace(docID, doc, &ReplaceOptions{PreserveExpiry: true})
-		suite.Require().Nil(err, err)
+		suite.Require().NoError(err)
 
 		if mutRes.Cas() == 0 {
 			suite.T().Fatalf("Replace CAS was 0")
@@ -887,7 +887,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjectionTranscoders() {
 	}
 
 	expectedBytes, err := json.Marshal(ABVdoc{ABV: 7.6})
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	testCases := []tCase{
 		{
@@ -927,11 +927,11 @@ func (suite *IntegrationTestSuite) TestInsertGetProjectionTranscoders() {
 				Transcoder: testCase.transcoder,
 			})
 
-			if suite.Assert().Nil(err, err) {
+			if suite.Assert().NoError(err) {
 				if reflect.TypeOf(testCase.transcoder) == reflect.TypeOf(NewRawJSONTranscoder()) {
 					var actual []byte
 					err = res.Content(&actual)
-					if suite.Assert().Nil(err, err) {
+					if suite.Assert().NoError(err) {
 						suite.Assert().Equal(testCase.expected, actual)
 					}
 					return
@@ -941,7 +941,7 @@ func (suite *IntegrationTestSuite) TestInsertGetProjectionTranscoders() {
 				if testCase.expectErr {
 					suite.Assert().NotNil(err, err)
 				} else {
-					if suite.Assert().Nil(err, err) {
+					if suite.Assert().NoError(err) {
 						suite.Assert().Equal(testCase.expected, actual)
 					}
 				}
@@ -2442,7 +2442,7 @@ func (suite *UnitTestSuite) TestExpiryConversion5Seconds() {
 	res, err := col.Upsert("someid", "someval", &UpsertOptions{
 		Expiry: 5 * time.Second,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(Cas(123), res.Cas())
 }
@@ -2472,7 +2472,7 @@ func (suite *UnitTestSuite) TestExpiryConversion500Milliseconds() {
 	res, err := col.Upsert("someid", "someval", &UpsertOptions{
 		Expiry: 500 * time.Millisecond,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(Cas(123), res.Cas())
 }
@@ -2522,7 +2522,7 @@ func (suite *UnitTestSuite) TestExpiryConversion30Days() {
 	res, err := col.Upsert("someid", "someval", &UpsertOptions{
 		Expiry: 30 * 24 * time.Hour,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(Cas(123), res.Cas())
 }
@@ -2560,7 +2560,7 @@ func (suite *UnitTestSuite) TestExpiryConversion31Days() {
 	res, err := col.Upsert("someid", "someval", &UpsertOptions{
 		Expiry: 31 * 24 * time.Hour,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(Cas(123), res.Cas())
 }

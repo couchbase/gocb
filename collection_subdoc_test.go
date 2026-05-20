@@ -410,7 +410,7 @@ func (suite *IntegrationTestSuite) TestSubdocNil() {
 	suite.skipIfUnsupported(SubdocFeature)
 
 	_, err := globalCollection.Upsert("nullvalues", struct{}{}, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	mutateOps := []MutateInSpec{
 		InsertSpec("insert", nil, nil),
@@ -426,7 +426,7 @@ func (suite *IntegrationTestSuite) TestSubdocNil() {
 	}
 
 	mutRes, err := globalCollection.MutateIn("nullvalues", mutateOps, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().NotZero(mutRes.Cas())
 
@@ -437,7 +437,7 @@ func (suite *IntegrationTestSuite) TestSubdocNil() {
 	}
 
 	lookupRes, err := globalCollection.LookupIn("nullvalues", lookupOps, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().NotZero(lookupRes.Cas())
 
@@ -467,14 +467,14 @@ func (suite *IntegrationTestSuite) TestSubdocNil() {
 	}
 
 	mutRes, err = globalCollection.MutateIn("nullvalues", mutateOps, &MutateInOptions{})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	lookupOps = []LookupInSpec{
 		GetSpec("", nil),
 	}
 
 	lookupRes, err = globalCollection.LookupIn("nullvalues", lookupOps, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	var doc interface{}
 	if suite.Assert().Nil(lookupRes.ContentAt(0, &doc)) {
@@ -494,14 +494,14 @@ func (suite *IntegrationTestSuite) TestMutateInBlankPathRemove() {
 	}
 
 	mutRes, err := globalCollection.Upsert("mutateInBlankPathRemove", doc, nil)
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	suite.Assert().NotZero(mutRes.Cas())
 
 	subRes, err := globalCollection.MutateIn("mutateInBlankPathRemove", []MutateInSpec{
 		RemoveSpec("", nil),
 	}, nil)
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	suite.Assert().NotZero(subRes.Cas())
 
@@ -518,18 +518,18 @@ func (suite *IntegrationTestSuite) TestPreserveExpiryMutateIn() {
 
 	var doc testBeerDocument
 	err := loadJSONTestDataset("beer_sample_single", &doc)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	start := time.Now()
 	mutRes, err := globalCollection.Upsert("preservettlmutatein", doc, &UpsertOptions{Expiry: 25 * time.Second})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().NotZero(mutRes.Cas())
 
 	mutInRes, err := globalCollection.MutateIn("preservettlmutatein", []MutateInSpec{
 		UpsertSpec("test", "test", nil),
 	}, &MutateInOptions{PreserveExpiry: true})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().NotZero(mutInRes.Cas())
 
@@ -564,7 +564,7 @@ func (suite *IntegrationTestSuite) TestCasMismatchConvertedToExists() {
 	}
 
 	mutRes, err := globalCollection.Insert(docId, doc, &InsertOptions{Expiry: 10 * time.Second})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	if mutRes.Cas() == 0 {
 		suite.T().Fatalf("Insert CAS was 0")
@@ -591,7 +591,7 @@ func (suite *IntegrationTestSuite) TestLookupInBadComboConvertedToInvalidArgs() 
 	suite.Require().NoError(err, "Could not read test dataset")
 
 	mutRes, err := globalCollection.Upsert(docId, doc, &UpsertOptions{Expiry: 10 * time.Second})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().NotZero(mutRes.Cas())
 
@@ -628,7 +628,7 @@ func (suite *IntegrationTestSuite) TestBadComboConvertedToInvalidArgs() {
 	suite.Require().NoError(err, "Could not read test dataset")
 
 	mutRes, err := globalCollection.Upsert(docId, doc, &UpsertOptions{Expiry: 10 * time.Second})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().NotZero(mutRes.Cas())
 
@@ -672,7 +672,7 @@ func (suite *IntegrationTestSuite) TestMutateInLookupInXattrs() {
 	docId := generateDocId("lookupXattrDoc")
 
 	_, err = globalCollection.Upsert(docId, doc, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	doc.Countable = []string{"one", "two"}
 
@@ -784,7 +784,7 @@ func (suite *IntegrationTestSuite) TestMutateInBasicArrayXattrs() {
 	docId := generateDocId("mutateInArrayXattr")
 
 	_, err := globalCollection.Upsert(docId, "{}", nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	subRes, err := globalCollection.MutateIn(docId, []MutateInSpec{
 		ArrayAppendSpec("array", "clownfish", &ArrayAppendSpecOptions{IsXattr: true, CreatePath: true}),
@@ -834,7 +834,7 @@ func (suite *IntegrationTestSuite) TestMutateInLookupInCountersXattrs() {
 	docId := generateDocId("mutateInLookupInCountersXattrs")
 
 	_, err := globalCollection.Upsert(docId, "{}", nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	subRes, err := globalCollection.MutateIn(docId, []MutateInSpec{
 		InsertSpec("count", 10, &InsertSpecOptions{IsXattr: true}),

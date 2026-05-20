@@ -2,6 +2,7 @@ package gocb
 
 import (
 	"encoding/json"
+
 	"github.com/couchbase/gocb/v2/search"
 )
 
@@ -17,7 +18,7 @@ func (suite *UnitTestSuite) TestSearchError() {
 	}
 
 	b, err := json.Marshal(aErr)
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 
 	suite.Assert().Equal(
 		[]byte("{\"msg\":\"index failure\",\"index_name\":\"barry\",\"query\":{\"match_all\":null},\"error_text\":\"error text\",\"endpoint\":\"http://127.0.0.1:8094\",\"retry_reasons\":[\"SEARCH_TOO_MANY_REQUESTS\"],\"retry_attempts\":3}"),

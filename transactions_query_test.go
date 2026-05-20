@@ -57,7 +57,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryModeReplace() {
 	}
 
 	_, err := globalCollection.Upsert(docID, docValue, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	txns := globalCluster.Cluster.Transactions()
 
@@ -99,7 +99,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryModeRemove() {
 	}
 
 	_, err := globalCollection.Upsert(docID, docValue, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	txns := globalCluster.Cluster.Transactions()
 
@@ -168,7 +168,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryModeDocFound() {
 	}
 
 	_, err := globalCollection.Upsert(docID, docValue, nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	txns := globalCluster.Cluster.Transactions()
 
@@ -226,7 +226,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatement() {
 	_, err = globalCollection.Upsert(docID, docValue, &UpsertOptions{
 		DurabilityLevel: DurabilityLevelMajority,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	txns := globalCluster.Cluster.Transactions()
 
@@ -302,7 +302,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatementKVReplace
 	_, err = globalCollection.Upsert(docID, docValue, &UpsertOptions{
 		DurabilityLevel: DurabilityLevelMajority,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	txns := globalCluster.Cluster.Transactions()
 
@@ -361,7 +361,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryUpdateStatementKVRemove(
 	_, err = globalCollection.Upsert(docID, docValue, &UpsertOptions{
 		DurabilityLevel: DurabilityLevelMajority,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	txns := globalCluster.Cluster.Transactions()
 
@@ -509,7 +509,7 @@ func (suite *IntegrationTestSuite) TestTransactionsInsertReadByQuery() {
 	}, &TransactionOptions{
 		Timeout: 30 * time.Second,
 	})
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	suite.Assert().True(txnRes.UnstagingComplete)
 	suite.Assert().NotEmpty(txnRes.TransactionID)
@@ -529,7 +529,7 @@ func (suite *IntegrationTestSuite) TestTransactionsQueryInsertDocExists() {
 	}
 
 	_, err := globalCollection.Upsert(docID, "{}", nil)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	txns := globalCluster.Cluster.Transactions()
 
@@ -562,13 +562,13 @@ func (suite *UnitTestSuite) TestTransactionsQueryGocbcoreCauseError() {
 		Errors json.RawMessage
 	}
 	err := loadJSONTestDataset("transaction_gocbcore_cause_error", &dataset)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	var beginWorkDataset struct {
 		jsonQueryResponse
 	}
 	err = loadJSONTestDataset("transaction_begin_work_response", &beginWorkDataset)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 
 	reader := &mockQueryRowReader{
 		Dataset: []testBreweryDocument{},
@@ -640,7 +640,7 @@ func (suite *UnitTestSuite) TestTransactionsQueryGocbcoreCauseError() {
 		},
 	}
 	err = txns.Init(cluster)
-	suite.Require().Nil(err, err)
+	suite.Require().NoError(err)
 	defer txns.close()
 
 	txnRes, err := txns.Run(func(ctx *TransactionAttemptContext) error {

@@ -16,7 +16,7 @@ func (suite *UnitTestSuite) TestCollectionInternal_BucketCapabilityStatus_Suppor
 
 	ib := b.Internal()
 	status, err := ib.CapabilityStatus(CapabilityDurableWrites)
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 	suite.Assert().Equal(CapabilityStatusSupported, status)
 }
 
@@ -34,6 +34,6 @@ func (suite *UnitTestSuite) TestCollectionInternal_BucketCapabilityStatus_Unsupp
 
 	ib := b.Internal()
 	status, err := ib.CapabilityStatus(CapabilityDurableWrites)
-	suite.Require().Nil(err)
+	suite.Require().NoError(err)
 	suite.Assert().Equal(CapabilityStatusUnsupported, status)
 }
