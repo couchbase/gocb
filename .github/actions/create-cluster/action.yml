@@ -1,0 +1,68 @@
+name: create-cluster
+description: Sets up a Couchbase cluster using cbdinocluster
+inputs:
+  version:
+    description: 'Couchbase Server version to use'
+    required: true
+outputs:
+  ip:
+    description: 'The IP address of a node of the cluster'
+    value: ${{ steps.start-cluster.outputs.ip }}
+  connstr:
+    description: 'Connection string to connect to the cluster'
+    value: ${{ steps.start-cluster.outputs.connstr }}
+  tls-connstr:
+    description: 'Connection string to connect to the cluster over TLS'
+    value: ${{ steps.start-cluster.outputs.tls-connstr }}
+  id:
+    description: 'The cbdinocluster ID of the created cluster'
+    value: ${{ steps.start-cluster.outputs.id }}
+runs:
+  using: composite
+  steps:
+    - name: Install cbdinocluster
+      shell: bash
+      run: |
+        mkdir -p "$HOME/bin"
+        wget -nv -O $HOME/bin/cbdinocluster https://github.com/couchbaselabs/cbdinocluster/releases/download/v0.0.113/cbdinocluster-linux-amd64
+        chmod +x $HOME/bin/cbdinocluster
+        echo "$HOME/bin" >> $GITHUB_PATH
+    - name: Initialize cbdinocluster
+      shell: bash
+      run: |
+        cbdinocluster -v init --auto
+    - name: Start Couchbase cluster
+      id: start-cluster
+      shell: bash
+      env:
+        CLUSTER_CONFIG: |
+          nodes:
+            - count: 2
+              version: ${{ inputs.version }}
+              services:
+                - kv
+                - n1ql
+                - index
+            - count: 1
+              version: ${{ inputs.version }}
+              services:
+                - kv
+                - fts
+                - cbas
+                - eventing
+          docker:
+            kv-memory: 2048
+            fts-memory: 1048
+          expiry: 1h
+      run: |
+        CBDC_ID=$(cbdinocluster -v alloc --def="${CLUSTER_CONFIG}")
+        echo "CBDC_ID=$CBDC_ID" >> "$GITHUB_ENV"
+        echo "ip=$(cbdinocluster -v ip $CBDC_ID)" >> "$GITHUB_OUTPUT"
+        echo "connstr=$(cbdinocluster -v connstr --no-tls $CBDC_ID)" >> "$GITHUB_OUTPUT"
+        echo "tls-connstr=$(cbdinocluster -v connstr --tls $CBDC_ID)" >> "$GITHUB_OUTPUT"
+        echo "id=$CBDC_ID" >> "$GITHUB_OUTPUT"
+        cbdinocluster certificates get-ca $CBDC_ID >> "$GITHUB_WORKSPACE/cluster.crt"
+    - name: Add default bucket
+      shell: bash
+      run: |
+        cbdinocluster buckets add $CBDC_ID default --ram-quota-mb 100 --flush-enabled true

@@ -1,0 +1,123 @@
+name: test
+permissions: {}
+
+on:
+  push:
+    branches:
+      - master
+      - v2.*
+
+  pull_request:
+    branches:
+      - master
+      - v2.*
+
+  workflow_dispatch:
+    inputs:
+      go-version:
+        description: 'Go version to use for testing.'
+        required: false
+
+      minimum-go-version:
+        description: 'Minimum Go version supported by the SDK.'
+        required: false
+
+      ref:
+        description: 'The branch, tag or SHA to checkout.'
+        required: false
+
+jobs:
+  mock-test:
+    name: Mock Tests
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
+          - windows-2025-vs2026
+          - windows-11-arm
+          - macos-26-intel
+          - macos-26
+
+        go-version:
+          - &go-version ${{ inputs.go-version || '1.26' }}
+
+        include:
+          - runner: ubuntu-24.04
+            go-version: ${{ inputs.minimum-go-version || '1.25' }}
+
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Run tests
+        shell: bash
+        run: |
+          go install gotest.tools/gotestsum@v1.13.0
+          RACE=""
+          if [[ "${{ matrix.runner }}" != "windows-11-arm" ]]; then
+            RACE="-race"
+          fi
+          gotestsum --format standard-verbose --junitfile test-report.xml -- -v $RACE ./
+
+      - name: Publish test results
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/publish-test-results
+        with:
+          file: test-report.xml
+
+  integration-test:
+    name: Integration Tests
+
+    strategy:
+      fail-fast: false
+      matrix:
+        server:
+          - 8.0.1
+          - 7.6.11
+          - 7.2.9
+        runner:
+          - ubuntu-24.04
+          - windows-2025-vs2026
+          - macos-26
+
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: *go-version
+
+      - name: Create cluster
+        uses: ./.github/actions/create-cluster
+        id: create-cluster
+        with:
+          version: ${{ matrix.server }}
+
+      - name: Run tests
+        id: run-tests
+        shell: bash
+        run: |
+          go install gotest.tools/gotestsum@v1.13.0
+          gotestsum --format standard-verbose --junitfile test-report.xml -- -v -race ./
+        env:
+          GOCBSERVER: ${{ steps.create-cluster.outputs.connstr }}
+          GOCBUSER: Administrator
+          GOCBPASS: password
+          GOCBVER: ${{ matrix.server }}
+
+      - name: Publish test results
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/publish-test-results
+        with:
+          file: test-report.xml

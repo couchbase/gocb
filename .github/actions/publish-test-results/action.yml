@@ -1,0 +1,59 @@
+name: publish-test-results
+description: Outputs the test results to the workflow summary
+inputs:
+  file:
+    description: 'The path to the test results file (in JUnit XML format)'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Generate markdown file
+      if: ${{ !cancelled() }}
+      shell: python
+      run: |
+        import xml.etree.ElementTree as ET
+
+        tree = ET.parse("${{ inputs.file }}")
+        root = tree.getroot()
+
+        passed = []
+        skipped = []
+        failed = []
+
+        for tc in root.iter("testcase"):
+            name = tc.get("name")
+            failure = tc.find("failure")
+            skip = tc.find("skipped")
+            if failure is not None:
+                msg = failure.text or failure.get("message", "")
+                failed.append((name, msg.strip()))
+            elif skip is not None:
+                skipped.append((name, skip.get("message", "")))
+            else:
+                passed.append(name)
+
+        with open("summary.md", "w", encoding="utf-8") as f:
+            if len(failed) == 0:
+                f.write("| 🟢 All tests passed! |\n|-|\n\n")
+            else:
+                f.write("| 🔴 Some tests failed. |\n|-|\n\n")
+            f.write(f"{len(passed)} ✅ | {len(failed)} ❌ | {len(skipped)} ⏩\n\n")
+            f.write(f"<details>\n<summary>Details</summary>\n\n")
+            if len(failed) > 0:
+              f.write(f"## ❌ Failed Tests ({len(failed)})\n\n")
+              for name, msg in failed:
+                  f.write(f"<details>\n<summary>{name}</summary>\n\n```\n{msg}\n```\n\n</details>\n\n")
+            if len(skipped) > 0:
+              f.write(f"## ⏩ Skipped Tests ({len(skipped)})\n\n")
+              for name, msg in skipped:
+                  f.write(f"<details>\n<summary>{name}</summary>\n\n```\n{msg}\n```\n\n</details>\n\n")
+            f.write("</details>\n\n")
+
+        print(f"Done: {len(passed)} passed, {len(skipped)} skipped, {len(failed)} failed")
+
+    - name: Publish to workflow summary
+      if: ${{ !cancelled() }}
+      shell: bash
+      run: |
+        cat summary.md >> "$GITHUB_STEP_SUMMARY"
