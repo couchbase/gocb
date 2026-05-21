@@ -3,6 +3,7 @@ package gocb
 import (
 	"context"
 	"time"
+	"unicode/utf8"
 
 	"github.com/couchbase/gocbcore/v10"
 )
@@ -58,7 +59,7 @@ func ScanTermMinimum() *ScanTerm {
 // ScanTermMaximum represents the maximum value that a ScanTerm can represent.
 func ScanTermMaximum() *ScanTerm {
 	return &ScanTerm{
-		Term: "\xf48fbfbf",
+		Term: string(utf8.MaxRune),
 	}
 }
 
