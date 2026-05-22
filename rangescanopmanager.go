@@ -719,6 +719,11 @@ type rangeScanLoadBalancer struct {
 	selectLock         sync.Mutex
 }
 
+func (b *rangeScanLoadBalancer) numActiveScans(server int) *atomic.Uint32 {
+	val, _ := b.activeScansPerNode.LoadOrStore(server, new(atomic.Uint32))
+	return val.(*atomic.Uint32) //nolint:errcheck
+}
+
 func newRangeScanLoadBalancer(serverToVbucketMap map[int][]uint16, seed int64) *rangeScanLoadBalancer {
 	b := &rangeScanLoadBalancer{
 		vbucketChannels:    make(map[int]chan uint16),
@@ -748,15 +753,11 @@ func (b *rangeScanLoadBalancer) retryScan(vbucket rangeScanVbucket) {
 }
 
 func (b *rangeScanLoadBalancer) scanEnded(vbucket rangeScanVbucket) {
-	zeroVal := uint32(0)
-	val, _ := b.activeScansPerNode.LoadOrStore(vbucket.server, &zeroVal)
-	atomic.AddUint32(val.(*uint32), ^uint32(0)) // nolint: errcheck
+	b.numActiveScans(vbucket.server).Add(^uint32(0))
 }
 
 func (b *rangeScanLoadBalancer) scanStarting(vbucket rangeScanVbucket) {
-	zeroVal := uint32(0)
-	val, _ := b.activeScansPerNode.LoadOrStore(vbucket.server, &zeroVal)
-	atomic.AddUint32(val.(*uint32), uint32(1)) // nolint: errcheck
+	b.numActiveScans(vbucket.server).Add(1)
 }
 
 // close closes all the vbucket channels. This should only be called if no more vbucket scans will happen, i.e. selectVbucket should not be called after close.
@@ -780,9 +781,7 @@ func (b *rangeScanLoadBalancer) selectVbucket() (rangeScanVbucket, bool) {
 		if len(b.vbucketChannels[s]) == 0 {
 			continue
 		}
-		zeroVal := uint32(0)
-		val, _ := b.activeScansPerNode.LoadOrStore(s, &zeroVal)
-		activeScans := *val.(*uint32) // nolint: errcheck
+		activeScans := b.numActiveScans(s).Load()
 		if activeScans < min {
 			min = activeScans
 			selectedServer = s
