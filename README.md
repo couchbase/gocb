@@ -1,4 +1,4 @@
-[![GoDoc](https://godoc.org/github.com/couchbase/gocb?status.png)](https://pkg.go.dev/github.com/couchbase/gocb)
+[![GoDoc](https://godoc.org/github.com/couchbase/gocb/v2?status.png)](https://pkg.go.dev/github.com/couchbase/gocb/v2)
 
 # Couchbase Go Client
 
@@ -12,13 +12,14 @@ It is written in pure Go, and uses the included gocbcore library to handle commu
 The project source is hosted at [https://github.com/couchbase/gocb](https://github.com/couchbase/gocb).
 
 ### Documentation
-You can explore our API reference through godoc at [https://pkg.go.dev/github.com/couchbase/gocb](https://pkg.go.dev/github.com/couchbase/gocb).
+You can explore our API reference through godoc at [https://pkg.go.dev/github.com/couchbase/gocb/v2](https://pkg.go.dev/github.com/couchbase/gocb/v2).
 
 You can also find documentation for the Go SDK on the [official Couchbase docs](https://docs.couchbase.com/go-sdk/current/hello-world/overview.html).
 
 ### Bug Tracker
-Issues are tracked on Couchbase's public [issues.couchbase.com](http://www.couchbase.com/issues/browse/GOCBC).
-Contact [the site admins](https://issues.couchbase.com/secure/ContactAdministrators!default.jspa) regarding login or other problems at issues.couchbase.com (officially) or ask around [on the forum](https://forums.couchbase.com/) (unofficially).
+Issues are tracked on Couchbase's [Jira](https://jira.issues.couchbase.com/browse/GOCBC).
+
+You can also report an issue by [opening an issue on GitHub](https://github.com/couchbase/gocb/issues).
 
 ### Discussion
 You can chat with us on [Discord](https://discord.com/invite/sQ5qbPZuTh) or the [official Couchbase forums](https://forums.couchbase.com/c/go-sdk/23).
