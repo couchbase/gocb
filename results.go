@@ -6,7 +6,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
 	"github.com/couchbase/gocbcore/v10/memd"
 )
@@ -461,9 +460,9 @@ type ScanResult struct {
 	errLock    sync.Mutex
 
 	limit    uint64
-	numItems uint64
+	numItems atomic.Uint64
 
-	peeked unsafe.Pointer
+	peeked atomic.Pointer[ScanResultItem]
 }
 
 func (sr *ScanResult) setErr(err error) {
@@ -474,10 +473,10 @@ func (sr *ScanResult) setErr(err error) {
 
 // Next returns the next item on the stream, if there are no items remaining then nil is returned.
 func (sr *ScanResult) Next() *ScanResultItem {
-	peeked := atomic.SwapPointer(&sr.peeked, nil)
+	peeked := sr.peeked.Swap(nil)
 	if peeked != nil {
-		atomic.AddUint64(&sr.numItems, 1)
-		return (*ScanResultItem)(peeked)
+		sr.numItems.Add(1)
+		return peeked
 	}
 
 	item, more := <-sr.resultChan
@@ -488,7 +487,7 @@ func (sr *ScanResult) Next() *ScanResultItem {
 	// If we're doing a sampling scan then we need to only write data into the channel
 	// if we haven't seen the number of items that the user requested. Otherwise
 	// we need to cancel the streams
-	numItems := atomic.AddUint64(&sr.numItems, 1)
+	numItems := sr.numItems.Add(1)
 	if sr.limit == 0 || numItems <= sr.limit {
 		return item
 	}

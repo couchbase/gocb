@@ -229,11 +229,11 @@ func (r *rangeScanCreateResult) RangeScanCancel(opts gocbcore.RangeScanCancelOpt
 func (suite *UnitTestSuite) TestScanFirstCreateFailsUnknownError() {
 	expectedErr := errors.New("unknown error")
 	test := func(scan ScanType) (*ScanResult, error) {
-		var calls uint32
+		var calls atomic.Uint32
 		provider := makeRangeScanProvider(func(args mock.Arguments) {
 			cb := args.Get(2).(gocbcore.RangeScanCreateCallback)
 
-			if atomic.AddUint32(&calls, 1) == 1 {
+			if calls.Add(1) == 1 {
 				cb(nil, expectedErr)
 				return
 			}
@@ -285,11 +285,11 @@ func (suite *UnitTestSuite) TestScanFirstCreateFailsUnknownError() {
 func (suite *UnitTestSuite) TestScanSecondCreateFailsUnknownError() {
 	expectedErr := errors.New("unknown error")
 	test := func(scan ScanType) (*ScanResult, error) {
-		var calls uint32
+		var calls atomic.Uint32
 		provider := makeRangeScanProvider(func(args mock.Arguments) {
 			cb := args.Get(2).(gocbcore.RangeScanCreateCallback)
 
-			if atomic.AddUint32(&calls, 1) == 2 {
+			if calls.Add(1) == 2 {
 				cb(nil, expectedErr)
 				return
 			}
@@ -349,7 +349,7 @@ func (suite *UnitTestSuite) TestScanNMV() {
 	keyAfter := "keyafter"
 	test := func(scan ScanType) (map[string]struct{}, string, error) {
 		var firstTermAfter string
-		var calls uint32
+		var calls atomic.Uint32
 		var vbID int16 = -1
 		var createCalls uint32
 		provider := makeRangeScanProvider(func(args mock.Arguments) {
@@ -357,7 +357,7 @@ func (suite *UnitTestSuite) TestScanNMV() {
 			opts := args.Get(1).(gocbcore.RangeScanCreateOptions)
 			cb := args.Get(2).(gocbcore.RangeScanCreateCallback)
 
-			if atomic.AddUint32(&calls, 1) == 2 || thisVBID == vbID {
+			if calls.Add(1) == 2 || thisVBID == vbID {
 				vbID = thisVBID
 				if createCalls == 0 {
 					createCalls++

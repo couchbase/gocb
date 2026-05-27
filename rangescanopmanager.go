@@ -10,7 +10,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
 	"github.com/couchbase/gocbcore/v10"
 )
@@ -60,7 +59,7 @@ type rangeScanOpManager struct {
 
 	result *ScanResult
 
-	cancelled uint32
+	cancelled atomic.Bool
 }
 
 type rangeScanVbucket struct {
@@ -344,7 +343,7 @@ func (m *rangeScanOpManager) IsRangeScan() bool {
 }
 
 func (m *rangeScanOpManager) cancelScan(err error) {
-	if atomic.CompareAndSwapUint32(&m.cancelled, 0, 1) {
+	if m.cancelled.CompareAndSwap(false, true) {
 		if err != nil {
 			m.result.setErr(err)
 		}
@@ -373,11 +372,10 @@ func (m *rangeScanOpManager) Scan(ctx context.Context) (*ScanResult, error) {
 
 	balancer := m.createLoadBalancer()
 
-	var complete uint32
-	var seenData uint32
-
 	// We keep separate counts of running and completed to simplify shutdown of the scan.
-	scansRunning := int32(m.maxConcurrency)
+	var complete atomic.Uint32
+	var scansRunning atomic.Int32
+	scansRunning.Store(int32(m.maxConcurrency))
 
 	isRangeScan := m.IsRangeScan()
 
@@ -385,7 +383,7 @@ func (m *rangeScanOpManager) Scan(ctx context.Context) (*ScanResult, error) {
 	for i = 0; i < m.maxConcurrency; i++ {
 		go func() {
 			defer func() {
-				if atomic.AddUint32(&complete, 1) == uint32(m.maxConcurrency) {
+				if complete.Add(1) == uint32(m.maxConcurrency) {
 					m.Finish()
 					balancer.close()
 					close(resultCh)
@@ -393,7 +391,7 @@ func (m *rangeScanOpManager) Scan(ctx context.Context) (*ScanResult, error) {
 			}()
 
 			for vbucket, ok := balancer.selectVbucket(); ok; vbucket, ok = balancer.selectVbucket() {
-				if atomic.LoadUint32(&m.cancelled) == 1 {
+				if m.cancelled.Load() {
 					return
 				}
 
@@ -415,7 +413,7 @@ func (m *rangeScanOpManager) Scan(ctx context.Context) (*ScanResult, error) {
 							if errors.Is(err, gocbcore.ErrBusy) {
 								// Busy indicates that the server is reporting too many active scans.
 								// Shut ourselves down if we're not the only runner remaining.
-								running := atomic.AddInt32(&scansRunning, -1)
+								running := scansRunning.Add(-1)
 								if running >= 1 {
 									// Shutdown this worker.
 									logDebugf("Shutting down scan runner, remaining %d", running)
@@ -479,8 +477,7 @@ func (m *rangeScanOpManager) Scan(ctx context.Context) (*ScanResult, error) {
 	case item, more := <-resultCh:
 		// more could be false if no sampling scans returned any data, but that isn't an error case.
 		if more {
-			atomic.StoreUint32(&seenData, 1)
-			r.peeked = unsafe.Pointer(item) //nolint:gosec
+			r.peeked.Store(item)
 		}
 	}
 
@@ -567,7 +564,7 @@ func (m *rangeScanOpManager) scanPartition(ctx context.Context, deadline time.Ti
 				return 0, nil
 			}
 		}
-		if atomic.LoadUint32(&m.cancelled) == 1 {
+		if m.cancelled.Load() {
 			m.cancelStream(ctx, span, deadline, createRes)
 			return 0, nil
 		}
@@ -775,15 +772,15 @@ func (b *rangeScanLoadBalancer) selectVbucket() (rangeScanVbucket, bool) {
 
 	var selectedServer int
 	selected := false
-	min := uint32(math.MaxUint32)
+	minimum := uint32(math.MaxUint32)
 
 	for s := range b.servers {
 		if len(b.vbucketChannels[s]) == 0 {
 			continue
 		}
 		activeScans := b.numActiveScans(s).Load()
-		if activeScans < min {
-			min = activeScans
+		if activeScans < minimum {
+			minimum = activeScans
 			selectedServer = s
 			selected = true
 		}
