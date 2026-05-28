@@ -471,14 +471,12 @@ func (m *rangeScanOpManager) Scan(ctx context.Context) (*ScanResult, error) {
 		}()
 	}
 	// Block waiting for any errors on the first scan(s) so that we can immediately return that error.
-	select {
-	case <-m.cancelCh:
-		return nil, r.Err()
-	case item, more := <-resultCh:
-		// more could be false if no sampling scans returned any data, but that isn't an error case.
-		if more {
-			r.peeked.Store(item)
-		}
+	item, more := <-resultCh
+	// more could be false if no sampling scans returned any data, but that isn't an error case.
+	if more {
+		r.peeked.Store(item)
+	} else if err := r.Err(); err != nil {
+		return nil, err
 	}
 
 	return r, nil
