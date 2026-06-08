@@ -2,7 +2,8 @@ package gocb
 
 import (
 	"context"
-	gocbcore "github.com/couchbase/gocbcore/v10"
+
+	"github.com/couchbase/gocbcore/v10"
 )
 
 type asyncOpManager struct {
@@ -24,6 +25,15 @@ func (m *asyncOpManager) Reject() {
 func (m *asyncOpManager) Resolve() {
 	m.wasResolved = true
 	m.signal <- struct{}{}
+}
+
+func (m *asyncOpManager) CheckReadyForOp() error {
+	select {
+	case <-m.ctx.Done():
+		return makeGenericError(ErrRequestCanceled, nil)
+	default:
+		return nil
+	}
 }
 
 func (m *asyncOpManager) Wait(op gocbcore.PendingOp, err error) error {

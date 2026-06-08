@@ -58,7 +58,11 @@ func (p *stdCoreConfigSnapshotProvider) WaitForConfigSnapshot(ctx context.Contex
 	var snapOut coreConfigSnapshot
 	var errOut error
 	opm := newAsyncOpManager(ctx)
-	err := opm.Wait(p.agent.WaitForConfigSnapshot(deadline, gocbcore.WaitForConfigSnapshotOptions{}, func(result *gocbcore.WaitForConfigSnapshotResult, err error) {
+	err := opm.CheckReadyForOp()
+	if err != nil {
+		return nil, err
+	}
+	err = opm.Wait(p.agent.WaitForConfigSnapshot(deadline, gocbcore.WaitForConfigSnapshotOptions{}, func(result *gocbcore.WaitForConfigSnapshotResult, err error) {
 		if err != nil {
 			errOut = err
 			opm.Reject()

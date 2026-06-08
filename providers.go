@@ -3,7 +3,7 @@ package gocb
 import (
 	"context"
 
-	gocbcore "github.com/couchbase/gocbcore/v10"
+	"github.com/couchbase/gocbcore/v10"
 )
 
 // NOTE: context in these provider functions can be passed as a nil value.
@@ -32,7 +32,11 @@ func (dpw *diagnosticsProviderWrapper) Diagnostics(opts gocbcore.DiagnosticsOpti
 
 func (dpw *diagnosticsProviderWrapper) Ping(ctx context.Context, opts gocbcore.PingOptions) (pOut *gocbcore.PingResult, errOut error) {
 	opm := newAsyncOpManager(ctx)
-	err := opm.Wait(dpw.provider.Ping(opts, func(res *gocbcore.PingResult, err error) {
+	err := opm.CheckReadyForOp()
+	if err != nil {
+		return nil, err
+	}
+	err = opm.Wait(dpw.provider.Ping(opts, func(res *gocbcore.PingResult, err error) {
 		if err != nil {
 			errOut = err
 			opm.Reject()
@@ -55,7 +59,11 @@ type httpProviderWrapper struct {
 
 func (hpw *httpProviderWrapper) DoHTTPRequest(ctx context.Context, req *gocbcore.HTTPRequest) (respOut *gocbcore.HTTPResponse, errOut error) {
 	opm := newAsyncOpManager(ctx)
-	err := opm.Wait(hpw.provider.DoHTTPRequest(req, func(res *gocbcore.HTTPResponse, err error) {
+	err := opm.CheckReadyForOp()
+	if err != nil {
+		return nil, err
+	}
+	err = opm.Wait(hpw.provider.DoHTTPRequest(req, func(res *gocbcore.HTTPResponse, err error) {
 		if err != nil {
 			errOut = err
 			opm.Reject()
@@ -78,7 +86,11 @@ type analyticsProviderWrapper struct {
 
 func (apw *analyticsProviderWrapper) AnalyticsQuery(ctx context.Context, opts gocbcore.AnalyticsQueryOptions) (aOut analyticsRowReader, errOut error) {
 	opm := newAsyncOpManager(ctx)
-	err := opm.Wait(apw.provider.AnalyticsQuery(opts, func(reader *gocbcore.AnalyticsRowReader, err error) {
+	err := opm.CheckReadyForOp()
+	if err != nil {
+		return nil, err
+	}
+	err = opm.Wait(apw.provider.AnalyticsQuery(opts, func(reader *gocbcore.AnalyticsRowReader, err error) {
 		if err != nil {
 			errOut = err
 			opm.Reject()
@@ -101,7 +113,11 @@ type queryProviderWrapper struct {
 
 func (apw *queryProviderWrapper) N1QLQuery(ctx context.Context, opts gocbcore.N1QLQueryOptions) (qOut queryRowReader, errOut error) {
 	opm := newAsyncOpManager(ctx)
-	err := opm.Wait(apw.provider.N1QLQuery(opts, func(reader *gocbcore.N1QLRowReader, err error) {
+	err := opm.CheckReadyForOp()
+	if err != nil {
+		return nil, err
+	}
+	err = opm.Wait(apw.provider.N1QLQuery(opts, func(reader *gocbcore.N1QLRowReader, err error) {
 		if err != nil {
 			errOut = err
 			opm.Reject()
@@ -120,7 +136,11 @@ func (apw *queryProviderWrapper) N1QLQuery(ctx context.Context, opts gocbcore.N1
 
 func (apw *queryProviderWrapper) PreparedN1QLQuery(ctx context.Context, opts gocbcore.N1QLQueryOptions) (qOut queryRowReader, errOut error) {
 	opm := newAsyncOpManager(ctx)
-	err := opm.Wait(apw.provider.PreparedN1QLQuery(opts, func(reader *gocbcore.N1QLRowReader, err error) {
+	err := opm.CheckReadyForOp()
+	if err != nil {
+		return nil, err
+	}
+	err = opm.Wait(apw.provider.PreparedN1QLQuery(opts, func(reader *gocbcore.N1QLRowReader, err error) {
 		if err != nil {
 			errOut = err
 			opm.Reject()
