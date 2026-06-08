@@ -588,10 +588,13 @@ func (m *rangeScanOpManager) createStream(ctx context.Context, parentSpan *spanW
 
 	opMan := newAsyncOpManager(ctx)
 	opMan.SetCancelCh(m.cancelCh)
-
+	err := opMan.CheckReadyForOp()
+	if err != nil {
+		return nil, err
+	}
 	var createResOut gocbcore.RangeScanCreateResult
 	var errOut error
-	err := opMan.Wait(m.agent.RangeScanCreate(vbID, gocbcore.RangeScanCreateOptions{
+	err = opMan.Wait(m.agent.RangeScanCreate(vbID, gocbcore.RangeScanCreateOptions{
 		Deadline:     deadline,
 		CollectionID: m.cid,
 		KeysOnly:     m.KeysOnly(),
@@ -631,11 +634,16 @@ func (m *rangeScanOpManager) continueStream(ctx context.Context, parentSpan *spa
 	var items []gocbcore.RangeScanItem
 	span.SetRawAttribute("range_scan_id", "0x"+hex.EncodeToString(createRes.ScanUUID()))
 
+	err := opm.CheckReadyForOp()
+	if err != nil {
+		return nil, false, err
+	}
+
 	var itemsOut []gocbcore.RangeScanItem
 	var completeOut bool
 	var errOut error
 
-	err := opm.Wait(createRes.RangeScanContinue(gocbcore.RangeScanContinueOptions{
+	err = opm.Wait(createRes.RangeScanContinue(gocbcore.RangeScanContinueOptions{
 		User:         m.Impersonate(),
 		TraceContext: span.Context(),
 		MaxCount:     m.itemLimit,
@@ -676,7 +684,12 @@ func (m *rangeScanOpManager) cancelStream(ctx context.Context, parentSpan *spanW
 
 	span.SetRawAttribute("range_scan_id", "0x"+hex.EncodeToString(createRes.ScanUUID()))
 
-	err := opMan.Wait(createRes.RangeScanCancel(gocbcore.RangeScanCancelOptions{
+	err := opMan.CheckReadyForOp()
+	if err != nil {
+		return
+	}
+
+	err = opMan.Wait(createRes.RangeScanCancel(gocbcore.RangeScanCancelOptions{
 		Deadline:     deadline,
 		User:         m.Impersonate(),
 		TraceContext: span.Context(),

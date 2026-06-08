@@ -244,6 +244,12 @@ func (m *kvOpManagerCore) CheckReadyForOp() error {
 		return errors.New("op manager had no timeout specified")
 	}
 
+	select {
+	case <-m.ctx.Done():
+		return makeGenericError(ErrRequestCanceled, nil)
+	default:
+	}
+
 	return nil
 }
 
