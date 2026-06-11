@@ -1,0 +1,25 @@
+filename: '{{.Mock}}_{{.InterfaceName}}_test.go'
+structname: '{{.Mock}}{{.InterfaceName | firstUpper}}'
+template: testify
+packages:
+  github.com/couchbase/gocb/v2:
+    interfaces:
+      connectionManager:
+      kvProvider:
+      httpProvider:
+      diagnosticsProvider:
+      mgmtProvider:
+      analyticsProvider:
+      queryProvider:
+      searchProvider:
+      viewProvider:
+      waitUntilReadyProvider:
+      kvCapabilityVerifier:
+      kvProviderCoreProvider:
+      queryProviderCoreProvider:
+      searchProviderCoreProvider:
+      searchCapabilityVerifier:
+      viewProviderCoreProvider:
+      analyticsProviderCoreProvider:
+      diagnosticsProviderCoreProvider:
+      # pendingOp is manually mocked

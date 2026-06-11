@@ -1,6 +1,6 @@
 devsetup:
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4
-	go install github.com/vektra/mockery/v2@v2.53.6
+	go install github.com/vektra/mockery/v3@v3.7.0
 
 test:
 	go test ./
@@ -24,24 +24,6 @@ updatetestcases:
 	git submodule update --remote --init --recursive
 
 updatemocks:
-	mockery --name=connectionManager --output=. --testonly --inpackage
-	mockery --name=kvProvider --output=. --testonly --inpackage
-	mockery --name=httpProvider --output=. --testonly --inpackage
-	mockery --name=diagnosticsProvider --output=. --testonly --inpackage
-	mockery --name=mgmtProvider --output=. --testonly --inpackage
-	mockery --name=analyticsProvider --output=. --testonly --inpackage
-	mockery --name=queryProvider --output=. --testonly --inpackage
-	mockery --name=searchProvider --output=. --testonly --inpackage
-	mockery --name=viewProvider --output=. --testonly --inpackage
-	mockery --name=waitUntilReadyProvider --output=. --testonly --inpackage
-	mockery --name=kvCapabilityVerifier --output=. --testonly --inpackage
-	mockery --name=kvProviderCoreProvider --output=. --testonly --inpackage
-	mockery --name=queryProviderCoreProvider --output=. --testonly --inpackage
-	mockery --name=searchProviderCoreProvider --output=. --testonly --inpackage
-	mockery --name=searchCapabilityVerifier --output=. --testonly --inpackage
-	mockery --name=viewProviderCoreProvider --output=. --testonly --inpackage
-	mockery --name=analyticsProviderCoreProvider --output=. --testonly --inpackage
-	mockery --name=diagnosticsProviderCoreProvider --output=. --testonly --inpackage
-	# pendingOp is manually mocked
+	mockery # Mocks configured in .mockery.yml.
 
 .PHONY: all test devsetup fasttest lint cover check bench updatetestcases updatemocks
