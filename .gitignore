@@ -3,3 +3,6 @@
 .project
 .vscode
 .idea
+
+# FIT protocol generated code
+internal/cmd/fit-performer/protocol/**

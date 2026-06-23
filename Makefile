@@ -20,9 +20,6 @@ check: lint
 bench:
 	go test -bench=. -run=none --disable-logger=true
 
-updatetestcases:
-	git submodule update --remote --init --recursive
-
 updatemocks:
 	mockery --name=connectionManager --output=. --testonly --inpackage
 	mockery --name=kvProvider --output=. --testonly --inpackage
@@ -44,4 +41,7 @@ updatemocks:
 	mockery --name=diagnosticsProviderCoreProvider --output=. --testonly --inpackage
 	# pendingOp is manually mocked
 
-.PHONY: all test devsetup fasttest lint cover check bench updatetestcases updatemocks
+performer-%:
+	$(MAKE) -C internal/cmd/fit-performer $*
+
+.PHONY: all test devsetup fasttest lint cover check bench updatetestcases updatemocks performer-%
