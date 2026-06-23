@@ -20,10 +20,10 @@ check: lint
 bench:
 	go test -bench=. -run=none --disable-logger=true
 
-updatetestcases:
-	git submodule update --remote --init --recursive
-
 updatemocks:
 	mockery # Mocks configured in .mockery.yml.
 
-.PHONY: all test devsetup fasttest lint cover check bench updatetestcases updatemocks
+performer-%:
+	$(MAKE) -C internal/cmd/fit-performer $*
+
+.PHONY: all test devsetup fasttest lint cover check bench updatetestcases updatemocks performer-%
