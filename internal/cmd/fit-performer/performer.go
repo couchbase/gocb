@@ -69,6 +69,7 @@ type Performer struct {
 	logger           *logrus.Logger
 	performerVersion string
 	streams          *fitStreams.StreamOwner
+	counters         *counter.Counters
 
 	spanOwner       *telemetry.SpanOwner
 	telemetryLock   sync.Mutex
@@ -88,6 +89,7 @@ func NewPerformer(logger *logrus.Logger, version string) *Performer {
 		conns:            make(map[string]*cluster.Connection),
 		streams:          fitStreams.NewStreamOwner(logger),
 		spanOwner:        telemetry.NewSpanOwner(),
+		counters:         counter.NewCounters(),
 		tracerProviders:  make(map[string]*sdktrace.TracerProvider),
 		meterProviders:   make(map[string]*metricsdk.MeterProvider),
 	}
@@ -351,7 +353,6 @@ func (p *Performer) Run(request *run.Request, server protocol.PerformerService_R
 			return
 		}
 	}()
-	counters := counter.NewCounters()
 
 	runID := uuid.NewString()
 
@@ -366,8 +367,8 @@ func (p *Performer) Run(request *run.Request, server protocol.PerformerService_R
 	}
 
 	// executor handles actually performing the operations required.
-	executor := executor.NewExecutor(conn, counters, runID, p.streams, p.logger, p.spanOwner)
-	transactionsExecutor := transactions.NewExecutor(conn, counters, p.logger)
+	executor := executor.NewExecutor(conn, p.counters, runID, p.streams, p.logger, p.spanOwner)
+	transactionsExecutor := transactions.NewExecutor(conn, p.counters, p.logger)
 	// The batcher handles streaming run results back to the driver, doing so in batches of a size
 	// defined by the driver.
 	batchHandler := NewBatcher(server, p.logger, onError, batchSize)
@@ -379,10 +380,9 @@ func (p *Performer) Run(request *run.Request, server protocol.PerformerService_R
 	// to perform operations and then the batcher to send those results to the driver.
 	var scaleRunners []*HorizontalScaleRunner
 	for i, scaling := range workloads.Workloads.HorizontalScaling {
-		r := NewHorizontalScaleRunner(p.logger, executor, PerHorizontalRunner{
+		r := NewHorizontalScaleRunner(p.logger, executor, p.counters, PerHorizontalRunner{
 			Sender:      batchHandler,
 			RunnerIndex: i,
-			Counters:    counters,
 			Workloads:   scaling.Workloads,
 		})
 
@@ -556,6 +556,28 @@ func (p *Performer) SpanFinish(ctx context.Context, req *observability.SpanFinis
 	span.End()
 
 	return &observability.SpanFinishResponse{}, nil
+}
+
+func (p *Performer) SetCounter(ctx context.Context, req *shared.Counter) (*shared.SetCounterResponse, error) {
+	c, err := p.counters.Get(req)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "failed to set counter with id %s", req.GetCounterId())
+	}
+
+	newValue := req.GetGlobal().GetCount()
+	c.Set(newValue)
+
+	p.logger.Infof("Set counter with id %s to %d", req.GetCounterId(), newValue)
+
+	return &shared.SetCounterResponse{}, nil
+}
+
+func (p *Performer) ClearAllCounters(ctx context.Context, req *shared.ClearAllCountersRequest) (*shared.ClearAllCountersResponse, error) {
+	p.counters.Clear()
+
+	p.logger.Info("Cleared all counters")
+
+	return &shared.ClearAllCountersResponse{}, nil
 }
 
 func (p *Performer) searchRequestItems(request *streams.RequestItemsRequest,

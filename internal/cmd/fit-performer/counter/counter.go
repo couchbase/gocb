@@ -9,25 +9,29 @@ import (
 )
 
 type Counter struct {
-	count int32
+	count atomic.Int32
 }
 
 func NewCounter(initCount int32) *Counter {
-	return &Counter{
-		count: initCount,
-	}
+	counter := &Counter{}
+	counter.count.Store(initCount)
+	return counter
 }
 
 func (c *Counter) GetAndIncrement() int32 {
-	return atomic.AddInt32(&c.count, 1)
+	return c.count.Add(1)
 }
 
 func (c *Counter) GetAndDecrement() int32 {
-	return atomic.AddInt32(&c.count, -1)
+	return c.count.Add(-1)
 }
 
 func (c *Counter) Get() int32 {
-	return atomic.LoadInt32(&c.count)
+	return c.count.Load()
+}
+
+func (c *Counter) Set(newValue int32) {
+	c.count.Store(newValue)
 }
 
 type Counters struct {
@@ -47,17 +51,21 @@ func (c *Counters) Get(sharedCounter *shared.Counter) (*Counter, error) {
 	}
 
 	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	if counter, ok := c.counters[sharedCounter.CounterId]; ok {
-		c.lock.Unlock()
 		return counter, nil
 	}
 
-	initValue := sharedCounter.GetGlobal().Count
-	counter := &Counter{
-		count: initValue,
-	}
+	counter := NewCounter(sharedCounter.GetGlobal().GetCount())
 	c.counters[sharedCounter.CounterId] = counter
-	c.lock.Unlock()
 
 	return counter, nil
+}
+
+func (c *Counters) Clear() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	c.counters = make(map[string]*Counter)
 }

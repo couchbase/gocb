@@ -28,13 +28,13 @@ type TransactionsExecutor interface {
 type PerHorizontalRunner struct {
 	RunnerIndex int
 	Sender      sender.ResultSender
-	Counters    *counter.Counters
 	Workloads   []*run.Workload
 }
 
 type HorizontalScaleRunner struct {
 	logger   *logrus.Logger
 	executor Executor
+	counters *counter.Counters
 	per      PerHorizontalRunner
 
 	transactionExecutor TransactionsExecutor
@@ -46,10 +46,11 @@ type HorizontalScaleRunner struct {
 	err          error
 }
 
-func NewHorizontalScaleRunner(logger *logrus.Logger, executor Executor, per PerHorizontalRunner) *HorizontalScaleRunner {
+func NewHorizontalScaleRunner(logger *logrus.Logger, executor Executor, counters *counter.Counters, per PerHorizontalRunner) *HorizontalScaleRunner {
 	return &HorizontalScaleRunner{
 		executor: executor,
 		logger:   logger,
+		counters: counters,
 		per:      per,
 
 		doneCh: make(chan struct{}),
@@ -191,16 +192,31 @@ func (runner *HorizontalScaleRunner) bounds(bounds *shared.Bounds, defaultCounte
 
 	switch b := bounds.Bounds.(type) {
 	case *shared.Bounds_Counter:
-		c, err := runner.per.Counters.Get(b.Counter)
+		c, err := runner.counters.Get(b.Counter)
 		if err != nil {
 			return nil, err
 		}
 
-		runner.logger.Logf(logrus.InfoLevel, "Runner thread will run commands until counter %s is 0, currently %d",
-			b.Counter.CounterId, c.Get())
+		runner.logger.Infof("Runner thread will run commands until counter `%s` is 0, currently %d",
+			b.Counter.GetCounterId(),
+			c.Get())
+
 		return newCounterBoundsExecutor(c), nil
+
 	case *shared.Bounds_ForTime:
 		return newTimeBoundsExecutor(time.Now().Add(time.Duration(b.ForTime.Seconds) * time.Second)), nil
+
+	case *shared.Bounds_CounterEq:
+		c, err := runner.counters.Get(b.CounterEq)
+		if err != nil {
+			return nil, err
+		}
+
+		runner.logger.Infof("Runner thread will run commands while counter `%s` is unchanged, currently %d",
+			b.CounterEq.GetCounterId(), c.Get())
+
+		return newCounterEqualityBoundsExecutor(c), nil
+
 	default:
 		return nil, errors.New("unknown bounds type")
 	}
