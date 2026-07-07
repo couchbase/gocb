@@ -1,6 +1,7 @@
 package gocb
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -346,6 +347,11 @@ func (qpc *queryProviderCore) WatchIndexes(c *Collection, bucketName string, wat
 	span := qpc.tracer.CreateOperationSpan(opts.ParentSpan, "manager_query_watch_indexes", serviceAttribValueQuery)
 	defer span.End()
 
+	ctx := opts.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	if opts.WatchPrimary {
 		watchList = append(watchList, "#primary")
 	}
@@ -367,7 +373,7 @@ func (qpc *queryProviderCore) WatchIndexes(c *Collection, bucketName string, wat
 				ParentSpan:     span.Wrapped(),
 				ScopeName:      opts.ScopeName,
 				CollectionName: opts.CollectionName,
-				Context:        opts.Context,
+				Context:        ctx,
 			})
 		if err != nil {
 			return err
@@ -395,7 +401,11 @@ func (qpc *queryProviderCore) WatchIndexes(c *Collection, bucketName string, wat
 		}
 
 		// wait till our next poll interval
-		time.Sleep(time.Until(sleepDeadline))
+		select {
+		case <-ctx.Done():
+			return makeGenericError(ErrRequestCanceled, nil)
+		case <-time.After(time.Until(sleepDeadline)):
+		}
 	}
 
 	return nil
