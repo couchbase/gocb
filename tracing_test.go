@@ -1,9 +1,10 @@
 package gocb
 
 import (
-	"github.com/couchbase/gocbcore/v10"
 	"sync"
 	"time"
+
+	"github.com/couchbase/gocbcore/v10"
 )
 
 type testSpan struct {
@@ -339,9 +340,7 @@ func (suite *IntegrationTestSuite) AssertHTTPDispatchSpan(span *testSpan, operat
 		suite.Assert().NotEmpty(span.Tags["net.peer.name"])
 		suite.Assert().NotEmpty(span.Tags["net.peer.port"])
 	}
-	if operationID == "" {
-		suite.Assert().NotContains(span.Tags, "db.couchbase.operation_id")
-	} else if operationID == "any" {
+	if operationID == "any" || operationID == "" {
 		spans++
 		suite.Assert().NotEmpty(span.Tags["db.couchbase.operation_id"])
 	} else {
