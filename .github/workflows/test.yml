@@ -56,6 +56,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go-version }}
+          cache: false
 
       - name: Run tests
         shell: bash
@@ -65,13 +66,14 @@ jobs:
           if [[ "${{ matrix.runner }}" != "windows-11-arm" ]]; then
             RACE="-race"
           fi
-          gotestsum --format standard-verbose --junitfile test-report.xml -- -v $RACE ./
+          gotestsum --format standard-verbose --junitfile TEST-report.xml -- -v $RACE ./
 
       - name: Publish test results
+        shell: bash
         if: ${{ !cancelled() }}
-        uses: ./.github/actions/publish-test-results
-        with:
-          file: test-report.xml
+        run: |
+          curl https://raw.githubusercontent.com/couchbaselabs/junit-markdown/refs/heads/main/JunitMarkdown.java --output "$RUNNER_TEMP/JunitMarkdown.java"
+          java "$RUNNER_TEMP/JunitMarkdown.java" --format=passthrough . >> $GITHUB_STEP_SUMMARY
 
   integration-test:
     name: Integration Tests
@@ -97,6 +99,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: *go-version
+          cache: false
 
       - name: Create cluster
         uses: ./.github/actions/create-cluster
@@ -109,7 +112,7 @@ jobs:
         shell: bash
         run: |
           go install gotest.tools/gotestsum@v1.13.0
-          gotestsum --format standard-verbose --junitfile test-report.xml -- -v -race ./
+          gotestsum --format standard-verbose --junitfile TEST-report.xml -- -v -race ./
         env:
           GOCBSERVER: ${{ steps.create-cluster.outputs.connstr }}
           GOCBUSER: Administrator
@@ -117,7 +120,8 @@ jobs:
           GOCBVER: ${{ matrix.server }}
 
       - name: Publish test results
+        shell: bash
         if: ${{ !cancelled() }}
-        uses: ./.github/actions/publish-test-results
-        with:
-          file: test-report.xml
+        run: |
+          curl https://raw.githubusercontent.com/couchbaselabs/junit-markdown/refs/heads/main/JunitMarkdown.java --output "$RUNNER_TEMP/JunitMarkdown.java"
+          java "$RUNNER_TEMP/JunitMarkdown.java" --format=passthrough . >> $GITHUB_STEP_SUMMARY
