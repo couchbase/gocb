@@ -280,3 +280,31 @@ func (suite *IntegrationTestSuite) TestBinaryDecrement() {
 	suite.AssertKVMetrics(meterNameCBOperations, "decrement", 3, false)
 	suite.AssertKVMetrics(meterNameCBOperations, "get", 1, false)
 }
+
+func (suite *IntegrationTestSuite) TestBinaryIncrementNoInitial() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
+	docId := generateDocId("incrementNoInitial")
+
+	colBinary := globalCollection.Binary()
+
+	_, err := colBinary.Increment(docId, &IncrementOptions{
+		Delta:   10,
+		Initial: -1,
+	})
+	suite.Require().ErrorIs(err, ErrDocumentNotFound)
+}
+
+func (suite *IntegrationTestSuite) TestBinaryDecrementNoInitial() {
+	suite.skipIfUnsupported(KeyValueFeature)
+
+	docId := generateDocId("decrementNoInitial")
+
+	colBinary := globalCollection.Binary()
+
+	_, err := colBinary.Decrement(docId, &DecrementOptions{
+		Delta:   10,
+		Initial: -5,
+	})
+	suite.Require().ErrorIs(err, ErrDocumentNotFound)
+}
