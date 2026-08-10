@@ -509,6 +509,11 @@ func (p *kvBulkProviderPs) Increment(ctx context.Context, item *IncrementOp, par
 		expiry = &kv_v1.IncrementRequest_ExpirySecs{ExpirySecs: uint32(item.Expiry.Seconds())}
 	}
 
+	var initial *int64
+	if item.Initial >= 0 {
+		initial = &item.Initial
+	}
+
 	request := &kv_v1.IncrementRequest{
 		Key:            item.ID,
 		BucketName:     c.bucketName(),
@@ -516,7 +521,7 @@ func (p *kvBulkProviderPs) Increment(ctx context.Context, item *IncrementOp, par
 		CollectionName: c.name(),
 		Delta:          uint64(item.Delta),
 		Expiry:         expiry,
-		Initial:        &item.Initial,
+		Initial:        initial,
 	}
 
 	res, err := p.client.Increment(ctx, request)
@@ -550,6 +555,11 @@ func (p *kvBulkProviderPs) Decrement(ctx context.Context, item *DecrementOp, par
 		expiry = &kv_v1.DecrementRequest_ExpirySecs{ExpirySecs: uint32(item.Expiry.Seconds())}
 	}
 
+	var initial *int64
+	if item.Initial >= 0 {
+		initial = &item.Initial
+	}
+
 	request := &kv_v1.DecrementRequest{
 		Key:            item.ID,
 		BucketName:     c.bucketName(),
@@ -557,7 +567,7 @@ func (p *kvBulkProviderPs) Decrement(ctx context.Context, item *DecrementOp, par
 		CollectionName: c.name(),
 		Delta:          uint64(item.Delta),
 		Expiry:         expiry,
-		Initial:        &item.Initial,
+		Initial:        initial,
 	}
 
 	res, err := p.client.Decrement(ctx, request)

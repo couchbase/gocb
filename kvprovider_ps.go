@@ -1015,6 +1015,11 @@ func (p *kvProviderPs) Increment(c *Collection, id string, opts *IncrementOption
 		expiry = &kv_v1.IncrementRequest_ExpirySecs{ExpirySecs: uint32(opts.Expiry.Seconds())}
 	}
 
+	var initial *int64
+	if opts.Initial >= 0 { // Negative Initial denotes the absence of an initial value
+		initial = &opts.Initial
+	}
+
 	request := &kv_v1.IncrementRequest{
 		BucketName:      opm.BucketName(),
 		ScopeName:       opm.ScopeName(),
@@ -1022,7 +1027,7 @@ func (p *kvProviderPs) Increment(c *Collection, id string, opts *IncrementOption
 		Key:             opm.DocumentID(),
 		Delta:           opts.Delta,
 		Expiry:          expiry,
-		Initial:         &opts.Initial,
+		Initial:         initial,
 		DurabilityLevel: opm.DurabilityLevel(),
 	}
 
@@ -1058,6 +1063,11 @@ func (p *kvProviderPs) Decrement(c *Collection, id string, opts *DecrementOption
 		expiry = &kv_v1.DecrementRequest_ExpirySecs{ExpirySecs: uint32(opts.Expiry.Seconds())}
 	}
 
+	var initial *int64
+	if opts.Initial >= 0 { // Negative Initial denotes the absence of an initial value
+		initial = &opts.Initial
+	}
+
 	request := &kv_v1.DecrementRequest{
 		BucketName:      opm.BucketName(),
 		ScopeName:       opm.ScopeName(),
@@ -1065,7 +1075,7 @@ func (p *kvProviderPs) Decrement(c *Collection, id string, opts *DecrementOption
 		Key:             opm.DocumentID(),
 		Delta:           opts.Delta,
 		Expiry:          expiry,
-		Initial:         &opts.Initial,
+		Initial:         initial,
 		DurabilityLevel: opm.DurabilityLevel(),
 	}
 
