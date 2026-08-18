@@ -9,7 +9,6 @@ option java_multiple_files = true;
 
 import "shared.basic.proto";
 import "hooks.transactions.proto";
-import "streams.top_level.proto";
 import "google/protobuf/duration.proto";
 import "shared.content.proto";
 

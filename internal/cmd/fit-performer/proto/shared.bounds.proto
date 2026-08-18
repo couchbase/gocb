@@ -17,9 +17,10 @@ message CounterGlobal {
 }
 
 message Counter {
-  // Each counter gets a unique id (unique to the WorkloadRunRequest, not globally unique).  The performer will create these on-demand.
-  // Each counter is bound to a WorkloadRunRequest.
-  // E.g. concurrent WorkloadRunRequests both referencing "counter1" should have separate isolated counters.
+  // Each counter is identified by its id, which the performer creates on-demand.
+  // Counters with the same id are shared across workloads and WorkloadRunRequests.  Use unique ids
+  // when you want isolated counters (e.g. per-workload count bounds), and shared ids when you
+  // want a single counter to coordinate multiple workloads (e.g. counter_eq bounds with setCounter).
   string counter_id = 1;
 
   oneof counter {

@@ -7,9 +7,7 @@ option go_package = "github.com/couchbase/gocb/v2/internal/cmd/fit-performer/pro
 option java_multiple_files = true;
 option ruby_package = "FIT::Protocol::SDK::Search";
 
-import "shared.doc_location.proto";
 import "shared.content.proto";
-import "shared.collection.proto";
 import "shared.basic.proto";
 import "google/protobuf/timestamp.proto";
 import "streams.top_level.proto";

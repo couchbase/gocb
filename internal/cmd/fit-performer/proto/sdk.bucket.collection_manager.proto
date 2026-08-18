@@ -1,5 +1,4 @@
 syntax = "proto3";
-import "shared.basic.proto";
 
 package protocol.sdk.bucket.collection_manager;
 option csharp_namespace = "Couchbase.Grpc.Protocol.Sdk.Bucket.CollectionManager";

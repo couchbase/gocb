@@ -150,6 +150,7 @@ func (p *Performer) PerformerCapsFetch(context.Context, *performer.PerformerCaps
 		protoSDK.Caps_SDK_JWT,
 		protoSDK.Caps_SDK_STABLE_OTEL_SEMANTIC_CONVENTIONS,
 	)
+	sdkCaps = append(sdkCaps, protoSDK.Caps_SDK_QUERY_2120)
 
 	return &performer.PerformerCapsFetchResponse{
 		TransactionImplementationsCaps: libCaps,

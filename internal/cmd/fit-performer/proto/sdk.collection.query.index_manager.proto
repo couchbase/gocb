@@ -7,7 +7,6 @@ option go_package = "github.com/couchbase/gocb/v2/internal/cmd/fit-performer/pro
 option ruby_package = "FIT::Protocol::SDK::Collection::Query::IndexManager";
 option java_multiple_files = true;
 
-import "shared.collection.proto";
 import "sdk.query.index_manager.proto";
 
 

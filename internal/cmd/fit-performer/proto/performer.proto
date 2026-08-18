@@ -16,9 +16,7 @@ import "run.top_level.proto";
 import "shared.cluster.proto";
 import "streams.top_level.proto";
 import "shared.echo.proto";
-import "observability.config.proto";
 import "observability.top.proto";
-import "sdk.cluster.wait_until_ready.proto";
 import "shared.bounds.proto";
 
 // All rpcs related to transactions and SDK performance and integration testing.

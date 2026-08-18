@@ -152,4 +152,7 @@ enum Caps {
 
   // The SDK supports the RESUMING status in the result of functions_status() of the eventing management API.
   SDK_EVENTING_RESUMING_FUNCTION_STATUS = 40;
+
+  // SDK handles query code 2120.
+  SDK_QUERY_2120 = 42;
 }

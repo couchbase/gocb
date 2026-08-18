@@ -20,7 +20,7 @@ require (
 require (
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/couchbase/gocbcore/v10 v10.9.2-0.20260706130047-a1498fe1b376 // indirect
+	github.com/couchbase/gocbcore/v10 v10.9.2-0.20260818153940-9915fa379487 // indirect
 	github.com/couchbase/gocbcoreps v0.1.5-0.20260413093139-b38df312dd87 // indirect
 	github.com/couchbase/goprotostellar v1.0.6-0.20260427185542-d3cc7955fca9 // indirect
 	github.com/couchbaselabs/gocbconnstr/v2 v2.0.0 // indirect
