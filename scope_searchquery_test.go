@@ -207,7 +207,7 @@ func (suite *UnitTestSuite) searchScope(reader searchRowReader, retryStrategy Re
 	cli := new(mockConnectionManager)
 	cli.On("getSearchProvider").Return(searchProvider, nil)
 	cli.On("getMeter").Return(nil)
-	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpBeginning").Return(nil)
 	cli.On("MarkOpCompleted").Return()
 
 	bucket := suite.bucket("searchBucket", cli)

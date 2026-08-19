@@ -577,7 +577,7 @@ func (suite *UnitTestSuite) queryCluster(prepared bool, retryStrategy *coreRetry
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
 	cli.On("getMeter").Return(nil)
-	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpBeginning").Return(nil)
 	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)
@@ -799,7 +799,7 @@ func (suite *UnitTestSuite) TestQueryUntypedError() {
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
 	cli.On("getMeter").Return(nil)
-	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpBeginning").Return(nil)
 	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)
@@ -835,7 +835,7 @@ func (suite *UnitTestSuite) TestQueryGocbcoreError() {
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
 	cli.On("getMeter").Return(nil)
-	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpBeginning").Return(nil)
 	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)
@@ -886,7 +886,7 @@ func (suite *UnitTestSuite) TestQueryTimeoutOption() {
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
 	cli.On("getMeter").Return(nil)
-	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpBeginning").Return(nil)
 	cli.On("MarkOpCompleted").Return()
 
 	cluster.connectionManager = cli

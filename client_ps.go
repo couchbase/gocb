@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"go.opentelemetry.io/otel/metric"
@@ -27,8 +25,7 @@ type psConnectionMgr struct {
 	transcoder   Transcoder
 	compressor   *compressor
 
-	closed      atomic.Bool
-	activeOpsWg sync.WaitGroup
+	activeOpGuard
 }
 
 func (c *psConnectionMgr) openBucket(bucketName string) error {
@@ -103,8 +100,6 @@ func connectPsConnectionMgr(opts newConnectionMgrOptions) (*psConnectionMgr, err
 		defaultRetry: opts.retryStrategyWrapper.wrapped,
 		transcoder:   opts.transcoder,
 		compressor:   opts.compressor,
-		closed:       atomic.Bool{},
-		activeOpsWg:  sync.WaitGroup{},
 	}, nil
 }
 
@@ -126,22 +121,6 @@ func (c *psConnectionMgr) SetAuthenticator(opts SetAuthenticatorOptions) error {
 	}
 
 	return nil
-}
-
-func (c *psConnectionMgr) canPerformOp() error {
-	if c.closed.Load() {
-		return ErrShutdown
-	}
-
-	return nil
-}
-
-func (c *psConnectionMgr) MarkOpBeginning() {
-	c.activeOpsWg.Add(1)
-}
-
-func (c *psConnectionMgr) MarkOpCompleted() {
-	c.activeOpsWg.Done()
 }
 
 func (c *psConnectionMgr) getKvProvider(bucketName string) (kvProvider, error) {
@@ -327,14 +306,14 @@ func (c *psConnectionMgr) connection(bucketName string) (*gocbcore.Agent, error)
 }
 
 func (c *psConnectionMgr) close() error {
-	if !c.closed.CompareAndSwap(false, true) {
-		return ErrShutdown
+	if err := c.markClosed(); err != nil {
+		return err
 	}
 
 	err := c.agent.Close()
 
 	logDebugf("Waiting for any active requests to complete")
-	c.activeOpsWg.Wait()
+	c.waitForActiveOps()
 
 	if c.tracer != nil {
 		tracerDecRef(c.tracer.tracer)

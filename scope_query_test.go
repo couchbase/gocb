@@ -93,7 +93,7 @@ func (suite *UnitTestSuite) queryScope(prepared bool, retryStrategy *coreRetrySt
 	cli := new(mockConnectionManager)
 	cli.On("getQueryProvider").Return(queryProvider, nil)
 	cli.On("getMeter").Return(nil)
-	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpBeginning").Return(nil)
 	cli.On("MarkOpCompleted").Return()
 
 	b := suite.bucket("queryBucket", cli)

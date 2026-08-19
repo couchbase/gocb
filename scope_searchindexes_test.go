@@ -320,7 +320,7 @@ func (suite *UnitTestSuite) TestScopeSearchIndexesFeatureNotAvailable() {
 		searchCapVerifier: mockCapVerifier,
 	}, nil)
 	cli.On("getMeter").Return(nil)
-	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpBeginning").Return(nil)
 	cli.On("MarkOpCompleted").Return()
 
 	b := suite.bucket("mock", cli)

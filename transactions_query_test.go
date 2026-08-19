@@ -622,7 +622,7 @@ func (suite *UnitTestSuite) TestTransactionsQueryGocbcoreCauseError() {
 	cli.On("getQueryProvider").Return(queryProvider, nil)
 	cli.On("getMeter").Return(nil)
 	cli.On("close").Return(nil)
-	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpBeginning").Return(nil)
 	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)

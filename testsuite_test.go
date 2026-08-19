@@ -630,6 +630,6 @@ func (suite *UnitTestSuite) collection(bucket, scope, collection string, provide
 
 type mockOpController struct{}
 
-func (m mockOpController) MarkOpBeginning() {}
+func (m mockOpController) MarkOpBeginning() error { return nil }
 
 func (m mockOpController) MarkOpCompleted() {}

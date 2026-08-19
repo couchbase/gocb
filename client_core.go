@@ -4,7 +4,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/couchbase/gocbcore/v10"
@@ -31,8 +30,7 @@ type stdConnectionMgr struct {
 	authMechanisms     []gocbcore.AuthMechanism
 	tlsRootProvider    func() *x509.CertPool
 
-	closed      atomic.Bool
-	activeOpsWg sync.WaitGroup
+	activeOpGuard
 }
 
 func connectStdConnectionMgr(opts newConnectionMgrOptions) (*stdConnectionMgr, error) {
@@ -168,8 +166,6 @@ func connectStdConnectionMgr(opts newConnectionMgrOptions) (*stdConnectionMgr, e
 		compressor:           opts.compressor,
 		useMutationTokens:    opts.useMutationTokens,
 		useServerDurations:   opts.useServerDurations,
-		closed:               atomic.Bool{},
-		activeOpsWg:          sync.WaitGroup{},
 
 		auth:            auth,
 		authMechanisms:  authMechanisms,
@@ -187,22 +183,6 @@ func (c *stdConnectionMgr) openBucket(bucketName string) error {
 	}
 
 	return c.agentgroup.OpenBucket(bucketName)
-}
-
-func (c *stdConnectionMgr) canPerformOp() error {
-	if c.closed.Load() {
-		return ErrShutdown
-	}
-
-	return nil
-}
-
-func (c *stdConnectionMgr) MarkOpBeginning() {
-	c.activeOpsWg.Add(1)
-}
-
-func (c *stdConnectionMgr) MarkOpCompleted() {
-	c.activeOpsWg.Done()
 }
 
 func (c *stdConnectionMgr) SetAuthenticator(opts SetAuthenticatorOptions) error {
@@ -739,8 +719,8 @@ func (c *stdConnectionMgr) connection(bucketName string) (*gocbcore.Agent, error
 }
 
 func (c *stdConnectionMgr) close() error {
-	if !c.closed.CompareAndSwap(false, true) {
-		return ErrShutdown
+	if err := c.markClosed(); err != nil {
+		return err
 	}
 
 	if c.txns != nil {
@@ -761,7 +741,7 @@ func (c *stdConnectionMgr) close() error {
 	err := c.agentgroup.Close()
 
 	logDebugf("Waiting for any active requests to complete")
-	c.activeOpsWg.Wait()
+	c.waitForActiveOps()
 
 	if c.tracer != nil {
 		tracerDecRef(c.tracer.tracer)

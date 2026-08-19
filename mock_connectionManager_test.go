@@ -37,9 +37,20 @@ func (_m *mockConnectionManager) EXPECT() *mockConnectionManager_Expecter {
 }
 
 // MarkOpBeginning provides a mock function for the type mockConnectionManager
-func (_mock *mockConnectionManager) MarkOpBeginning() {
-	_mock.Called()
-	return
+func (_mock *mockConnectionManager) MarkOpBeginning() error {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkOpBeginning")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func() error); ok {
+		r0 = returnFunc()
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
 }
 
 // mockConnectionManager_MarkOpBeginning_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkOpBeginning'
@@ -59,13 +70,13 @@ func (_c *mockConnectionManager_MarkOpBeginning_Call) Run(run func()) *mockConne
 	return _c
 }
 
-func (_c *mockConnectionManager_MarkOpBeginning_Call) Return() *mockConnectionManager_MarkOpBeginning_Call {
-	_c.Call.Return()
+func (_c *mockConnectionManager_MarkOpBeginning_Call) Return(err error) *mockConnectionManager_MarkOpBeginning_Call {
+	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *mockConnectionManager_MarkOpBeginning_Call) RunAndReturn(run func()) *mockConnectionManager_MarkOpBeginning_Call {
-	_c.Run(run)
+func (_c *mockConnectionManager_MarkOpBeginning_Call) RunAndReturn(run func() error) *mockConnectionManager_MarkOpBeginning_Call {
+	_c.Call.Return(run)
 	return _c
 }
 
