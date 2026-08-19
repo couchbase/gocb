@@ -13,8 +13,21 @@ type mockConnectionManager struct {
 }
 
 // MarkOpBeginning provides a mock function with no fields
-func (_m *mockConnectionManager) MarkOpBeginning() {
-	_m.Called()
+func (_m *mockConnectionManager) MarkOpBeginning() error {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkOpBeginning")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // MarkOpCompleted provides a mock function with no fields

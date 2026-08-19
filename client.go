@@ -3,6 +3,8 @@ package gocb
 import (
 	"fmt"
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/couchbase/gocbcore/v10"
@@ -46,7 +48,11 @@ type connectionManager interface {
 }
 
 type opController interface {
-	MarkOpBeginning()
+	// MarkOpBeginning registers an in-flight operation, returning ErrShutdown if
+	// the controller no longer accepts new operations.
+	MarkOpBeginning() error
+
+	// MarkOpCompleted registers that an in-flight operation has been completed.
 	MarkOpCompleted()
 }
 
@@ -61,7 +67,10 @@ type providerController[P any] struct {
 }
 
 func (c *providerController[P]) beginOp() (P, error) {
-	c.MarkOpBeginning()
+	if err := c.MarkOpBeginning(); err != nil {
+		var emptyP P
+		return emptyP, err
+	}
 
 	provider, err := c.get()
 	if err != nil {
@@ -346,4 +355,59 @@ func connectConnectionMgr(protocol string, opts newConnectionMgrOptions) (connec
 	default:
 		return connectStdConnectionMgr(opts)
 	}
+}
+
+type activeOpGuard struct {
+	activeOpMutex sync.RWMutex
+	closed        atomic.Bool
+}
+
+// MarkOpBeginning notifies the guard that an operation has started. This *must* be followed
+// by a MarkOpCompleted call once the operation is complete. Not calling MarkOpCompleted can
+// lead to a deadlock in waitForActiveOps.
+func (g *activeOpGuard) MarkOpBeginning() error {
+	// Refuse operation if the guard is closed, without acquiring the lock, to make sure that
+	// any new operations fast-fail while waitForActiveOps is blocked.
+	if err := g.canPerformOp(); err != nil {
+		return err
+	}
+
+	// We acquire a read lock when the operation begins. This means that we can wait on all operations to finish
+	// by later blocking to acquire an exclusive/write lock, which requires no readers to be holding the lock.
+	g.activeOpMutex.RLock()
+	if err := g.canPerformOp(); err != nil {
+		g.activeOpMutex.RUnlock()
+		return err
+	}
+
+	return nil
+}
+
+func (g *activeOpGuard) MarkOpCompleted() {
+	g.activeOpMutex.RUnlock()
+}
+
+func (g *activeOpGuard) markClosed() error {
+	if !g.closed.CompareAndSwap(false, true) {
+		// The activeOpGuard has already been closed
+		return ErrShutdown
+	}
+	return nil
+}
+
+// waitForActiveOps blocks until all active operations have finished and called MarkOpCompleted. Should be called
+// after markClosed.
+func (g *activeOpGuard) waitForActiveOps() {
+	// Acquiring an exclusive lock, means that all read locks have been released. This means that we block until all
+	// active operations have concluded and called MarkOpCompleted. As markClosed should have been called already, no
+	// new operations are acquiring read locks at this point.
+	g.activeOpMutex.Lock()
+	g.activeOpMutex.Unlock() //nolint:staticcheck // SA2001: we acquire this lock to wait until read locks are released
+}
+
+func (g *activeOpGuard) canPerformOp() error {
+	if g.closed.Load() {
+		return ErrShutdown
+	}
+	return nil
 }

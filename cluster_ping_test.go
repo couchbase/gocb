@@ -74,7 +74,7 @@ func (suite *UnitTestSuite) pingCluster(runFn func(args mock.Arguments), args ..
 
 	cli := new(mockConnectionManager)
 	cli.On("getDiagnosticsProvider", mock.AnythingOfType("string")).Return(pingProvider, nil)
-	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpBeginning").Return(nil)
 	cli.On("MarkOpCompleted").Return()
 
 	c := &Cluster{

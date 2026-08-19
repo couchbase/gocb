@@ -453,7 +453,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryBothParams() {
 	cli := new(mockConnectionManager)
 	cli.On("getAnalyticsProvider").Return(analyticsProvider, nil)
 	cli.On("getMeter").Return(nil)
-	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpBeginning").Return(nil)
 	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)
@@ -611,7 +611,7 @@ func (suite *UnitTestSuite) TestAnalyticsQueryConsistencyInvalid() {
 	cli := new(mockConnectionManager)
 	cli.On("getAnalyticsProvider").Return(analyticsProvider, nil)
 	cli.On("getMeter").Return(nil)
-	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpBeginning").Return(nil)
 	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)
@@ -647,7 +647,7 @@ func (suite *UnitTestSuite) coreAnalyticsCluster(ctx context.Context, retryStrat
 	cli := new(mockConnectionManager)
 	cli.On("getAnalyticsProvider").Return(analyticsProvider, nil)
 	cli.On("getMeter").Return(nil)
-	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpBeginning").Return(nil)
 	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)

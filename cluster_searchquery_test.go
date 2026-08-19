@@ -276,7 +276,7 @@ func (suite *UnitTestSuite) searchCluster(reader searchRowReader, retryStrategy 
 	cli := new(mockConnectionManager)
 	cli.On("getSearchProvider").Return(searchProvider, nil)
 	cli.On("getMeter").Return(nil)
-	cli.On("MarkOpBeginning").Return()
+	cli.On("MarkOpBeginning").Return(nil)
 	cli.On("MarkOpCompleted").Return()
 
 	cluster := suite.newCluster(cli)
