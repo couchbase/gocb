@@ -393,6 +393,33 @@ func (e *Executor) parseSearchSortOption(sorts []*searchpb.SearchSort) ([]cbsear
 	return gocbSorts, nil
 }
 
+func (e *Executor) parseSearchScoringOption(protoScoring *searchpb.SearchScoring) (cbsearch.Scoring, error) {
+	if protoScoring == nil {
+		return nil, nil
+	}
+	switch protoScoring.Mode.(type) {
+	case *searchpb.SearchScoring_None:
+		return cbsearch.NewScoringNone(), nil
+	case *searchpb.SearchScoring_ReciprocalRankFusion:
+		s := cbsearch.NewScoringReciprocalRankFusion()
+		if val := protoScoring.GetReciprocalRankFusion().RankConstant; val != nil {
+			s.RankConstant(*val)
+		}
+		if val := protoScoring.GetReciprocalRankFusion().WindowSize; val != nil {
+			s.WindowSize(*val)
+		}
+		return s, nil
+	case *searchpb.SearchScoring_RelativeScoreFusion:
+		s := cbsearch.NewScoringRelativeScoreFusion()
+		if val := protoScoring.GetRelativeScoreFusion().WindowSize; val != nil {
+			s.WindowSize(*val)
+		}
+		return s, nil
+	}
+
+	return nil, errors.New("unknown search scoring type")
+}
+
 func (e *Executor) parseSearchResult(fieldContentAs *shared.ContentAs, res *gocb.SearchResult) (*searchpb.BlockingSearchResult, error) {
 	rows, err := fitSearch.ParseSearchRows(fieldContentAs, res)
 	if err != nil {
@@ -437,10 +464,17 @@ func (e *Executor) parseSearchOptions(protoOpts *searchpb.SearchOptions) (*gocb.
 		return nil, status.Error(codes.Unimplemented, "unknown command type")
 	}
 
+	scoring, err := e.parseSearchScoringOption(protoOpts.GetScoring())
+	if err != nil {
+		return nil, status.Error(codes.Unimplemented, fmt.Sprintf("failed to parse search scoring: %s", err))
+	}
+
 	opts := &gocb.SearchOptions{
-		Fields: protoOpts.Fields,
-		Sort:   sorts,
-		Facets: facets,
+		Fields:         protoOpts.Fields,
+		Sort:           sorts,
+		Facets:         facets,
+		Scoring:        scoring,
+		DisableScoring: protoOpts.GetDisableScoring(),
 	}
 	if protoOpts.TimeoutMillis != nil {
 		opts.Timeout = time.Duration(protoOpts.GetTimeoutMillis()) * time.Millisecond

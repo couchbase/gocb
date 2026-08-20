@@ -33,6 +33,13 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 	if len(opts.Raw) > 0 {
 		return nil, wrapError(ErrFeatureNotAvailable, "the Raw search option is not supported by the couchbase2 protocol")
 	}
+	if opts.DisableScoring && opts.Scoring != nil {
+		return nil, makeInvalidArgumentsError("DisableScoring and Scoring must be used exclusively")
+	}
+	_, isScoringNone := opts.Scoring.(*cbsearch.ScoringNone)
+	if opts.Scoring != nil && !isScoringNone {
+		return nil, wrapError(ErrFeatureNotAvailable, "only ScoringNone is supported by the couchbase2 protocol")
+	}
 
 	manager := search.managerProvider.NewManager(opts.ParentSpan, "search", psOpSpanAttributes{
 		legacyOpName: indexName,
@@ -73,7 +80,9 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 	}
 
 	if opts != nil {
-		request.DisableScoring = opts.DisableScoring
+		// The case where both opts.DisableScoring and ScoringNone are both set is rejected above
+		request.DisableScoring = opts.DisableScoring || isScoringNone
+
 		request.Collections = opts.Collections
 		request.IncludeLocations = opts.IncludeLocations
 		request.Limit = opts.Limit

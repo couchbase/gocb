@@ -5,6 +5,7 @@ import (
 	"time"
 
 	cbsearch "github.com/couchbase/gocb/v2/search"
+	"github.com/couchbase/gocbcore/v10"
 )
 
 // SearchHighlightStyle indicates the type of highlighting to use for a search query.
@@ -55,7 +56,13 @@ type SearchOptions struct {
 	Timeout       time.Duration
 	RetryStrategy RetryStrategy
 
+	// Deprecated: Use Scoring with search.NewScoringNone instead.
 	DisableScoring bool
+
+	// Scoring specifies the scoring mode used for the request. For a hybrid search (a traditional FTS query
+	// combined with one or more vector queries) a fusion strategy controls how the FTS and vector result sets
+	// are merged into a single ranked list.
+	Scoring cbsearch.Scoring
 
 	Collections []string
 
@@ -75,7 +82,7 @@ type SearchOptions struct {
 	}
 }
 
-func (opts *SearchOptions) toMap(indexName string) (map[string]interface{}, error) {
+func (opts *SearchOptions) toMap(indexName string, capVerifier searchCapabilityVerifier) (map[string]interface{}, error) {
 	data := make(map[string]interface{})
 
 	if opts.Limit > 0 {
@@ -151,8 +158,23 @@ func (opts *SearchOptions) toMap(indexName string) (map[string]interface{}, erro
 		data["ctl"] = ctl
 	}
 
+	scoring := opts.Scoring
 	if opts.DisableScoring {
-		data["score"] = "none"
+		if opts.Scoring != nil {
+			return nil, makeInvalidArgumentsError("DisableScoring and Scoring must be used exclusively")
+		}
+
+		scoring = cbsearch.NewScoringNone()
+	}
+	if scoring != nil {
+		if err := ensureSearchScoringModeSupported(scoring, capVerifier); err != nil {
+			return nil, err
+		}
+
+		data["score"] = scoring.Name()
+		if params := scoring.Params(); len(params) > 0 {
+			data["params"] = params
+		}
 	}
 
 	if opts.Raw != nil {
@@ -170,4 +192,14 @@ func (opts *SearchOptions) toMap(indexName string) (map[string]interface{}, erro
 	}
 
 	return data, nil
+}
+
+func ensureSearchScoringModeSupported(scoring cbsearch.Scoring, capVerifier searchCapabilityVerifier) error {
+	switch scoring.(type) {
+	case *cbsearch.ScoringReciprocalRankFusion, *cbsearch.ScoringRelativeScoreFusion:
+		if capVerifier.SearchCapabilityStatus(gocbcore.SearchCapabilityScoreFusion) == gocbcore.CapabilityStatusUnsupported {
+			return wrapError(ErrFeatureNotAvailable, "cluster does not support search score fusion")
+		}
+	}
+	return nil
 }

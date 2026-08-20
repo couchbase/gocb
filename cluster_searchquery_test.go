@@ -261,6 +261,16 @@ type testSearchDataset struct {
 }
 
 func (suite *UnitTestSuite) searchCluster(reader searchRowReader, retryStrategy *coreRetryStrategyWrapper, runFn func(args mock.Arguments)) *Cluster {
+	capVerifier := new(mockSearchCapabilityVerifier)
+	capVerifier.
+		On("SearchCapabilityStatus", mock.AnythingOfType("gocbcore.SearchCapability")).
+		Return(gocbcore.CapabilityStatusSupported)
+
+	return suite.searchClusterWithCapVerifier(reader, retryStrategy, capVerifier, runFn)
+}
+
+func (suite *UnitTestSuite) searchClusterWithCapVerifier(reader searchRowReader, retryStrategy *coreRetryStrategyWrapper,
+	capVerifier searchCapabilityVerifier, runFn func(args mock.Arguments)) *Cluster {
 	if retryStrategy == nil {
 		retryStrategy = newCoreRetryStrategyWrapper(NewBestEffortRetryStrategy(nil))
 	}
@@ -271,7 +281,8 @@ func (suite *UnitTestSuite) searchCluster(reader searchRowReader, retryStrategy 
 		Return(reader, nil)
 
 	searchProvider := &searchProviderCore{
-		provider: provider,
+		provider:          provider,
+		searchCapVerifier: capVerifier,
 	}
 	cli := new(mockConnectionManager)
 	cli.On("getSearchProvider").Return(searchProvider, nil)
@@ -410,6 +421,251 @@ func (suite *UnitTestSuite) TestSearchQueryDisableScoring() {
 
 	_, err := cluster.SearchQuery("testindex", query, &SearchOptions{
 		DisableScoring: true,
+	})
+	suite.Require().NoError(err)
+}
+
+type searchScoringOptionsJson struct {
+	Score  string `json:"score"`
+	Params *struct {
+		ScoreRankConstant *uint32 `json:"score_rank_constant,omitempty"`
+		ScoreWindowSize   *uint32 `json:"score_window_size,omitempty"`
+	} `json:"params,omitempty"`
+}
+
+func (suite *UnitTestSuite) TestSearchQueryScoringReciprocalRankFusion() {
+	reader := &mockSearchRowReader{
+		Dataset: []jsonSearchRow{},
+		Meta:    []byte{},
+		Suite:   suite,
+	}
+
+	query := search.NewMatchAllQuery()
+
+	var cluster *Cluster
+	cluster = suite.searchCluster(reader, nil, func(args mock.Arguments) {
+		opts := args.Get(1).(gocbcore.SearchQueryOptions)
+
+		var actualOptions searchScoringOptionsJson
+		err := json.Unmarshal(opts.Payload, &actualOptions)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal("rrf", actualOptions.Score)
+		suite.Assert().Equal(uint32(60), *actualOptions.Params.ScoreRankConstant)
+		suite.Assert().Equal(uint32(200), *actualOptions.Params.ScoreWindowSize)
+	})
+
+	_, err := cluster.SearchQuery("testindex", query, &SearchOptions{
+		Scoring: search.NewScoringReciprocalRankFusion().RankConstant(60).WindowSize(200),
+	})
+	suite.Require().NoError(err)
+}
+
+func (suite *UnitTestSuite) TestSearchQueryScoringRelativeScoreFusion() {
+	reader := &mockSearchRowReader{
+		Dataset: []jsonSearchRow{},
+		Meta:    []byte{},
+		Suite:   suite,
+	}
+
+	query := search.NewMatchAllQuery()
+
+	var cluster *Cluster
+	cluster = suite.searchCluster(reader, nil, func(args mock.Arguments) {
+		opts := args.Get(1).(gocbcore.SearchQueryOptions)
+
+		var actualOptions searchScoringOptionsJson
+		err := json.Unmarshal(opts.Payload, &actualOptions)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal("rsf", actualOptions.Score)
+		suite.Assert().Nil(actualOptions.Params.ScoreRankConstant)
+		suite.Assert().Equal(uint32(50), *actualOptions.Params.ScoreWindowSize)
+	})
+
+	_, err := cluster.SearchQuery("testindex", query, &SearchOptions{
+		Scoring: search.NewScoringRelativeScoreFusion().WindowSize(50),
+	})
+	suite.Require().NoError(err)
+}
+
+func (suite *UnitTestSuite) TestSearchQueryScoringFusionNoParams() {
+	reader := &mockSearchRowReader{
+		Dataset: []jsonSearchRow{},
+		Meta:    []byte{},
+		Suite:   suite,
+	}
+
+	query := search.NewMatchAllQuery()
+
+	var cluster *Cluster
+	cluster = suite.searchCluster(reader, nil, func(args mock.Arguments) {
+		opts := args.Get(1).(gocbcore.SearchQueryOptions)
+
+		var actualOptions searchScoringOptionsJson
+		err := json.Unmarshal(opts.Payload, &actualOptions)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal("rrf", actualOptions.Score)
+		suite.Assert().Nil(actualOptions.Params)
+	})
+
+	_, err := cluster.SearchQuery("testindex", query, &SearchOptions{
+		Scoring: search.NewScoringReciprocalRankFusion(),
+	})
+	suite.Require().NoError(err)
+}
+
+func (suite *UnitTestSuite) TestSearchQueryScoringAndDisableScoring() {
+	reader := &mockSearchRowReader{
+		Dataset: []jsonSearchRow{},
+		Meta:    []byte{},
+		Suite:   suite,
+	}
+
+	query := search.NewMatchAllQuery()
+
+	cluster := suite.searchCluster(reader, nil, nil)
+
+	_, err := cluster.SearchQuery("testindex", query, &SearchOptions{
+		DisableScoring: true,
+		Scoring:        search.NewScoringReciprocalRankFusion(),
+	})
+	suite.Require().ErrorIs(err, ErrInvalidArgument)
+}
+
+func (suite *UnitTestSuite) TestSearchQueryScoringNone() {
+	reader := &mockSearchRowReader{
+		Dataset: []jsonSearchRow{},
+		Meta:    []byte{},
+		Suite:   suite,
+	}
+
+	query := search.NewMatchAllQuery()
+
+	var cluster *Cluster
+	cluster = suite.searchCluster(reader, nil, func(args mock.Arguments) {
+		opts := args.Get(1).(gocbcore.SearchQueryOptions)
+
+		var actualOptions searchScoringOptionsJson
+		err := json.Unmarshal(opts.Payload, &actualOptions)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal("none", actualOptions.Score)
+		suite.Assert().Nil(actualOptions.Params)
+	})
+
+	_, err := cluster.SearchQuery("testindex", query, &SearchOptions{
+		Scoring: search.NewScoringNone(),
+	})
+	suite.Require().NoError(err)
+}
+
+// Scoring and DisableScoring cannot be set together, even when the two agree.
+func (suite *UnitTestSuite) TestSearchQueryScoringNoneAndDisableScoring() {
+	reader := &mockSearchRowReader{
+		Dataset: []jsonSearchRow{},
+		Meta:    []byte{},
+		Suite:   suite,
+	}
+
+	query := search.NewMatchAllQuery()
+
+	cluster := suite.searchCluster(reader, nil, nil)
+
+	_, err := cluster.SearchQuery("testindex", query, &SearchOptions{
+		DisableScoring: true,
+		Scoring:        search.NewScoringNone(),
+	})
+	suite.Require().ErrorIs(err, ErrInvalidArgument)
+}
+
+func (suite *UnitTestSuite) hybridSearchRequest() SearchRequest {
+	return SearchRequest{
+		SearchQuery: search.NewMatchAllQuery(),
+		VectorSearch: vector.NewSearch(
+			[]*vector.Query{
+				vector.NewQuery("field", []float32{0.9, 0.1}),
+			},
+			nil,
+		),
+	}
+}
+
+func (suite *UnitTestSuite) TestSearchScoringFusionUnsupported() {
+	reader := &mockSearchRowReader{
+		Dataset: []jsonSearchRow{},
+		Meta:    []byte{},
+		Suite:   suite,
+	}
+
+	capVerifier := new(mockSearchCapabilityVerifier)
+	capVerifier.
+		On("SearchCapabilityStatus", gocbcore.SearchCapabilityScoreFusion).
+		Return(gocbcore.CapabilityStatusUnsupported)
+
+	cluster := suite.searchClusterWithCapVerifier(reader, nil, capVerifier, nil)
+
+	_, err := cluster.Search("testindex", suite.hybridSearchRequest(), &SearchOptions{
+		Scoring: search.NewScoringReciprocalRankFusion(),
+	})
+	suite.Require().ErrorIs(err, ErrFeatureNotAvailable)
+}
+
+// ScoringNone is not a fusion strategy, so it must not be gated on the score fusion capability.
+func (suite *UnitTestSuite) TestSearchScoringNoneFusionUnsupported() {
+	reader := &mockSearchRowReader{
+		Dataset: []jsonSearchRow{},
+		Meta:    []byte{},
+		Suite:   suite,
+	}
+
+	capVerifier := new(mockSearchCapabilityVerifier)
+	capVerifier.
+		On("SearchCapabilityStatus", gocbcore.SearchCapabilityScoreFusion).
+		Return(gocbcore.CapabilityStatusUnsupported)
+
+	cluster := suite.searchClusterWithCapVerifier(reader, nil, capVerifier, func(args mock.Arguments) {
+		opts := args.Get(1).(gocbcore.SearchQueryOptions)
+
+		var actualOptions searchScoringOptionsJson
+		err := json.Unmarshal(opts.Payload, &actualOptions)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal("none", actualOptions.Score)
+	})
+
+	_, err := cluster.Search("testindex", suite.hybridSearchRequest(), &SearchOptions{
+		Scoring: search.NewScoringNone(),
+	})
+	suite.Require().NoError(err)
+}
+
+// Only an explicitly unsupported capability is rejected, an unknown status is sent to the server.
+func (suite *UnitTestSuite) TestSearchScoringFusionCapabilityUnknown() {
+	reader := &mockSearchRowReader{
+		Dataset: []jsonSearchRow{},
+		Meta:    []byte{},
+		Suite:   suite,
+	}
+
+	capVerifier := new(mockSearchCapabilityVerifier)
+	capVerifier.
+		On("SearchCapabilityStatus", gocbcore.SearchCapabilityScoreFusion).
+		Return(gocbcore.CapabilityStatusUnknown)
+
+	cluster := suite.searchClusterWithCapVerifier(reader, nil, capVerifier, func(args mock.Arguments) {
+		opts := args.Get(1).(gocbcore.SearchQueryOptions)
+
+		var actualOptions searchScoringOptionsJson
+		err := json.Unmarshal(opts.Payload, &actualOptions)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal("rrf", actualOptions.Score)
+	})
+
+	_, err := cluster.Search("testindex", suite.hybridSearchRequest(), &SearchOptions{
+		Scoring: search.NewScoringReciprocalRankFusion(),
 	})
 	suite.Require().NoError(err)
 }

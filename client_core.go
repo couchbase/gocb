@@ -447,8 +447,14 @@ func (c *stdConnectionMgr) getSearchProvider() (searchProvider, error) {
 		return nil, errors.New("cluster not yet connected")
 	}
 
+	capVerifier, err := c.getSearchCapabilitiesProvider()
+	if err != nil {
+		return nil, err
+	}
+
 	return &searchProviderCore{
 		provider:             &searchProviderWrapper{agent: c.agentgroup},
+		searchCapVerifier:    capVerifier,
 		retryStrategyWrapper: c.retryStrategyWrapper,
 		transcoder:           c.transcoder,
 		timeouts:             c.timeouts,

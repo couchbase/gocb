@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/couchbase/gocb/v2/vector"
 	"time"
+
+	"github.com/couchbase/gocb/v2/vector"
 
 	cbsearch "github.com/couchbase/gocb/v2/search"
 	"github.com/couchbase/gocbcore/v10"
@@ -53,8 +54,8 @@ type searchCapabilityVerifier interface {
 }
 
 type searchProviderCore struct {
-	// agent *gocbcore.AgentGroup
-	provider searchProviderCoreProvider
+	provider          searchProviderCoreProvider
+	searchCapVerifier searchCapabilityVerifier
 
 	retryStrategyWrapper *coreRetryStrategyWrapper
 	transcoder           Transcoder
@@ -99,7 +100,7 @@ func (search *searchProviderCore) search(scope *Scope, indexName string, sQuery 
 		retryStrategy = newCoreRetryStrategyWrapper(opts.RetryStrategy)
 	}
 
-	searchOpts, err := opts.toMap(indexName)
+	searchOpts, err := opts.toMap(indexName, search.searchCapVerifier)
 	if err != nil {
 		return nil, &SearchError{
 			InnerError: wrapError(err, "failed to generate query options"),

@@ -54,5 +54,6 @@ func SDKCaps() []protoSDK.Caps {
 		protoSDK.Caps_SDK_JWT,
 		protoSDK.Caps_SDK_STABLE_OTEL_SEMANTIC_CONVENTIONS,
 		protoSDK.Caps_SDK_QUERY_2120,
+		protoSDK.Caps_SDK_SEARCH_SCORE_FUSION,
 	}
 }
