@@ -24,6 +24,12 @@ on:
         type: string
         default: ci
 
+      performer_tag:
+        description: Tag of the go-fit-performer image to test against.
+        required: false
+        type: string
+        default: main
+
 permissions:
   id-token: write
   contents: read
@@ -35,5 +41,5 @@ jobs:
     with:
       preset: ${{ vars.FIT_CLI_PRESET || inputs.preset || 'op-multi-lite' }}
       collect_extra_diagnostics: ${{ inputs.collect_extra_diagnostics == '' && true || inputs.collect_extra_diagnostics }}
-      performer: 'go-fit-performer:main'
+      performer: go-fit-performer:${{ inputs.performer_tag || 'main' }}
       channel: ${{ vars.FIT_CLI_CHANNEL || inputs.channel || 'ci' }}
