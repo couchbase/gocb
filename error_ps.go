@@ -40,95 +40,60 @@ func mapPsErrorToGocbError(err error, readOnly bool) *GenericError {
 	return mapPsErrorStatusToGocbError(st, readOnly)
 }
 
+type psErrorDetails struct {
+	resourceInfoType             string
+	resourceInfoName             string
+	errorInfoReason              string
+	preconditionFailureViolation string
+}
+
+func extractPsErrorDetails(st *status.Status) psErrorDetails {
+	var preconditionFailure *errdetails.PreconditionFailure
+	var errorInfo *errdetails.ErrorInfo
+	var resourceInfo *errdetails.ResourceInfo
+
+	for _, detail := range st.Details() {
+		if preconditionFailure != nil && errorInfo != nil && resourceInfo != nil {
+			// No more detail blocks we could be interested in
+			break
+		}
+		switch d := detail.(type) {
+		case *errdetails.PreconditionFailure:
+			if preconditionFailure == nil {
+				preconditionFailure = d
+			}
+		case *errdetails.ErrorInfo:
+			if errorInfo == nil {
+				errorInfo = d
+			}
+		case *errdetails.ResourceInfo:
+			if resourceInfo == nil {
+				resourceInfo = d
+			}
+		}
+	}
+
+	details := psErrorDetails{}
+	if preconditionFailure != nil && len(preconditionFailure.Violations) > 0 {
+		details.preconditionFailureViolation = preconditionFailure.Violations[0].Type
+	}
+	if resourceInfo != nil {
+		details.resourceInfoType = resourceInfo.ResourceType
+		details.resourceInfoName = resourceInfo.ResourceName
+	}
+	if errorInfo != nil {
+		details.errorInfoReason = errorInfo.Reason
+	}
+	return details
+}
+
 func mapPsErrorStatusToGocbError(st *status.Status, readOnly bool) *GenericError {
 	context := map[string]interface{}{
 		"server":  st.Message(),
 		"details": len(st.Details()),
 	}
 
-	code := st.Code()
-	details := st.Details()
-	if len(details) > 0 {
-		var baseErr error
-		detail := details[0]
-		switch d := detail.(type) {
-		case *errdetails.PreconditionFailure:
-			if len(d.Violations) > 0 {
-				context["precondition_violation"] = d.Violations[0].Type
-
-				violation := d.Violations[0]
-				switch violation.Type {
-				case preconditionLocked:
-					baseErr = ErrDocumentLocked
-				case preconditionNotLocked:
-					baseErr = ErrDocumentNotLocked
-				case preconditionPathMismatch:
-					baseErr = ErrPathMismatch
-				case preconditionDocNotJSON:
-					baseErr = ErrDocumentNotJSON
-				case preconditionDocTooDeep:
-					baseErr = ErrDocumentTooDeep
-				case preconditionValueTooLarge:
-					baseErr = ErrValueTooLarge
-				case preconditionValueOutOfRange:
-					baseErr = ErrValueInvalid
-				case preconditionPathValueOutOfRange:
-					baseErr = ErrNumberTooBig
-				}
-			}
-		case *errdetails.ResourceInfo:
-			if d.ResourceName != "" {
-				context["resource_name"] = d.ResourceName
-			}
-			context["resource_type"] = d.ResourceType
-
-			switch code {
-			case codes.NotFound:
-				switch d.ResourceType {
-				case resourceTypeDocument:
-					baseErr = ErrDocumentNotFound
-				case resourceTypeIndex:
-					baseErr = ErrIndexNotFound
-				case resourceTypeSearchIndex:
-					baseErr = ErrIndexNotFound
-				case resourceTypeBucket:
-					baseErr = ErrBucketNotFound
-				case resourceTypeScope:
-					baseErr = ErrScopeNotFound
-				case resourceTypeCollection:
-					baseErr = ErrCollectionNotFound
-				case resourceTypePath:
-					baseErr = ErrPathNotFound
-				}
-			case codes.AlreadyExists:
-				switch d.ResourceType {
-				case resourceTypeDocument:
-					baseErr = ErrDocumentExists
-				case resourceTypeIndex:
-					baseErr = ErrIndexExists
-				case resourceTypeSearchIndex:
-					baseErr = ErrIndexExists
-				case resourceTypeBucket:
-					baseErr = ErrBucketExists
-				case resourceTypeScope:
-					baseErr = ErrScopeExists
-				case resourceTypeCollection:
-					baseErr = ErrCollectionExists
-				case resourceTypePath:
-					baseErr = ErrPathExists
-				}
-			}
-		case *errdetails.ErrorInfo:
-			context["reason"] = d.Reason
-			switch d.Reason {
-			case reasonCasMismatch:
-				baseErr = ErrCasMismatch
-			}
-		}
-		if baseErr != nil {
-			return makeGenericError(baseErr, context)
-		}
-	}
+	details := extractPsErrorDetails(st)
 
 	var baseErr error
 	switch st.Code() {
@@ -152,7 +117,88 @@ func mapPsErrorStatusToGocbError(st *status.Status, readOnly bool) *GenericError
 		baseErr = wrapError(ErrFeatureNotAvailable, st.Message())
 	case codes.Unavailable:
 		baseErr = ErrServiceNotAvailable
-	default:
+	case codes.FailedPrecondition:
+		if details.preconditionFailureViolation != "" {
+			context["precondition_violation"] = details.preconditionFailureViolation
+
+			switch details.preconditionFailureViolation {
+			case preconditionLocked:
+				baseErr = ErrDocumentLocked
+			case preconditionNotLocked:
+				baseErr = ErrDocumentNotLocked
+			case preconditionPathMismatch:
+				baseErr = ErrPathMismatch
+			case preconditionDocNotJSON:
+				baseErr = ErrDocumentNotJSON
+			case preconditionDocTooDeep:
+				baseErr = ErrDocumentTooDeep
+			case preconditionValueTooLarge:
+				baseErr = ErrValueTooLarge
+			case preconditionValueOutOfRange:
+				baseErr = ErrValueInvalid
+			case preconditionPathValueOutOfRange:
+				baseErr = ErrNumberTooBig
+			}
+		}
+	case codes.NotFound:
+		if details.resourceInfoType != "" {
+			context["resource_type"] = details.resourceInfoType
+			if details.resourceInfoName != "" {
+				context["resource_name"] = details.resourceInfoName
+			}
+			switch details.resourceInfoType {
+			case resourceTypeDocument:
+				baseErr = ErrDocumentNotFound
+			case resourceTypeIndex:
+				baseErr = ErrIndexNotFound
+			case resourceTypeSearchIndex:
+				baseErr = ErrIndexNotFound
+			case resourceTypeBucket:
+				baseErr = ErrBucketNotFound
+			case resourceTypeScope:
+				baseErr = ErrScopeNotFound
+			case resourceTypeCollection:
+				baseErr = ErrCollectionNotFound
+			case resourceTypePath:
+				baseErr = ErrPathNotFound
+			}
+		}
+	case codes.AlreadyExists:
+		if details.resourceInfoType != "" {
+			context["resource_type"] = details.resourceInfoType
+			if details.resourceInfoName != "" {
+				context["resource_name"] = details.resourceInfoName
+			}
+			switch details.resourceInfoType {
+			case resourceTypeDocument:
+				baseErr = ErrDocumentExists
+			case resourceTypeIndex:
+				baseErr = ErrIndexExists
+			case resourceTypeSearchIndex:
+				baseErr = ErrIndexExists
+			case resourceTypeBucket:
+				baseErr = ErrBucketExists
+			case resourceTypeScope:
+				baseErr = ErrScopeExists
+			case resourceTypeCollection:
+				baseErr = ErrCollectionExists
+			case resourceTypePath:
+				baseErr = ErrPathExists
+			}
+		}
+	case codes.Aborted:
+		if details.errorInfoReason != "" {
+			context["reason"] = details.errorInfoReason
+			switch details.errorInfoReason {
+			case reasonCasMismatch:
+				baseErr = ErrCasMismatch
+			}
+		}
+	}
+
+	if baseErr == nil {
+		// Either the status code is not one that we map to a specific error, or the
+		// status did not contain a detail block applicable to the status code.
 		baseErr = st.Err()
 	}
 
