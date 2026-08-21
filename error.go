@@ -343,4 +343,9 @@ var (
 	ErrDocumentTooDeep = errors.New("document too deep")
 
 	ErrShutdown = errors.New("cluster closed")
+
+	// ErrAuthorizationFailure occurs when the user does not have permission to access or modify the resource that an
+	// operation was performed against.
+	// This error occurs when couchbase2 scheme is in use, other schemes report ErrAuthenticationFailure instead.
+	ErrAuthorizationFailure = errors.New("authorization failure")
 )

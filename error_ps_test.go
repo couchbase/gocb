@@ -91,6 +91,43 @@ func (suite *UnitTestSuite) TestProtostellarErrorConversion() {
 			grpcStatus:  suite.psStatus(codes.DeadlineExceeded, "deadline exceeded"),
 			expectedErr: ErrAmbiguousTimeout,
 		},
+		{
+			name:        "PermissionDeniedNoDetailBlock",
+			grpcStatus:  suite.psStatus(codes.PermissionDenied, "permission denied"),
+			expectedErr: ErrAuthenticationFailure,
+		},
+		{
+			name: "PermissionDeniedResourceTypeUser",
+			grpcStatus: suite.psStatus(codes.PermissionDenied, "permission denied", &errdetails.ResourceInfo{
+				ResourceType: resourceTypeUser,
+				ResourceName: "user1",
+			}),
+			expectedErr: ErrAuthenticationFailure,
+		},
+		{
+			name: "PermissionDeniedResourceTypeBucket",
+			grpcStatus: suite.psStatus(codes.PermissionDenied, "permission denied", &errdetails.ResourceInfo{
+				ResourceType: resourceTypeBucket,
+				ResourceName: "default",
+			}),
+			expectedErr: ErrAuthorizationFailure,
+		},
+		{
+			name: "PermissionDeniedResourceInfoNotFirstDetail",
+			grpcStatus: suite.psStatus(codes.PermissionDenied, "permission denied",
+				&errdetails.ErrorInfo{Reason: "something"},
+				&errdetails.ResourceInfo{ResourceType: resourceTypeCollection, ResourceName: "test-collection"},
+			),
+			expectedErr: ErrAuthorizationFailure,
+		},
+		{
+			name: "Unauthenticated",
+			grpcStatus: suite.psStatus(codes.Unauthenticated, "unauthenticated", &errdetails.ResourceInfo{
+				ResourceType: resourceTypeBucket,
+				ResourceName: "default",
+			}),
+			expectedErr: ErrAuthenticationFailure,
+		},
 	}
 
 	for _, tc := range testCases {

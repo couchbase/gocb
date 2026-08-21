@@ -25,6 +25,7 @@ const (
 	resourceTypeCollection  = "collection"
 	resourceTypePath        = "path"
 	resourceTypeSearchIndex = "searchindex"
+	resourceTypeUser        = "user"
 )
 
 const (
@@ -144,9 +145,18 @@ func mapPsErrorStatusToGocbError(st *status.Status, readOnly bool) *GenericError
 			baseErr = ErrAmbiguousTimeout
 		}
 	case codes.Unauthenticated:
-		baseErr = wrapError(ErrAuthenticationFailure, "server reported that permission to the resource was denied")
+		baseErr = wrapError(ErrAuthenticationFailure, "no credentials were provided - likely an SDK bug")
 	case codes.PermissionDenied:
-		baseErr = wrapError(ErrAuthenticationFailure, "server reported that permission to the resource was denied")
+		if details.resourceInfo != nil && details.resourceInfo.ResourceType != "" {
+			switch details.resourceInfo.ResourceType {
+			case resourceTypeUser:
+				baseErr = wrapError(ErrAuthenticationFailure, "the server has rejected the provided credentials")
+			default:
+				baseErr = wrapError(ErrAuthorizationFailure, "the user does not have permission to access or modify this resource")
+			}
+		} else {
+			baseErr = wrapError(ErrAuthenticationFailure, "the server has rejected the provided credentials")
+		}
 	case codes.Unimplemented:
 		baseErr = wrapError(ErrFeatureNotAvailable, st.Message())
 	case codes.Unavailable:

@@ -324,6 +324,9 @@ func getStandardizedOutcome(err error, usingStableConventions bool) string {
 	if errors.Is(err, ErrAuthenticationFailure) {
 		return "AuthenticationFailure"
 	}
+	if errors.Is(err, ErrAuthorizationFailure) {
+		return "AuthorizationFailure"
+	}
 	if errors.Is(err, ErrTemporaryFailure) {
 		return "TemporaryFailure"
 	}
