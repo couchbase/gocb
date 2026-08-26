@@ -6,3 +6,7 @@
 
 # FIT protocol generated code
 internal/cmd/fit-performer/protocol/**
+
+# Go workspace file
+go.work
+go.work.sum
