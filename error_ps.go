@@ -41,49 +41,82 @@ func mapPsErrorToGocbError(err error, readOnly bool) *GenericError {
 }
 
 type psErrorDetails struct {
-	resourceInfoType             string
-	resourceInfoName             string
-	errorInfoReason              string
-	preconditionFailureViolation string
+	preconditionFailure *errdetails.PreconditionFailure
+	errorInfo           *errdetails.ErrorInfo
+	resourceInfo        *errdetails.ResourceInfo
+	debugInfo           *errdetails.DebugInfo
+	requestInfo         *errdetails.RequestInfo
+}
+
+func (d psErrorDetails) preconditionViolation() string {
+	if d.preconditionFailure == nil || len(d.preconditionFailure.Violations) == 0 {
+		return ""
+	}
+	return d.preconditionFailure.Violations[0].Type
+}
+
+func (d psErrorDetails) addToContext(context map[string]interface{}) {
+	if d.resourceInfo != nil {
+		if d.resourceInfo.ResourceType != "" {
+			context["resource_type"] = d.resourceInfo.ResourceType
+		}
+		if d.resourceInfo.ResourceName != "" {
+			context["resource_name"] = d.resourceInfo.ResourceName
+		}
+	}
+	if d.errorInfo != nil && d.errorInfo.Reason != "" {
+		context["reason"] = d.errorInfo.Reason
+	}
+	if violation := d.preconditionViolation(); violation != "" {
+		context["precondition_violation"] = violation
+	}
+	if d.debugInfo != nil {
+		context["debug_info"] = map[string]interface{}{
+			"detail":      d.debugInfo.Detail,
+			"stack_trace": d.debugInfo.StackEntries,
+		}
+	}
+	if d.requestInfo != nil {
+		context["request_info"] = map[string]interface{}{
+			"request_id":   d.requestInfo.RequestId,
+			"serving_data": d.requestInfo.ServingData,
+		}
+	}
 }
 
 func extractPsErrorDetails(st *status.Status) psErrorDetails {
-	var preconditionFailure *errdetails.PreconditionFailure
-	var errorInfo *errdetails.ErrorInfo
-	var resourceInfo *errdetails.ResourceInfo
+	var details psErrorDetails
 
 	for _, detail := range st.Details() {
-		if preconditionFailure != nil && errorInfo != nil && resourceInfo != nil {
+		if details.preconditionFailure != nil && details.errorInfo != nil && details.resourceInfo != nil &&
+			details.debugInfo != nil && details.requestInfo != nil {
 			// No more detail blocks we could be interested in
 			break
 		}
 		switch d := detail.(type) {
 		case *errdetails.PreconditionFailure:
-			if preconditionFailure == nil {
-				preconditionFailure = d
+			if details.preconditionFailure == nil {
+				details.preconditionFailure = d
 			}
 		case *errdetails.ErrorInfo:
-			if errorInfo == nil {
-				errorInfo = d
+			if details.errorInfo == nil {
+				details.errorInfo = d
 			}
 		case *errdetails.ResourceInfo:
-			if resourceInfo == nil {
-				resourceInfo = d
+			if details.resourceInfo == nil {
+				details.resourceInfo = d
+			}
+		case *errdetails.DebugInfo:
+			if details.debugInfo == nil {
+				details.debugInfo = d
+			}
+		case *errdetails.RequestInfo:
+			if details.requestInfo == nil {
+				details.requestInfo = d
 			}
 		}
 	}
 
-	details := psErrorDetails{}
-	if preconditionFailure != nil && len(preconditionFailure.Violations) > 0 {
-		details.preconditionFailureViolation = preconditionFailure.Violations[0].Type
-	}
-	if resourceInfo != nil {
-		details.resourceInfoType = resourceInfo.ResourceType
-		details.resourceInfoName = resourceInfo.ResourceName
-	}
-	if errorInfo != nil {
-		details.errorInfoReason = errorInfo.Reason
-	}
 	return details
 }
 
@@ -94,6 +127,7 @@ func mapPsErrorStatusToGocbError(st *status.Status, readOnly bool) *GenericError
 	}
 
 	details := extractPsErrorDetails(st)
+	details.addToContext(context)
 
 	var baseErr error
 	switch st.Code() {
@@ -118,10 +152,8 @@ func mapPsErrorStatusToGocbError(st *status.Status, readOnly bool) *GenericError
 	case codes.Unavailable:
 		baseErr = ErrServiceNotAvailable
 	case codes.FailedPrecondition:
-		if details.preconditionFailureViolation != "" {
-			context["precondition_violation"] = details.preconditionFailureViolation
-
-			switch details.preconditionFailureViolation {
+		if violation := details.preconditionViolation(); violation != "" {
+			switch violation {
 			case preconditionLocked:
 				baseErr = ErrDocumentLocked
 			case preconditionNotLocked:
@@ -141,12 +173,8 @@ func mapPsErrorStatusToGocbError(st *status.Status, readOnly bool) *GenericError
 			}
 		}
 	case codes.NotFound:
-		if details.resourceInfoType != "" {
-			context["resource_type"] = details.resourceInfoType
-			if details.resourceInfoName != "" {
-				context["resource_name"] = details.resourceInfoName
-			}
-			switch details.resourceInfoType {
+		if details.resourceInfo != nil && details.resourceInfo.ResourceType != "" {
+			switch details.resourceInfo.ResourceType {
 			case resourceTypeDocument:
 				baseErr = ErrDocumentNotFound
 			case resourceTypeIndex:
@@ -164,12 +192,8 @@ func mapPsErrorStatusToGocbError(st *status.Status, readOnly bool) *GenericError
 			}
 		}
 	case codes.AlreadyExists:
-		if details.resourceInfoType != "" {
-			context["resource_type"] = details.resourceInfoType
-			if details.resourceInfoName != "" {
-				context["resource_name"] = details.resourceInfoName
-			}
-			switch details.resourceInfoType {
+		if details.resourceInfo != nil && details.resourceInfo.ResourceType != "" {
+			switch details.resourceInfo.ResourceType {
 			case resourceTypeDocument:
 				baseErr = ErrDocumentExists
 			case resourceTypeIndex:
@@ -187,9 +211,8 @@ func mapPsErrorStatusToGocbError(st *status.Status, readOnly bool) *GenericError
 			}
 		}
 	case codes.Aborted:
-		if details.errorInfoReason != "" {
-			context["reason"] = details.errorInfoReason
-			switch details.errorInfoReason {
+		if details.errorInfo != nil && details.errorInfo.Reason != "" {
+			switch details.errorInfo.Reason {
 			case reasonCasMismatch:
 				baseErr = ErrCasMismatch
 			}

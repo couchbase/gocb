@@ -192,16 +192,222 @@ func (suite *UnitTestSuite) TestProtostellarErrorDetailsExtraction() {
 				{Type: "SECOND_VIOLATION"},
 			},
 		},
+		&errdetails.DebugInfo{Detail: "FIRST_DETAIL", StackEntries: []string{"frame1", "frame2"}},
+		&errdetails.RequestInfo{RequestId: "FIRST_REQUEST_ID", ServingData: "FIRST_SERVING_DATA"},
+		&errdetails.DebugInfo{Detail: "SECOND_DETAIL", StackEntries: []string{"frame3"}},
+		&errdetails.RequestInfo{RequestId: "SECOND_REQUEST_ID", ServingData: "SECOND_SERVING_DATA"},
 	)
 
 	details := extractPsErrorDetails(st)
-	suite.Assert().Equal("FIRST_REASON", details.errorInfoReason)
-	suite.Assert().Equal("document", details.resourceInfoType)
-	suite.Assert().Equal("first-doc", details.resourceInfoName)
-	suite.Assert().Equal("FIRST_VIOLATION", details.preconditionFailureViolation)
+	suite.Assert().EqualExportedValues(&errdetails.ErrorInfo{
+		Reason: "FIRST_REASON",
+	}, details.errorInfo)
+	suite.Assert().EqualExportedValues(&errdetails.ResourceInfo{
+		ResourceType: "document",
+		ResourceName: "first-doc",
+	}, details.resourceInfo)
+	suite.Assert().EqualExportedValues(&errdetails.PreconditionFailure{
+		Violations: []*errdetails.PreconditionFailure_Violation{
+			{Type: "FIRST_VIOLATION"},
+		},
+	}, details.preconditionFailure)
+	suite.Assert().EqualExportedValues(&errdetails.DebugInfo{
+		Detail:       "FIRST_DETAIL",
+		StackEntries: []string{"frame1", "frame2"},
+	}, details.debugInfo)
+	suite.Assert().EqualExportedValues(&errdetails.RequestInfo{
+		RequestId:   "FIRST_REQUEST_ID",
+		ServingData: "FIRST_SERVING_DATA",
+	}, details.requestInfo)
 }
 
 func (suite *UnitTestSuite) TestProtostellarErrorDetailsExtractionNoDetails() {
 	details := extractPsErrorDetails(suite.psStatus(codes.NotFound, "not found"))
-	suite.Assert().Equal(psErrorDetails{}, details)
+	suite.Assert().Zero(details)
+}
+
+func (suite *UnitTestSuite) TestPsErrorDetailsAddToContext() {
+	type testCase struct {
+		name     string
+		details  psErrorDetails
+		expected map[string]interface{}
+	}
+
+	testCases := []testCase{
+		{
+			name:     "Empty",
+			details:  psErrorDetails{},
+			expected: map[string]interface{}{},
+		},
+		{
+			name: "PreconditionViolation",
+			details: psErrorDetails{
+				preconditionFailure: &errdetails.PreconditionFailure{
+					Violations: []*errdetails.PreconditionFailure_Violation{
+						{Type: "LOCKED"},
+					},
+				},
+			},
+			expected: map[string]interface{}{
+				"precondition_violation": "LOCKED",
+			},
+		},
+		{
+			name: "ResourceTypeOnly",
+			details: psErrorDetails{
+				resourceInfo: &errdetails.ResourceInfo{ResourceType: "document"},
+			},
+			expected: map[string]interface{}{
+				"resource_type": "document",
+			},
+		},
+		{
+			name: "ResourceNameOnly",
+			details: psErrorDetails{
+				resourceInfo: &errdetails.ResourceInfo{ResourceName: "my-doc"},
+			},
+			expected: map[string]interface{}{
+				"resource_name": "my-doc",
+			},
+		},
+		{
+			name: "ResourceTypeAndName",
+			details: psErrorDetails{
+				resourceInfo: &errdetails.ResourceInfo{ResourceType: "document", ResourceName: "my-doc"},
+			},
+			expected: map[string]interface{}{
+				"resource_type": "document",
+				"resource_name": "my-doc",
+			},
+		},
+		{
+			name: "Reason",
+			details: psErrorDetails{
+				errorInfo: &errdetails.ErrorInfo{Reason: "CAS_MISMATCH"},
+			},
+			expected: map[string]interface{}{
+				"reason": "CAS_MISMATCH",
+			},
+		},
+		{
+			name: "DebugInfo",
+			details: psErrorDetails{
+				debugInfo: &errdetails.DebugInfo{Detail: "some detail", StackEntries: []string{"frame1", "frame2"}},
+			},
+			expected: map[string]interface{}{
+				"debug_info": map[string]interface{}{
+					"detail":      "some detail",
+					"stack_trace": []string{"frame1", "frame2"},
+				},
+			},
+		},
+		{
+			name: "DebugInfoDetailOnly",
+			details: psErrorDetails{
+				debugInfo: &errdetails.DebugInfo{Detail: "some detail"},
+			},
+			expected: map[string]interface{}{
+				"debug_info": map[string]interface{}{
+					"detail":      "some detail",
+					"stack_trace": []string(nil),
+				},
+			},
+		},
+		{
+			name: "DebugInfoStackTraceOnly",
+			details: psErrorDetails{
+				debugInfo: &errdetails.DebugInfo{StackEntries: []string{"frame1"}},
+			},
+			expected: map[string]interface{}{
+				"debug_info": map[string]interface{}{
+					"detail":      "",
+					"stack_trace": []string{"frame1"},
+				},
+			},
+		},
+		{
+			name: "DebugInfoPresentButEmpty",
+			details: psErrorDetails{
+				debugInfo: &errdetails.DebugInfo{},
+			},
+			expected: map[string]interface{}{
+				"debug_info": map[string]interface{}{
+					"detail":      "",
+					"stack_trace": []string(nil),
+				},
+			},
+		},
+		{
+			name: "RequestInfo",
+			details: psErrorDetails{
+				requestInfo: &errdetails.RequestInfo{RequestId: "req-1", ServingData: "serving"},
+			},
+			expected: map[string]interface{}{
+				"request_info": map[string]interface{}{
+					"request_id":   "req-1",
+					"serving_data": "serving",
+				},
+			},
+		},
+		{
+			name: "RequestInfoRequestIDOnly",
+			details: psErrorDetails{
+				requestInfo: &errdetails.RequestInfo{RequestId: "req-1"},
+			},
+			expected: map[string]interface{}{
+				"request_info": map[string]interface{}{
+					"request_id":   "req-1",
+					"serving_data": "",
+				},
+			},
+		},
+		{
+			name: "RequestInfoPresentButEmpty",
+			details: psErrorDetails{
+				requestInfo: &errdetails.RequestInfo{},
+			},
+			expected: map[string]interface{}{
+				"request_info": map[string]interface{}{
+					"request_id":   "",
+					"serving_data": "",
+				},
+			},
+		},
+		{
+			name: "AllFields",
+			details: psErrorDetails{
+				resourceInfo: &errdetails.ResourceInfo{ResourceType: "document", ResourceName: "my-doc"},
+				errorInfo:    &errdetails.ErrorInfo{Reason: "CAS_MISMATCH"},
+				preconditionFailure: &errdetails.PreconditionFailure{
+					Violations: []*errdetails.PreconditionFailure_Violation{
+						{Type: "LOCKED"},
+					},
+				},
+				debugInfo:   &errdetails.DebugInfo{Detail: "some detail", StackEntries: []string{"frame1"}},
+				requestInfo: &errdetails.RequestInfo{RequestId: "req-1", ServingData: "serving"},
+			},
+			expected: map[string]interface{}{
+				"resource_type":          "document",
+				"resource_name":          "my-doc",
+				"reason":                 "CAS_MISMATCH",
+				"precondition_violation": "LOCKED",
+				"debug_info": map[string]interface{}{
+					"detail":      "some detail",
+					"stack_trace": []string{"frame1"},
+				},
+				"request_info": map[string]interface{}{
+					"request_id":   "req-1",
+					"serving_data": "serving",
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			context := map[string]interface{}{}
+			tc.details.addToContext(context)
+			suite.Assert().Equal(tc.expected, context)
+		})
+	}
 }
