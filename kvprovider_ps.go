@@ -846,6 +846,10 @@ func (p *kvProviderPs) GetAllReplicas(c *Collection, id string, opts *GetAllRepl
 	opm := newKvOpManagerPs(c, "get_all_replicas", opts.ParentSpan, p)
 	defer opm.Finish()
 
+	if opts.ReadPreference > ReadPreferenceNone {
+		return nil, wrapError(ErrFeatureNotAvailable, "The couchbase2 protocol does not support ReadPreference")
+	}
+
 	opm.SetDocumentID(id)
 	opm.SetTimeout(opts.Timeout)
 	opm.SetRetryStrategy(opts.RetryStrategy)
@@ -883,6 +887,10 @@ func (p *kvProviderPs) GetAllReplicas(c *Collection, id string, opts *GetAllRepl
 func (p *kvProviderPs) GetAnyReplica(c *Collection, id string, opts *GetAnyReplicaOptions) (*GetReplicaResult, error) {
 	opm := newKvOpManagerPs(c, "get_any_replica", opts.ParentSpan, p)
 	defer opm.Finish()
+
+	if opts.ReadPreference > ReadPreferenceNone {
+		return nil, wrapError(ErrFeatureNotAvailable, "The couchbase2 protocol does not support ReadPreference")
+	}
 
 	res, err := p.GetAllReplicas(c, id, &GetAllReplicaOptions{
 		Transcoder:    opts.Transcoder,
