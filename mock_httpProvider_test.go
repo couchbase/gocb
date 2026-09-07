@@ -74,7 +74,7 @@ type mockHttpProvider_DoHTTPRequest_Call struct {
 // DoHTTPRequest is a helper method to define mock.On call
 //   - ctx context.Context
 //   - req *gocbcore.HTTPRequest
-func (_e *mockHttpProvider_Expecter) DoHTTPRequest(ctx interface{}, req interface{}) *mockHttpProvider_DoHTTPRequest_Call {
+func (_e *mockHttpProvider_Expecter) DoHTTPRequest(ctx any, req any) *mockHttpProvider_DoHTTPRequest_Call {
 	return &mockHttpProvider_DoHTTPRequest_Call{Call: _e.mock.On("DoHTTPRequest", ctx, req)}
 }
 

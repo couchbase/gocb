@@ -72,7 +72,7 @@ type mockViewProvider_ViewQuery_Call struct {
 //   - designDoc string
 //   - viewName string
 //   - opts *ViewOptions
-func (_e *mockViewProvider_Expecter) ViewQuery(designDoc interface{}, viewName interface{}, opts interface{}) *mockViewProvider_ViewQuery_Call {
+func (_e *mockViewProvider_Expecter) ViewQuery(designDoc any, viewName any, opts any) *mockViewProvider_ViewQuery_Call {
 	return &mockViewProvider_ViewQuery_Call{Call: _e.mock.On("ViewQuery", designDoc, viewName, opts)}
 }
 

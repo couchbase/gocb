@@ -72,7 +72,7 @@ type mockQueryProvider_Query_Call struct {
 //   - statement string
 //   - s *Scope
 //   - opts *QueryOptions
-func (_e *mockQueryProvider_Expecter) Query(statement interface{}, s interface{}, opts interface{}) *mockQueryProvider_Query_Call {
+func (_e *mockQueryProvider_Expecter) Query(statement any, s any, opts any) *mockQueryProvider_Query_Call {
 	return &mockQueryProvider_Query_Call{Call: _e.mock.On("Query", statement, s, opts)}
 }
 

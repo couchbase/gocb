@@ -74,7 +74,7 @@ type mockQueryProviderCoreProvider_N1QLQuery_Call struct {
 // N1QLQuery is a helper method to define mock.On call
 //   - ctx context.Context
 //   - opts gocbcore.N1QLQueryOptions
-func (_e *mockQueryProviderCoreProvider_Expecter) N1QLQuery(ctx interface{}, opts interface{}) *mockQueryProviderCoreProvider_N1QLQuery_Call {
+func (_e *mockQueryProviderCoreProvider_Expecter) N1QLQuery(ctx any, opts any) *mockQueryProviderCoreProvider_N1QLQuery_Call {
 	return &mockQueryProviderCoreProvider_N1QLQuery_Call{Call: _e.mock.On("N1QLQuery", ctx, opts)}
 }
 
@@ -142,7 +142,7 @@ type mockQueryProviderCoreProvider_PreparedN1QLQuery_Call struct {
 // PreparedN1QLQuery is a helper method to define mock.On call
 //   - ctx context.Context
 //   - opts gocbcore.N1QLQueryOptions
-func (_e *mockQueryProviderCoreProvider_Expecter) PreparedN1QLQuery(ctx interface{}, opts interface{}) *mockQueryProviderCoreProvider_PreparedN1QLQuery_Call {
+func (_e *mockQueryProviderCoreProvider_Expecter) PreparedN1QLQuery(ctx any, opts any) *mockQueryProviderCoreProvider_PreparedN1QLQuery_Call {
 	return &mockQueryProviderCoreProvider_PreparedN1QLQuery_Call{Call: _e.mock.On("PreparedN1QLQuery", ctx, opts)}
 }
 

@@ -74,7 +74,7 @@ type mockAnalyticsProviderCoreProvider_AnalyticsQuery_Call struct {
 // AnalyticsQuery is a helper method to define mock.On call
 //   - ctx context.Context
 //   - opts gocbcore.AnalyticsQueryOptions
-func (_e *mockAnalyticsProviderCoreProvider_Expecter) AnalyticsQuery(ctx interface{}, opts interface{}) *mockAnalyticsProviderCoreProvider_AnalyticsQuery_Call {
+func (_e *mockAnalyticsProviderCoreProvider_Expecter) AnalyticsQuery(ctx any, opts any) *mockAnalyticsProviderCoreProvider_AnalyticsQuery_Call {
 	return &mockAnalyticsProviderCoreProvider_AnalyticsQuery_Call{Call: _e.mock.On("AnalyticsQuery", ctx, opts)}
 }
 

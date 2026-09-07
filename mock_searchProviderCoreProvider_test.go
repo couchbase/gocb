@@ -74,7 +74,7 @@ type mockSearchProviderCoreProvider_SearchQuery_Call struct {
 // SearchQuery is a helper method to define mock.On call
 //   - ctx context.Context
 //   - opts gocbcore.SearchQueryOptions
-func (_e *mockSearchProviderCoreProvider_Expecter) SearchQuery(ctx interface{}, opts interface{}) *mockSearchProviderCoreProvider_SearchQuery_Call {
+func (_e *mockSearchProviderCoreProvider_Expecter) SearchQuery(ctx any, opts any) *mockSearchProviderCoreProvider_SearchQuery_Call {
 	return &mockSearchProviderCoreProvider_SearchQuery_Call{Call: _e.mock.On("SearchQuery", ctx, opts)}
 }
 

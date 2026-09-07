@@ -64,7 +64,7 @@ type mockWaitUntilReadyProvider_WaitUntilReady_Call struct {
 //   - ctx context.Context
 //   - deadline time.Time
 //   - opts *WaitUntilReadyOptions
-func (_e *mockWaitUntilReadyProvider_Expecter) WaitUntilReady(ctx interface{}, deadline interface{}, opts interface{}) *mockWaitUntilReadyProvider_WaitUntilReady_Call {
+func (_e *mockWaitUntilReadyProvider_Expecter) WaitUntilReady(ctx any, deadline any, opts any) *mockWaitUntilReadyProvider_WaitUntilReady_Call {
 	return &mockWaitUntilReadyProvider_WaitUntilReady_Call{Call: _e.mock.On("WaitUntilReady", ctx, deadline, opts)}
 }
 

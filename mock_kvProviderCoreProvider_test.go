@@ -74,7 +74,7 @@ type mockKvProviderCoreProvider_Add_Call struct {
 // Add is a helper method to define mock.On call
 //   - opts gocbcore.AddOptions
 //   - cb gocbcore.StoreCallback
-func (_e *mockKvProviderCoreProvider_Expecter) Add(opts interface{}, cb interface{}) *mockKvProviderCoreProvider_Add_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) Add(opts any, cb any) *mockKvProviderCoreProvider_Add_Call {
 	return &mockKvProviderCoreProvider_Add_Call{Call: _e.mock.On("Add", opts, cb)}
 }
 
@@ -142,7 +142,7 @@ type mockKvProviderCoreProvider_Append_Call struct {
 // Append is a helper method to define mock.On call
 //   - opts gocbcore.AdjoinOptions
 //   - cb gocbcore.AdjoinCallback
-func (_e *mockKvProviderCoreProvider_Expecter) Append(opts interface{}, cb interface{}) *mockKvProviderCoreProvider_Append_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) Append(opts any, cb any) *mockKvProviderCoreProvider_Append_Call {
 	return &mockKvProviderCoreProvider_Append_Call{Call: _e.mock.On("Append", opts, cb)}
 }
 
@@ -210,7 +210,7 @@ type mockKvProviderCoreProvider_Decrement_Call struct {
 // Decrement is a helper method to define mock.On call
 //   - opts gocbcore.CounterOptions
 //   - cb gocbcore.CounterCallback
-func (_e *mockKvProviderCoreProvider_Expecter) Decrement(opts interface{}, cb interface{}) *mockKvProviderCoreProvider_Decrement_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) Decrement(opts any, cb any) *mockKvProviderCoreProvider_Decrement_Call {
 	return &mockKvProviderCoreProvider_Decrement_Call{Call: _e.mock.On("Decrement", opts, cb)}
 }
 
@@ -278,7 +278,7 @@ type mockKvProviderCoreProvider_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - opts gocbcore.DeleteOptions
 //   - cb gocbcore.DeleteCallback
-func (_e *mockKvProviderCoreProvider_Expecter) Delete(opts interface{}, cb interface{}) *mockKvProviderCoreProvider_Delete_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) Delete(opts any, cb any) *mockKvProviderCoreProvider_Delete_Call {
 	return &mockKvProviderCoreProvider_Delete_Call{Call: _e.mock.On("Delete", opts, cb)}
 }
 
@@ -346,7 +346,7 @@ type mockKvProviderCoreProvider_Get_Call struct {
 // Get is a helper method to define mock.On call
 //   - opts gocbcore.GetOptions
 //   - cb gocbcore.GetCallback
-func (_e *mockKvProviderCoreProvider_Expecter) Get(opts interface{}, cb interface{}) *mockKvProviderCoreProvider_Get_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) Get(opts any, cb any) *mockKvProviderCoreProvider_Get_Call {
 	return &mockKvProviderCoreProvider_Get_Call{Call: _e.mock.On("Get", opts, cb)}
 }
 
@@ -414,7 +414,7 @@ type mockKvProviderCoreProvider_GetAndLock_Call struct {
 // GetAndLock is a helper method to define mock.On call
 //   - opts gocbcore.GetAndLockOptions
 //   - cb gocbcore.GetAndLockCallback
-func (_e *mockKvProviderCoreProvider_Expecter) GetAndLock(opts interface{}, cb interface{}) *mockKvProviderCoreProvider_GetAndLock_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) GetAndLock(opts any, cb any) *mockKvProviderCoreProvider_GetAndLock_Call {
 	return &mockKvProviderCoreProvider_GetAndLock_Call{Call: _e.mock.On("GetAndLock", opts, cb)}
 }
 
@@ -482,7 +482,7 @@ type mockKvProviderCoreProvider_GetAndTouch_Call struct {
 // GetAndTouch is a helper method to define mock.On call
 //   - opts gocbcore.GetAndTouchOptions
 //   - cb gocbcore.GetAndTouchCallback
-func (_e *mockKvProviderCoreProvider_Expecter) GetAndTouch(opts interface{}, cb interface{}) *mockKvProviderCoreProvider_GetAndTouch_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) GetAndTouch(opts any, cb any) *mockKvProviderCoreProvider_GetAndTouch_Call {
 	return &mockKvProviderCoreProvider_GetAndTouch_Call{Call: _e.mock.On("GetAndTouch", opts, cb)}
 }
 
@@ -552,7 +552,7 @@ type mockKvProviderCoreProvider_GetCollectionID_Call struct {
 //   - collectionName string
 //   - opts gocbcore.GetCollectionIDOptions
 //   - cb gocbcore.GetCollectionIDCallback
-func (_e *mockKvProviderCoreProvider_Expecter) GetCollectionID(scopeName interface{}, collectionName interface{}, opts interface{}, cb interface{}) *mockKvProviderCoreProvider_GetCollectionID_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) GetCollectionID(scopeName any, collectionName any, opts any, cb any) *mockKvProviderCoreProvider_GetCollectionID_Call {
 	return &mockKvProviderCoreProvider_GetCollectionID_Call{Call: _e.mock.On("GetCollectionID", scopeName, collectionName, opts, cb)}
 }
 
@@ -630,7 +630,7 @@ type mockKvProviderCoreProvider_GetMeta_Call struct {
 // GetMeta is a helper method to define mock.On call
 //   - opts gocbcore.GetMetaOptions
 //   - cb gocbcore.GetMetaCallback
-func (_e *mockKvProviderCoreProvider_Expecter) GetMeta(opts interface{}, cb interface{}) *mockKvProviderCoreProvider_GetMeta_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) GetMeta(opts any, cb any) *mockKvProviderCoreProvider_GetMeta_Call {
 	return &mockKvProviderCoreProvider_GetMeta_Call{Call: _e.mock.On("GetMeta", opts, cb)}
 }
 
@@ -698,7 +698,7 @@ type mockKvProviderCoreProvider_GetOneReplica_Call struct {
 // GetOneReplica is a helper method to define mock.On call
 //   - opts gocbcore.GetOneReplicaOptions
 //   - cb gocbcore.GetReplicaCallback
-func (_e *mockKvProviderCoreProvider_Expecter) GetOneReplica(opts interface{}, cb interface{}) *mockKvProviderCoreProvider_GetOneReplica_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) GetOneReplica(opts any, cb any) *mockKvProviderCoreProvider_GetOneReplica_Call {
 	return &mockKvProviderCoreProvider_GetOneReplica_Call{Call: _e.mock.On("GetOneReplica", opts, cb)}
 }
 
@@ -766,7 +766,7 @@ type mockKvProviderCoreProvider_Increment_Call struct {
 // Increment is a helper method to define mock.On call
 //   - opts gocbcore.CounterOptions
 //   - cb gocbcore.CounterCallback
-func (_e *mockKvProviderCoreProvider_Expecter) Increment(opts interface{}, cb interface{}) *mockKvProviderCoreProvider_Increment_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) Increment(opts any, cb any) *mockKvProviderCoreProvider_Increment_Call {
 	return &mockKvProviderCoreProvider_Increment_Call{Call: _e.mock.On("Increment", opts, cb)}
 }
 
@@ -834,7 +834,7 @@ type mockKvProviderCoreProvider_LookupIn_Call struct {
 // LookupIn is a helper method to define mock.On call
 //   - opts gocbcore.LookupInOptions
 //   - cb gocbcore.LookupInCallback
-func (_e *mockKvProviderCoreProvider_Expecter) LookupIn(opts interface{}, cb interface{}) *mockKvProviderCoreProvider_LookupIn_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) LookupIn(opts any, cb any) *mockKvProviderCoreProvider_LookupIn_Call {
 	return &mockKvProviderCoreProvider_LookupIn_Call{Call: _e.mock.On("LookupIn", opts, cb)}
 }
 
@@ -902,7 +902,7 @@ type mockKvProviderCoreProvider_MutateIn_Call struct {
 // MutateIn is a helper method to define mock.On call
 //   - opts gocbcore.MutateInOptions
 //   - cb gocbcore.MutateInCallback
-func (_e *mockKvProviderCoreProvider_Expecter) MutateIn(opts interface{}, cb interface{}) *mockKvProviderCoreProvider_MutateIn_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) MutateIn(opts any, cb any) *mockKvProviderCoreProvider_MutateIn_Call {
 	return &mockKvProviderCoreProvider_MutateIn_Call{Call: _e.mock.On("MutateIn", opts, cb)}
 }
 
@@ -970,7 +970,7 @@ type mockKvProviderCoreProvider_Observe_Call struct {
 // Observe is a helper method to define mock.On call
 //   - opts gocbcore.ObserveOptions
 //   - cb gocbcore.ObserveCallback
-func (_e *mockKvProviderCoreProvider_Expecter) Observe(opts interface{}, cb interface{}) *mockKvProviderCoreProvider_Observe_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) Observe(opts any, cb any) *mockKvProviderCoreProvider_Observe_Call {
 	return &mockKvProviderCoreProvider_Observe_Call{Call: _e.mock.On("Observe", opts, cb)}
 }
 
@@ -1038,7 +1038,7 @@ type mockKvProviderCoreProvider_ObserveVb_Call struct {
 // ObserveVb is a helper method to define mock.On call
 //   - opts gocbcore.ObserveVbOptions
 //   - cb gocbcore.ObserveVbCallback
-func (_e *mockKvProviderCoreProvider_Expecter) ObserveVb(opts interface{}, cb interface{}) *mockKvProviderCoreProvider_ObserveVb_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) ObserveVb(opts any, cb any) *mockKvProviderCoreProvider_ObserveVb_Call {
 	return &mockKvProviderCoreProvider_ObserveVb_Call{Call: _e.mock.On("ObserveVb", opts, cb)}
 }
 
@@ -1106,7 +1106,7 @@ type mockKvProviderCoreProvider_Prepend_Call struct {
 // Prepend is a helper method to define mock.On call
 //   - opts gocbcore.AdjoinOptions
 //   - cb gocbcore.AdjoinCallback
-func (_e *mockKvProviderCoreProvider_Expecter) Prepend(opts interface{}, cb interface{}) *mockKvProviderCoreProvider_Prepend_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) Prepend(opts any, cb any) *mockKvProviderCoreProvider_Prepend_Call {
 	return &mockKvProviderCoreProvider_Prepend_Call{Call: _e.mock.On("Prepend", opts, cb)}
 }
 
@@ -1175,7 +1175,7 @@ type mockKvProviderCoreProvider_RangeScanCreate_Call struct {
 //   - vbID uint16
 //   - opts gocbcore.RangeScanCreateOptions
 //   - cb gocbcore.RangeScanCreateCallback
-func (_e *mockKvProviderCoreProvider_Expecter) RangeScanCreate(vbID interface{}, opts interface{}, cb interface{}) *mockKvProviderCoreProvider_RangeScanCreate_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) RangeScanCreate(vbID any, opts any, cb any) *mockKvProviderCoreProvider_RangeScanCreate_Call {
 	return &mockKvProviderCoreProvider_RangeScanCreate_Call{Call: _e.mock.On("RangeScanCreate", vbID, opts, cb)}
 }
 
@@ -1248,7 +1248,7 @@ type mockKvProviderCoreProvider_Replace_Call struct {
 // Replace is a helper method to define mock.On call
 //   - opts gocbcore.ReplaceOptions
 //   - cb gocbcore.StoreCallback
-func (_e *mockKvProviderCoreProvider_Expecter) Replace(opts interface{}, cb interface{}) *mockKvProviderCoreProvider_Replace_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) Replace(opts any, cb any) *mockKvProviderCoreProvider_Replace_Call {
 	return &mockKvProviderCoreProvider_Replace_Call{Call: _e.mock.On("Replace", opts, cb)}
 }
 
@@ -1316,7 +1316,7 @@ type mockKvProviderCoreProvider_Set_Call struct {
 // Set is a helper method to define mock.On call
 //   - opts gocbcore.SetOptions
 //   - cb gocbcore.StoreCallback
-func (_e *mockKvProviderCoreProvider_Expecter) Set(opts interface{}, cb interface{}) *mockKvProviderCoreProvider_Set_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) Set(opts any, cb any) *mockKvProviderCoreProvider_Set_Call {
 	return &mockKvProviderCoreProvider_Set_Call{Call: _e.mock.On("Set", opts, cb)}
 }
 
@@ -1384,7 +1384,7 @@ type mockKvProviderCoreProvider_Touch_Call struct {
 // Touch is a helper method to define mock.On call
 //   - opts gocbcore.TouchOptions
 //   - cb gocbcore.TouchCallback
-func (_e *mockKvProviderCoreProvider_Expecter) Touch(opts interface{}, cb interface{}) *mockKvProviderCoreProvider_Touch_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) Touch(opts any, cb any) *mockKvProviderCoreProvider_Touch_Call {
 	return &mockKvProviderCoreProvider_Touch_Call{Call: _e.mock.On("Touch", opts, cb)}
 }
 
@@ -1452,7 +1452,7 @@ type mockKvProviderCoreProvider_Unlock_Call struct {
 // Unlock is a helper method to define mock.On call
 //   - opts gocbcore.UnlockOptions
 //   - cb gocbcore.UnlockCallback
-func (_e *mockKvProviderCoreProvider_Expecter) Unlock(opts interface{}, cb interface{}) *mockKvProviderCoreProvider_Unlock_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) Unlock(opts any, cb any) *mockKvProviderCoreProvider_Unlock_Call {
 	return &mockKvProviderCoreProvider_Unlock_Call{Call: _e.mock.On("Unlock", opts, cb)}
 }
 
@@ -1521,7 +1521,7 @@ type mockKvProviderCoreProvider_WaitForConfigSnapshot_Call struct {
 //   - deadline time.Time
 //   - opts gocbcore.WaitForConfigSnapshotOptions
 //   - cb gocbcore.WaitForConfigSnapshotCallback
-func (_e *mockKvProviderCoreProvider_Expecter) WaitForConfigSnapshot(deadline interface{}, opts interface{}, cb interface{}) *mockKvProviderCoreProvider_WaitForConfigSnapshot_Call {
+func (_e *mockKvProviderCoreProvider_Expecter) WaitForConfigSnapshot(deadline any, opts any, cb any) *mockKvProviderCoreProvider_WaitForConfigSnapshot_Call {
 	return &mockKvProviderCoreProvider_WaitForConfigSnapshot_Call{Call: _e.mock.On("WaitForConfigSnapshot", deadline, opts, cb)}
 }
 

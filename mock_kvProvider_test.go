@@ -75,7 +75,7 @@ type mockKvProvider_Append_Call struct {
 //   - s string
 //   - bytes []byte
 //   - appendOptions *AppendOptions
-func (_e *mockKvProvider_Expecter) Append(collection interface{}, s interface{}, bytes interface{}, appendOptions interface{}) *mockKvProvider_Append_Call {
+func (_e *mockKvProvider_Expecter) Append(collection any, s any, bytes any, appendOptions any) *mockKvProvider_Append_Call {
 	return &mockKvProvider_Append_Call{Call: _e.mock.On("Append", collection, s, bytes, appendOptions)}
 }
 
@@ -154,7 +154,7 @@ type mockKvProvider_Decrement_Call struct {
 //   - collection *Collection
 //   - s string
 //   - decrementOptions *DecrementOptions
-func (_e *mockKvProvider_Expecter) Decrement(collection interface{}, s interface{}, decrementOptions interface{}) *mockKvProvider_Decrement_Call {
+func (_e *mockKvProvider_Expecter) Decrement(collection any, s any, decrementOptions any) *mockKvProvider_Decrement_Call {
 	return &mockKvProvider_Decrement_Call{Call: _e.mock.On("Decrement", collection, s, decrementOptions)}
 }
 
@@ -228,7 +228,7 @@ type mockKvProvider_Exists_Call struct {
 //   - collection *Collection
 //   - s string
 //   - existsOptions *ExistsOptions
-func (_e *mockKvProvider_Expecter) Exists(collection interface{}, s interface{}, existsOptions interface{}) *mockKvProvider_Exists_Call {
+func (_e *mockKvProvider_Expecter) Exists(collection any, s any, existsOptions any) *mockKvProvider_Exists_Call {
 	return &mockKvProvider_Exists_Call{Call: _e.mock.On("Exists", collection, s, existsOptions)}
 }
 
@@ -302,7 +302,7 @@ type mockKvProvider_Get_Call struct {
 //   - collection *Collection
 //   - s string
 //   - getOptions *GetOptions
-func (_e *mockKvProvider_Expecter) Get(collection interface{}, s interface{}, getOptions interface{}) *mockKvProvider_Get_Call {
+func (_e *mockKvProvider_Expecter) Get(collection any, s any, getOptions any) *mockKvProvider_Get_Call {
 	return &mockKvProvider_Get_Call{Call: _e.mock.On("Get", collection, s, getOptions)}
 }
 
@@ -376,7 +376,7 @@ type mockKvProvider_GetAllReplicas_Call struct {
 //   - collection *Collection
 //   - s string
 //   - getAllReplicaOptions *GetAllReplicaOptions
-func (_e *mockKvProvider_Expecter) GetAllReplicas(collection interface{}, s interface{}, getAllReplicaOptions interface{}) *mockKvProvider_GetAllReplicas_Call {
+func (_e *mockKvProvider_Expecter) GetAllReplicas(collection any, s any, getAllReplicaOptions any) *mockKvProvider_GetAllReplicas_Call {
 	return &mockKvProvider_GetAllReplicas_Call{Call: _e.mock.On("GetAllReplicas", collection, s, getAllReplicaOptions)}
 }
 
@@ -451,7 +451,7 @@ type mockKvProvider_GetAndLock_Call struct {
 //   - s string
 //   - duration time.Duration
 //   - getAndLockOptions *GetAndLockOptions
-func (_e *mockKvProvider_Expecter) GetAndLock(collection interface{}, s interface{}, duration interface{}, getAndLockOptions interface{}) *mockKvProvider_GetAndLock_Call {
+func (_e *mockKvProvider_Expecter) GetAndLock(collection any, s any, duration any, getAndLockOptions any) *mockKvProvider_GetAndLock_Call {
 	return &mockKvProvider_GetAndLock_Call{Call: _e.mock.On("GetAndLock", collection, s, duration, getAndLockOptions)}
 }
 
@@ -531,7 +531,7 @@ type mockKvProvider_GetAndTouch_Call struct {
 //   - s string
 //   - duration time.Duration
 //   - getAndTouchOptions *GetAndTouchOptions
-func (_e *mockKvProvider_Expecter) GetAndTouch(collection interface{}, s interface{}, duration interface{}, getAndTouchOptions interface{}) *mockKvProvider_GetAndTouch_Call {
+func (_e *mockKvProvider_Expecter) GetAndTouch(collection any, s any, duration any, getAndTouchOptions any) *mockKvProvider_GetAndTouch_Call {
 	return &mockKvProvider_GetAndTouch_Call{Call: _e.mock.On("GetAndTouch", collection, s, duration, getAndTouchOptions)}
 }
 
@@ -610,7 +610,7 @@ type mockKvProvider_GetAnyReplica_Call struct {
 //   - c *Collection
 //   - id string
 //   - opts *GetAnyReplicaOptions
-func (_e *mockKvProvider_Expecter) GetAnyReplica(c interface{}, id interface{}, opts interface{}) *mockKvProvider_GetAnyReplica_Call {
+func (_e *mockKvProvider_Expecter) GetAnyReplica(c any, id any, opts any) *mockKvProvider_GetAnyReplica_Call {
 	return &mockKvProvider_GetAnyReplica_Call{Call: _e.mock.On("GetAnyReplica", c, id, opts)}
 }
 
@@ -684,7 +684,7 @@ type mockKvProvider_Increment_Call struct {
 //   - collection *Collection
 //   - s string
 //   - incrementOptions *IncrementOptions
-func (_e *mockKvProvider_Expecter) Increment(collection interface{}, s interface{}, incrementOptions interface{}) *mockKvProvider_Increment_Call {
+func (_e *mockKvProvider_Expecter) Increment(collection any, s any, incrementOptions any) *mockKvProvider_Increment_Call {
 	return &mockKvProvider_Increment_Call{Call: _e.mock.On("Increment", collection, s, incrementOptions)}
 }
 
@@ -759,7 +759,7 @@ type mockKvProvider_Insert_Call struct {
 //   - s string
 //   - ifaceVal interface{}
 //   - insertOptions *InsertOptions
-func (_e *mockKvProvider_Expecter) Insert(collection interface{}, s interface{}, ifaceVal interface{}, insertOptions interface{}) *mockKvProvider_Insert_Call {
+func (_e *mockKvProvider_Expecter) Insert(collection any, s any, ifaceVal any, insertOptions any) *mockKvProvider_Insert_Call {
 	return &mockKvProvider_Insert_Call{Call: _e.mock.On("Insert", collection, s, ifaceVal, insertOptions)}
 }
 
@@ -839,7 +839,7 @@ type mockKvProvider_LookupIn_Call struct {
 //   - s string
 //   - lookupInSpecs []LookupInSpec
 //   - lookupInOptions *LookupInOptions
-func (_e *mockKvProvider_Expecter) LookupIn(collection interface{}, s interface{}, lookupInSpecs interface{}, lookupInOptions interface{}) *mockKvProvider_LookupIn_Call {
+func (_e *mockKvProvider_Expecter) LookupIn(collection any, s any, lookupInSpecs any, lookupInOptions any) *mockKvProvider_LookupIn_Call {
 	return &mockKvProvider_LookupIn_Call{Call: _e.mock.On("LookupIn", collection, s, lookupInSpecs, lookupInOptions)}
 }
 
@@ -919,7 +919,7 @@ type mockKvProvider_LookupInAllReplicas_Call struct {
 //   - s string
 //   - lookupInSpecs []LookupInSpec
 //   - lookupInAllReplicaOptions *LookupInAllReplicaOptions
-func (_e *mockKvProvider_Expecter) LookupInAllReplicas(collection interface{}, s interface{}, lookupInSpecs interface{}, lookupInAllReplicaOptions interface{}) *mockKvProvider_LookupInAllReplicas_Call {
+func (_e *mockKvProvider_Expecter) LookupInAllReplicas(collection any, s any, lookupInSpecs any, lookupInAllReplicaOptions any) *mockKvProvider_LookupInAllReplicas_Call {
 	return &mockKvProvider_LookupInAllReplicas_Call{Call: _e.mock.On("LookupInAllReplicas", collection, s, lookupInSpecs, lookupInAllReplicaOptions)}
 }
 
@@ -999,7 +999,7 @@ type mockKvProvider_LookupInAnyReplica_Call struct {
 //   - s string
 //   - lookupInSpecs []LookupInSpec
 //   - lookupInAnyReplicaOptions *LookupInAnyReplicaOptions
-func (_e *mockKvProvider_Expecter) LookupInAnyReplica(collection interface{}, s interface{}, lookupInSpecs interface{}, lookupInAnyReplicaOptions interface{}) *mockKvProvider_LookupInAnyReplica_Call {
+func (_e *mockKvProvider_Expecter) LookupInAnyReplica(collection any, s any, lookupInSpecs any, lookupInAnyReplicaOptions any) *mockKvProvider_LookupInAnyReplica_Call {
 	return &mockKvProvider_LookupInAnyReplica_Call{Call: _e.mock.On("LookupInAnyReplica", collection, s, lookupInSpecs, lookupInAnyReplicaOptions)}
 }
 
@@ -1079,7 +1079,7 @@ type mockKvProvider_MutateIn_Call struct {
 //   - s string
 //   - mutateInSpecs []MutateInSpec
 //   - mutateInOptions *MutateInOptions
-func (_e *mockKvProvider_Expecter) MutateIn(collection interface{}, s interface{}, mutateInSpecs interface{}, mutateInOptions interface{}) *mockKvProvider_MutateIn_Call {
+func (_e *mockKvProvider_Expecter) MutateIn(collection any, s any, mutateInSpecs any, mutateInOptions any) *mockKvProvider_MutateIn_Call {
 	return &mockKvProvider_MutateIn_Call{Call: _e.mock.On("MutateIn", collection, s, mutateInSpecs, mutateInOptions)}
 }
 
@@ -1159,7 +1159,7 @@ type mockKvProvider_Prepend_Call struct {
 //   - s string
 //   - bytes []byte
 //   - prependOptions *PrependOptions
-func (_e *mockKvProvider_Expecter) Prepend(collection interface{}, s interface{}, bytes interface{}, prependOptions interface{}) *mockKvProvider_Prepend_Call {
+func (_e *mockKvProvider_Expecter) Prepend(collection any, s any, bytes any, prependOptions any) *mockKvProvider_Prepend_Call {
 	return &mockKvProvider_Prepend_Call{Call: _e.mock.On("Prepend", collection, s, bytes, prependOptions)}
 }
 
@@ -1238,7 +1238,7 @@ type mockKvProvider_Remove_Call struct {
 //   - collection *Collection
 //   - s string
 //   - removeOptions *RemoveOptions
-func (_e *mockKvProvider_Expecter) Remove(collection interface{}, s interface{}, removeOptions interface{}) *mockKvProvider_Remove_Call {
+func (_e *mockKvProvider_Expecter) Remove(collection any, s any, removeOptions any) *mockKvProvider_Remove_Call {
 	return &mockKvProvider_Remove_Call{Call: _e.mock.On("Remove", collection, s, removeOptions)}
 }
 
@@ -1313,7 +1313,7 @@ type mockKvProvider_Replace_Call struct {
 //   - s string
 //   - ifaceVal interface{}
 //   - replaceOptions *ReplaceOptions
-func (_e *mockKvProvider_Expecter) Replace(collection interface{}, s interface{}, ifaceVal interface{}, replaceOptions interface{}) *mockKvProvider_Replace_Call {
+func (_e *mockKvProvider_Expecter) Replace(collection any, s any, ifaceVal any, replaceOptions any) *mockKvProvider_Replace_Call {
 	return &mockKvProvider_Replace_Call{Call: _e.mock.On("Replace", collection, s, ifaceVal, replaceOptions)}
 }
 
@@ -1392,7 +1392,7 @@ type mockKvProvider_Scan_Call struct {
 //   - collection *Collection
 //   - scanType ScanType
 //   - scanOptions *ScanOptions
-func (_e *mockKvProvider_Expecter) Scan(collection interface{}, scanType interface{}, scanOptions interface{}) *mockKvProvider_Scan_Call {
+func (_e *mockKvProvider_Expecter) Scan(collection any, scanType any, scanOptions any) *mockKvProvider_Scan_Call {
 	return &mockKvProvider_Scan_Call{Call: _e.mock.On("Scan", collection, scanType, scanOptions)}
 }
 
@@ -1457,7 +1457,7 @@ type mockKvProvider_StartKvOpTrace_Call struct {
 //   - collection *Collection
 //   - s string
 //   - requestSpan RequestSpan
-func (_e *mockKvProvider_Expecter) StartKvOpTrace(collection interface{}, s interface{}, requestSpan interface{}) *mockKvProvider_StartKvOpTrace_Call {
+func (_e *mockKvProvider_Expecter) StartKvOpTrace(collection any, s any, requestSpan any) *mockKvProvider_StartKvOpTrace_Call {
 	return &mockKvProvider_StartKvOpTrace_Call{Call: _e.mock.On("StartKvOpTrace", collection, s, requestSpan)}
 }
 
@@ -1532,7 +1532,7 @@ type mockKvProvider_Touch_Call struct {
 //   - s string
 //   - duration time.Duration
 //   - touchOptions *TouchOptions
-func (_e *mockKvProvider_Expecter) Touch(collection interface{}, s interface{}, duration interface{}, touchOptions interface{}) *mockKvProvider_Touch_Call {
+func (_e *mockKvProvider_Expecter) Touch(collection any, s any, duration any, touchOptions any) *mockKvProvider_Touch_Call {
 	return &mockKvProvider_Touch_Call{Call: _e.mock.On("Touch", collection, s, duration, touchOptions)}
 }
 
@@ -1601,7 +1601,7 @@ type mockKvProvider_Unlock_Call struct {
 //   - s string
 //   - cas Cas
 //   - unlockOptions *UnlockOptions
-func (_e *mockKvProvider_Expecter) Unlock(collection interface{}, s interface{}, cas interface{}, unlockOptions interface{}) *mockKvProvider_Unlock_Call {
+func (_e *mockKvProvider_Expecter) Unlock(collection any, s any, cas any, unlockOptions any) *mockKvProvider_Unlock_Call {
 	return &mockKvProvider_Unlock_Call{Call: _e.mock.On("Unlock", collection, s, cas, unlockOptions)}
 }
 
@@ -1681,7 +1681,7 @@ type mockKvProvider_Upsert_Call struct {
 //   - s string
 //   - ifaceVal interface{}
 //   - upsertOptions *UpsertOptions
-func (_e *mockKvProvider_Expecter) Upsert(collection interface{}, s interface{}, ifaceVal interface{}, upsertOptions interface{}) *mockKvProvider_Upsert_Call {
+func (_e *mockKvProvider_Expecter) Upsert(collection any, s any, ifaceVal any, upsertOptions any) *mockKvProvider_Upsert_Call {
 	return &mockKvProvider_Upsert_Call{Call: _e.mock.On("Upsert", collection, s, ifaceVal, upsertOptions)}
 }
 

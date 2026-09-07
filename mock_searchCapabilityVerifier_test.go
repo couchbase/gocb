@@ -60,7 +60,7 @@ type mockSearchCapabilityVerifier_SearchCapabilityStatus_Call struct {
 
 // SearchCapabilityStatus is a helper method to define mock.On call
 //   - cap gocbcore.SearchCapability
-func (_e *mockSearchCapabilityVerifier_Expecter) SearchCapabilityStatus(cap interface{}) *mockSearchCapabilityVerifier_SearchCapabilityStatus_Call {
+func (_e *mockSearchCapabilityVerifier_Expecter) SearchCapabilityStatus(cap any) *mockSearchCapabilityVerifier_SearchCapabilityStatus_Call {
 	return &mockSearchCapabilityVerifier_SearchCapabilityStatus_Call{Call: _e.mock.On("SearchCapabilityStatus", cap)}
 }
 

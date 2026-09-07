@@ -73,7 +73,7 @@ type mockDiagnosticsProviderCoreProvider_Diagnostics_Call struct {
 
 // Diagnostics is a helper method to define mock.On call
 //   - opts gocbcore.DiagnosticsOptions
-func (_e *mockDiagnosticsProviderCoreProvider_Expecter) Diagnostics(opts interface{}) *mockDiagnosticsProviderCoreProvider_Diagnostics_Call {
+func (_e *mockDiagnosticsProviderCoreProvider_Expecter) Diagnostics(opts any) *mockDiagnosticsProviderCoreProvider_Diagnostics_Call {
 	return &mockDiagnosticsProviderCoreProvider_Diagnostics_Call{Call: _e.mock.On("Diagnostics", opts)}
 }
 
@@ -136,7 +136,7 @@ type mockDiagnosticsProviderCoreProvider_Ping_Call struct {
 // Ping is a helper method to define mock.On call
 //   - ctx context.Context
 //   - opts gocbcore.PingOptions
-func (_e *mockDiagnosticsProviderCoreProvider_Expecter) Ping(ctx interface{}, opts interface{}) *mockDiagnosticsProviderCoreProvider_Ping_Call {
+func (_e *mockDiagnosticsProviderCoreProvider_Expecter) Ping(ctx any, opts any) *mockDiagnosticsProviderCoreProvider_Ping_Call {
 	return &mockDiagnosticsProviderCoreProvider_Ping_Call{Call: _e.mock.On("Ping", ctx, opts)}
 }
 

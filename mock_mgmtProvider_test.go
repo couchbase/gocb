@@ -73,7 +73,7 @@ type mockMgmtProvider_executeMgmtRequest_Call struct {
 // executeMgmtRequest is a helper method to define mock.On call
 //   - ctx context.Context
 //   - req mgmtRequest
-func (_e *mockMgmtProvider_Expecter) executeMgmtRequest(ctx interface{}, req interface{}) *mockMgmtProvider_executeMgmtRequest_Call {
+func (_e *mockMgmtProvider_Expecter) executeMgmtRequest(ctx any, req any) *mockMgmtProvider_executeMgmtRequest_Call {
 	return &mockMgmtProvider_executeMgmtRequest_Call{Call: _e.mock.On("executeMgmtRequest", ctx, req)}
 }
 

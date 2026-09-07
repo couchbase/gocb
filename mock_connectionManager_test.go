@@ -137,7 +137,7 @@ type mockConnectionManager_SetAuthenticator_Call struct {
 
 // SetAuthenticator is a helper method to define mock.On call
 //   - opts SetAuthenticatorOptions
-func (_e *mockConnectionManager_Expecter) SetAuthenticator(opts interface{}) *mockConnectionManager_SetAuthenticator_Call {
+func (_e *mockConnectionManager_Expecter) SetAuthenticator(opts any) *mockConnectionManager_SetAuthenticator_Call {
 	return &mockConnectionManager_SetAuthenticator_Call{Call: _e.mock.On("SetAuthenticator", opts)}
 }
 
@@ -243,7 +243,7 @@ type mockConnectionManager_connection_Call struct {
 
 // connection is a helper method to define mock.On call
 //   - bucketName string
-func (_e *mockConnectionManager_Expecter) connection(bucketName interface{}) *mockConnectionManager_connection_Call {
+func (_e *mockConnectionManager_Expecter) connection(bucketName any) *mockConnectionManager_connection_Call {
 	return &mockConnectionManager_connection_Call{Call: _e.mock.On("connection", bucketName)}
 }
 
@@ -470,7 +470,7 @@ type mockConnectionManager_getCollectionsManagementProvider_Call struct {
 
 // getCollectionsManagementProvider is a helper method to define mock.On call
 //   - bucketName string
-func (_e *mockConnectionManager_Expecter) getCollectionsManagementProvider(bucketName interface{}) *mockConnectionManager_getCollectionsManagementProvider_Call {
+func (_e *mockConnectionManager_Expecter) getCollectionsManagementProvider(bucketName any) *mockConnectionManager_getCollectionsManagementProvider_Call {
 	return &mockConnectionManager_getCollectionsManagementProvider_Call{Call: _e.mock.On("getCollectionsManagementProvider", bucketName)}
 }
 
@@ -532,7 +532,7 @@ type mockConnectionManager_getDiagnosticsProvider_Call struct {
 
 // getDiagnosticsProvider is a helper method to define mock.On call
 //   - bucketName string
-func (_e *mockConnectionManager_Expecter) getDiagnosticsProvider(bucketName interface{}) *mockConnectionManager_getDiagnosticsProvider_Call {
+func (_e *mockConnectionManager_Expecter) getDiagnosticsProvider(bucketName any) *mockConnectionManager_getDiagnosticsProvider_Call {
 	return &mockConnectionManager_getDiagnosticsProvider_Call{Call: _e.mock.On("getDiagnosticsProvider", bucketName)}
 }
 
@@ -649,7 +649,7 @@ type mockConnectionManager_getHTTPProvider_Call struct {
 
 // getHTTPProvider is a helper method to define mock.On call
 //   - bucketName string
-func (_e *mockConnectionManager_Expecter) getHTTPProvider(bucketName interface{}) *mockConnectionManager_getHTTPProvider_Call {
+func (_e *mockConnectionManager_Expecter) getHTTPProvider(bucketName any) *mockConnectionManager_getHTTPProvider_Call {
 	return &mockConnectionManager_getHTTPProvider_Call{Call: _e.mock.On("getHTTPProvider", bucketName)}
 }
 
@@ -766,7 +766,7 @@ type mockConnectionManager_getKvBulkProvider_Call struct {
 
 // getKvBulkProvider is a helper method to define mock.On call
 //   - bucketName string
-func (_e *mockConnectionManager_Expecter) getKvBulkProvider(bucketName interface{}) *mockConnectionManager_getKvBulkProvider_Call {
+func (_e *mockConnectionManager_Expecter) getKvBulkProvider(bucketName any) *mockConnectionManager_getKvBulkProvider_Call {
 	return &mockConnectionManager_getKvBulkProvider_Call{Call: _e.mock.On("getKvBulkProvider", bucketName)}
 }
 
@@ -828,7 +828,7 @@ type mockConnectionManager_getKvCapabilitiesProvider_Call struct {
 
 // getKvCapabilitiesProvider is a helper method to define mock.On call
 //   - bucketName string
-func (_e *mockConnectionManager_Expecter) getKvCapabilitiesProvider(bucketName interface{}) *mockConnectionManager_getKvCapabilitiesProvider_Call {
+func (_e *mockConnectionManager_Expecter) getKvCapabilitiesProvider(bucketName any) *mockConnectionManager_getKvCapabilitiesProvider_Call {
 	return &mockConnectionManager_getKvCapabilitiesProvider_Call{Call: _e.mock.On("getKvCapabilitiesProvider", bucketName)}
 }
 
@@ -890,7 +890,7 @@ type mockConnectionManager_getKvProvider_Call struct {
 
 // getKvProvider is a helper method to define mock.On call
 //   - bucketName string
-func (_e *mockConnectionManager_Expecter) getKvProvider(bucketName interface{}) *mockConnectionManager_getKvProvider_Call {
+func (_e *mockConnectionManager_Expecter) getKvProvider(bucketName any) *mockConnectionManager_getKvProvider_Call {
 	return &mockConnectionManager_getKvProvider_Call{Call: _e.mock.On("getKvProvider", bucketName)}
 }
 
@@ -1383,7 +1383,7 @@ type mockConnectionManager_getViewIndexProvider_Call struct {
 
 // getViewIndexProvider is a helper method to define mock.On call
 //   - bucketName string
-func (_e *mockConnectionManager_Expecter) getViewIndexProvider(bucketName interface{}) *mockConnectionManager_getViewIndexProvider_Call {
+func (_e *mockConnectionManager_Expecter) getViewIndexProvider(bucketName any) *mockConnectionManager_getViewIndexProvider_Call {
 	return &mockConnectionManager_getViewIndexProvider_Call{Call: _e.mock.On("getViewIndexProvider", bucketName)}
 }
 
@@ -1445,7 +1445,7 @@ type mockConnectionManager_getViewProvider_Call struct {
 
 // getViewProvider is a helper method to define mock.On call
 //   - bucketName string
-func (_e *mockConnectionManager_Expecter) getViewProvider(bucketName interface{}) *mockConnectionManager_getViewProvider_Call {
+func (_e *mockConnectionManager_Expecter) getViewProvider(bucketName any) *mockConnectionManager_getViewProvider_Call {
 	return &mockConnectionManager_getViewProvider_Call{Call: _e.mock.On("getViewProvider", bucketName)}
 }
 
@@ -1507,7 +1507,7 @@ type mockConnectionManager_getWaitUntilReadyProvider_Call struct {
 
 // getWaitUntilReadyProvider is a helper method to define mock.On call
 //   - bucketName string
-func (_e *mockConnectionManager_Expecter) getWaitUntilReadyProvider(bucketName interface{}) *mockConnectionManager_getWaitUntilReadyProvider_Call {
+func (_e *mockConnectionManager_Expecter) getWaitUntilReadyProvider(bucketName any) *mockConnectionManager_getWaitUntilReadyProvider_Call {
 	return &mockConnectionManager_getWaitUntilReadyProvider_Call{Call: _e.mock.On("getWaitUntilReadyProvider", bucketName)}
 }
 
@@ -1558,7 +1558,7 @@ type mockConnectionManager_initTransactions_Call struct {
 
 // initTransactions is a helper method to define mock.On call
 //   - cluster *Cluster
-func (_e *mockConnectionManager_Expecter) initTransactions(cluster interface{}) *mockConnectionManager_initTransactions_Call {
+func (_e *mockConnectionManager_Expecter) initTransactions(cluster any) *mockConnectionManager_initTransactions_Call {
 	return &mockConnectionManager_initTransactions_Call{Call: _e.mock.On("initTransactions", cluster)}
 }
 
@@ -1609,7 +1609,7 @@ type mockConnectionManager_openBucket_Call struct {
 
 // openBucket is a helper method to define mock.On call
 //   - bucketName string
-func (_e *mockConnectionManager_Expecter) openBucket(bucketName interface{}) *mockConnectionManager_openBucket_Call {
+func (_e *mockConnectionManager_Expecter) openBucket(bucketName any) *mockConnectionManager_openBucket_Call {
 	return &mockConnectionManager_openBucket_Call{Call: _e.mock.On("openBucket", bucketName)}
 }
 

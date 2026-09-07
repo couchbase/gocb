@@ -72,7 +72,7 @@ type mockAnalyticsProvider_AnalyticsQuery_Call struct {
 //   - statement string
 //   - scope *Scope
 //   - opts *AnalyticsOptions
-func (_e *mockAnalyticsProvider_Expecter) AnalyticsQuery(statement interface{}, scope interface{}, opts interface{}) *mockAnalyticsProvider_AnalyticsQuery_Call {
+func (_e *mockAnalyticsProvider_Expecter) AnalyticsQuery(statement any, scope any, opts any) *mockAnalyticsProvider_AnalyticsQuery_Call {
 	return &mockAnalyticsProvider_AnalyticsQuery_Call{Call: _e.mock.On("AnalyticsQuery", statement, scope, opts)}
 }
 

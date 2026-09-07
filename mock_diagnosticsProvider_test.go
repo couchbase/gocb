@@ -70,7 +70,7 @@ type mockDiagnosticsProvider_Diagnostics_Call struct {
 
 // Diagnostics is a helper method to define mock.On call
 //   - opts *DiagnosticsOptions
-func (_e *mockDiagnosticsProvider_Expecter) Diagnostics(opts interface{}) *mockDiagnosticsProvider_Diagnostics_Call {
+func (_e *mockDiagnosticsProvider_Expecter) Diagnostics(opts any) *mockDiagnosticsProvider_Diagnostics_Call {
 	return &mockDiagnosticsProvider_Diagnostics_Call{Call: _e.mock.On("Diagnostics", opts)}
 }
 
@@ -132,7 +132,7 @@ type mockDiagnosticsProvider_Ping_Call struct {
 
 // Ping is a helper method to define mock.On call
 //   - opts *PingOptions
-func (_e *mockDiagnosticsProvider_Expecter) Ping(opts interface{}) *mockDiagnosticsProvider_Ping_Call {
+func (_e *mockDiagnosticsProvider_Expecter) Ping(opts any) *mockDiagnosticsProvider_Ping_Call {
 	return &mockDiagnosticsProvider_Ping_Call{Call: _e.mock.On("Ping", opts)}
 }
 

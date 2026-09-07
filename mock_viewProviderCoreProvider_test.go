@@ -74,7 +74,7 @@ type mockViewProviderCoreProvider_ViewQuery_Call struct {
 // ViewQuery is a helper method to define mock.On call
 //   - ctx context.Context
 //   - opts gocbcore.ViewQueryOptions
-func (_e *mockViewProviderCoreProvider_Expecter) ViewQuery(ctx interface{}, opts interface{}) *mockViewProviderCoreProvider_ViewQuery_Call {
+func (_e *mockViewProviderCoreProvider_Expecter) ViewQuery(ctx any, opts any) *mockViewProviderCoreProvider_ViewQuery_Call {
 	return &mockViewProviderCoreProvider_ViewQuery_Call{Call: _e.mock.On("ViewQuery", ctx, opts)}
 }
 

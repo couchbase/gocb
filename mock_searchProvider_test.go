@@ -74,7 +74,7 @@ type mockSearchProvider_Search_Call struct {
 //   - indexName string
 //   - request SearchRequest
 //   - opts *SearchOptions
-func (_e *mockSearchProvider_Expecter) Search(scope interface{}, indexName interface{}, request interface{}, opts interface{}) *mockSearchProvider_Search_Call {
+func (_e *mockSearchProvider_Expecter) Search(scope any, indexName any, request any, opts any) *mockSearchProvider_Search_Call {
 	return &mockSearchProvider_Search_Call{Call: _e.mock.On("Search", scope, indexName, request, opts)}
 }
 
@@ -153,7 +153,7 @@ type mockSearchProvider_SearchQuery_Call struct {
 //   - indexName string
 //   - query search.Query
 //   - opts *SearchOptions
-func (_e *mockSearchProvider_Expecter) SearchQuery(indexName interface{}, query interface{}, opts interface{}) *mockSearchProvider_SearchQuery_Call {
+func (_e *mockSearchProvider_Expecter) SearchQuery(indexName any, query any, opts any) *mockSearchProvider_SearchQuery_Call {
 	return &mockSearchProvider_SearchQuery_Call{Call: _e.mock.On("SearchQuery", indexName, query, opts)}
 }
 

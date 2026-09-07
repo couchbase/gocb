@@ -60,7 +60,7 @@ type mockKvCapabilityVerifier_BucketCapabilityStatus_Call struct {
 
 // BucketCapabilityStatus is a helper method to define mock.On call
 //   - cap gocbcore.BucketCapability
-func (_e *mockKvCapabilityVerifier_Expecter) BucketCapabilityStatus(cap interface{}) *mockKvCapabilityVerifier_BucketCapabilityStatus_Call {
+func (_e *mockKvCapabilityVerifier_Expecter) BucketCapabilityStatus(cap any) *mockKvCapabilityVerifier_BucketCapabilityStatus_Call {
 	return &mockKvCapabilityVerifier_BucketCapabilityStatus_Call{Call: _e.mock.On("BucketCapabilityStatus", cap)}
 }
 
