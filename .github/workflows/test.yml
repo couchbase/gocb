@@ -41,7 +41,7 @@ jobs:
           - macos-26
 
         go-version:
-          - &go-version ${{ inputs.go-version || '1.26' }}
+          - &go-version ${{ inputs.go-version || '1.27' }}
 
         include:
           - runner: ubuntu-24.04
