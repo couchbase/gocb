@@ -21,6 +21,7 @@ func PerformerCaps() []protoPerformer.Caps {
 
 func SDKCaps() []protoSDK.Caps {
 	return []protoSDK.Caps{
+		protoSDK.Caps_SDK_PRESERVE_EXPIRY,
 		protoSDK.Caps_SDK_QUERY_INDEX_MANAGEMENT,
 		protoSDK.Caps_SDK_LOOKUP_IN,
 		protoSDK.Caps_SDK_QUERY,
@@ -55,5 +56,6 @@ func SDKCaps() []protoSDK.Caps {
 		protoSDK.Caps_SDK_STABLE_OTEL_SEMANTIC_CONVENTIONS,
 		protoSDK.Caps_SDK_QUERY_2120,
 		protoSDK.Caps_SDK_SEARCH_SCORE_FUSION,
+		protoSDK.Caps_PROTOSTELLAR,
 	}
 }
