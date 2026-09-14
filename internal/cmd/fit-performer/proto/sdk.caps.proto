@@ -158,4 +158,8 @@ enum Caps {
 
   // SDK handles query code 2120.
   SDK_QUERY_2120 = 42;
+
+  // The SDK has support for the Collection.GetReplica API. This includes the new DocumentNotFoundOnReplicaException,
+  // ReplicaIndexOutOfBoundsException and ReplicaIndexCurrentlyUnavailableException exceptions.
+  SDK_GET_REPLICA = 43;
 }

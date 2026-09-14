@@ -912,6 +912,10 @@ func (p *kvProviderPs) GetAnyReplica(c *Collection, id string, opts *GetAnyRepli
 	return recv, nil
 }
 
+func (p *kvProviderPs) GetReplica(c *Collection, id string, strategy GetReplicaStrategy, opts *GetReplicaOptions) (*GetReplicaResult, error) {
+	return nil, ErrFeatureNotAvailable
+}
+
 func (p *kvProviderPs) Prepend(c *Collection, id string, val []byte, opts *PrependOptions) (*MutationResult, error) {
 	opm := newKvOpManagerPs(c, "prepend", opts.ParentSpan, p)
 	defer opm.Finish()

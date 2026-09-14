@@ -57,5 +57,6 @@ func SDKCaps() []protoSDK.Caps {
 		protoSDK.Caps_SDK_QUERY_2120,
 		protoSDK.Caps_SDK_SEARCH_SCORE_FUSION,
 		protoSDK.Caps_PROTOSTELLAR,
+		protoSDK.Caps_SDK_GET_REPLICA,
 	}
 }

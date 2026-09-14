@@ -862,7 +862,7 @@ func (p *kvProviderCore) GetAllReplicas(c *Collection, id string, opts *GetAllRe
 			// This timeout value will cause the getOneReplica operation to timeout after our deadline has expired,
 			// as the deadline has already begun. getOneReplica timing out before our deadline would cause inconsistent
 			// behaviour.
-			res, err := p.getOneReplica(context.Background(), span.Wrapped(), id, replicaIdx, transcoder, retryStrategy, cancelCh,
+			res, err := p.getOneReplica(context.Background(), span.Wrapped(), id, replicaIdx, nil, transcoder, retryStrategy, cancelCh,
 				timeout, opts.Internal.User, c)
 			if err != nil {
 				coreRes.addFailed()
@@ -937,11 +937,32 @@ func (p *kvProviderCore) GetAnyReplica(c *Collection, id string, opts *GetAnyRep
 	return res, nil
 }
 
+func (p *kvProviderCore) GetReplica(c *Collection, id string, strategy GetReplicaStrategy, opts *GetReplicaOptions) (*GetReplicaResult, error) {
+	if opts == nil {
+		opts = &GetReplicaOptions{}
+	}
+
+	return p.getOneReplica(
+		opts.Context,
+		opts.ParentSpan,
+		id,
+		0, // not setting replica index here, passing GetReplicaStrategy
+		&strategy,
+		opts.Transcoder,
+		opts.RetryStrategy,
+		nil,
+		opts.Timeout,
+		opts.Internal.User,
+		c,
+	)
+}
+
 func (p *kvProviderCore) getOneReplica(
 	ctx context.Context,
 	span RequestSpan,
 	id string,
 	replicaIdx int,
+	strategy *GetReplicaStrategy,
 	transcoder Transcoder,
 	retryStrategy RetryStrategy,
 	cancelCh chan struct{},
@@ -960,7 +981,7 @@ func (p *kvProviderCore) getOneReplica(
 	opm.SetImpersonate(user)
 	opm.SetContext(ctx)
 
-	if replicaIdx == 0 {
+	if replicaIdx == 0 && strategy == nil {
 		var docOut *GetReplicaResult
 		var errOut error
 		err := opm.Wait(p.agent.Get(gocbcore.GetOptions{
@@ -993,19 +1014,38 @@ func (p *kvProviderCore) getOneReplica(
 		return docOut, errOut
 	}
 
-	var docOut *GetReplicaResult
-	var errOut error
-	err := opm.Wait(p.agent.GetOneReplica(gocbcore.GetOneReplicaOptions{
+	getOneReplicaOpts := gocbcore.GetOneReplicaOptions{
 		Key:            opm.DocumentID(),
-		ReplicaIdx:     replicaIdx,
 		CollectionName: opm.CollectionName(),
 		ScopeName:      opm.ScopeName(),
 		RetryStrategy:  opm.RetryStrategy(),
 		TraceContext:   opm.TraceSpanContext(),
 		Deadline:       opm.Deadline(),
 		User:           opm.Impersonate(),
-	}, func(res *gocbcore.GetReplicaResult, err error) {
+	}
+
+	if strategy == nil {
+		getOneReplicaOpts.ReplicaIdx = replicaIdx
+	} else {
+		if strategy.replicaIdx == 0 {
+			return nil, makeInvalidArgumentsError("empty GetReplicaStrategy provided, use NewGetReplicaStrategyFromIndex")
+		}
+		getOneReplicaOpts.ReplicaSelector = gocbcore.IndexReplicaSelector{
+			ReplicaIdx: int(strategy.replicaIdx),
+			Wrap:       strategy.wrap,
+		}
+	}
+
+	var docOut *GetReplicaResult
+	var errOut error
+	err := opm.Wait(p.agent.GetOneReplica(getOneReplicaOpts, func(res *gocbcore.GetReplicaResult, err error) {
 		if err != nil {
+			var coreErr *gocbcore.KeyValueError
+			if errors.Is(err, gocbcore.ErrDocumentNotFound) && errors.As(err, &coreErr) {
+				coreErr.InnerError = ErrDocumentNotFoundOnReplica
+				err = coreErr
+			}
+
 			errOut = opm.EnhanceErr(err)
 			opm.Reject()
 			return

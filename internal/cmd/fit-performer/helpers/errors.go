@@ -107,6 +107,10 @@ func mapCbErrorToProto(err error) *shared.CouchbaseExceptionType {
 		return errType
 	}
 
+	// ErrDocumentNotFoundOnReplica checked before ErrDocumentNotFound, as it wraps ErrDocumentNotFound
+	if errType := errorIs(err, gocb.ErrDocumentNotFoundOnReplica, shared.CouchbaseExceptionType_SDK_DOCUMENT_NOT_FOUND_ON_REPLICA_EXCEPTION); errType != nil {
+		return errType
+	}
 	if errType := errorIs(err, gocb.ErrDocumentNotFound, shared.CouchbaseExceptionType_SDK_DOCUMENT_NOT_FOUND_EXCEPTION); errType != nil {
 		return errType
 	}
@@ -248,12 +252,16 @@ func mapCbErrorToProto(err error) *shared.CouchbaseExceptionType {
 	if errType := errorIs(err, gocb.ErrTimeout, shared.CouchbaseExceptionType_SDK_TIMEOUT_EXCEPTION); errType != nil {
 		return errType
 	}
-
 	if errType := errorIs(err, gocb.ErrDocumentNotLocked, shared.CouchbaseExceptionType_SDK_DOCUMENT_NOT_LOCKED_EXCEPTION); errType != nil {
 		return errType
 	}
-
 	if errType := errorIs(err, gocb.ErrDocumentTooDeep, shared.CouchbaseExceptionType_SDK_DOCUMENT_TOO_DEEP_EXCEPTION); errType != nil {
+		return errType
+	}
+	if errType := errorIs(err, gocb.ErrReplicaIndexOutOfBounds, shared.CouchbaseExceptionType_SDK_REPLICA_INDEX_OUT_OF_BOUNDS_EXCEPTION); errType != nil {
+		return errType
+	}
+	if errType := errorIs(err, gocb.ErrReplicaIndexCurrentlyUnavailable, shared.CouchbaseExceptionType_SDK_REPLICA_INDEX_CURRENTLY_UNAVAILABLE_EXCEPTION); errType != nil {
 		return errType
 	}
 

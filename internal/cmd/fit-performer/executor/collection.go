@@ -536,6 +536,68 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 			sender.Send(helpers.MakeGetAllReplicasSuccessResult(result))
 		}
 
+	case *sdk.CollectionLevelCommand_GetReplica:
+		loc, err := helpers.Location(op.GetReplica.Location, e.counters)
+		if err != nil {
+			return false, err
+		}
+
+		col := e.conn.Collection(loc.Bucket(), loc.Scope(), loc.Collection())
+
+		result := &run.Result{
+			Initiated: timestamppb.Now(),
+		}
+		opts, err := e.createGetReplicaOptions(op.GetReplica.Options)
+		if err != nil {
+			return false, err
+		}
+
+		strategy, err := convertGetReplicaStrategy(op.GetReplica.Strategy)
+		if err != nil {
+			return false, nil
+		}
+
+		res, err := col.GetReplica(loc.ID(), strategy, opts)
+		if err != nil {
+			e.sendSDKError(err, sender)
+			return false, nil
+		}
+
+		var content json.RawMessage
+		err = res.Content(&content)
+		if err != nil {
+			return false, err
+		}
+
+		if returnResult {
+			content, err := helpers.ParseContentAs(op.GetReplica.ContentAs, func(content interface{}) error {
+				return res.Content(&content)
+			})
+			if err != nil {
+				return false, err
+			}
+
+			result.Result = &run.Result_Sdk{
+				Sdk: &sdk.Result{
+					Result: &sdk.Result_GetReplicaResult{
+						GetReplicaResult: &kv.GetReplicaResult{
+							Content:   content,
+							Cas:       int64(res.Cas()),
+							IsReplica: res.IsReplica(),
+						},
+					},
+				},
+			}
+		} else {
+			result.Result = &run.Result_Sdk{
+				Sdk: &sdk.Result{
+					Result: &sdk.Result_Success{Success: true},
+				},
+			}
+		}
+		sender.Send(result)
+		return true, nil
+
 	case *sdk.CollectionLevelCommand_QueryIndexManager:
 		switch sharedOp := op.QueryIndexManager.Command.(type) {
 		case *collectionindexmanager.Command_Shared:

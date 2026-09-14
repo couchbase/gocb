@@ -116,6 +116,7 @@ var (
 	VectorSearchFeature                                     = FeatureCode("vectorsearch")
 	ScopeEventingFunctionManagerFeature                     = FeatureCode("scopeeventingmanagement")
 	ZoneAwareReplicaReadsFeature                            = FeatureCode("zoneawarereplicareads")
+	GetReplicaFeature                                       = FeatureCode("getreplica")
 	ClusterLabelsFeature                                    = FeatureCode("clusterlabels")
 	EventingFunctionManagerAllowsSameStateTransitionFeature = FeatureCode("eventingmanagementallowsamestate")
 	EventingFunctionManagerResourceNotFoundAtDeploy         = FeatureCode("eventingmanagementcollectionnotfoundatdeploy")
@@ -442,6 +443,8 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer710) && !c.Version.Equal(protostellarVer)
 		case ZoneAwareReplicaReadsFeature:
 			supported = !c.Version.Lower(srvVer762) && !c.Version.Equal(protostellarVer)
+		case GetReplicaFeature:
+			supported = !c.Version.Equal(protostellarVer)
 		case ClusterLabelsFeature:
 			supported = !c.Version.Lower(srvVer764) && !c.Version.Equal(protostellarVer)
 		case EventingFunctionManagerAllowsSameStateTransitionFeature:

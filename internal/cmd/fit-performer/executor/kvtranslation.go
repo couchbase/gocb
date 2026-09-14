@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/couchbase/gocb/v2"
+	"github.com/couchbase/gocb/v2/internal/cmd/fit-performer/protocol/sdk/kv/replicas"
 
 	"github.com/couchbase/gocb/v2/internal/cmd/fit-performer/helpers"
 
@@ -655,6 +656,35 @@ func (e *Executor) createGetAnyReplicaOptions(opts *kv.GetAnyReplicaOptions) (*g
 	return gocbOpts, nil
 }
 
+func (e *Executor) createGetReplicaOptions(opts *kv.GetReplicaOptions) (*gocb.GetReplicaOptions, error) {
+	if opts == nil {
+		return nil, nil
+	}
+
+	gocbOpts := &gocb.GetReplicaOptions{
+		Timeout: time.Duration(opts.GetTimeoutMsecs()) * time.Millisecond,
+	}
+
+	if opts.Transcoder != nil {
+		t, err := helpers.Transcoder(opts.Transcoder)
+		if err != nil {
+			return nil, err
+		}
+
+		gocbOpts.Transcoder = t
+	}
+
+	if opts.ParentSpanId != nil {
+		parent, ok := e.spanOwner.GetSpan(*opts.ParentSpanId)
+		if !ok {
+			return nil, fmt.Errorf("unknown parent span id: %s", *opts.ParentSpanId)
+		}
+		gocbOpts.ParentSpan = parent
+	}
+
+	return gocbOpts, nil
+}
+
 func (e *Executor) createLookupInOptions(opts *lookupin.LookupInOptions) (*gocb.LookupInOptions, error) {
 	if opts == nil {
 		return nil, nil
@@ -948,7 +978,33 @@ func convertMutateInSpec(spec *mutatein.MutateInSpec) (gocb.MutateInSpec, error)
 				IsXattr:    spec.GetDecrement().GetXattr()}), nil
 	}
 	return gocb.MutateInSpec{}, errors.New("unsupported MutateInSpec operation")
+}
 
+func convertGetReplicaStrategy(protoStrategy *replicas.GetReplicaStrategy) (gocb.GetReplicaStrategy, error) {
+	switch protoStrategy.GetStrategy().(type) {
+	case *replicas.GetReplicaStrategy_FromIndex:
+		var opts *gocb.GetReplicaStrategyFromIndexOptions
+		if protoStrategy.GetFromIndex().GetOptions() != nil {
+			opts = &gocb.GetReplicaStrategyFromIndexOptions{
+				Wrap: protoStrategy.GetFromIndex().GetOptions().GetWrap(),
+			}
+		}
+		var index gocb.ReplicaIndex
+		switch protoStrategy.GetFromIndex().GetIndex() {
+		case replicas.ReplicaIndex_FIRST:
+			index = gocb.ReplicaIndexFirst
+		case replicas.ReplicaIndex_SECOND:
+			index = gocb.ReplicaIndexSecond
+		case replicas.ReplicaIndex_THIRD:
+			index = gocb.ReplicaIndexThird
+		default:
+			return gocb.GetReplicaStrategy{}, errors.New("unknown replica index")
+		}
+		return gocb.NewGetReplicaStrategyFromIndex(index, opts)
+
+	default:
+		return gocb.GetReplicaStrategy{}, fmt.Errorf("unsupported GetReplicaStrategy operation: %v", protoStrategy)
+	}
 }
 
 type lookupInResult interface {
