@@ -173,4 +173,7 @@ enum Caps {
 
   // The SDK has support for the eventing-specific error types defined in SDK-RFC 62 (see shared.exceptions.proto).
   SDK_EVENTING_ERRORS = 46;
+
+  // The SDK has support for the CustomScoreQuery and CustomFilterQuery SearchQuery types
+  SDK_SEARCH_CUSTOM_SCRIPT_QUERIES = 47;
 }

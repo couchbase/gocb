@@ -822,3 +822,112 @@ func (suite *UnitTestSuite) TestClusterSearchEmptyBucketAndScopeNames() {
 	_, err := cluster.Search("testindex", request, nil)
 	suite.Require().NoError(err)
 }
+
+func (suite *UnitTestSuite) assertSearchQueryJSON(query search.Query, expected string) {
+	reader := &mockSearchRowReader{
+		Dataset: []jsonSearchRow{},
+		Meta:    []byte{},
+		Suite:   suite,
+	}
+
+	cluster := suite.searchCluster(reader, nil, func(args mock.Arguments) {
+		opts := args.Get(1).(gocbcore.SearchQueryOptions)
+
+		var actualOptions map[string]json.RawMessage
+		err := json.Unmarshal(opts.Payload, &actualOptions)
+		suite.Require().NoError(err)
+
+		suite.Assert().JSONEq(expected, string(actualOptions["query"]))
+	})
+
+	_, err := cluster.SearchQuery("testindex", query, nil)
+	suite.Require().NoError(err)
+}
+
+func (suite *UnitTestSuite) TestSearchQueryCustomScore() {
+	query := search.NewCustomScoreQuery(search.NewMatchQuery("hotel"), "function(doc, params) { return doc.score; }").
+		Fields("price", "rating").
+		Parameters(map[string]any{"boost": 2.5, "nested": map[string]any{"a": []any{1, "b"}}})
+
+	suite.assertSearchQueryJSON(query, `{
+		"custom_score": {
+			"query": {"match": "hotel"},
+			"source": "function(doc, params) { return doc.score; }",
+			"fields": ["price", "rating"],
+			"params": {"boost": 2.5, "nested": {"a": [1, "b"]}}
+		}
+	}`)
+}
+
+func (suite *UnitTestSuite) TestSearchQueryCustomFilter() {
+	query := search.NewCustomFilterQuery(search.NewMatchQuery("hotel"), "function(doc, params) { return true; }").
+		Fields("*").
+		Parameters(map[string]any{"budget": 100})
+
+	suite.assertSearchQueryJSON(query, `{
+		"custom_filter": {
+			"query": {"match": "hotel"},
+			"source": "function(doc, params) { return true; }",
+			"fields": ["*"],
+			"params": {"budget": 100}
+		}
+	}`)
+}
+
+func (suite *UnitTestSuite) TestSearchQueryCustomQueriesOmitUnsetOptions() {
+	suite.Run("score", func() {
+		suite.assertSearchQueryJSON(
+			search.NewCustomScoreQuery(search.NewMatchQuery("hotel"), "src"),
+			`{"custom_score": {"query": {"match": "hotel"}, "source": "src"}}`,
+		)
+	})
+	suite.Run("filter", func() {
+		suite.assertSearchQueryJSON(
+			search.NewCustomFilterQuery(search.NewMatchQuery("hotel"), "src"),
+			`{"custom_filter": {"query": {"match": "hotel"}, "source": "src"}}`,
+		)
+	})
+}
+
+func (suite *UnitTestSuite) TestSearchQueryCustomQueriesInCompoundQuery() {
+	query := search.NewConjunctionQuery(
+		search.NewCustomFilterQuery(search.NewMatchQuery("hotel"), "filter"),
+		search.NewCustomScoreQuery(
+			search.NewCustomFilterQuery(search.NewMatchQuery("motel"), "inner-filter"),
+			"score",
+		),
+	)
+
+	suite.assertSearchQueryJSON(query, `{
+		"conjuncts": [
+			{"custom_filter": {"query": {"match": "hotel"}, "source": "filter"}},
+			{"custom_score": {
+				"query": {"custom_filter": {"query": {"match": "motel"}, "source": "inner-filter"}},
+				"source": "score"
+			}}
+		]
+	}`)
+}
+
+func (suite *UnitTestSuite) TestSearchQueryCustomQueriesCouchbase2FeatureNotAvailable() {
+	provider := &searchProviderPs{
+		managerProvider: newPsOpManagerProvider(NewBestEffortRetryStrategy(nil),
+			newTracerWrapper(&NoopTracer{}, ObservabilityConfig{}), time.Second,
+			newMeterWrapper(&NoopMeter{}, ObservabilityConfig{}), serviceAttribValueSearch),
+	}
+
+	queries := map[string]search.Query{
+		"score":       search.NewCustomScoreQuery(search.NewMatchQuery("hotel"), "src"),
+		"filter":      search.NewCustomFilterQuery(search.NewMatchQuery("hotel"), "src"),
+		"conjunction": search.NewConjunctionQuery(search.NewCustomScoreQuery(search.NewMatchQuery("hotel"), "src")),
+		"disjunction": search.NewDisjunctionQuery(search.NewCustomFilterQuery(search.NewMatchQuery("hotel"), "src")),
+		"boolean":     search.NewBooleanQuery().Must(search.NewCustomFilterQuery(search.NewMatchQuery("hotel"), "src")),
+	}
+
+	for name, query := range queries {
+		suite.Run(name, func() {
+			_, err := provider.SearchQuery("testindex", query, &SearchOptions{})
+			suite.Require().ErrorIs(err, ErrFeatureNotAvailable)
+		})
+	}
+}

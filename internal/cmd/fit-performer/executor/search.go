@@ -277,6 +277,32 @@ func (e *Executor) parseSearchQuery(searchQuery *searchpb.SearchQuery) (cbsearch
 	case *searchpb.SearchQuery_MatchNone:
 		q := cbsearch.NewMatchNoneQuery()
 		gocbQuery = q
+	case *searchpb.SearchQuery_CustomScore:
+		innerQuery, err := e.parseSearchQuery(sharedOp.CustomScore.Query)
+		if err != nil {
+			return nil, err
+		}
+		q := cbsearch.NewCustomScoreQuery(innerQuery, sharedOp.CustomScore.Source)
+		if sharedOp.CustomScore.Fields != nil {
+			q.Fields(sharedOp.CustomScore.Fields...)
+		}
+		if sharedOp.CustomScore.Parameters != nil {
+			q.Parameters(sharedOp.CustomScore.Parameters.AsMap())
+		}
+		gocbQuery = q
+	case *searchpb.SearchQuery_CustomFilter:
+		innerQuery, err := e.parseSearchQuery(sharedOp.CustomFilter.Query)
+		if err != nil {
+			return nil, err
+		}
+		q := cbsearch.NewCustomFilterQuery(innerQuery, sharedOp.CustomFilter.Source)
+		if sharedOp.CustomFilter.Fields != nil {
+			q.Fields(sharedOp.CustomFilter.Fields...)
+		}
+		if sharedOp.CustomFilter.Parameters != nil {
+			q.Parameters(sharedOp.CustomFilter.Parameters.AsMap())
+		}
+		gocbQuery = q
 	default:
 		return nil, status.Error(codes.Unimplemented, "unknown search query type")
 	}
