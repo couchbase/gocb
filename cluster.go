@@ -18,6 +18,10 @@ type Cluster struct {
 type IoConfig struct {
 	DisableMutationTokens  bool
 	DisableServerDurations bool
+
+	// EnableTCPNoDelay controls whether TCP_NODELAY is enabled on KV connections.
+	// It is disabled by default.
+	EnableTCPNoDelay bool
 }
 
 // TimeoutsConfig specifies options for various operation timeouts.

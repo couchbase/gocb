@@ -128,6 +128,7 @@ type newConnectionMgrOptions struct {
 
 	useServerDurations bool
 	useMutationTokens  bool
+	enableTCPNoDelay   bool
 
 	timeoutsConfig TimeoutsConfig
 
@@ -231,6 +232,7 @@ func connectionMgrOptionsFromOptions(opts ClusterOptions) newConnectionMgrOption
 		meter:              newMeterWrapper(meter, opts.ObservabilityConfig),
 		useServerDurations: useServerDurations,
 		useMutationTokens:  useMutationTokens,
+		enableTCPNoDelay:   opts.IoConfig.EnableTCPNoDelay,
 		timeoutsConfig: TimeoutsConfig{
 			ConnectTimeout:    connectTimeout,
 			QueryTimeout:      queryTimeout,
