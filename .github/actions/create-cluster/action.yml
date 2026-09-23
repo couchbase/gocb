@@ -4,6 +4,9 @@ inputs:
   version:
     description: 'Couchbase Server version to use'
     required: true
+  github-token:
+    description: 'GitHub token with read:packages access, used to fetch non-GA server images'
+    required: true
 outputs:
   ip:
     description: 'The IP address of a node of the cluster'
@@ -29,6 +32,8 @@ runs:
         echo "$HOME/bin" >> $GITHUB_PATH
     - name: Initialize cbdinocluster
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         cbdinocluster -v init --auto
     - name: Start Couchbase cluster
