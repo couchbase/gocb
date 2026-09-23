@@ -40,8 +40,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 
-	"google.golang.org/grpc/credentials"
-
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -908,15 +906,10 @@ func (p *Performer) createMeter(ctx context.Context, config *observability.Confi
 	}
 
 	if config.Metrics != nil {
-		certPool, err := telemetry.GetTelemetryServerCertPool()
-		if err != nil {
-			return nil, err
-		}
 		exporter, err := otlpmetricgrpc.New(
 			ctx,
 			otlpmetricgrpc.WithEndpointURL(config.Tracing.EndpointHostname),
 			otlpmetricgrpc.WithCompressor("gzip"),
-			otlpmetricgrpc.WithTLSCredentials(credentials.NewClientTLSFromCert(certPool, "")),
 		)
 		if err != nil {
 			return nil, err
@@ -1003,15 +996,10 @@ func (p *Performer) createTracer(ctx context.Context, config *observability.Conf
 
 	if config.Tracing != nil {
 		// Set up a trace exporter
-		certPool, err := telemetry.GetTelemetryServerCertPool()
-		if err != nil {
-			return nil, err
-		}
 		traceExporter, err := otlptracegrpc.New(
 			ctx,
 			otlptracegrpc.WithEndpointURL(config.Tracing.EndpointHostname),
 			otlptracegrpc.WithCompressor("gzip"),
-			otlptracegrpc.WithTLSCredentials(credentials.NewClientTLSFromCert(certPool, "")),
 		)
 		if err != nil {
 			return nil, err
