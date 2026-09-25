@@ -313,7 +313,6 @@ func (c *Cluster) analyticsController() *providerController[analyticsProvider] {
 		opController: c.connectionManager,
 
 		getMeter: c.connectionManager.getMeter,
-		keyspace: nil,
 		service:  serviceAttribValueAnalytics,
 	}
 }
@@ -333,7 +332,6 @@ func (c *Cluster) queryController() *providerController[queryProvider] {
 		opController: c.connectionManager,
 
 		getMeter: c.connectionManager.getMeter,
-		keyspace: nil,
 		service:  serviceAttribValueQuery,
 	}
 }
@@ -344,7 +342,6 @@ func (c *Cluster) searchController() *providerController[searchProvider] {
 		opController: c.connectionManager,
 
 		getMeter: c.connectionManager.getMeter,
-		keyspace: nil,
 		service:  serviceAttribValueSearch,
 	}
 }
@@ -371,7 +368,6 @@ func (c *Cluster) Users() *UserManager {
 			opController: c.connectionManager,
 
 			getMeter: c.connectionManager.getMeter,
-			keyspace: nil,
 			service:  serviceAttribValueManagement,
 		},
 	}
@@ -385,7 +381,6 @@ func (c *Cluster) Buckets() *BucketManager {
 			opController: c.connectionManager,
 
 			getMeter: c.connectionManager.getMeter,
-			keyspace: nil,
 			service:  serviceAttribValueManagement,
 		},
 	}
@@ -399,7 +394,6 @@ func (c *Cluster) AnalyticsIndexes() *AnalyticsIndexManager {
 			opController: c.connectionManager,
 
 			getMeter: c.connectionManager.getMeter,
-			keyspace: nil,
 			service:  serviceAttribValueAnalytics,
 		},
 	}
@@ -413,7 +407,6 @@ func (c *Cluster) QueryIndexes() *QueryIndexManager {
 			opController: c.connectionManager,
 
 			getMeter: c.connectionManager.getMeter,
-			keyspace: nil,
 			service:  serviceAttribValueQuery,
 		},
 	}
@@ -427,7 +420,6 @@ func (c *Cluster) SearchIndexes() *SearchIndexManager {
 			opController: c.connectionManager,
 
 			getMeter: c.connectionManager.getMeter,
-			keyspace: nil,
 			service:  serviceAttribValueSearch,
 		},
 	}
@@ -445,7 +437,6 @@ func (c *Cluster) EventingFunctions() *EventingFunctionManager {
 			opController: c.connectionManager,
 
 			getMeter: c.connectionManager.getMeter,
-			keyspace: nil,
 			service:  serviceAttribValueEventing,
 		},
 	}

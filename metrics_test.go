@@ -152,7 +152,7 @@ func (suite *UnitTestSuite) runMetricsConventionsTest(conventions []Observabilit
 		"kv",
 		"get",
 		750,
-		&keyspace{
+		keyspace{
 			bucketName:     "test-bucket",
 			scopeName:      "test-scope",
 			collectionName: "test-collection",
@@ -164,7 +164,7 @@ func (suite *UnitTestSuite) runMetricsConventionsTest(conventions []Observabilit
 		"kv",
 		"get",
 		750,
-		&keyspace{
+		keyspace{
 			bucketName:     "test-bucket",
 			scopeName:      "test-scope",
 			collectionName: "test-collection",

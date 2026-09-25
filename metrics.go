@@ -2,12 +2,12 @@ package gocb
 
 import (
 	"errors"
-	"fmt"
-	"github.com/couchbase/gocbcore/v10"
-	"go.opentelemetry.io/otel/metric"
 	"slices"
 	"sync"
 	"time"
+
+	"github.com/couchbase/gocbcore/v10"
+	"go.opentelemetry.io/otel/metric"
 )
 
 // Meter handles metrics information for SDK operations.
@@ -112,8 +112,89 @@ func (nm *coreValueRecorderWrapper) RecordValue(val uint64) {
 	nm.valueRecorder.RecordValue(val)
 }
 
+type meterAttributeCacheKey struct {
+	service                string
+	operation              string
+	keyspace               keyspace
+	outcome                string
+	labels                 gocbcore.ClusterLabels
+	usingStableConventions bool
+}
+
+func (k *meterAttributeCacheKey) createAttributeMap() map[string]string {
+	if k.usingStableConventions {
+		attribs := map[string]string{
+			meterStableAttribSystemName:    meterAttribSystemNameValue,
+			meterStableAttribService:       k.service,
+			meterStableAttribOperationName: k.operation,
+			meterReservedAttribUnit:        meterAttribUnitValueSeconds,
+		}
+		if k.outcome != "" {
+			// The error.type field is omitted if the operation was successful
+			attribs[meterStableAttribErrorType] = k.outcome
+		}
+		if k.labels.ClusterName != "" {
+			attribs[meterStableAttribClusterName] = k.labels.ClusterName
+		}
+		if k.labels.ClusterUUID != "" {
+			attribs[meterStableAttribClusterUUID] = k.labels.ClusterUUID
+		}
+		if k.keyspace.bucketName != "" {
+			attribs[meterStableAttribBucketName] = k.keyspace.bucketName
+		}
+		if k.keyspace.scopeName != "" {
+			attribs[meterStableAttribScopeName] = k.keyspace.scopeName
+		}
+		if k.keyspace.collectionName != "" {
+			attribs[meterStableAttribCollectionName] = k.keyspace.collectionName
+		}
+		return attribs
+	}
+	attribs := map[string]string{
+		meterLegacyAttribService:       k.service,
+		meterLegacyAttribOperationName: k.operation,
+		meterLegacyAttribOutcome:       k.outcome,
+	}
+	if k.labels.ClusterName != "" {
+		attribs[meterLegacyAttribClusterName] = k.labels.ClusterName
+	}
+	if k.labels.ClusterUUID != "" {
+		attribs[meterLegacyAttribClusterUUID] = k.labels.ClusterUUID
+	}
+	if k.keyspace.bucketName != "" {
+		attribs[meterLegacyAttribBucketName] = k.keyspace.bucketName
+	}
+	if k.keyspace.scopeName != "" {
+		attribs[meterLegacyAttribScopeName] = k.keyspace.scopeName
+	}
+	if k.keyspace.collectionName != "" {
+		attribs[meterLegacyAttribCollectionName] = k.keyspace.collectionName
+	}
+	return attribs
+}
+
+type meterAttributeCache struct {
+	cache sync.Map
+}
+
+func (c *meterAttributeCache) Get(key meterAttributeCacheKey) map[string]string {
+	if attribs, ok := c.cache.Load(key); ok {
+		if attribsMap, ok := attribs.(map[string]string); ok {
+			return attribsMap
+		}
+	}
+
+	attribsMap := key.createAttributeMap()
+
+	// It doesn't really matter if we end up storing the attribs against the same key multiple times. We just need
+	// to have a read efficient cache that doesn't cause actual data races.
+	c.cache.Store(key, attribsMap)
+
+	return attribsMap
+}
+
 type meterWrapper struct {
-	attribsCache             sync.Map
+	cache                    meterAttributeCache
 	meter                    Meter
 	isNoopMeter              bool
 	clusterLabelsProvider    clusterLabelsProvider
@@ -147,78 +228,7 @@ type keyspace struct {
 	collectionName string
 }
 
-func (mw *meterWrapper) createAttributeCacheKey(
-	service, operation string, keyspace *keyspace, outcome string, labels gocbcore.ClusterLabels, usingStableConventions bool,
-) string {
-	key := fmt.Sprintf("%t.%s.%s.%s.%s.%s", usingStableConventions, service, operation, labels.ClusterUUID, labels.ClusterName, outcome)
-	if keyspace == nil {
-		key += "..."
-	} else {
-		key += fmt.Sprintf(".%s.%s.%s", keyspace.bucketName, keyspace.scopeName, keyspace.collectionName)
-	}
-	return key
-}
-
-func (mw *meterWrapper) createAttributeMap(
-	service, operation string, keyspace *keyspace, outcome string, labels gocbcore.ClusterLabels, usingStableConventions bool,
-) map[string]string {
-	if usingStableConventions {
-		attribs := map[string]string{
-			meterStableAttribSystemName:    meterAttribSystemNameValue,
-			meterStableAttribService:       service,
-			meterStableAttribOperationName: operation,
-			meterReservedAttribUnit:        meterAttribUnitValueSeconds,
-		}
-		if outcome != "" {
-			// The error.type field is omitted if the operation was successful
-			attribs[meterStableAttribErrorType] = outcome
-		}
-		if labels.ClusterName != "" {
-			attribs[meterStableAttribClusterName] = labels.ClusterName
-		}
-		if labels.ClusterUUID != "" {
-			attribs[meterStableAttribClusterUUID] = labels.ClusterUUID
-		}
-		if keyspace != nil {
-			if keyspace.bucketName != "" {
-				attribs[meterStableAttribBucketName] = keyspace.bucketName
-			}
-			if keyspace.scopeName != "" {
-				attribs[meterStableAttribScopeName] = keyspace.scopeName
-			}
-			if keyspace.collectionName != "" {
-				attribs[meterStableAttribCollectionName] = keyspace.collectionName
-			}
-		}
-		return attribs
-	} else {
-		attribs := map[string]string{
-			meterLegacyAttribService:       service,
-			meterLegacyAttribOperationName: operation,
-			meterLegacyAttribOutcome:       outcome,
-		}
-		if labels.ClusterName != "" {
-			attribs[meterLegacyAttribClusterName] = labels.ClusterName
-		}
-		if labels.ClusterUUID != "" {
-			attribs[meterLegacyAttribClusterUUID] = labels.ClusterUUID
-		}
-		if keyspace != nil {
-			if keyspace.bucketName != "" {
-				attribs[meterLegacyAttribBucketName] = keyspace.bucketName
-			}
-			if keyspace.scopeName != "" {
-				attribs[meterLegacyAttribScopeName] = keyspace.scopeName
-			}
-			if keyspace.collectionName != "" {
-				attribs[meterLegacyAttribCollectionName] = keyspace.collectionName
-			}
-		}
-		return attribs
-	}
-}
-
-func (mw *meterWrapper) ValueRecorder(service, operation string, keyspace *keyspace, operationErr error, usingStableConventions bool) (ValueRecorder, error) {
+func (mw *meterWrapper) ValueRecorder(service, operation string, keyspace keyspace, operationErr error, usingStableConventions bool) (ValueRecorder, error) {
 	if mw.isNoopMeter {
 		// If it's a noop meter then let's not pay the overhead of creating attributes.
 		return defaultNoopValueRecorder, nil
@@ -231,19 +241,14 @@ func (mw *meterWrapper) ValueRecorder(service, operation string, keyspace *keysp
 
 	outcome := getStandardizedOutcome(operationErr, usingStableConventions)
 
-	key := mw.createAttributeCacheKey(service, operation, keyspace, outcome, labels, usingStableConventions)
-	attribs, ok := mw.attribsCache.Load(key)
-
-	var attribsMap map[string]string
-	if ok {
-		attribsMap, ok = attribs.(map[string]string)
-	}
-	if !ok {
-		// It doesn't really matter if we end up storing the attribs against the same key multiple times. We just need
-		// to have a read efficient cache that doesn't cause actual data races.
-		attribsMap = mw.createAttributeMap(service, operation, keyspace, outcome, labels, usingStableConventions)
-		mw.attribsCache.Store(key, attribsMap)
-	}
+	attribs := mw.cache.Get(meterAttributeCacheKey{
+		service:                service,
+		operation:              operation,
+		keyspace:               keyspace,
+		outcome:                outcome,
+		labels:                 labels,
+		usingStableConventions: usingStableConventions,
+	})
 
 	var meterName string
 	if usingStableConventions {
@@ -252,7 +257,7 @@ func (mw *meterWrapper) ValueRecorder(service, operation string, keyspace *keysp
 		meterName = meterNameCBOperations
 	}
 
-	recorder, err := mw.meter.ValueRecorder(meterName, attribsMap)
+	recorder, err := mw.meter.ValueRecorder(meterName, attribs)
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +265,7 @@ func (mw *meterWrapper) ValueRecorder(service, operation string, keyspace *keysp
 	return recorder, nil
 }
 
-func (mw *meterWrapper) valueRecordWithDuration(service, operation string, durationMicroseconds uint64, keyspace *keyspace, err error) {
+func (mw *meterWrapper) valueRecordWithDuration(service, operation string, durationMicroseconds uint64, keyspace keyspace, err error) {
 	if mw.includeLegacyConventions {
 		recorder, err := mw.ValueRecorder(service, operation, keyspace, err, false)
 		if err != nil {
@@ -282,7 +287,7 @@ func (mw *meterWrapper) valueRecordWithDuration(service, operation string, durat
 	}
 }
 
-func (mw *meterWrapper) ValueRecord(service, operation string, start time.Time, keyspace *keyspace, err error) {
+func (mw *meterWrapper) ValueRecord(service, operation string, start time.Time, keyspace keyspace, err error) {
 	duration := uint64(time.Since(start).Microseconds())
 	if duration == 0 {
 		duration = uint64(1 * time.Microsecond)

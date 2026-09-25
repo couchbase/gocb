@@ -44,12 +44,12 @@ func (suite *UnitTestSuite) runWrappedLoggingMeterTest(conventions []Observabili
 		SemanticConventionOptIn: conventions,
 	})
 	for _, val := range []uint64{1000, 1000, 10000, 20000, 1500} {
-		mw.valueRecordWithDuration("kv", "get", val, nil, nil)
+		mw.valueRecordWithDuration("kv", "get", val, keyspace{}, nil)
 	}
 	for _, val := range []uint64{2000, 1000, 3500, 10000, 20000, 50000} {
-		mw.valueRecordWithDuration("kv", "replace", val, nil, nil)
+		mw.valueRecordWithDuration("kv", "replace", val, keyspace{}, nil)
 	}
-	mw.valueRecordWithDuration("query", "query", 112000, nil, nil)
+	mw.valueRecordWithDuration("query", "query", 112000, keyspace{}, nil)
 
 	// The output must always be the same irrespective of the conventions used
 	output := meter.generateOutput()

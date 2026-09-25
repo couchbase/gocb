@@ -82,7 +82,7 @@ func (p *kvBulkProviderCore) Get(item *GetOp, parentSpan RequestSpan, c *Collect
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceAttribValueKV, "get", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "get", start, c.keyspace, item.Err)
 	}
 
 	_, err := p.agent.Get(gocbcore.GetOptions{
@@ -120,7 +120,7 @@ func (p *kvBulkProviderCore) GetAndTouch(item *GetAndTouchOp, parentSpan Request
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceAttribValueKV, "get_and_touch", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "get_and_touch", start, c.keyspace, item.Err)
 	}
 
 	_, err := p.agent.GetAndTouch(gocbcore.GetAndTouchOptions{
@@ -156,7 +156,7 @@ func (p *kvBulkProviderCore) Touch(item *TouchOp, parentSpan RequestSpan, c *Col
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceAttribValueKV, "touch", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "touch", start, c.keyspace, item.Err)
 	}
 
 	_, err := p.agent.Touch(gocbcore.TouchOptions{
@@ -197,7 +197,7 @@ func (p *kvBulkProviderCore) Delete(item *RemoveOp, parentSpan RequestSpan, c *C
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceAttribValueKV, "remove", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "remove", start, c.keyspace, item.Err)
 	}
 
 	_, err := p.agent.Delete(gocbcore.DeleteOptions{
@@ -238,7 +238,7 @@ func (p *kvBulkProviderCore) Set(item *UpsertOp, parentSpan RequestSpan, c *Coll
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceAttribValueKV, "upsert", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "upsert", start, c.keyspace, item.Err)
 	}
 
 	encSpan := p.tracer.CreateRequestEncodingSpan(span)
@@ -292,7 +292,7 @@ func (p *kvBulkProviderCore) Add(item *InsertOp, parentSpan RequestSpan, c *Coll
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceAttribValueKV, "insert", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "insert", start, c.keyspace, item.Err)
 	}
 
 	encSpan := p.tracer.CreateRequestEncodingSpan(span)
@@ -345,7 +345,7 @@ func (p *kvBulkProviderCore) Replace(item *ReplaceOp, parentSpan RequestSpan, c 
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceAttribValueKV, "replace", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "replace", start, c.keyspace, item.Err)
 	}
 
 	encSpan := p.tracer.CreateRequestEncodingSpan(span)
@@ -399,7 +399,7 @@ func (p *kvBulkProviderCore) Append(item *AppendOp, parentSpan RequestSpan, c *C
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceAttribValueKV, "append", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "append", start, c.keyspace, item.Err)
 	}
 
 	_, err := p.agent.Append(gocbcore.AdjoinOptions{
@@ -440,7 +440,7 @@ func (p *kvBulkProviderCore) Prepend(item *PrependOp, parentSpan RequestSpan, c 
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceAttribValueKV, "prepend", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "prepend", start, c.keyspace, item.Err)
 	}
 
 	_, err := p.agent.Prepend(gocbcore.AdjoinOptions{
@@ -481,7 +481,7 @@ func (p *kvBulkProviderCore) Increment(item *IncrementOp, parentSpan RequestSpan
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceAttribValueKV, "increment", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "increment", start, c.keyspace, item.Err)
 	}
 
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)
@@ -532,7 +532,7 @@ func (p *kvBulkProviderCore) Decrement(item *DecrementOp, parentSpan RequestSpan
 	start := time.Now()
 	item.finishFn = func() {
 		span.End()
-		p.meter.ValueRecord(serviceAttribValueKV, "decrement", start, &c.keyspace, item.Err)
+		p.meter.ValueRecord(serviceAttribValueKV, "decrement", start, c.keyspace, item.Err)
 	}
 
 	realInitial := uint64(0xFFFFFFFFFFFFFFFF)

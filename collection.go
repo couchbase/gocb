@@ -65,7 +65,7 @@ func (c *Collection) QueryIndexes() *CollectionQueryIndexManager {
 
 			getMeter: c.bucket.connectionManager.getMeter,
 			service:  serviceAttribValueQuery,
-			keyspace: &c.keyspace,
+			keyspace: c.keyspace,
 		},
 
 		c: c,
@@ -96,7 +96,7 @@ func (c *Collection) kvController() *providerController[kvProvider] {
 
 		getMeter: c.bucket.connectionManager.getMeter,
 		service:  serviceAttribValueKV,
-		keyspace: &c.keyspace,
+		keyspace: c.keyspace,
 	}
 }
 

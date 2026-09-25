@@ -62,7 +62,7 @@ type providerController[P any] struct {
 
 	// Metrics-related fields
 	getMeter func() *meterWrapper
-	keyspace *keyspace
+	keyspace keyspace
 	service  string
 }
 
