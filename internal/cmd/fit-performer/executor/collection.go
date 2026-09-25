@@ -617,8 +617,8 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 							IgnoreIfExists: indexOp.CreatePrimaryIndex.Options.GetIgnoreIfExists(),
 							Deferred:       indexOp.CreatePrimaryIndex.Options.GetDeferred(),
 							Timeout:        time.Duration(indexOp.CreatePrimaryIndex.Options.GetTimeoutMsecs()) * time.Millisecond,
-							ScopeName:      indexOp.CreatePrimaryIndex.Options.GetScopeName(),
-							CollectionName: indexOp.CreatePrimaryIndex.Options.GetCollectionName(),
+							ScopeName:      indexOp.CreatePrimaryIndex.Options.GetScopeName(),      //nolint:staticcheck
+							CollectionName: indexOp.CreatePrimaryIndex.Options.GetCollectionName(), //nolint:staticcheck
 							CustomName:     indexOp.CreatePrimaryIndex.Options.GetIndexName(),
 						},
 					)
@@ -654,8 +654,8 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 							IgnoreIfExists: indexOp.CreateIndex.Options.GetIgnoreIfExists(),
 							Deferred:       indexOp.CreateIndex.Options.GetDeferred(),
 							Timeout:        time.Duration(indexOp.CreateIndex.Options.GetTimeoutMsecs()) * time.Millisecond,
-							ScopeName:      indexOp.CreateIndex.Options.GetScopeName(),
-							CollectionName: indexOp.CreateIndex.Options.GetCollectionName(),
+							ScopeName:      indexOp.CreateIndex.Options.GetScopeName(),      //nolint:staticcheck
+							CollectionName: indexOp.CreateIndex.Options.GetCollectionName(), //nolint:staticcheck
 						},
 					)
 				if err != nil {
@@ -687,8 +687,8 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 					GetAllIndexes(
 						&gocb.GetAllQueryIndexesOptions{
 							Timeout:        time.Duration(indexOp.GetAllIndexes.Options.GetTimeoutMsecs()) * time.Millisecond,
-							ScopeName:      indexOp.GetAllIndexes.Options.GetScopeName(),
-							CollectionName: indexOp.GetAllIndexes.Options.GetCollectionName(),
+							ScopeName:      indexOp.GetAllIndexes.Options.GetScopeName(),      //nolint:staticcheck
+							CollectionName: indexOp.GetAllIndexes.Options.GetCollectionName(), //nolint:staticcheck
 						},
 					)
 				if err != nil {
@@ -737,8 +737,8 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 						&gocb.DropPrimaryQueryIndexOptions{
 							IgnoreIfNotExists: indexOp.DropPrimaryIndex.Options.GetIgnoreIfNotExists(),
 							Timeout:           time.Duration(indexOp.DropPrimaryIndex.Options.GetTimeoutMsecs()) * time.Millisecond,
-							ScopeName:         indexOp.DropPrimaryIndex.Options.GetScopeName(),
-							CollectionName:    indexOp.DropPrimaryIndex.Options.GetCollectionName(),
+							ScopeName:         indexOp.DropPrimaryIndex.Options.GetScopeName(),      //nolint:staticcheck
+							CollectionName:    indexOp.DropPrimaryIndex.Options.GetCollectionName(), //nolint:staticcheck
 						},
 					)
 				if err != nil {
@@ -772,8 +772,8 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 						&gocb.DropQueryIndexOptions{
 							IgnoreIfNotExists: indexOp.DropIndex.Options.GetIgnoreIfNotExists(),
 							Timeout:           time.Duration(indexOp.DropIndex.Options.GetTimeoutMsecs()) * time.Millisecond,
-							ScopeName:         indexOp.DropIndex.Options.GetScopeName(),
-							CollectionName:    indexOp.DropIndex.Options.GetCollectionName(),
+							ScopeName:         indexOp.DropIndex.Options.GetScopeName(),      //nolint:staticcheck
+							CollectionName:    indexOp.DropIndex.Options.GetCollectionName(), //nolint:staticcheck
 						},
 					)
 				if err != nil {
@@ -804,8 +804,8 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 					BuildDeferredIndexes(
 						&gocb.BuildDeferredQueryIndexOptions{
 							Timeout:        time.Duration(indexOp.BuildDeferredIndexes.Options.GetTimeoutMsecs()) * time.Millisecond,
-							ScopeName:      indexOp.BuildDeferredIndexes.Options.GetScopeName(),
-							CollectionName: indexOp.BuildDeferredIndexes.Options.GetCollectionName(),
+							ScopeName:      indexOp.BuildDeferredIndexes.Options.GetScopeName(),      //nolint:staticcheck
+							CollectionName: indexOp.BuildDeferredIndexes.Options.GetCollectionName(), //nolint:staticcheck
 						},
 					)
 				if err != nil {
@@ -837,8 +837,8 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 						indexOp.WatchIndexes.IndexNames,
 						time.Duration(indexOp.WatchIndexes.GetTimeoutMsecs())*time.Millisecond,
 						&gocb.WatchQueryIndexOptions{
-							ScopeName:      indexOp.WatchIndexes.Options.GetScopeName(),
-							CollectionName: indexOp.WatchIndexes.Options.GetCollectionName(),
+							ScopeName:      indexOp.WatchIndexes.Options.GetScopeName(),      //nolint:staticcheck
+							CollectionName: indexOp.WatchIndexes.Options.GetCollectionName(), //nolint:staticcheck
 							WatchPrimary:   indexOp.WatchIndexes.Options.GetWatchPrimary(),
 						},
 					)

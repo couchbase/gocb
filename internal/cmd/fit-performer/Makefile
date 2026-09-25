@@ -1,6 +1,6 @@
 devsetup:
-	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
 
 update-protocol:

@@ -474,7 +474,7 @@ func (e *Executor) parseSearchOptions(protoOpts *searchpb.SearchOptions) (*gocb.
 		Sort:           sorts,
 		Facets:         facets,
 		Scoring:        scoring,
-		DisableScoring: protoOpts.GetDisableScoring(),
+		DisableScoring: protoOpts.GetDisableScoring(), //nolint:staticcheck
 	}
 	if protoOpts.TimeoutMillis != nil {
 		opts.Timeout = time.Duration(protoOpts.GetTimeoutMillis()) * time.Millisecond
