@@ -30,6 +30,16 @@ on:
         type: string
         default: main
 
+  workflow_call:
+    inputs:
+      preset:
+        required: false
+        type: string
+
+      performer_tag:
+        required: false
+        type: string
+
 permissions:
   id-token: write
   contents: read
@@ -39,7 +49,7 @@ jobs:
   fit:
     uses: couchbaselabs/fit-cli/.github/workflows/fit-cli.yaml@main
     with:
-      preset: ${{ vars.FIT_CLI_PRESET || inputs.preset || 'op-multi-lite' }}
+      preset: ${{ inputs.preset || vars.FIT_CLI_PRESET || 'op-multi-lite' }}
       collect_extra_diagnostics: ${{ inputs.collect_extra_diagnostics == '' && true || inputs.collect_extra_diagnostics }}
       performer: go-fit-performer:${{ inputs.performer_tag || 'main' }}
-      channel: ${{ vars.FIT_CLI_CHANNEL || inputs.channel || 'ci' }}
+      channel: ${{ inputs.channel || vars.FIT_CLI_CHANNEL || 'ci' }}
