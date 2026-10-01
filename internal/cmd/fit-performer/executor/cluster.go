@@ -67,7 +67,7 @@ func (e *Executor) handleClusterLevelCommand(command *sdk.ClusterLevelCommand, s
 			Authenticator: auth,
 		})
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 
@@ -115,7 +115,7 @@ func (e *Executor) handleClusterLevelCommand(command *sdk.ClusterLevelCommand, s
 					opts,
 				)
 				if err != nil {
-					e.sendSDKError(err, sender)
+					e.sendSDKError(err, sender, start)
 					return false, nil
 				}
 
@@ -159,7 +159,7 @@ func (e *Executor) handleClusterLevelCommand(command *sdk.ClusterLevelCommand, s
 					opts,
 				)
 				if err != nil {
-					e.sendSDKError(err, sender)
+					e.sendSDKError(err, sender, start)
 					return false, nil
 				}
 
@@ -199,7 +199,7 @@ func (e *Executor) handleClusterLevelCommand(command *sdk.ClusterLevelCommand, s
 					opts,
 				)
 				if err != nil {
-					e.sendSDKError(err, sender)
+					e.sendSDKError(err, sender, start)
 					return false, nil
 				}
 
@@ -256,7 +256,7 @@ func (e *Executor) handleClusterLevelCommand(command *sdk.ClusterLevelCommand, s
 					opts,
 				)
 				if err != nil {
-					e.sendSDKError(err, sender)
+					e.sendSDKError(err, sender, start)
 					return false, nil
 				}
 
@@ -298,7 +298,7 @@ func (e *Executor) handleClusterLevelCommand(command *sdk.ClusterLevelCommand, s
 					opts,
 				)
 				if err != nil {
-					e.sendSDKError(err, sender)
+					e.sendSDKError(err, sender, start)
 					return false, nil
 				}
 
@@ -338,7 +338,7 @@ func (e *Executor) handleClusterLevelCommand(command *sdk.ClusterLevelCommand, s
 					opts,
 				)
 				if err != nil {
-					e.sendSDKError(err, sender)
+					e.sendSDKError(err, sender, start)
 					return false, nil
 				}
 
@@ -380,7 +380,7 @@ func (e *Executor) handleClusterLevelCommand(command *sdk.ClusterLevelCommand, s
 					opts,
 				)
 				if err != nil {
-					e.sendSDKError(err, sender)
+					e.sendSDKError(err, sender, start)
 					return false, nil
 				}
 
@@ -413,7 +413,7 @@ func (e *Executor) handleClusterLevelCommand(command *sdk.ClusterLevelCommand, s
 		start := time.Now()
 		res, err := e.conn.Cluster().Query(op.Query.Statement, opts)
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 
@@ -421,7 +421,7 @@ func (e *Executor) handleClusterLevelCommand(command *sdk.ClusterLevelCommand, s
 		if returnResult {
 			queryRes, err := parseQueryResult(op.Query.ContentAs, res)
 			if err != nil {
-				e.sendSDKError(err, sender)
+				e.sendSDKError(err, sender, start)
 				return false, nil
 			}
 
@@ -436,7 +436,7 @@ func (e *Executor) handleClusterLevelCommand(command *sdk.ClusterLevelCommand, s
 			for res.Next() {
 			}
 			if err := res.Close(); err != nil {
-				e.sendSDKError(err, sender)
+				e.sendSDKError(err, sender, start)
 				return false, nil
 			}
 			result.Result = &run.Result_Sdk{
@@ -528,7 +528,7 @@ func (e *Executor) handleClusterLevelCommand(command *sdk.ClusterLevelCommand, s
 				opts,
 			)
 			if err != nil {
-				e.sendSDKError(err, sender)
+				e.sendSDKError(err, sender, start)
 				return false, nil
 			}
 
@@ -609,7 +609,7 @@ func (e *Executor) handleClusterLevelCommand(command *sdk.ClusterLevelCommand, s
 				opts,
 			)
 			if err != nil {
-				e.sendSDKError(err, sender)
+				e.sendSDKError(err, sender, start)
 				return false, nil
 			}
 
@@ -645,7 +645,7 @@ func (e *Executor) handleClusterLevelCommand(command *sdk.ClusterLevelCommand, s
 				opts,
 			)
 			if err != nil {
-				e.sendSDKError(err, sender)
+				e.sendSDKError(err, sender, start)
 				return false, nil
 			}
 
@@ -680,7 +680,7 @@ func (e *Executor) handleClusterLevelCommand(command *sdk.ClusterLevelCommand, s
 				opts,
 			)
 			if err != nil {
-				e.sendSDKError(err, sender)
+				e.sendSDKError(err, sender, start)
 				return false, nil
 			}
 
@@ -716,7 +716,7 @@ func (e *Executor) handleClusterLevelCommand(command *sdk.ClusterLevelCommand, s
 				opts,
 			)
 			if err != nil {
-				e.sendSDKError(err, sender)
+				e.sendSDKError(err, sender, start)
 				return false, nil
 			}
 
@@ -765,7 +765,7 @@ func (e *Executor) handleClusterLevelCommand(command *sdk.ClusterLevelCommand, s
 				opts,
 			)
 			if err != nil {
-				e.sendSDKError(err, sender)
+				e.sendSDKError(err, sender, start)
 				return false, nil
 			}
 
@@ -838,7 +838,7 @@ func (e *Executor) handleClusterLevelCommand(command *sdk.ClusterLevelCommand, s
 				case waituntilready.ClusterState_ONLINE:
 					opts.DesiredState = gocb.ClusterStateOnline
 				default:
-					e.sendSDKError(status.Error(codes.Unimplemented, "unknown desired state"), sender)
+					return false, status.Error(codes.Unimplemented, "unknown cluster state type")
 				}
 			}
 		}
@@ -846,7 +846,7 @@ func (e *Executor) handleClusterLevelCommand(command *sdk.ClusterLevelCommand, s
 		start := time.Now()
 		err := e.conn.Cluster().WaitUntilReady(time.Duration(op.WaitUntilReady.TimeoutMillis)*time.Millisecond, opts)
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 
@@ -880,7 +880,7 @@ func (e *Executor) handleClusterSearchV2(op *sdk.ClusterLevelCommand_SearchV2, s
 	start := time.Now()
 	res, err := e.conn.Cluster().Search(op.SearchV2.Search.IndexName, *searchRequest, opts)
 	if err != nil {
-		e.sendSDKError(err, sender)
+		e.sendSDKError(err, sender, start)
 		return false, nil
 	}
 
@@ -889,7 +889,7 @@ func (e *Executor) handleClusterSearchV2(op *sdk.ClusterLevelCommand_SearchV2, s
 		ElapsedNanos: time.Since(start).Nanoseconds(),
 	}
 
-	return e.handleSearchResult(res, result, op.SearchV2.StreamConfig, op.SearchV2.FieldsAs, sender, returnResult)
+	return e.handleSearchResult(res, result, op.SearchV2.StreamConfig, op.SearchV2.FieldsAs, sender, returnResult, start)
 }
 
 func (e *Executor) handleClusterSearch(op *sdk.ClusterLevelCommand_Search, sender sender.ResultSender, returnResult bool) (bool, error) {
@@ -908,7 +908,7 @@ func (e *Executor) handleClusterSearch(op *sdk.ClusterLevelCommand_Search, sende
 	start := time.Now()
 	res, err := e.conn.Cluster().SearchQuery(op.Search.IndexName, query, opts)
 	if err != nil {
-		e.sendSDKError(err, sender)
+		e.sendSDKError(err, sender, start)
 		return false, nil
 	}
 
@@ -917,16 +917,16 @@ func (e *Executor) handleClusterSearch(op *sdk.ClusterLevelCommand_Search, sende
 		ElapsedNanos: time.Since(start).Nanoseconds(),
 	}
 
-	return e.handleSearchResult(res, result, op.Search.StreamConfig, op.Search.FieldsAs, sender, returnResult)
+	return e.handleSearchResult(res, result, op.Search.StreamConfig, op.Search.FieldsAs, sender, returnResult, start)
 }
 
 func (e *Executor) handleSearchResult(res *gocb.SearchResult, result *run.Result, streamConfig *streams.Config,
-	fieldContentAs *shared.ContentAs, sender sender.ResultSender, returnResult bool) (bool, error) {
+	fieldContentAs *shared.ContentAs, sender sender.ResultSender, returnResult bool, start time.Time) (bool, error) {
 	if streamConfig == nil {
 		if returnResult {
 			searchRes, err := e.parseSearchResult(fieldContentAs, res)
 			if err != nil {
-				e.sendSDKError(err, sender)
+				e.sendSDKError(err, sender, start)
 				return false, nil
 			}
 
@@ -941,7 +941,7 @@ func (e *Executor) handleSearchResult(res *gocb.SearchResult, result *run.Result
 			for res.Next() {
 			}
 			if err := res.Close(); err != nil {
-				e.sendSDKError(err, sender)
+				e.sendSDKError(err, sender, start)
 				return false, nil
 			}
 
@@ -1245,7 +1245,7 @@ func (e *Executor) handleClusterSearchIndexManager(clusterOp *sdk.ClusterLevelCo
 		index, err := mgr.GetIndex(cmd.GetIndexName(), opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 
@@ -1271,7 +1271,7 @@ func (e *Executor) handleClusterSearchIndexManager(clusterOp *sdk.ClusterLevelCo
 		indexes, err := mgr.GetAllIndexes(opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 
@@ -1303,7 +1303,7 @@ func (e *Executor) handleClusterSearchIndexManager(clusterOp *sdk.ClusterLevelCo
 		err = mgr.UpsertIndex(*index, opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 		result.Result = e.makeSuccessResult()
@@ -1321,7 +1321,7 @@ func (e *Executor) handleClusterSearchIndexManager(clusterOp *sdk.ClusterLevelCo
 		err = mgr.DropIndex(cmd.GetIndexName(), opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 		result.Result = e.makeSuccessResult()
@@ -1339,7 +1339,7 @@ func (e *Executor) handleClusterSearchIndexManager(clusterOp *sdk.ClusterLevelCo
 		count, err := mgr.GetIndexedDocumentsCount(op.GetIndexedDocumentsCount.GetIndexName(), opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 		if returnResult {
@@ -1364,7 +1364,7 @@ func (e *Executor) handleClusterSearchIndexManager(clusterOp *sdk.ClusterLevelCo
 		err = mgr.PauseIngest(op.PauseIngest.GetIndexName(), opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 		result.Result = e.makeSuccessResult()
@@ -1382,7 +1382,7 @@ func (e *Executor) handleClusterSearchIndexManager(clusterOp *sdk.ClusterLevelCo
 		err = mgr.ResumeIngest(cmd.GetIndexName(), opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 		result.Result = e.makeSuccessResult()
@@ -1400,7 +1400,7 @@ func (e *Executor) handleClusterSearchIndexManager(clusterOp *sdk.ClusterLevelCo
 		err = mgr.AllowQuerying(cmd.GetIndexName(), opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 		result.Result = e.makeSuccessResult()
@@ -1427,7 +1427,7 @@ func (e *Executor) handleClusterSearchIndexManager(clusterOp *sdk.ClusterLevelCo
 		err := mgr.DisallowQuerying(cmd.GetIndexName(), opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 		result.Result = e.makeSuccessResult()
@@ -1454,7 +1454,7 @@ func (e *Executor) handleClusterSearchIndexManager(clusterOp *sdk.ClusterLevelCo
 		err := mgr.FreezePlan(cmd.GetIndexName(), opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 		result.Result = e.makeSuccessResult()
@@ -1480,7 +1480,7 @@ func (e *Executor) handleClusterSearchIndexManager(clusterOp *sdk.ClusterLevelCo
 		err := mgr.UnfreezePlan(op.UnfreezePlan.GetIndexName(), opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 		result.Result = e.makeSuccessResult()
@@ -1511,7 +1511,7 @@ func (e *Executor) handleClusterSearchIndexManager(clusterOp *sdk.ClusterLevelCo
 		analyzeResults, err := mgr.AnalyzeDocument(op.AnalyzeDocument.GetIndexName(), doc, opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 		if returnResult {

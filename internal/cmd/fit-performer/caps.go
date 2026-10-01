@@ -16,6 +16,7 @@ func PerformerCaps() []protoPerformer.Caps {
 		protoPerformer.Caps_TRANSACTIONS_SUPPORT_1,
 		protoPerformer.Caps_TRANSACTIONS_WORKLOAD_1,
 		protoPerformer.Caps_TXN_CLIENT_CONTEXT_ID_SUPPORT,
+		protoPerformer.Caps_TIMING_ON_FAILED_OPS,
 	}
 }
 

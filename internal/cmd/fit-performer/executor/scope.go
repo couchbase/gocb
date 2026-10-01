@@ -39,7 +39,7 @@ func (e *Executor) handleScopeLevelCommand(command *sdk.ScopeLevelCommand, sende
 		start := time.Now()
 		res, err := scope.Query(op.Query.Statement, opts)
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 
@@ -47,7 +47,7 @@ func (e *Executor) handleScopeLevelCommand(command *sdk.ScopeLevelCommand, sende
 		if returnResult {
 			queryRes, err := parseQueryResult(op.Query.ContentAs, res)
 			if err != nil {
-				e.sendSDKError(err, sender)
+				e.sendSDKError(err, sender, start)
 				return false, nil
 			}
 
@@ -62,7 +62,7 @@ func (e *Executor) handleScopeLevelCommand(command *sdk.ScopeLevelCommand, sende
 			for res.Next() {
 			}
 			if err := res.Close(); err != nil {
-				e.sendSDKError(err, sender)
+				e.sendSDKError(err, sender, start)
 				return false, nil
 			}
 			result.Result = e.makeSuccessResult()
@@ -96,7 +96,7 @@ func (e *Executor) handleScopeSearchV2(scope *gocb.Scope, op *sdk.ScopeLevelComm
 	start := time.Now()
 	res, err := scope.Search(op.SearchV2.Search.IndexName, *searchRequest, opts)
 	if err != nil {
-		e.sendSDKError(err, sender)
+		e.sendSDKError(err, sender, start)
 		return false, nil
 	}
 
@@ -105,7 +105,7 @@ func (e *Executor) handleScopeSearchV2(scope *gocb.Scope, op *sdk.ScopeLevelComm
 		ElapsedNanos: time.Since(start).Nanoseconds(),
 	}
 
-	return e.handleSearchResult(res, result, op.SearchV2.StreamConfig, op.SearchV2.FieldsAs, sender, returnResult)
+	return e.handleSearchResult(res, result, op.SearchV2.StreamConfig, op.SearchV2.FieldsAs, sender, returnResult, start)
 }
 
 func (e *Executor) handleScopeSearchIndexManager(scope *gocb.Scope, clusterOp *sdk.ScopeLevelCommand_SearchIndexManager, sender sender.ResultSender, returnResult bool) (bool, error) {
@@ -126,7 +126,7 @@ func (e *Executor) handleScopeSearchIndexManager(scope *gocb.Scope, clusterOp *s
 		index, err := mgr.GetIndex(cmd.GetIndexName(), opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 
@@ -152,7 +152,7 @@ func (e *Executor) handleScopeSearchIndexManager(scope *gocb.Scope, clusterOp *s
 		indexes, err := mgr.GetAllIndexes(opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 
@@ -184,7 +184,7 @@ func (e *Executor) handleScopeSearchIndexManager(scope *gocb.Scope, clusterOp *s
 		err = mgr.UpsertIndex(*index, opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 		result.Result = e.makeSuccessResult()
@@ -202,7 +202,7 @@ func (e *Executor) handleScopeSearchIndexManager(scope *gocb.Scope, clusterOp *s
 		err = mgr.DropIndex(cmd.GetIndexName(), opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 		result.Result = e.makeSuccessResult()
@@ -220,7 +220,7 @@ func (e *Executor) handleScopeSearchIndexManager(scope *gocb.Scope, clusterOp *s
 		count, err := mgr.GetIndexedDocumentsCount(op.GetIndexedDocumentsCount.GetIndexName(), opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 		if returnResult {
@@ -245,7 +245,7 @@ func (e *Executor) handleScopeSearchIndexManager(scope *gocb.Scope, clusterOp *s
 		err = mgr.PauseIngest(op.PauseIngest.GetIndexName(), opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 		result.Result = e.makeSuccessResult()
@@ -263,7 +263,7 @@ func (e *Executor) handleScopeSearchIndexManager(scope *gocb.Scope, clusterOp *s
 		err = mgr.ResumeIngest(cmd.GetIndexName(), opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 		result.Result = e.makeSuccessResult()
@@ -281,7 +281,7 @@ func (e *Executor) handleScopeSearchIndexManager(scope *gocb.Scope, clusterOp *s
 		err = mgr.AllowQuerying(cmd.GetIndexName(), opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 		result.Result = e.makeSuccessResult()
@@ -299,7 +299,7 @@ func (e *Executor) handleScopeSearchIndexManager(scope *gocb.Scope, clusterOp *s
 		err = mgr.DisallowQuerying(cmd.GetIndexName(), opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 		result.Result = e.makeSuccessResult()
@@ -317,7 +317,7 @@ func (e *Executor) handleScopeSearchIndexManager(scope *gocb.Scope, clusterOp *s
 		err = mgr.FreezePlan(cmd.GetIndexName(), opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 		result.Result = e.makeSuccessResult()
@@ -335,7 +335,7 @@ func (e *Executor) handleScopeSearchIndexManager(scope *gocb.Scope, clusterOp *s
 		err = mgr.UnfreezePlan(op.UnfreezePlan.GetIndexName(), opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 		result.Result = e.makeSuccessResult()
@@ -358,7 +358,7 @@ func (e *Executor) handleScopeSearchIndexManager(scope *gocb.Scope, clusterOp *s
 		analyzeResults, err := mgr.AnalyzeDocument(cmd.GetIndexName(), doc, opts)
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 		if returnResult {

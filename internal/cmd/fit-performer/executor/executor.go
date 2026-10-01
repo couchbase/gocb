@@ -129,7 +129,7 @@ func (e *Executor) performOperation(command *sdk.Command, sender sender.ResultSe
 
 		res, err := col.Get(loc.ID(), opts)
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 
@@ -254,7 +254,7 @@ func (e *Executor) performOperation(command *sdk.Command, sender sender.ResultSe
 		start := time.Now()
 		scan, err := col.Scan(scanType, opts)
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 
@@ -350,7 +350,7 @@ type mutationFn func(collection *gocb.Collection, id string, content interface{}
 
 type counterFn func(collection *gocb.Collection, id string, content interface{}) (*gocb.CounterResult, time.Time, error)
 
-func (e *Executor) sendSDKError(err error, sender sender.ResultSender) {
+func (e *Executor) sendSDKError(err error, sender sender.ResultSender, start time.Time) {
 	sender.Send(&run.Result{
 		Result: &run.Result_Sdk{
 			Sdk: &sdk.Result{
@@ -359,7 +359,8 @@ func (e *Executor) sendSDKError(err error, sender sender.ResultSender) {
 				},
 			},
 		},
-		Initiated: timestamppb.Now(),
+		Initiated:    timestamppb.Now(),
+		ElapsedNanos: time.Since(start).Nanoseconds(),
 	})
 }
 
@@ -387,7 +388,7 @@ func (e *Executor) sendMutation(docLocation *shared.DocLocation, sharedContent *
 	}
 	res, start, err := opFn(col, loc.ID(), contentConverted)
 	if err != nil {
-		e.sendSDKError(err, sender)
+		e.sendSDKError(err, sender, start)
 		return false, nil
 	}
 
@@ -433,7 +434,7 @@ func (e *Executor) sendCounter(docLocation *shared.DocLocation, sharedContent *s
 	}
 	res, start, err := opFn(col, loc.ID(), contentConverted)
 	if err != nil {
-		e.sendSDKError(err, sender)
+		e.sendSDKError(err, sender, start)
 		return false, nil
 	}
 

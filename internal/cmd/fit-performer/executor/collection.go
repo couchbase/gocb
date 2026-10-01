@@ -74,7 +74,7 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 
 		res, err := col.GetAndTouch(loc.ID(), expiry, opts)
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 
@@ -135,7 +135,7 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 
 		res, err := col.GetAndLock(loc.ID(), duration, opts)
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 
@@ -195,7 +195,7 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 
 		err = col.Unlock(loc.ID(), cas, opts)
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 
@@ -227,7 +227,7 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 
 		res, err := col.Exists(loc.ID(), opts)
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 
@@ -324,11 +324,14 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 		if err != nil {
 			return false, err
 		}
+		start := time.Now()
 		res, err := col.MutateIn(loc.ID(), specs, opts)
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
+
+		result.ElapsedNanos = time.Since(start).Nanoseconds()
 		if returnResult {
 			sdkResult := &mutatein.MutateInResult{
 				Cas: int64(res.Cas()),
@@ -397,11 +400,14 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 			return false, err
 		}
 
+		start := time.Now()
 		res, err := col.GetAnyReplica(loc.ID(), opts)
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
+
+		result.ElapsedNanos = time.Since(start).Nanoseconds()
 
 		var content json.RawMessage
 		err = res.Content(&content)
@@ -460,7 +466,7 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 		start := time.Now()
 		res, err := col.GetAllReplicas(loc.ID(), opts)
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 
@@ -557,11 +563,14 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 			return false, nil
 		}
 
+		start := time.Now()
 		res, err := col.GetReplica(loc.ID(), strategy, opts)
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
+
+		result.ElapsedNanos = time.Since(start).Nanoseconds()
 
 		var content json.RawMessage
 		err = res.Content(&content)
@@ -623,7 +632,7 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 						},
 					)
 				if err != nil {
-					e.sendSDKError(err, sender)
+					e.sendSDKError(err, sender, start)
 					return false, nil
 				}
 
@@ -659,7 +668,7 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 						},
 					)
 				if err != nil {
-					e.sendSDKError(err, sender)
+					e.sendSDKError(err, sender, start)
 					return false, nil
 				}
 
@@ -692,7 +701,7 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 						},
 					)
 				if err != nil {
-					e.sendSDKError(err, sender)
+					e.sendSDKError(err, sender, start)
 					return false, nil
 				}
 
@@ -742,7 +751,7 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 						},
 					)
 				if err != nil {
-					e.sendSDKError(err, sender)
+					e.sendSDKError(err, sender, start)
 					return false, nil
 				}
 
@@ -777,7 +786,7 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 						},
 					)
 				if err != nil {
-					e.sendSDKError(err, sender)
+					e.sendSDKError(err, sender, start)
 					return false, nil
 				}
 
@@ -809,7 +818,7 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 						},
 					)
 				if err != nil {
-					e.sendSDKError(err, sender)
+					e.sendSDKError(err, sender, start)
 					return false, nil
 				}
 
@@ -843,7 +852,7 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 						},
 					)
 				if err != nil {
-					e.sendSDKError(err, sender)
+					e.sendSDKError(err, sender, start)
 					return false, nil
 				}
 
@@ -889,7 +898,7 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 
 		res, err := col.LookupIn(loc.ID(), specs, opts)
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 
@@ -942,7 +951,7 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 
 		res, err := col.LookupInAnyReplica(loc.ID(), specs, opts)
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 
@@ -993,7 +1002,7 @@ func (e *Executor) handleCollectionLevelCommand(command *sdk.CollectionLevelComm
 
 		res, err := col.LookupInAllReplicas(loc.ID(), specs, opts)
 		if err != nil {
-			e.sendSDKError(err, sender)
+			e.sendSDKError(err, sender, start)
 			return false, nil
 		}
 

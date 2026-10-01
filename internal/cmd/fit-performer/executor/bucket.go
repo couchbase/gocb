@@ -44,7 +44,7 @@ func (e *Executor) handleBucketLevelCommand(command *sdk.BucketLevelCommand, sen
 				Collections().
 				GetAllScopes(opts)
 			if err != nil {
-				e.sendSDKError(err, sender)
+				e.sendSDKError(err, sender, start)
 				return false, nil
 			}
 
@@ -122,7 +122,7 @@ func (e *Executor) handleBucketLevelCommand(command *sdk.BucketLevelCommand, sen
 				Collections().
 				CreateScope(sharedOp.CreateScope.Name, opts)
 			if err != nil {
-				e.sendSDKError(err, sender)
+				e.sendSDKError(err, sender, start)
 				return false, nil
 			}
 
@@ -160,7 +160,7 @@ func (e *Executor) handleBucketLevelCommand(command *sdk.BucketLevelCommand, sen
 				Collections().
 				DropScope(sharedOp.DropScope.Name, opts)
 			if err != nil {
-				e.sendSDKError(err, sender)
+				e.sendSDKError(err, sender, start)
 				return false, nil
 			}
 
@@ -213,7 +213,7 @@ func (e *Executor) handleBucketLevelCommand(command *sdk.BucketLevelCommand, sen
 				Collections().
 				CreateCollection(spec, opts)
 			if err != nil {
-				e.sendSDKError(err, sender)
+				e.sendSDKError(err, sender, start)
 				return false, nil
 			}
 
@@ -266,7 +266,7 @@ func (e *Executor) handleBucketLevelCommand(command *sdk.BucketLevelCommand, sen
 				Collections().
 				UpdateCollection(spec, opts)
 			if err != nil {
-				e.sendSDKError(err, sender)
+				e.sendSDKError(err, sender, start)
 				return false, nil
 			}
 
@@ -309,7 +309,7 @@ func (e *Executor) handleBucketLevelCommand(command *sdk.BucketLevelCommand, sen
 				Collections().
 				DropCollection(spec, opts)
 			if err != nil {
-				e.sendSDKError(err, sender)
+				e.sendSDKError(err, sender, start)
 				return false, nil
 			}
 
