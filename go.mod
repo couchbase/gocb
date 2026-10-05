@@ -1,19 +1,19 @@
 module github.com/couchbase/gocb/v2
 
 require (
-	github.com/couchbase/gocbcore/v10 v10.9.2-0.20260915143023-cd2e0d21854d
-	github.com/couchbase/gocbcoreps v0.1.5-0.20260907165847-d3784e3e2bb0
-	github.com/couchbase/goprotostellar v1.0.6-0.20260427185542-d3cc7955fca9
+	github.com/couchbase/gocbcore/v10 v10.9.2-0.20261005161802-6a7ae44aa997
+	github.com/couchbase/gocbcoreps v0.1.5-0.20261005161736-7de374b343fa
+	github.com/couchbase/goprotostellar v1.0.6-0.20261005130525-13bdd85cd6ce
 	github.com/couchbaselabs/gocaves/client v0.0.0-20250107114554-f96479220ae8
 	github.com/couchbaselabs/gocbconnstr/v2 v2.0.0
 	github.com/golang/snappy v1.0.0
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.12.1
-	go.opentelemetry.io/otel/metric v1.46.0
-	go.opentelemetry.io/otel/trace v1.46.0
+	go.opentelemetry.io/otel/metric v1.47.0
+	go.opentelemetry.io/otel/trace v1.47.0
 	go.uber.org/zap v1.28.0
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260911204522-f61a6ca850bd
-	google.golang.org/grpc v1.83.2
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260928230214-8a89bd6388cc
+	google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf v1.36.12
 )
 
@@ -25,7 +25,8 @@ require (
 	github.com/stretchr/objx v0.5.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.71.0 // indirect
-	go.opentelemetry.io/otel v1.46.0 // indirect
+	go.opentelemetry.io/otel v1.47.0 // indirect
+	go.opentelemetry.io/otel/log v1.47.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/net v0.58.0 // indirect
@@ -33,4 +34,4 @@ require (
 	golang.org/x/text v0.41.0 // indirect
 )
 
-go 1.25.0
+go 1.26.0
