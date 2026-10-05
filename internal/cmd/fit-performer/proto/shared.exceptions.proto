@@ -146,6 +146,21 @@ message Exception {
     CouchbaseExceptionEx couchbase = 1;
 
     ExceptionOther other = 2;
+
+    ExceptionSpecial special = 3;
   }
 }
 
+message ExceptionSpecial {
+  oneof special {
+    PlatformTimeoutEx timeout = 1;
+  }
+}
+
+message PlatformTimeoutEx {
+  // The simple name
+  string name = 1;
+
+  // Broadly this is the result of outputting the exception.  E.g. for Java `ex.toString()`.
+  string serialized = 2;
+}
