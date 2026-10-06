@@ -75,6 +75,8 @@ func (e *Executor) handleScopeLevelCommand(command *sdk.ScopeLevelCommand, sende
 		return e.handleScopeSearchV2(scope, op, sender, returnResult)
 	case *sdk.ScopeLevelCommand_SearchIndexManager:
 		return e.handleScopeSearchIndexManager(scope, op, sender, returnResult)
+	case *sdk.ScopeLevelCommand_EventingFunctionManager:
+		return e.handleScopeLevelEventingManagerCommand(scope, op.EventingFunctionManager, sender, returnResult)
 
 	default:
 		return false, status.Error(codes.Unimplemented, "unknown command type")

@@ -860,6 +860,8 @@ func (e *Executor) handleClusterLevelCommand(command *sdk.ClusterLevelCommand, s
 
 		sender.Send(result)
 		return true, nil
+	case *sdk.ClusterLevelCommand_EventingFunctionManager:
+		return e.handleClusterLevelEventingManagerCommand(e.conn.Cluster(), op.EventingFunctionManager, sender, returnResult)
 	default:
 		return false, status.Error(codes.Unimplemented, "unknown command type")
 	}
