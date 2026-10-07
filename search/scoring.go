@@ -16,17 +16,23 @@ type Scoring interface {
 
 // ScoringReciprocalRankFusion merges the FTS and vector result sets of a hybrid search by rank rather
 // than raw score. It is the recommended score fusion strategy.
+//
+// UNCOMMITTED: This API may change in the future.
 type ScoringReciprocalRankFusion struct {
 	rankConstant *uint32
 	windowSize   *uint32
 }
 
 // NewScoringReciprocalRankFusion creates a new ScoringReciprocalRankFusion.
+//
+// UNCOMMITTED: This API may change in the future.
 func NewScoringReciprocalRankFusion() *ScoringReciprocalRankFusion {
 	return &ScoringReciprocalRankFusion{}
 }
 
 // RankConstant specifies the rank constant used when merging the result sets. The server defaults this to 60.
+//
+// UNCOMMITTED: This API may change in the future.
 func (f *ScoringReciprocalRankFusion) RankConstant(rankConstant uint32) *ScoringReciprocalRankFusion {
 	f.rankConstant = &rankConstant
 	return f
@@ -34,6 +40,8 @@ func (f *ScoringReciprocalRankFusion) RankConstant(rankConstant uint32) *Scoring
 
 // WindowSize specifies how many results per list are considered for fusion. The server defaults this to the
 // request Limit.
+//
+// UNCOMMITTED: This API may change in the future.
 func (f *ScoringReciprocalRankFusion) WindowSize(windowSize uint32) *ScoringReciprocalRankFusion {
 	f.windowSize = &windowSize
 	return f
@@ -58,17 +66,23 @@ func (f *ScoringReciprocalRankFusion) Params() map[string]interface{} {
 
 // ScoringRelativeScoreFusion merges the FTS and vector result sets of a hybrid search by normalized
 // score rather than rank.
+//
+// UNCOMMITTED: This API may change in the future.
 type ScoringRelativeScoreFusion struct {
 	windowSize *uint32
 }
 
 // NewScoringRelativeScoreFusion creates a new ScoringRelativeScoreFusion.
+//
+// UNCOMMITTED: This API may change in the future.
 func NewScoringRelativeScoreFusion() *ScoringRelativeScoreFusion {
 	return &ScoringRelativeScoreFusion{}
 }
 
 // WindowSize specifies how many results per list are considered for fusion. The server defaults this to the
 // request Limit.
+//
+// UNCOMMITTED: This API may change in the future.
 func (f *ScoringRelativeScoreFusion) WindowSize(windowSize uint32) *ScoringRelativeScoreFusion {
 	f.windowSize = &windowSize
 	return f
