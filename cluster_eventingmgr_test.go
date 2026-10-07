@@ -73,7 +73,7 @@ func (suite *IntegrationTestSuite) runEventingManagerUpsertGetDropTest(scope *Sc
 		ConstantBindings: []EventingFunctionConstantBinding{
 			{
 				Alias:   "someconstant",
-				Literal: "someliteral",
+				Literal: `"someliteral"`,
 			},
 		},
 		MetadataKeyspace: EventingFunctionKeyspace{
