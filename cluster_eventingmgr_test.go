@@ -526,6 +526,24 @@ func (suite *IntegrationTestSuite) runEventingManagerDeploysAndUndeploysTest(sco
 	suite.Require().NoError(err)
 	suite.Require().Equal(EventingFunctionDeploymentStatusUndeployed, actualFn.Settings.DeploymentStatus)
 
+	success = suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
+		funcsStatus, err := mgr.FunctionsStatus(nil)
+		suite.Require().NoError(err)
+
+		for _, fn := range funcsStatus.Functions {
+			if fn.Name == fnName {
+				if fn.Status != EventingFunctionStateUndeployed {
+					suite.T().Logf("FunctionsStatus reports function not undeployed: %s", fn.Status)
+				}
+				return fn.Status == EventingFunctionStateUndeployed
+			}
+		}
+
+		suite.T().Fatalf("Function not found from FunctionsStatus")
+		return false
+	})
+	suite.Require().True(success, "FunctionsStatus never reported function undeployed")
+
 	err = suite.retryOnInvalidRequest(func() error {
 		return mgr.UndeployFunction(fnName, nil)
 	})
