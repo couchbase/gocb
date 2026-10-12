@@ -264,6 +264,24 @@ func mapCbErrorToProto(err error) *shared.CouchbaseExceptionType {
 	if errType := errorIs(err, gocb.ErrReplicaIndexCurrentlyUnavailable, shared.CouchbaseExceptionType_SDK_REPLICA_INDEX_CURRENTLY_UNAVAILABLE_EXCEPTION); errType != nil {
 		return errType
 	}
+	if errType := errorIs(err, gocb.ErrEventingFunctionNotFound, shared.CouchbaseExceptionType_SDK_EVENTING_FUNCTION_NOT_FOUND_EXCEPTION); errType != nil {
+		return errType
+	}
+	if errType := errorIs(err, gocb.ErrEventingFunctionNotDeployed, shared.CouchbaseExceptionType_SDK_EVENTING_FUNCTION_NOT_DEPLOYED_EXCEPTION); errType != nil {
+		return errType
+	}
+	if errType := errorIs(err, gocb.ErrEventingFunctionCompilationFailure, shared.CouchbaseExceptionType_SDK_EVENTING_FUNCTION_COMPILATION_FAILURE_EXCEPTION); errType != nil {
+		return errType
+	}
+	if errType := errorIs(err, gocb.ErrEventingFunctionIdenticalKeyspace, shared.CouchbaseExceptionType_SDK_EVENTING_FUNCTION_IDENTICAL_KEYSPACE_EXCEPTION); errType != nil {
+		return errType
+	}
+	if errType := errorIs(err, gocb.ErrEventingFunctionNotBootstrapped, shared.CouchbaseExceptionType_SDK_EVENTING_FUNCTION_NOT_BOOTSTRAPPED_EXCEPTION); errType != nil {
+		return errType
+	}
+	if errType := errorIs(err, gocb.ErrEventingFunctionDeployed, shared.CouchbaseExceptionType_SDK_EVENTING_FUNCTION_DEPLOYED_EXCEPTION); errType != nil {
+		return errType
+	}
 
 	var queryErr *gocb.QueryError
 	if errors.As(err, &queryErr) {

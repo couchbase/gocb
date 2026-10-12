@@ -170,4 +170,7 @@ enum Caps {
   // The SDK raises InvalidArgumentException for an HTTP 400 from any HTTP service when no more specific error applies
   // (SDK-RFC 58 revision 22).
   SDK_HTTP_400_INVALID_ARGUMENT = 45;
+
+  // The SDK has support for the eventing-specific error types defined in SDK-RFC 62 (see shared.exceptions.proto).
+  SDK_EVENTING_ERRORS = 46;
 }
