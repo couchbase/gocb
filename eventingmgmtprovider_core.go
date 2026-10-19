@@ -418,7 +418,7 @@ func (emp *eventingManagementProviderCore) tryParseErrorMessage(req *mgmtRequest
 		baseErr = ErrEventingFunctionIdenticalKeyspace
 	} else if strings.Contains(strBody, "ERR_APP_NOT_BOOTSTRAPPED") {
 		baseErr = ErrEventingFunctionNotBootstrapped
-	} else if strings.Contains(strBody, "ERR_APP_NOT_UNDEPLOYED") {
+	} else if strings.Contains(strBody, "ERR_APP_NOT_UNDEPLOYED") || strings.Contains(strBody, "ERR_APP_ALREADY_DEPLOYED") {
 		baseErr = ErrEventingFunctionDeployed
 	} else if strings.Contains(strBody, "ERR_COLLECTION_MISSING") {
 		baseErr = ErrCollectionNotFound
