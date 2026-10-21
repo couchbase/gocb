@@ -282,6 +282,9 @@ func mapCbErrorToProto(err error) *shared.CouchbaseExceptionType {
 	if errType := errorIs(err, gocb.ErrEventingFunctionDeployed, shared.CouchbaseExceptionType_SDK_EVENTING_FUNCTION_DEPLOYED_EXCEPTION); errType != nil {
 		return errType
 	}
+	if errType := errorIs(err, gocb.ErrEventingFunctionPaused, shared.CouchbaseExceptionType_SDK_EVENTING_FUNCTION_PAUSED_EXCEPTION); errType != nil {
+		return errType
+	}
 
 	var queryErr *gocb.QueryError
 	if errors.As(err, &queryErr) {

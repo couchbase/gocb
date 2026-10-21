@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/couchbase/gocb-opentelemetry v0.3.1-0.20260216135946-0c6fdc596351
-	github.com/couchbase/gocb/v2 v2.11.2-0.20260210150859-1799e1fef008
+	github.com/couchbase/gocb/v2 v2.13.1-0.20261019170957-e7d961d20846
 	github.com/google/uuid v1.6.0
 	github.com/shirou/gopsutil/v4 v4.26.9
 	github.com/sirupsen/logrus v1.10.2
@@ -20,7 +20,7 @@ require (
 require (
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/couchbase/gocbcore/v10 v10.10.0 // indirect
+	github.com/couchbase/gocbcore/v10 v10.10.1-0.20261020145955-27454fe8ee02 // indirect
 	github.com/couchbase/gocbcoreps v0.1.5-0.20261005161736-7de374b343fa // indirect
 	github.com/couchbase/goprotostellar v1.0.6-0.20261005130525-13bdd85cd6ce // indirect
 	github.com/couchbaselabs/gocbconnstr/v2 v2.0.0 // indirect
@@ -49,7 +49,7 @@ require (
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260928230214-8a89bd6388cc // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260928230214-8a89bd6388cc // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20261019180522-ce908d29299b // indirect
 )
 
 replace github.com/couchbase/gocb/v2 => ../../../

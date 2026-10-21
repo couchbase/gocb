@@ -809,6 +809,139 @@ func (suite *IntegrationTestSuite) TestEventingManagerPausesAndResumes() {
 	suite.runEventingManagerPausesAndResumesTest(nil)
 }
 
+func (suite *IntegrationTestSuite) runEventingManagerFunctionPausedTest(scope *Scope) {
+	suite.skipIfUnsupported(CollectionsFeature)
+	suite.skipIfUnsupported(EventingFunctionManagerFeature)
+	suite.skipIfUnsupported(EventingFunctionManagerMB52649Feature)
+
+	var mgr eventingManager
+	if scope == nil {
+		mgr = globalCluster.Cluster.EventingFunctions()
+	} else {
+		suite.skipIfUnsupported(ScopeEventingFunctionManagerFeature)
+
+		mgr = scope.EventingFunctions()
+	}
+
+	scopeName := uuid.NewString()
+	suite.mustCreateScope(scopeName)
+	defer suite.dropScope(scopeName)
+	suite.EnsureScopeOnAllNodes(scopeName)
+
+	suite.mustCreateCollection(scopeName, "source")
+	suite.mustCreateCollection(scopeName, "meta")
+
+	suite.EnsureCollectionsOnAllNodes(scopeName, []string{"source", "meta"})
+
+	fnName := uuid.New().String()
+	expectedFn := EventingFunction{
+		Name: fnName,
+		Code: `function OnUpdate(doc, meta) {
+}`,
+		MetadataKeyspace: EventingFunctionKeyspace{
+			Bucket:     globalBucket.Name(),
+			Scope:      scopeName,
+			Collection: "meta",
+		},
+		SourceKeyspace: EventingFunctionKeyspace{
+			Bucket:     globalBucket.Name(),
+			Scope:      scopeName,
+			Collection: "source",
+		},
+	}
+	success := suite.tryUntil(time.Now().Add(2*time.Second), 100*time.Millisecond, func() bool {
+		err := mgr.UpsertFunction(expectedFn, nil)
+		if err != nil {
+			suite.T().Logf("Expected UpsertFunction to succeed: %v", err)
+			return false
+		}
+
+		return true
+	})
+	suite.Require().True(success, "Upsert function did not succeed in time")
+
+	if scope == nil {
+		suite.EnsureEveningFunctionOnAllNodes(time.Now().Add(30*time.Second), fnName, "", "")
+	} else {
+		suite.EnsureEveningFunctionOnAllNodes(time.Now().Add(30*time.Second), fnName, scope.BucketName(), scope.Name())
+	}
+
+	err := suite.retryOnInvalidRequest(func() error {
+		return mgr.DeployFunction(fnName, nil)
+	})
+	suite.Require().NoError(err)
+
+	success = suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
+		funcsStatus, err := mgr.FunctionsStatus(nil)
+		suite.Require().NoError(err)
+
+		for _, fn := range funcsStatus.Functions {
+			if fn.Name == fnName {
+				if fn.Status != EventingFunctionStateDeployed {
+					suite.T().Logf("FunctionsStatus reports function not deployed: %s", fn.Status)
+				}
+				return fn.Status == EventingFunctionStateDeployed
+			}
+		}
+
+		suite.T().Fatalf("Function not found from FunctionsStatus")
+		return false
+	})
+	suite.Require().True(success, "FunctionsStatus never reported function deployed")
+
+	err = mgr.PauseFunction(fnName, nil)
+	suite.Require().NoError(err)
+
+	success = suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
+		funcsStatus, err := mgr.FunctionsStatus(nil)
+		suite.Require().NoError(err)
+
+		for _, fn := range funcsStatus.Functions {
+			if fn.Name == fnName {
+				if fn.Status != EventingFunctionStatePaused {
+					suite.T().Logf("FunctionsStatus reports function not paused: %s", fn.Status)
+				}
+				return fn.Status == EventingFunctionStatePaused
+			}
+		}
+
+		suite.T().Fatalf("Function not found from FunctionsStatus")
+		return false
+	})
+	suite.Require().True(success, "FunctionsStatus never reported function paused")
+
+	err = mgr.PauseFunction(fnName, nil)
+	suite.Require().ErrorIs(err, ErrEventingFunctionPaused)
+
+	err = mgr.UndeployFunction(fnName, nil)
+	suite.Require().NoError(err)
+
+	success = suite.tryUntil(time.Now().Add(30*time.Second), 500*time.Millisecond, func() bool {
+		funcsStatus, err := mgr.FunctionsStatus(nil)
+		suite.Require().NoError(err)
+
+		for _, fn := range funcsStatus.Functions {
+			if fn.Name == fnName {
+				if fn.Status != EventingFunctionStateUndeployed {
+					suite.T().Logf("FunctionsStatus reports function not undeployed: %s", fn.Status)
+				}
+				return fn.Status == EventingFunctionStateUndeployed
+			}
+		}
+
+		suite.T().Fatalf("Function not found from FunctionsStatus")
+		return false
+	})
+	suite.Require().True(success, "FunctionsStatus never reported function undeployed")
+
+	err = mgr.DropFunction(fnName, nil)
+	suite.Require().NoError(err)
+}
+
+func (suite *IntegrationTestSuite) TestEventingManagerFunctionPaused() {
+	suite.runEventingManagerFunctionPausedTest(nil)
+}
+
 func (suite *IntegrationTestSuite) mustCreateScope(scope string) {
 	cmgr := globalBucket.CollectionsV2()
 	err := cmgr.CreateScope(scope, nil)
