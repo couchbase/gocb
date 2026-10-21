@@ -220,7 +220,6 @@ func (suite *IntegrationTestSuite) TestEventingManagerUnknownBucket() {
 func (suite *IntegrationTestSuite) runEventingManagerUnknownFunctionTest(scope *Scope) {
 	suite.skipIfUnsupported(CollectionsFeature)
 	suite.skipIfUnsupported(EventingFunctionManagerFeature)
-	suite.skipIfSupported(EventingFunctionManagerMB71748Feature) // Remove once MB-71748 is fixed
 
 	var mgr eventingManager
 	if scope == nil {

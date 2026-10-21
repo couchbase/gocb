@@ -408,7 +408,8 @@ func (emp *eventingManagementProviderCore) tryParseErrorMessage(req *mgmtRequest
 
 	var baseErr error
 	strBody := string(b)
-	if strings.Contains(strBody, "ERR_APP_NOT_FOUND_TS") {
+	if strings.Contains(strBody, "ERR_APP_NOT_FOUND_TS") || strings.Contains(strBody, "ERR_APP_NOT_FOUND") {
+		// Could just check for ERR_APP_NOT_FOUND but listing both for clarity.
 		baseErr = ErrEventingFunctionNotFound
 	} else if strings.Contains(strBody, "ERR_APP_NOT_DEPLOYED") {
 		baseErr = ErrEventingFunctionNotDeployed

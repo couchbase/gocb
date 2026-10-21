@@ -122,7 +122,6 @@ var (
 	EventingFunctionManagerResourceNotFoundAtDeploy         = FeatureCode("eventingmanagementcollectionnotfoundatdeploy")
 	EventingFunctionManagerMB68025Feature                   = FeatureCode("eventingmanagementmb68025")
 	EventingFunctionManagerMB67773Feature                   = FeatureCode("eventingmanagementmb67773")
-	EventingFunctionManagerMB71748Feature                   = FeatureCode("eventingmanagementmb71748")
 )
 
 type TestFeatureFlag struct {
@@ -457,8 +456,6 @@ func (c *testCluster) SupportsFeature(feature FeatureCode) bool {
 			supported = !c.Version.Lower(srvVer800)
 		case UserManagerGroupRolesFeature:
 			supported = !c.Version.Lower(srvVer700)
-		case EventingFunctionManagerMB71748Feature:
-			supported = !c.Version.Lower(srvVer801)
 		}
 	}
 
