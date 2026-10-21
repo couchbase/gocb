@@ -32,6 +32,12 @@ jobs:
           make performer-devsetup
           make performer-lint
 
+      - name: Check go mod tidy
+        working-directory: internal/cmd/fit-performer
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+
   build:
     name: Build
     runs-on: ubuntu-latest
