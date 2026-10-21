@@ -326,6 +326,10 @@ var (
 
 	// ErrEventingFunctionDeployed occurs when the eventing function requested is not undeployed.
 	ErrEventingFunctionDeployed = gocbcore.ErrEventingFunctionNotUndeployed
+
+	// ErrEventingFunctionPaused occurs when the eventing function requested is paused, but the operation does not
+	// expect it to.
+	ErrEventingFunctionPaused = gocbcore.ErrEventingFunctionPaused
 )
 
 // SDK specific error definitions

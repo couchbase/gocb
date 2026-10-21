@@ -424,6 +424,8 @@ func (emp *eventingManagementProviderCore) tryParseErrorMessage(req *mgmtRequest
 		baseErr = ErrCollectionNotFound
 	} else if strings.Contains(strBody, "ERR_BUCKET_MISSING") {
 		baseErr = ErrBucketNotFound
+	} else if strings.Contains(strBody, "ERR_APP_PAUSED") {
+		baseErr = ErrEventingFunctionPaused
 	} else {
 		baseErr = errors.New(string(b))
 	}

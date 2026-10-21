@@ -39,6 +39,10 @@ func (suite *IntegrationTestSuite) TestScopeEventingManagerPausesAndResumes() {
 	suite.runEventingManagerPausesAndResumesTest(globalScope)
 }
 
+func (suite *IntegrationTestSuite) TestScopeEventingManagerFunctionPaused() {
+	suite.runEventingManagerFunctionPausedTest(globalScope)
+}
+
 func (suite *IntegrationTestSuite) TestScopeEventingManagerGetAllFunctionsFiltering() {
 	suite.skipIfUnsupported(EventingFunctionManagerFeature)
 	suite.skipIfUnsupported(ScopeEventingFunctionManagerFeature)
