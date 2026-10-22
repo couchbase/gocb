@@ -27,6 +27,9 @@ func (search *searchProviderPs) Search(scope *Scope, indexName string, request S
 
 // SearchQuery executes a search query against PS, taking care of the translation.
 func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Query, opts *SearchOptions) (resOut *SearchResult, errOut error) {
+	if query == nil {
+		return nil, wrapError(ErrInvalidArgument, "the query cannot be nil")
+	}
 	if opts.ConsistentWith != nil {
 		return nil, wrapError(ErrFeatureNotAvailable, "the ConsistentWith search option is not supported by the couchbase2 protocol")
 	}
@@ -58,7 +61,7 @@ func (search *searchProviderPs) SearchQuery(indexName string, query cbsearch.Que
 
 	psQuery, err := cbsearch.Internal{}.MapQueryToPs(query)
 	if err != nil {
-		return nil, err
+		return nil, wrapError(ErrFeatureNotAvailable, err.Error())
 	}
 
 	psSort, err := cbsearch.Internal{}.MapSortToPs(opts.Sort)

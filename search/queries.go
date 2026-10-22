@@ -2,6 +2,8 @@ package search
 
 import (
 	"encoding/json"
+	"maps"
+	"slices"
 )
 
 // Query represents a search query.
@@ -1045,5 +1047,123 @@ func (q *GeoPolygonQuery) Field(field string) *GeoPolygonQuery {
 // Boost specifies the boost for this query.
 func (q *GeoPolygonQuery) Boost(boost float32) *GeoPolygonQuery {
 	q.boost = &boost
+	return q
+}
+
+type internalUDFQuery struct {
+	Query      Query          `json:"query"`
+	Source     string         `json:"source"`
+	Fields     []string       `json:"fields,omitempty"`
+	Parameters map[string]any `json:"params,omitempty"`
+}
+
+// CustomScoreQuery is a search query that wraps another query and applies a custom user-defined
+// JavaScript function to compute the score of each matching document, in place of the score that
+// would otherwise be assigned by the wrapped query.
+//
+// The scoring function is invoked as function(doc, params), where doc.score is the score assigned
+// by the wrapped query, doc.fields holds the document fields specified via Fields, and params is the
+// value supplied via Parameters. The function must return a number to be used as the document's
+// score.
+//
+// This feature must be enabled on the server, as it is disabled by default.
+type CustomScoreQuery struct {
+	query      Query
+	source     string
+	fields     []string
+	parameters map[string]any
+}
+
+// MarshalJSON marshal's this query to JSON for the search REST API.
+func (q CustomScoreQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		CustomScore internalUDFQuery `json:"custom_score"`
+	}{
+		CustomScore: internalUDFQuery{
+			Query:      q.query,
+			Source:     q.source,
+			Fields:     q.fields,
+			Parameters: q.parameters,
+		},
+	}
+
+	return json.Marshal(outStruct)
+}
+
+// NewCustomScoreQuery creates a new CustomScoreQuery. The query parameter is the inner query whose
+// matches will be re-scored, and source is the JavaScript source of the scoring function.
+func NewCustomScoreQuery(query Query, source string) *CustomScoreQuery {
+	return &CustomScoreQuery{
+		query:  query,
+		source: source,
+	}
+}
+
+// Fields specifies which document fields should be made available to the scoring function, via
+// doc.fields. Fields that are not specified here will not be accessible from within the function.
+// Pass "*" to make all fields of the document available.
+func (q *CustomScoreQuery) Fields(fields ...string) *CustomScoreQuery {
+	q.fields = slices.Clone(fields)
+	return q
+}
+
+// Parameters specifies additional parameters to be passed to the scoring function.
+func (q *CustomScoreQuery) Parameters(parameters map[string]any) *CustomScoreQuery {
+	q.parameters = maps.Clone(parameters)
+	return q
+}
+
+// CustomFilterQuery is a search query that wraps another query and applies a custom user-defined
+// JavaScript function to filter its matching documents, so that only documents accepted by the
+// function are included in the results.
+//
+// The filtering function is invoked as function(doc, params), where doc.fields holds the document
+// fields specified via Fields, and params is the value supplied via Parameters. The function must return a
+// boolean indicating whether the document should be included in the results.
+//
+// This feature must be enabled on the server, as it is disabled by default.
+type CustomFilterQuery struct {
+	query      Query
+	source     string
+	fields     []string
+	parameters map[string]any
+}
+
+// MarshalJSON marshal's this query to JSON for the search REST API.
+func (q CustomFilterQuery) MarshalJSON() ([]byte, error) {
+	outStruct := &struct {
+		CustomFilter internalUDFQuery `json:"custom_filter"`
+	}{
+		CustomFilter: internalUDFQuery{
+			Query:      q.query,
+			Source:     q.source,
+			Fields:     q.fields,
+			Parameters: q.parameters,
+		},
+	}
+
+	return json.Marshal(outStruct)
+}
+
+// NewCustomFilterQuery creates a new CustomFilterQuery. The query parameter is the inner query whose
+// matches will be filtered, and source is the JavaScript source of the filtering function.
+func NewCustomFilterQuery(query Query, source string) *CustomFilterQuery {
+	return &CustomFilterQuery{
+		query:  query,
+		source: source,
+	}
+}
+
+// Fields specifies which document fields should be made available to the filtering function, via
+// doc.fields. Fields that are not specified here will not be accessible from within the function.
+// Pass "*" to make all fields of the document available.
+func (q *CustomFilterQuery) Fields(fields ...string) *CustomFilterQuery {
+	q.fields = slices.Clone(fields)
+	return q
+}
+
+// Parameters specifies additional parameters to be passed to the filtering function.
+func (q *CustomFilterQuery) Parameters(parameters map[string]any) *CustomFilterQuery {
+	q.parameters = maps.Clone(parameters)
 	return q
 }

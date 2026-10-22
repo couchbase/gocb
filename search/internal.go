@@ -127,7 +127,8 @@ func (i Internal) mapQueriesToPs(queries []Query) ([]*search_v1.Query, error) {
 	return out, nil
 }
 
-// convert query into the Protostellar format.
+// MapQueryToPs converts a query into the Protostellar format, and returns an error if the query type
+// is not supported in Protostellar.
 func (i Internal) MapQueryToPs(query Query) (*search_v1.Query, error) {
 	switch q := query.(type) {
 	case *BooleanFieldQuery:
@@ -391,9 +392,8 @@ func (i Internal) MapQueryToPs(query Query) (*search_v1.Query, error) {
 			},
 		}}, nil
 	default:
-		return nil, fmt.Errorf("invalid query option specified")
+		return nil, fmt.Errorf("search query type '%T' not supported in couchbase2", query)
 	}
-
 }
 
 func (i Internal) MapSortToPs(in []Sort) ([]*search_v1.Sorting, error) {
