@@ -459,7 +459,11 @@ func (m *psOpManagerDefault) SetOperationID(id string) {
 }
 
 func (m *psOpManagerDefault) Finish() {
-	m.span.SetRetryAttempts(m.RetryInfo().RetryAttempts())
+	var retries uint32
+	if info := m.RetryInfo(); info != nil {
+		retries = info.RetryAttempts()
+	}
+	m.span.SetRetryAttempts(retries)
 	m.span.End()
 }
 
@@ -508,6 +512,9 @@ func (m *psOpManagerDefault) OpName() string {
 }
 
 func (m *psOpManagerDefault) RetryInfo() retriedRequestInfo {
+	if m.req == nil {
+		return nil
+	}
 	return m.req
 }
 
