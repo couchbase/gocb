@@ -41,7 +41,7 @@ func (um *userManagerProviderCore) tryParseErrorMessage(req *mgmtRequest, resp *
 			return makeGenericMgmtError(err, req, resp, string(b))
 		}
 
-		bodyErr = errors.New(string(b))
+		bodyErr = mgmtFallbackError(resp, string(b))
 	}
 
 	return makeGenericMgmtError(bodyErr, req, resp, string(b))

@@ -3,7 +3,6 @@ package gocb
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"io"
@@ -747,7 +746,7 @@ func (am *analyticsProviderCore) tryParseLinkErrorMessage(req *mgmtRequest, resp
 		return makeGenericMgmtError(ErrDataverseNotFound, req, resp, string(b))
 	}
 
-	return makeGenericMgmtError(errors.New(string(b)), req, resp, string(b))
+	return makeGenericMgmtError(mgmtFallbackError(resp, string(b)), req, resp, string(b))
 }
 
 func (am *analyticsProviderCore) linkFromJSON(linkType AnalyticsLinkType, jsonLink map[string]interface{}) AnalyticsLink {

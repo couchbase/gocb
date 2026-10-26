@@ -123,10 +123,7 @@ func (bm *bucketManagementProviderCore) tryParseErrorMessage(req *mgmtRequest, r
 	if strings.Contains(firstErr, "bucket with given name already exists") {
 		return makeGenericMgmtError(ErrBucketExists, req, resp, string(b))
 	}
-	if resp.StatusCode == 400 {
-		return makeGenericMgmtError(ErrInvalidArgument, req, resp, string(b))
-	}
-	return makeGenericMgmtError(errors.New(firstErr), req, resp, string(b))
+	return makeGenericMgmtError(mgmtFallbackError(resp, firstErr), req, resp, string(b))
 }
 
 // Flush doesn't use the same body format as anything else...
@@ -161,7 +158,7 @@ func (bm *bucketManagementProviderCore) tryParseFlushErrorMessage(req *mgmtReque
 		}
 	}
 
-	return errors.New(string(b))
+	return makeGenericMgmtError(mgmtFallbackError(resp, string(b)), req, resp, string(b))
 }
 
 // GetBucket returns settings for a bucket on the cluster.

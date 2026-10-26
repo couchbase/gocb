@@ -3,8 +3,10 @@ package gocb
 import (
 	"encoding/json"
 	"errors"
-	"github.com/couchbase/gocbcore/v10"
+	"fmt"
 	"io"
+
+	"github.com/couchbase/gocbcore/v10"
 )
 
 // HTTPError is the error type of management HTTP errors.
@@ -120,6 +122,14 @@ func makeGenericMgmtError(baseErr error, req *mgmtRequest, resp *mgmtResponse, e
 	return err
 }
 
+// mgmtFallbackError returns ErrInvalidArgument for a 400 response, otherwise an error with errText.
+func mgmtFallbackError(resp *mgmtResponse, errText string) error {
+	if resp.StatusCode == 400 {
+		return ErrInvalidArgument
+	}
+	return errors.New(errText)
+}
+
 func makeMgmtBadStatusError(message string, req *mgmtRequest, resp *mgmtResponse) error {
 	var errText string
 	if resp != nil {
@@ -130,6 +140,9 @@ func makeMgmtBadStatusError(message string, req *mgmtRequest, resp *mgmtResponse
 		}
 
 		errText = string(b)
+	}
+	if resp != nil && resp.StatusCode == 400 {
+		return makeGenericMgmtError(fmt.Errorf("%s: %w", message, ErrInvalidArgument), req, resp, errText)
 	}
 	return makeGenericMgmtError(errors.New(message), req, resp, errText)
 }

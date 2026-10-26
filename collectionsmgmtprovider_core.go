@@ -2,7 +2,6 @@ package gocb
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -435,11 +434,7 @@ func (cm *collectionsManagementProviderCore) tryParseErrorMessage(req *mgmtReque
 		return makeGenericMgmtError(ErrScopeExists, req, resp, string(b))
 	}
 
-	if resp.StatusCode == 400 {
-		return makeGenericMgmtError(ErrInvalidArgument, req, resp, string(b))
-	}
-
-	return makeGenericMgmtError(errors.New(errText), req, resp, string(b))
+	return makeGenericMgmtError(mgmtFallbackError(resp, errText), req, resp, string(b))
 }
 
 // These 3 types are temporary. They are necessary for now as the server beta was released with ns_server returning

@@ -3,7 +3,6 @@ package gocb
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -670,7 +669,7 @@ func (sm *searchIndexProviderCore) tryParseErrorMessage(req *mgmtRequest, resp *
 	} else if strings.Contains(strings.ToLower(string(b)), "index with the same name already exists") {
 		bodyErr = ErrIndexExists
 	} else {
-		bodyErr = errors.New(string(b))
+		bodyErr = mgmtFallbackError(resp, string(b))
 	}
 
 	return makeGenericMgmtError(bodyErr, req, resp, string(b))
