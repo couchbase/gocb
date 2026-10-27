@@ -3,7 +3,6 @@ package gocb
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -428,7 +427,7 @@ func (emp *eventingManagementProviderCore) tryParseErrorMessage(req *mgmtRequest
 	} else if strings.Contains(strBody, "ERR_APP_PAUSED") {
 		baseErr = ErrEventingFunctionPaused
 	} else {
-		baseErr = errors.New(string(b))
+		baseErr = mgmtFallbackError(resp, string(b))
 	}
 
 	return makeGenericMgmtError(baseErr, req, resp, strBody)

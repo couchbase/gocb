@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"io"
 	"net/url"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // View represents a Couchbase view within a design document.
@@ -28,7 +29,7 @@ type viewIndexProviderCore struct {
 	tracer       *tracerWrapper
 }
 
-func (vm *viewIndexProviderCore) tryParseErrorMessage(req mgmtRequest, resp *mgmtResponse) error {
+func (vm *viewIndexProviderCore) tryParseErrorMessage(req *mgmtRequest, resp *mgmtResponse) error {
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		logDebugf("Failed to read view index manager response body: %s", err)
@@ -37,21 +38,21 @@ func (vm *viewIndexProviderCore) tryParseErrorMessage(req mgmtRequest, resp *mgm
 
 	if resp.StatusCode == 404 {
 		if strings.Contains(strings.ToLower(string(b)), "not_found") {
-			return makeGenericMgmtError(ErrDesignDocumentNotFound, &req, resp, string(b))
+			return makeGenericMgmtError(ErrDesignDocumentNotFound, req, resp, string(b))
 		}
 
-		return makeGenericMgmtError(errors.New(string(b)), &req, resp, string(b))
+		return makeGenericMgmtError(errors.New(string(b)), req, resp, string(b))
 	}
 
 	if err := checkForRateLimitError(resp.StatusCode, string(b)); err != nil {
-		return makeGenericMgmtError(err, &req, resp, string(b))
+		return makeGenericMgmtError(err, req, resp, string(b))
 	}
 
 	var mgrErr bucketMgrErrorResp
 	err = json.Unmarshal(b, &mgrErr)
 	if err != nil {
 		logDebugf("Failed to unmarshal error body: %s", err)
-		return makeGenericMgmtError(errors.New(string(b)), &req, resp, string(b))
+		return makeGenericMgmtError(errors.New(string(b)), req, resp, string(b))
 	}
 
 	var bodyErr error
@@ -64,10 +65,10 @@ func (vm *viewIndexProviderCore) tryParseErrorMessage(req mgmtRequest, resp *mgm
 	if strings.Contains(firstErr, "bucket with given name already exists") {
 		bodyErr = ErrBucketExists
 	} else {
-		bodyErr = errors.New(firstErr)
+		bodyErr = mgmtFallbackError(resp, firstErr)
 	}
 
-	return makeGenericMgmtError(bodyErr, &req, resp, string(b))
+	return makeGenericMgmtError(bodyErr, req, resp, string(b))
 }
 
 func (vm *viewIndexProviderCore) doMgmtRequest(ctx context.Context, req mgmtRequest) (*mgmtResponse, error) {
@@ -128,7 +129,7 @@ func (vm *viewIndexProviderCore) getDesignDocument(name string, namespace Design
 	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
-		vwErr := vm.tryParseErrorMessage(req, resp)
+		vwErr := vm.tryParseErrorMessage(&req, resp)
 		if vwErr != nil {
 			return nil, vwErr
 		}
@@ -183,7 +184,7 @@ func (vm *viewIndexProviderCore) GetAllDesignDocuments(namespace DesignDocumentN
 	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
-		vwErr := vm.tryParseErrorMessage(req, resp)
+		vwErr := vm.tryParseErrorMessage(&req, resp)
 		if vwErr != nil {
 			return nil, vwErr
 		}
@@ -292,7 +293,7 @@ func (vm *viewIndexProviderCore) upsertDesignDocument(
 	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 201 {
-		vwErr := vm.tryParseErrorMessage(req, resp)
+		vwErr := vm.tryParseErrorMessage(&req, resp)
 		if vwErr != nil {
 			return vwErr
 		}
@@ -337,7 +338,7 @@ func (vm *viewIndexProviderCore) dropDesignDocument(tracectx RequestSpanContext,
 	defer ensureBodyClosed(resp.Body)
 
 	if resp.StatusCode != 200 {
-		vwErr := vm.tryParseErrorMessage(req, resp)
+		vwErr := vm.tryParseErrorMessage(&req, resp)
 		if vwErr != nil {
 			return vwErr
 		}
