@@ -32,9 +32,9 @@ func NewTermFacet(field string, size uint64) *TermFacet {
 }
 
 type numericFacetRange struct {
-	Name  string  `json:"name,omitempty"`
-	Start float64 `json:"min,omitempty"`
-	End   float64 `json:"max,omitempty"`
+	Name  string   `json:"name,omitempty"`
+	Start *float64 `json:"min,omitempty"`
+	End   *float64 `json:"max,omitempty"`
 }
 type numericFacetData struct {
 	Field         string              `json:"field,omitempty"`
@@ -56,8 +56,26 @@ func (f NumericFacet) MarshalJSON() ([]byte, error) {
 func (f *NumericFacet) AddRange(name string, start, end float64) *NumericFacet {
 	f.data.NumericRanges = append(f.data.NumericRanges, numericFacetRange{
 		Name:  name,
-		Start: start,
-		End:   end,
+		Start: &start,
+		End:   &end,
+	})
+	return f
+}
+
+// AddRangeFrom adds a new range with only a lower bound to this numeric range facet.
+func (f *NumericFacet) AddRangeFrom(name string, start float64) *NumericFacet {
+	f.data.NumericRanges = append(f.data.NumericRanges, numericFacetRange{
+		Name:  name,
+		Start: &start,
+	})
+	return f
+}
+
+// AddRangeTo adds a new range with only an upper bound to this numeric range facet.
+func (f *NumericFacet) AddRangeTo(name string, end float64) *NumericFacet {
+	f.data.NumericRanges = append(f.data.NumericRanges, numericFacetRange{
+		Name: name,
+		End:  &end,
 	})
 	return f
 }

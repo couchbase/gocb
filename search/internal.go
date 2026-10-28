@@ -89,13 +89,16 @@ func (i Internal) mapFacetToPS(facet Facet) (*search_v1.Facet, error) {
 func (i Internal) mapNumericRangeFacetToPs(numericRanges []numericFacetRange) ([]*search_v1.NumericRange, error) {
 	out := make([]*search_v1.NumericRange, len(numericRanges))
 	for i, numericRange := range numericRanges {
-		min := float32(numericRange.Start) // TODO: float64 -> float32
-		max := float32(numericRange.End)
-		out[i] = &search_v1.NumericRange{
+		psRange := search_v1.NumericRange{
 			Name: numericRange.Name,
-			Min:  &min,
-			Max:  &max,
 		}
+		if numericRange.Start != nil {
+			psRange.Min = new(float32(*numericRange.Start)) // TODO: float64 -> float32
+		}
+		if numericRange.End != nil {
+			psRange.Max = new(float32(*numericRange.End))
+		}
+		out[i] = &psRange
 	}
 	return out, nil
 }

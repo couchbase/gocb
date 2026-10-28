@@ -11,6 +11,7 @@ import (
 	"github.com/couchbase/gocb/v2/search"
 	"github.com/couchbase/gocb/v2/vector"
 	"github.com/couchbase/gocbcore/v10"
+	"github.com/couchbase/goprotostellar/genproto/search_v1"
 )
 
 func (suite *IntegrationTestSuite) TestSearch() {
@@ -930,4 +931,40 @@ func (suite *UnitTestSuite) TestSearchQueryCustomQueriesCouchbase2FeatureNotAvai
 			suite.Require().ErrorIs(err, ErrFeatureNotAvailable)
 		})
 	}
+}
+
+func (suite *UnitTestSuite) TestSearchNumericFacetRangeBounds() {
+	facet := search.NewNumericFacet("balance", 10).
+		AddRange("negative", -100, 0).
+		AddRange("low", 0, 100).
+		AddRangeFrom("high", 100).
+		AddRangeTo("debt", 0)
+
+	suite.Run("json", func() {
+		b, err := json.Marshal(facet)
+		suite.Require().NoError(err)
+
+		suite.Assert().JSONEq(`{
+			"field": "balance",
+			"size": 10,
+			"numeric_ranges": [
+				{"name": "negative", "min": -100, "max": 0},
+				{"name": "low", "min": 0, "max": 100},
+				{"name": "high", "min": 100},
+				{"name": "debt", "max": 0}
+			]
+		}`, string(b))
+	})
+
+	suite.Run("protostellar", func() {
+		psFacets, err := search.Internal{}.MapFacetsToPs(map[string]search.Facet{"bal": facet})
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal([]*search_v1.NumericRange{
+			{Name: "negative", Min: new(float32(-100)), Max: new(float32(0))},
+			{Name: "low", Min: new(float32(0)), Max: new(float32(100))},
+			{Name: "high", Min: new(float32(100))},
+			{Name: "debt", Max: new(float32(0))},
+		}, psFacets["bal"].GetNumericRangeFacet().NumericRanges)
+	})
 }
