@@ -127,8 +127,8 @@ func (m *kvOpManagerPs) SetIsIdempotent(idempotent bool) {
 
 func (m *kvOpManagerPs) Finish() {
 	var retries uint32
-	if m.req != nil {
-		retries = m.RetryInfo().RetryAttempts()
+	if info := m.RetryInfo(); info != nil {
+		retries = info.RetryAttempts()
 	}
 	m.span.SetRetryAttempts(retries)
 	m.span.End()
@@ -221,6 +221,9 @@ func (m *kvOpManagerPs) Tracer() *tracerWrapper {
 }
 
 func (m *kvOpManagerPs) RetryInfo() retriedRequestInfo {
+	if m.req == nil {
+		return nil
+	}
 	return m.req
 }
 
