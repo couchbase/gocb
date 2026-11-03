@@ -27,7 +27,7 @@ runs:
       shell: bash
       run: |
         mkdir -p "$HOME/bin"
-        wget -nv -O $HOME/bin/cbdinocluster https://github.com/couchbaselabs/cbdinocluster/releases/download/v0.0.113/cbdinocluster-linux-amd64
+        wget -nv -O $HOME/bin/cbdinocluster https://github.com/couchbaselabs/cbdinocluster/releases/download/v0.0.130/cbdinocluster-linux-amd64
         chmod +x $HOME/bin/cbdinocluster
         echo "$HOME/bin" >> $GITHUB_PATH
     - name: Initialize cbdinocluster
