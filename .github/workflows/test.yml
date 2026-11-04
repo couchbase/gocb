@@ -45,7 +45,7 @@ jobs:
 
         include:
           - runner: ubuntu-24.04
-            go-version: ${{ inputs.minimum-go-version || '1.25' }}
+            go-version: ${{ inputs.minimum-go-version || '1.26' }}
 
     runs-on: ${{ matrix.runner }}
     steps:
@@ -53,7 +53,7 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go-version }}
           cache: false
@@ -99,7 +99,7 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: *go-version
           cache: false

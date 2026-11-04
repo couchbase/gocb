@@ -3,6 +3,7 @@ package gocb
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,6 +19,23 @@ type eventingManager interface {
 	PauseFunction(name string, opts *PauseEventingFunctionOptions) error
 	ResumeFunction(name string, opts *ResumeEventingFunctionOptions) error
 	FunctionsStatus(opts *EventingFunctionsStatusOptions) (*EventingStatus, error)
+}
+
+// retryOnInvalidRequest retries fn while eventing responds with ERR_INVALID_REQUEST ("state transition not possible"),
+// which it can temporarily do for function lifecycle requests until the function's internal state has settled.
+func (suite *IntegrationTestSuite) retryOnInvalidRequest(fn func() error) error {
+	var err error
+	suite.tryUntil(time.Now().Add(30*time.Second), 500*time.Millisecond, func() bool {
+		err = fn()
+		if err != nil && strings.Contains(err.Error(), "ERR_INVALID_REQUEST") {
+			suite.T().Logf("Retrying after ERR_INVALID_REQUEST: %v", err)
+			return false
+		}
+
+		return true
+	})
+
+	return err
 }
 
 func (suite *IntegrationTestSuite) runEventingManagerUpsertGetDropTest(scope *Scope) {
@@ -73,7 +91,7 @@ func (suite *IntegrationTestSuite) runEventingManagerUpsertGetDropTest(scope *Sc
 		ConstantBindings: []EventingFunctionConstantBinding{
 			{
 				Alias:   "someconstant",
-				Literal: "someliteral",
+				Literal: `"someliteral"`,
 			},
 		},
 		MetadataKeyspace: EventingFunctionKeyspace{
@@ -180,9 +198,11 @@ func (suite *IntegrationTestSuite) runEventingManagerUnknownBucketTest(scope *Sc
 
 	if globalCluster.SupportsFeature(EventingFunctionManagerResourceNotFoundAtDeploy) {
 		suite.Require().NoError(err)
-		err = mgr.DeployFunction(fnName, nil)
+		err = suite.retryOnInvalidRequest(func() error {
+			return mgr.DeployFunction(fnName, nil)
+		})
 		if !errors.Is(err, ErrBucketNotFound) {
-			suite.T().Logf("Expected ResumeFunction to fail with bucket not found but was %v", err)
+			suite.T().Logf("Expected DeployFunction to fail with bucket not found but was %v", err)
 			suite.T().Fail()
 		}
 	} else {
@@ -364,7 +384,9 @@ func (suite *IntegrationTestSuite) runEventingManagerCollectionNotFoundTest(scop
 
 	if globalCluster.SupportsFeature(EventingFunctionManagerResourceNotFoundAtDeploy) {
 		suite.Require().NoError(err)
-		err = mgr.DeployFunction(fnName, nil)
+		err = suite.retryOnInvalidRequest(func() error {
+			return mgr.DeployFunction(fnName, nil)
+		})
 		if !errors.Is(err, ErrCollectionNotFound) {
 			suite.T().Logf("Expected DeployFunction to fail with collection not found but was %v", err)
 			suite.T().Fail()
@@ -504,7 +526,27 @@ func (suite *IntegrationTestSuite) runEventingManagerDeploysAndUndeploysTest(sco
 	suite.Require().Nil(err, err)
 	suite.Require().Equal(EventingFunctionDeploymentStatusUndeployed, actualFn.Settings.DeploymentStatus)
 
-	err = mgr.UndeployFunction(fnName, nil)
+	success = suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
+		funcsStatus, err := mgr.FunctionsStatus(nil)
+		suite.Require().NoError(err)
+
+		for _, fn := range funcsStatus.Functions {
+			if fn.Name == fnName {
+				if fn.Status != EventingFunctionStateUndeployed {
+					suite.T().Logf("FunctionsStatus reports function not undeployed: %s", fn.Status)
+				}
+				return fn.Status == EventingFunctionStateUndeployed
+			}
+		}
+
+		suite.T().Fatalf("Function not found from FunctionsStatus")
+		return false
+	})
+	suite.Require().True(success, "FunctionsStatus never reported function undeployed")
+
+	err = suite.retryOnInvalidRequest(func() error {
+		return mgr.UndeployFunction(fnName, nil)
+	})
 	if globalCluster.SupportsFeature(EventingFunctionManagerAllowsSameStateTransitionFeature) {
 		suite.Require().NoError(err)
 	} else {
@@ -659,7 +701,9 @@ func (suite *IntegrationTestSuite) runEventingManagerPausesAndResumesTest(scope 
 		}
 	}
 
-	err = mgr.ResumeFunction(fnName, nil)
+	err = suite.retryOnInvalidRequest(func() error {
+		return mgr.ResumeFunction(fnName, nil)
+	})
 	if globalCluster.SupportsFeature(EventingFunctionManagerMB67773Feature) {
 		suite.Require().NoError(err)
 
