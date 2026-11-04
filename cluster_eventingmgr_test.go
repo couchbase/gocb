@@ -133,17 +133,23 @@ func (suite *IntegrationTestSuite) runEventingManagerUpsertGetDropTest(scope *Sc
 	}
 	suite.Assert().True(found, fmt.Sprintf("Eventing function %s not found in GetAllFunctions", fnName))
 
-	funcsStatus, err := mgr.FunctionsStatus(nil)
-	suite.Require().NoError(err)
+	success = suite.tryUntil(time.Now().Add(60*time.Second), 500*time.Millisecond, func() bool {
+		funcsStatus, err := mgr.FunctionsStatus(nil)
+		suite.Require().NoError(err)
 
-	var foundStatus *EventingFunctionState
-	for _, fn := range funcsStatus.Functions {
-		if fn.Name == fnName {
-			foundStatus = &fn
+		for _, fn := range funcsStatus.Functions {
+			if fn.Name == fnName {
+				if fn.Status != EventingFunctionStateUndeployed {
+					suite.T().Logf("FunctionsStatus reports function not undeployed: %s", fn.Status)
+				}
+				return fn.Status == EventingFunctionStateUndeployed
+			}
 		}
-	}
-	suite.Require().NotNil(foundStatus, "Evening function status not found")
-	suite.Assert().NotEmpty(foundStatus.Status)
+
+		suite.T().Fatalf("Function not found from FunctionsStatus")
+		return false
+	})
+	suite.Require().True(success, "FunctionsStatus never reported function undeployed")
 
 	actualFn, err := mgr.GetFunction(fnName, nil)
 	suite.Require().NoError(err)
