@@ -82,11 +82,18 @@ jobs:
       fail-fast: false
       matrix:
         server:
-          - 8.0.2
-          - 7.6.11
-          - 7.2.9
+          - 8.5-stable
+          - 8.0-stable
+          - 8.0-release
+          - 7.6-stable
+          - 7.6-release
+          - 7.2-release
 
     runs-on: ubuntu-24.04
+
+    permissions:
+      packages: read
+
     steps:
       - uses: actions/checkout@v6
         with:
@@ -97,11 +104,18 @@ jobs:
           go-version: *go-version
           cache: false
 
+      - name: Resolve server version
+        uses: couchbaselabs/sdk-resolve-cb-alias-action@v1
+        id: resolve-server
+        with:
+          alias: ${{ matrix.server }}
+
       - name: Create cluster
         uses: ./.github/actions/create-cluster
         id: create-cluster
         with:
-          version: ${{ matrix.server }}
+          version: ${{ steps.resolve-server.outputs.version }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests
         id: run-tests
@@ -113,7 +127,7 @@ jobs:
           GOCBSERVER: ${{ steps.create-cluster.outputs.connstr }}
           GOCBUSER: Administrator
           GOCBPASS: password
-          GOCBVER: ${{ matrix.server }}
+          GOCBVER: ${{ steps.resolve-server.outputs.version }}
 
       - name: Publish test results
         shell: bash
