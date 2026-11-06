@@ -36,4 +36,4 @@ require (
 
 go 1.26.0
 
-replace github.com/couchbase/gocbcore/v10 => github.com/adasari/gocbcore/v10 v10.9.2-0.20260921050208-64408833fb76
+replace github.com/couchbase/gocbcore/v10 => github.com/adasari/gocbcore/v10 v10.9.2-0.20261106174444-a6a21e532d7a
