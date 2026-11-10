@@ -418,10 +418,15 @@ func (p *kvProviderCore) getProjected(c *Collection, id string, opts *GetOptions
 		}
 	}
 
-	result, err := p.LookupIn(c, id, ops, &LookupInOptions{
-		ParentSpan: opm.TraceSpan().Wrapped(),
-		Context:    opts.Context,
-	})
+	lookupOpts := &LookupInOptions{
+		Timeout:       opts.Timeout,
+		RetryStrategy: opts.RetryStrategy,
+		ParentSpan:    opm.TraceSpan().Wrapped(),
+		Context:       opts.Context,
+	}
+	lookupOpts.Internal.User = opts.Internal.User
+
+	result, err := p.LookupIn(c, id, ops, lookupOpts)
 	if err != nil {
 		return nil, err
 	}
