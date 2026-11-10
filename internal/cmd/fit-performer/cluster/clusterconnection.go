@@ -55,7 +55,5 @@ func (c *Connection) Transactions() *gocb.Transactions {
 }
 
 func (c *Connection) Disconnect() error {
-	err := c.cluster.Close(nil)
-	c.cluster = nil
-	return err
+	return c.cluster.Close(nil)
 }
