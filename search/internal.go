@@ -383,7 +383,7 @@ func (i Internal) MapQueryToPs(query Query) (*search_v1.Query, error) {
 				Max:          q.max,
 				InclusiveMax: q.inclusiveMax,
 				Min:          q.min,
-				InclusiveMin: q.inclusiveMax,
+				InclusiveMin: q.inclusiveMin,
 			},
 		}}, nil
 	case *WildcardQuery:
