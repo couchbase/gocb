@@ -2477,6 +2477,84 @@ func (suite *UnitTestSuite) TestExpiryConversion500Milliseconds() {
 	suite.Assert().Equal(Cas(123), res.Cas())
 }
 
+func (suite *UnitTestSuite) TestGetProjectedHonoursOptions() {
+	type tCase struct {
+		name       string
+		withExpiry bool
+		project    []string
+		// values returned by the mocked LookupIn, in op order
+		values [][]byte
+	}
+
+	testCases := []tCase{
+		{
+			name:       "WithExpiry",
+			withExpiry: true,
+			values:     [][]byte{[]byte("0"), []byte("33554432"), []byte(`{"a":1}`)},
+		},
+		{
+			name:    "Project",
+			project: []string{"a"},
+			values:  [][]byte{[]byte("1")},
+		},
+		{
+			name:       "WithExpiryAndProject",
+			withExpiry: true,
+			project:    []string{"a"},
+			values:     [][]byte{[]byte("0"), []byte("1")},
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			pendingOp := new(mockPendingOp)
+			pendingOp.AssertNotCalled(suite.T(), "Cancel", mock.AnythingOfType("error"))
+
+			retryStrategy := NewBestEffortRetryStrategy(nil)
+			timeout := 10 * time.Second
+
+			var captured gocbcore.LookupInOptions
+			provider := new(mockKvProviderCoreProvider)
+			provider.
+				On("LookupIn", mock.AnythingOfType("gocbcore.LookupInOptions"), mock.AnythingOfType("gocbcore.LookupInCallback")).
+				Run(func(args mock.Arguments) {
+					captured = args.Get(0).(gocbcore.LookupInOptions)
+					cb := args.Get(1).(gocbcore.LookupInCallback)
+
+					res := &gocbcore.LookupInResult{Cas: gocbcore.Cas(123)}
+					for _, v := range tc.values {
+						res.Ops = append(res.Ops, gocbcore.SubDocResult{Value: v})
+					}
+					cb(res, nil)
+				}).
+				Return(pendingOp, nil)
+
+			// kvTimeout on this provider is 2500ms, shorter than the timeout passed to Get.
+			agent := suite.kvProviderCore(provider, nil)
+			col := suite.collection("mock", "", "", agent)
+
+			opts := &GetOptions{
+				WithExpiry:    tc.withExpiry,
+				Project:       tc.project,
+				Timeout:       timeout,
+				RetryStrategy: retryStrategy,
+			}
+			opts.Internal.User = "someuser"
+
+			start := time.Now()
+			res, err := col.Get("someid", opts)
+			suite.Require().NoError(err)
+			suite.Assert().Equal(Cas(123), res.Cas())
+
+			suite.Assert().WithinDuration(start.Add(timeout), captured.Deadline, time.Second)
+			wrapper, ok := captured.RetryStrategy.(*coreRetryStrategyWrapper)
+			suite.Require().True(ok, "retry strategy should be a coreRetryStrategyWrapper")
+			suite.Assert().Same(retryStrategy, wrapper.wrapped)
+			suite.Assert().Equal("someuser", captured.User)
+		})
+	}
+}
+
 func (suite *UnitTestSuite) kvProviderCore(agent kvProviderCoreProvider, snapshotProvider kvProviderConfigSnapshotProvider) *kvProviderCore {
 	return &kvProviderCore{
 		agent:            agent,
