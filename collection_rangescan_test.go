@@ -438,7 +438,9 @@ func (suite *IntegrationTestSuite) TestRangeScanRangeCancellation() {
 		ids[d.ID()] = struct{}{}
 	}
 
-	suite.Assert().Len(ids, 6)
+	// Items that were already buffered when Close was called may still be returned.
+	suite.Assert().GreaterOrEqual(len(ids), stopAt+1)
+	suite.Assert().Less(len(ids), len(docIDs))
 
 	err = res.Err()
 	suite.Require().ErrorIs(err, ErrRequestCanceled)
