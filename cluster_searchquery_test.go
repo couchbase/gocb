@@ -968,3 +968,45 @@ func (suite *UnitTestSuite) TestSearchNumericFacetRangeBounds() {
 		}, psFacets["bal"].GetNumericRangeFacet().NumericRanges)
 	})
 }
+
+func (suite *UnitTestSuite) TestSearchTermRangeQueryInclusivenessProtostellar() {
+	for _, tc := range []struct {
+		name         string
+		inclusiveMin bool
+		inclusiveMax bool
+	}{
+		{name: "inclusive min, exclusive max", inclusiveMin: true, inclusiveMax: false},
+		{name: "exclusive min, inclusive max", inclusiveMin: false, inclusiveMax: true},
+	} {
+		suite.Run(tc.name, func() {
+			query := search.NewTermRangeQuery().
+				Field("name").
+				Min("a", tc.inclusiveMin).
+				Max("z", tc.inclusiveMax)
+
+			psQuery, err := search.Internal{}.MapQueryToPs(query)
+			suite.Require().NoError(err)
+
+			suite.Assert().Equal(&search_v1.TermRangeQuery{
+				Field:        new("name"),
+				Min:          new("a"),
+				InclusiveMin: new(tc.inclusiveMin),
+				Max:          new("z"),
+				InclusiveMax: new(tc.inclusiveMax),
+			}, psQuery.GetTermRangeQuery())
+		})
+	}
+
+	suite.Run("min only", func() {
+		query := search.NewTermRangeQuery().Field("name").Min("a", true)
+
+		psQuery, err := search.Internal{}.MapQueryToPs(query)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal(&search_v1.TermRangeQuery{
+			Field:        new("name"),
+			Min:          new("a"),
+			InclusiveMin: new(true),
+		}, psQuery.GetTermRangeQuery())
+	})
+}
