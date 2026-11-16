@@ -1,9 +1,13 @@
 package gocb
 
 import (
+	"context"
+	"sync"
 	"time"
 
+	"github.com/couchbase/gocbcore/v10"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/mock"
 )
 
 func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
@@ -597,4 +601,89 @@ func (suite *UnitTestSuite) TestQueryIndexesParsing() {
 	}
 	suite.Assert().Empty(index.Condition)
 	suite.Assert().Equal("HASH(`_type`)", index.Partition)
+}
+
+func (suite *UnitTestSuite) watchIndexesMockManager(stateFn func(poll int) string) (*QueryIndexManager, func() []time.Time) {
+	var mu sync.Mutex
+	var polls []time.Time
+
+	provider := new(mockQueryProviderCoreProvider)
+	provider.
+		On("N1QLQuery", mock.Anything, mock.AnythingOfType("gocbcore.N1QLQueryOptions")).
+		Return(func(context.Context, gocbcore.N1QLQueryOptions) (queryRowReader, error) {
+			mu.Lock()
+			polls = append(polls, time.Now())
+			poll := len(polls)
+			mu.Unlock()
+
+			return &mockQueryIndexRowReader{
+				Dataset: []map[string]interface{}{
+					{
+						"name":         "ix1",
+						"state":        stateFn(poll),
+						"keyspace_id":  "b",
+						"namespace_id": "default",
+						"using":        "gsi",
+					},
+				},
+				mockQueryRowReaderBase: mockQueryRowReaderBase{
+					Meta:  suite.mustConvertToBytes(map[string]interface{}{"status": "success"}),
+					Suite: suite,
+				},
+			}, nil
+		})
+
+	mgr := &QueryIndexManager{
+		controller: &providerController[queryIndexProvider]{
+			get: func() (queryIndexProvider, error) {
+				return &queryProviderCore{
+					provider: provider,
+					tracer:   newTracerWrapper(&NoopTracer{}, ObservabilityConfig{}),
+				}, nil
+			},
+			opController: mockOpController{},
+		},
+	}
+
+	return mgr, func() []time.Time {
+		mu.Lock()
+		defer mu.Unlock()
+		return append([]time.Time(nil), polls...)
+	}
+}
+
+func (suite *UnitTestSuite) TestWatchIndexesBacksOffUntilTimeout() {
+	mgr, getPolls := suite.watchIndexesMockManager(func(int) string { return "deferred" })
+
+	err := mgr.WatchIndexes("b", []string{"ix1"}, 2200*time.Millisecond, nil)
+	suite.Require().ErrorIs(err, ErrUnambiguousTimeout)
+
+	// Polls are expected at roughly 0ms, 50ms, 600ms and 1600ms before the deadline is hit.
+	polls := getPolls()
+	suite.Assert().GreaterOrEqual(len(polls), 3)
+	suite.Assert().LessOrEqual(len(polls), 6)
+}
+
+func (suite *UnitTestSuite) TestWatchIndexesPollIntervalGrows() {
+	mgr, getPolls := suite.watchIndexesMockManager(func(poll int) string {
+		if poll >= 4 {
+			return "online"
+		}
+		return "deferred"
+	})
+
+	err := mgr.WatchIndexes("b", []string{"ix1"}, 10*time.Second, nil)
+	suite.Require().NoError(err)
+
+	polls := getPolls()
+	suite.Require().Len(polls, 4)
+
+	expected := []time.Duration{
+		watchIndexesInitialInterval,
+		watchIndexesInitialInterval + watchIndexesIntervalStep,
+		watchIndexesMaxInterval,
+	}
+	for i, minGap := range expected {
+		suite.Assert().GreaterOrEqual(polls[i+1].Sub(polls[i]), minGap, "gap before poll %d", i+2)
+	}
 }

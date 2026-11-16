@@ -342,6 +342,14 @@ func checkIndexesActiveCore(indexes []QueryIndex, checkList []string) (bool, err
 	return true, nil
 }
 
+// The poll interval used by WatchIndexes starts at watchIndexesInitialInterval and grows by
+// watchIndexesIntervalStep after each poll, up to watchIndexesMaxInterval.
+const (
+	watchIndexesInitialInterval = 50 * time.Millisecond
+	watchIndexesIntervalStep    = 500 * time.Millisecond
+	watchIndexesMaxInterval     = 1 * time.Second
+)
+
 func (qpc *queryProviderCore) WatchIndexes(c *Collection, bucketName string, watchList []string, timeout time.Duration, opts *WatchQueryIndexOptions,
 ) error {
 	span := qpc.tracer.CreateOperationSpan(opts.ParentSpan, "manager_query_watch_indexes", serviceAttribValueQuery)
@@ -358,7 +366,7 @@ func (qpc *queryProviderCore) WatchIndexes(c *Collection, bucketName string, wat
 
 	deadline := time.Now().Add(timeout)
 
-	curInterval := 50 * time.Millisecond
+	curInterval := watchIndexesInitialInterval
 	for {
 		if deadline.Before(time.Now()) {
 			return ErrUnambiguousTimeout
@@ -388,11 +396,6 @@ func (qpc *queryProviderCore) WatchIndexes(c *Collection, bucketName string, wat
 			break
 		}
 
-		curInterval += 500 * time.Millisecond
-		if curInterval > 1000 {
-			curInterval = 1000
-		}
-
 		// Make sure we don't sleep past our overall deadline, if we adjust the
 		// deadline then it will be caught at the top of this loop as a timeout.
 		sleepDeadline := time.Now().Add(curInterval)
@@ -405,6 +408,11 @@ func (qpc *queryProviderCore) WatchIndexes(c *Collection, bucketName string, wat
 		case <-ctx.Done():
 			return makeGenericError(ErrRequestCanceled, nil)
 		case <-time.After(time.Until(sleepDeadline)):
+		}
+
+		curInterval += watchIndexesIntervalStep
+		if curInterval > watchIndexesMaxInterval {
+			curInterval = watchIndexesMaxInterval
 		}
 	}
 
