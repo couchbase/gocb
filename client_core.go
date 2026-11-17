@@ -71,6 +71,7 @@ func connectStdConnectionMgr(opts newConnectionMgrOptions) (*stdConnectionMgr, e
 				UseMutationTokens:          opts.useMutationTokens,
 				UseOutOfOrderResponses:     true,
 				UseClusterMapNotifications: true,
+				EnableTCPNoDelay:           opts.enableTCPNoDelay,
 			},
 			KVConfig: gocbcore.KVConfig{
 				ConnectTimeout:       opts.timeoutsConfig.ConnectTimeout,

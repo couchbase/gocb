@@ -7,6 +7,18 @@ import (
 	"time"
 )
 
+func (suite *UnitTestSuite) TestConnectionMgrOptionsTCPNoDelay() {
+	options := connectionMgrOptionsFromOptions(ClusterOptions{
+		IoConfig: IoConfig{
+			EnableTCPNoDelay: true,
+		},
+		Tracer: &NoopTracer{},
+		Meter:  &NoopMeter{},
+	})
+
+	suite.True(options.enableTCPNoDelay)
+}
+
 // Ensures that operations beginning concurrently with close fast-fail at MarkOpBeginning with ErrShutdown, if the
 // connection manager's close method is blocked waiting for active operations to finish.
 // Validates fix for GOCBC-1855.
