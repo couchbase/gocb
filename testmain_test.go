@@ -217,7 +217,7 @@ func setupCluster() {
 		}
 
 		mock, err = cavescli.NewClient(cavescli.NewClientOptions{
-			Version: "v0.0.1-78",
+			Version: "v0.0.1-104",
 		})
 		if err != nil {
 			panic(err.Error())
