@@ -507,6 +507,17 @@ func (e *Executor) makeSuccessResult() *run.Result_Sdk {
 	}
 }
 
+func (e *Executor) parentSpan(id string) (gocb.RequestSpan, error) {
+	if id == "" {
+		return nil, nil
+	}
+	span, ok := e.spanOwner.GetSpan(id)
+	if !ok {
+		return nil, status.Errorf(codes.InvalidArgument, "unknown parent span id: %s", id)
+	}
+	return span, nil
+}
+
 func durabilityLevel(t *shared.DurabilityType) (*durabilitySettings, error) {
 	switch typ := t.Durability.(type) {
 	case *shared.DurabilityType_DurabilityLevel:

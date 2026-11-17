@@ -30,6 +30,7 @@ import "sdk.kv.lookup_in.proto";
 import "sdk.kv.mutate_in.proto";
 import "sdk.bucket.collection_manager.proto";
 import "sdk.scope.eventing_function_manager.proto";
+import "sdk.cluster.user_manager.proto";
 
 message ClusterLevelCommand {
   oneof command {
@@ -55,6 +56,9 @@ message ClusterLevelCommand {
 
     // cluster.authenticator()
     shared.Authenticator authenticator = 9;
+
+    // UserManager: cluster.users()
+    cluster.user_manager.Command user_manager = 10;
   }
 }
 
@@ -219,6 +223,9 @@ message Result {
 
     //Collection manager results
     bucket.collection_manager.Result collection_manager_result = 20;
+
+    //User manager results
+    cluster.user_manager.Result user_manager_result = 22;
   }
 }
 

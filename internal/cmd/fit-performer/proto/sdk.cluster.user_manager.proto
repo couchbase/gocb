@@ -1,0 +1,237 @@
+syntax = "proto3";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+package protocol.sdk.cluster.user_manager;
+option csharp_namespace = "Couchbase.Grpc.Protocol.Sdk.Cluster.UserManager";
+option java_package = "com.couchbase.client.protocol.sdk.cluster.usermanager";
+option go_package = "github.com/couchbase/gocb/v2/internal/cmd/fit-performer/protocol/sdk/cluster/usermanager";
+option ruby_package = "FIT::Protocol::SDK::Cluster::UserManager";
+option java_multiple_files = true;
+
+// UserManager: cluster.users().  See the UserManager section of SDK-RFC 54.
+message Command {
+
+  oneof command {
+
+    GetUserRequest get_user = 1;
+
+    GetAllUsersRequest get_all_users = 2;
+
+    UpsertUserRequest upsert_user = 3;
+
+    DropUserRequest drop_user = 4;
+
+    GetRolesRequest get_roles = 5;
+
+    GetGroupRequest get_group = 6;
+
+    GetAllGroupsRequest get_all_groups = 7;
+
+    UpsertGroupRequest upsert_group = 8;
+
+    DropGroupRequest drop_group = 9;
+
+    ChangePasswordRequest change_password = 10;
+
+  }
+
+}
+
+//Returns Result.get_user_result
+message GetUserRequest {
+  string username = 1;
+  optional Options options = 2;
+
+  message Options {
+    optional google.protobuf.Duration timeout = 1;
+    optional string parent_span_id = 2;
+    optional AuthDomain domain_name = 3;
+  }
+}
+
+//Returns Result.get_all_users_result
+message GetAllUsersRequest {
+  optional Options options = 1;
+
+  message Options {
+    optional google.protobuf.Duration timeout = 1;
+    optional string parent_span_id = 2;
+    optional AuthDomain domain_name = 3;
+  }
+}
+
+//Returns void (Result.success)
+message UpsertUserRequest {
+  User user = 1;
+  optional Options options = 2;
+
+  message Options {
+    optional google.protobuf.Duration timeout = 1;
+    optional string parent_span_id = 2;
+    optional AuthDomain domain_name = 3;
+  }
+}
+
+//Returns void (Result.success)
+message DropUserRequest {
+  string username = 1;
+  optional Options options = 2;
+
+  message Options {
+    optional google.protobuf.Duration timeout = 1;
+    optional string parent_span_id = 2;
+    optional AuthDomain domain_name = 3;
+  }
+}
+
+//Returns Result.get_roles_result
+message GetRolesRequest {
+  optional Options options = 1;
+
+  message Options {
+    optional google.protobuf.Duration timeout = 1;
+    optional string parent_span_id = 2;
+  }
+}
+
+//Returns Result.get_group_result
+message GetGroupRequest {
+  string group_name = 1;
+  optional Options options = 2;
+
+  message Options {
+    optional google.protobuf.Duration timeout = 1;
+    optional string parent_span_id = 2;
+  }
+}
+
+//Returns Result.get_all_groups_result
+message GetAllGroupsRequest {
+  optional Options options = 1;
+
+  message Options {
+    optional google.protobuf.Duration timeout = 1;
+    optional string parent_span_id = 2;
+  }
+}
+
+//Returns void (Result.success)
+message UpsertGroupRequest {
+  Group group = 1;
+  optional Options options = 2;
+
+  message Options {
+    optional google.protobuf.Duration timeout = 1;
+    optional string parent_span_id = 2;
+  }
+}
+
+//Returns void (Result.success)
+message DropGroupRequest {
+  string group_name = 1;
+  optional Options options = 2;
+
+  message Options {
+    optional google.protobuf.Duration timeout = 1;
+    optional string parent_span_id = 2;
+  }
+}
+
+//Returns void (Result.success)
+message ChangePasswordRequest {
+  string new_password = 1;
+  optional Options options = 2;
+
+  message Options {
+    optional google.protobuf.Duration timeout = 1;
+    optional string parent_span_id = 2;
+  }
+}
+
+message Result {
+  oneof result {
+    GetUserResult get_user_result = 1;
+
+    GetAllUsersResult get_all_users_result = 2;
+
+    GetRolesResult get_roles_result = 3;
+
+    GetGroupResult get_group_result = 4;
+
+    GetAllGroupsResult get_all_groups_result = 5;
+  }
+}
+
+message GetUserResult {
+  UserAndMetadata user = 1;
+}
+
+message GetAllUsersResult {
+  repeated UserAndMetadata users = 1;
+}
+
+message GetRolesResult {
+  repeated RoleAndDescription roles = 1;
+}
+
+message GetGroupResult {
+  Group group = 1;
+}
+
+message GetAllGroupsResult {
+  repeated Group groups = 1;
+}
+
+enum AuthDomain {
+  LOCAL = 0;
+  EXTERNAL = 1;
+}
+
+message Role {
+  string name = 1;
+  optional string bucket = 2;
+  optional string scope = 3;
+  optional string collection = 4;
+}
+
+message RoleAndDescription {
+  Role role = 1;
+  string display_name = 2;
+  string description = 3;
+}
+
+message Origin {
+  string type = 1;
+  optional string name = 2;
+}
+
+message RoleAndOrigins {
+  Role role = 1;
+  repeated Origin origins = 2;
+}
+
+message User {
+  string username = 1;
+  string display_name = 2;
+  repeated string groups = 3;
+  repeated Role roles = 4;
+  // Write-only: set by the driver on UpsertUser, never returned by the performer.  If not present, the SDK must not
+  // send a password, so an existing user's password is left unchanged.
+  optional string password = 5;
+}
+
+message UserAndMetadata {
+  AuthDomain domain = 1;
+  User user = 2;
+  repeated RoleAndOrigins effective_roles = 3;
+  optional google.protobuf.Timestamp password_changed = 4;
+  repeated string external_groups = 5;
+}
+
+message Group {
+  string name = 1;
+  optional string description = 2;
+  repeated Role roles = 3;
+  optional string ldap_group_reference = 4;
+}

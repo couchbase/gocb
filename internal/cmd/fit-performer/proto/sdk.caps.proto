@@ -176,4 +176,24 @@ enum Caps {
 
   // The SDK has support for the CustomScoreQuery and CustomFilterQuery SearchQuery types
   SDK_SEARCH_CUSTOM_SCRIPT_QUERIES = 47;
+
+  // The performer supports the UserManager API (SDK-RFC 54).
+  // This is everything under sdk.cluster.user_manager
+  SDK_USER_MANAGER = 48;
+
+  // The SDK supports the external authentication domain in the UserManager (SDK-RFC 54): a domain can be given to
+  // getUser, getAllUsers, upsertUser and dropUser, so users in the external domain can be created, read and dropped.
+  //
+  // Without this cap:
+  // The driver can send an unset AuthDomain or AuthDomain.LOCAL.
+  // These can both be treated by the performer as LOCAL (Which is presumed to be the only option)
+  //
+  // With this cap:
+  // The driver can send AuthDomain.LOCAL or AuthDomain.EXTERNAL which need to be passed to the SDK.
+  // An unset AuthDomain should not be defaulted by the performer so the SDK's default behaviour is tested
+  SDK_USER_MANAGER_EXTERNAL_DOMAIN = 49;
+
+  // UserManager.getAllUsers() with no domain returns the users in every domain, local and external.  SDK-RFC 54
+  // specifies that it defaults to the local domain, so only declare this if the SDK deviates from the RFC.
+  SDK_USER_MANAGER_GET_ALL_USERS_RETURNS_ALL_DOMAINS = 50;
 }
