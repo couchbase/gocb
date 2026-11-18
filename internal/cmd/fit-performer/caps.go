@@ -11,6 +11,7 @@ func PerformerCaps() []protoPerformer.Caps {
 		protoPerformer.Caps_KV_SUPPORT_1,
 		protoPerformer.Caps_CLUSTER_CONFIG_1,
 		protoPerformer.Caps_CLUSTER_CONFIG_CERT,
+		protoPerformer.Caps_CLUSTER_CONFIG_INSECURE,
 		protoPerformer.Caps_OBSERVABILITY_1,
 		protoPerformer.Caps_CONTENT_AS_PERFORMER_VALIDATION,
 		protoPerformer.Caps_TRANSACTIONS_SUPPORT_1,
