@@ -270,8 +270,9 @@ func (c *psConnectionMgr) getWaitUntilReadyProvider(bucketName string) (waitUnti
 	}
 
 	return &waitUntilReadyProviderPs{
-		defaultRetryStrategy: c.defaultRetry,
-		client:               c.agent,
+		client: c.agent.HealthV1(),
+
+		managerProvider: newPsOpManagerProvider(c.defaultRetry, c.tracer, 0, c.meter, ""),
 	}, nil
 }
 

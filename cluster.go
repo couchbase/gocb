@@ -249,6 +249,9 @@ type WaitUntilReadyOptions struct {
 // If no services are specified then ServiceTypeManagement, ServiceTypeQuery, ServiceTypeSearch, ServiceTypeAnalytics
 // will be pinged.
 // Valid service types are: ServiceTypeManagement, ServiceTypeQuery, ServiceTypeSearch, ServiceTypeAnalytics.
+//
+// When using the couchbase2 protocol this instead sends gRPC health checks until the server reports that it is serving.
+// DesiredState and ServiceTypes are ignored. Success does not indicate that the provided credentials are valid.
 func (c *Cluster) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOptions) error {
 	return autoOpControlErrorOnly(c.waitUntilReadyController(), "", func(provider waitUntilReadyProvider) error {
 		if opts == nil {

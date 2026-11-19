@@ -297,6 +297,9 @@ func (b *Bucket) Collections() *CollectionManager {
 // If no services are specified then will wait until KeyValue is ready.
 // Valid service types are: ServiceTypeKeyValue, ServiceTypeManagement, ServiceTypeQuery, ServiceTypeSearch,
 // ServiceTypeAnalytics, ServiceTypeViews.
+//
+// When using the couchbase2 protocol this instead sends gRPC health checks until the server reports that it is serving.
+// DesiredState and ServiceTypes are ignored. Success does not indicate that the provided credentials are valid.
 func (b *Bucket) WaitUntilReady(timeout time.Duration, opts *WaitUntilReadyOptions) error {
 	return autoOpControlErrorOnly(b.waitUntilReadyController(), "", func(provider waitUntilReadyProvider) error {
 		if opts == nil {

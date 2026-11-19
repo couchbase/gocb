@@ -113,8 +113,45 @@ func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyKeyValueService() {
 	err = c.WaitUntilReady(7*time.Second, &WaitUntilReadyOptions{
 		ServiceTypes: []ServiceType{ServiceTypeKeyValue},
 	})
+	if globalCluster.IsProtostellar() {
+		// couchbase2 ignores ServiceTypes, as the health check has no per-service granularity.
+		suite.Require().NoError(err)
+		return
+	}
 	if !errors.Is(err, ErrInvalidArgument) {
 		suite.T().Fatalf("Expected error to be invalid argument but was %v", err)
+	}
+}
+
+func (suite *IntegrationTestSuite) TestClusterWaitUntilReadyCouchbase2Unreachable() {
+	if !globalCluster.IsProtostellar() {
+		suite.T().Skip("Skipping test as it only applies to couchbase2")
+	}
+
+	testCases := []struct {
+		name    string
+		connStr string
+	}{
+		{name: "InvalidHostname", connStr: "couchbase2://nonexistent.invalid"},
+		{name: "NothingListening", connStr: "couchbase2://127.0.0.1:1"},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			c, err := Connect(tc.connStr, ClusterOptions{
+				Authenticator:  globalConfig.Auth,
+				SecurityConfig: globalConfig.SecurityConfig,
+			})
+			suite.Require().NoError(err)
+			defer c.Close(nil)
+
+			err = c.WaitUntilReady(2*time.Second, nil)
+			suite.Require().ErrorIs(err, ErrUnambiguousTimeout)
+
+			var tErr *TimeoutError
+			suite.Require().ErrorAs(err, &tErr)
+			suite.Assert().Contains(tErr.RetryReasons, ServiceNotAvailableRetryReason)
+		})
 	}
 }
 
