@@ -3,7 +3,7 @@ module github.com/couchbase/gocb/v2/internal/cmd/fit-performer
 go 1.26.0
 
 require (
-	github.com/couchbase/gocb-opentelemetry v0.3.1-0.20260216135946-0c6fdc596351
+	github.com/couchbase/gocb-opentelemetry v0.3.1-0.20261117150902-def2db8fbbd5
 	github.com/couchbase/gocb/v2 v2.13.1-0.20261019170957-e7d961d20846
 	github.com/google/uuid v1.6.0
 	github.com/shirou/gopsutil/v4 v4.26.10
@@ -21,7 +21,7 @@ require (
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/couchbase/gocbcore/v10 v10.10.1-0.20261029165448-aa77bbdce25e // indirect
-	github.com/couchbase/gocbcoreps v0.1.5-0.20261005161736-7de374b343fa // indirect
+	github.com/couchbase/gocbcoreps v0.1.5-0.20261119104441-e0b65496642f // indirect
 	github.com/couchbase/goprotostellar v1.0.6-0.20261005130525-13bdd85cd6ce // indirect
 	github.com/couchbaselabs/gocbconnstr/v2 v2.0.0 // indirect
 	github.com/ebitengine/purego v0.11.2 // indirect
