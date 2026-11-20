@@ -715,27 +715,21 @@ func (p *Performer) protoToGocbConnectOpts(ctx context.Context, hostname string,
 		Authenticator: auth,
 	}
 
-	if cfg.CertPath == nil {
-		if cfg.Cert == nil {
-			// Setting TLSSkipVerify won't enable TLS so this is OK to do even if TLS isn't in use.
-			opts.SecurityConfig.TLSSkipVerify = true
+	if cfg.GetInsecure() {
+		opts.SecurityConfig.TLSSkipVerify = true
+	} else if cfg.Cert != nil || cfg.CertPath != nil {
+		var pem []byte
+		if cfg.Cert != nil {
+			pem = []byte(cfg.GetCert())
 		} else {
-			roots := x509.NewCertPool()
-			ok := roots.AppendCertsFromPEM([]byte(cfg.GetCert()))
-			if !ok {
-				return "", gocb.ClusterOptions{}, errors.New("not a valid PEM")
+			var err error
+			pem, err = os.ReadFile(cfg.GetCertPath())
+			if err != nil {
+				return "", gocb.ClusterOptions{}, err
 			}
-			opts.SecurityConfig.TLSRootCAs = roots
 		}
-	} else {
 		roots := x509.NewCertPool()
-		cacert, err := os.ReadFile(*cfg.CertPath)
-		if err != nil {
-			return "", gocb.ClusterOptions{}, err
-		}
-
-		ok := roots.AppendCertsFromPEM(cacert)
-		if !ok {
+		if !roots.AppendCertsFromPEM(pem) {
 			return "", gocb.ClusterOptions{}, errors.New("not a valid PEM")
 		}
 		opts.SecurityConfig.TLSRootCAs = roots
