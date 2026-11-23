@@ -814,37 +814,13 @@ func (e *Executor) handleClusterLevelCommand(command *sdk.ClusterLevelCommand, s
 			Initiated: timestamppb.Now(),
 		}
 
-		var opts *gocb.WaitUntilReadyOptions
-		if op.WaitUntilReady.Options != nil {
-			opts = &gocb.WaitUntilReadyOptions{}
-			opOpts := op.WaitUntilReady.Options
-			var serviceTypes []gocb.ServiceType
-			for _, serviceType := range opOpts.ServiceTypes {
-				st, err := protoServiceTypeToGocb(serviceType)
-				if err != nil {
-					return false, err
-				}
-
-				serviceTypes = append(serviceTypes, st)
-			}
-			opts.ServiceTypes = serviceTypes
-
-			if opOpts.DesiredState != nil {
-				switch *opOpts.DesiredState {
-				case waituntilready.ClusterState_DEGRADED:
-					opts.DesiredState = gocb.ClusterStateDegraded
-				case waituntilready.ClusterState_OFFLINE:
-					opts.DesiredState = gocb.ClusterStateOffline
-				case waituntilready.ClusterState_ONLINE:
-					opts.DesiredState = gocb.ClusterStateOnline
-				default:
-					return false, status.Error(codes.Unimplemented, "unknown cluster state type")
-				}
-			}
+		opts, err := protoWaitUntilReadyOptionsToGocb(op.WaitUntilReady.Options)
+		if err != nil {
+			return false, err
 		}
 
 		start := time.Now()
-		err := e.conn.Cluster().WaitUntilReady(time.Duration(op.WaitUntilReady.TimeoutMillis)*time.Millisecond, opts)
+		err = e.conn.Cluster().WaitUntilReady(time.Duration(op.WaitUntilReady.TimeoutMillis)*time.Millisecond, opts)
 		if err != nil {
 			e.sendSDKError(err, sender, start)
 			return false, nil
@@ -1532,6 +1508,37 @@ func (e *Executor) handleClusterSearchIndexManager(clusterOp *sdk.ClusterLevelCo
 	default:
 		return false, status.Error(codes.Unimplemented, "unknown command type")
 	}
+}
+
+func protoWaitUntilReadyOptionsToGocb(protoOpts *waituntilready.WaitUntilReadyOptions) (*gocb.WaitUntilReadyOptions, error) {
+	if protoOpts == nil {
+		return nil, nil
+	}
+
+	opts := &gocb.WaitUntilReadyOptions{}
+	for _, serviceType := range protoOpts.ServiceTypes {
+		st, err := protoServiceTypeToGocb(serviceType)
+		if err != nil {
+			return nil, err
+		}
+
+		opts.ServiceTypes = append(opts.ServiceTypes, st)
+	}
+
+	if protoOpts.DesiredState != nil {
+		switch *protoOpts.DesiredState {
+		case waituntilready.ClusterState_DEGRADED:
+			opts.DesiredState = gocb.ClusterStateDegraded
+		case waituntilready.ClusterState_OFFLINE:
+			opts.DesiredState = gocb.ClusterStateOffline
+		case waituntilready.ClusterState_ONLINE:
+			opts.DesiredState = gocb.ClusterStateOnline
+		default:
+			return nil, status.Error(codes.Unimplemented, "unknown cluster state type")
+		}
+	}
+
+	return opts, nil
 }
 
 func protoServiceTypeToGocb(serviceType waituntilready.ServiceType) (gocb.ServiceType, error) {

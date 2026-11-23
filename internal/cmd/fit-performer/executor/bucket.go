@@ -12,7 +12,6 @@ import (
 	"github.com/couchbase/gocb/v2/internal/cmd/fit-performer/protocol/run"
 	"github.com/couchbase/gocb/v2/internal/cmd/fit-performer/protocol/sdk"
 	"github.com/couchbase/gocb/v2/internal/cmd/fit-performer/protocol/sdk/bucket/collectionmanager"
-	"github.com/couchbase/gocb/v2/internal/cmd/fit-performer/protocol/sdk/cluster/waituntilready"
 
 	"github.com/couchbase/gocb/v2/internal/cmd/fit-performer/sender"
 )
@@ -331,38 +330,18 @@ func (e *Executor) handleBucketLevelCommand(command *sdk.BucketLevelCommand, sen
 			Initiated: timestamppb.Now(),
 		}
 
-		var opts *gocb.WaitUntilReadyOptions
-		if op.WaitUntilReady.Options != nil {
-			opOpts := op.WaitUntilReady.Options
-			var serviceTypes []gocb.ServiceType
-			for _, serviceType := range opOpts.ServiceTypes {
-				st, err := protoServiceTypeToGocb(serviceType)
-				if err != nil {
-					return false, err
-				}
-
-				serviceTypes = append(serviceTypes, st)
-			}
-			opts.ServiceTypes = serviceTypes
-
-			if opOpts.DesiredState != nil {
-				switch *opOpts.DesiredState {
-				case waituntilready.ClusterState_DEGRADED:
-					opts.DesiredState = gocb.ClusterStateDegraded
-				case waituntilready.ClusterState_OFFLINE:
-					opts.DesiredState = gocb.ClusterStateOffline
-				case waituntilready.ClusterState_ONLINE:
-					opts.DesiredState = gocb.ClusterStateOnline
-				default:
-					return false, status.Error(codes.Unimplemented, "unknown desired state")
-				}
-			}
+		opts, err := protoWaitUntilReadyOptionsToGocb(op.WaitUntilReady.Options)
+		if err != nil {
+			return false, err
 		}
 
 		start := time.Now()
-		err := e.conn.Cluster().WaitUntilReady(time.Duration(op.WaitUntilReady.TimeoutMillis)*time.Millisecond, opts)
+		err = e.conn.Cluster().
+			Bucket(command.GetBucketName()).
+			WaitUntilReady(time.Duration(op.WaitUntilReady.TimeoutMillis)*time.Millisecond, opts)
 		if err != nil {
-			return false, err
+			e.sendSDKError(err, sender, start)
+			return false, nil
 		}
 
 		result.ElapsedNanos = time.Since(start).Nanoseconds()
