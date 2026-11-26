@@ -1,8 +1,13 @@
 package gocb
 
 import (
-	gocbcore "github.com/couchbase/gocbcore/v10"
+	"fmt"
+	"io"
 	"log"
+	"os"
+	"sync"
+
+	"github.com/couchbase/gocbcore/v10"
 )
 
 // LogLevel specifies the severity of a log message.
@@ -118,6 +123,29 @@ func SetLogger(logger Logger) {
 	globalLogger = logger
 	gocbcore.SetLogger(getCoreLogger(logger))
 	// gocbcore.SetLogRedactionLevel(gocbcore.LogRedactLevel(globalLogRedactionLevel))
+}
+
+const loggingDisabledWarning = "gocb: SDK logging is not enabled. Couchbase Support can diagnose issues more easily " +
+	"with SDK logs. Enable logging by calling gocb.SetLogger before gocb.Connect, e.g. " +
+	"gocb.SetLogger(gocb.DefaultStdioLogger()). See " +
+	"https://docs.couchbase.com/go-sdk/current/howtos/collecting-information-and-logging.html"
+
+var (
+	loggingDisabledWarningOnce   sync.Once
+	loggingDisabledWarningOutput io.Writer = os.Stderr
+)
+
+// warnIfLoggingDisabled writes a one-time warning to stderr if no logger has been set.
+func warnIfLoggingDisabled() {
+	if globalLogger != nil {
+		return
+	}
+
+	loggingDisabledWarningOnce.Do(func() {
+		if _, err := fmt.Fprintln(loggingDisabledWarningOutput, loggingDisabledWarning); err != nil {
+			log.Printf("Failed to write logging disabled warning (%s)\n", err)
+		}
+	})
 }
 
 func logExf(level LogLevel, offset int, format string, v ...interface{}) {

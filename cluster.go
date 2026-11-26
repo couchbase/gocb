@@ -184,6 +184,8 @@ type ClusterCloseOptions struct {
 // Connect creates and returns a Cluster instance created using the
 // provided options and a connection string.
 func Connect(connStr string, opts ClusterOptions) (*Cluster, error) {
+	warnIfLoggingDisabled()
+
 	connSpec, err := gocbconnstr.Parse(connStr)
 	if err != nil {
 		return nil, err
