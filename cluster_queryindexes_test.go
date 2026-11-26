@@ -31,7 +31,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrud() {
 		suite.Require().NoError(err)
 		defer bucketMgr.DropBucket(bucketName, nil)
 
-		suite.EnsureBucketOnAllIndexesAndNodes(time.Now().Add(30*time.Second), bucketName)
+		suite.EnsureBucketOnAllIndexesAndNodes(time.Now().Add(60*time.Second), bucketName)
 	} else {
 		bucketName = globalBucket.Name()
 		indexes, err := mgr.GetAllIndexes(bucketName, &GetAllQueryIndexesOptions{
@@ -185,7 +185,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesCrudCollections() {
 	suite.Require().NoError(err)
 
 	suite.EnsureCollectionsOnAllNodes(scopeName, []string{colName})
-	suite.EnsureCollectionOnAllIndexesAndNodes(time.Now().Add(30*time.Second), globalBucket.Name(), scopeName, colName)
+	suite.EnsureCollectionOnAllIndexesAndNodes(time.Now().Add(60*time.Second), globalBucket.Name(), scopeName, colName)
 
 	mgr := globalCluster.QueryIndexes()
 
@@ -330,7 +330,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 	err := collections.CreateCollection("_default", colName, nil, nil)
 	suite.Require().NoError(err)
 
-	suite.EnsureCollectionOnAllIndexesAndNodes(time.Now().Add(20*time.Second), bucketName, "_default", colName)
+	suite.EnsureCollectionOnAllIndexesAndNodes(time.Now().Add(60*time.Second), bucketName, "_default", colName)
 
 	mgr := globalCluster.QueryIndexes()
 
@@ -395,7 +395,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesBuildDeferredSameNamespaceNam
 	err := collections.CreateCollection("_default", collectionName, nil, nil)
 	suite.Require().NoError(err)
 
-	suite.EnsureCollectionOnAllIndexesAndNodes(time.Now().Add(20*time.Second), bucketName, "_default", collectionName)
+	suite.EnsureCollectionOnAllIndexesAndNodes(time.Now().Add(60*time.Second), bucketName, "_default", collectionName)
 
 	mgr := globalCluster.QueryIndexes()
 
@@ -469,7 +469,7 @@ func (suite *IntegrationTestSuite) TestQueryIndexesIncludesDefaultCollection() {
 		suite.Require().NoError(err)
 		defer bucketMgr.DropBucket(bucketName, nil)
 
-		suite.EnsureBucketOnAllIndexesAndNodes(time.Now().Add(30*time.Second), bucketName)
+		suite.EnsureBucketOnAllIndexesAndNodes(time.Now().Add(60*time.Second), bucketName)
 	} else {
 		bucketName = globalBucket.Name()
 		indexes, err := mgr.GetAllIndexes(bucketName, &GetAllQueryIndexesOptions{

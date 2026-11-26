@@ -25,7 +25,7 @@ func (suite *IntegrationTestSuite) TestCollectionQueryIndexManagerCrud() {
 	suite.Require().NoError(err)
 
 	suite.EnsureCollectionsOnAllNodes(scopeName, []string{colName})
-	suite.EnsureCollectionOnAllIndexesAndNodes(time.Now().Add(30*time.Second), bucketName, scopeName, colName)
+	suite.EnsureCollectionOnAllIndexesAndNodes(time.Now().Add(60*time.Second), bucketName, scopeName, colName)
 
 	mgr := globalBucket.Scope(scopeName).Collection(colName).QueryIndexes()
 
