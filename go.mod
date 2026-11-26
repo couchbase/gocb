@@ -1,7 +1,7 @@
 module github.com/couchbase/gocb/v2
 
 require (
-	github.com/couchbase/gocbcore/v10 v10.10.1-0.20261029165448-aa77bbdce25e
+	github.com/couchbase/gocbcore/v10 v10.10.1-0.20261125173305-f52ad669fd34
 	github.com/couchbase/gocbcoreps v0.1.5-0.20261119104441-e0b65496642f
 	github.com/couchbase/goprotostellar v1.0.6-0.20261005130525-13bdd85cd6ce
 	github.com/couchbaselabs/gocaves/client v0.0.0-20261024120545-765696be9af9
@@ -12,7 +12,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.47.0
 	go.opentelemetry.io/otel/trace v1.47.0
 	go.uber.org/zap v1.28.0
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20261026165753-2ffab32bce7e
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20261123191846-1e707ab9fbc2
 	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12
 )
