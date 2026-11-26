@@ -66,7 +66,7 @@ jobs:
           if [[ "${{ matrix.runner }}" != "windows-11-arm" ]]; then
             RACE="-race"
           fi
-          gotestsum --format standard-verbose --junitfile TEST-report.xml -- -v $RACE ./
+          gotestsum --format standard-verbose --junitfile TEST-report.xml -- -v -timeout 20m $RACE ./
 
       - name: Publish test results
         shell: bash
@@ -122,12 +122,27 @@ jobs:
         shell: bash
         run: |
           go install gotest.tools/gotestsum@v1.13.0
-          gotestsum --format standard-verbose --junitfile TEST-report.xml -- -v -race ./
+          gotestsum --format standard-verbose --junitfile TEST-report.xml -- -v -race -timeout 20m ./
         env:
           GOCBSERVER: ${{ steps.create-cluster.outputs.connstr }}
           GOCBUSER: Administrator
           GOCBPASS: password
           GOCBVER: ${{ steps.resolve-server.outputs.version }}
+
+      - name: Collect cluster logs
+        if: ${{ failure() && steps.run-tests.outcome == 'failure' }}
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/cbcollect"
+          cbdinocluster -v collect-logs "${{ steps.create-cluster.outputs.id }}" "$RUNNER_TEMP/cbcollect"
+
+      - name: Upload cluster logs
+        if: ${{ failure() && steps.run-tests.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: cbcollect-${{ matrix.server }}
+          path: ${{ runner.temp }}/cbcollect
+          retention-days: 7
 
       - name: Publish test results
         shell: bash
