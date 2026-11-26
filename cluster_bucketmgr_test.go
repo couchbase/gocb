@@ -577,7 +577,7 @@ func (suite *IntegrationTestSuite) TestBucketMgrHistoryRetention() {
 	suite.Require().NoError(err)
 
 	suite.EnsureBucketOnAllNodes(time.Now().Add(30*time.Second), bName, func(bucket *BucketSettings) bool {
-		return bucket.HistoryRetentionCollectionDefault != HistoryRetentionCollectionDefaultUnset
+		return bucket.HistoryRetentionCollectionDefault == HistoryRetentionCollectionDefaultDisabled
 	})
 
 	b, err = mgr.GetBucket(bName, nil)
