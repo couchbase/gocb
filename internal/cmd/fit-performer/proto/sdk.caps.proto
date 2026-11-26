@@ -196,4 +196,21 @@ enum Caps {
   // UserManager.getAllUsers() with no domain returns the users in every domain, local and external.  SDK-RFC 54
   // specifies that it defaults to the local domain, so only declare this if the SDK deviates from the RFC.
   SDK_USER_MANAGER_GET_ALL_USERS_RETURNS_ALL_DOMAINS = 50;
+
+  // The SDK's UserManager does not raise the errors SDK-RFC 54 and SDK-RFC 58 require when the server rejects a
+  // request, e.g. it doesn't raise InvalidArgumentException for an HTTP 400 even if SDK_HTTP_400_INVALID_ARGUMENT is
+  // declared.  Only declare this if the SDK deviates from the RFCs.
+  //
+  // The driver has SDK-specific expectations for each SDK that declares this, so a new SDK declaring it also needs
+  // its expected errors adding to the driver.
+  SDK_USER_MANAGER_NON_STANDARD_ERROR_HANDLING = 51;
+
+  // The SDK reports a role's scope or collection of "*" (which the server returns for roles that apply to all scopes
+  // or collections) as "*", rather than resetting it to not present as SDK-RFC 54 requires.  Only declare this if the
+  // SDK deviates from the RFC.
+  SDK_USER_MANAGER_ROLE_WILDCARDS_NOT_RESET = 52;
+
+  // The SDK does not perform any client-side validation of the number of specs in a LookupIn or MutateIn operation.
+  // It therefore supports having more than 16 specs, depending on the server's subdoc_multi_max_paths setting.
+  SDK_SUBDOC_INCREASED_MAX_PATHS = 55;
 }
