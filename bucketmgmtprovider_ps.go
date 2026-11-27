@@ -295,9 +295,9 @@ func (bm *bucketManagementProviderPs) settingsToCreateReq(settings CreateBucketS
 		request.FlushEnabled = &settings.FlushEnabled
 	}
 
-	if settings.ReplicaIndexDisabled {
-		replicasEnabled := false
-		request.ReplicaIndexes = &replicasEnabled
+	// replicaIndex can't be set at all on ephemeral buckets.
+	if settings.BucketType != EphemeralBucketType {
+		request.ReplicaIndexes = new(!settings.ReplicaIndexDisabled)
 	}
 
 	request.BucketType, err = bm.bucketTypeToPS(settings.BucketType)
@@ -313,12 +313,10 @@ func (bm *bucketManagementProviderPs) settingsToCreateReq(settings CreateBucketS
 	}
 
 	if settings.MaxTTL > 0 {
-		expiry := uint32(settings.MaxTTL.Seconds())
-		request.MaxExpirySecs = &expiry
+		request.MaxExpirySecs = new(uint32(settings.MaxTTL.Seconds()))
 	}
 	if settings.MaxExpiry > 0 {
-		expiry := uint32(settings.MaxExpiry.Seconds())
-		request.MaxExpirySecs = &expiry
+		request.MaxExpirySecs = new(uint32(settings.MaxExpiry.Seconds()))
 	}
 
 	if settings.CompressionMode != "" {
@@ -371,12 +369,10 @@ func (bm *bucketManagementProviderPs) settingsToCreateReq(settings CreateBucketS
 	}
 
 	if settings.HistoryRetentionDuration > 0 {
-		duration := uint32(settings.HistoryRetentionDuration / time.Second)
-		request.HistoryRetentionDurationSecs = &duration
+		request.HistoryRetentionDurationSecs = new(uint32(settings.HistoryRetentionDuration / time.Second))
 	}
 	if settings.HistoryRetentionBytes > 0 {
-		bytes := settings.HistoryRetentionBytes
-		request.HistoryRetentionBytes = &bytes
+		request.HistoryRetentionBytes = new(settings.HistoryRetentionBytes)
 	}
 
 	return request, nil
@@ -406,12 +402,10 @@ func (bm *bucketManagementProviderPs) settingsToUpdateReq(settings BucketSetting
 	}
 
 	if settings.MaxTTL > 0 {
-		expiry := uint32(settings.MaxTTL.Seconds())
-		request.MaxExpirySecs = &expiry
+		request.MaxExpirySecs = new(uint32(settings.MaxTTL.Seconds()))
 	}
 	if settings.MaxExpiry > 0 {
-		expiry := uint32(settings.MaxExpiry.Seconds())
-		request.MaxExpirySecs = &expiry
+		request.MaxExpirySecs = new(uint32(settings.MaxExpiry.Seconds()))
 	}
 
 	if settings.CompressionMode != "" {
@@ -442,13 +436,11 @@ func (bm *bucketManagementProviderPs) settingsToUpdateReq(settings BucketSetting
 	}
 
 	if settings.HistoryRetentionDuration > 0 {
-		duration := uint32(settings.HistoryRetentionDuration / time.Second)
-		request.HistoryRetentionDurationSecs = &duration
+		request.HistoryRetentionDurationSecs = new(uint32(settings.HistoryRetentionDuration / time.Second))
 	}
 
 	if settings.HistoryRetentionBytes > 0 {
-		bytes := settings.HistoryRetentionBytes
-		request.HistoryRetentionBytes = &bytes
+		request.HistoryRetentionBytes = new(settings.HistoryRetentionBytes)
 	}
 
 	return request, nil
